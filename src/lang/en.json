@@ -1,0 +1,29 @@
+{
+  "pages": {
+    "login": {
+      "welcome": "Welcome back",
+      "fields": {
+        "email": {
+          "label": "Email",
+          "placeholder": "name@ejemplo.com"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": ""
+        },
+        "remember": {
+          "label": "Remember me"
+        },
+        "forgot": {
+          "label": "Forgot your password?"
+        }
+      },
+      "buttons": {
+        "submit": "Sign in to your account"
+      }
+    }
+  },
+  "footer": {
+    "text": " MicroboxLabs. All rights reserved."
+  }
+}

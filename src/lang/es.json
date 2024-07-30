@@ -1,0 +1,29 @@
+{
+  "pages": {
+    "login": {
+      "welcome": "Bienvenido de nuevo",
+      "fields": {
+        "email": {
+          "label": "Correo electrónico",
+          "placeholder": "nombre@ejemplo.com"
+        },
+        "password": {
+          "label": "Contraseña",
+          "placeholder": ""
+        },
+        "remember": {
+          "label": "Recordarme"
+        },
+        "forgot": {
+          "label": "¿Has olvidado tu contraseña?"
+        }
+      },
+      "buttons": {
+        "submit": "Ingresar a tu cuenta"
+      }
+    }
+  },
+  "footer": {
+    "rights": " MicroboxLabs. Todos los derechos reservados."
+  }
+}

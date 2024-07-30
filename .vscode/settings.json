@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always"
+  },
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+}

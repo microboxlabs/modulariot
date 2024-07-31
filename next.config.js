@@ -3,6 +3,7 @@ const { NormalModuleReplacementPlugin } = require("webpack");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  basePath: '/app',
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback.fs = false;

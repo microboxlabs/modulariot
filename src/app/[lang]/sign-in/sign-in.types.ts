@@ -3,7 +3,3 @@ export type SignInPageProps = {
     lang: string;
   };
 };
-
-export type FooterSignInProps = {
-  messages: (path: string, params?: Record<string, string>) => string;
-};

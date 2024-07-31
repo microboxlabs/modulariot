@@ -1,5 +1,5 @@
 import { Footer, FooterCopyright } from "flowbite-react";
-import type { FooterSignInProps } from "./sign-in.types";
+import { FooterSignInProps } from "./footer-sign-in.types";
 
 export default function FooterSignIn({ messages }: FooterSignInProps) {
   return (

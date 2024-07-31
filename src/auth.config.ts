@@ -3,6 +3,7 @@ import  { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { signInWithCredentials } from '@/features/auth/services/auth.service';
 import type { SignInCredentials } from '@/features/auth/services/auth.service.types';
+import credentials from 'next-auth/providers/credentials';
 
 export const authConfig = {
   pages: {
@@ -32,7 +33,9 @@ export const authConfig = {
         username: { label: 'Username', type: 'text', placeholder: 'jsmith' },
         password: { label: 'Password', type: 'password' },
       },
-      authorize: signInWithCredentials,
+      authorize: async (credentials) => {
+        return signInWithCredentials(credentials as SignInCredentials);
+      }
     }),
   ],
 } satisfies NextAuthConfig;

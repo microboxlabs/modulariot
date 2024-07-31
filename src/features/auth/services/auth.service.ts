@@ -1,6 +1,7 @@
 "use server";
 
-import { AuthError, User } from "next-auth";
+import { AuthError } from "next-auth";
+import type { User } from "next-auth";
 import { SignInCredentials } from "./auth.service.types";
 import { signIn } from "@/auth";
 import {

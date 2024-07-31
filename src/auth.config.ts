@@ -7,7 +7,7 @@ import credentials from 'next-auth/providers/credentials';
 
 export const authConfig = {
   pages: {
-    signIn: '/sign-in',
+    signIn: '/app/sign-in',
   },
   callbacks: {
     authorized({ auth, request }) {
@@ -18,7 +18,7 @@ export const authConfig = {
 
       const isLoggedIn = !!auth?.user;
       if(!isLoggedIn) {
-        return Response.redirect(new URL('/sign-in', nextUrl));
+        return Response.redirect(new URL('/app/sign-in', nextUrl));
       }
 
       return true;

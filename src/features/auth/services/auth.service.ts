@@ -48,7 +48,8 @@ export async function authenticateAction(
     await signIn("credentials", {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
-      redirectTo: "/",
+      redirectTo: "/app",
+      callbackUrl: "/app/api/auth/callback/credentials",
     });
     return "success";
   } catch (error) {

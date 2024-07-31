@@ -4,12 +4,15 @@ import { authenticateAction } from "@/features/auth/services/auth.service";
 import { useFormStatus, useFormState } from "react-dom";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";
-
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  const [_state, formAction] = useFormState(authenticateAction, undefined);
+  const [_state, formAction] = useFormState(authenticateAction, "");
   const { pending } = useFormStatus();
+  useEffect(() => {
+    console.log(_state);
+  }, [_state]);
 
   return (
     <form className="mt-8 space-y-6" action={formAction}>

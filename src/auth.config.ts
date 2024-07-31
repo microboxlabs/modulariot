@@ -19,9 +19,9 @@ export const authConfig = {
       if(!isLoggedIn) {
         return Response.redirect(new URL('/sign-in', nextUrl));
       }
-      
+
       return true;
-    },
+    }
   },
     
   providers: [

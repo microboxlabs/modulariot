@@ -7,7 +7,6 @@ import {
   alfrescoApi,
   peopleApi,
 } from "@/features/common/providers/alfresco-api.provider";
-import { redirect } from "next/navigation";
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,
 ): Promise<User | null> {
@@ -45,8 +44,12 @@ export async function authenticateAction(
 ) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await signIn("credentials", formData);
-    redirect("/es");
+    await signIn("credentials", {
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      redirectTo: "/",
+    });
+    return "success";
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

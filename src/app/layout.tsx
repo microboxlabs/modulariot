@@ -22,7 +22,7 @@ export default function RootLayout({
       <body
         className={twMerge(
           inter.className,
-          "dark:bg-gray-900 h-full flex flex-col",
+          "bg-gray-50 dark:bg-gray-900 h-full flex flex-col",
         )}
       >
         <SessionProvider basePath="/app/api/auth">{children}</SessionProvider>

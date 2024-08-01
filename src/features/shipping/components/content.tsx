@@ -31,7 +31,7 @@ export default function KanbanPageContent({
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
 
   return (
-    <div className="overflow-x-auto h-full bg-gray-50 dark:bg-gray-900">
+    <div className="overflow-x-auto h-full">
       <div className="inline-block min-w-full align-middle h-full">
         <div className="mb-6 flex items-start justify-start space-x-4 px-4">
           {list.map((board) => (

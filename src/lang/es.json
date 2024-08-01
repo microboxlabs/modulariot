@@ -25,7 +25,17 @@
   },
   "layout": {
     "secured": {
-      "signout": "Cerrar sesión"
+      "signout": "Cerrar sesión",
+      "sidebar": {
+        "home": "Home",
+        "my_tasks": "Mis tareas",
+        "werehouse": "Bodega",
+        "logistics": "Logística",
+        "shipping": "Despachos",
+        "finished": "Finalizados",
+        "others": "Otros",
+        "reports": "Reportes"
+      }
     }
   },
   "footer": {

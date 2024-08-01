@@ -25,7 +25,17 @@
   },
   "layout": {
     "secured": {
-      "signout": "Sign out"
+      "signout": "Sign out",
+      "sidebar": {
+        "home": "Home",
+        "my_tasks": "My tasks",
+        "werehouse": "Werehouse",
+        "logistics": "Logistics",
+        "shipping": "Shipping",
+        "finished": "Finished",
+        "others": "Others",
+        "reports": "Reports"
+      }
     }
   },
   "footer": {

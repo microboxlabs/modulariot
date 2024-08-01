@@ -1,5 +1,5 @@
 export type I18nRecord = {
-  [key: string]: object | string;
+  [key: string]: I18nRecord | string;
 };
 
 export type I18nDictionries = Record<string, () => Promise<I18nRecord>>;
@@ -17,3 +17,7 @@ export type ParamsWithLang<P = unknown> = {
     lang: string;
   } & P;
 };
+
+export type PropsWithI18nDict<P = unknown> = {
+  dict: I18nRecord;
+} & P;

@@ -6,13 +6,22 @@ import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  const [_state, formAction] = useFormState(authenticateAction, "");
+  const router = useRouter();
+  const [state, formAction] = useFormState(authenticateAction, {});
   const { pending } = useFormStatus();
+
   useEffect(() => {
-    console.log(_state);
-  }, [_state]);
+    if (state.success) {
+      router.replace("/");
+    }
+  }, [state]);
+
+  useEffect(() => {
+    console.log("pending", pending);
+  }, [pending]);
 
   return (
     <form className="mt-8 space-y-6" action={formAction}>

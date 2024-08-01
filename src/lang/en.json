@@ -23,6 +23,11 @@
       }
     }
   },
+  "layout": {
+    "secured": {
+      "signout": "Sign out"
+    }
+  },
   "footer": {
     "text": " MicroboxLabs. All rights reserved."
   }

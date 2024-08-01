@@ -1,5 +1,5 @@
 import { MessagesType } from "@/features/i18n/i18n.service.types";
-import { FormSignInMessages } from "../components/form-sign-in/form-sign-in.types";
+import type { FormSignInMessages } from "../components/form-sign-in/form-sign-in.types";
 
 export function buildSignInFormMessages({
   messages: dict,

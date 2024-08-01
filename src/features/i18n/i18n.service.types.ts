@@ -11,3 +11,9 @@ export type MessagesType = {
 export type MessageTypeClientSide = {
   messages: Record<string, string>;
 };
+
+export type ParamsWithLang<P = unknown> = {
+  params: {
+    lang: string;
+  } & P;
+};

@@ -7,30 +7,27 @@ import {
   AuthenticateActionState,
 } from "./auth.service.types";
 import { signIn } from "@/auth";
-import {
-  alfrescoApi,
-  peopleApi,
-} from "@/features/common/providers/alfresco-api.provider";
+import { alfrescoApi } from "@/features/common/providers/alfresco-api.provider";
+import { PeopleApi } from "@alfresco/js-api";
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,
 ): Promise<User | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    // const result: string =
-    await alfrescoApi.login(credentials.email, credentials.password);
+    const ticket: string = await alfrescoApi.login(
+      credentials.email,
+      credentials.password,
+    );
 
+    const peopleApi = new PeopleApi(alfrescoApi.contentClient);
     const person = await peopleApi.getPerson("-me-");
 
     return {
       id: person.entry.id,
       name: person.entry.displayName,
       email: person.entry.email,
+      ticket,
     };
-
-    // id?: string
-    // name?: string | null
-    // email?: string | null
-    // image?: string | null
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(error);

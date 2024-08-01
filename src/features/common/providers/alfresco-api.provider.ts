@@ -1,4 +1,4 @@
-import { AlfrescoApi, WebscriptApi, PeopleApi } from "@alfresco/js-api";
+import { AlfrescoApi, PeopleApi } from "@alfresco/js-api";
 
 export const alfrescoApi = new AlfrescoApi({
   hostEcm: process.env.ECM_API_URL,
@@ -6,6 +6,21 @@ export const alfrescoApi = new AlfrescoApi({
   contextRoot: process.env.CONTEXT_ROOT,
 });
 
-export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+export async function getBase64UserAvatar(
+  ticket: string,
+  userId = "-me-",
+): Promise<string> {
+  alfrescoApi.setTicket(ticket, "");
+  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
+  const blob = await peopleApi.getAvatarImage(userId, {
+    placeholder: true,
+    attachment: true,
+  });
 
-export const peopleApi = new PeopleApi(alfrescoApi.contentClient);
+  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  return "data:image/png;base64," + buffer.toString("base64");
+}
+
+// export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+
+// export const peopleApi = new PeopleApi(alfrescoApi.contentClient);

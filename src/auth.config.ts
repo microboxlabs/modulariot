@@ -22,6 +22,19 @@ export const authConfig = {
       }
 
       return true;
+    },
+    jwt ({token, user}) {
+      if (user) {
+        token.ticket = user.ticket;
+      }
+      return token;
+    },
+    session ({ session, token }) {
+      if (token) {
+        session.user.ticket = token.ticket as string;
+        session.user.id = token.sub as string;
+      }
+      return session;
     }
   },
     

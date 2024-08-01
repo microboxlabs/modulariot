@@ -1,15 +1,13 @@
 import { Card } from "flowbite-react";
-import type { SignInPageProps } from "./sign-in.types";
 import React from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
 import FooterSignIn from "@/features/auth/components/footer-sign-in/footer-sign-in";
 import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
 import { buildSignInFormMessages } from "@/features/auth/utils/utils";
+import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 
-export default async function SignInPage({
-  params: { lang },
-}: SignInPageProps) {
+export default async function SignInPage({ params: { lang } }: ParamsWithLang) {
   const dict = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
   return (

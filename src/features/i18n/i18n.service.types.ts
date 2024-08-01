@@ -15,8 +15,8 @@ export type MessageTypeClientSide = {
 export type ParamsWithLang<P = unknown> = {
   params: {
     lang: string;
-  } & P;
-};
+  };
+} & P;
 
 export type PropsWithI18nDict<P = unknown> = {
   dict: I18nRecord;

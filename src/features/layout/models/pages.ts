@@ -14,7 +14,7 @@ export const pages: SidebarItem[] = [
         label: "werehouse",
       },
       {
-        href: "/kanban",
+        href: "/logistics",
         label: "logistics",
       },
       {

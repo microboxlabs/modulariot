@@ -15,7 +15,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
 
   useEffect(() => {
     if (state.success) {
-      router.replace("/kanban");
+      router.replace("/shipping");
     }
   }, [state]);
 

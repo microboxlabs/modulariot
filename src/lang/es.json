@@ -21,6 +21,17 @@
       "buttons": {
         "submit": "Ingresar a tu cuenta"
       }
+    },
+    "shipping": {
+      "kanban": {
+        "transportValidation": "Validación de conductor / transporte",
+        "missionControlTripInit": "Torre de control: Iniciar viaje",
+        "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
+        "sovosDigitalSignature": "Firma digital de SOVOS",
+        "tripInitiated": "Viaje iniciado",
+        "tripRejected": "Viaje rechazado",
+        "tripCancelled": "Viaje anulado"
+      }
     }
   },
   "layout": {

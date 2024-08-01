@@ -21,6 +21,17 @@
       "buttons": {
         "submit": "Sign in to your account"
       }
+    },
+    "shipping": {
+      "kanban": {
+        "transportValidation": "Driver / Transport Validation",
+        "missionControlTripInit": "Mission Control: Start trip",
+        "overlordTripInit": "Overlord - Start Trip (Confirmation)",
+        "sovosDigitalSignature": "SOVOS Digital Signature",
+        "tripInitiated": "Trip Initiated",
+        "tripRejected": "Trip Rejected",
+        "tripCancelled": "Trip Cancelled"
+      }
     }
   },
   "layout": {

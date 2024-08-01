@@ -10,7 +10,7 @@ export const pages: SidebarItem[] = [
     label: "my_tasks",
     items: [
       {
-        href: "/kanban",
+        href: "/warehouse",
         label: "werehouse",
       },
       {
@@ -18,15 +18,15 @@ export const pages: SidebarItem[] = [
         label: "logistics",
       },
       {
-        href: "/kanban",
+        href: "/shipping",
         label: "shipping",
       },
       {
-        href: "/kanban",
+        href: "/finished",
         label: "finished",
       },
       {
-        href: "/kanban",
+        href: "/others",
         label: "others",
       },
     ],

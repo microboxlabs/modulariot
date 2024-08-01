@@ -8,10 +8,11 @@ import { pages } from "../../models/pages";
 import { externalPages } from "../../models/externalPages";
 import BottomMenu from "../bottom-menu/bottom-menu";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
+import { pathNameWithoutLanguage } from "../../utils/utils";
 
 export default function MobileSidebar({ dict: _ }: PropsWithI18nDict) {
   // remove first element of pathname which is the language
-  const pathname = usePathname().split("/").slice(1).join("/");
+  const pathname = pathNameWithoutLanguage(usePathname());
   const { isOpen, close } = useSidebarContext().mobile;
 
   if (!isOpen) return null;

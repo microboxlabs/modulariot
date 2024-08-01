@@ -8,3 +8,7 @@ export function buildNavBarMessages({
     signOutLabel: dict("layout.secured.signout"),
   };
 }
+
+export function pathNameWithoutLanguage(pathname: string): string {
+  return "/" + pathname.split("/").slice(2).join("/");
+}

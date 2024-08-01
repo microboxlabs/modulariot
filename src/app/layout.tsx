@@ -18,8 +18,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={twMerge(inter.className, "dark:bg-gray-900")}>
+    <html lang="es" className="h-full">
+      <body
+        className={twMerge(
+          inter.className,
+          "dark:bg-gray-900 h-full flex flex-col",
+        )}
+      >
         <SessionProvider basePath="/app/api/auth">{children}</SessionProvider>
       </body>
     </html>

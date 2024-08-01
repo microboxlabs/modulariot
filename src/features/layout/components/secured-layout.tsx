@@ -20,7 +20,7 @@ export default async function SecuredLayout({
   return (
     <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
       <SecuredNavbar messages={navBarMessages} />
-      <div className="mt-16 flex items-start">
+      <div className="mt-16 flex items-start flex-1">
         <SecuredSidebar
           dict={
             ((dictionary.layout as I18nRecord)?.secured as I18nRecord)

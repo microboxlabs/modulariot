@@ -7,7 +7,7 @@ export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
   return (
     <div
       className={twMerge(
-        "flex items-center justify-center gap-4",
+        "flex items-center justify-center gap-4 mb-9",
         isCollapsed && "flex-col",
       )}
     >

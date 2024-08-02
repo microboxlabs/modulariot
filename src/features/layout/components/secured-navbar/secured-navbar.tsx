@@ -71,7 +71,7 @@ export function SecuredNavbar({ messages }: SecuredNavBarProps) {
             </form>
           </div>
           <div className="flex items-center justify-center flex-1">
-            <Navbar.Brand as={Link} href="/" className="mr-14">
+            <Navbar.Brand as={Link} href="/">
               <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
             </Navbar.Brand>
           </div>

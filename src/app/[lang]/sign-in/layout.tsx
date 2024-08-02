@@ -3,25 +3,16 @@ import type { PropsWithChildren } from "react";
 import { SessionProvider } from "next-auth/react";
 import { Inter } from "next/font/google";
 import { twMerge } from "tailwind-merge";
-import SecuredLayout from "@/features/layout/components/secured-layout";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default async function Layout({
   children,
-  params,
 }: PropsWithChildren<ParamsWithLang>) {
   return (
-    <body
-      className={twMerge(
-        inter.className,
-        "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col",
-      )}
-    >
-      <SessionProvider basePath="/app/api/auth">
-        <SecuredLayout params={params}>{children}</SecuredLayout>;
-      </SessionProvider>
+    <body className={twMerge(inter.className, " dark:bg-gray-900 h-full")}>
+      <SessionProvider basePath="/app/api/auth">{children}</SessionProvider>
     </body>
   );
 }

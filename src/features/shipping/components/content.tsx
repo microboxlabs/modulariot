@@ -31,41 +31,39 @@ export default function KanbanPageContent({
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
 
   return (
-    <div className="overflow-x-auto h-full">
-      <div className="inline-block min-w-full align-middle h-full">
-        <div className="mb-6 flex items-start justify-start space-x-4 px-4">
-          {list.map((board) => (
-            <div key={board.id}>
-              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12">
-                {tr(board.title, dict)}
-              </div>
-              <div className="mb-6 space-y-4">
-                <ReactSortable
-                  animation={100}
-                  forceFallback
-                  group="kanban"
-                  list={board.tasks}
-                  setList={(tasks) =>
-                    setList((list) => {
-                      const newList = [...list];
-                      const index = newList.findIndex(
-                        (item) => item.id === board.id,
-                      );
-                      newList[index].tasks = tasks;
-                      return newList;
-                    })
-                  }
-                  disabled={true}
-                >
-                  {board.tasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} dict={dict} />
-                  ))}
-                </ReactSortable>
-              </div>
-              <AddAnotherCardModal />
+    <div className="inline-block min-w-full align-middle h-full">
+      <div className="mb-6 flex items-start justify-start space-x-4 px-4">
+        {list.map((board) => (
+          <div key={board.id}>
+            <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12">
+              {tr(board.title, dict)}
             </div>
-          ))}
-        </div>
+            <div className="mb-6 space-y-4">
+              <ReactSortable
+                animation={100}
+                forceFallback
+                group="kanban"
+                list={board.tasks}
+                setList={(tasks) =>
+                  setList((list) => {
+                    const newList = [...list];
+                    const index = newList.findIndex(
+                      (item) => item.id === board.id,
+                    );
+                    newList[index].tasks = tasks;
+                    return newList;
+                  })
+                }
+                disabled={true}
+              >
+                {board.tasks.map((task) => (
+                  <KanbanCard key={task.id} task={task} dict={dict} />
+                ))}
+              </ReactSortable>
+            </div>
+            <AddAnotherCardModal />
+          </div>
+        ))}
       </div>
     </div>
   );

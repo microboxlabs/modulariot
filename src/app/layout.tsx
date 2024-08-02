@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import React from "react";
-import { SessionProvider } from "next-auth/react";
-import { twMerge } from "tailwind-merge";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Coordinador Viajes Mintral",
@@ -17,16 +12,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="es" className="h-full">
-      <body
-        className={twMerge(
-          inter.className,
-          "bg-gray-50 dark:bg-gray-900 h-full flex flex-col",
-        )}
-      >
-        <SessionProvider basePath="/app/api/auth">{children}</SessionProvider>
-      </body>
-    </html>
-  );
+  return <html lang="es">{children}</html>;
 }

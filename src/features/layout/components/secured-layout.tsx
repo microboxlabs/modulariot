@@ -1,6 +1,4 @@
 import React from "react";
-// import { DashboardNavbar } from "./navbar";
-// import { DashboardSidebar } from "./sidebar";
 import { SidebarProvider } from "@/features/sidebar/context/sidebar-context";
 import { sidebarCookie } from "@/features/sidebar/services/sidebar-cookie.service";
 import { LayoutContent } from "@/features/layout/components/layout-content";
@@ -10,6 +8,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { buildNavBarMessages } from "../utils/utils";
 import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
+import FooterSecuredLayout from "./footer-secured/footer-secured";
 
 export default async function SecuredLayout({
   children,
@@ -20,7 +19,10 @@ export default async function SecuredLayout({
   return (
     <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
       <SecuredNavbar messages={navBarMessages} />
-      <div className="mt-16 flex items-start flex-1">
+      <div
+        data-testid="content-with-sidebar"
+        className="mt-16 mb-6 flex items-start flex-1"
+      >
         <SecuredSidebar
           dict={
             ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
@@ -29,6 +31,7 @@ export default async function SecuredLayout({
         />
         <LayoutContent>{children}</LayoutContent>
       </div>
+      <FooterSecuredLayout messages={dict} />
     </SidebarProvider>
   );
 }

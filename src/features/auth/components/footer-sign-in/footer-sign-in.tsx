@@ -5,7 +5,12 @@ export default function FooterSignIn({ messages }: FooterSignInProps) {
   return (
     <Footer
       date-testid="sign-footer"
-      className="flex flex-row gap-1 items-center"
+      className="flex flex-row gap-1 items-center  bottom-0"
+      theme={{
+        root: {
+          base: "w-full shadow dark:bg-gray-800 md:flex md:items-center md:justify-between",
+        },
+      }}
     >
       <FooterCopyright
         href="https://microboxlabs.com"

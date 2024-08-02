@@ -4,7 +4,12 @@ import { auth } from "@/auth";
 import { getLocaleFromHeaders, locales } from "./features/i18n/i18n.service";
 
 export default auth(async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  let { pathname } = request.nextUrl;
+
+  if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
+    pathname = "/shipping";
+  }
+
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}`) || pathname === `/${locale}`,
   );

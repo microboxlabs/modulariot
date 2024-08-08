@@ -28,9 +28,15 @@
         "missionControlTripInit": "Torre de control: Iniciar viaje",
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "sovosDigitalSignature": "Firma digital de SOVOS",
+        "tripInitiatedOutside": "Viajes iniciados sin coordinación",
         "tripInitiated": "Viaje iniciado",
         "tripRejected": "Viaje rechazado",
         "tripCancelled": "Viaje anulado"
+      },
+      "card": {
+        "origin": "Origen",
+        "destination": "Destino",
+        "service": "Nº de servicio"
       }
     }
   },

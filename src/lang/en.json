@@ -28,9 +28,15 @@
         "missionControlTripInit": "Mission Control: Start trip",
         "overlordTripInit": "Overlord - Start Trip (Confirmation)",
         "sovosDigitalSignature": "SOVOS Digital Signature",
+        "tripInitiatedOutside": "Trip Initiated without coordination",
         "tripInitiated": "Trip Initiated",
         "tripRejected": "Trip Rejected",
         "tripCancelled": "Trip Cancelled"
+      },
+      "card": {
+        "origin": "Origin",
+        "destination": "Destination",
+        "service": "Service #"
       }
     }
   },

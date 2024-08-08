@@ -121,22 +121,22 @@
     "tasks": []
   },
   {
-    "id": 4,
-    "title": "sovosDigitalSignature",
-    "tasks": []
-  },
-  {
     "id": 5,
-    "title": "tripInitiated",
+    "title": "tripInitiatedOutside",
     "tasks": []
   },
   {
     "id": 6,
-    "title": "tripRejected",
+    "title": "tripInitiated",
     "tasks": []
   },
   {
     "id": 7,
+    "title": "tripRejected",
+    "tasks": []
+  },
+  {
+    "id": 8,
     "title": "tripCancelled",
     "tasks": []
   }

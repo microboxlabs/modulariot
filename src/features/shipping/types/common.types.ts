@@ -5,12 +5,16 @@ export type KanbanBoard = {
 };
 
 export type KanbanBoardTask = {
-  id: number;
+  id: string;
   name: string;
   description: string;
   completed: boolean;
   daysLeft: number;
   attachment?: string;
+  origin?: string;
+  destination?: string;
+  client?: string;
+  clientCode?: string;
   members: KanbanBoardTaskMember[];
 };
 
@@ -22,4 +26,5 @@ export type KanbanBoardTaskMember = {
 
 export type KanbanPageData = {
   kanbanBoards: KanbanBoard[];
+  tasks: any;
 };

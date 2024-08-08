@@ -27,16 +27,18 @@ import { tr } from "@/features/i18n/tr.service";
 export default function KanbanPageContent({
   kanbanBoards,
   dict,
+  tasks,
 }: PropsWithI18nDict<KanbanPageData>) {
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
-
+  console.log("tasks", tasks);
   return (
     <div className="inline-block min-w-full align-middle h-full">
+      {/* <pre>{JSON.stringify(tasks, null, 2)}</pre> */}
       <div className="mb-6 flex items-start justify-start space-x-4 px-4">
         {list.map((board) => (
           <div key={board.id}>
             <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12">
-              {tr(board.title, dict)}
+              {tr(`kanban.${board.title}`, dict)}
             </div>
             <div className="mb-6 space-y-4">
               <ReactSortable

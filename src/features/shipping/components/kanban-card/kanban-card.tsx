@@ -9,14 +9,15 @@ export default function KanbanCard({
   task,
   dict,
 }: PropsWithI18nDict<KanBanCardProps>) {
+  console.log(dict);
   return (
     <div
       key={task.id}
       className="mb-4 w-64 rounded-lg bg-white p-5 shadow dark:bg-gray-800"
     >
       <div className="flex items-center justify-between pb-4">
-        <div className="text-base font-semibold text-gray-900 dark:text-white">
-          {tr(task.name, dict)}
+        <div className="text-base text-gray-900 dark:text-gray-200">
+          {tr("card.service", dict)}: <strong>{task.name}</strong>
         </div>
         {/* <EditCardModal /> */}
       </div>
@@ -26,8 +27,17 @@ export default function KanbanCard({
             <Image alt="" fill src={task.attachment} className="rounded-lg" />
           </div>
         )}
-        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-          {task.description}
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400 flex">
+          <div className="basis-1/2">
+            {tr("card.origin", dict)}: <strong>{task.origin}</strong>
+          </div>
+          <div className="basis-1/2">
+            {tr("card.destination", dict)}: <strong>{task.destination}</strong>
+          </div>
+          <div className="basis-1/2">
+            {tr("card.destination", dict)}: <strong>{task.client}</strong>
+          </div>
+          {/* {task.description} */}
         </div>
         <div className="flex justify-between">
           <div className="flex items-center justify-start">

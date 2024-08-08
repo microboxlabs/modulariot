@@ -7,7 +7,7 @@ import {
   AuthenticateActionState,
 } from "./auth.service.types";
 import { signIn } from "@/auth";
-import { alfrescoApi } from "@/features/common/providers/alfresco-api.provider";
+import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi } from "@alfresco/js-api";
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,

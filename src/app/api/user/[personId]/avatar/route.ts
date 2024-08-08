@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { alfrescoApi } from "@/features/common/providers/alfresco-api.provider";
+import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi } from "@alfresco/js-api";
 
 export async function GET(_request: Request) {

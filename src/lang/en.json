@@ -36,7 +36,10 @@
       "card": {
         "origin": "Origin",
         "destination": "Destination",
-        "service": "Service #"
+        "service": "Service #",
+        "clientCode": "Client Code",
+        "clientName": "Client",
+        "departureDate": "Departure Date"
       }
     }
   },

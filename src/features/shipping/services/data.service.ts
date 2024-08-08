@@ -19,6 +19,8 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
   const name = `${serviceCode}-${serviceType.toUpperCase()}`;
   const origin = task.properties.mintral_originDelegateCode as string;
   const destination = task.properties.mintral_destinationDelegateCode as string;
+  const clientCode = task.properties.mintral_customerCode as string;
+  const client = task.properties.mintral_clientAbbreviation as string;
   return {
     id: task.id,
     name,
@@ -27,6 +29,8 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
     daysLeft: 2,
     origin,
     destination,
+    clientCode,
+    client,
     members: [],
   };
 }

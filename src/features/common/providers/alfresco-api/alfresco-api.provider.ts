@@ -34,7 +34,7 @@ export async function getUserTasks(ticket: string): Promise<TaskResponse> {
       exclude: "wf:*,wf_coor:*",
     },
   );
-  return result;
+  return result as TaskResponse;
 }
 // export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
 

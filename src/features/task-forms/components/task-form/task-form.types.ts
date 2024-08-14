@@ -5,5 +5,4 @@ export type TaskFormProps = {
   task: Task;
   lang: string;
   msg?: I18nRecord;
-
 };

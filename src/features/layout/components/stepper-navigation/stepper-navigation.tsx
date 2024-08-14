@@ -5,7 +5,7 @@ import { twMerge } from "tailwind-merge";
 export default function StepperNavigation({
   routePaths,
   currentStep,
-  msg
+  msg,
 }: StepperNavigationProps) {
   return (
     <div className="flex items-center gap-4  py-5">

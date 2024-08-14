@@ -9,10 +9,19 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
 
 export async function TaskForm({ task, lang }: TaskFormProps) {
-  const [dict, dictionary] = await getDictionary(lang?? defaultLocale);
+  const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   switch (task.name) {
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
-      return <TransportValidationForm lang={lang} task={task} msg={(dictionary.pages as I18nRecord).transportValidationForm as I18nRecord} />;
+      return (
+        <TransportValidationForm
+          lang={lang}
+          task={task}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
 
     default:
       return notFound();

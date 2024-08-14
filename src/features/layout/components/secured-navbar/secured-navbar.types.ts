@@ -4,4 +4,6 @@ export type NavBarMessages = {
 
 export type SecuredNavBarProps = {
   messages: NavBarMessages;
+  isSeachEnabled?: boolean;
+  isSidebarToggleEnabled?: boolean;
 };

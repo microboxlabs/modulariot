@@ -17,7 +17,11 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
 
-export function SecuredNavbar({ messages }: SecuredNavBarProps) {
+export function SecuredNavbar({
+  messages,
+  isSeachEnabled = true,
+  isSidebarToggleEnabled = true,
+}: SecuredNavBarProps) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
@@ -37,38 +41,42 @@ export function SecuredNavbar({ messages }: SecuredNavBarProps) {
       <div className="w-full p-3 pr-4">
         <div className="flex items-center">
           <div className="flex items-center flex-1 justify-start">
-            <button
-              onClick={handleToggleSidebar}
-              className="mr-3 cursor-pointer rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-            >
-              <span className="sr-only">Toggle sidebar</span>
-              {/* mobile */}
-              <div className="lg:hidden">
-                {sidebar.mobile.isOpen ? (
-                  <HiX className="h-6 w-6" />
-                ) : (
+            {isSidebarToggleEnabled && (
+              <button
+                onClick={handleToggleSidebar}
+                className="mr-3 cursor-pointer rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+              >
+                <span className="sr-only">Toggle sidebar</span>
+                {/* mobile */}
+                <div className="lg:hidden">
+                  {sidebar.mobile.isOpen ? (
+                    <HiX className="h-6 w-6" />
+                  ) : (
+                    <HiMenuAlt1 className="h-6 w-6" />
+                  )}
+                </div>
+                {/* desktop */}
+                <div className="hidden lg:block">
                   <HiMenuAlt1 className="h-6 w-6" />
-                )}
-              </div>
-              {/* desktop */}
-              <div className="hidden lg:block">
-                <HiMenuAlt1 className="h-6 w-6" />
-              </div>
-            </button>
-            <form className="hidden lg:block lg:pl-2">
-              <Label htmlFor="search" className="sr-only">
-                Search
-              </Label>
-              <TextInput
-                className="w-full lg:w-96"
-                icon={HiSearch}
-                id="search"
-                name="search"
-                placeholder="Search"
-                required
-                type="search"
-              />
-            </form>
+                </div>
+              </button>
+            )}
+            {isSeachEnabled && (
+              <form className="hidden lg:block lg:pl-2">
+                <Label htmlFor="search" className="sr-only">
+                  Search
+                </Label>
+                <TextInput
+                  className="w-full lg:w-96"
+                  icon={HiSearch}
+                  id="search"
+                  name="search"
+                  placeholder="Search"
+                  required
+                  type="search"
+                />
+              </form>
+            )}
           </div>
           <div className="flex items-center justify-center flex-1">
             <Navbar.Brand as={Link} href="/">

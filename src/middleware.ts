@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
-import { getLocaleFromHeaders, locales } from "./features/i18n/i18n.service";
+import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
+import { locales } from "./features/i18n/tr.service";
 
 export default auth(async function middleware(request: NextRequest) {
   let { pathname } = request.nextUrl;

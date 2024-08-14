@@ -1,6 +1,10 @@
-export type TaskResponse = {
+export type TasksResponse = {
   data: Task[];
   paging: Paging;
+};
+
+export type TaskResponse = {
+  data: Task;
 };
 
 export type Task = {

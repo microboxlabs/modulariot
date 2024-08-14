@@ -1,5 +1,8 @@
 import { I18nRecord } from "./i18n.service.types";
 
+export const locales = ["en", "es"];
+export const defaultLocale = "es";
+
 export function tr(
   path: string,
   dictionary: I18nRecord,

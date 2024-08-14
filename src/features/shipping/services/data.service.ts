@@ -2,7 +2,7 @@ import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
 import {
   Task,
-  TaskResponse,
+  TasksResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const taskShippingBoardMap: Record<string, string> = {
@@ -21,6 +21,8 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
   const destination = task.properties.mintral_destinationDelegateCode as string;
   const clientCode = task.properties.mintral_customerCode as string;
   const client = task.properties.mintral_clientAbbreviation as string;
+  const expectedDepartureDate = task.properties
+    .mintral_expectedDepartureDate as string;
   return {
     id: task.id,
     name,
@@ -31,6 +33,7 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
     destination,
     clientCode,
     client,
+    expectedDepartureDate,
     members: [],
   };
 }
@@ -40,7 +43,7 @@ export function getStaticData(): KanbanBoard[] {
 }
 
 export function toShippingKanban(
-  tasks: TaskResponse,
+  tasks: TasksResponse,
 ): Record<string, KanbanBoard> {
   let index: Record<string, KanbanBoard> = {};
   tasks.data.forEach((task) => {

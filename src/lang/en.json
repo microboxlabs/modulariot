@@ -47,6 +47,38 @@
       "supportingTextMobile": "404",
       "heading": "Oops! That page doesn't exist.",
       "backToHome": "Back to home"
+    },
+    "transportValidationForm": {
+      "stepper":{
+        "step1": "Driver verification",
+        "step2": "Driver verified",
+        "step3": "Back to home"
+      },
+      "title": "Driver verification",
+      "subtitle": "Enter your service number to be identified.",
+      "fields": {
+        "service": {
+          "label": "Service number",
+          "placeholder": "xxxxxxxxx"
+        }
+      },
+      "buttons": {
+        "submit": "Continue"
+      },
+      "cards": {
+        "driverContactInfo": "Contact information",
+        "email": "Email",
+        "status": "Status",
+        "phone": "Phone",
+        "rut": "Rut",
+        "driver1": "Driver 1",
+        "driver2": "Driver 2",
+        "verified": "Verified",
+        "driverValidation": "Validation",
+        "alcoholTest": "Alcohol test",
+        "drugTest": "Drug test",
+        "sleepinessTest": "Sleepiness test"
+      }
     }
   },
   "layout": {

@@ -1,16 +1,12 @@
-"use client";
-
-import { useSearchParams } from "next/navigation";
 import { StepperNavigationProps } from "./stepper-navigation.types";
 import BadgeCheckIcon from "@/features/icons/badge-check";
 import { twMerge } from "tailwind-merge";
 
 export default function StepperNavigation({
   routePaths,
+  currentStep,
+  msg
 }: StepperNavigationProps) {
-  const searchParams = useSearchParams();
-  const currentStep = searchParams.get("step") ?? routePaths[0];
-
   return (
     <div className="flex items-center gap-4  py-5">
       {routePaths.map((routePath, index) => {
@@ -25,7 +21,7 @@ export default function StepperNavigation({
                   stepEnabled ? "text-blue-600" : "text-gray-500",
                 )}
               >
-                {routePath}
+                {msg[routePath] as string}
               </span>
             </div>
             {index < routePaths.length - 1 && (

@@ -1,49 +1,34 @@
+"use client";
+
 import StepperNavigation from "@/features/layout/components/stepper-navigation/stepper-navigation";
 import { TaskFormProps } from "../task-form/task-form.types";
-import { Button, Card, Label, TextInput } from "flowbite-react";
-import { tr } from "@/features/i18n/tr.service";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useSearchParams } from "next/navigation";
+import DriverVerificationCard from "../driver-verification-card/driver-verification-card";
+import DriverVerifiedCard from "../driver-verified-card/driver-verified-card";
 
-export default function TransportValidationForm({ task }: TaskFormProps) {
+const steps = ["step1", "step2", "step3"];
+
+export default function TransportValidationForm({
+  task,
+  lang,
+  msg,
+}: TaskFormProps) {
+  const searchParams = useSearchParams();
+  const currentStep = searchParams.get("step") ?? steps[0];
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation
-        routePaths={["driverVerification", "driverVerified", "backToHome"]}
+        msg={msg!.stepper as I18nRecord}
+        currentStep={currentStep}
+        routePaths={["step1", "step2", "step3"]}
       />
-      <Card>
-        <form className="flex flex-col min-w-96 p-8 justify-center gap-9">
-          <div className="flex flex-col">
-            <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {tr("transportValidationForm.title", {})}
-            </h5>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("transportValidationForm.subtitle", {})}
-            </p>
-          </div>
-          <div>
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="email">
-                {tr("transportValidationForm.subtitle", {})}
-              </Label>
-              <TextInput
-                id="email"
-                name="email"
-                placeholder={tr("transportValidationForm.subtitle", {})}
-                type="text"
-              />
-            </div>
-          </div>
-          <div>
-            <Button
-              color="blue"
-              type="submit"
-              theme={{ inner: { base: "px-5 py-3" } }}
-              className="w-full px-0 py-px"
-            >
-              {tr("msg.buttonSubmitLabel", {})}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {currentStep === "step1" && (
+        <DriverVerificationCard lang={lang} msg={msg} task={task} />
+      )}
+      {currentStep === "step2" && (
+        <DriverVerifiedCard lang={lang} msg={msg} task={task} />
+      )}
       <pre>{JSON.stringify(task, null, 2)}</pre>
     </div>
   );

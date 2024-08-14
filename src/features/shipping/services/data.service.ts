@@ -34,6 +34,7 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
     clientCode,
     client,
     expectedDepartureDate,
+    serviceKind: task.properties.mintral_serviceKind as string,
     members: [],
   };
 }

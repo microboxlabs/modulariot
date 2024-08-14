@@ -51,6 +51,11 @@ export default function KanbanCard({
             {tr("card.clientName", dict)}: <strong>{task.client || "-"}</strong>
             {/* {task.description} */}
           </div>
+          <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+            {tr("card.serviceKind", dict)}:{" "}
+            <strong>{task.serviceKind || "-"}</strong>
+            {/* {task.description} */}
+          </div>
           <div className="flex justify-between">
             <div className="flex items-center justify-start">
               {task.members.map((member) => (

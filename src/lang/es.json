@@ -47,6 +47,38 @@
       "supportingTextMobile": "404",
       "heading": "¡Vaya! Esa página no existe.",
       "backToHome": "Volver al inicio"
+    },
+    "transportValidationForm": {
+      "stepper":{
+        "step1": "Verificación de conductor",
+        "step2": "Conductor verificado",
+        "step3": "Volver al inicio"
+      },
+      "title": "Verificación de conductor",
+      "subtitle": "Ingrese su N° de servicio para ser identificado.",
+      "fields": {
+        "service": {
+          "label": "N° de servicio",
+          "placeholder": "xxxxxxxxx"
+        }
+      },
+      "buttons": {
+        "submit": "Continuar"
+      },
+      "cards": {
+        "driverContactInfo": "Información de contacto",
+        "email": "Correo electrónico",
+        "status": "Estado",
+        "phone": "Teléfono",
+        "rut": "Rut",
+        "driver1": "Conductor 1",
+        "driver2": "Conductor 2",
+        "verified": "Verificado",
+        "driverValidation": "Validación",
+        "alcoholTest": "Test de alcoholemia",
+        "drugTest": "Test de drogas",
+        "sleepinessTest": "Test de somnolencia"
+      }
     }
   },
   "layout": {

@@ -21,6 +21,7 @@ export function SecuredNavbar({
   messages,
   isSeachEnabled = true,
   isSidebarToggleEnabled = true,
+  isUserMenuEnabled = true,
 }: SecuredNavBarProps) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -100,9 +101,11 @@ export function SecuredNavbar({
                   <DarkThemeToggle />
                 </Tooltip>
               </div>
-              <div className="ml-3 flex items-center">
-                <UserDropdown messages={messages} />
-              </div>
+              {isUserMenuEnabled && (
+                <div className="ml-3 flex items-center">
+                  <UserDropdown messages={messages} />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -30,10 +30,14 @@ export async function getDictionary(locale: string) {
   ] as [(path: string, params?: Record<string, string>) => string, I18nRecord];
 }
 
-export function getLocaleFromHeaders(request: NextRequest) {
-  const headers = {
-    "accept-language": request.headers.get("accept-language") ?? defaultLocale,
+export function getLocaleFromHeaders(headers: Headers) {
+  const plainHeaders = {
+    "accept-language": headers.get("accept-language") ?? defaultLocale,
   };
-  const languages = new Negotiator({ headers }).languages();
+  const languages = new Negotiator({ headers: plainHeaders }).languages();
   return match(languages, locales, defaultLocale);
+}
+
+export function getLocaleFromRequest(request: NextRequest) {
+  return getLocaleFromHeaders(request.headers);
 }

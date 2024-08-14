@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
-import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
+import { getLocaleFromRequest } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
 
 export default auth(async function middleware(request: NextRequest) {
@@ -19,7 +19,7 @@ export default auth(async function middleware(request: NextRequest) {
     return;
   }
 
-  const locale = getLocaleFromHeaders(request);
+  const locale = getLocaleFromRequest(request);
   request.nextUrl.pathname = `/${locale}${pathname}`;
   return NextResponse.redirect(request.nextUrl.toString());
 });

@@ -41,6 +41,12 @@
         "clientName": "Cliente",
         "departureDate": "Fecha de salida"
       }
+    },
+    "notFound":{
+      "supportingText": "Error 404",
+      "supportingTextMobile": "404",
+      "heading": "¡Vaya! Esa página no existe.",
+      "backToHome": "Volver al inicio"
     }
   },
   "layout": {

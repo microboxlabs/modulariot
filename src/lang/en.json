@@ -41,6 +41,12 @@
         "clientName": "Client",
         "departureDate": "Departure Date"
       }
+    },
+    "notFound":{
+      "supportingText": "Error 404",
+      "supportingTextMobile": "404",
+      "heading": "Oops! That page doesn't exist.",
+      "backToHome": "Back to home"
     }
   },
   "layout": {

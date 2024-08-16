@@ -12,7 +12,7 @@ import { useFormState } from "react-dom";
 import { taskNextAction } from "../../services/client-form.service";
 
 export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
-  const [state, formAction] = useFormState(taskNextAction, {});
+  const [_state, formAction] = useFormState(taskNextAction, {});
   const driver1: Driver = {
     name: (task.properties.mintral_driver1Name as string) ?? "-",
     email: (task.properties.mintral_driver1Email as string) ?? "-",

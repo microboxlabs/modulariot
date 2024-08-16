@@ -39,7 +39,9 @@
         "service": "Service #",
         "clientCode": "Client Code",
         "clientName": "Client",
-        "departureDate": "Departure Date"
+        "departureDate": "Departure Date",
+        "serviceKind": "Service Type",
+        "tripInformation": "Trip Information"
       }
     },
     "notFound":{
@@ -77,7 +79,15 @@
         "driverValidation": "Validation",
         "alcoholTest": "Alcohol test",
         "drugTest": "Drug test",
-        "sleepinessTest": "Sleepiness test"
+        "sleepinessTest": "Sleepiness test",
+        "clientCode": "Client Code",
+        "origin": "Origin",
+        "destination": "Destination",
+         "scheduling": "Scheduling",
+        "comments": "Comments",
+        "consolidation": "Consolidation",
+        "documentSeparation": "Document Separation",
+        "clientSystemValidation": "Client System Validation"
       }
     }
   },

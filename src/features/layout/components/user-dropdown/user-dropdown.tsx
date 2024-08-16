@@ -1,10 +1,11 @@
 "use client";
 
-// import { auth } from "@/auth";
+import { signOutAction } from "@/features/auth/services/client-auth.service";
 // import { getBase64UserAvatar } from "@/features/common/providers/alfresco-api.provider";
 import { Avatar, Dropdown } from "flowbite-react";
 import { useSession } from "next-auth/react";
 import { UserDropdownProps } from "./user-dropdown.types";
+import { useRouter } from "next/navigation";
 
 export default function UserDropdown({ messages }: UserDropdownProps) {
   const { data: session, status } = useSession({
@@ -13,6 +14,8 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
       // Redirect to login page
     },
   });
+
+  const router = useRouter();
 
   if (status === "loading") {
     return (
@@ -23,6 +26,11 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
         label="Loading..."
       />
     );
+  }
+
+  async function handleSignOut() {
+    await signOutAction();
+    router.replace("/sign-in");
   }
   // const session = await auth();
   // if (!session) {
@@ -53,7 +61,9 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
       <Dropdown.Item>Settings</Dropdown.Item>
       <Dropdown.Item>Earnings</Dropdown.Item> */}
       {/* <Dropdown.Divider /> */}
-      <Dropdown.Item>{messages.signOutLabel}</Dropdown.Item>
+      <Dropdown.Item onClick={handleSignOut}>
+        {messages.signOutLabel}
+      </Dropdown.Item>
     </Dropdown>
   );
 }

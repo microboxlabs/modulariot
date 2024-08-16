@@ -1,12 +1,18 @@
-import { Card, Textarea } from "flowbite-react";
+"use client";
+
+import { Button, Card, Textarea } from "flowbite-react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
 import { Driver } from "../driver-contact-info/driver-contact-info.type";
 import DriverValidation from "../driver-validation-card/driver-validation-card";
-import TripInformation from "../trip-information/trip-information";
+import TripInformation from "../trip-information-card/trip-information";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useFormState } from "react-dom";
+import { taskNextAction } from "../../services/client-form.service";
 
 export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
+  const [state, formAction] = useFormState(taskNextAction, {});
   const driver1: Driver = {
     name: (task.properties.mintral_driver1Name as string) ?? "-",
     email: (task.properties.mintral_driver1Email as string) ?? "-",
@@ -47,11 +53,26 @@ export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
       <TripInformation msg={msg} task={task} lang={lang} />
 
       <div className="h-px bg-gray-300 w-full"></div>
-      <Textarea
-        placeholder="Escribe aquí tus observaciones"
-        defaultValue={task.properties.mintral_driverObservations as string}
-        disabled={true}
-      />
+      <form action={formAction}>
+        <h5 className="text-sm font-medium leading-loose">
+          {(msg!.cards as I18nRecord).comments as string}
+        </h5>
+        <div className="flex flex-col gap-6">
+          <Textarea
+            placeholder="Escribe aquí tus observaciones"
+            defaultValue={task.properties.mintral_driverObservations as string}
+            disabled={true}
+          />
+          <Button
+            color="blue"
+            type="submit"
+            theme={{ inner: { base: "px-5 py-3" } }}
+            className="w-full px-0 py-px"
+          >
+            {(msg!.buttons as I18nRecord).submit as string}
+          </Button>
+        </div>
+      </form>
     </Card>
   );
 }

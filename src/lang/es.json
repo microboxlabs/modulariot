@@ -39,7 +39,8 @@
         "service": "Servicio Nº",
         "clientCode": "Código cliente",
         "clientName": "Cliente",
-        "departureDate": "Fecha de salida"
+        "departureDate": "Fecha de salida",
+        "serviceKind": "Tipo de servicio"
       }
     },
     "notFound":{
@@ -77,7 +78,16 @@
         "driverValidation": "Validación",
         "alcoholTest": "Test de alcoholemia",
         "drugTest": "Test de drogas",
-        "sleepinessTest": "Test de somnolencia"
+        "sleepinessTest": "Test de somnolencia",
+        "tripInformation": "Información del viaje",
+        "clientCode": "Código cliente",
+        "origin": "Origen",
+        "destination": "Destino",
+        "scheduling": "Horario",
+        "comments": "Comentarios",
+        "consolidation": "Consolidación",
+        "documentSeparation": "Separación Documental",
+        "clientSystemValidation": "Validación Sistema Cliente"
       }
     }
   },

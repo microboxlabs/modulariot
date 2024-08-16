@@ -1,6 +1,6 @@
 "use client";
 
-import { authenticateAction } from "@/features/auth/services/auth.service";
+import { authenticateAction } from "@/features/auth/services/client-auth.service";
 import { useFormStatus, useFormState } from "react-dom";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";

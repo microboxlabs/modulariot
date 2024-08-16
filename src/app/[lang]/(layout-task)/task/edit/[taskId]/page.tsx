@@ -16,7 +16,7 @@ export default async function TaskEditPage({
     return <TaskForm task={task.data} lang={lang} />;
   } catch (e: any) {
     if (e?.status === 401) {
-      redirect(`${lang}/sign-in`);
+      redirect(`/${lang}/sign-in`);
     }
   }
   return null;

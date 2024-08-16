@@ -29,7 +29,6 @@ export default function TransportValidationForm({
       {currentStep === "step2" && (
         <DriverVerifiedCard lang={lang} msg={msg} task={task} />
       )}
-      <pre>{JSON.stringify(task, null, 2)}</pre>
     </div>
   );
 }

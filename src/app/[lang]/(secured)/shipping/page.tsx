@@ -36,7 +36,7 @@ export default async function ShippingPage({
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
-      redirect("/sign-in");
+      redirect(`/${lang}/sign-in`);
     }
   }
   return null;

@@ -7,7 +7,7 @@ export default function DriverContactInfo({
 }: DriverContactInfoProps) {
   return (
     <div className="flex gap-5">
-      <div className="flex flex-col">
+      <div className="flex-1 flex flex-col">
         <h5 className="text-sm font-medium leading-loose">{driver.name}</h5>
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord)[driver.varName] as string}

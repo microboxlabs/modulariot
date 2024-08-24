@@ -16,7 +16,6 @@ export default function StepperNavigation({
             <div className="flex gap-0.5 items-center">
               {stepEnabled && <BadgeCheckIcon />}
               <span
-                key={`${index}_route`}
                 className={twMerge(
                   stepEnabled ? "text-blue-600" : "text-gray-500",
                 )}
@@ -25,10 +24,7 @@ export default function StepperNavigation({
               </span>
             </div>
             {index < routePaths.length - 1 && (
-              <span
-                key={`${index}_sep`}
-                className="bg-gray-200 h-px w-3"
-              ></span>
+              <span className="bg-gray-200 h-px w-3"></span>
             )}
           </>
         );

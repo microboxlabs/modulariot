@@ -1,9 +1,6 @@
 import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
-import {
-  Task,
-  TasksResponse,
-} from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { FastTasksResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const taskShippingBoardMap: Record<string, string> = {
   "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
@@ -13,20 +10,19 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
 };
 
-function toKanbanBoardTask(task: Task): KanbanBoardTask {
-  const serviceCode = task.properties.mintral_serviceCode as number;
-  const serviceType = task.properties.mintral_serviceType as string;
+function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
+  const serviceCode = task.mintral_serviceCode as number;
+  const serviceType = task.mintral_serviceType as string;
   const name = `${serviceCode}-${serviceType.toUpperCase()}`;
-  const origin = task.properties.mintral_originDelegateCode as string;
-  const destination = task.properties.mintral_destinationDelegateCode as string;
-  const clientCode = task.properties.mintral_customerCode as string;
-  const client = task.properties.mintral_clientAbbreviation as string;
-  const expectedDepartureDate = task.properties
-    .mintral_expectedDepartureDate as string;
+  const origin = task.mintral_originDelegateCode as string;
+  const destination = task.mintral_destinationDelegateCode as string;
+  const clientCode = task.mintral_customerCode as string;
+  const client = task.mintral_clientAbbreviation as string;
+  const expectedDepartureDate = task.mintral_expectedDepartureDate as string;
   return {
-    id: task.id,
+    id: task.id as string,
     name,
-    description: task.description,
+    description: task.bpm_description as string,
     completed: task.state === "COMPLETED",
     daysLeft: 2,
     origin,
@@ -34,7 +30,7 @@ function toKanbanBoardTask(task: Task): KanbanBoardTask {
     clientCode,
     client,
     expectedDepartureDate,
-    serviceKind: task.properties.mintral_serviceKind as string,
+    serviceKind: task.mintral_serviceKind as string,
     members: [],
   };
 }
@@ -44,11 +40,12 @@ export function getStaticData(): KanbanBoard[] {
 }
 
 export function toShippingKanban(
-  tasks: TasksResponse,
+  tasks: FastTasksResponse,
 ): Record<string, KanbanBoard> {
   let index: Record<string, KanbanBoard> = {};
-  tasks.data.forEach((task) => {
-    const boardKey = taskShippingBoardMap[task.name];
+  tasks.tasks.forEach((task) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const boardKey = taskShippingBoardMap[task.taskFormKey as string];
     index[boardKey] = index[boardKey] || {
       id: boardKey,
       title: boardKey,

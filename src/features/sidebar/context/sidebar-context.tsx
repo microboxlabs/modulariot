@@ -32,7 +32,7 @@ export function SidebarProvider({
   }
 
   function setCookie(value: boolean) {
-    fetch("/api/sidebar", {
+    fetch("/app/api/sidebar", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

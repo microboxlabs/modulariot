@@ -13,7 +13,7 @@ export default function EllipseIcon() {
         cy="10.9199"
         r="9.5"
         fill="#D1D5DB"
-        fill-opacity="0.5"
+        fillOpacity="0.5"
         stroke="#9CA3AF"
       />
     </svg>

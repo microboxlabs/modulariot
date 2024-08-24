@@ -16,6 +16,7 @@ import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
 import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
+import { twMerge } from "tailwind-merge";
 
 export function SecuredNavbar({
   messages,
@@ -45,7 +46,11 @@ export function SecuredNavbar({
             {isSidebarToggleEnabled && (
               <button
                 onClick={handleToggleSidebar}
-                className="mr-3 cursor-pointer rounded p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                className={twMerge(
+                  "mr-3 cursor-pointer rounded p-2 text-gray-600 ",
+                  "hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400",
+                  "dark:hover:bg-gray-700 dark:hover:text-white",
+                )}
               >
                 <span className="sr-only">Toggle sidebar</span>
                 {/* mobile */}

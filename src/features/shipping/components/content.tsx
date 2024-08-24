@@ -23,21 +23,43 @@ import { KanbanBoard, KanbanPageData } from "../types/common.types";
 import KanbanCard from "./kanban-card/kanban-card";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useMyTasks } from "@/features/common/providers/client-api.provider";
+import { useRouter } from "next/navigation";
 
 export default function KanbanPageContent({
   kanbanBoards,
   dict,
-  tasks,
+  lang,
 }: PropsWithI18nDict<KanbanPageData>) {
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
-  console.log("tasks", tasks);
+
+  const router = useRouter();
+
+  const { data, error, isLoading } = useMyTasks();
+
+  if (error?.status === 401) {
+    router.replace(`/${lang}/sign-in`);
+  }
+
+  const boards = list.map((board) => {
+    if (isLoading || !data) {
+      return board;
+    }
+    return {
+      ...board,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      tasks: data.data[board.title]?.tasks || board.tasks,
+    };
+  });
+
+  console.log(data);
   return (
     <div className="inline-block min-w-full align-middle h-full">
       {/* <pre>{JSON.stringify(tasks, null, 2)}</pre> */}
       <div className="mb-6 flex items-start justify-start space-x-4 px-4">
-        {list.map((board) => (
+        {boards.map((board) => (
           <div key={board.id}>
-            <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12 w-64">
+            <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12 w-64 text-center">
               {tr(`kanban.${board.title}`, dict)}
             </div>
             <div className="mb-6 space-y-4">

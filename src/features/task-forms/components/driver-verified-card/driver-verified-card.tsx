@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Textarea } from "flowbite-react";
+import { Button, Card, Textarea, TextInput } from "flowbite-react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
@@ -10,9 +10,26 @@ import TripInformation from "../trip-information-card/trip-information";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useFormState } from "react-dom";
 import { taskNextAction } from "../../services/client-form.service";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { TaskNextActionState } from "../../services/form.service.types";
 
 export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
-  const [_state, formAction] = useFormState(taskNextAction, {});
+  const [state, formAction] = useFormState<TaskNextActionState, FormData>(
+    taskNextAction,
+    {},
+  );
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.success) {
+      router.replace(
+        `/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step3`,
+      );
+    }
+  }, [state]);
+
   const driver1: Driver = {
     name: (task.properties.mintral_driver1Name as string) ?? "-",
     email: (task.properties.mintral_driver1Email as string) ?? "-",
@@ -58,6 +75,12 @@ export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
           {(msg!.cards as I18nRecord).comments as string}
         </h5>
         <div className="flex flex-col gap-6">
+          <TextInput
+            id="taskId"
+            name="taskId"
+            type="hidden"
+            defaultValue={task.id}
+          />
           <Textarea
             placeholder="Escribe aquí tus observaciones"
             defaultValue={task.properties.mintral_driverObservations as string}

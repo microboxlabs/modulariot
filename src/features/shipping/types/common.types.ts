@@ -4,6 +4,11 @@ export type KanbanBoard = {
   tasks: KanbanBoardTask[];
 };
 
+export type KanbanBoardTaskResponse = {
+  total: number;
+  data: KanbanBoardTask[];
+};
+
 export type KanbanBoardTask = {
   id: string;
   name: string;
@@ -28,5 +33,6 @@ export type KanbanBoardTaskMember = {
 
 export type KanbanPageData = {
   kanbanBoards: KanbanBoard[];
-  tasks: any;
+  lang: string;
+  // tasks: any;
 };

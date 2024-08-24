@@ -1,1 +1,3 @@
-export type TaskNextActionState = {};
+export type TaskNextActionState = {
+  success?: boolean;
+};

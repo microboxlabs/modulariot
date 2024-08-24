@@ -71,8 +71,8 @@ export default function DriverUserIcon() {
           y2="33.0857"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#1D0024" />
-          <stop offset="1" stop-color="#100014" />
+          <stop stopColor="#1D0024" />
+          <stop offset="1" stopColor="#100014" />
         </linearGradient>
         <linearGradient
           id="paint1_linear_600_146998"
@@ -82,8 +82,8 @@ export default function DriverUserIcon() {
           y2="73.0682"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#6C6C6C" />
-          <stop offset="1" stop-color="#100014" />
+          <stop stopColor="#6C6C6C" />
+          <stop offset="1" stopColor="#100014" />
         </linearGradient>
       </defs>
     </svg>

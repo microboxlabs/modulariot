@@ -6,6 +6,8 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSearchParams } from "next/navigation";
 import DriverVerificationCard from "../driver-verification-card/driver-verification-card";
 import DriverVerifiedCard from "../driver-verified-card/driver-verified-card";
+import { Button } from "flowbite-react";
+import Link from "next/link";
 
 const steps = ["step1", "step2", "step3"];
 
@@ -28,6 +30,21 @@ export default function TransportValidationForm({
       )}
       {currentStep === "step2" && (
         <DriverVerifiedCard lang={lang} msg={msg} task={task} />
+      )}
+      {currentStep === "step3" && (
+        <div className="flex flex-col p-8 gap-12 shadow-lg items-center justify-center text-xl w-96 h-80 bg-white">
+          <h5 className="font-bold text-gray-900 dark:text-white">
+            Proceso terminado
+          </h5>
+          <Button
+            color="blue"
+            as={Link}
+            href={`/${lang}/shipping`}
+            className="w-fit"
+          >
+            Volver al inicio
+          </Button>
+        </div>
       )}
     </div>
   );

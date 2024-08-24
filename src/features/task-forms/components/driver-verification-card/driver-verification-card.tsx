@@ -42,7 +42,7 @@ export default function DriverVerificationCard({
         <div>
           <Button
             as={Link}
-            href={`/${lang}/task/edit/${task.id}?step=step2`}
+            href={`/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step2`}
             color="blue"
             type="submit"
             theme={{ inner: { base: "px-5 py-3" } }}

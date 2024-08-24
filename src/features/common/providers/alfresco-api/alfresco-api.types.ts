@@ -3,6 +3,11 @@ export type TasksResponse = {
   paging: Paging;
 };
 
+export type FastTasksResponse = {
+  tasks: Record<string, unknown>[];
+  total: number;
+};
+
 export type TaskResponse = {
   data: Task;
 };
@@ -57,4 +62,9 @@ export type Initiator = {
   userName: string;
   firstName: string;
   lastName: string;
+};
+
+export type EndTaskResponse = {
+  id: string;
+  transition: string;
 };

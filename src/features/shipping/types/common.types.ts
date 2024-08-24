@@ -6,7 +6,7 @@ export type KanbanBoard = {
 
 export type KanbanBoardTaskResponse = {
   total: number;
-  data: KanbanBoardTask[];
+  data: Record<string, KanbanBoard>;
 };
 
 export type KanbanBoardTask = {

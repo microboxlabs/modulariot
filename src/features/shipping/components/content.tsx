@@ -51,8 +51,6 @@ export default function KanbanPageContent({
       tasks: data.data[board.title]?.tasks || board.tasks,
     };
   });
-
-  console.log(data);
   return (
     <div className="inline-block min-w-full align-middle h-full">
       {/* <pre>{JSON.stringify(tasks, null, 2)}</pre> */}

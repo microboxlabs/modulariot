@@ -44,14 +44,14 @@
         "tripInformation": "Trip Information"
       }
     },
-    "notFound":{
+    "notFound": {
       "supportingText": "Error 404",
       "supportingTextMobile": "404",
       "heading": "Oops! That page doesn't exist.",
       "backToHome": "Back to home"
     },
     "transportValidationForm": {
-      "stepper":{
+      "stepper": {
         "step1": "Driver verification",
         "step2": "Driver verified",
         "step3": "Back to home"
@@ -83,12 +83,51 @@
         "clientCode": "Client Code",
         "origin": "Origin",
         "destination": "Destination",
-         "scheduling": "Scheduling",
+        "scheduling": "Scheduling",
         "comments": "Comments",
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
         "clientSystemValidation": "Client System Validation"
       }
+    },
+    "shippingDetailsTaskForm": {
+      "trip": "Trip",
+      "clientInfo": "Client information",
+      "observations": "Observations",
+      "drivers": "Driver(s)",
+      "tripCreation": "Trip creation",
+      "serviceCode": "Service code",
+      "serviceKind": "Service type",
+      "creationDate": "Creation date",
+      "closureDate": "Closure date",
+      "approxTime": "Approximate time",
+      "tripRoute": "Trip route",
+      "distance": "Distance",
+      "speed": "Speed",
+      "originDelegateCode": "Origin delegate code",
+      "destinationDelegateCode": "Destination delegate code",
+      "departure": "Departure",
+      "estimatedArrivalDate": "Estimated arrival date",
+      "expectedDepartureDate": "Expected departure date",
+      "arrivalDate": "Arrival date",
+      "departureDate": "Departure date",
+      "unloading": "Unloading",
+      "unloadingStartDate": "Unloading start date",
+      "unloadingEndDate": "Unloading end date",
+      "collectorDelivererCode": "Collector/deliverer code",
+      "driver1": "Driver 1",
+      "driver2": "Driver 2",
+      "driverName": "Name",
+      "driverRut": "Rut",
+      "driverPhone": "Phone",
+      "driverEmail": "Email",
+      "supplierName": "Supplier name",
+      "transportNumberCode": "Transport number",
+      "truckLicensePlate": "Truck license plate",
+      "trailerLicensePlate": "Trailer license plate",
+      "customerCode": "Customer",
+      "key": "Key",
+      "comments": "Comments"
     }
   },
   "layout": {
@@ -102,7 +141,8 @@
         "shipping": "Shipping",
         "finished": "Finished",
         "others": "Others",
-        "reports": "Reports"
+        "reports": "Reports",
+        "details": "Service details nº {serviceCode}"
       }
     }
   },

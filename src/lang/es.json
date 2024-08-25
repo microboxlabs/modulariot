@@ -43,14 +43,14 @@
         "serviceKind": "Tipo de servicio"
       }
     },
-    "notFound":{
+    "notFound": {
       "supportingText": "Error 404",
       "supportingTextMobile": "404",
       "heading": "¡Vaya! Esa página no existe.",
       "backToHome": "Volver al inicio"
     },
     "transportValidationForm": {
-      "stepper":{
+      "stepper": {
         "step1": "Verificación de conductor",
         "step2": "Conductor verificado",
         "step3": "Volver al inicio"
@@ -89,6 +89,45 @@
         "documentSeparation": "Separación Documental",
         "clientSystemValidation": "Validación Sistema Cliente"
       }
+    },
+    "shippingDetailsTaskForm": {
+      "trip": "Viaje",
+      "clientInfo": "Información del cliente",
+      "observations": "Observaciones",
+      "drivers": "Conductor(es)",
+      "tripCreation": "Creación de viaje",
+      "serviceCode": "Código de servicio",
+      "serviceKind": "Tipo de servicio",
+      "creationDate": "Fecha de creación",
+      "closureDate": "Fecha de cierre",
+      "approxTime": "Hora aproximada",
+      "tripRoute": "Recorrido del viaje",
+      "distance": "Distancia",
+      "speed": "Velocidad",
+      "originDelegateCode": "Lugar de origen",
+      "destinationDelegateCode": "Lugar de destino",
+      "departure": "Salida de la carga",
+      "estimatedArrivalDate": "Fecha estimada de llegada",
+      "expectedDepartureDate": "Fecha estimada de salida",
+      "arrivalDate": "Fecha de llegada",
+      "departureDate": "Fecha de salida",
+      "unloading": "Descarga de la carga",
+      "unloadingStartDate": "Fecha de inicio de descarga",
+      "unloadingEndDate": "Fecha de fin de descarga",
+      "collectorDelivererCode": "Código recolector/entregador",
+      "driver1": "Conductor 1",
+      "driver2": "Conductor 2",
+      "driverName": "Nombre",
+      "driverRut": "Rut",
+      "driverPhone": "Teléfono",
+      "driverEmail": "Correo electrónico",
+      "supplierName": "Razón social",
+      "transportNumberCode": "N° de transporte",
+      "truckLicensePlate": "Camión matrícula",
+      "trailerLicensePlate": "Remo matrícula",
+      "customerCode": "Cliente",
+      "key": "Llave",
+      "comments": "Comentarios"
     }
   },
   "layout": {
@@ -102,7 +141,8 @@
         "shipping": "Despachos",
         "finished": "Finalizados",
         "others": "Otros",
-        "reports": "Reportes"
+        "reports": "Reportes",
+        "details": "Detalles servicio nº {serviceCode}"
       }
     }
   },

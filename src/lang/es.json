@@ -127,7 +127,14 @@
       "trailerLicensePlate": "Remo matrícula",
       "customerCode": "Cliente",
       "key": "Llave",
-      "comments": "Comentarios"
+      "comments": "Comentarios",
+      "output": {
+        "normalInitiation": "Iniciar viaje",
+        "initiationWithObjections": "Iniciar viaje con reparos",
+        "requiresOverlord": "Escalar a superior",
+        "canceled": "Cancelado",
+        "annulled": "Anulado"
+      }
     }
   },
   "layout": {

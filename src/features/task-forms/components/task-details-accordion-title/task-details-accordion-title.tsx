@@ -9,7 +9,10 @@ export default function TaskDetailsAccordionTitle({
   return (
     <AccordionTitle
       theme={{
-        base: "flex w-full items-center justify-between px-5 py-4 text-left font-medium text-gray-500 last:rounded-b-lg dark:text-gray-400",
+        base: "flex w-full items-center justify-between px-5 py-4 text-left font-medium text-blue-600 last:rounded-b-lg dark:text-gray-400",
+        open: {
+          on: "bg-gray-100 text-blue-600 dark:bg-gray-800 dark:text-white",
+        },
       }}
     >
       {title}

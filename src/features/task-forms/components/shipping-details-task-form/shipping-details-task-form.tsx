@@ -5,7 +5,6 @@ import {
   Accordion,
   AccordionContent,
   AccordionPanel,
-  AccordionTitle,
   Breadcrumb,
   BreadcrumbItem,
   Card,
@@ -20,7 +19,6 @@ export default async function ShippingDetailsTaskForm({
   lang,
 }: TaskFormProps) {
   const [dict, _dictionary] = await getDictionary(lang ?? defaultLocale);
-  console.log(task);
   const detailsTitle = dict("layout.secured.sidebar.details", {
     serviceCode: task.properties.mintral_serviceCode as string,
   });
@@ -67,7 +65,9 @@ export default async function ShippingDetailsTaskForm({
             }}
           >
             <AccordionPanel>
-              <TaskDetailsAccordionTitle title={dict("pages.shippingDetailsTaskForm.trip")} />
+              <TaskDetailsAccordionTitle
+                title={dict("pages.shippingDetailsTaskForm.trip")}
+              />
               <AccordionContent>
                 <div className="flex flex-col gap-4 text-sm">
                   <div className="w-full font-semibold text-gray-600">
@@ -76,60 +76,80 @@ export default async function ShippingDetailsTaskForm({
                   <div className="flex gap-4">
                     {/* serviceCode */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="serviceCode">{dict("pages.shippingDetailsTaskForm.serviceCode")}</Label>
+                      <Label htmlFor="serviceCode">
+                        {dict("pages.shippingDetailsTaskForm.serviceCode")}
+                      </Label>
                       <TextInput
                         id="serviceCode"
                         name="serviceCode"
                         type="text"
                         disabled={true}
-                        defaultValue={task.properties.mintral_serviceCode as string}
+                        defaultValue={
+                          task.properties.mintral_serviceCode as string
+                        }
                       />
                     </div>
                     {/* serviceKind */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="serviceKind">{dict("pages.shippingDetailsTaskForm.serviceKind")}</Label>
+                      <Label htmlFor="serviceKind">
+                        {dict("pages.shippingDetailsTaskForm.serviceKind")}
+                      </Label>
                       <TextInput
                         id="serviceKind"
                         name="serviceKind"
                         type="text"
                         disabled={true}
-                        defaultValue={task.properties.mintral_serviceKind as string}
+                        defaultValue={
+                          task.properties.mintral_serviceKind as string
+                        }
                       />
                     </div>
                   </div>
                   <div className="flex gap-4">
                     {/* creationDate */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                        <Label htmlFor="email">{dict("pages.shippingDetailsTaskForm.creationDate")}</Label>
-                        <TextInput
-                          id="creationDate"
-                          name="creationDate"
-                          type="date"
-                          disabled={true}
-                          defaultValue={task.properties.mintral_creationDate as string}
-                        />
+                      <Label htmlFor="email">
+                        {dict("pages.shippingDetailsTaskForm.creationDate")}
+                      </Label>
+                      <TextInput
+                        id="creationDate"
+                        name="creationDate"
+                        type="date"
+                        disabled={true}
+                        defaultValue={
+                          task.properties.mintral_creationDate as string
+                        }
+                      />
                     </div>
                     {/* closureDate */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="email">{dict("pages.shippingDetailsTaskForm.closureDate")}</Label>
+                      <Label htmlFor="email">
+                        {dict("pages.shippingDetailsTaskForm.closureDate")}
+                      </Label>
                       <TextInput
                         id="closureDate"
                         name="closureDate"
                         type="text"
                         disabled={true}
-                        defaultValue={task.properties.mintral_closureDate as string}
+                        defaultValue={
+                          task.properties.mintral_closureDate as string
+                        }
                       />
                     </div>
                   </div>
                   <div className="flex gap-4">
                     <div className="w-1/2 flex flex-col gap-y-2">
-                      <Label htmlFor="approxTime">{dict("pages.shippingDetailsTaskForm.approxTime")}</Label>
+                      <Label htmlFor="approxTime">
+                        {dict("pages.shippingDetailsTaskForm.approxTime")}
+                      </Label>
                       <TextInput
                         id="approxTime"
                         name="approxTime"
                         type="time"
                         disabled={true}
-                        defaultValue={task.properties.mintral_approxTime as string}
+                        defaultValue={
+                          task.properties.mintral_approxTime as string
+                        }
                       />
                     </div>
                   </div>
@@ -141,18 +161,24 @@ export default async function ShippingDetailsTaskForm({
                   <div className="flex gap-4">
                     {/* distance */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="distance">{dict("pages.shippingDetailsTaskForm.distance")}</Label>
+                      <Label htmlFor="distance">
+                        {dict("pages.shippingDetailsTaskForm.distance")}
+                      </Label>
                       <TextInput
                         id="distance"
                         name="distance"
                         type="number"
                         disabled={true}
-                        defaultValue={task.properties.mintral_distance as number}
+                        defaultValue={
+                          task.properties.mintral_distance as number
+                        }
                       />
                     </div>
                     {/* speed */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="speed">{dict("pages.shippingDetailsTaskForm.speed")}</Label>
+                      <Label htmlFor="speed">
+                        {dict("pages.shippingDetailsTaskForm.speed")}
+                      </Label>
                       <TextInput
                         id="speed"
                         name="speed"
@@ -166,24 +192,37 @@ export default async function ShippingDetailsTaskForm({
                   <div className="flex gap-4">
                     {/* originDelegateCode */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="originDelegateCode">{dict("pages.shippingDetailsTaskForm.originDelegateCode")}</Label>
+                      <Label htmlFor="originDelegateCode">
+                        {dict(
+                          "pages.shippingDetailsTaskForm.originDelegateCode",
+                        )}
+                      </Label>
                       <TextInput
                         id="originDelegateCode"
                         name="originDelegateCode"
                         type="number"
                         disabled={true}
-                        defaultValue={task.properties.mintral_originDelegateCode as string}
+                        defaultValue={
+                          task.properties.mintral_originDelegateCode as string
+                        }
                       />
                     </div>
                     {/* destinationDelegateCode */}
                     <div className="flex-1 flex flex-col gap-y-2">
-                      <Label htmlFor="destinationDelegateCode">{dict("pages.shippingDetailsTaskForm.destinationDelegateCode")}</Label>
+                      <Label htmlFor="destinationDelegateCode">
+                        {dict(
+                          "pages.shippingDetailsTaskForm.destinationDelegateCode",
+                        )}
+                      </Label>
                       <TextInput
                         id="destinationDelegateCode"
                         name="destinationDelegateCode"
                         type="text"
                         disabled={true}
-                        defaultValue={task.properties.mintral_destinationDelegateCode  as string}
+                        defaultValue={
+                          task.properties
+                            .mintral_destinationDelegateCode as string
+                        }
                       />
                     </div>
                   </div>
@@ -191,7 +230,9 @@ export default async function ShippingDetailsTaskForm({
               </AccordionContent>
             </AccordionPanel>
             <AccordionPanel>
-              <TaskDetailsAccordionTitle title={dict("pages.shippingDetailsTaskForm.drivers")} />
+              <TaskDetailsAccordionTitle
+                title={dict("pages.shippingDetailsTaskForm.drivers")}
+              />
               <AccordionContent>
                 <p className="mb-2 text-gray-500 dark:text-gray-400">
                   Flowbite is first conceptualized and designed using the Figma
@@ -212,7 +253,9 @@ export default async function ShippingDetailsTaskForm({
               </AccordionContent>
             </AccordionPanel>
             <AccordionPanel>
-              <TaskDetailsAccordionTitle title={dict("pages.shippingDetailsTaskForm.clientInfo")} />
+              <TaskDetailsAccordionTitle
+                title={dict("pages.shippingDetailsTaskForm.clientInfo")}
+              />
               <AccordionContent>
                 <p className="mb-2 text-gray-500 dark:text-gray-400">
                   The main difference is that the core components from Flowbite
@@ -251,7 +294,9 @@ export default async function ShippingDetailsTaskForm({
               </AccordionContent>
             </AccordionPanel>
             <AccordionPanel>
-              <TaskDetailsAccordionTitle title={dict("pages.shippingDetailsTaskForm.observations")} />
+              <TaskDetailsAccordionTitle
+                title={dict("pages.shippingDetailsTaskForm.observations")}
+              />
               <AccordionContent>
                 <p className="mb-2 text-gray-500 dark:text-gray-400">
                   The main difference is that the core components from Flowbite

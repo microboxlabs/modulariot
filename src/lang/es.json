@@ -128,12 +128,17 @@
       "customerCode": "Cliente",
       "key": "Llave",
       "comments": "Comentarios",
-      "output": {
+      "outcome": {
         "normalInitiation": "Iniciar viaje",
         "initiationWithObjections": "Iniciar viaje con reparos",
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelado",
         "annulled": "Anulado"
+      },
+      "modal": {
+        "title": "Confirmar acción",
+        "confirm": "Confirmar: {outcome}",
+        "cancel": "Cancelar"
       }
     }
   },

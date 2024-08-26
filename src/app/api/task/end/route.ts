@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
   const json = await request.json();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const taskId = json.taskId as string;
-  const response = await endTask(session.user.ticket, taskId);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  const transitionId: string | undefined = json.transitionId;
+  const response = await endTask(session.user.ticket, taskId, transitionId);
   return NextResponse.json({
     success: true,
     status: 200,

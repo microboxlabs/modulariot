@@ -16,12 +16,13 @@ import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-deta
 import DetailsTextInput from "../details-text-input/details-text-input";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default async function ShippingDetailsTaskForm({
   task,
   lang,
 }: TaskFormProps) {
-  const [dict, _dictionary] = await getDictionary(lang ?? defaultLocale);
+  const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const detailsTitle = dict("layout.secured.sidebar.details", {
     serviceCode: task.properties.mintral_serviceCode as string,
   });
@@ -53,10 +54,21 @@ export default async function ShippingDetailsTaskForm({
           }}
         >
           <div className="flex items-center pt-5 px-5 ">
-            <h1 className="dark:text-white flex-1">{detailsTitle}</h1>
+            <h1 className="dark:text-white flex-1">
+              {detailsTitle}
+              <small className="p-4 text-gray-600">
+                <code>instanceId: {task.workflowInstance.id}</code>
+              </small>
+            </h1>
+
             <TaskActions
+              taskId={task.id}
               taskType={task.name as ShippingCoordinatorProcessForms}
               lang={lang}
+              dict={
+                (dictionary.pages as I18nRecord)
+                  .shippingDetailsTaskForm as I18nRecord
+              }
             />
           </div>
 

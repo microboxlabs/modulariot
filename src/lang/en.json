@@ -128,12 +128,17 @@
       "customerCode": "Customer",
       "key": "Key",
       "comments": "Comments",
-      "output": {
+      "outcome": {
         "normalInitiation": "Init trip",
         "initiationWithObjections": "Init trip with objections",
         "requiresOverlord": "Requires overlord",
         "canceled": "Canceled",
         "annulled": "Annulled"
+      },
+      "modal": {
+        "title": "Confirm action",
+        "confirm": "Confirm: {outcome}",
+        "cancel": "Cancel"
       }
     }
   },

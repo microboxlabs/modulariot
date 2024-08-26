@@ -10,3 +10,12 @@ export type ShippingCoordinatorProcessForms =
   | "wfship:overlordTripInitTask"
   | "wfship:sovosDigitalSignature"
   | "wfship:tripOutsideInitiatedTask";
+
+export type MissionControlValidationOutcome =
+  | "Iniciado Normal"
+  | "Iniciado Con Reparos"
+  | "Requiere Overlord"
+  | "Anulado"
+  | "Cancelado";
+
+export type TaskOutcome = MissionControlValidationOutcome;

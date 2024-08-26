@@ -69,6 +69,7 @@ export async function endTask(
   if (transitionId) {
     endpoint += `/${transitionId}`;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript("POST", endpoint);
   return result as EndTaskResponse;
 }

@@ -1,4 +1,4 @@
-import "server-only";
+"use client";
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiOutlineArrowRight,
@@ -8,22 +8,47 @@ import {
   HiTrash,
 } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
-import { getDictionary } from "@/features/i18n/i18n.service";
 import VerticalDotsIcon from "@/features/icons/vertical-dots";
+import TaskActionButton from "../task-action-button/task-action-button";
+import { OUTCOME_NORMAL_INITIATION } from "../../services/form.service";
+import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
+import {
+  I18nRecord,
+  PropsWithI18nDict,
+} from "@/features/i18n/i18n.service.types";
+import { useState } from "react";
+import { TaskOutcome } from "../../services/form.service.types";
 
-export default async function TaskActions({
+export default function TaskActions({
+  taskId,
   taskType,
-  lang,
-}: TaskActionsProps) {
-  const [dict] = await getDictionary(lang);
+  dict,
+}: PropsWithI18nDict<TaskActionsProps>) {
+  const [openModal, setOpenModal] = useState(false);
+  const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
+  const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
+
+  const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
+    setOutcome(outcome);
+    setOutcomeLabel(outcomeLabel);
+    setOpenModal(true);
+  };
+
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
         <div className="flex gap-2">
-          <Button size="md" color="blue">
-            {dict("pages.shippingDetailsTaskForm.output.normalInitiation")}
-            <HiOutlineArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <TaskActionButton
+            label={(dict.outcome as I18nRecord).normalInitiation as string}
+            taskId={taskId}
+            transitionId={OUTCOME_NORMAL_INITIATION}
+            onClick={() =>
+              handleSelection(
+                OUTCOME_NORMAL_INITIATION,
+                (dict.outcome as I18nRecord).normalInitiation as string,
+              )
+            }
+          />
           <Dropdown
             label={<VerticalDotsIcon />}
             arrowIcon={false}
@@ -35,23 +60,30 @@ export default async function TaskActions({
           >
             <DropdownItem className="flex gap-1">
               <HiCheck />
-              {dict(
-                "pages.shippingDetailsTaskForm.output.initiationWithObjections",
-              )}
+              {(dict.outcome as I18nRecord).initiationWithObjections as string}
             </DropdownItem>
             <DropdownItem className="flex gap-1">
               <HiOutlineHand />
-              {dict("pages.shippingDetailsTaskForm.output.requiresOverlord")}
+              {(dict.outcome as I18nRecord).requiresOverlord as string}
             </DropdownItem>
             <DropdownItem className="flex gap-1">
               <HiOutlineArrowLeft />
-              {dict("pages.shippingDetailsTaskForm.output.canceled")}
+              {(dict.outcome as I18nRecord).canceled as string}
             </DropdownItem>
             <DropdownItem className="flex gap-1">
               <HiTrash />
-              {dict("pages.shippingDetailsTaskForm.output.annulled")}
+              {(dict.outcome as I18nRecord).annulled as string}
             </DropdownItem>
           </Dropdown>
+
+          <TaskConfirmModal
+            dict={dict}
+            taskId={taskId}
+            outcome={outcome!}
+            outcomeLabel={outcomeLabel!}
+            openModal={openModal}
+            setOpenModal={setOpenModal}
+          />
         </div>
       );
     default:

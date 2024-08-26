@@ -136,7 +136,7 @@
         "annulled": "Anulado"
       },
       "modal": {
-        "title": "Confirmar acción",
+        "title": "Mover tarea",
         "confirm": "Confirmar: {outcome}",
         "cancel": "Cancelar"
       }

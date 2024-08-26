@@ -10,7 +10,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { taskNextAction } from "../../services/client-form.service";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import KanbanMove from "@/features/icons/kanban-move";
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
@@ -42,18 +42,16 @@ export default function TaskConfirmModal({
     <Modal dismissible show={openModal} onClose={() => setOpenModal(false)}>
       <Modal.Header>{(dict.modal as I18nRecord).title as string}</Modal.Header>
       <Modal.Body>
-        <div className="space-y-6">
-          <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400">
-            With less than a month to go before the European Union enacts new
-            consumer privacy laws for its citizens, companies around the world
-            are updating their terms of service agreements to comply.
-          </p>
-          <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400">
-            The European Union’s General Data Protection Regulation (G.D.P.R.)
-            goes into effect on May 25 and is meant to ensure a common set of
-            data rights in the European Union. It requires organizations to
-            notify users as soon as possible of high-risk data breaches that
-            could personally affect them.
+        <div className="space-y-2 flex flex-col items-center justify-center">
+          <KanbanMove />
+          <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400 px-8">
+            Estás a punto de enviar la tarea a la siguiente etapa:{" "}
+            <strong>{outcomeLabel}</strong> Si estás seguro, acciona el botón{" "}
+            <strong>
+              {tr("modal.confirm", dict, {
+                outcome: outcomeLabel ?? "outcome",
+              })}
+            </strong>
           </p>
         </div>
       </Modal.Body>

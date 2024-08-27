@@ -7,7 +7,9 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
 import Script from "next/script";
 // import { useSession } from "next-auth/react";
-
+declare global {
+  interface Window { plgAutentiaJS: any; }
+}
 export default function SovosVerificationForm({
   msg,
   task,
@@ -42,10 +44,60 @@ export default function SovosVerificationForm({
         }}
       />
 
-      {currentStep === "step1" && (
+      {(currentStep === "step1" || currentStep=== "step3" || currentStep === "step5") && (
         <SovosStartVerificationCard lang={lang} msg={msg} task={task} />
       )}
-      
+      <Script type="text/javascript" src="/app/autentia/jquery-2.1.4.min.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/json2.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/blockui.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/jsbn.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/jsbn2.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/rsa.js" strategy="beforeInteractive"></Script>
+    <Script type="text/javascript" src="/app/autentia/rsa2.js" strategy="beforeInteractive"></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/base64.js"
+        strategy="beforeInteractive"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/crypto-1.1.min.js"
+        strategy="beforeInteractive"
+      ></Script>
+
+      <Script src="/app/autentia/yahoo-min.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/core.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/md5.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/sha1.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/sha256.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/ripemd160.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/x64-core.js" strategy="beforeInteractive"></Script>
+      <Script src="/app/autentia/sha512.js" strategy="beforeInteractive"></Script>
+
+      <Script
+        type="text/javascript"
+        src="/app/autentia/rsapem-1.1.min.js"
+        strategy="beforeInteractive"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/rsasign-1.2.min.js"
+        strategy="beforeInteractive"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/asn1hex-1.1.min.js"
+        strategy="beforeInteractive"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/x509-1.1.min.js"
+        strategy="beforeInteractive"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/pluginautentiav3.js"
+      ></Script>
     </div>
   );
 }

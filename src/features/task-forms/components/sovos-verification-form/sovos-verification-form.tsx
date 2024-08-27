@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
 import Script from "next/script";
+import { useState } from "react";
 // import { useSession } from "next-auth/react";
 declare global {
   interface Window { plgAutentiaJS: any; }
@@ -16,14 +17,15 @@ export default function SovosVerificationForm({
   lang,
 }: TaskFormProps) {
   // const { data: session } = useSession();
-
+  const searchParams = useSearchParams();
+  const [pluginReady, setPluginReady] = useState(false);
   let steps = ["step1", "step2"];
   if (task.properties.mintral_driver2Name) {
     steps.push("step3", "step4");
   }
   steps.push("step5", "step6");
 
-  const searchParams = useSearchParams();
+  
   const currentStep = searchParams.get("step") ?? steps[0];
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
@@ -45,7 +47,7 @@ export default function SovosVerificationForm({
       />
 
       {(currentStep === "step1" || currentStep=== "step3" || currentStep === "step5") && (
-        <SovosStartVerificationCard lang={lang} msg={msg} task={task} />
+        <SovosStartVerificationCard lang={lang} msg={msg} task={task} pluginReady={pluginReady} />
       )}
       <Script type="text/javascript" src="/app/autentia/jquery-2.1.4.min.js" strategy="beforeInteractive"></Script>
     <Script type="text/javascript" src="/app/autentia/json2.js" strategy="beforeInteractive"></Script>
@@ -97,7 +99,9 @@ export default function SovosVerificationForm({
       <Script
         type="text/javascript"
         src="/app/autentia/pluginautentiav3.js"
-      ></Script>
+        onReady={() => {
+          setPluginReady(true);
+        }}></Script>
     </div>
   );
 }

@@ -2,10 +2,13 @@
 import { Card } from "flowbite-react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import { useEffect } from "react";
+import { SovosStartVerificationCardProps } from "./sovos-start-verification-card.types";
 
-export default function SovosStartVerificationCard({ msg }: TaskFormProps) {
+export default function SovosStartVerificationCard({ msg, pluginReady }: SovosStartVerificationCardProps) {
 
   useEffect(() => {
+    console.log("pluginReady", pluginReady);  
+    if(!pluginReady) return;
     const Autentia = new window.plgAutentiaJS();
     const entradas = { pRut: "24952044-6" };
     const salidas = [ "Erc", "NroAudit", "ErcDesc", "oNombres", "oSexo", "oFchNac" ];
@@ -14,7 +17,7 @@ export default function SovosStartVerificationCard({ msg }: TaskFormProps) {
     Autentia.Transaccion2("../SERVICIOS_MINEROS/verifica", entradas, salidas, focoAutentia, token, (resultado: any) => {
       console.log(resultado);
     });
-  }, []);
+  }, [pluginReady]);
 
   return (
     <Card>

@@ -1,3 +1,4 @@
+import { tr } from "@/features/i18n/tr.service";
 import { StepperNavigationProps } from "./stepper-navigation.types";
 import BadgeCheckIcon from "@/features/icons/badge-check";
 import { twMerge } from "tailwind-merge";
@@ -6,6 +7,7 @@ export default function StepperNavigation({
   routePaths,
   currentStep,
   msg,
+  trParams,
 }: StepperNavigationProps) {
   return (
     <div className="flex items-center gap-4  py-5">
@@ -20,7 +22,7 @@ export default function StepperNavigation({
                   stepEnabled ? "text-blue-600" : "text-gray-500",
                 )}
               >
-                {msg[routePath] as string}
+                {tr(routePath, msg, trParams ? trParams[routePath] : undefined)}
               </span>
             </div>
             {index < routePaths.length - 1 && (

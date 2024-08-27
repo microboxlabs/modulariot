@@ -140,6 +140,20 @@
         "confirm": "Confirm: {outcome}",
         "cancel": "Cancel"
       }
+    },
+    "sovosVerificationForm": {
+      "stepper": {
+        "step1": "Identity verification",
+        "step2": "{driverNumber} verified",
+        "step3": "Identity verification",
+        "step4": "{driverNumber} verified",
+        "step5": "Identity verification",
+        "step6": "{driverNumber} verified"
+      },
+      "title": "Identity verification",
+      "driver": "Driver",
+      "validator": "Dispatcher",
+      "description": "Place your right index finger on the reader to be identified."
     }
   },
   "layout": {

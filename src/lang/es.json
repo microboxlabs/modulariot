@@ -140,6 +140,20 @@
         "confirm": "Confirmar: {outcome}",
         "cancel": "Cancelar"
       }
+    },
+    "sovosVerificationForm": {
+      "stepper": {
+        "step1": "Verificación de identidad",
+        "step2": "{stepVal} verificado",
+        "step3": "Verificación de identidad",
+        "step4": "{stepVal} verificado",
+        "step5": "Verificación de identidad",
+        "step6": "{stepVal} verificado"
+      },
+      "title": "Verificación de identidad",
+      "driver": "Conductor",
+      "validator": "Despachador",
+      "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado."
     }
   },
   "layout": {

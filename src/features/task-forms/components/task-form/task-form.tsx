@@ -14,6 +14,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import ShippingDetailsTaskForm from "../shipping-details-task-form/shipping-details-task-form";
+import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
 
 export async function TaskForm({ task, lang }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -30,9 +31,18 @@ export async function TaskForm({ task, lang }: TaskFormProps) {
         />
       );
 
+    case TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE:
+      return (
+        <SovosVerificationForm
+          lang={lang}
+          task={task}
+          msg={
+            (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
+          }
+        />
+      );
     case TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK:
     case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
-    case TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE:
     case TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK:
       return <ShippingDetailsTaskForm lang={lang} task={task} />;
 

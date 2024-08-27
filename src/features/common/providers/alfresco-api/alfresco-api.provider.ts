@@ -26,7 +26,10 @@ export async function getBase64UserAvatar(
   return "data:image/png;base64," + buffer.toString("base64");
 }
 
-export async function getUserTasks(ticket: string): Promise<FastTasksResponse> {
+export async function getUserTasks(
+  ticket: string,
+  definitionKey: string,
+): Promise<FastTasksResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -39,6 +42,7 @@ export async function getUserTasks(ticket: string): Promise<FastTasksResponse> {
     JSON.stringify({
       from: 0,
       size: 100,
+      definitionKey,
     }),
   );
   return result as FastTasksResponse;

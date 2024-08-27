@@ -3,20 +3,21 @@ import fetcher from "./fetcher";
 import { FetcherError } from "./fetcher.types";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 
-export function useI8n(lang: string) {
-  const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
-  return {
-    dict: data,
-    error,
-    isLoading,
-  };
-}
+// export function useI8n(lang: string) {
+//   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
+//   return {
+//     dict: data,
+//     error,
+//     isLoading,
+//   };
+// }
 
-export function useMyTasks() {
+export function useMyTasks(columns: string[]) {
+  const qs = columns.map((column) => `columns=${column}`).join("&");
   const { data, error, isLoading } = useSWR<
     KanbanBoardTaskResponse,
     FetcherError
-  >(`/app/api/task/mytasks`, fetcher);
+  >(`/app/api/task/mytasks?${qs}`, fetcher);
   return {
     data,
     error,

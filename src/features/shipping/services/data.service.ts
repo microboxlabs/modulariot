@@ -41,8 +41,8 @@ export function getStaticData(): KanbanBoard[] {
 
 export function toShippingKanban(
   tasks: FastTasksResponse,
+  index: Record<string, KanbanBoard>,
 ): Record<string, KanbanBoard> {
-  let index: Record<string, KanbanBoard> = {};
   tasks.tasks.forEach((task) => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const boardKey = taskShippingBoardMap[task.taskFormKey as string];

@@ -19,3 +19,11 @@ export type MissionControlValidationOutcome =
   | "Cancelado";
 
 export type TaskOutcome = MissionControlValidationOutcome;
+
+export type ShippingCoordinatorProcessTask =
+  | "transportValidation"
+  | "missionControlTripInit"
+  | "overlordTripInit"
+  | "overlordTripInit"
+  | "sovosDigitalSignature"
+  | "tripOutsideInitiated";

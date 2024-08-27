@@ -25,6 +25,7 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
 import { useRouter } from "next/navigation";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
 export default function KanbanPageContent({
   kanbanBoards,
@@ -35,7 +36,9 @@ export default function KanbanPageContent({
 
   const router = useRouter();
 
-  const { data, error, isLoading } = useMyTasks();
+  const { data, error, isLoading } = useMyTasks(
+    SHIPPING_COORDINATOR_PROCESS_TASKS,
+  );
 
   if (error?.status === 401) {
     router.replace(`/${lang}/sign-in`);

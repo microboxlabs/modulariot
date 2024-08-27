@@ -1,26 +1,37 @@
 import "server-only";
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { toShippingKanban } from "@/features/shipping/services/data.service";
+import { KanbanBoard } from "@/features/shipping/types/common.types";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
       status: 401,
     });
   }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
+  const url = new URL(req.url);
+
+  const columns = url.searchParams.getAll("columns");
+  let data: Record<string, KanbanBoard> = {};
+  let total = 0;
   try {
-    const response = await getUserTasks(session.user.ticket);
-    const data = await toShippingKanban(response);
+    const taskResponses = await Promise.all(
+      columns.map((column) => getUserTasks(session.user.ticket, column)),
+    );
+    taskResponses.forEach((tasks) => {
+      toShippingKanban(tasks, data);
+      total += tasks.total;
+    });
     return NextResponse.json({
-      total: response.total,
+      total,
       data,
     });
   } catch (e: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
       return NextResponse.json(
         {
@@ -32,9 +43,9 @@ export async function GET() {
         },
       );
     }
-    console.error(e);
-    return new NextResponse(null, {
-      status: 500,
+    return NextResponse.json({
+      total,
+      data,
     });
   }
 }

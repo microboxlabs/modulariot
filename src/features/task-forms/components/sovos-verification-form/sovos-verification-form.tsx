@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-sync-scripts */
 "use client";
 import StepperNavigation from "@/features/layout/components/stepper-navigation/stepper-navigation";
 import { TaskFormProps } from "../task-form/task-form.types";
 import { useSearchParams } from "next/navigation";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
+import Script from "next/script";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -43,6 +45,7 @@ export default function SovosVerificationForm({
       {currentStep === "step1" && (
         <SovosStartVerificationCard lang={lang} msg={msg} task={task} />
       )}
+      
     </div>
   );
 }

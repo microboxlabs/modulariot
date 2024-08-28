@@ -1,22 +1,23 @@
 "use client";
 import { Card } from "flowbite-react";
-import { TaskFormProps } from "../task-form/task-form.types";
 import { useEffect } from "react";
 import { SovosStartVerificationCardProps } from "./sovos-start-verification-card.types";
+import { validateRut } from "@/features/sovos-fingerprint/services/autentia";
 
-export default function SovosStartVerificationCard({ msg, pluginReady }: SovosStartVerificationCardProps) {
-
+export default function SovosStartVerificationCard({
+  msg,
+  pluginReady,
+}: SovosStartVerificationCardProps) {
   useEffect(() => {
-    console.log("pluginReady", pluginReady);  
-    if(!pluginReady) return;
-    const Autentia = new window.plgAutentiaJS();
-    const entradas = { pRut: "24952044-6" };
-    const salidas = [ "Erc", "NroAudit", "ErcDesc", "oNombres", "oSexo", "oFchNac" ];
-    const focoAutentia = true;
-    const token = Math.floor(Math.random() * 1e15);
-    Autentia.Transaccion2("../SERVICIOS_MINEROS/verifica", entradas, salidas, focoAutentia, token, (resultado: any) => {
-      console.log(resultado);
-    });
+    console.log("pluginReady", pluginReady);
+    if (!pluginReady) return;
+    validateRut("24952044-6")
+      .then((result) => {
+        console.log("result", result);
+      })
+      .catch((error) => {
+        console.log("error", error);
+      });
   }, [pluginReady]);
 
   return (

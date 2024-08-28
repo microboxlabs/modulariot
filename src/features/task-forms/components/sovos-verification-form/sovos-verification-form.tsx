@@ -8,9 +8,6 @@ import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-s
 import Script from "next/script";
 import { useState } from "react";
 // import { useSession } from "next-auth/react";
-declare global {
-  interface Window { plgAutentiaJS: any; }
-}
 export default function SovosVerificationForm({
   msg,
   task,
@@ -25,7 +22,6 @@ export default function SovosVerificationForm({
   }
   steps.push("step5", "step6");
 
-  
   const currentStep = searchParams.get("step") ?? steps[0];
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
@@ -46,62 +42,93 @@ export default function SovosVerificationForm({
         }}
       />
 
-      {(currentStep === "step1" || currentStep=== "step3" || currentStep === "step5") && (
-        <SovosStartVerificationCard lang={lang} msg={msg} task={task} pluginReady={pluginReady} />
+      {(currentStep === "step1" ||
+        currentStep === "step3" ||
+        currentStep === "step5") && (
+        <SovosStartVerificationCard
+          lang={lang}
+          msg={msg}
+          task={task}
+          pluginReady={pluginReady}
+        />
       )}
-      <Script type="text/javascript" src="/app/autentia/jquery-2.1.4.min.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/json2.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/blockui.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/jsbn.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/jsbn2.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/rsa.js"></Script>
-    <Script type="text/javascript" src="/app/autentia/rsa2.js"></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/jquery-2.1.4.min.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/json2.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/blockui.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/jsbn.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/jsbn2.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/rsa.js"
+      ></Script>
+      <Script
+        type="text/javascript"
+        src="/app/autentia/rsa2.js"
+      ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/base64.js"
-       
       ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/crypto-1.1.min.js"
-       
       ></Script>
-
-      <Script src="/app/autentia/yahoo-min.js"></Script>
-      <Script src="/app/autentia/core.js"></Script>
-      <Script src="/app/autentia/md5.js"></Script>
-      <Script src="/app/autentia/sha1.js"></Script>
-      <Script src="/app/autentia/sha256.js"></Script>
-      <Script src="/app/autentia/ripemd160.js"></Script>
-      <Script src="/app/autentia/x64-core.js"></Script>
-      <Script src="/app/autentia/sha512.js"></Script>
-
+      <Script
+        src="/app/autentia/yahoo-min.js" 
+      ></Script>
+      <Script src="/app/autentia/core.js" ></Script>
+      <Script src="/app/autentia/md5.js" ></Script>
+      <Script src="/app/autentia/sha1.js" ></Script>
+      <Script
+        src="/app/autentia/sha256.js"
+      ></Script>
+      <Script
+        src="/app/autentia/ripemd160.js"
+      ></Script>
+      <Script
+        src="/app/autentia/x64-core.js"
+      ></Script>
+      <Script
+        src="/app/autentia/sha512.js" 
+      ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/rsapem-1.1.min.js"
-       
       ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/rsasign-1.2.min.js"
-       
       ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/asn1hex-1.1.min.js"
-       
       ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/x509-1.1.min.js"
-       
       ></Script>
       <Script
         type="text/javascript"
         src="/app/autentia/pluginautentiav3.js"
         onReady={() => {
           setPluginReady(true);
-        }}></Script>
+        }}
+      ></Script>
     </div>
   );
 }

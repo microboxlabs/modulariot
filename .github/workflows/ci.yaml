@@ -6,6 +6,12 @@ on: [push, pull_request]
 
 jobs:
   build:
+
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
     runs-on: ubuntu-latest
     # container:
     #   image: node:20
@@ -54,3 +60,14 @@ jobs:
 
     - name: Build with Next.js
       run: ${{ steps.detect-package-manager.outputs.runner }} next build
+
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+
+    - name: 'Use gcloud CLI'
+      run: 'gcloud info'

@@ -4,6 +4,10 @@ run-name: ${{ github.actor }} is deploying ${{ github.repository }} 🚀
 
 on: [push, pull_request]
 
+env:
+  REGION: ${{ variables.DEFAULT_REGION }}
+  PROJECT_ID: ${{ variables.GCP_PROJECT_ID }}
+
 jobs:
   build:
 
@@ -71,3 +75,7 @@ jobs:
 
     - name: 'Use gcloud CLI'
       run: 'gcloud info'
+
+    - name: 'Docker 'auth'
+      run: |-
+        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet

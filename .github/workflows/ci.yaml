@@ -5,8 +5,8 @@ run-name: ${{ github.actor }} is deploying ${{ github.repository }} 🚀
 on: [push, pull_request]
 
 env:
-  REGION: ${{ variables.DEFAULT_REGION }}
-  PROJECT_ID: ${{ variables.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_DEFAULT_REGION }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
 
 jobs:
   build:

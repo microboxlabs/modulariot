@@ -153,7 +153,16 @@
       "title": "Verificación de identidad",
       "driver": "Conductor",
       "validator": "Despachador",
-      "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado."
+      "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado.",
+      "successTitle": "Identidad reconocida",
+      "successDescription": "Su identidad ha sido reconocida exitosamente",
+      "errorTitle": "Error en la verificación",
+      "errorDescription": "No se conseguido identificar al conductor, por favor reintentar, en caso de que el error persista contactarse con soporte.",
+      "tryAgain": "Reintentar",
+      "continue": "Continuar",
+      "finish": "Finalizar",
+      "startVerification": "Iniciar verificación",
+      "initiatingAutentia": "Cargando Autentia plugin..."
     }
   },
   "layout": {

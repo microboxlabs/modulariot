@@ -153,7 +153,16 @@
       "title": "Identity verification",
       "driver": "Driver",
       "validator": "Dispatcher",
-      "description": "Place your right index finger on the reader to be identified."
+      "description": "Place your right index finger on the reader to be identified.",
+      "successTitle": "Identity recognized",
+      "successDescription": "Your identity has been successfully recognized",
+      "errorTitle": "Verification error",
+      "errorDescription": "The driver could not be identified, please try again, if the error persists, contact support.",
+      "tryAgain": "Try again",
+      "continue": "Continue",
+      "finish": "Finish",
+      "startVerification": "Start verification",
+      "initiatingAutentia": "Loading Autentia plugin..."
     }
   },
   "layout": {

@@ -21,3 +21,21 @@ export async function taskNextAction(
     }),
   });
 }
+
+export async function taskSignDocument(
+  _prevState: TaskNextActionState,
+  formData: FormData,
+): Promise<TaskNextActionState> {
+  const taskId = formData.get("taskId") as string;
+  const transitionId = formData.get("transitionId");
+  return fetcher("/app/api/task/sign", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      taskId,
+      transitionId,
+    }),
+  });
+}

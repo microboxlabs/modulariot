@@ -76,6 +76,6 @@ jobs:
     - name: 'Use gcloud CLI'
       run: 'gcloud info'
 
-    - name: 'Docker 'auth'
-      run: |
+    - name: 'Docker auth'
+      run: |-
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet

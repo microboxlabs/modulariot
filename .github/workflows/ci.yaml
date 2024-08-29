@@ -87,4 +87,4 @@ jobs:
         SHORT_SHA=${GITHUB_SHA::7}
         echo $SHORT_SHA
         echo $BRANCH_NAME
-        # docker build . -f Dockerfile -t ${{ GAR_LOCATION }}:${{ env.BRANCH_NAME }}-${{ github.sha }}
+        # docker build . -f Dockerfile -t ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-${{ github.sha }}

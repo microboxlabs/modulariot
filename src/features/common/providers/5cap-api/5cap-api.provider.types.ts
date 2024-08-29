@@ -49,7 +49,7 @@ export type DocumentTypesResult = {
       template: number;
       type_code: string;
     }[];
-  }
+  };
 };
 
 // CreateContentRequest
@@ -88,4 +88,3 @@ export type ContentRequest = {
   file_mime: string;
   return_file: number;
 };
-

@@ -1,5 +1,9 @@
 import fetcher from "../fetcher";
-import { ContentRequest, DocumentTypesResult, LoginResult } from "./5cap-api.provider.types";
+import {
+  ContentRequest,
+  DocumentTypesResult,
+  LoginResult,
+} from "./5cap-api.provider.types";
 
 export function login(): Promise<LoginResult> {
   const url = `${process.env.CAP_API_URL}/auth/login`;
@@ -16,7 +20,10 @@ export function login(): Promise<LoginResult> {
   });
 }
 
-export function getDocumentTypes(institutionId: string, sessionId: string): Promise<DocumentTypesResult> {
+export function getDocumentTypes(
+  institutionId: string,
+  sessionId: string,
+): Promise<DocumentTypesResult> {
   const url = `${process.env.CAP_API_URL}/document_type/list?institution=${institutionId}&session_id=${sessionId}`;
   return fetcher(url, {
     headers: {

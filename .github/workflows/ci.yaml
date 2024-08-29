@@ -7,6 +7,8 @@ on: [push, pull_request]
 env:
   REGION: ${{ vars.GCP_DEFAULT_REGION }}
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GAR_LOCATION: ${{ vars.GCP_DEFAULT_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mainbox/mintral-coordinador-webclient
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} # GitHub Actions uses different ref names for PRs and pushes
 
 jobs:
   build:
@@ -79,3 +81,10 @@ jobs:
     - name: 'Docker auth'
       run: |-
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+    - name: 'Build Docker image'
+      run: |-
+        SHORT_SHA=${GITHUB_SHA::7}
+        echo $SHORT_SHA
+        echo $BRANCH_NAME
+        # docker build . -f Dockerfile -t ${{ GAR_LOCATION }}:${{ env.BRANCH_NAME }}-${{ github.sha }}

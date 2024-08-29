@@ -82,9 +82,9 @@ jobs:
       run: |-
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-    - name: 'Build Docker image'
+    - name: 'Build and Push Docker image '
       run: |-
         SHORT_SHA=${GITHUB_SHA::7}
-        echo $SHORT_SHA
-        echo $BRANCH_NAME
-        # docker build . -f Dockerfile -t ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-${{ github.sha }}
+        docker build . -f Dockerfile -t ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-$SHORT_SHA
+        docker push ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-$SHORT_SHA
+    

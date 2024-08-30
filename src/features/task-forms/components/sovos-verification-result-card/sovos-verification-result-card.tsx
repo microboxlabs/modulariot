@@ -3,12 +3,16 @@ import successImage from "@assets/images/kanban/sign-ok.gif";
 import errorImage from "@assets/images/kanban/sign-failed.gif";
 import Image from "next/image";
 import { SovosVerificationCardProps } from "../sovos-start-verification-card/sovos-start-verification-card.types";
+import { useSession } from "next-auth/react";
 
 export default function SovosVerificationResultCard({
   msg,
   success,
   stepperController,
+  task,
 }: SovosVerificationCardProps) {
+  const { data: session } = useSession();
+
   let imageUrl;
   let title;
   let description;
@@ -21,6 +25,17 @@ export default function SovosVerificationResultCard({
     title = msg?.errorTitle as string;
     description = msg?.errorDescription as string;
   }
+  const step = stepperController.currentStep();
+  let personName = "";
+  if (step === "step2") {
+    personName = `${msg!.driver} 1: ${task.properties.mintral_driver1Name as string}`;
+  }
+  if (step === "step4") {
+    personName = `${msg!.driver} 2: ${task.properties.mintral_driver2Name as string}`;
+  }
+  if (step === "step6") {
+    personName = `${msg!.validator}: ${session?.user.name ?? ""}`;
+  }
   return (
     <Card>
       <div className="flex flex-col min-w-96 items-center justify-center w-96">
@@ -32,6 +47,9 @@ export default function SovosVerificationResultCard({
         </h5>
         <div className="text-center text-gray-500 text-justified p-4">
           {description}
+        </div>
+        <div className="text-center text-gray-400 text-justified p-4">
+          {personName}
         </div>
         {!success && (
           <Button

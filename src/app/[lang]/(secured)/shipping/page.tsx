@@ -8,7 +8,7 @@ import {
   getStaticData,
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
-import { redirect } from "next/navigation";
+import { redirectWithLang } from "@/features/auth/services/navigation.service";
 
 export default async function ShippingPage({
   params: { lang },
@@ -38,7 +38,7 @@ export default async function ShippingPage({
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
-      redirect(`/${lang}/sign-in`);
+      redirectWithLang(`/sign-in`);
     }
   }
   return null;

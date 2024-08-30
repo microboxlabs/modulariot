@@ -4,7 +4,8 @@ import { auth } from "@/auth";
 import { getTaskById } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { TaskForm } from "@/features/task-forms/components/task-form/task-form";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { redirectWithLang } from "@/features/auth/services/navigation.service";
 
 export default async function TaskEditPage({
   params: { taskId, lang },
@@ -16,7 +17,7 @@ export default async function TaskEditPage({
     return <TaskForm task={task.data} lang={lang} />;
   } catch (e: any) {
     if (e?.status === 401) {
-      redirect(`/${lang}/sign-in`);
+      redirectWithLang(`/sign-in`);
     }
     notFound();
   }

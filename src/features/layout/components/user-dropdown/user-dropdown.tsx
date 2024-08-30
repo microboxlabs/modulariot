@@ -1,9 +1,9 @@
 "use client";
 
-import { signOutAction } from "@/features/auth/services/client-auth.service";
+// import { signOutAction } from "@/features/auth/services/client-auth.service";
 // import { getBase64UserAvatar } from "@/features/common/providers/alfresco-api.provider";
 import { Avatar, Dropdown } from "flowbite-react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { UserDropdownProps } from "./user-dropdown.types";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +29,7 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
   }
 
   async function handleSignOut() {
-    await signOutAction();
+    await signOut({ redirect: false });
     router.replace("/sign-in");
   }
   // const session = await auth();

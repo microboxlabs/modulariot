@@ -1,10 +1,17 @@
+"use server";
 import "server-only";
 
-import { CredentialsSignin } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import type { User } from "next-auth";
-import { SignInCredentials } from "./auth.service.types";
+import {
+  AuthenticateActionState,
+  SignInCredentials,
+} from "./auth.service.types";
 import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi } from "@alfresco/js-api";
+import { signIn } from "@/auth";
+import { redirectWithLang } from "./navigation.service";
+
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,
 ): Promise<User | null> {
@@ -32,5 +39,34 @@ export async function signInWithCredentials(
       message: "Invalid credentials",
       status: 403,
     });
+  }
+}
+
+export async function authenticateAction(
+  prevState: AuthenticateActionState,
+  formData: FormData,
+): Promise<AuthenticateActionState> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await signIn("credentials", {
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      redirect: false,
+    });
+    redirectWithLang("/shipping");
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return {
+            success: false,
+            message: "Invalid credentials",
+            status: 403,
+          };
+        default:
+          return { success: false, message: "An error occurred", status: 500 };
+      }
+    }
+    throw error;
   }
 }

@@ -1,27 +1,21 @@
 "use client";
 
-import { authenticateAction } from "@/features/auth/services/client-auth.service";
-import { useFormStatus, useFormState } from "react-dom";
+import { authenticateAction } from "@/features/auth/services/auth.service";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useFormState } from "react-dom";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  const router = useRouter();
-  const [state, formAction] = useFormState(authenticateAction, {});
-  const { pending } = useFormStatus();
+  const [_state, formAction] = useFormState(authenticateAction, {});
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (state.success) {
-      router.replace("/shipping");
-    }
-  }, [state]);
-
-  useEffect(() => {
-    console.log("pending", pending);
-  }, [pending]);
+  function handleSubmit(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    setPending(true);
+    e.currentTarget.form?.requestSubmit();
+  }
 
   return (
     <form className="mt-8 space-y-6" action={formAction}>
@@ -58,11 +52,11 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
       <div className="mb-6">
         <Button
           color="blue"
-          type="submit"
           theme={{ inner: { base: "px-5 py-3" } }}
           className="w-full px-0 py-px"
           isProcessing={pending}
           aria-disabled={pending}
+          onClick={handleSubmit}
         >
           {msg.buttonSubmitLabel}
         </Button>

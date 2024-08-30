@@ -4,12 +4,13 @@ import StepperNavigation from "@/features/layout/components/stepper-navigation/s
 import { TaskFormProps } from "../task-form/task-form.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
-import Script from "next/script";
 import { useState } from "react";
 import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
 import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
 import { taskSignDocument } from "../../services/client-form.service";
+import SovosDeps from "../sovos-deps/sovos-deps";
 // import { useSession } from "next-auth/react";
+
 export default function SovosVerificationForm({
   msg,
   task,
@@ -115,52 +116,7 @@ export default function SovosVerificationForm({
           success={!stepper.isError}
         />
       )}
-      <Script
-        type="text/javascript"
-        src="/app/autentia/jquery-2.1.4.min.js"
-      ></Script>
-      <Script type="text/javascript" src="/app/autentia/json2.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/blockui.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/jsbn.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/jsbn2.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/rsa.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/rsa2.js"></Script>
-      <Script type="text/javascript" src="/app/autentia/base64.js"></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/crypto-1.1.min.js"
-      ></Script>
-      <Script src="/app/autentia/yahoo-min.js"></Script>
-      <Script src="/app/autentia/core.js"></Script>
-      <Script src="/app/autentia/md5.js"></Script>
-      <Script src="/app/autentia/sha1.js"></Script>
-      <Script src="/app/autentia/sha256.js"></Script>
-      <Script src="/app/autentia/ripemd160.js"></Script>
-      <Script src="/app/autentia/x64-core.js"></Script>
-      <Script src="/app/autentia/sha512.js"></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/rsapem-1.1.min.js"
-      ></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/rsasign-1.2.min.js"
-      ></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/asn1hex-1.1.min.js"
-      ></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/x509-1.1.min.js"
-      ></Script>
-      <Script
-        type="text/javascript"
-        src="/app/autentia/pluginautentiav3.js"
-        onReady={() => {
-          setPluginReady(true);
-        }}
-      ></Script>
+      <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );
 }

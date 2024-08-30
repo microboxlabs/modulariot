@@ -9,6 +9,7 @@ import SovosVerificationResultCard from "../sovos-verification-result-card/sovos
 import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
 import { taskSignDocument } from "../../services/client-form.service";
 import SovosDeps from "../sovos-deps/sovos-deps";
+import { useRouter } from "next/navigation";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -18,6 +19,7 @@ export default function SovosVerificationForm({
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
+  const router = useRouter();
   const [stepper, setStepper] = useState({
     currentStep: "step1",
     isError: false,
@@ -31,7 +33,12 @@ export default function SovosVerificationForm({
       "serviceCode",
       task.properties.mintral_serviceCode as string,
     );
-    const _result = await taskSignDocument({} as any, formData);
+    const result = await taskSignDocument({} as any, formData);
+
+    if(result.success){
+      router.push(`/${lang}/shipping`);
+    }
+    console.log(result);
   };
 
   const stepperController: StepperController = {

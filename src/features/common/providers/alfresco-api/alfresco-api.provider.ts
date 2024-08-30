@@ -1,4 +1,9 @@
-import { AlfrescoApi, PeopleApi, WebscriptApi } from "@alfresco/js-api";
+import {
+  AlfrescoApi,
+  PeopleApi,
+  WebscriptApi,
+  NodesApi,
+} from "@alfresco/js-api";
 import type {
   EndTaskResponse,
   FastTasksResponse,
@@ -80,3 +85,14 @@ export async function endTask(
 // export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
 
 // export const peopleApi = new PeopleApi(alfrescoApi.contentClient);
+
+export async function getContentNode(
+  ticket: string,
+  nodeId: string,
+): Promise<string> {
+  alfrescoApi.setTicket(ticket, "");
+  const nodesApi = new NodesApi(alfrescoApi.contentClient);
+  const blob = await nodesApi.getNodeContent(nodeId);
+  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  return buffer.toString("base64");
+}

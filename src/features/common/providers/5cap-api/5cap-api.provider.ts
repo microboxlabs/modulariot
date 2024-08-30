@@ -3,6 +3,7 @@ import {
   ContentRequest,
   DocumentTypesResult,
   LoginResult,
+  ContentResult,
 } from "./5cap-api.provider.types";
 
 export function login(): Promise<LoginResult> {
@@ -33,8 +34,10 @@ export function getDocumentTypes(
   });
 }
 
-export function createContent(contentRequest: ContentRequest): Promise<any> {
-  const url = `${process.env.CAP_API_URL}/content/create`;
+export function createContent(
+  contentRequest: ContentRequest,
+): Promise<ContentResult> {
+  const url = `${process.env.CAP_API_URL}/documents/create`;
   return fetcher(url, {
     headers: {
       "X-API-KEY": process.env.CAP_API_KEY as string,

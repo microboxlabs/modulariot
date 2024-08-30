@@ -28,6 +28,8 @@ export async function taskSignDocument(
 ): Promise<TaskNextActionState> {
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
+  const serviceCode = formData.get("serviceCode");
+
   return fetcher("/app/api/task/sign", {
     method: "POST",
     headers: {
@@ -36,6 +38,9 @@ export async function taskSignDocument(
     body: JSON.stringify({
       taskId,
       transitionId,
+      serviceCode,
+      signersEmails: ["michel@microboxlabs.com"],
+      signerRuts: ["24952044-6"],
     }),
   });
 }

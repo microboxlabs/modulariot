@@ -24,7 +24,14 @@ export default function SovosVerificationForm({
   });
 
   const handleSignDocument = async () => {
-    const _result = await taskSignDocument({} as any, new FormData());
+    const formData = new FormData();
+    formData.append("taskId", task.id);
+    formData.append("transitionId", "next");
+    formData.append(
+      "serviceCode",
+      task.properties.mintral_serviceCode as string,
+    );
+    const _result = await taskSignDocument({} as any, formData);
   };
 
   const stepperController: StepperController = {

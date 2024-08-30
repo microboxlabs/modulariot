@@ -5,7 +5,10 @@ import {
   createContent,
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
-import { getContentNode } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  endTask,
+  getContentNode,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -29,10 +32,12 @@ export async function POST(request: NextRequest) {
   const institutionId = process.env.DEC5_INSTITUTION!;
   const targetContentType = process.env.DEC5_TARGET_CONTENT_TYPE!;
   const signerRoles = process.env.DEC5_SIGNER_ROLES!;
+
   const json = (await request.json()) as {
     serviceCode: string;
     signersEmails: string[];
     signerRuts: string[];
+    taskId: string;
   };
 
   const sampleNodeId = "3e3be7e6-aace-4b71-be18-091e4a0a8406";
@@ -62,6 +67,10 @@ export async function POST(request: NextRequest) {
   };
 
   const response = await createContent(createContentRequest);
+
+  const endTaskResult = await endTask(session.user.ticket, json.taskId);
+
+  console.log(endTaskResult);
 
   // {
   //   type_code,

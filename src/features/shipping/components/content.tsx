@@ -51,7 +51,7 @@ export default function KanbanPageContent({
     return {
       ...board,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      tasks: data.data[board.title]?.tasks || board.tasks,
+      tasks: data.data[board.title]?.tasks ?? [],
     };
   });
   return (

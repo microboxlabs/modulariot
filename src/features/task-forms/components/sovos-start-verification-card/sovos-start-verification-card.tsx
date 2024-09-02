@@ -2,8 +2,8 @@
 import { Button, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "./sovos-start-verification-card.types";
 import {
-  fakeValidateRut,
-  // validateRut,
+  // fakeValidateRut,
+  validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
 
 export default function SovosStartVerificationCard({
@@ -16,7 +16,7 @@ export default function SovosStartVerificationCard({
   function startVerification() {
     const currentStep = stepperController.currentStep();
     if (!pluginReady) return;
-    fakeValidateRut("24952044-6")
+    validateRut("24952044-6")
       .then((result) => {
         if (result) {
           stepperController.toNextStep(false);

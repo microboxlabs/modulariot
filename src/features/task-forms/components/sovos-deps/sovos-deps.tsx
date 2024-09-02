@@ -28,7 +28,9 @@ let pendingLoader = deps.length;
 export default function SovosDeps({ onReady }: { onReady?: () => void }) {
   if (pendingLoader === 0) {
     // console.log("All deps are ready");
-    onReady?.();
+    setTimeout(() => {
+      onReady?.();
+    }, 100);
     return;
   }
 
@@ -40,7 +42,9 @@ export default function SovosDeps({ onReady }: { onReady?: () => void }) {
       onReady={() => {
         // console.log(`${dep} ready`);
         if (--pendingLoader === 0) {
-          onReady?.();
+          setTimeout(() => {
+            onReady?.();
+          }, 100);
         }
       }}
     />

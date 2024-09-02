@@ -35,7 +35,7 @@ export default function SovosVerificationForm({
     );
     const result = await taskSignDocument({} as any, formData);
 
-    if(result.success){
+    if (result.success) {
       router.push(`/${lang}/shipping`);
     }
     console.log(result);

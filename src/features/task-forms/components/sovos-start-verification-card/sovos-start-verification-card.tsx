@@ -5,6 +5,9 @@ import {
   // fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
+import SmartCardIcon from "@/features/icons/smartcard";
+import FingerprintIcon from "@/features/icons/figerprint";
+import { useState } from "react";
 
 export default function SovosStartVerificationCard({
   // lang,
@@ -13,9 +16,13 @@ export default function SovosStartVerificationCard({
   pluginReady,
   stepperController,
 }: SovosVerificationCardProps) {
+  const [isVerificationInProgress, setIsVerificationInProgress] =
+    useState(false);
   function startVerification() {
     const currentStep = stepperController.currentStep();
+
     if (!pluginReady) return;
+    setIsVerificationInProgress(true);
     validateRut("24952044-6")
       .then((result) => {
         if (result) {
@@ -37,7 +44,13 @@ export default function SovosStartVerificationCard({
   return (
     <Card>
       <div className="flex flex-col min-w-96 items-center justify-center w-96">
-        <div className="h-40	w-40"></div>
+        <div className="h-40	w-40">
+          {isVerificationInProgress ? (
+            <FingerprintIcon state="in_progress" />
+          ) : (
+            <SmartCardIcon />
+          )}
+        </div>
         <h5 className="text-xl font-medium tracking-tight text-gray-900 dark:text-white mt-9">
           {msg!.title as string}
         </h5>
@@ -45,17 +58,19 @@ export default function SovosStartVerificationCard({
         <div className="text-center text-justified p-4">
           {msg!.description as string}
         </div>
-        <Button
-          color={pluginReady ? "blue" : "gray"}
-          theme={{ inner: { base: "px-5 py-3" } }}
-          className="w-full px-0 py-px"
-          isProcessing={!pluginReady}
-          onClick={startVerification}
-        >
-          {pluginReady
-            ? (msg?.startVerification as string)
-            : (msg?.initiatingAutentia as string)}
-        </Button>
+        {!isVerificationInProgress && (
+          <Button
+            color={pluginReady ? "blue" : "gray"}
+            theme={{ inner: { base: "px-5 py-3" } }}
+            className="w-full px-0 py-px"
+            isProcessing={!pluginReady}
+            onClick={startVerification}
+          >
+            {pluginReady
+              ? (msg?.startVerification as string)
+              : (msg?.initiatingAutentia as string)}
+          </Button>
+        )}
       </div>
     </Card>
   );

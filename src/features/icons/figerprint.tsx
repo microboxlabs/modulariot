@@ -6,7 +6,7 @@ import icon from "@assets/lordicons.json";
 export default function FingerprintIcon({
   state,
 }: {
-  state: "success" | "failed";
+  state: "success" | "failed" | "in_progress";
 }) {
   const playerRef = useRef<Player>(null);
 
@@ -16,9 +16,18 @@ export default function FingerprintIcon({
     }, 500);
   }, []);
 
-  const playerState = state === "success" ? "morph-correct" : "hover-wrong";
-  const colors = state === "success" ? "#31c48d" : "#F05252";
-
+  const playerState =
+    state === "success"
+      ? "morph-correct"
+      : state === "failed"
+        ? "hover-wrong"
+        : "loop-cycle";
+  const colors =
+    state === "success"
+      ? "#31c48d"
+      : state === "failed"
+        ? "#F05252"
+        : "#1A57DB";
   return (
     <Player
       ref={playerRef}
@@ -26,6 +35,11 @@ export default function FingerprintIcon({
       size={150}
       state={playerState}
       colors={`primary:${colors},secondary:${colors}`}
+      onComplete={() => {
+        if (state === "in_progress") {
+          playerRef.current?.playFromBeginning();
+        }
+      }}
     />
   );
 }

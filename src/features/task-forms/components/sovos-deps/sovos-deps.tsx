@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { useState } from "react";
 
 const deps = [
   "/app/autentia/jquery-2.1.4.min.js",
@@ -24,27 +25,60 @@ const deps = [
   "/app/autentia/x509-1.1.min.js",
   "/app/autentia/pluginautentiav3.js",
 ];
-let pendingLoader = deps.length;
+
+/**
+ * AllDepsLoaded is a flag to check if all dependencies have been loaded.
+ * We keep this flag in a global variable because this dependencies must be
+ * loaded once and only once.
+ */
+let allDepsLoaded = false;
+
 export default function SovosDeps({ onReady }: { onReady?: () => void }) {
-  if (pendingLoader === 0) {
-    // console.log("All deps are ready");
-    setTimeout(() => {
-      onReady?.();
-    }, 100);
-    return;
+  const [depsIndex, setDepsIndex] = useState(1);
+
+  /**
+   * handleDepsLoaded is a function to handle the loading of dependencies.
+   * If all dependencies have been loaded, we call the onReady function.
+   * We use setTimeout to ensure that the dependencies are loaded before calling
+   * in order to avoid race conditions.
+   */
+  const handleDepsLoaded = () => {
+    if (allDepsLoaded) {
+      setTimeout(() => {
+        onReady?.();
+        // console.log("allDepsLoaded", allDepsLoaded);
+      }, 100);
+    }
+  };
+
+  /**
+   * We call the handleDepsLoaded function to ensure that the dependencies are
+   * already loaded before the SovosVerificationForm component is rendered.
+   */
+  handleDepsLoaded();
+
+  /**
+   * In slow networks, the dependencies may not be loaded in order.
+   * To avoid this, we load the dependencies following the order of the array.
+   */
+  const sliceIndex = depsIndex <= deps.length ? depsIndex : deps.length;
+  const depsToLoad = deps.slice(0, sliceIndex);
+
+  if (allDepsLoaded) {
+    return null;
   }
 
-  return deps.map((dep, index) => (
+  return depsToLoad.map((dep, index) => (
     <Script
       key={index}
       type="text/javascript"
       src={dep}
       onReady={() => {
-        // console.log(`${dep} ready`);
-        if (--pendingLoader === 0) {
-          setTimeout(() => {
-            onReady?.();
-          }, 100);
+        setDepsIndex(depsIndex + 1);
+        console.log("depsIndex", depsIndex, "dep", dep);
+        if (depsIndex >= deps.length) {
+          allDepsLoaded = true;
+          handleDepsLoaded();
         }
       }}
     />

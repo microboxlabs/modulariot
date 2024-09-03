@@ -1,9 +1,7 @@
 import { Button, Card } from "flowbite-react";
-import successImage from "@assets/images/kanban/sign-ok.gif";
-import errorImage from "@assets/images/kanban/sign-failed.gif";
-import Image from "next/image";
 import { SovosVerificationCardProps } from "../sovos-start-verification-card/sovos-start-verification-card.types";
 import { useSession } from "next-auth/react";
+import FingerprintIcon from "@/features/icons/figerprint";
 
 export default function SovosVerificationResultCard({
   msg,
@@ -13,15 +11,13 @@ export default function SovosVerificationResultCard({
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
 
-  let imageUrl;
   let title;
   let description;
   if (success) {
-    imageUrl = successImage;
     title = msg?.successTitle as string;
     description = msg?.successDescription as string;
   } else {
-    imageUrl = errorImage;
+    // imageUrl = errorImage;
     title = msg?.errorTitle as string;
     description = msg?.errorDescription as string;
   }
@@ -40,7 +36,8 @@ export default function SovosVerificationResultCard({
     <Card>
       <div className="flex flex-col min-w-96 items-center justify-center w-96">
         <div className="h-40	w-40">
-          <Image src={imageUrl} alt="Not Found" className="object-cover" />
+          {/* <Image src={imageUrl} alt="Not Found" className="object-cover" /> */}
+          <FingerprintIcon state={success ? "success" : "failed"} />
         </div>
         <h5 className="text-xl font-medium tracking-tight text-gray-900 dark:text-white mt-9">
           {title}

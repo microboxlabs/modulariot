@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         message: response.message,
       });
     }
-    const signedFile = response.result.file;
+    const _signedFile = response.result.file;
     const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
     console.log(endTaskResult);

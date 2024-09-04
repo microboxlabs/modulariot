@@ -18,8 +18,11 @@ export type AutentiaType = {
 export type AutentiaTypeCallback = (result: CallbackParams) => void;
 
 export type CallbackParams = {
-  ParamsGet: {
-    Erc: number;
-  };
+  ParamsGet: AutentiaParamsGet;
   token?: string;
+};
+
+export type AutentiaParamsGet = {
+  Erc: number;
+  NroAudit: string;
 };

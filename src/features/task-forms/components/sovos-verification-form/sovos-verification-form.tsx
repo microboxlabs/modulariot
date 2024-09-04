@@ -10,6 +10,7 @@ import { StepperController } from "@/features/layout/components/stepper-navigati
 import { taskSignDocument } from "../../services/client-form.service";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
+import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -19,6 +20,7 @@ export default function SovosVerificationForm({
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
+  const [audits, setAudits] = useState<AutentiaParamsGet[]>([]);
   const router = useRouter();
   const [stepper, setStepper] = useState({
     currentStep: "step1",
@@ -27,6 +29,7 @@ export default function SovosVerificationForm({
 
   const handleSignDocument = async () => {
     const formData = new FormData();
+    console.log("audits", audits);
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
     formData.append(
@@ -52,7 +55,12 @@ export default function SovosVerificationForm({
         isError,
       });
     },
-    toNextStep: (isError: boolean = false) => {
+    toNextStep: (isError: boolean = false, audit?: AutentiaParamsGet) => {
+      if (audit) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        setAudits([...audits, audit]);
+      }
+
       if (stepper.currentStep === steps[steps.length - 1]) {
         handleSignDocument();
         return;

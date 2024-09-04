@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     file_mime: "application/pdf",
     return_file: 1,
   };
-
+  console.log("createContentRequest", createContentRequest);
   const response = await createContentSign(createContentRequest);
   console.log(response);
   const endTaskResult = await endTask(session.user.ticket, json.taskId);

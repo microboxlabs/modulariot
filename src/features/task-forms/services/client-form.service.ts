@@ -39,8 +39,9 @@ export async function taskSignDocument(
       taskId,
       transitionId,
       serviceCode,
-      signersEmails: ["michel@microboxlabs.com"],
-      signerRuts: ["24952044-6"],
+      signersEmails: (formData.get("signersEmails") as string).split(","),
+      signerRuts: (formData.get("signerRuts") as string).split(","),
+      auditNumbers: (formData.get("auditNumbers") as string).split(","),
     }),
   });
 }

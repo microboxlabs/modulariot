@@ -29,13 +29,18 @@ export default function SovosVerificationForm({
 
   const handleSignDocument = async () => {
     const formData = new FormData();
-    console.log("audits", audits);
+    const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
+    const signersEmails = audits.map((_audit) => "any").join(",");
+    const signerRuts = audits.map((_audit) => "24952044-6").join(",");
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
     formData.append(
       "serviceCode",
       task.properties.mintral_serviceCode as string,
     );
+    formData.append("auditNumbers", auditNumbers);
+    formData.append("signersEmails", signersEmails);
+    formData.append("signerRuts", signerRuts);
     const result = await taskSignDocument({} as any, formData);
 
     if (result.success) {

@@ -25,8 +25,9 @@ export default function SovosStartVerificationCard({
     setIsVerificationInProgress(true);
     validateRut("24952044-6")
       .then((result) => {
+        console.log("result", result);
         if (result) {
-          stepperController.toNextStep(false);
+          stepperController.toNextStep(false, result);
         }
       })
       .catch((_error) => {

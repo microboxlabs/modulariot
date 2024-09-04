@@ -1,3 +1,5 @@
+import { AutentiaParamsGet } from "./autentia.types";
+
 const defaultOutputs = [
   "Erc",
   "NroAudit",
@@ -7,13 +9,13 @@ const defaultOutputs = [
   "oFchNac",
 ];
 
-export function validateRut(pRut: string): Promise<boolean> {
+export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
   const Autentia = new window.plgAutentiaJS();
-  const inputs = { pRut };
+  const inputs = { Rut };
   const autentiaPath = process.env.NEXT_PUBLIC_AUTENTIA_PATH;
   const giveFocusToAutentia = true;
   const token = Math.floor(Math.random() * 1e15);
-  const promise = new Promise<boolean>((resolve, reject) => {
+  const promise = new Promise<AutentiaParamsGet>((resolve, reject) => {
     try {
       Autentia.Transaccion2(
         autentiaPath!,
@@ -24,7 +26,7 @@ export function validateRut(pRut: string): Promise<boolean> {
         (result) => {
           console.log(result);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (result.ParamsGet.Erc > 0) {
+          if (result.ParamsGet.Erc !== 0) {
             // Error rut, resultado
             console.error(result);
             const error: Error & { status?: number } = new Error(
@@ -38,7 +40,7 @@ export function validateRut(pRut: string): Promise<boolean> {
             typeof result.token === "string" &&
             token === parseFloat(result.token.replace(",", "."))
           ) {
-            resolve(true);
+            resolve(result.ParamsGet);
           } else {
             // Error rut, resultado
             console.error(result);

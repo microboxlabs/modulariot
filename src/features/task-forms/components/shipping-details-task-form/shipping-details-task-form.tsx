@@ -23,6 +23,7 @@ export default async function ShippingDetailsTaskForm({
   lang,
 }: TaskFormProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
+  console.log("task", task);
   const detailsTitle = dict("layout.secured.sidebar.details", {
     serviceCode: task.properties.mintral_serviceCode as string,
   });

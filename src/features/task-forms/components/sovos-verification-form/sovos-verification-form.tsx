@@ -30,7 +30,9 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     const formData = new FormData();
     const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
-    const signersEmails = audits.map((_audit) => "any").join(",");
+    const signersEmails = audits
+      .map((_audit) => "michel@microboxlabs.com")
+      .join(",");
     const signerRuts = audits.map((_audit) => "24952044-6").join(",");
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");

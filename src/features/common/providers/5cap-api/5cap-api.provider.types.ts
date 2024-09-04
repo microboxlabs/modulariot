@@ -80,9 +80,9 @@ export type ContentRequest = {
   signers_institutions: string[];
   signers_emails: string[];
   signers_ruts: string[];
-  signers_type: string[];
-  signers_order: string[];
-  signers_notify: string[];
+  signers_type: number[];
+  signers_order: number[];
+  signers_notify: number[];
   signers_audit: string[];
   file: string;
   file_mime: string;
@@ -94,5 +94,6 @@ export type ContentResult = {
   message: string;
   result: {
     code: string;
+    file?: string;
   };
 };

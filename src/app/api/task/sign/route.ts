@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import {
   // getDocumentTypes,
   login,
-  createContent,
+  createContentSign,
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
@@ -31,13 +31,14 @@ export async function POST(request: NextRequest) {
   const sessionId = result.session_id!;
   const institutionId = process.env.DEC5_INSTITUTION!;
   const targetContentType = process.env.DEC5_TARGET_CONTENT_TYPE!;
-  const signerRoles = process.env.DEC5_SIGNER_ROLES!;
+  // const signerRoles = process.env.DEC5_SIGNER_ROLES!;
 
   const json = (await request.json()) as {
     serviceCode: string;
     signersEmails: string[];
     signerRuts: string[];
     taskId: string;
+    auditNumbers: string[];
   };
 
   const sampleNodeId = "3e3be7e6-aace-4b71-be18-091e4a0a8406";
@@ -52,22 +53,21 @@ export async function POST(request: NextRequest) {
     institution: institutionId,
     name: json.serviceCode,
     session_id: sessionId,
-    signers_roles: [...json.signerRuts, ...signerRoles.split(",")],
-    signers_institutions: [...json.signerRuts, institutionId],
-    signers_emails: [...json.signersEmails, "any"],
-    signers_ruts: [...json.signerRuts, "any"],
-    signers_type: [...json.signersEmails, "any"].map((_) => "11"),
-    signers_order: [...json.signersEmails, "any"].map((_, index) =>
-      (index + 1).toString(),
-    ),
-    signers_notify: [...json.signersEmails, "any"].map((_) => "0"),
+    signers_roles: json.signerRuts,
+    signers_institutions: json.signerRuts,
+    signers_emails: json.signersEmails,
+    signers_ruts: json.signerRuts,
+    signers_type: json.signersEmails.map((_) => "0"),
+    signers_order: json.signersEmails.map((_, index) => (index + 1).toString()),
+    signers_notify: json.signersEmails.map((_) => "0"),
+    signers_audit: json.auditNumbers,
     file,
     file_mime: "application/pdf",
     return_file: 1,
   };
 
-  const response = await createContent(createContentRequest);
-
+  const response = await createContentSign(createContentRequest);
+  console.log(response);
   const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
   console.log(endTaskResult);

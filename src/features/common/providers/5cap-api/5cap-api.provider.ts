@@ -47,3 +47,17 @@ export function createContent(
     body: JSON.stringify(contentRequest),
   });
 }
+
+export function createContentSign(
+  contentRequest: ContentRequest,
+): Promise<ContentResult> {
+  const url = `${process.env.CAP_API_URL}/documents/create_sign`;
+  return fetcher(url, {
+    headers: {
+      "X-API-KEY": process.env.CAP_API_KEY as string,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify(contentRequest),
+  });
+}

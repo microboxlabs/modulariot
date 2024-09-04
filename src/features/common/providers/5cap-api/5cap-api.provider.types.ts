@@ -83,7 +83,7 @@ export type ContentRequest = {
   signers_type: string[];
   signers_order: string[];
   signers_notify: string[];
-  // signers_audit: string[];
+  signers_audit: string[];
   file: string;
   file_mime: string;
   return_file: number;

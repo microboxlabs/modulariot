@@ -33,6 +33,7 @@ export async function signInWithCredentials(
     };
   } catch (error) {
     // eslint-disable-next-line no-console
+    console.error("---------------------error-------------------");
     console.error(error);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     throw new CredentialsSignin({

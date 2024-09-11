@@ -43,14 +43,14 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           {},
           formData, //new FormData(e as HTMLFormElement), //data
         );
-        if (!response.success) {
+        if (response && !response.success) {
           setPending(false);
-          setErrorMessage(response.message);
+          setErrorMessage(response.message || null);
         }
       }
     } catch (error) {
       setPending(false);
-      setErrorMessage(error.message);
+      setErrorMessage((error as Error).message);
     }
   };
 

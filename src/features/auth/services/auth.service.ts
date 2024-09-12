@@ -32,10 +32,6 @@ export async function signInWithCredentials(
       ticket,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error("---------------------error-------------------");
-    console.error(error);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     throw new CredentialsSignin({
       message: "Invalid credentials",
       status: 403,

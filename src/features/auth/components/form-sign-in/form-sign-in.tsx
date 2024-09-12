@@ -4,67 +4,38 @@ import { authenticateAction } from "@/features/auth/services/auth.service";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
-//import { useFormState } from "react-dom";
-import { SubmitHandler, useForm } from "react-hook-form";
+import React, { useState } from "react";
+import { useFormState } from "react-dom";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { formSchema, FormSchema } from "../../utils/form";
+import { formSchema, FormSchema } from "../../services/auth.service.types";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  // initialize the useForm hook with the Zod resolver and default values
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  const {
-    register,
-    handleSubmit,
-    // setValue,
-    formState: { errors /* isSubmitting */ },
-  } = form;
-
-  const formRef = useRef<HTMLFormElement>(null);
-  //const [_state, formAction] = useFormState(authenticateAction, {});
+  const { register } = form;
+  const [_state, formAction] = useFormState(authenticateAction, {});
   const [pending, setPending] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  /* e: React.MouseEvent<HTMLButtonElement>, */
-  const onSubmitForm: SubmitHandler<FormSchema> = async function () {
-    //e
-    //e.preventDefault();
+  const onSubmitForm = async function (e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
     setPending(true);
-    //e.currentTarget.form?.requestSubmit();
-    setErrorMessage(null);
-    try {
-      if (formRef.current) {
-        const formData = new FormData(formRef.current);
-        let response = await authenticateAction(
-          {},
-          formData, //new FormData(e as HTMLFormElement), //data
-        );
-        if (response && !response.success) {
-          setPending(false);
-          setErrorMessage(
-            (response.message == "Invalid credentials"
-              ? msg.invalidCredentials
-              : response.message) || null,
-          );
-        }
-      }
-    } catch (error) {
-      setPending(false);
-      setErrorMessage((error as Error).message);
-    }
+    e.currentTarget.form?.requestSubmit();
+  };
+
+  const getMessages = function (message = "") {
+    return message == "Invalid form data"
+      ? msg.invalidFromData
+      : message == "Invalid credentials"
+        ? msg.invalidCredentials
+        : message;
   };
 
   return (
-    <form
-      ref={formRef}
-      className="mt-8 space-y-6"
-      onSubmit={handleSubmit(onSubmitForm)}
-    >
-      {/*  onSubmit={handleSubmit(onSubmitForm)} action={formAction} action={formAction}*/}
+    <form className="mt-8 space-y-6" action={formAction}>
       <div className="flex flex-col gap-y-2">
         <Label htmlFor="email">{msg.emailLabel}</Label>
         <TextInput
@@ -72,7 +43,11 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           /* name="email" */
           placeholder={msg.emailPlaceHolder}
           type="text"
-          className={errors.email ? "animate-pulse ring-red-500" : ""}
+          className={
+            _state && _state.dataErrors?.email
+              ? "animate-pulse border-2 border-rose-500"
+              : ""
+          }
           {...register("email")}
         />
       </div>
@@ -83,7 +58,11 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           /* name="password" */
           placeholder="••••••••"
           type="password"
-          className={errors.password ? "animate-pulse ring-red-500" : ""}
+          className={
+            _state && _state.dataErrors?.password
+              ? "animate-pulse border-2 border-rose-500"
+              : ""
+          }
           {...register("password")}
         />
       </div>
@@ -99,17 +78,20 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           {msg.forgotPasswordLabel}
         </Link>
       </div>
-      {errorMessage && <div className="text-red-500 mb-4">{errorMessage}</div>}
+      {_state.message && (
+        <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
+      )}
+      {/* <div>
+        {_state && _state.dataErrors && JSON.stringify(_state.dataErrors)}
+      </div> */}
       <div className="mb-6">
         <Button
           color="blue"
           theme={{ inner: { base: "px-5 py-3" } }}
           className="w-full px-0 py-px submit"
-          isProcessing={pending}
-          aria-disabled={pending}
-          /*  disabled={isSubmitting}
-          onClick={onSubmitForm} */
-          type="submit"
+          isProcessing={pending && _state.success == undefined}
+          aria-disabled={pending && _state.success == undefined}
+          onClick={onSubmitForm}
         >
           {msg.buttonSubmitLabel}
         </Button>

@@ -45,7 +45,11 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
         );
         if (response && !response.success) {
           setPending(false);
-          setErrorMessage(response.message || null);
+          setErrorMessage(
+            (response.message == "Invalid credentials"
+              ? msg.invalidCredentials
+              : response.message) || null,
+          );
         }
       }
     } catch (error) {

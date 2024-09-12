@@ -5,6 +5,7 @@ import { AuthError, CredentialsSignin } from "next-auth";
 import type { User } from "next-auth";
 import {
   AuthenticateActionState,
+  formSchema,
   SignInCredentials,
 } from "./auth.service.types";
 import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -44,6 +45,17 @@ export async function authenticateAction(
   formData: FormData,
 ): Promise<AuthenticateActionState> {
   try {
+    const validatedFields = formSchema.safeParse({
+      email: formData.get("email"),
+      password: formData.get("password"),
+    });
+    if (!validatedFields.success) {
+      return {
+        success: false,
+        dataErrors: validatedFields.error.flatten().fieldErrors,
+        message: "Invalid form data",
+      };
+    }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await signIn("credentials", {
       email: formData.get("email") as string,

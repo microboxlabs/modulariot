@@ -22,7 +22,8 @@
         "submit": "Sign in to your account"
       },
       "errors": {
-        "invalidCredentials": "Access denied. Please verify your credentials and try again."
+        "invalidCredentials": "Access denied. Please verify your credentials and try again.",
+        "invalidFromData": "Invalid form data. Please verify your credentials and try again."
       }
     },
     "shipping": {

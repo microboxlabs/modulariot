@@ -5,6 +5,7 @@ export type FormSignInMessages = {
   rememberMeLabel: string;
   forgotPasswordLabel: string;
   buttonSubmitLabel: string;
+  invalidCredentials: string;
 };
 
 export type FormSignInProps = {

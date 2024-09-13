@@ -2,7 +2,11 @@ name: Build and Deploy to GCP
 
 run-name: ${{ github.actor }} is deploying ${{ github.repository }} 🚀
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - trunk
+  pull_request:
 
 env:
   REGION: ${{ vars.GCP_DEFAULT_REGION }}
@@ -87,4 +91,3 @@ jobs:
         SHORT_SHA=${GITHUB_SHA::7}
         docker build . -f Dockerfile -t ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-$SHORT_SHA
         docker push ${{ env.GAR_LOCATION }}:${{ env.BRANCH_NAME }}-$SHORT_SHA
-    

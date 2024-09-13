@@ -13,11 +13,11 @@ export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
       )}
     >
       <Sidebar.ItemGroup>
-        <Sidebar.Item href="#" icon={HiCog}>
+        <Sidebar.Item icon={HiCog}>
           <Link href="/users/settings">Ajustes</Link>
         </Sidebar.Item>
-        <Sidebar.Item href="#" icon={LifeSaver}>
-          Ayuda y cómo empezar
+        <Sidebar.Item icon={LifeSaver}>
+          <Link href="/help">Ayuda y cómo empezar</Link>
         </Sidebar.Item>
       </Sidebar.ItemGroup>
     </div>

@@ -5,7 +5,7 @@ export default function FooterSignIn({ messages }: FooterSignInProps) {
   return (
     <Footer
       date-testid="sign-footer"
-      className="flex flex-row gap-1 items-center  bottom-0"
+      className="fixed bottom-0 flex flex-row gap-1 items-center"
       theme={{
         root: {
           base: "w-full shadow dark:bg-gray-800 md:flex md:items-center md:justify-between",

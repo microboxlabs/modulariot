@@ -11,5 +11,7 @@ export function buildSignInFormMessages({
     rememberMeLabel: dict("pages.login.fields.remember.label"),
     forgotPasswordLabel: dict("pages.login.fields.forgot.label"),
     buttonSubmitLabel: dict("pages.login.buttons.submit"),
+    invalidCredentials: dict("pages.login.errors.invalidCredentials"),
+    invalidFromData: dict("pages.login.errors.invalidFromData"),
   };
 }

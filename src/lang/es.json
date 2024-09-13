@@ -20,6 +20,10 @@
       },
       "buttons": {
         "submit": "Ingresar a tu cuenta"
+      },
+      "errors": {
+        "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
+        "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente."
       }
     },
     "shipping": {

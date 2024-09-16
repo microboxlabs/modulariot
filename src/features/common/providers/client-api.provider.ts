@@ -24,3 +24,15 @@ export function useMyTasks(columns: string[]) {
     isLoading,
   };
 }
+
+export function useMyTasksCount(columns: string[]) {
+  const { data, error, isLoading } = useSWR<
+    KanbanBoardTaskResponse,
+    FetcherError
+  >(`/app/api/task/mytasks/count`, fetcher);
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}

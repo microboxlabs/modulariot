@@ -181,7 +181,9 @@
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
-        "details": "Service details nº {serviceCode}"
+        "details": "Service details nº {serviceCode}",
+        "settings": "Settings",
+        "help": "Help and getting started"
       }
     }
   },

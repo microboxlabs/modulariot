@@ -63,7 +63,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
             </Sidebar.ItemGroup>
           </Sidebar.Items>
         </div>
-        <BottomMenu isCollapsed={isCollapsed} />
+        <BottomMenu isCollapsed={isCollapsed} dict={dict} />
       </div>
     </Sidebar>
   );

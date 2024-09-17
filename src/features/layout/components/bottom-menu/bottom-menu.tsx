@@ -1,9 +1,17 @@
 import { twMerge } from "tailwind-merge";
-import { HiAdjustments, HiCog } from "react-icons/hi";
-import { Tooltip } from "flowbite-react";
-import Link from "next/link";
+import { HiCog } from "react-icons/hi";
+import { Sidebar } from "flowbite-react";
+import LifeSaver from "./LifeSaver";
+import { tr } from "@/features/i18n/tr.service";
+import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 
-export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
+export default function BottomMenu({
+  isCollapsed,
+  dict,
+}: {
+  isCollapsed: boolean;
+  dict: PropsWithI18nDict["dict"];
+}) {
   return (
     <div
       className={twMerge(
@@ -11,20 +19,14 @@ export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
         isCollapsed && "flex-col",
       )}
     >
-      <button className="inline-flex cursor-pointer justify-center rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-white">
-        <span className="sr-only">Tweaks</span>
-        <HiAdjustments className="h-6 w-6" />
-      </button>
-      <Tooltip content="Settings page">
-        <Link
-          href="/users/settings"
-          className="inline-flex cursor-pointer justify-center rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-white"
-        >
-          <span className="sr-only">Settings page</span>
-          <HiCog className="h-6 w-6" />
-        </Link>
-      </Tooltip>
-      <div>{/* <LanguageDropdown /> */}</div>
+      <Sidebar.ItemGroup>
+        <Sidebar.Item href="/users/settings" icon={HiCog}>
+          {tr("settings", dict)}
+        </Sidebar.Item>
+        <Sidebar.Item href="#" icon={LifeSaver}>
+          {tr("help", dict)}
+        </Sidebar.Item>
+      </Sidebar.ItemGroup>
     </div>
   );
 }

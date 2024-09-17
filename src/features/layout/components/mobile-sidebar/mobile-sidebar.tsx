@@ -10,7 +10,7 @@ import BottomMenu from "../bottom-menu/bottom-menu";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 
-export default function MobileSidebar({ dict: _ }: PropsWithI18nDict) {
+export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   // remove first element of pathname which is the language
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isOpen, close } = useSidebarContext().mobile;
@@ -51,7 +51,7 @@ export default function MobileSidebar({ dict: _ }: PropsWithI18nDict) {
               </Sidebar.ItemGroup>
             </Sidebar.Items>
           </div>
-          <BottomMenu isCollapsed={false} />
+          <BottomMenu isCollapsed={false} dict={dict} />
         </div>
       </Sidebar>
       <div

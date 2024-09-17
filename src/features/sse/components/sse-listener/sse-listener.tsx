@@ -12,7 +12,7 @@ export default function SseListener() {
     isLoadedEventSource = true;
     eventSource.onmessage = (event) => {
       console.log(event.data);
-      const a = {
+      const _a = {
         id: "54903c4e-eeab-4b37-b8d6-a26260caf57d",
         eventType: "create",
         payload: {

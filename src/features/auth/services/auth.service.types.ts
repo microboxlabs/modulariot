@@ -1,4 +1,5 @@
 import type { DefaultSession } from "next-auth";
+import { z } from "zod";
 
 export type SignInCredentials = {
   email: string;
@@ -9,7 +10,23 @@ export type AuthenticateActionState = {
   success?: boolean;
   message?: string;
   status?: number;
+  dataErrors?: DataAuthenticationError;
 };
+
+export type DataAuthenticationError = {
+  email?: string | string[];
+  password?: string | string[];
+};
+
+export const formSchema = z.object({
+  email: z
+    .string({ message: "Email is required" })
+    .email("Invalid email address"),
+  password: z
+    .string()
+    .min(8, "Description should be at least 8 characters long"),
+});
+export type FormSchema = z.infer<typeof formSchema>;
 
 // types/next-auth.d.ts
 

@@ -1,5 +1,5 @@
 "use client";
-import { Sidebar } from "flowbite-react";
+import { Badge, Sidebar } from "flowbite-react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
@@ -15,6 +15,7 @@ export default function SidebarItem({
   badge,
   pathname,
   dict,
+  totals,
 }: PropsWithI18nDict<SidebarItemProps>) {
   if (items) {
     // const isOpen = items.some((item) => pathname.startsWith(item.href ?? ""));
@@ -37,7 +38,12 @@ export default function SidebarItem({
               pathname === item.href && "bg-gray-100 dark:bg-gray-700",
             )}
           >
-            {tr(item.label, dict)}
+            <div className="">
+              <div className="float-left">{tr(item.label, dict)}</div>
+              <Badge className="float-right" color="info" size="sm">
+                {totals[item.label] ? totals[item.label] : 0}
+              </Badge>
+            </div>
           </Sidebar.Item>
         ))}
       </Sidebar.Collapse>

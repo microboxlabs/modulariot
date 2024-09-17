@@ -2,6 +2,7 @@ import useSWR from "swr";
 import fetcher from "./fetcher";
 import { FetcherError } from "./fetcher.types";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
+import { TaskCountResponse } from "./alfresco-api/alfresco-api.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -25,11 +26,11 @@ export function useMyTasks(columns: string[]) {
   };
 }
 
-export function useMyTasksCount(columns: string[]) {
-  const { data, error, isLoading } = useSWR<
-    KanbanBoardTaskResponse,
-    FetcherError
-  >(`/app/api/task/mytasks/count`, fetcher);
+export function useMyTasksCount() {
+  const { data, error, isLoading } = useSWR<TaskCountResponse, FetcherError>(
+    `/app/api/task/mytasks/count`,
+    fetcher,
+  );
   return {
     data,
     error,

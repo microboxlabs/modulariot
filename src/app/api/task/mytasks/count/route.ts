@@ -1,34 +1,19 @@
 import "server-only";
 import { auth } from "@/auth";
-import { NextRequest, NextResponse } from "next/server";
-import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { toShippingKanban } from "@/features/shipping/services/data.service";
-import { KanbanBoard } from "@/features/shipping/types/common.types";
+import { NextResponse } from "next/server";
+import { getCountTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
       status: 401,
     });
   }
-
-  const url = new URL(req.url);
-
-  const columns = url.searchParams.getAll("columns");
-  let data: Record<string, KanbanBoard> = {};
-  let total = 0;
   try {
-    const taskResponses = await Promise.all(
-      columns.map((column) => getUserTasks(session.user.ticket, column)),
-    );
-    taskResponses.forEach((tasks) => {
-      toShippingKanban(tasks, data);
-      total += tasks.total;
-    });
+    const taskResponses = await getCountTask(session.user.ticket);
     return NextResponse.json({
-      total,
-      data,
+      totals: taskResponses.totals,
     });
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -44,8 +29,7 @@ export async function GET(req: NextRequest) {
       );
     }
     return NextResponse.json({
-      total,
-      data,
+      totals: {},
     });
   }
 }

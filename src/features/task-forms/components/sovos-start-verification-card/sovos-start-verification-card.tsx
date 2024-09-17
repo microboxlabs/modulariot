@@ -11,7 +11,7 @@ import { useState } from "react";
 
 export default function SovosStartVerificationCard({
   // lang,
-  task,
+  // task,
   msg,
   pluginReady,
   stepperController,

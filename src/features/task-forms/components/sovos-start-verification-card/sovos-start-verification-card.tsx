@@ -11,7 +11,7 @@ import { useState } from "react";
 
 export default function SovosStartVerificationCard({
   // lang,
-  // task,
+  task,
   msg,
   pluginReady,
   stepperController,
@@ -23,7 +23,7 @@ export default function SovosStartVerificationCard({
 
     if (!pluginReady) return;
     setIsVerificationInProgress(true);
-    validateRut("24952044-6")
+    validateRut("25311958-6")
       .then((result) => {
         console.log("result", result);
         if (result) {

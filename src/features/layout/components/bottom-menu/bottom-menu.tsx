@@ -1,7 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import { HiCog } from "react-icons/hi";
 import { Sidebar } from "flowbite-react";
-import Link from "next/link";
 import LifeSaver from "./LifeSaver";
 import { tr } from "@/features/i18n/tr.service";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";

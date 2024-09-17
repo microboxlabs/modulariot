@@ -40,8 +40,18 @@ export default function SidebarItem({
           >
             <div className="">
               <div className="float-left">{tr(item.label, dict)}</div>
-              <Badge className="float-right" color="info" size="sm">
-                {totals[item.label] ? totals[item.label] : 0}
+              <Badge
+                className="float-right"
+                color={
+                  getTotalCountBagaes(totals[item.label]) <= 0
+                    ? "info"
+                    : getTotalCountBagaes(totals[item.label]) >= 100
+                      ? "danger"
+                      : "warning"
+                }
+                size="sm"
+              >
+                {getTotalCountBagaes(totals[item.label])}
               </Badge>
             </div>
           </Sidebar.Item>
@@ -62,4 +72,8 @@ export default function SidebarItem({
       {label}
     </Sidebar.Item>
   );
+}
+
+function getTotalCountBagaes(totals: number) {
+  return totals ? totals : 0;
 }

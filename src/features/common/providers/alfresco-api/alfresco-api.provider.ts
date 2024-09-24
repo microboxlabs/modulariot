@@ -11,6 +11,8 @@ import type {
   TaskResponse,
 } from "./alfresco-api.types";
 
+
+
 export const alfrescoApi = new AlfrescoApi({
   hostEcm: process.env.ECM_API_URL,
   provider: process.env.AUTH_PROVIDER,
@@ -108,3 +110,5 @@ export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
   );
   return result as TaskCountResponse;
 }
+
+

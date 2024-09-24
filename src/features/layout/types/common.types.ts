@@ -7,4 +7,5 @@ export type SidebarItem = {
   label: string;
   items?: SidebarItem[];
   badge?: string;
+  totals: Record<string, number>;
 };

@@ -9,6 +9,11 @@ export type KanbanBoardTaskResponse = {
   data: Record<string, KanbanBoard>;
 };
 
+export interface Task {
+  id: string; // o el tipo de dato que necesites
+
+}
+
 export type KanbanBoardTask = {
   id: string;
   name: string;

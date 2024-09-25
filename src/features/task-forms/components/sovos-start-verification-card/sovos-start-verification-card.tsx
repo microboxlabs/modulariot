@@ -28,8 +28,9 @@ export default function SovosStartVerificationCard({
     validateRut(getRut())
       .then((result) => {
         console.log("result", result);
+
         if (result) {
-          stepperController.toNextStep(false, result);
+          stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }
       })
       .catch((_error) => {

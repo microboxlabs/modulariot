@@ -19,7 +19,9 @@ import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresc
 
 export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
-  const user = await getUserProfile(ticket!);
+  const userInstance = await getUserProfile(ticket!);
+  const user = Object.assign({}, userInstance);
+
   switch (task.name) {
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
       return (
@@ -39,7 +41,6 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
         <SovosVerificationForm
           lang={lang}
           task={task}
-          user={user}
           msg={
             (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
           }

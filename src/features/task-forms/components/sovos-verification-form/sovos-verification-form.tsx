@@ -17,7 +17,7 @@ export default function SovosVerificationForm({
   msg,
   task,
   lang,
-  user: userJSONString,
+  user,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -34,7 +34,12 @@ export default function SovosVerificationForm({
     const signersEmails = audits
       .map((_audit) => "michel@microboxlabs.com")
       .join(",");
-    const signerRuts = audits.map((_audit) => "24952044-6").join(",");
+    const signerRuts = audits
+      .map((audit) => {
+        console.log("audit", audit);
+        return "24952044-6";
+      })
+      .join(",");
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
     formData.append(

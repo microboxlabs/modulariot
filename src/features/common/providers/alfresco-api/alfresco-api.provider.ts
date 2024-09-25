@@ -3,6 +3,7 @@ import {
   PeopleApi,
   WebscriptApi,
   NodesApi,
+  PersonEntry,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -16,6 +17,15 @@ export const alfrescoApi = new AlfrescoApi({
   provider: process.env.AUTH_PROVIDER,
   contextRoot: process.env.CONTEXT_ROOT,
 });
+
+export async function getUserProfile(
+  ticket: string,
+  userId: string = "-me-",
+): Promise<PersonEntry> {
+  alfrescoApi.setTicket(ticket, "");
+  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
+  return peopleApi.getPerson(userId);
+}
 
 export async function getBase64UserAvatar(
   ticket: string,

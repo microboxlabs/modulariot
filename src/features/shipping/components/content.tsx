@@ -18,8 +18,8 @@ import {
   HiPlusSm,
 } from "react-icons/hi";
   import { Task } from "../types/common.types"; //Parte del conteo de las tareas
-  import { useEffect} from "react";
-  import { getCountTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider"; //Parte del conteo de las tareas
+  import  TaskCounter  from "@/features/shipping/components/TaskCounter";
+  import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
   import { PiCaretUpDownBold } from "react-icons/pi";
   import { ReactSortable } from "react-sortablejs";
   import { KanbanBoard, KanbanPageData } from "../types/common.types";
@@ -38,55 +38,32 @@ import {
     const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
 
     {/* Contador de tareas */}
-    const [totalTasks, setTotalTasks] = useState<number>(0); // Estado para guardar el número total de tareas desde el backend
-    const [isLoading, setIsLoading] = useState<boolean>(true); // Estado para manejar el estado de carga
-    const [error, setError] = useState<string | null>(null); // Estado para manejar errores
-  
+    const { data: taskCountData, error: taskCountError } = useMyTasksCount();
+    const totalTasks = taskCountData?.totals?.totalTasks ?? 0;
+
     const router = useRouter();
-    const { data, error: myTasksError, isLoading: myTasksLoading } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
+    const { data: myTasksData, error: myTasksError, isLoading: myTasksLoading } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
   
     const countTasks = (tasks: Task[]): number => {
       return tasks.length;
-    };
-  
-    const TaskCounter: FC<{ count: number }> = ({ count }) => {
-      return (
-        <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {`${count} activos`}
-        </div>
-      );
     };
   
     if (myTasksError?.status === 401) {
       router.replace(`/${lang}/sign-in`);
     }
     {/* Contador de tareas */}
-    useEffect(() => {
-      const fetchTaskCount = async () => {
-        try {
-          setIsLoading(true);
-          const ticket = "tu_ticket_aqui"; // Asegurar de obtener el ticket correcto
-          const result = await getCountTask(ticket);
-          setTotalTasks(result.totals.totalTasks); // Accede a 'totalTasks' en 'totals'
-          setIsLoading(false);
-        } catch (err) {
-          console.error(err); // Muestra el error en la consola para más detalles
-          setError("Error al obtener el número de tareas.");
-          setIsLoading(false);
-        }
-      };
-    
-      fetchTaskCount();
-    }, []);
-    
+
+    if (taskCountError || myTasksError) {
+      return <div>Error: {taskCountError?.message || myTasksError?.message}</div>;
+  }
     const boards = list.map((board) => {
-      if (myTasksLoading || !data) {
+      if (myTasksLoading || !myTasksData) {
         return board;
       }
       return {
         ...board,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        tasks: data.data[board.title]?.tasks ?? [],
+        tasks: myTasksData.data[board.title]?.tasks ?? [],
       };
     });
   
@@ -95,8 +72,8 @@ import {
         <div className="mb-6 flex items-start justify-start space-x-4 px-4">
           {boards.map((board) => (
             <div key={board.id}>
-              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-12 w-64 text-center">
-                {tr(`kanban.${board.title}`, dict)}
+              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
                 {/* Contador de tareas */}
                 <TaskCounter count={countTasks(board.tasks)} />
               </div>

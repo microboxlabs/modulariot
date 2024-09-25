@@ -17,6 +17,7 @@ export default function SovosVerificationForm({
   msg,
   task,
   lang,
+  user,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -129,6 +130,7 @@ export default function SovosVerificationForm({
           lang={lang}
           msg={msg}
           task={task}
+          user={user}
           pluginReady={pluginReady}
           stepperController={stepperController}
         />

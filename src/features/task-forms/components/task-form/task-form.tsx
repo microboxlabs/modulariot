@@ -15,15 +15,18 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import ShippingDetailsTaskForm from "../shipping-details-task-form/shipping-details-task-form";
 import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
+import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
-export async function TaskForm({ task, lang }: TaskFormProps) {
+export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
+  const user = await getUserProfile(ticket!);
   switch (task.name) {
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
       return (
         <TransportValidationForm
           lang={lang}
           task={task}
+          user={user}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
@@ -36,6 +39,7 @@ export async function TaskForm({ task, lang }: TaskFormProps) {
         <SovosVerificationForm
           lang={lang}
           task={task}
+          user={user}
           msg={
             (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
           }

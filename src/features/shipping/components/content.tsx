@@ -17,98 +17,107 @@ import {
   HiPlus,
   HiPlusSm,
 } from "react-icons/hi";
-  import { Task } from "../types/common.types"; //Parte del conteo de las tareas
-  import  TaskCounter  from "@/features/shipping/components/TaskCounter";
-  import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
-  import { PiCaretUpDownBold } from "react-icons/pi";
-  import { ReactSortable } from "react-sortablejs";
-  import { KanbanBoard, KanbanPageData } from "../types/common.types";
-  import KanbanCard from "./kanban-card/kanban-card";
-  import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
-  import { tr } from "@/features/i18n/tr.service";
-  import { useMyTasks } from "@/features/common/providers/client-api.provider";
-  import { useRouter } from "next/navigation";
-  import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
-  
-  export default function KanbanPageContent({
-    kanbanBoards,
-    dict,
-    lang,
-  }: PropsWithI18nDict<KanbanPageData>) {
-    const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
+import TaskCounter from "@/features/shipping/components/TaskCounter";
+import {
+  useMyTasksCount,
+  useMyTasks,
+} from "@/features/common/providers/client-api.provider";
+import { PiCaretUpDownBold } from "react-icons/pi";
+import { ReactSortable } from "react-sortablejs";
+import { KanbanBoard, KanbanPageData, Task } from "../types/common.types";
+import KanbanCard from "./kanban-card/kanban-card";
+import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { useRouter } from "next/navigation";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
-    {/* Contador de tareas */}
-    const { data: taskCountData, error: taskCountError } = useMyTasksCount();
-    const totalTasks = taskCountData?.totals?.totalTasks ?? 0;
+export default function KanbanPageContent({
+  kanbanBoards,
+  dict,
+  lang,
+}: PropsWithI18nDict<KanbanPageData>) {
+  const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
 
-    const router = useRouter();
-    const { data: myTasksData, error: myTasksError, isLoading: myTasksLoading } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
-  
-    const countTasks = (tasks: Task[]): number => {
-      return tasks.length;
-    };
-  
-    if (myTasksError?.status === 401) {
-      router.replace(`/${lang}/sign-in`);
+  {
+    /* Contador de tareas */
+  }
+  const { data: taskCountData, error: taskCountError } = useMyTasksCount();
+  const totalTasks = taskCountData?.totals?.totalTasks ?? 0;
+
+  const router = useRouter();
+  const {
+    data: myTasksData,
+    error: myTasksError,
+    isLoading: myTasksLoading,
+  } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
+
+  const countTasks = (tasks: Task[]): number => {
+    return tasks.length;
+  };
+
+  if (myTasksError?.status === 401) {
+    router.replace(`/${lang}/sign-in`);
+  }
+  {
+    /* Contador de tareas */
+  }
+
+  if (taskCountError || myTasksError) {
+    return <div>Error: {taskCountError?.message || myTasksError?.message}</div>;
+  }
+  const boards = list.map((board) => {
+    if (myTasksLoading || !myTasksData) {
+      return board;
     }
-    {/* Contador de tareas */}
+    return {
+      ...board,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      tasks: myTasksData.data[board.title]?.tasks ?? [],
+    };
+  });
 
-    if (taskCountError || myTasksError) {
-      return <div>Error: {taskCountError?.message || myTasksError?.message}</div>;
-  }
-    const boards = list.map((board) => {
-      if (myTasksLoading || !myTasksData) {
-        return board;
-      }
-      return {
-        ...board,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        tasks: myTasksData.data[board.title]?.tasks ?? [],
-      };
-    });
-  
-    return (
-      <div className="inline-block min-w-full align-middle h-full">
-        <div className="mb-6 flex items-start justify-start space-x-4 px-4">
-          {boards.map((board) => (
-            <div key={board.id}>
-              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-                <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
-                {/* Contador de tareas */}
-                <TaskCounter count={countTasks(board.tasks)} />
-              </div>
-              <div className="mb-6 space-y-4">
-                <ReactSortable
-                  animation={100}
-                  forceFallback
-                  group="kanban"
-                  list={board.tasks}
-                  setList={(tasks) =>
-                    setList((list) => {
-                      const newList = [...list];
-                      const index = newList.findIndex(
-                        (item) => item.id === board.id,
-                      );
-                      newList[index].tasks = tasks;
-                      return newList;
-                    })
-                  }
-                  disabled={true}
-                >
-                  {board.tasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} dict={dict} />
-                  ))}
-                </ReactSortable>
-              </div>
-              <AddAnotherCardModal />
+  return (
+    <div className="inline-block min-w-full align-middle h-full">
+      <div className="mb-6 flex items-start justify-start space-x-4 px-4">
+        {boards.map((board) => (
+          <div key={board.id}>
+            <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+              <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
+              {/* Contador de tareas */}
+              <TaskCounter count={countTasks(board.tasks)} />
             </div>
-          ))}
-          {/* Mostrar total de todas las tareas aquí */}
-          <div className="text-lg font-bold">{`${totalTasks} tareas totales`}</div>
-        </div>
+            <div className="mb-6 space-y-4">
+              <ReactSortable
+                animation={100}
+                forceFallback
+                group="kanban"
+                list={board.tasks}
+                setList={(tasks) =>
+                  setList((list) => {
+                    const newList = [...list];
+                    const index = newList.findIndex(
+                      (item) => item.id === board.id,
+                    );
+                    newList[index].tasks = tasks;
+                    return newList;
+                  })
+                }
+                disabled={true}
+              >
+                {board.tasks.map((task) => (
+                  <KanbanCard key={task.id} task={task} dict={dict} />
+                ))}
+              </ReactSortable>
+            </div>
+            <AddAnotherCardModal />
+          </div>
+        ))}
+        {/* Mostrar total de todas las tareas aquí */}
+        <div className="text-lg font-bold">{`${totalTasks} tareas totales`}</div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
 export const EditCardModal: FC = function () {
   const [isOpen, setOpen] = useState(false);

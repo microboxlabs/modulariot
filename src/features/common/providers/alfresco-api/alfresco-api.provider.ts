@@ -107,5 +107,3 @@ export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
   );
   return result as TaskCountResponse;
 }
-
-

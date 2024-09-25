@@ -17,7 +17,7 @@ export default function SovosVerificationForm({
   msg,
   task,
   lang,
-  user,
+  user: userJSONString,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);

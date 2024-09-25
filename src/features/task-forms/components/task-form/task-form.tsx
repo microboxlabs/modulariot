@@ -20,7 +20,7 @@ import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresc
 export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
-  const user = Object.assign({}, userInstance);
+  const user = JSON.stringify(userInstance);
 
   switch (task.name) {
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:

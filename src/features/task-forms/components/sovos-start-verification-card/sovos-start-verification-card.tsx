@@ -8,6 +8,7 @@ import {
 import SmartCardIcon from "@/features/icons/smartcard";
 import FingerprintIcon from "@/features/icons/figerprint";
 import { useState } from "react";
+import { PersonEntry } from "@alfresco/js-api";
 
 export default function SovosStartVerificationCard({
   // lang,
@@ -51,7 +52,8 @@ export default function SovosStartVerificationCard({
     if (currentStep === "step3") {
       return task.properties.mintral_driver2Rut as string;
     }
-    return user?.entry.jobTitle ?? "";
+    const userObj = JSON.parse(user!) as PersonEntry;
+    return userObj?.entry.jobTitle ?? "";
   }
 
   return (

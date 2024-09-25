@@ -15,6 +15,7 @@ export default function SovosStartVerificationCard({
   msg,
   pluginReady,
   stepperController,
+  user,
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
@@ -24,7 +25,7 @@ export default function SovosStartVerificationCard({
     if (!pluginReady) return;
     setIsVerificationInProgress(true);
     console.log("task", task);
-    validateRut(task.properties.mintral_driver1Rut as string)
+    validateRut(getRut())
       .then((result) => {
         console.log("result", result);
         if (result) {
@@ -41,6 +42,17 @@ export default function SovosStartVerificationCard({
         }
         stepperController.toStep(`step${nextStep}`, true);
       });
+  }
+
+  function getRut(): string {
+    const currentStep = stepperController.currentStep();
+    if (currentStep === "step2") {
+      return task.properties.mintral_driver1Rut as string;
+    }
+    if (currentStep === "step4") {
+      return task.properties.mintral_driver2Rut as string;
+    }
+    return user?.entry.jobTitle ?? "";
   }
 
   return (

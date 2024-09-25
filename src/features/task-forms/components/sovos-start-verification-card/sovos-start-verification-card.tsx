@@ -24,7 +24,7 @@ export default function SovosStartVerificationCard({
     if (!pluginReady) return;
     setIsVerificationInProgress(true);
     console.log("task", task);
-    validateRut("25311958-6")
+    validateRut(task.properties.mintral_driver1Rut as string)
       .then((result) => {
         console.log("result", result);
         if (result) {

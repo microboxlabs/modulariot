@@ -24,7 +24,6 @@ export default function SovosStartVerificationCard({
 
     if (!pluginReady) return;
     setIsVerificationInProgress(true);
-    console.log("task", task, "rut", getRut());
     validateRut(getRut())
       .then((result) => {
         console.log("result", result);
@@ -46,7 +45,6 @@ export default function SovosStartVerificationCard({
 
   function getRut(): string {
     const currentStep = stepperController.currentStep();
-    console.log("currentStep", currentStep);
     if (currentStep === "step1") {
       return task.properties.mintral_driver1Rut as string;
     }

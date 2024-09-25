@@ -98,7 +98,7 @@ export default function SovosVerificationForm({
   };
 
   let steps = ["step1", "step2"];
-  if (task.properties.mintral_driver2Name) {
+  if (task.properties.mintral_driver2Rut) {
     steps.push("step3", "step4");
   }
   steps.push("step5", "step6");

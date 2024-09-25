@@ -41,6 +41,7 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
         <SovosVerificationForm
           lang={lang}
           task={task}
+          user={user}
           msg={
             (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
           }

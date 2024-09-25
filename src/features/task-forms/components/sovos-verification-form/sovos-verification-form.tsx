@@ -75,7 +75,7 @@ export default function SovosVerificationForm({
       }
 
       let nextStep = parseInt(stepper.currentStep.replace("step", ""));
-      if (steps.length === 4 && nextStep === 3) {
+      if (steps.length === 4 && nextStep === 2) {
         nextStep = 5;
       } else {
         nextStep += 1;

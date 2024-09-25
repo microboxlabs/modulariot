@@ -75,8 +75,6 @@ export interface TaskCountResponse {
   };
 }
 
-
-
 export type TotalCount = {
   startevent1: number; //(Start): wfship:startEvent
   transportValidation: number; //(Validar Conductor / Transporte): wfship:transportValidationTask

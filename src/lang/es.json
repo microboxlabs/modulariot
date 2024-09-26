@@ -27,6 +27,9 @@
       }
     },
     "shipping": {
+      "taskCounter": {
+        "activeCount": "{count} activos"
+      },
       "kanban": {
         "transportValidation": "Validación de conductor / transporte",
         "missionControlTripInit": "Torre de control: Iniciar viaje",
@@ -189,5 +192,6 @@
   },
   "footer": {
     "rights": " MicroboxLabs. Todos los derechos reservados."
-  }
+  
+}
 }

@@ -71,7 +71,7 @@ export type EndTaskResponse = {
 
 export interface TaskCountResponse {
   totals: {
-    totalTasks: number; // o cualquier otra propiedad que necesites
+    totalTasks: number;
   };
 }
 

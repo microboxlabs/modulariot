@@ -17,7 +17,7 @@ import {
   HiPlus,
   HiPlusSm,
 } from "react-icons/hi";
-import TaskCounter from "@/features/shipping/components/TaskCounter";
+import { TaskCounter } from "@/features/shipping/components/TaskCounter";
 import {
   useMyTasksCount,
   useMyTasks,
@@ -84,7 +84,7 @@ export default function KanbanPageContent({
             <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
               <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
               {/* Contador de tareas */}
-              <TaskCounter count={countTasks(board.tasks)} />
+              <TaskCounter count={countTasks(board.tasks)} dict={dict} />
             </div>
             <div className="mb-6 space-y-4">
               <ReactSortable
@@ -113,7 +113,11 @@ export default function KanbanPageContent({
           </div>
         ))}
         {/* Mostrar total de todas las tareas aquí */}
-        <div className="text-lg font-bold">{`${totalTasks} tareas totales`}</div>
+        <div className="text-lg font-bold">
+          {tr("taskCounter.activeCount", dict, {
+            count: totalTasks.toString(),
+          })}
+        </div>
       </div>
     </div>
   );

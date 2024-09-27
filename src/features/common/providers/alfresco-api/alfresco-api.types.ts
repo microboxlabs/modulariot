@@ -69,9 +69,11 @@ export type EndTaskResponse = {
   transition: string;
 };
 
-export type TaskCountResponse = {
-  totals: TotalCount;
-};
+export interface TaskCountResponse {
+  totals: {
+    totalTasks: number;
+  };
+}
 
 export type TotalCount = {
   startevent1: number; //(Start): wfship:startEvent

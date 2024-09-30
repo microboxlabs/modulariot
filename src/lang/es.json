@@ -143,9 +143,9 @@
         "annulled": "Anulado"
       },
       "modal": {
-        "title": "Mover tarea",
-        "confirm": "Confirmar: {outcome}",
-        "cancel": "Cancelar"
+        "title": "Estás intentando mover la tarea a otro estado del proceso",
+        "subtittle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "confirm": "Confirmar mover a Overlord"
       }
     },
     "sovosVerificationForm": {

@@ -31,7 +31,9 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     const formData = new FormData();
     const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
-
+    const signersEmails = audits
+      .map((_audit) => "michel@microboxlabs.com")
+      .join(",");
     const signerRuts = audits.map((audit) => audit.Rut).join(",");
 
     formData.append("taskId", task.id);
@@ -42,7 +44,7 @@ export default function SovosVerificationForm({
     );
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
-    const result = await taskSignDocument({} as any, formData);
+    const result = await taskSignDocument({}, formData);
 
     if (result.success) {
       router.push(`/${lang}/shipping`);

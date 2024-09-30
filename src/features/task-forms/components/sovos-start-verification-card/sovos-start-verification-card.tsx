@@ -2,7 +2,7 @@
 import { Button, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "./sovos-start-verification-card.types";
 import {
-  // fakeValidateRut,
+  fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
 import SmartCardIcon from "@/features/icons/smartcard";
@@ -24,11 +24,13 @@ export default function SovosStartVerificationCard({
     const currentStep = stepperController.currentStep();
 
     if (!pluginReady) return;
+    const validator =
+      process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
+        ? fakeValidateRut
+        : validateRut;
     setIsVerificationInProgress(true);
-    validateRut(getRut())
+    validator(getRut())
       .then((result) => {
-        console.log("result", result);
-
         if (result) {
           stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }

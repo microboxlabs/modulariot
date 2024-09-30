@@ -39,36 +39,35 @@ export default function TaskConfirmModal({
   }
 
   return (
-    <Modal dismissible show={openModal} onClose={() => setOpenModal(false)}>
-      <Modal.Header>{(dict.modal as I18nRecord).title as string}</Modal.Header>
-      <Modal.Body>
-        <div className="space-y-2 flex flex-col items-center justify-center">
-          <KanbanMove />
-          <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400 px-8">
-            Estás a punto de enviar la tarea a la siguiente etapa:{" "}
-            <strong>{outcomeLabel}</strong> Si estás seguro, acciona el botón{" "}
-            <strong>
-              {tr("modal.confirm", dict, {
-                outcome: outcomeLabel ?? "outcome",
-              })}
-            </strong>
+    <Modal
+      dismissible
+      show={openModal}
+      onClose={() => setOpenModal(false)}
+      className="border-none shadow-none"
+    >
+      <Modal.Header className="border-none">
+        {/* Título y subtítulo juntos */}
+        <div className="flex flex-col items-start">
+          <h2 className="text-base font-semibold">
+            {(dict.modal as I18nRecord).title as string}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {(dict.modal as I18nRecord).subtittle as string}
           </p>
         </div>
+      </Modal.Header>
+      <Modal.Body className="border-none">
+        <div className="space-y-2 flex flex-col items-center justify-center">
+          <KanbanMove />
+        </div>
       </Modal.Body>
-      <Modal.Footer>
+      <Modal.Footer className="border-none flex justify-end">
         <Button
           isProcessing={isProcessing}
           color="blue"
           onClick={handleConfirm}
         >
           {tr("modal.confirm", dict, { outcome: outcomeLabel ?? "outcome" })}
-        </Button>
-        <Button
-          color="gray"
-          onClick={() => setOpenModal(false)}
-          className=":ring-blue-700 focus:text-blue-700 enabled:hover:text-blue-700"
-        >
-          {(dict.modal as I18nRecord).cancel as string}
         </Button>
       </Modal.Footer>
     </Modal>

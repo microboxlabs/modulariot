@@ -59,10 +59,14 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
   return promise;
 }
 
-export function fakeValidateRut(_pRut: string): Promise<boolean> {
+export function fakeValidateRut(_pRut: string): Promise<AutentiaParamsGet> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve(true);
+      resolve({
+        Erc: 0,
+        NroAudit: "SMIN-M1KG-BYBF-JJD4",
+        Rut: "",
+      });
     }, 2000);
   });
 }

@@ -7,7 +7,7 @@ import {
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
   endTask,
-  getContentNode,
+  getContentByTaskId,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
@@ -41,8 +41,11 @@ export async function POST(request: NextRequest) {
       auditNumbers: string[];
     };
 
-    const sampleNodeId = "3e3be7e6-aace-4b71-be18-091e4a0a8406";
-    const file = await getContentNode(session.user.ticket, sampleNodeId);
+    const file = await getContentByTaskId(
+      session.user.ticket,
+      json.taskId,
+      "ho-sin-firma.pdf",
+    );
 
     // const documentTypes = await getDocumentTypes(institutionId, sessionId);
     // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];

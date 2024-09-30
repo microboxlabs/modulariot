@@ -31,15 +31,9 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     const formData = new FormData();
     const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
-    const signersEmails = audits
-      .map((_audit) => "michel@microboxlabs.com")
-      .join(",");
-    const signerRuts = audits
-      .map((audit) => {
-        console.log("audit", audit);
-        return "24952044-6";
-      })
-      .join(",");
+
+    const signerRuts = audits.map((audit) => audit.Rut).join(",");
+
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
     formData.append(
@@ -47,7 +41,6 @@ export default function SovosVerificationForm({
       task.properties.mintral_serviceCode as string,
     );
     formData.append("auditNumbers", auditNumbers);
-    formData.append("signersEmails", signersEmails);
     formData.append("signerRuts", signerRuts);
     const result = await taskSignDocument({} as any, formData);
 

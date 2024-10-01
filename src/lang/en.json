@@ -146,10 +146,6 @@
         "title": "You are trying to move the task to another process state",
         "subtitle": "If you move the task to a different state, you won't be able to undo the action late.",
         "confirm": "Confirm move to Overlord"
-        "title": "Confirm action",
-        "confirm": "Confirm: {outcome}",
-        "cancel": "Cancel",
-        "reason": "Reason"
       }
     },
     "sovosVerificationForm": {

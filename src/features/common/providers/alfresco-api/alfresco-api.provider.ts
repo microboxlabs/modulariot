@@ -11,6 +11,7 @@ import type {
   TaskCountResponse,
   TaskResponse,
 } from "./alfresco-api.types";
+
 export const alfrescoApi = new AlfrescoApi({
   hostEcm: process.env.ECM_API_URL,
   provider: process.env.AUTH_PROVIDER,
@@ -92,9 +93,6 @@ export async function endTask(
   const result = await webscriptApi.executeWebScript("POST", endpoint);
   return result as EndTaskResponse;
 }
-// export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-
-// export const peopleApi = new PeopleApi(alfrescoApi.contentClient);
 
 export async function getContentNode(
   ticket: string,
@@ -135,4 +133,32 @@ export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
     `mintral/statistics/tasks`,
   );
   return result as TaskCountResponse;
+}
+
+export async function formProcessor(
+  ticket: string,
+  itemKind: string,
+  itemId: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "POST",
+    `/api/${itemKind}/${itemId}/formprocessor`,
+    undefined,
+    undefined,
+    undefined,
+    JSON.stringify(data),
+  );
+  return result as TaskResponse;
+}
+
+export async function updateTask(
+  ticket: string,
+  taskId: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  return formProcessor(ticket, "task", taskId, data);
 }

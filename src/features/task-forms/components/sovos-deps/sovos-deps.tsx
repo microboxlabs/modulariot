@@ -75,7 +75,7 @@ export default function SovosDeps({ onReady }: { onReady?: () => void }) {
       src={dep}
       onReady={() => {
         setDepsIndex(depsIndex + 1);
-        console.log("depsIndex", depsIndex, "dep", dep);
+        // console.log("depsIndex", depsIndex, "dep", dep);
         if (depsIndex >= deps.length) {
           allDepsLoaded = true;
           handleDepsLoaded();

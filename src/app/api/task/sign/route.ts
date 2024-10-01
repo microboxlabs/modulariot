@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     signersType.push(5);
     signersOrder.push(json.signerRuts.length + 1);
     signersNotify.push(0);
+    signersAudit.push("any");
 
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,
@@ -96,9 +97,12 @@ export async function POST(request: NextRequest) {
       file_mime: "application/pdf",
       return_file: 1,
     };
-    console.log("createContentRequest", createContentRequest);
+    console.log("createContentRequest", {
+      ...createContentRequest,
+      file: "<...binary data...>",
+    });
     const response = await createContentSign(createContentRequest);
-    console.log(response);
+    console.log({ ...response.result, file: "<...binary data...>" });
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -107,7 +111,6 @@ export async function POST(request: NextRequest) {
       });
     }
     const _signedFile = response.result.file;
-    console.log("here", _signedFile);
     // const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
     // console.log(endTaskResult);

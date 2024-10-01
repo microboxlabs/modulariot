@@ -356,8 +356,8 @@ export default function KanbanMove() {
           y2="256.162"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#D8DEE8" />
-          <stop offset="1" stop-color="#A2A7AE" />
+          <stop stopColor="#D8DEE8" />
+          <stop offset="1" stopColor="#A2A7AE" />
         </linearGradient>
         <linearGradient
           id="paint3_linear_1072_426302"
@@ -367,8 +367,8 @@ export default function KanbanMove() {
           y2="298.985"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint4_linear_1072_426302"
@@ -378,8 +378,8 @@ export default function KanbanMove() {
           y2="448.259"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#444B8C" />
-          <stop offset="0.9964" stop-color="#26264F" />
+          <stop stopColor="#444B8C" />
+          <stop offset="0.9964" stopColor="#26264F" />
         </linearGradient>
         <linearGradient
           id="paint5_linear_1072_426302"
@@ -389,8 +389,8 @@ export default function KanbanMove() {
           y2="294.281"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#444B8C" />
-          <stop offset="0.9964" stop-color="#26264F" />
+          <stop stopColor="#444B8C" />
+          <stop offset="0.9964" stopColor="#26264F" />
         </linearGradient>
         <linearGradient
           id="paint6_linear_1072_426302"
@@ -411,8 +411,8 @@ export default function KanbanMove() {
           y2="231.345"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint8_linear_1072_426302"
@@ -422,8 +422,8 @@ export default function KanbanMove() {
           y2="231.612"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint9_linear_1072_426302"
@@ -433,8 +433,8 @@ export default function KanbanMove() {
           y2="231.876"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint10_linear_1072_426302"
@@ -444,8 +444,8 @@ export default function KanbanMove() {
           y2="232.13"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint11_linear_1072_426302"
@@ -455,8 +455,8 @@ export default function KanbanMove() {
           y2="232.38"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint12_linear_1072_426302"
@@ -466,8 +466,8 @@ export default function KanbanMove() {
           y2="237.926"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint13_linear_1072_426302"
@@ -477,8 +477,8 @@ export default function KanbanMove() {
           y2="238.122"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint14_linear_1072_426302"
@@ -488,8 +488,8 @@ export default function KanbanMove() {
           y2="238.316"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint15_linear_1072_426302"
@@ -499,8 +499,8 @@ export default function KanbanMove() {
           y2="238.502"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint16_linear_1072_426302"
@@ -510,8 +510,8 @@ export default function KanbanMove() {
           y2="238.685"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint17_linear_1072_426302"
@@ -521,8 +521,8 @@ export default function KanbanMove() {
           y2="238.865"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint18_linear_1072_426302"
@@ -532,8 +532,8 @@ export default function KanbanMove() {
           y2="239.041"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint19_linear_1072_426302"
@@ -543,8 +543,8 @@ export default function KanbanMove() {
           y2="245.059"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint20_linear_1072_426302"
@@ -554,8 +554,8 @@ export default function KanbanMove() {
           y2="245.175"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint21_linear_1072_426302"
@@ -565,8 +565,8 @@ export default function KanbanMove() {
           y2="245.283"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint22_linear_1072_426302"
@@ -576,8 +576,8 @@ export default function KanbanMove() {
           y2="245.392"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint23_linear_1072_426302"
@@ -587,8 +587,8 @@ export default function KanbanMove() {
           y2="245.497"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint24_linear_1072_426302"
@@ -598,8 +598,8 @@ export default function KanbanMove() {
           y2="245.6"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint25_linear_1072_426302"
@@ -609,8 +609,8 @@ export default function KanbanMove() {
           y2="245.699"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint26_linear_1072_426302"
@@ -620,8 +620,8 @@ export default function KanbanMove() {
           y2="252.197"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint27_linear_1072_426302"
@@ -631,8 +631,8 @@ export default function KanbanMove() {
           y2="252.227"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint28_linear_1072_426302"
@@ -642,8 +642,8 @@ export default function KanbanMove() {
           y2="252.254"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint29_linear_1072_426302"
@@ -653,8 +653,8 @@ export default function KanbanMove() {
           y2="252.281"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint30_linear_1072_426302"
@@ -664,8 +664,8 @@ export default function KanbanMove() {
           y2="252.306"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <linearGradient
           id="paint31_linear_1072_426302"
@@ -686,8 +686,8 @@ export default function KanbanMove() {
           y2="454.917"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#444B8C" />
-          <stop offset="0.9964" stop-color="#26264F" />
+          <stop stopColor="#444B8C" />
+          <stop offset="0.9964" stopColor="#26264F" />
         </linearGradient>
         <linearGradient
           id="paint33_linear_1072_426302"
@@ -708,8 +708,8 @@ export default function KanbanMove() {
           y2="268.282"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint35_linear_1072_426302"
@@ -719,8 +719,8 @@ export default function KanbanMove() {
           y2="286.194"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint36_linear_1072_426302"
@@ -730,8 +730,8 @@ export default function KanbanMove() {
           y2="384.724"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint37_linear_1072_426302"
@@ -741,8 +741,8 @@ export default function KanbanMove() {
           y2="385.294"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint38_linear_1072_426302"
@@ -796,8 +796,8 @@ export default function KanbanMove() {
           y2="279.008"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint43_linear_1072_426302"
@@ -818,8 +818,8 @@ export default function KanbanMove() {
           y2="268.257"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#311944" />
-          <stop offset="1" stop-color="#893976" />
+          <stop stopColor="#311944" />
+          <stop offset="1" stopColor="#893976" />
         </linearGradient>
         <linearGradient
           id="paint45_linear_1072_426302"
@@ -829,8 +829,8 @@ export default function KanbanMove() {
           y2="267.647"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#311944" />
-          <stop offset="1" stop-color="#893976" />
+          <stop stopColor="#311944" />
+          <stop offset="1" stopColor="#893976" />
         </linearGradient>
         <linearGradient
           id="paint46_linear_1072_426302"
@@ -840,8 +840,8 @@ export default function KanbanMove() {
           y2="495.257"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFC444" />
-          <stop offset="0.9964" stop-color="#F36F56" />
+          <stop stopColor="#FFC444" />
+          <stop offset="0.9964" stopColor="#F36F56" />
         </linearGradient>
         <linearGradient
           id="paint47_linear_1072_426302"
@@ -862,8 +862,8 @@ export default function KanbanMove() {
           y2="382.415"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="0.9964" stop-color="#EBEFF2" />
+          <stop stopColor="white" />
+          <stop offset="0.9964" stopColor="#EBEFF2" />
         </linearGradient>
         <clipPath id="clip0_1072_426302">
           <rect width="430" height="430" fill="white" />

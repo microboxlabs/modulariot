@@ -83,3 +83,10 @@ export type TotalCount = {
   sovosDigitalSignature: number; //(Firma Digital Carta de Porte): wfship:sovosDigitalSignature
   tripOutsideInitiated: number; //(Iniciado Sin Coordinación): wfship:tripOutsideInitiatedTask
 };
+
+export type AlfrescoErrorResponse = {
+  code: string;
+  message: string;
+  exceptionType: string;
+  details: Record<string, unknown>;
+};

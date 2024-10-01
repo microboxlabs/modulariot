@@ -2,19 +2,21 @@
 import { Button, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "./sovos-start-verification-card.types";
 import {
-  // fakeValidateRut,
+  fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
 import SmartCardIcon from "@/features/icons/smartcard";
 import FingerprintIcon from "@/features/icons/figerprint";
 import { useState } from "react";
+import { PersonEntry } from "@alfresco/js-api";
 
 export default function SovosStartVerificationCard({
   // lang,
-  // task,
+  task,
   msg,
   pluginReady,
   stepperController,
+  user,
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
@@ -22,12 +24,15 @@ export default function SovosStartVerificationCard({
     const currentStep = stepperController.currentStep();
 
     if (!pluginReady) return;
+    const validator =
+      process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
+        ? fakeValidateRut
+        : validateRut;
     setIsVerificationInProgress(true);
-    validateRut("25311958-6")
+    validator(getRut())
       .then((result) => {
-        console.log("result", result);
         if (result) {
-          stepperController.toNextStep(false, result);
+          stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }
       })
       .catch((_error) => {
@@ -40,6 +45,18 @@ export default function SovosStartVerificationCard({
         }
         stepperController.toStep(`step${nextStep}`, true);
       });
+  }
+
+  function getRut(): string {
+    const currentStep = stepperController.currentStep();
+    if (currentStep === "step1") {
+      return task.properties.mintral_driver1Rut as string;
+    }
+    if (currentStep === "step3") {
+      return task.properties.mintral_driver2Rut as string;
+    }
+    const userObj = JSON.parse(user!) as PersonEntry;
+    return userObj?.entry.jobTitle ?? "";
   }
 
   return (

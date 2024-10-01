@@ -1,5 +1,3 @@
-"use client";
-
 import { Button, Modal } from "flowbite-react";
 import { TaskConfirmModalProps } from "./task-confirm-modal.types";
 import {

@@ -43,7 +43,7 @@ export default function TaskConfirmModal({
       dismissible
       show={openModal}
       onClose={() => setOpenModal(false)}
-      className="border-none shadow-none"
+      size="4xl"
     >
       <Modal.Header className="border-none">
         {/* Título y subtítulo juntos */}
@@ -52,7 +52,7 @@ export default function TaskConfirmModal({
             {(dict.modal as I18nRecord).title as string}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {(dict.modal as I18nRecord).subtittle as string}
+            {(dict.modal as I18nRecord).subtitle as string}
           </p>
         </div>
       </Modal.Header>

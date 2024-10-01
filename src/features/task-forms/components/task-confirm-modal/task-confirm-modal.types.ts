@@ -5,6 +5,7 @@ export type TaskConfirmModalProps = {
   taskId: string;
   openModal: boolean;
   setOpenModal: (openModal: boolean) => void;
+  commentsFieldEnabled: boolean;
   outcome?: TaskOutcome;
   outcomeLabel?: string;
 };

@@ -113,15 +113,16 @@ export async function getContentByTaskId(
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
+  const result = (await webscriptApi.executeWebScript(
     "GET",
-    `/alfresco/s/mintral/node/content?taskId=${taskId}&fileName=${fileName}`,
-  );
-  // const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  // const blob = await nodesApi.getNodeContent(nodeId);
-  // const buffer = Buffer.from(await new Response(blob).arrayBuffer());
-  // return buffer.toString("base64");
-  return result as string;
+    `mintral/node/content?taskId=${taskId}&fileName=${fileName}`,
+  )) as { node: { id: string } };
+  const nodesApi = new NodesApi(alfrescoApi.contentClient);
+  const blob = await nodesApi.getNodeContent(result.node.id);
+  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  return buffer.toString("base64");
+  // console.log(buffer.toString("base64"));
+  // return result as string;
 }
 
 export async function getCountTask(ticket: string): Promise<TaskCountResponse> {

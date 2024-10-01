@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (comments) {
       const taskResponse = await updateTask(session.user.ticket, taskId, {
         properties: {
-          comments,
+          prop_bpm_comment: comments,
         },
       });
       console.log("taskResponse", taskResponse);

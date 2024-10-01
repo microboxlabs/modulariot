@@ -145,7 +145,8 @@
       "modal": {
         "title": "Confirm action",
         "confirm": "Confirm: {outcome}",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "reason": "Reason"
       }
     },
     "sovosVerificationForm": {
@@ -192,5 +193,5 @@
   },
   "footer": {
     "rights": " MicroboxLabs. All rights reserved."
-}
+  }
 }

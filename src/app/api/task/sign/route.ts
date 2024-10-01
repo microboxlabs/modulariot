@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     signersType.push(5);
     signersOrder.push(json.signerRuts.length + 1);
     signersNotify.push(0);
-    signersAudit.push("any");
+    signersAudit.push("");
 
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,

@@ -27,6 +27,9 @@
       }
     },
     "shipping": {
+      "taskCounter": {
+        "activeCount": "{count} activos"
+      },
       "kanban": {
         "transportValidation": "Validación de conductor / transporte",
         "missionControlTripInit": "Torre de control: Iniciar viaje",
@@ -143,6 +146,9 @@
         "title": "Estás intentando mover la tarea a otro estado del proceso",
         "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
         "confirm": "Confirmar mover a Overlord"
+        "subtittle": "Si mueves la tarea de estado ya no podrás deshacer la acción luego.",
+        "confirm": "Confirmar: {outcome}",
+        "reason": "Motivo"
       }
     },
     "sovosVerificationForm": {

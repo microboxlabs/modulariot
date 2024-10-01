@@ -133,7 +133,7 @@
       "key": "Llave",
       "comments": "Comentarios",
       "outcome": {
-        "normalInitiation": "Iniciar viaje",
+        "normalInitiation": "Continuar",
         "initiationWithObjections": "Iniciar viaje con reparos",
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelado",
@@ -181,7 +181,7 @@
         "finished": "Finalizados",
         "others": "Otros",
         "reports": "Reportes",
-        "details": "Detalles servicio nº {serviceCode}"
+        "details": "Detalles servicio"
       }
     }
   },

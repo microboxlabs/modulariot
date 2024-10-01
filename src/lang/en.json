@@ -133,7 +133,7 @@
       "key": "Key",
       "comments": "Comments",
       "outcome": {
-        "normalInitiation": "Init trip",
+        "normalInitiation": "Continue",
         "initiationWithObjections": "Init trip with objections",
         "requiresOverlord": "Requires overlord",
         "canceled": "Canceled",
@@ -181,7 +181,7 @@
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
-        "details": "Service details nº {serviceCode}"
+        "details": "Service details"
       }
     }
   },

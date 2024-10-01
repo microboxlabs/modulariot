@@ -11,7 +11,6 @@ export default function StepperNavigation({
   msg,
   trParams,
 }: StepperNavigationProps) {
-  console.log("StepperNavigation", isError);
   return (
     <div className="flex items-center gap-4  py-5">
       {routePaths.map((routePath, index) => {

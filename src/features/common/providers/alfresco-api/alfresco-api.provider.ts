@@ -3,10 +3,12 @@ import {
   PeopleApi,
   WebscriptApi,
   NodesApi,
+  PersonEntry,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
   FastTasksResponse,
+  TaskCountResponse,
   TaskResponse,
 } from "./alfresco-api.types";
 
@@ -15,6 +17,15 @@ export const alfrescoApi = new AlfrescoApi({
   provider: process.env.AUTH_PROVIDER,
   contextRoot: process.env.CONTEXT_ROOT,
 });
+
+export async function getUserProfile(
+  ticket: string,
+  userId: string = "-me-",
+): Promise<PersonEntry> {
+  alfrescoApi.setTicket(ticket, "");
+  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
+  return peopleApi.getPerson(userId);
+}
 
 export async function getBase64UserAvatar(
   ticket: string,
@@ -82,9 +93,6 @@ export async function endTask(
   const result = await webscriptApi.executeWebScript("POST", endpoint);
   return result as EndTaskResponse;
 }
-// export const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-
-// export const peopleApi = new PeopleApi(alfrescoApi.contentClient);
 
 export async function getContentNode(
   ticket: string,
@@ -95,4 +103,63 @@ export async function getContentNode(
   const blob = await nodesApi.getNodeContent(nodeId);
   const buffer = Buffer.from(await new Response(blob).arrayBuffer());
   return buffer.toString("base64");
+}
+
+export async function getContentByTaskId(
+  ticket: string,
+  taskId: string,
+  fileName: string,
+): Promise<string> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = (await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/node/content?taskId=${taskId}&fileName=${fileName}`,
+  )) as { node: { id: string } };
+  const nodesApi = new NodesApi(alfrescoApi.contentClient);
+  const blob = await nodesApi.getNodeContent(result.node.id);
+  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  return buffer.toString("base64");
+  // console.log(buffer.toString("base64"));
+  // return result as string;
+}
+
+export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "POST",
+    `mintral/statistics/tasks`,
+  );
+  return result as TaskCountResponse;
+}
+
+export async function formProcessor(
+  ticket: string,
+  itemKind: string,
+  itemId: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "POST",
+    `/api/${itemKind}/${itemId}/formprocessor`,
+    undefined,
+    undefined,
+    undefined,
+    JSON.stringify(data),
+  );
+  return result as TaskResponse;
+}
+
+export async function updateTask(
+  ticket: string,
+  taskId: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  return formProcessor(ticket, "task", taskId, data);
 }

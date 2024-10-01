@@ -10,7 +10,13 @@ import {
 import { TaskActionsProps } from "./task-actions.types";
 import VerticalDotsIcon from "@/features/icons/vertical-dots";
 import TaskActionButton from "../task-action-button/task-action-button";
-import { OUTCOME_NORMAL_INITIATION } from "../../services/form.service";
+import {
+  OUTCOME_ANNULLED,
+  OUTCOME_CANCELED,
+  OUTCOME_INITIATION_WITH_OBJECTIONS,
+  OUTCOME_NORMAL_INITIATION,
+  OUTCOME_OVERLORD_REQUIRED,
+} from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
   I18nRecord,
@@ -32,6 +38,10 @@ export default function TaskActions({
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
     setOpenModal(true);
+  };
+
+  const isCommentsFieldEnabled = (outcome: TaskOutcome) => {
+    return outcome !== OUTCOME_NORMAL_INITIATION;
   };
 
   switch (taskType) {
@@ -58,25 +68,59 @@ export default function TaskActions({
                 "cursor-pointer justify-center rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
             }}
           >
-            <DropdownItem className="flex gap-1">
+            <DropdownItem
+              className="flex gap-1"
+              onClick={() => {
+                handleSelection(
+                  OUTCOME_INITIATION_WITH_OBJECTIONS,
+                  (dict.outcome as I18nRecord)
+                    .initiationWithObjections as string,
+                );
+              }}
+            >
               <HiCheck />
               {(dict.outcome as I18nRecord).initiationWithObjections as string}
             </DropdownItem>
-            <DropdownItem className="flex gap-1">
+            <DropdownItem
+              className="flex gap-1"
+              onClick={() => {
+                handleSelection(
+                  OUTCOME_OVERLORD_REQUIRED,
+                  (dict.outcome as I18nRecord).requiresOverlord as string,
+                );
+              }}
+            >
               <HiOutlineHand />
               {(dict.outcome as I18nRecord).requiresOverlord as string}
             </DropdownItem>
-            <DropdownItem className="flex gap-1">
+            <DropdownItem
+              className="flex gap-1"
+              onClick={() => {
+                handleSelection(
+                  OUTCOME_CANCELED,
+                  (dict.outcome as I18nRecord).canceled as string,
+                );
+              }}
+            >
               <HiOutlineArrowLeft />
               {(dict.outcome as I18nRecord).canceled as string}
             </DropdownItem>
-            <DropdownItem className="flex gap-1">
+            <DropdownItem
+              className="flex gap-1"
+              onClick={() => {
+                handleSelection(
+                  OUTCOME_ANNULLED,
+                  (dict.outcome as I18nRecord).annulled as string,
+                );
+              }}
+            >
               <HiTrash />
               {(dict.outcome as I18nRecord).annulled as string}
             </DropdownItem>
           </Dropdown>
 
           <TaskConfirmModal
+            commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}
             taskId={taskId}
             outcome={outcome!}

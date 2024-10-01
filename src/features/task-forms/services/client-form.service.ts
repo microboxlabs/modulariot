@@ -39,7 +39,6 @@ export async function taskSignDocument(
       taskId,
       transitionId,
       serviceCode,
-      signersEmails: (formData.get("signersEmails") as string).split(","),
       signerRuts: (formData.get("signerRuts") as string).split(","),
       auditNumbers: (formData.get("auditNumbers") as string).split(","),
     }),

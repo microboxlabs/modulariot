@@ -9,6 +9,10 @@ export type KanbanBoardTaskResponse = {
   data: Record<string, KanbanBoard>;
 };
 
+export type Task = {
+  id: string;
+};
+
 export type KanbanBoardTask = {
   id: string;
   name: string;

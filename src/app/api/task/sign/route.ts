@@ -51,19 +51,47 @@ export async function POST(request: NextRequest) {
     // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];
     // console.log(documentTypes);
 
+    let signersRoles = [];
+    let signersInstitutions = [];
+    let signersEmails = [];
+    let signersRuts = [];
+    let signersType = [];
+    let signersOrder = [];
+    let signersNotify = [];
+    let signersAudit: string[] = [];
+
+    json.signerRuts.forEach((rut, index) => {
+      signersRoles.push(rut);
+      signersInstitutions.push(rut);
+      signersEmails.push("michel@microboxlabs.com");
+      signersRuts.push(rut);
+      signersType.push(0);
+      signersOrder.push(index + 1);
+      signersNotify.push(2);
+      signersAudit.push(json.auditNumbers[index]);
+    });
+
+    signersRoles.push("Admin");
+    signersInstitutions.push(institutionId);
+    signersEmails.push("any");
+    signersRuts.push("any");
+    signersType.push(5);
+    signersOrder.push(json.signerRuts.length + 1);
+    signersNotify.push(0);
+
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,
       institution: institutionId,
       name: json.serviceCode,
       session_id: sessionId,
-      signers_roles: json.signerRuts,
-      signers_institutions: json.signerRuts,
-      signers_emails: json.signerRuts.map((_) => "michel@microboxlabs.com"),
-      signers_ruts: json.signerRuts,
-      signers_type: json.signerRuts.map((_) => 0),
-      signers_order: json.signerRuts.map((_, _index) => 1),
-      signers_notify: json.signerRuts.map((_) => 0),
-      signers_audit: json.auditNumbers,
+      signers_roles: signersRoles,
+      signers_institutions: signersInstitutions,
+      signers_emails: signersEmails,
+      signers_ruts: signersRuts,
+      signers_type: signersType,
+      signers_order: signersOrder,
+      signers_notify: signersNotify,
+      signers_audit: signersAudit,
       file,
       file_mime: "application/pdf",
       return_file: 1,

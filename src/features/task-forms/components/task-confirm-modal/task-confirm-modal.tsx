@@ -1,5 +1,3 @@
-import { Button, Modal } from "flowbite-react";
-import { TaskConfirmModalProps } from "./task-confirm-modal.types";
 "use client";
 
 import { Button, Label, Modal, Textarea } from "flowbite-react";
@@ -67,7 +65,7 @@ export default function TaskConfirmModal({
               {(dict.modal as I18nRecord).title as string}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              {(dict.modal as I18nRecord).subtittle as string}
+              {(dict.modal as I18nRecord).subtitle as string}
             </p>
           </div>
         </Modal.Header>

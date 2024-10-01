@@ -6,7 +6,7 @@ import {
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  endTask,
+  // endTask,
   getContentByTaskId,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -58,18 +58,19 @@ export async function POST(request: NextRequest) {
       session_id: sessionId,
       signers_roles: json.signerRuts,
       signers_institutions: json.signerRuts,
-      signers_emails: json.signersEmails,
+      signers_emails: json.signerRuts.map((_) => "michel@microboxlabs.com"),
       signers_ruts: json.signerRuts,
-      signers_type: json.signersEmails.map((_) => 0),
-      signers_order: json.signersEmails.map((_, _index) => 1),
-      signers_notify: json.signersEmails.map((_) => 0),
+      signers_type: json.signerRuts.map((_) => 0),
+      signers_order: json.signerRuts.map((_, _index) => 1),
+      signers_notify: json.signerRuts.map((_) => 0),
       signers_audit: json.auditNumbers,
       file,
       file_mime: "application/pdf",
       return_file: 1,
     };
-    // console.log("createContentRequest", createContentRequest);
+    console.log("createContentRequest", createContentRequest);
     const response = await createContentSign(createContentRequest);
+    console.log(response);
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -78,9 +79,10 @@ export async function POST(request: NextRequest) {
       });
     }
     const _signedFile = response.result.file;
-    const endTaskResult = await endTask(session.user.ticket, json.taskId);
+    console.log("here", _signedFile);
+    // const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
-    console.log(endTaskResult);
+    // console.log(endTaskResult);
 
     // {
     //   type_code,

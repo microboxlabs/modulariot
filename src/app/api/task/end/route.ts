@@ -1,7 +1,11 @@
 import { auth } from "@/auth";
-import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  endTask,
+  updateTask,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { NextRequest, NextResponse } from "next/server";
+import { EndTaskRequest } from "./route.types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +15,20 @@ export async function POST(request: NextRequest) {
         status: 401,
       });
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const json = await request.json();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const json = (await request.json()) as EndTaskRequest;
     const taskId = json.taskId as string;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const transitionId: string | undefined = json.transitionId;
+    const transitionId = json.transitionId;
+    const comments = json.comments;
+
+    if (comments) {
+      const taskResponse = await updateTask(session.user.ticket, taskId, {
+        properties: {
+          comments,
+        },
+      });
+      console.log("taskResponse", taskResponse);
+    }
+
     const response = await endTask(session.user.ticket, taskId, transitionId);
     return NextResponse.json({
       success: true,

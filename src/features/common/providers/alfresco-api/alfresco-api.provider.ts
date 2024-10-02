@@ -155,7 +155,7 @@ export async function uploadNodeContent(
   const formdata = uploadNodeFormData(request);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
-    "PUT",
+    "POST",
     `api/upload`,
     undefined,
     undefined,

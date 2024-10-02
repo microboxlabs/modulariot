@@ -124,10 +124,13 @@ export async function POST(request: NextRequest) {
     const blob = new Blob([bytes], { type: "application/pdf" });
 
     // Create a File object from the Blob
-    const signedFile = new File([blob], `${json.serviceCode}_signed.pdf`, {
+    const signedFile = new File([blob], `ho-firmado.pdf`, {
       type: "application/pdf",
     });
-
+    console.log("uploadNodeContent", {
+      filename: "ho-firmado.pdf",
+      destination: json.bpmPackage,
+    });
     const uploadResposne = await uploadNodeContent(session.user.ticket, {
       filename: "ho-firmado.pdf",
       filedata: signedFile,

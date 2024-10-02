@@ -152,7 +152,7 @@ export async function uploadNodeContent(
   request: UploadNodeRequest,
 ): Promise<string> {
   const formdata = uploadNodeFormData(request);
-  const url = `${process.env.ECM_API_URL}/alfresco/service/api/upload?alf_ticket=${ticket}`;
+  const url = `${process.env.ECM_API_URL}/alfresco/s/api/upload?alf_ticket=${ticket}`;
   const result = await fetcher(url, {
     method: "POST",
     body: formdata,

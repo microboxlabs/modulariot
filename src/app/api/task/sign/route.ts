@@ -8,6 +8,7 @@ import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.pr
 import {
   // endTask,
   getContentByTaskId,
+  uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
       signerRuts: string[];
       taskId: string;
       auditNumbers: string[];
+      bpmPackage: string;
     };
 
     const file = await getContentByTaskId(
@@ -51,13 +53,13 @@ export async function POST(request: NextRequest) {
     // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];
     // console.log(documentTypes);
 
-    let signersRoles = [];
-    let signersInstitutions = [];
-    let signersEmails = [];
-    let signersRuts = [];
-    let signersType = [];
-    let signersOrder = [];
-    let signersNotify = [];
+    let signersRoles: string[] = [];
+    let signersInstitutions: string[] = [];
+    let signersEmails: string[] = [];
+    let signersRuts: string[] = [];
+    let signersType: number[] = [];
+    let signersOrder: number[] = [];
+    let signersNotify: number[] = [];
     let signersAudit: string[] = [];
 
     json.signerRuts.forEach((rut, index) => {
@@ -71,14 +73,14 @@ export async function POST(request: NextRequest) {
       signersAudit.push(json.auditNumbers[index]);
     });
 
-    signersRoles.push("Admin");
-    signersInstitutions.push(institutionId);
-    signersEmails.push("any");
-    signersRuts.push("any");
-    signersType.push(5);
-    signersOrder.push(json.signerRuts.length + 1);
-    signersNotify.push(0);
-    signersAudit.push("");
+    // signersRoles.push("Admin");
+    // signersInstitutions.push(institutionId);
+    // signersEmails.push("any");
+    // signersRuts.push("any");
+    // signersType.push(5);
+    // signersOrder.push(json.signerRuts.length + 1);
+    // signersNotify.push(0);
+    // signersAudit.push("");
 
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,
@@ -110,7 +112,30 @@ export async function POST(request: NextRequest) {
         message: response.message,
       });
     }
-    const _signedFile = response.result.file;
+    const _signedFile = response.result.file!;
+    // Convert base64 to Uint8Array
+    const binaryString = atob(_signedFile);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Create a Blob from the Uint8Array
+    const blob = new Blob([bytes], { type: "application/pdf" });
+
+    // Create a File object from the Blob
+    const signedFile = new File([blob], `${json.serviceCode}_signed.pdf`, {
+      type: "application/pdf",
+    });
+
+    const uploadResposne = await uploadNodeContent(session.user.ticket, {
+      filename: "ho-firmado.pdf",
+      filedata: signedFile,
+      destination: json.bpmPackage,
+    });
+
+    console.log(uploadResposne);
+
     // const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
     // console.log(endTaskResult);

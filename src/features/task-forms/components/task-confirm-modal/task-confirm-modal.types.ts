@@ -6,7 +6,6 @@ export type TaskConfirmModalProps = {
   openModal: boolean;
   setOpenModal: (openModal: boolean) => void;
   commentsFieldEnabled: boolean;
-  bpmPackage: string;
   outcome?: TaskOutcome;
   outcomeLabel?: string;
 };

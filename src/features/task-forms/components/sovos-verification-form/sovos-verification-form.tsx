@@ -35,6 +35,7 @@ export default function SovosVerificationForm({
 
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
+    formData.append("bpmPackage", task.properties.bpm_package as string);
     formData.append(
       "serviceCode",
       task.properties.mintral_serviceCode as string,

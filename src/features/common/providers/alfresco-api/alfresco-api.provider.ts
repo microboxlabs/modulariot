@@ -10,6 +10,7 @@ import type {
   FastTasksResponse,
   TaskCountResponse,
   TaskResponse,
+  UploadNodeRequest,
 } from "./alfresco-api.types";
 
 export const alfrescoApi = new AlfrescoApi({
@@ -92,6 +93,77 @@ export async function endTask(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript("POST", endpoint);
   return result as EndTaskResponse;
+}
+
+function uploadNodeFormData(request: UploadNodeRequest): FormData {
+  const formdata = new FormData();
+  formdata.append("filedata", request.filedata);
+  if (request.filename) {
+    formdata.append("filename", request.filename);
+  }
+  if (request.siteId) {
+    formdata.append("siteId", request.siteId);
+  }
+  if (request.containerId) {
+    formdata.append("containerId", request.containerId);
+  }
+  if (request.destination) {
+    formdata.append("destination", request.destination);
+  }
+  if (request.uploadDirectory) {
+    formdata.append("uploadDirectory", request.uploadDirectory);
+  }
+  if (request.updateNodeRef) {
+    formdata.append("updateNodeRef", request.updateNodeRef);
+  }
+  if (request.description) {
+    formdata.append("description", request.description);
+  }
+  if (request.contentType) {
+    formdata.append("contentType", request.contentType);
+  }
+  if (request.aspects) {
+    formdata.append("aspects", request.aspects.join(","));
+  }
+  if (request.majorVersion) {
+    formdata.append("majorVersion", request.majorVersion.toString());
+  }
+  if (request.overwrite) {
+    formdata.append("overwrite", request.overwrite.toString());
+  }
+  if (request.thumbnails) {
+    formdata.append("thumbnails", request.thumbnails.join(","));
+  }
+  if (request.updateNameAndMimetype) {
+    formdata.append(
+      "updateNameAndMimetype",
+      request.updateNameAndMimetype.toString(),
+    );
+  }
+  if (request.createdDirectory) {
+    formdata.append("createdDirectory", request.createdDirectory.toString());
+  }
+  return formdata;
+}
+
+export async function uploadNodeContent(
+  ticket: string,
+  request: UploadNodeRequest,
+): Promise<string> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const formdata = uploadNodeFormData(request);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "PUT",
+    `api/upload`,
+    undefined,
+    undefined,
+    undefined,
+    formdata,
+  );
+  console.log(result);
+  return result as string;
 }
 
 export async function getContentNode(

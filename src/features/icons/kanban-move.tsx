@@ -1,8 +1,8 @@
 export default function KanbanMove() {
   return (
     <svg
-      width="630"
-      height="350"
+      width="430"
+      height="430"
       viewBox="0 0 430 430"
       fill="none"
       xmlns="http://www.w3.org/3000/svg"

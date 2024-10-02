@@ -85,8 +85,9 @@ export default function TaskConfirmModal({
             {error && <ErrorAlert error={error} />}
           </div>
         </Modal.Body>
-        <Modal.Footer className="border-none flex justify-end">
+        <Modal.Footer className=" border-none">
           <Button
+            className="ml-auto mt-[-41px]"
             isProcessing={isProcessing}
             color="blue"
             onClick={handleConfirm}

@@ -12,6 +12,7 @@ import type {
   TaskResponse,
   UploadNodeRequest,
 } from "./alfresco-api.types";
+import fetcher from "../fetcher";
 
 export const alfrescoApi = new AlfrescoApi({
   hostEcm: process.env.ECM_API_URL,
@@ -150,18 +151,12 @@ export async function uploadNodeContent(
   ticket: string,
   request: UploadNodeRequest,
 ): Promise<string> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   const formdata = uploadNodeFormData(request);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    `api/upload`,
-    undefined,
-    undefined,
-    undefined,
-    formdata,
-  );
+  const url = `${process.env.ECM_API_URL}/alfresco/service/api/upload?alf_ticket=${ticket}`;
+  const result = await fetcher(url, {
+    method: "POST",
+    body: formdata,
+  });
   console.log(result);
   return result as string;
 }

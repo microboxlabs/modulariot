@@ -76,15 +76,16 @@ export async function POST(request: NextRequest) {
 
     // last signer is the dispatcher
     signersRoles[signersRoles.length - 1] = dispatcherRole;
+    signersNotify[signersNotify.length - 1] = 1;
 
-    // signersRoles.push("Admin");
-    // signersInstitutions.push(institutionId);
-    // signersEmails.push("any");
-    // signersRuts.push("any");
-    // signersType.push(5);
-    // signersOrder.push(json.signerRuts.length + 1);
-    // signersNotify.push(0);
-    // signersAudit.push("");
+    signersRoles.push("Admin");
+    signersInstitutions.push(institutionId);
+    signersEmails.push("any");
+    signersRuts.push("any");
+    signersType.push(5);
+    signersOrder.push(json.signerRuts.length + 1);
+    signersNotify.push(0);
+    signersAudit.push("");
 
     const createContentRequest: ContentRequest = {
       type_code: targetContentType,

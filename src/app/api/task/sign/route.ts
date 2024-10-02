@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       signersEmails.push("michel@microboxlabs.com");
       signersRuts.push(rut);
       signersType.push(0);
-      signersOrder.push(index + 1);
+      signersOrder.push(1);
       signersNotify.push(2);
       signersAudit.push(json.auditNumbers[index]);
     });

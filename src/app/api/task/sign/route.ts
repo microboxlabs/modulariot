@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     const sessionId = result.session_id!;
     const institutionId = process.env.DEC5_INSTITUTION!;
     const targetContentType = process.env.DEC5_TARGET_CONTENT_TYPE!;
+    const dispatcherRole = process.env.DEC5_DISPATCHER_ROLE!;
     // const signerRoles = process.env.DEC5_SIGNER_ROLES!;
 
     const json = (await request.json()) as {
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
       signersNotify.push(2);
       signersAudit.push(json.auditNumbers[index]);
     });
+
+    // last signer is the dispatcher
+    signersRoles[signersRoles.length - 1] = dispatcherRole;
 
     // signersRoles.push("Admin");
     // signersInstitutions.push(institutionId);

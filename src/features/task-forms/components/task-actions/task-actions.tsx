@@ -29,6 +29,7 @@ export default function TaskActions({
   taskId,
   taskType,
   dict,
+  bpmPackage,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
@@ -126,6 +127,7 @@ export default function TaskActions({
             outcome={outcome!}
             outcomeLabel={outcomeLabel!}
             openModal={openModal}
+            bpmPackage={bpmPackage}
             setOpenModal={setOpenModal}
           />
         </div>

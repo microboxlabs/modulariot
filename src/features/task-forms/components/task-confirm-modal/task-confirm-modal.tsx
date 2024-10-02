@@ -22,6 +22,7 @@ export default function TaskConfirmModal({
   outcomeLabel,
   taskId,
   dict,
+  bpmPackage,
   commentsFieldEnabled = false,
 }: PropsWithI18nDict<TaskConfirmModalProps>) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,6 +35,7 @@ export default function TaskConfirmModal({
       const formData = new FormData();
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
+      formData.append("bmpPackage", bpmPackage);
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);

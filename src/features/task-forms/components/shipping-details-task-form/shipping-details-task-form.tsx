@@ -66,6 +66,7 @@ export default async function ShippingDetailsTaskForm({
               taskId={task.id}
               taskType={task.name as ShippingCoordinatorProcessForms}
               lang={lang}
+              bpmPackage={task.properties.bpm_package as string}
               dict={
                 (dictionary.pages as I18nRecord)
                   .shippingDetailsTaskForm as I18nRecord

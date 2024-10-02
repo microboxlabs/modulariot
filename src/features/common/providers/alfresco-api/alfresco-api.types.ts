@@ -90,3 +90,21 @@ export type AlfrescoErrorResponse = {
   exceptionType: string;
   details: Record<string, unknown>;
 };
+
+export type UploadNodeRequest = {
+  filename?: string;
+  filedata: File;
+  siteId?: string;
+  containerId?: string;
+  destination?: string;
+  uploadDirectory?: string;
+  updateNodeRef?: string;
+  description?: string;
+  contentType?: string;
+  aspects?: string[];
+  majorVersion?: boolean;
+  overwrite?: boolean;
+  thumbnails?: string[];
+  updateNameAndMimetype?: boolean;
+  createdDirectory?: boolean;
+};

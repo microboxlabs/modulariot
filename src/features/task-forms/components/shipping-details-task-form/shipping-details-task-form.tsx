@@ -12,6 +12,8 @@ import {
   Textarea,
 } from "flowbite-react";
 import ClipboardIcon from "@/features/icons/clipboard";
+import CheckIcon from "@/features/icons/CheckIcon";
+import FormIcon from "@/features/icons/formIcon";
 import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-details-accordion-title";
 import DetailsTextInput from "../details-text-input/details-text-input";
 import TaskActions from "../task-actions/task-actions";
@@ -27,6 +29,20 @@ export default async function ShippingDetailsTaskForm({
   const detailsTitle = dict("layout.secured.sidebar.details", {
     serviceCode: task.properties.mintral_serviceCode as string,
   });
+
+  const check1Subtitle = dict("layout.secured.sidebar.subtitle1", {
+    serviceCode: task.properties.mintral_serviceCode as string,
+  });
+  const check2Subtitle = dict("layout.secured.sidebar.subtitle2", {
+    serviceCode: task.properties.mintral_serviceCode as string,
+  });
+  const check3Subtitle = dict("layout.secured.sidebar.subtitle3", {
+    serviceCode: task.properties.mintral_serviceCode as string,
+  });
+  const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
+    serviceCode: task.properties.mintral_serviceCode as string,
+  });
+
   return (
     <div className="p-5">
       <Breadcrumb aria-label="Default breadcrumb example">
@@ -54,39 +70,45 @@ export default async function ShippingDetailsTaskForm({
             },
           }}
         >
-          <div className="flex items-center pt-5 px-5 ">
-            <span className="text-blue-500 px-2">
-              <svg
-                viewBox="0 0 6.35 6.35"
-                y="0"
-                x="0"
-                height="20"
-                width="20"
-                version="1.1"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <g>
-                  <path
-                    fill="currentColor"
-                    d="M2.43.265c-.3 0-.548.236-.573.53h-.328a.74.74 0 0 0-.735.734v3.822a.74.74 0 0 0 .735.734H4.82a.74.74 0 0 0 .735-.734V1.529a.74.74 0 0 0-.735-.735h-.328a.58.58 0 0 0-.573-.53zm0 .529h1.49c.032 0 .049.017.049.049v.431c0 .032-.017.049-.049.049H2.43c-.032 0-.05-.017-.05-.049V.843c0-.032.018-.05.05-.05zm-.901.53h.328c.026.292.274.528.573.528h1.49a.58.58 0 0 0 .573-.529h.328a.2.2 0 0 1 .206.206v3.822a.2.2 0 0 1-.206.205H1.53a.2.2 0 0 1-.206-.205V1.529a.2.2 0 0 1 .206-.206z"
-                  ></path>
-                </g>
-              </svg>
-            </span>
-            <h1 className="dark:text-white text-gray-800 font-semibold flex-1">
+          <div className="pt-5 px-5 flex-wrap">
+            <small className="flex items-center p-1 text-lg text-gray-800 font-semibold sm:text-xl lg:text-1xl xl:text-1xl">
+              <FormIcon className="mr-3" />
               {detailsTitle}
-              <small className="p-4 text-gray-600"></small>
-            </h1>
+            </small>
+            <div className="flex flex-wrap justify-between sm:justify-center">
+              <div className="text-gray-600 flex flex-wrap space-x-2 sm:space-x-40">
+                <small className="flex items-center p-3.5 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check1Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check2Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check3Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check4Subtitle}
+                </small>
 
-            <TaskActions
-              taskId={task.id}
-              taskType={task.name as ShippingCoordinatorProcessForms}
-              lang={lang}
-              dict={
-                (dictionary.pages as I18nRecord)
-                  .shippingDetailsTaskForm as I18nRecord
-              }
-            />
+                <div className="justify-center flex-wrap p-1">
+                  <div className="absolute top-20 right-6 mt-2">
+                    <TaskActions
+                      taskId={task.id}
+                      taskType={task.name as ShippingCoordinatorProcessForms}
+                      lang={lang}
+                      dict={
+                        (dictionary.pages as I18nRecord)
+                          .shippingDetailsTaskForm as I18nRecord
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <Accordion

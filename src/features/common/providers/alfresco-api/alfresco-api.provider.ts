@@ -96,3 +96,26 @@ export async function getContentNode(
   const buffer = Buffer.from(await new Response(blob).arrayBuffer());
   return buffer.toString("base64");
 }
+// Define el tipo Validations si no está definido
+interface Validations {
+  check1: boolean;
+  check2: boolean;
+  check3: boolean;
+  check4: boolean;
+}
+
+export async function validateService(
+  ticket: string,
+  serviceCode: string,
+): Promise<Validations> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+
+  // Llamada a la API para validar el servicio
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/service/validation?serviceCode=${serviceCode}`,
+  );
+
+  return result as Validations; // Asegúrate de que 'result' tenga el tipo correcto
+}

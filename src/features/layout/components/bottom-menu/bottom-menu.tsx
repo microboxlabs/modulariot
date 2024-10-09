@@ -1,10 +1,17 @@
 import { twMerge } from "tailwind-merge";
 import { HiCog } from "react-icons/hi";
 import { Sidebar } from "flowbite-react";
-import Link from "next/link";
 import LifeSaver from "./LifeSaver";
+import { tr } from "@/features/i18n/tr.service";
+import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 
-export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
+export default function BottomMenu({
+  isCollapsed,
+  dict,
+}: {
+  isCollapsed: boolean;
+  dict: PropsWithI18nDict["dict"];
+}) {
   return (
     <div
       className={twMerge(
@@ -13,11 +20,11 @@ export default function BottomMenu({ isCollapsed }: { isCollapsed: boolean }) {
       )}
     >
       <Sidebar.ItemGroup>
-        <Sidebar.Item icon={HiCog}>
-          <Link href="/users/settings">Ajustes</Link>
+        <Sidebar.Item href="/users/settings" icon={HiCog}>
+          {tr("settings", dict)}
         </Sidebar.Item>
-        <Sidebar.Item icon={LifeSaver}>
-          <Link href="/help">Ayuda y cómo empezar</Link>
+        <Sidebar.Item href="#" icon={LifeSaver}>
+          {tr("help", dict)}
         </Sidebar.Item>
       </Sidebar.ItemGroup>
     </div>

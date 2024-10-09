@@ -11,11 +11,21 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
+import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isCollapsed, setCollapsed } = useSidebarContext().desktop;
   const [isPreview, setIsPreview] = useState(isCollapsed);
+
+  const { data, error, isLoading: _ } = useMyTasksCount();
+
+  const totals: { [key: string]: number } = {};
+  if (!error) {
+    totals["shipping"] = Object.entries(data?.totals ?? {})
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
+  }
 
   useEffect(() => {
     if (isCollapsed) setIsPreview(false);
@@ -58,12 +68,13 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
                   pathname={pathname}
                   label={tr(item.label, dict)}
                   dict={dict}
+                  totals={totals}
                 />
               ))}
             </Sidebar.ItemGroup>
           </Sidebar.Items>
         </div>
-        <BottomMenu isCollapsed={isCollapsed} />
+        <BottomMenu isCollapsed={isCollapsed} dict={dict} />
       </div>
     </Sidebar>
   );

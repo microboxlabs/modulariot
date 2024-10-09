@@ -14,7 +14,9 @@ export default async function TaskEditPage({
   const [, _dictionary] = await getDictionary(lang);
   try {
     const task = await getTaskById(session!.user.ticket, `activiti$${taskId}`);
-    return <TaskForm task={task.data} lang={lang} />;
+    return (
+      <TaskForm task={task.data} lang={lang} ticket={session!.user.ticket} />
+    );
   } catch (e: any) {
     if (e?.status === 401) {
       redirectWithLang(`/sign-in`);

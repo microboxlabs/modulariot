@@ -27,6 +27,9 @@
       }
     },
     "shipping": {
+      "taskCounter": {
+        "activeCount": "{count} activos"
+      },
       "kanban": {
         "transportValidation": "Driver / Transport Validation",
         "missionControlTripInit": "Mission Control: Start trip",
@@ -142,7 +145,8 @@
       "modal": {
         "title": "Confirm action",
         "confirm": "Confirm: {outcome}",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "reason": "Reason"
       }
     },
     "sovosVerificationForm": {
@@ -181,7 +185,13 @@
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
+<<<<<<< HEAD
         "details": "Service details"
+=======
+        "details": "Service details nº {serviceCode}",
+        "settings": "Settings",
+        "help": "Help and getting started"
+>>>>>>> dc3ab8d8bf3336a288ed792b02780e370b1b4570
       }
     }
   },

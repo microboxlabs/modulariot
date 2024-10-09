@@ -39,6 +39,7 @@ export async function taskSignDocument(
       taskId,
       transitionId,
       serviceCode,
+      bpmPackage: formData.get("bpmPackage"),
       signerRuts: (formData.get("signerRuts") as string).split(","),
       auditNumbers: (formData.get("auditNumbers") as string).split(","),
     }),

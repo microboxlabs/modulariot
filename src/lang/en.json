@@ -185,13 +185,10 @@
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
-<<<<<<< HEAD
-        "details": "Service details"
-=======
+
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
         "help": "Help and getting started"
->>>>>>> dc3ab8d8bf3336a288ed792b02780e370b1b4570
       }
     }
   },

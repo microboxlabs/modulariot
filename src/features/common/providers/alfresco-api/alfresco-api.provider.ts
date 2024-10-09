@@ -8,7 +8,6 @@ import {
 import type {
   EndTaskResponse,
   FastTasksResponse,
-  TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
 } from "./alfresco-api.types";
@@ -171,7 +170,6 @@ export async function getContentNode(
   const buffer = Buffer.from(await new Response(blob).arrayBuffer());
   return buffer.toString("base64");
 }
-<<<<<<< HEAD
 // Define el tipo Validations si no está definido
 interface Validations {
   check1: boolean;
@@ -194,7 +192,7 @@ export async function validateService(
   );
 
   return result as Validations; // Asegúrate de que 'result' tenga el tipo correcto
-=======
+}
 
 export async function getContentByTaskId(
   ticket: string,
@@ -214,17 +212,6 @@ export async function getContentByTaskId(
   return buffer.toString("base64");
   // console.log(buffer.toString("base64"));
   // return result as string;
-}
-
-export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    `mintral/statistics/tasks`,
-  );
-  return result as TaskCountResponse;
 }
 
 export async function formProcessor(
@@ -253,5 +240,4 @@ export async function updateTask(
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
   return formProcessor(ticket, "task", taskId, data);
->>>>>>> dc3ab8d8bf3336a288ed792b02780e370b1b4570
 }

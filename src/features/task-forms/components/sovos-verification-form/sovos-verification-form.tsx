@@ -17,6 +17,7 @@ export default function SovosVerificationForm({
   msg,
   task,
   lang,
+  user,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -30,20 +31,18 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     const formData = new FormData();
     const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
-    const signersEmails = audits
-      .map((_audit) => "michel@microboxlabs.com")
-      .join(",");
-    const signerRuts = audits.map((_audit) => "24952044-6").join(",");
+    const signerRuts = audits.map((audit) => audit.Rut).join(",");
+
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
+    formData.append("bpmPackage", task.properties.bpm_package as string);
     formData.append(
       "serviceCode",
       task.properties.mintral_serviceCode as string,
     );
     formData.append("auditNumbers", auditNumbers);
-    formData.append("signersEmails", signersEmails);
     formData.append("signerRuts", signerRuts);
-    const result = await taskSignDocument({} as any, formData);
+    const result = await taskSignDocument({}, formData);
 
     if (result.success) {
       router.push(`/${lang}/shipping`);
@@ -74,7 +73,11 @@ export default function SovosVerificationForm({
       }
 
       let nextStep = parseInt(stepper.currentStep.replace("step", ""));
-      nextStep += 1;
+      if (steps.length === 4 && nextStep === 2) {
+        nextStep = 5;
+      } else {
+        nextStep += 1;
+      }
       return setStepper({
         ...stepper,
         currentStep: `step${nextStep}`,
@@ -98,7 +101,7 @@ export default function SovosVerificationForm({
   };
 
   let steps = ["step1", "step2"];
-  if (task.properties.mintral_driver2Name) {
+  if (task.properties.mintral_driver2Rut) {
     steps.push("step3", "step4");
   }
   steps.push("step5", "step6");
@@ -129,6 +132,7 @@ export default function SovosVerificationForm({
           lang={lang}
           msg={msg}
           task={task}
+          user={user}
           pluginReady={pluginReady}
           stepperController={stepperController}
         />

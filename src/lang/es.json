@@ -27,6 +27,9 @@
       }
     },
     "shipping": {
+      "taskCounter": {
+        "activeCount": "{count} activos"
+      },
       "kanban": {
         "transportValidation": "Validación de conductor / transporte",
         "missionControlTripInit": "Torre de control: Iniciar viaje",
@@ -140,9 +143,10 @@
         "annulled": "Anulado"
       },
       "modal": {
-        "title": "Mover tarea",
+        "title": "Estás intentando mover la tarea a otro estado del proceso",
+        "subtittle": "Si mueves la tarea de estado ya no podrás deshacer la acción luego.",
         "confirm": "Confirmar: {outcome}",
-        "cancel": "Cancelar"
+        "reason": "Motivo"
       }
     },
     "sovosVerificationForm": {
@@ -185,7 +189,11 @@
         "subtitle1":  "Consolidación",
         "subtitle2":"Separacion documental",
         "subtitle3":"Validacion Sistema Cliente",
-        "subtitle4":"Validacion GPS"
+        "subtitle4":"Validacion GPS",
+        "details": "Detalles servicio nº {serviceCode}",
+        "settings": "Ajustes",
+        "help": "Ayuda y cómo empezar"
+
       }
     }
   },

@@ -68,3 +68,43 @@ export type EndTaskResponse = {
   id: string;
   transition: string;
 };
+
+export interface TaskCountResponse {
+  totals: {
+    totalTasks: number;
+  };
+}
+
+export type TotalCount = {
+  startevent1: number; //(Start): wfship:startEvent
+  transportValidation: number; //(Validar Conductor / Transporte): wfship:transportValidationTask
+  missionControlTripInit: number; //(Torre de Control: Iniciar Viaje): wfship:missionControlTripInitTask
+  overlordTripInit: number; //(Overlord: Iniciar viaje (Confirmación)): wfship:overlordTripInitTask
+  sovosDigitalSignature: number; //(Firma Digital Carta de Porte): wfship:sovosDigitalSignature
+  tripOutsideInitiated: number; //(Iniciado Sin Coordinación): wfship:tripOutsideInitiatedTask
+};
+
+export type AlfrescoErrorResponse = {
+  code: string;
+  message: string;
+  exceptionType: string;
+  details: Record<string, unknown>;
+};
+
+export type UploadNodeRequest = {
+  filename?: string;
+  filedata: File;
+  siteId?: string;
+  containerId?: string;
+  destination?: string;
+  uploadDirectory?: string;
+  updateNodeRef?: string;
+  description?: string;
+  contentType?: string;
+  aspects?: string[];
+  majorVersion?: boolean;
+  overwrite?: boolean;
+  thumbnails?: string[];
+  updateNameAndMimetype?: boolean;
+  createdDirectory?: boolean;
+};

@@ -1,15 +1,36 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { TaskFormProps } from "../task-form/task-form.types";
 import { fromString } from "@/features/common/services/days.service";
 import EllipseIcon from "@/features/icons/ellipse";
+import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified-card.types";
+import CheckCircleIcon from "@/features/icons/check-circle";
+import { calcGpsValidationType } from "../../services/client-form.service";
+import ErrorCircleIcon from "@/features/icons/error-circle";
+import ExclamationIcon from "@/features/icons/exclamation";
+import { useState } from "react";
+import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";
 
-export default function TripInformation({ task, msg }: TaskFormProps) {
+export default function TripInformation({
+  lang,
+  task,
+  msg,
+  entityInfo,
+}: DriverVerifiedCardProps) {
+  const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
+
+  const openGpsValidationModal = () => {
+    setShowGpsValidationModal(true);
+  };
+
   const eta = fromString(
     task.properties.mintral_estimatedArrivalDate as string,
   );
   const etd = fromString(
     task.properties.mintral_estimatedDepartureDate as string,
   );
+
+  const gpsValidationType = entityInfo
+    ? calcGpsValidationType(entityInfo)
+    : undefined;
 
   return (
     <div>
@@ -51,7 +72,28 @@ export default function TripInformation({ task, msg }: TaskFormProps) {
             {(msg!.cards as I18nRecord).clientSystemValidation as string}
           </span>
         </div>
+        <div className="flex gap-2">
+          {gpsValidationType === "ok" && <CheckCircleIcon />}
+          {gpsValidationType === "warning" && <ExclamationIcon />}
+          {gpsValidationType === "error" && <ErrorCircleIcon />}
+          {gpsValidationType === undefined && <EllipseIcon />}
+          <a
+            href="#"
+            className="text-gray-400 text-sm hover:underline"
+            onClick={openGpsValidationModal}
+          >
+            {(msg!.cards as I18nRecord).gpsValidation as string}
+          </a>
+        </div>
       </div>
+      <GpsValidationModal
+        openModal={showGpsValidationModal}
+        setOpenModal={() => setShowGpsValidationModal(false)}
+        msg={msg!}
+        entityInfo={entityInfo}
+        lang={lang}
+        task={task}
+      />
     </div>
   );
 }

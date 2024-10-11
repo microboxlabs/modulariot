@@ -2,7 +2,8 @@
 
 // import fetcher from "@/features/common/providers/fetcher";
 import fetcher from "@/features/common/providers/fetcher";
-import { TaskNextActionState } from "./form.service.types";
+import { GPSValidityType, TaskNextActionState } from "./form.service.types";
+import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 
 export async function taskNextAction(
   _prevState: TaskNextActionState,
@@ -44,4 +45,26 @@ export async function taskSignDocument(
       auditNumbers: (formData.get("auditNumbers") as string).split(","),
     }),
   });
+}
+
+/**
+ * Calcula el tipo de validación GPS basado en el último timestamp de la entidad.
+ * La regla definida es:
+ * - Menos de 2 minutos: "ok"
+ * - Entre 2 y 5 minutos: "warning"
+ * - Más de 5 minutos: "error"
+ * @param entityInfo Información de la entidad obtenida desde la API de Microboxlabs.
+ * @returns El tipo de validación GPS ("ok", "warning", "error").
+ */
+export function calcGpsValidationType(
+  entityInfo: GetEntityInfoResponse,
+): GPSValidityType {
+  const { ultimo_last_timestamp } = entityInfo;
+  const lastTimestamp = new Date(`${ultimo_last_timestamp}Z`);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - lastTimestamp.getTime());
+  const diffSeconds = Math.round(diffTime / 1000);
+  if (diffSeconds < 120) return "ok";
+  if (diffSeconds >= 120 && diffSeconds < 300) return "warning";
+  return "error";
 }

@@ -94,7 +94,8 @@
         "comments": "Comments",
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
-        "clientSystemValidation": "Client System Validation"
+        "clientSystemValidation": "Client System Validation",
+        "gpsValidation": "GPS Validation"
       }
     },
     "shippingDetailsTaskForm": {
@@ -185,7 +186,6 @@
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
-
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
         "help": "Help and getting started"

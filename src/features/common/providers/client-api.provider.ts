@@ -3,6 +3,7 @@ import fetcher from "./fetcher";
 import { FetcherError } from "./fetcher.types";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import { TaskCountResponse } from "./alfresco-api/alfresco-api.types";
+import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -31,6 +32,18 @@ export function useMyTasksCount() {
     `/app/api/task/mytasks/count`,
     fetcher,
   );
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useGetEntityInfo(entity: string) {
+  const { data, error, isLoading } = useSWR<
+    GetEntityInfoResponse,
+    FetcherError
+  >(`/app/api/microboxlabs/entity?entity=${entity}`, fetcher);
   return {
     data,
     error,

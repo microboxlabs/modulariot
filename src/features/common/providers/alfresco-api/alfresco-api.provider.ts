@@ -8,6 +8,7 @@ import {
 import type {
   EndTaskResponse,
   FastTasksResponse,
+  TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
 } from "./alfresco-api.types";
@@ -212,6 +213,17 @@ export async function getContentByTaskId(
   return buffer.toString("base64");
   // console.log(buffer.toString("base64"));
   // return result as string;
+}
+
+export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "POST",
+    `mintral/statistics/tasks`,
+  );
+  return result as TaskCountResponse;
 }
 
 export async function formProcessor(

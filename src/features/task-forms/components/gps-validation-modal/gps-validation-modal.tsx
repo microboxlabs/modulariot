@@ -3,6 +3,9 @@
 import { Modal, Table } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GpsValidationModalProps } from "./gps-validation-modal.types";
+import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
+import MapComponent from "./map";
+import { toLatLngLiteral } from "../../services/client-form.service";
 
 export default function GpsValidationModal({
   openModal,
@@ -25,6 +28,15 @@ export default function GpsValidationModal({
         </div>
       </Modal.Header>
       <Modal.Body>
+        <MapProvider>
+          <div id="map" className="h-[200px]">
+            {entityInfo?.ultimo_last_ptofinal && (
+              <MapComponent
+                pointer={toLatLngLiteral(entityInfo?.ultimo_last_ptofinal)}
+              />
+            )}
+          </div>
+        </MapProvider>
         <div className="overflow-auto">
           <Table striped>
             <Table.Body>

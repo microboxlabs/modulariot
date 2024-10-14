@@ -68,3 +68,18 @@ export function calcGpsValidationType(
   if (diffSeconds >= 120 && diffSeconds < 300) return "warning";
   return "error";
 }
+
+export function toLatLngLiteral(
+  // eslint-disable-next-line no-undef
+  coordinates: {
+    type: string;
+    coordinates: [number, number];
+  },
+  // eslint-disable-next-line no-undef
+): google.maps.LatLngLiteral {
+  // eslint-disable-next-line no-undef
+  return {
+    lat: coordinates.coordinates[1],
+    lng: coordinates.coordinates[0],
+  };
+}

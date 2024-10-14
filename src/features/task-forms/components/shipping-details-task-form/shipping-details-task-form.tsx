@@ -12,7 +12,7 @@ import {
   Textarea,
 } from "flowbite-react";
 import ClipboardIcon from "@/features/icons/clipboard";
-import CheckIcon from "@/features/icons/CheckIcon";
+// import CheckIcon from "@/features/icons/CheckIcon";
 import FormIcon from "@/features/icons/formIcon";
 import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-details-accordion-title";
 import DetailsTextInput from "../details-text-input/details-text-input";
@@ -30,18 +30,18 @@ export default async function ShippingDetailsTaskForm({
     serviceCode: task.properties.mintral_serviceCode as string,
   });
 
-  const check1Subtitle = dict("layout.secured.sidebar.subtitle1", {
-    serviceCode: task.properties.mintral_serviceCode as string,
-  });
-  const check2Subtitle = dict("layout.secured.sidebar.subtitle2", {
-    serviceCode: task.properties.mintral_serviceCode as string,
-  });
-  const check3Subtitle = dict("layout.secured.sidebar.subtitle3", {
-    serviceCode: task.properties.mintral_serviceCode as string,
-  });
-  const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
-    serviceCode: task.properties.mintral_serviceCode as string,
-  });
+  // const check1Subtitle = dict("layout.secured.sidebar.subtitle1", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check2Subtitle = dict("layout.secured.sidebar.subtitle2", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check3Subtitle = dict("layout.secured.sidebar.subtitle3", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
 
   return (
     <div className="p-5">
@@ -77,7 +77,7 @@ export default async function ShippingDetailsTaskForm({
             </small>
             <div className="flex flex-wrap justify-between sm:justify-center">
               <div className="text-gray-600 flex flex-wrap space-x-2 sm:space-x-40">
-                <small className="flex items-center p-3.5 flex-basis-1/2 sm:flex-basis-full">
+                {/* <small className="flex items-center p-3.5 flex-basis-1/2 sm:flex-basis-full">
                   <CheckIcon className="mr-2" />
                   {check1Subtitle}
                 </small>
@@ -92,7 +92,7 @@ export default async function ShippingDetailsTaskForm({
                 <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
                   <CheckIcon className="mr-2" />
                   {check4Subtitle}
-                </small>
+                </small> */}
 
                 <div className="justify-center flex-wrap p-1">
                   <div className="absolute top-20 right-6 mt-2">

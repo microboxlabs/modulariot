@@ -11,6 +11,7 @@ const config: Config = {
     "./public/**/*.html",
     flowbite.content(),
   ],
+  darkMode: 'class', // This is important
   theme: {
     extend: {
       backgroundImage: {

@@ -146,6 +146,7 @@
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
         "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
     },

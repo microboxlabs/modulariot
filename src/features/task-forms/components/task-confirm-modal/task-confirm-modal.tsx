@@ -76,6 +76,7 @@ export default function TaskConfirmModal({
             </div>
             {commentsFieldEnabled && (
               <div className="flex-1 flex flex-col gap-y-2">
+                <Label htmlFor="comments">{tr("modal.reason", dict)}:</Label>
                 <Textarea id="comments" name="comments" required rows={8} />
               </div>
             )}

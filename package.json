@@ -13,6 +13,7 @@
     "@formatjs/intl-localematcher": "^0.5.4",
     "@hookform/resolvers": "^3.9.0",
     "@lordicon/react": "^1.10.0",
+    "@react-google-maps/api": "^2.20.3",
     "@types/negotiator": "^0.6.3",
     "dayjs": "^1.11.12",
     "flowbite": "^2.4.1",
@@ -33,6 +34,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.58.1",
     "@types/jquery": "^3.5.31",
     "@types/node": "^20",
     "@types/react": "^18",

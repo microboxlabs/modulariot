@@ -12,6 +12,8 @@ import {
   Textarea,
 } from "flowbite-react";
 import ClipboardIcon from "@/features/icons/clipboard";
+// import CheckIcon from "@/features/icons/CheckIcon";
+import FormIcon from "@/features/icons/formIcon";
 import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-details-accordion-title";
 import DetailsTextInput from "../details-text-input/details-text-input";
 import TaskActions from "../task-actions/task-actions";
@@ -27,6 +29,20 @@ export default async function ShippingDetailsTaskForm({
   const detailsTitle = dict("layout.secured.sidebar.details", {
     serviceCode: task.properties.mintral_serviceCode as string,
   });
+
+  // const check1Subtitle = dict("layout.secured.sidebar.subtitle1", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check2Subtitle = dict("layout.secured.sidebar.subtitle2", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check3Subtitle = dict("layout.secured.sidebar.subtitle3", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+  // const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
+  //   serviceCode: task.properties.mintral_serviceCode as string,
+  // });
+
   return (
     <div className="p-5">
       <Breadcrumb aria-label="Default breadcrumb example">
@@ -54,23 +70,45 @@ export default async function ShippingDetailsTaskForm({
             },
           }}
         >
-          <div className="flex items-center pt-5 px-5 ">
-            <h1 className="dark:text-white flex-1">
+          <div className="pt-5 px-5 flex-wrap">
+            <small className="flex items-center p-1 text-lg text-gray-800 font-semibold sm:text-xl lg:text-1xl xl:text-1xl">
+              <FormIcon className="mr-3" />
               {detailsTitle}
-              <small className="p-4 text-gray-600">
-                <code>instanceId: {task.workflowInstance.id}</code>
-              </small>
-            </h1>
+            </small>
+            <div className="flex flex-wrap justify-between sm:justify-center">
+              <div className="text-gray-600 flex flex-wrap space-x-2 sm:space-x-40">
+                {/* <small className="flex items-center p-3.5 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check1Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check2Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check3Subtitle}
+                </small>
+                <small className="flex items-center p-3 flex-basis-1/2 sm:flex-basis-full">
+                  <CheckIcon className="mr-2" />
+                  {check4Subtitle}
+                </small> */}
 
-            <TaskActions
-              taskId={task.id}
-              taskType={task.name as ShippingCoordinatorProcessForms}
-              lang={lang}
-              dict={
-                (dictionary.pages as I18nRecord)
-                  .shippingDetailsTaskForm as I18nRecord
-              }
-            />
+                <div className="justify-center flex-wrap p-1">
+                  <div className="absolute top-20 right-6 mt-2">
+                    <TaskActions
+                      taskId={task.id}
+                      taskType={task.name as ShippingCoordinatorProcessForms}
+                      lang={lang}
+                      dict={
+                        (dictionary.pages as I18nRecord)
+                          .shippingDetailsTaskForm as I18nRecord
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <Accordion

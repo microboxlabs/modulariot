@@ -94,7 +94,8 @@
         "comments": "Comments",
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
-        "clientSystemValidation": "Client System Validation"
+        "clientSystemValidation": "Client System Validation",
+        "gpsValidation": "GPS Validation"
       }
     },
     "shippingDetailsTaskForm": {
@@ -136,7 +137,7 @@
       "key": "Key",
       "comments": "Comments",
       "outcome": {
-        "normalInitiation": "Init trip",
+        "normalInitiation": "Continue",
         "initiationWithObjections": "Init trip with objections",
         "requiresOverlord": "Requires overlord",
         "canceled": "Canceled",

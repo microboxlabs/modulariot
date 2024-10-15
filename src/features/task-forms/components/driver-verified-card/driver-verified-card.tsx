@@ -1,7 +1,6 @@
 "use client";
 
 import { Button, Card, Textarea, TextInput } from "flowbite-react";
-import { TaskFormProps } from "../task-form/task-form.types";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
 import { Driver } from "../driver-contact-info/driver-contact-info.type";
@@ -13,8 +12,14 @@ import { taskNextAction } from "../../services/client-form.service";
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TaskNextActionState } from "../../services/form.service.types";
+import { DriverVerifiedCardProps } from "./driver-verified-card.types";
 
-export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
+export default function DriverVerifiedCard({
+  lang,
+  task,
+  msg,
+  entityInfo,
+}: DriverVerifiedCardProps) {
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
     {},
@@ -67,7 +72,12 @@ export default function DriverVerifiedCard({ lang, task, msg }: TaskFormProps) {
       <DriverValidation msg={msg!} driver1={driver1} driver2={driver2} />
 
       <div className="h-px bg-gray-300 w-full"></div>
-      <TripInformation msg={msg} task={task} lang={lang} />
+      <TripInformation
+        msg={msg}
+        task={task}
+        lang={lang}
+        entityInfo={entityInfo}
+      />
 
       <div className="h-px bg-gray-300 w-full"></div>
       <form action={formAction}>

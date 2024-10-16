@@ -30,6 +30,7 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useRouter } from "next/navigation";
 import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
+import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 
 export default function KanbanPageContent({
   kanbanBoards,
@@ -78,6 +79,14 @@ export default function KanbanPageContent({
 
   return (
     <div className="inline-block min-w-full align-middle h-full">
+      <div className="mt-6 ml-4 flex items-start justify-start space-x-4 px-4">
+        <ClientBreadcrumb
+          path={["my_tasks", "shipping"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dict}
+        />
+      </div>
       <div className="mb-6 flex items-start justify-start space-x-4 px-4">
         {boards.map((board) => (
           <div key={board.id}>

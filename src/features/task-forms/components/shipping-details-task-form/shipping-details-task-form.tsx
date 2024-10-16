@@ -6,12 +6,10 @@ import {
   AccordionContent,
   AccordionPanel,
   Breadcrumb,
-  BreadcrumbItem,
   Card,
   Label,
   Textarea,
 } from "flowbite-react";
-import ClipboardIcon from "@/features/icons/clipboard";
 // import CheckIcon from "@/features/icons/CheckIcon";
 import FormIcon from "@/features/icons/formIcon";
 import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-details-accordion-title";
@@ -19,6 +17,7 @@ import DetailsTextInput from "../details-text-input/details-text-input";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { HiClipboardList } from "react-icons/hi";
 
 export default async function ShippingDetailsTaskForm({
   task,
@@ -44,24 +43,13 @@ export default async function ShippingDetailsTaskForm({
   // });
 
   return (
-    <div className="p-5">
-      <Breadcrumb aria-label="Default breadcrumb example">
-        <BreadcrumbItem
-          href="#"
-          icon={() => (
-            <span className="pr-2.5">
-              <ClipboardIcon />
-            </span>
-          )}
-        >
-          {dict("layout.secured.sidebar.my_tasks")}
-        </BreadcrumbItem>
-        <BreadcrumbItem href="#">
-          {dict("layout.secured.sidebar.shipping")}
-        </BreadcrumbItem>
-        <BreadcrumbItem>{detailsTitle}</BreadcrumbItem>
-      </Breadcrumb>
-
+    <div className="px-4 pt-6">
+      <Breadcrumb
+        path={["my_tasks", "shipping", "details"]}
+        lang={lang}
+        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+        dict={dict}
+      />
       <div className="pt-8">
         <Card
           theme={{

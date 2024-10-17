@@ -19,6 +19,7 @@ export default function DriverVerifiedCard({
   task,
   msg,
   entityInfo,
+  serviceValidation,
 }: DriverVerifiedCardProps) {
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
@@ -77,6 +78,7 @@ export default function DriverVerifiedCard({
         task={task}
         lang={lang}
         entityInfo={entityInfo}
+        serviceValidation={serviceValidation}
       />
 
       <div className="h-px bg-gray-300 w-full"></div>

@@ -27,6 +27,10 @@
       }
     },
     "shipping": {
+      "breadcrumb": {
+        "my_tasks": "My tasks",
+        "shipping": "Shipping"
+      },
       "taskCounter": {
         "activeCount": "{count} activos"
       },

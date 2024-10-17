@@ -10,6 +10,7 @@ import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 export default async function SignInPage({ params: { lang } }: ParamsWithLang) {
   const [dict] = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
+
   return (
     <div className="mx-auto flex flex-col px-6 pt-8 md:h-screen">
       <NavbarSignIn />

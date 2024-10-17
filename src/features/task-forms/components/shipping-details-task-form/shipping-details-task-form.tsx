@@ -5,7 +5,6 @@ import {
   Accordion,
   AccordionContent,
   AccordionPanel,
-  Breadcrumb,
   Card,
   Label,
   Textarea,
@@ -18,6 +17,7 @@ import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiClipboardList } from "react-icons/hi";
+import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 
 export default async function ShippingDetailsTaskForm({
   task,
@@ -48,7 +48,7 @@ export default async function ShippingDetailsTaskForm({
         path={["my_tasks", "shipping", "details"]}
         lang={lang}
         rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-        dict={dict}
+        dict={dictionary.pages as I18nRecord}
       />
       <div className="pt-8">
         <Card

@@ -41,4 +41,3 @@ export function getLocaleFromHeaders(headers: Headers) {
 export function getLocaleFromRequest(request: NextRequest) {
   return getLocaleFromHeaders(request.headers);
 }
-export { tr };

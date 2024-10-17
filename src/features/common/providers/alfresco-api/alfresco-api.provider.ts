@@ -8,6 +8,7 @@ import {
 import type {
   EndTaskResponse,
   FastTasksResponse,
+  ServiceValidationResponse,
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
@@ -252,4 +253,18 @@ export async function updateTask(
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
   return formProcessor(ticket, "task", taskId, data);
+}
+
+export async function getServiceValidation(
+  ticket: string,
+  serviceCode: string,
+): Promise<ServiceValidationResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/service/validation?serviceCode=${serviceCode}`,
+  );
+  return result as ServiceValidationResponse;
 }

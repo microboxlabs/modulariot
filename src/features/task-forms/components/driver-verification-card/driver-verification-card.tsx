@@ -1,16 +1,56 @@
 import { Button, Card, Label, TextInput } from "flowbite-react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+// Define the Zod schema
+const schema = z.object({
+  serviceCode: z
+    .union([z.string(), z.number()])
+    .refine((val) => val !== "" && val !== 0, {
+      message: "Service code is required",
+    })
+    .transform((val) => val.toString()),
+});
+
+type FormData = z.infer<typeof schema>;
 
 export default function DriverVerificationCard({
   msg,
   task,
   lang,
 }: TaskFormProps) {
+  const [error /* setError */] = useState<string | null>(null);
+  const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      serviceCode: (task.properties.mintral_serviceCode as string) || "",
+    },
+  });
+
+  const onSubmit = (/* data: FormData */) => {
+    // more logic here
+    router.push(
+      `/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step2`,
+    );
+  };
+
   return (
     <Card>
-      <form className="flex flex-col min-w-96 p-8 justify-center gap-9">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col min-w-96 p-8 justify-center gap-9"
+      >
         <div className="flex flex-col">
           <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
             {msg!.title as string}
@@ -29,20 +69,22 @@ export default function DriverVerificationCard({
             </Label>
             <TextInput
               id="serviceCode"
-              name="serviceCode"
+              {...register("serviceCode")}
               placeholder={
                 ((msg!.fields as I18nRecord).service as I18nRecord)
                   .placeholder as string
               }
-              defaultValue={task.properties.mintral_serviceCode as number}
               type="text"
             />
+            {errors.serviceCode && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.serviceCode.message}
+              </p>
+            )}
           </div>
         </div>
         <div>
           <Button
-            as={Link}
-            href={`/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step2`}
             color="blue"
             type="submit"
             theme={{ inner: { base: "px-5 py-3" } }}
@@ -51,6 +93,7 @@ export default function DriverVerificationCard({
             {(msg!.buttons as I18nRecord).submit as string}
           </Button>
         </div>
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
       </form>
     </Card>
   );

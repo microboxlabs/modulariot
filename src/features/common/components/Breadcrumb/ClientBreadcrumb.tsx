@@ -11,12 +11,11 @@ interface ClientBreadcrumbProps {
   lang?: string;
   rootIcon?: React.ReactNode;
   rightContent?: React.ReactNode[];
-  dict?: I18nRecord;
+  dict: I18nRecord;
 }
 
 export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
   path,
-  lang = "en",
   rootIcon = <HiHome className="mr-2 h-4 w-4" />,
   rightContent = [],
   dict,
@@ -35,14 +34,14 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
             <FlowbiteBreadcrumb.Item
               icon={() => rootIcon}
               key={index}
-            /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} TODO: Implement path and I18n, */
+              /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} TODO: Implement path and I18n, */
             >
               {item}
             </FlowbiteBreadcrumb.Item>
           ) : (
             <FlowbiteBreadcrumb.Item
               key={index}
-            /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} */
+              /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} */
             >
               {item}
             </FlowbiteBreadcrumb.Item>

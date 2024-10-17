@@ -10,7 +10,7 @@ interface BreadcrumbProps {
   lang?: string;
   rootIcon?: React.ReactNode;
   rightContent?: React.ReactNode[];
-  dict?: I18nRecord;
+  dict: I18nRecord;
 }
 
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({

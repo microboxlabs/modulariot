@@ -8,7 +8,10 @@ import DriverVerificationCard from "../driver-verification-card/driver-verificat
 import DriverVerifiedCard from "../driver-verified-card/driver-verified-card";
 import { Button } from "flowbite-react";
 import Link from "next/link";
-import { useGetEntityInfo } from "@/features/common/providers/client-api.provider";
+import {
+  useGetEntityInfo,
+  useGetServiceValidation,
+} from "@/features/common/providers/client-api.provider";
 
 const steps = ["step1", "step2", "step3"];
 
@@ -21,6 +24,11 @@ export default function TransportValidationForm({
   const currentStep = searchParams.get("step") ?? steps[0];
   const { data: entityInfo, isLoading: _isLoadingEntityInfo } =
     useGetEntityInfo(task.properties.mintral_truckLicensePlate as string);
+
+  const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
+    useGetServiceValidation(
+      task.properties.mintral_truckLicensePlate as string,
+    );
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation
@@ -37,6 +45,7 @@ export default function TransportValidationForm({
           msg={msg}
           task={task}
           entityInfo={entityInfo}
+          serviceValidation={serviceValidation}
         />
       )}
       {currentStep === "step3" && (

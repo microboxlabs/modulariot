@@ -95,7 +95,23 @@
         "consolidation": "Consolidación",
         "documentSeparation": "Separación Documental",
         "clientSystemValidation": "Validación Sistema Cliente",
-        "gpsValidation": "Validación GPS"
+        "gpsValidation": "Validación GPS",
+        "entity": "Patente",
+        "source": "Cliente",
+        "ultimo_name": "Ultima ubicación",
+        "ultimo_fclass": "Clase",
+        "ultimo_velavg": "Velocidad promedio",
+        "ultimo_clasreg": "Clasificación de velocidad",
+        "ultimo_trip_id": "Con viaje asignado",
+        "ultimo_duration_seg": "Duración del evento",
+        "ultimo_last_ptofinal": "Coordenadas de la ultima ubicación",
+        "avg_delay_gps_mbl_det": "Retraso promedio en detenciones",
+        "avg_delay_gps_mbl_mov": "Retraso promedio en movimiento",
+        "avg_every_signals_det": "Tiempo promedio entre señales en detenciones",
+        "avg_every_signals_mov": "Tiempo promedio entre señales en movimiento",
+        "ultimo_last_timestamp": "Fecha y hora del último evento",
+        "avg_signals_per_minute_det": "Cantidad de señales por minuto en detenciones",
+        "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento"
       }
     },
     "shippingDetailsTaskForm": {

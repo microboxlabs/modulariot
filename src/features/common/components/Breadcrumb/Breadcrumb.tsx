@@ -1,3 +1,4 @@
+import "server-only";
 import React from "react";
 import { Breadcrumb as FlowbiteBreadcrumb } from "flowbite-react";
 import { HiHome } from "react-icons/hi";

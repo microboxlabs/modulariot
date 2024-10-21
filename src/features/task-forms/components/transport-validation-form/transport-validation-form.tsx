@@ -26,9 +26,7 @@ export default function TransportValidationForm({
     useGetEntityInfo(task.properties.mintral_truckLicensePlate as string);
 
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
-    useGetServiceValidation(
-      task.properties.mintral_truckLicensePlate as string,
-    );
+    useGetServiceValidation(task.properties.mintral_serviceCode as string);
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation

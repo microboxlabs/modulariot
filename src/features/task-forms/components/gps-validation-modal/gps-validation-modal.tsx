@@ -6,6 +6,7 @@ import { GpsValidationModalProps } from "./gps-validation-modal.types";
 import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
 import MapComponent from "./map";
 import { toLatLngLiteral } from "../../services/client-form.service";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function GpsValidationModal({
   openModal,
@@ -41,14 +42,17 @@ export default function GpsValidationModal({
           <Table striped>
             <Table.Body>
               {entityInfo &&
-                Object.entries(entityInfo!).map(([key, value]) => (
-                  <Table.Row key={key}>
-                    <Table.Cell>
-                      <strong>{key}</strong>
-                    </Table.Cell>
-                    <Table.Cell>{`${value as string}`}</Table.Cell>
-                  </Table.Row>
-                ))}
+                Object.entries(entityInfo!).map(
+                  ([key, value]) =>
+                    key !== "ultimo_last_ptofinal" && (
+                      <Table.Row key={key}>
+                        <Table.Cell>
+                          <strong>{tr(key, msg!.cards as I18nRecord)}</strong>
+                        </Table.Cell>
+                        <Table.Cell>{`${value as string}`}</Table.Cell>
+                      </Table.Row>
+                    ),
+                )}
             </Table.Body>
           </Table>
         </div>

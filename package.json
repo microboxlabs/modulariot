@@ -31,6 +31,7 @@
     "server-only": "^0.0.1",
     "sharp": "^0.33.4",
     "swr": "^2.2.5",
+    "use-debounce": "^10.0.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

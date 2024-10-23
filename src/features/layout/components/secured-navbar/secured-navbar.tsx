@@ -17,6 +17,10 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
+/* import { useSearch } from "@/features/search/context/search-context"; */
+import { useDebouncedCallback } from "use-debounce";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import React from "react";
 
 export function SecuredNavbar({
   messages,
@@ -26,6 +30,25 @@ export function SecuredNavbar({
 }: SecuredNavBarProps) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathName = usePathname();
+  /* const { searchTerm, setSearchTerm } = useSearch(); */
+
+  const handleSearch = useDebouncedCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const term = event.target.value;
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (term) {
+        params.set("search", term);
+      } else {
+        params.delete("search");
+      }
+      router.push(`${pathName}?${params.toString()}`);
+    },
+    300,
+  );
 
   function handleToggleSidebar() {
     if (isDesktop) {
@@ -78,8 +101,9 @@ export function SecuredNavbar({
                   id="search"
                   name="search"
                   placeholder="Search"
-                  required
                   type="search"
+                  defaultValue={searchParams.get("search") || ""}
+                  onChange={handleSearch}
                 />
               </form>
             )}

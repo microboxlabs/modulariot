@@ -65,7 +65,7 @@ export default function TaskConfirmModal({
               {(dict.modal as I18nRecord).title as string}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              {(dict.modal as I18nRecord).subtittle as string}
+              {(dict.modal as I18nRecord).subtitle as string}
             </p>
           </div>
         </Modal.Header>
@@ -85,8 +85,9 @@ export default function TaskConfirmModal({
             {error && <ErrorAlert error={error} />}
           </div>
         </Modal.Body>
-        <Modal.Footer className="border-none flex justify-end">
+        <Modal.Footer className=" border-none">
           <Button
+            className="ml-auto mt-[-41px]"
             isProcessing={isProcessing}
             color="blue"
             onClick={handleConfirm}

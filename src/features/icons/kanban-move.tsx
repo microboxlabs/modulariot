@@ -5,7 +5,7 @@ export default function KanbanMove() {
       height="430"
       viewBox="0 0 430 430"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      xmlns="http://www.w3.org/3000/svg"
     >
       <g clipPath="url(#clip0_1072_426302)">
         <path d="M430 0H0V430H430V0Z" fill="white" />

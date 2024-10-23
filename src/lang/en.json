@@ -27,6 +27,10 @@
       }
     },
     "shipping": {
+      "breadcrumb": {
+        "my_tasks": "My tasks",
+        "shipping": "Shipping"
+      },
       "taskCounter": {
         "activeCount": "{count} active"
       },
@@ -95,7 +99,23 @@
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
         "clientSystemValidation": "Client System Validation",
-        "gpsValidation": "GPS Validation"
+        "gpsValidation": "GPS Validation",
+        "entity": "Entity",
+        "source": "Source",
+        "ultimo_name": "Last location",
+        "ultimo_fclass": "Class",
+        "ultimo_velavg": "Average speed",
+        "ultimo_clasreg": "Speed classification",
+        "ultimo_trip_id": "With assigned trip",
+        "ultimo_duration_seg": "Event duration",
+        "ultimo_last_ptofinal": "Coordinates of the last location",
+        "avg_delay_gps_mbl_det": "Average delay in stops",
+        "avg_delay_gps_mbl_mov": "Average delay in motion",
+        "avg_every_signals_det": "Average time between signals in stops",
+        "avg_every_signals_mov": "Average time between signals in motion",
+        "ultimo_last_timestamp": "Date and time of the last event",
+        "avg_signals_per_minute_det": "Number of signals per minute in stops",
+        "avg_signals_per_minute_mov": "Number of signals per minute in motion"
       }
     },
     "shippingDetailsTaskForm": {

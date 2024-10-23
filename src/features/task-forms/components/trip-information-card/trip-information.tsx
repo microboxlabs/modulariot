@@ -14,6 +14,7 @@ export default function TripInformation({
   task,
   msg,
   entityInfo,
+  serviceValidation,
 }: DriverVerifiedCardProps) {
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
 
@@ -37,6 +38,7 @@ export default function TripInformation({
       <h5 className="text-sm font-medium leading-loose">
         {(msg!.cards as I18nRecord).tripInformation as string}
       </h5>
+      <pre>{JSON.stringify(serviceValidation, null, 2)}</pre>
       <div className="flex flex-col gap-2.5 mt-3">
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}
@@ -55,19 +57,26 @@ export default function TripInformation({
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">
         <div className="flex gap-2">
-          <EllipseIcon />
+          {serviceValidation?.v_01?.v_01eval === 1 && <CheckCircleIcon />}
+          {serviceValidation?.v_01?.v_01eval === 2 && <ExclamationIcon />}
+          {serviceValidation?.v_01?.v_01eval === 3 && <ErrorCircleIcon />}
           <span className="text-gray-400 text-sm">
             {(msg!.cards as I18nRecord).consolidation as string}
           </span>
         </div>
         <div className="flex gap-2">
-          <EllipseIcon />
+          {serviceValidation?.v_02?.v_02eval === 1 && <CheckCircleIcon />}
+          {serviceValidation?.v_02?.v_02eval === 2 && <ExclamationIcon />}
+          {serviceValidation?.v_02?.v_02eval === 3 && <ErrorCircleIcon />}
           <span className="text-gray-400 text-sm">
             {(msg!.cards as I18nRecord).documentSeparation as string}
           </span>
         </div>
         <div className="flex gap-2">
-          <EllipseIcon />
+          {serviceValidation?.error && <EllipseIcon />}
+          {serviceValidation?.v_03?.v_03eval === 1 && <CheckCircleIcon />}
+          {serviceValidation?.v_03?.v_03eval === 2 && <ExclamationIcon />}
+          {serviceValidation?.v_03?.v_03eval === 3 && <ErrorCircleIcon />}
           <span className="text-gray-400 text-sm">
             {(msg!.cards as I18nRecord).clientSystemValidation as string}
           </span>

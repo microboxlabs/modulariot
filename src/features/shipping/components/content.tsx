@@ -4,7 +4,7 @@ import { Button, Label, Modal, Textarea, TextInput } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { FC } from "react";
-import { Fragment, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   HiArchive,
   HiClipboardCopy,
@@ -21,6 +21,7 @@ import { TaskCounter } from "@/features/shipping/components/TaskCounter";
 import {
   useMyTasksCount,
   useMyTasks,
+  useSearchTasks,
 } from "@/features/common/providers/client-api.provider";
 import { PiCaretUpDownBold } from "react-icons/pi";
 import { ReactSortable } from "react-sortablejs";
@@ -28,8 +29,9 @@ import { KanbanBoard, KanbanPageData, Task } from "../types/common.types";
 import KanbanCard from "./kanban-card/kanban-card";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
+import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 
 export default function KanbanPageContent({
   kanbanBoards,
@@ -37,53 +39,79 @@ export default function KanbanPageContent({
   lang,
 }: PropsWithI18nDict<KanbanPageData>) {
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
-
-  {
-    /* Contador de tareas */
-  }
-  const { data: taskCountData, error: taskCountError } = useMyTasksCount();
-  const totalTasks = taskCountData?.totals?.totalTasks ?? 0;
-
+  /* const [searchTerm, setSearchTerm] = useState(""); */
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const {
     data: myTasksData,
     error: myTasksError,
-    isLoading: myTasksLoading,
+    isLoading: _1,
   } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
+
+  const {
+    data: searchTasksData,
+    error: searchTasksError,
+    isLoading: _2,
+  } = useSearchTasks(searchParams.get("search")); //searchTerm
+
+  const { data: _3, error: taskCountError } = useMyTasksCount();
+
+  /* useEffect(() => {
+    const searchParam = searchParams.get("search");
+    setSearchTerm(searchParam);
+  }, [searchParams]); */
+
+  useEffect(() => {
+    if (searchTasksData) {
+      const newBoards = list.map((board) => ({
+        ...board,
+        tasks: searchTasksData.data[board.title]?.tasks ?? [],
+      }));
+      setList(newBoards);
+    } else if (myTasksData) {
+      const newBoards = list.map((board) => ({
+        ...board,
+        tasks: myTasksData.data[board.title]?.tasks ?? [],
+      }));
+      setList(newBoards);
+    }
+  }, [searchTasksData, myTasksData]);
+
+  if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
+    router.replace(`/${lang}/sign-in`);
+  }
+
+  if (taskCountError || myTasksError || searchTasksError) {
+    return (
+      <div>
+        Error:{" "}
+        {taskCountError?.message ||
+          myTasksError?.message ||
+          searchTasksError?.message}
+      </div>
+    );
+  }
 
   const countTasks = (tasks: Task[]): number => {
     return tasks.length;
   };
 
-  if (myTasksError?.status === 401) {
-    router.replace(`/${lang}/sign-in`);
-  }
-  {
-    /* Contador de tareas */
-  }
-
-  if (taskCountError || myTasksError) {
-    return <div>Error: {taskCountError?.message || myTasksError?.message}</div>;
-  }
-  const boards = list.map((board) => {
-    if (myTasksLoading || !myTasksData) {
-      return board;
-    }
-    return {
-      ...board,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      tasks: myTasksData.data[board.title]?.tasks ?? [],
-    };
-  });
-
   return (
     <div className="inline-block min-w-full align-middle h-full">
-      <div className="mb-6 flex items-start justify-start space-x-4 px-4">
-        {boards.map((board) => (
+      <div className="mt-6 ml-4 flex items-start justify-start space-x-4 px-4">
+        <ClientBreadcrumb
+          path={["breadcrumb.my_tasks", "breadcrumb.shipping"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dict}
+        />
+      </div>
+      <div className="flex items-start justify-start space-x-4 px-4">
+        {list.map((board) => (
           <div key={board.id}>
             <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
               <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
-              {/* Contador de tareas */}
               <TaskCounter count={countTasks(board.tasks)} dict={dict} />
             </div>
             <div className="mb-6 space-y-4">
@@ -112,12 +140,6 @@ export default function KanbanPageContent({
             <AddAnotherCardModal />
           </div>
         ))}
-        {/* Mostrar total de todas las tareas aquí */}
-        <div className="text-lg font-bold">
-          {tr("taskCounter.activeCount", dict, {
-            count: totalTasks.toString(),
-          })}
-        </div>
       </div>
     </div>
   );
@@ -242,7 +264,7 @@ export const EditCardModal: FC = function () {
           <div className="mb-4 space-y-2 text-base text-gray-500 dark:text-gray-400">
             <p>
               I made some wireframes that we would like you to follow since we
-              are building it in Google’s Material Design (Please learn more
+              are building it in Google��s Material Design (Please learn more
               about this and see how to improve standard material design into
               something beautiful). But besides that, you can just do it how you
               like.

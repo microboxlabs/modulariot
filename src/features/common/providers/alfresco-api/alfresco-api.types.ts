@@ -108,3 +108,27 @@ export type UploadNodeRequest = {
   updateNameAndMimetype?: boolean;
   createdDirectory?: boolean;
 };
+
+export type ServiceValidationResponse = {
+  error?: string;
+  message?: string;
+  servicio?: string;
+  v_03?: {
+    v_03reg: number;
+    v_03eval: number;
+    v_03res: number;
+    v_03type: string;
+  };
+  v_02?: {
+    v_02reg: number;
+    v_02eval: number;
+    v_02res: number;
+    v_02type: string;
+  };
+  v_01?: {
+    v_01reg: number;
+    v_01eval: number;
+    v_01type: string;
+    v_01res: number;
+  };
+};

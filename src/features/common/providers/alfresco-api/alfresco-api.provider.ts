@@ -48,9 +48,15 @@ export async function getBase64UserAvatar(
 export async function getUserTasks(
   ticket: string,
   definitionKey: string,
+  options: {
+    from?: number;
+    size?: number;
+    filter?: Record<string, unknown>;
+  } = {},
 ): Promise<FastTasksResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const { from = 0, size = 100, filter = undefined } = options;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "POST",
@@ -59,9 +65,10 @@ export async function getUserTasks(
     undefined,
     undefined,
     JSON.stringify({
-      from: 0,
-      size: 100,
-      definitionKey,
+      from,
+      size,
+      definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
+      filter,
     }),
   );
   return result as FastTasksResponse;

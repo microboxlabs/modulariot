@@ -65,3 +65,20 @@ export function useGetServiceValidation(serviceCode: string) {
     isLoading,
   };
 }
+
+export function useSearchTasks(searchTerm: string | null) {
+  const { data, error, isLoading } = useSWR<
+    KanbanBoardTaskResponse,
+    FetcherError
+  >(
+    searchTerm
+      ? `/app/api/task/search?filter=mintral_key:v${searchTerm}`
+      : null,
+    fetcher,
+  );
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}

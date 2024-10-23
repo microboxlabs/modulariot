@@ -47,7 +47,7 @@ export default function TaskActions({
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 px-5">
           <TaskActionButton
             label={(dict.outcome as I18nRecord).normalInitiation as string}
             taskId={taskId}
@@ -62,14 +62,15 @@ export default function TaskActions({
           <Dropdown
             label={<VerticalDotsIcon />}
             arrowIcon={false}
+            className="flex gap-1"
             inline
             theme={{
               inlineWrapper:
-                "cursor-pointer justify-center rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
+                "cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
             }}
           >
             <DropdownItem
-              className="flex gap-1"
+              className="flex gap-1 "
               onClick={() => {
                 handleSelection(
                   OUTCOME_INITIATION_WITH_OBJECTIONS,

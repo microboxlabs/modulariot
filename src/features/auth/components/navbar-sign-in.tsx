@@ -5,7 +5,7 @@ import logoImage from "@assets/logo-mintral-1.png";
 
 export default function NavbarSignIn() {
   return (
-    <div className="min-h-8 mb-6">
+    <div className="min-h-8 mb-8">
       <Navbar fluid>
         <NavbarBrand
           data-testid="login-navbar"

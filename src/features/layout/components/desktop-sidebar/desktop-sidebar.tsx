@@ -1,7 +1,7 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Sidebar } from "flowbite-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import SidebarItem from "../sidebar-item/sidebar-item";
@@ -17,7 +17,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isCollapsed, setCollapsed } = useSidebarContext().desktop;
   const [isPreview, setIsPreview] = useState(isCollapsed);
-
+  const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
 
   const totals: { [key: string]: number } = {};
@@ -25,6 +25,8 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
+  } else if (error.status === 403 || error.status === 401) {
+    router.push("/login");
   }
 
   useEffect(() => {

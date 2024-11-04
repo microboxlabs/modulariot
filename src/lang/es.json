@@ -206,11 +206,10 @@
         "finished": "Finalizados",
         "others": "Otros",
         "reports": "Reportes",
-        "details": "Detalles servicio",
         "subtitle1": "Consolidación",
         "subtitle2": "Separacion documental",
-        "subtitle3": "Validacion Sistema Cliente",
-        "subtitle4": "Validacion GPS",
+        "subtitle3": "Validación Sistema Cliente",
+        "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
         "settings": "Ajustes",
         "help": "Ayuda y cómo empezar"

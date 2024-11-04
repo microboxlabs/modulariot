@@ -47,7 +47,7 @@ export default function TaskActions({
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
-        <div className="flex gap-2 px-5">
+        <div className="flex gap-2">
           <TaskActionButton
             label={(dict.outcome as I18nRecord).normalInitiation as string}
             taskId={taskId}

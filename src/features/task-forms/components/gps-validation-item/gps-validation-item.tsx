@@ -1,6 +1,5 @@
 "use client";
 
-import CheckIcon from "@/features/icons/CheckIcon";
 import { useState } from "react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";

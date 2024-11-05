@@ -26,7 +26,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
   } else if (error.status === 403 || error.status === 401) {
-    router.push("/login");
+    router.push("/sign-in");
   }
 
   useEffect(() => {

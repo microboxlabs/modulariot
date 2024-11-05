@@ -56,11 +56,11 @@ function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
     const parsedError = JSON.parse(error.message) as Record<string, unknown>;
     const errorMessage = parsedError.message as string;
     // Regex to extract exception type and JSON details
-    const regex = /(\w+(?:\.\w+)*Error): ({.*})/;
-    const match = errorMessage.match(regex);
+    let regex = /(\w+(?:\.\w+)*Error): ({.*})/;
+    let match = errorMessage.match(regex);
 
     if (match) {
-      const [, exceptionType, jsonDetails] = match;
+      let [, exceptionType, jsonDetails] = match;
       const details = JSON.parse(jsonDetails) as Record<string, unknown>;
 
       return {
@@ -68,6 +68,19 @@ function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
         message: (details.message as string) || "An unknown error occurred",
         exceptionType,
         details,
+      };
+    }
+
+    regex = /com\.mintral\.errors\.RequiredDataMissingError: (.*)/;
+    match = errorMessage.match(regex);
+
+    if (match) {
+      let [, message] = match;
+      return {
+        code: "REQUIRED_DATA_MISSING",
+        message,
+        exceptionType: "RequiredDataMissingError",
+        details: {},
       };
     }
 

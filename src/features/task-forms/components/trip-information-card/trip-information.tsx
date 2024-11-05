@@ -38,7 +38,7 @@ export default function TripInformation({
       <h5 className="text-sm font-medium leading-loose">
         {(msg!.cards as I18nRecord).tripInformation as string}
       </h5>
-      <pre>{JSON.stringify(serviceValidation, null, 2)}</pre>
+
       <div className="flex flex-col gap-2.5 mt-3">
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}

@@ -20,6 +20,7 @@ import { HiClipboardList } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import CheckIcon from "@/features/icons/CheckIcon";
 import GpsValidationItem from "../gps-validation-item/gps-validation-item";
+import Validations from "../validations/validations";
 
 export default async function ShippingDetailsTaskForm({
   task,
@@ -79,25 +80,17 @@ export default async function ShippingDetailsTaskForm({
                     .shippingDetailsTaskForm as I18nRecord
                 }
               />
-              <div className="text-gray-600 flex flex-row justify-between w-full">
-                <small className="flex items-center p-3">
-                  <CheckIcon className="mr-2" />
-                  {check1Subtitle}
-                </small>
-                <small className="flex items-center p-3">
-                  <CheckIcon className="mr-2" />
-                  {check2Subtitle}
-                </small>
-                <small className="flex items-center p-3">
-                  <CheckIcon className="mr-2" />
-                  {check3Subtitle}
-                </small>
-                <GpsValidationItem
-                  task={task}
-                  lang={lang}
-                  msg={{ check4Subtitle, cards: cardsMsg }}
-                />
-              </div>
+              <Validations
+                task={task}
+                lang={lang}
+                msg={{
+                  check1Subtitle,
+                  check2Subtitle,
+                  check3Subtitle,
+                  check4Subtitle,
+                  cards: cardsMsg,
+                }}
+              />
             </div>
           </div>
 

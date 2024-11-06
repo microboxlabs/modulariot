@@ -1,6 +1,9 @@
 import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
-import { FastTasksResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import {
+  FastTasksResponse,
+  PersistentState,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const taskShippingBoardMap: Record<string, string> = {
   "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
@@ -8,6 +11,10 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship:missionControlTripInitTask": "missionControlTripInit",
   "wfship:overlordTripInitTask": "overlordTripInit",
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
+  tripInitiatedWithoutSovos: "tripInitiated",
+  endevent1: "tripInitiated",
+  tripNullified: "tripNullified",
+  tripCanceled: "tripCancelled",
 };
 
 function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
@@ -43,16 +50,20 @@ export function toShippingKanban(
   tasks: FastTasksResponse,
   index: Record<string, KanbanBoard>,
 ): Record<string, KanbanBoard> {
-  tasks.tasks.forEach((task) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const boardKey = taskShippingBoardMap[task.taskFormKey as string];
-    index[boardKey] = index[boardKey] || {
-      id: boardKey,
-      title: boardKey,
-      tasks: [],
-    };
-    index[boardKey].tasks.push(toKanbanBoardTask(task));
-  });
+  tasks.tasks.forEach(
+    (task: { persistentState?: PersistentState } & Record<string, unknown>) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const taskFormKey =
+        task.persistentState?.endStateName ?? (task.taskFormKey as string);
+      const boardKey = taskShippingBoardMap[taskFormKey];
+      index[boardKey] = index[boardKey] || {
+        id: boardKey,
+        title: boardKey,
+        tasks: [],
+      };
+      index[boardKey].tasks.push(toKanbanBoardTask(task));
+    },
+  );
 
   return index;
 }

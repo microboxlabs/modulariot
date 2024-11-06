@@ -14,6 +14,7 @@ export type ShippingCoordinatorProcessForms =
 export type MissionControlValidationOutcome =
   | "Iniciado Normal"
   | "Iniciado Con Reparos"
+  | "Iniciado sin Firma Sovos"
   | "Requiere Overlord"
   | "Anulado"
   | "Cancelado";

@@ -16,6 +16,7 @@ import {
   OUTCOME_INITIATION_WITH_OBJECTIONS,
   OUTCOME_NORMAL_INITIATION,
   OUTCOME_OVERLORD_REQUIRED,
+  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -70,7 +71,23 @@ export default function TaskActions({
             }}
           >
             <DropdownItem
-              className="flex gap-1 "
+              className="flex gap-1"
+              onClick={() => {
+                handleSelection(
+                  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+                  (dict.outcome as I18nRecord)
+                    .initiatedWithoutSovosSignature as string,
+                );
+              }}
+            >
+              <HiCheck />
+              {
+                (dict.outcome as I18nRecord)
+                  .initiatedWithoutSovosSignature as string
+              }
+            </DropdownItem>
+            <DropdownItem
+              className="flex gap-1"
               onClick={() => {
                 handleSelection(
                   OUTCOME_INITIATION_WITH_OBJECTIONS,

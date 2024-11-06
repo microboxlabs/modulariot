@@ -41,8 +41,8 @@
         "sovosDigitalSignature": "Firma digital de SOVOS",
         "tripInitiatedOutside": "Viajes iniciados sin coordinación",
         "tripInitiated": "Viaje iniciado",
-        "tripRejected": "Viaje rechazado",
-        "tripCancelled": "Viaje anulado"
+        "tripNullified": "Viaje anulado",
+        "tripCancelled": "Viaje cancelado"
       },
       "card": {
         "origin": "Origen",
@@ -159,6 +159,7 @@
       "outcome": {
         "normalInitiation": "Continuar",
         "initiationWithObjections": "Iniciar viaje con reparos",
+        "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelado",
         "annulled": "Anulado"

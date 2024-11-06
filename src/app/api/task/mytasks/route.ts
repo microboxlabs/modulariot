@@ -1,7 +1,10 @@
 import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  getFinishedWorkflows,
+  getUserTasks,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { toShippingKanban } from "@/features/shipping/services/data.service";
 import { KanbanBoard } from "@/features/shipping/types/common.types";
 
@@ -19,9 +22,18 @@ export async function GET(req: NextRequest) {
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
   try {
-    const taskResponses = await Promise.all(
-      columns.map((column) => getUserTasks(session.user.ticket, column)),
-    );
+    const taskResponses = await Promise.all([
+      ...columns.map((column) => getUserTasks(session.user.ticket, column)),
+      getFinishedWorkflows(session.user.ticket, {
+        from: 0,
+        size: 100,
+        definitionKey: "shippingCoordinatorProcess",
+      }).then((res) => ({
+        tasks: res.workflows,
+        total: res.total,
+      })),
+    ]);
+
     taskResponses.forEach((tasks) => {
       toShippingKanban(tasks, data);
       total += tasks.total;

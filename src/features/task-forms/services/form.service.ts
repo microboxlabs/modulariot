@@ -32,6 +32,9 @@ export const OUTCOME_CANCELED: MissionControlValidationOutcome = "Cancelado";
 
 export const OUTCOME_ANNULLED: MissionControlValidationOutcome = "Anulado";
 
+export const OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE: MissionControlValidationOutcome =
+  "Iniciado sin Firma Sovos";
+
 export const TASK_TRANSPORT_VALIDATION: ShippingCoordinatorProcessTask =
   "transportValidation";
 

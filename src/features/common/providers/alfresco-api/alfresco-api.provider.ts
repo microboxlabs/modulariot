@@ -8,6 +8,8 @@ import {
 import type {
   EndTaskResponse,
   FastTasksResponse,
+  FinishedWorkflowsRequest,
+  FinishedWorkflowsResponse,
   ServiceValidationResponse,
   TaskCountResponse,
   TaskResponse,
@@ -274,4 +276,22 @@ export async function getServiceValidation(
     `mintral/service/validation?serviceCode=${serviceCode}`,
   );
   return result as ServiceValidationResponse;
+}
+
+export async function getFinishedWorkflows(
+  ticket: string,
+  data: FinishedWorkflowsRequest,
+): Promise<FinishedWorkflowsResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "POST",
+    `mintral/finished/workflows`,
+    undefined,
+    undefined,
+    undefined,
+    JSON.stringify(data),
+  );
+  return result as FinishedWorkflowsResponse;
 }

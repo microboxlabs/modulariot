@@ -18,8 +18,6 @@ import { ShippingCoordinatorProcessForms } from "../../services/form.service.typ
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiClipboardList } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import CheckIcon from "@/features/icons/CheckIcon";
-import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 import Validations from "../validations/validations";
 
 export default async function ShippingDetailsTaskForm({

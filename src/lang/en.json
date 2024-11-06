@@ -41,7 +41,7 @@
         "sovosDigitalSignature": "SOVOS Digital Signature",
         "tripInitiatedOutside": "Trip Initiated without coordination",
         "tripInitiated": "Trip Initiated",
-        "tripRejected": "Trip Rejected",
+        "tripNullified": "Trip Nullified",
         "tripCancelled": "Trip Cancelled"
       },
       "card": {
@@ -159,6 +159,7 @@
       "outcome": {
         "normalInitiation": "Continue",
         "initiationWithObjections": "Init trip with objections",
+        "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
         "requiresOverlord": "Requires overlord",
         "canceled": "Canceled",
         "annulled": "Annulled"

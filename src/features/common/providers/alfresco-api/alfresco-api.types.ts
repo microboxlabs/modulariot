@@ -4,8 +4,19 @@ export type TasksResponse = {
 };
 
 export type FastTasksResponse = {
-  tasks: Record<string, unknown>[];
+  tasks: { persistentState?: PersistentState } & Record<string, unknown>[];
   total: number;
+};
+
+export type PersistentState = {
+  processDefinitionId: string;
+  durationInMillis: number;
+  endStateName: string;
+  deploymentId: string;
+  processDefinitionName: string;
+  endTime: string;
+  processDefinitionVersion: number;
+  processDefinitionKey: string;
 };
 
 export type TaskResponse = {
@@ -107,6 +118,45 @@ export type UploadNodeRequest = {
   thumbnails?: string[];
   updateNameAndMimetype?: boolean;
   createdDirectory?: boolean;
+};
+
+export type FinishedWorkflowsResponse = {
+  total: number;
+  workflows: HistoricalWorkflow[];
+};
+
+export type FinishedWorkflowsRequest = {
+  from: number;
+  size: number;
+  definitionKey: string;
+};
+
+export type HistoricalWorkflow = {
+  deploymentId: string;
+  durationInMillis: number;
+  endActivityId: string;
+  endTime: string;
+  id: string;
+  persistentState: {
+    processDefinitionId: string;
+    durationInMillis: number;
+    endStateName: string;
+    deploymentId: string;
+    processDefinitionName: string;
+    endTime: string;
+    processDefinitionVersion: number;
+    processDefinitionKey: string;
+  };
+  processDefinitionId: string;
+  processDefinitionKey: string;
+  processDefinitionName: string;
+  processDefinitionVersion: number;
+  processInstanceId: string;
+  processVariables: Record<string, unknown>;
+  startActivityId: string;
+  startTime: string;
+  startUserId: string;
+  tenantId: string;
 };
 
 export type ServiceValidationResponse = {

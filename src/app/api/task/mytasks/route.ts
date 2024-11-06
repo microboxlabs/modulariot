@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       ...columns.map((column) => getUserTasks(session.user.ticket, column)),
       getFinishedWorkflows(session.user.ticket, {
         from: 0,
-        size: 100,
+        size: 10,
         definitionKey: "shippingCoordinatorProcess",
       }).then((res) => ({
         tasks: res.workflows,

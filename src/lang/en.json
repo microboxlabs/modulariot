@@ -32,7 +32,7 @@
         "shipping": "Shipping"
       },
       "taskCounter": {
-        "activeCount": "{count} active"
+        "activeCount": "{count} visibles"
       },
       "kanban": {
         "transportValidation": "Driver / Transport Validation",

@@ -32,7 +32,7 @@
         "shipping": "Despachos"
       },
       "taskCounter": {
-        "activeCount": "{count} activos"
+        "activeCount": "{count} visibles"
       },
       "kanban": {
         "transportValidation": "Validación de conductor / transporte",

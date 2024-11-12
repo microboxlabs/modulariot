@@ -2,6 +2,7 @@ import {
   MissionControlValidationOutcome,
   ShippingCoordinatorProcessForms,
   ShippingCoordinatorProcessTask,
+  SovosDigitalSignatureOutcome,
 } from "./form.service.types";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
@@ -49,6 +50,24 @@ export const TASK_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessTask =
 
 export const TASK_TRIP_OUTSIDE_INITIATED: ShippingCoordinatorProcessTask =
   "tripOutsideInitiated";
+
+export const OUTCOME_RETURN_TO_MISSION_CONTROL: SovosDigitalSignatureOutcome =
+  "Devolver a Torre de Control";
+
+export const OUTCOME_RETURN_TO_TRANSPORT_VALIDATION: SovosDigitalSignatureOutcome =
+  "Devolver a Validacion de Transporte";
+
+export const OUTCOME_RETURN_TO_OVERLORD: SovosDigitalSignatureOutcome =
+  "Devolver a Overlord";
+
+export const OUTCOME_TRIP_INITIATED: SovosDigitalSignatureOutcome =
+  "Viaje Iniciado";
+
+export const OUTCOME_TRIP_CANCELED: SovosDigitalSignatureOutcome =
+  "Viaje Cancelado";
+
+export const OUTCOME_TRIP_ANNULLED: SovosDigitalSignatureOutcome =
+  "Viaje Anulado";
 
 export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[] =
   [

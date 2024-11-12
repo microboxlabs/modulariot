@@ -192,7 +192,21 @@
       "continue": "Continue",
       "finish": "Finish",
       "startVerification": "Start verification",
-      "initiatingAutentia": "Loading Autentia plugin..."
+      "initiatingAutentia": "Loading Autentia plugin...",
+      "outcome": {
+        "returnToMissionControl": "Return to Mission Control",
+        "returnToTransportValidation": "Return to Transport Validation",
+        "returnToOverlord": "Return to Overlord",
+        "tripInitiated": "Trip initiated",
+        "tripCanceled": "Trip canceled",
+        "tripAnnulled": "Trip annulled"
+      },
+      "modal": {
+        "title": "You are trying to move the task to another process state",
+        "subtitle": "If you move the task to a different state, you won't be able to undo the action late.",
+        "reason": "Reason",
+        "confirm": "Confirm move to {outcome}"
+      }
     }
   },
   "layout": {

@@ -11,6 +11,7 @@ import { taskSignDocument } from "../../services/client-form.service";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
 import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
+import { TaskOutcome } from "../../services/form.service.types";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -97,6 +98,9 @@ export default function SovosVerificationForm({
       return (
         parseInt(stepper.currentStep.replace("step", "")) < steps.length - 1
       );
+    },
+    toStepOutcome: (_outcome: TaskOutcome) => {
+      // stepperController.toStep("step1");
     },
   };
 

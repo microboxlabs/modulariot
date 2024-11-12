@@ -192,7 +192,21 @@
       "continue": "Continuar",
       "finish": "Finalizar",
       "startVerification": "Iniciar verificación",
-      "initiatingAutentia": "Cargando Autentia plugin..."
+      "initiatingAutentia": "Cargando Autentia plugin...",
+      "outcome": {
+        "returnToMissionControl": "Devolver a Torre de Control",
+        "returnToTransportValidation": "Devolver a Validación de Transporte",
+        "returnToOverlord": "Devolver a Overlord",
+        "tripInitiated": "Viaje Iniciado",
+        "tripCanceled": "Viaje Cancelado",
+        "tripAnnulled": "Viaje Anulado"
+      },
+      "modal": {
+        "title": "Estás intentando mover la tarea a otro estado del proceso",
+        "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "reason": "Motivo",
+        "confirm": "Confirmar mover a {outcome}"
+      }
     }
   },
   "layout": {

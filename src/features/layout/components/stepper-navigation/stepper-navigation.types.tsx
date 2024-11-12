@@ -1,5 +1,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
+import { TaskOutcome } from "@/features/task-forms/services/form.service.types";
 
 export type StepperNavigationProps = {
   routePaths: string[];
@@ -15,4 +16,5 @@ export type StepperController = {
   toNextStep: (isError?: boolean, audit?: AutentiaParamsGet) => void;
   toPrevStep: (isError?: boolean) => void;
   hasNextStep: () => boolean;
+  toStepOutcome: (outcome: TaskOutcome) => void;
 };

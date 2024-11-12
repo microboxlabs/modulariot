@@ -41,10 +41,8 @@ export default function TaskConfirmModal({
         router.push(`/shipping`);
         return;
       }
-      console.error(response);
       setIsProcessing(false);
     } catch (error) {
-      console.error(error);
       setIsProcessing(false);
       setError(error as ErrorWithAlfrescoError);
     }

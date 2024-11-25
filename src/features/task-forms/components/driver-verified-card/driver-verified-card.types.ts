@@ -5,4 +5,5 @@ import { ServiceValidationResponse } from "@/features/common/providers/alfresco-
 export type DriverVerifiedCardProps = {
   entityInfo?: GetEntityInfoResponse;
   serviceValidation?: ServiceValidationResponse;
+  enableActions?: boolean;
 } & TaskFormProps;

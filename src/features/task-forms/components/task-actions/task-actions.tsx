@@ -30,6 +30,7 @@ export default function TaskActions({
   taskId,
   taskType,
   dict,
+  fluid = false,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
@@ -50,6 +51,7 @@ export default function TaskActions({
       return (
         <div className="flex gap-2">
           <TaskActionButton
+            fluid={fluid}
             label={(dict.outcome as I18nRecord).normalInitiation as string}
             taskId={taskId}
             transitionId={OUTCOME_NORMAL_INITIATION}

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { TaskFormProps } from "../task-form/task-form.types";
 import { defaultLocale } from "@/features/i18n/tr.service";

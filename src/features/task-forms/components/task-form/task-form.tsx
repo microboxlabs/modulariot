@@ -16,6 +16,7 @@ import { defaultLocale } from "@/features/i18n/tr.service";
 import ShippingDetailsTaskForm from "../shipping-details-task-form/shipping-details-task-form";
 import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
 import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import MissionControlTripInitForm from "../mission-control-trip-init-form/mission-control-trip-init-form";
 
 export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -48,6 +49,17 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
         />
       );
     case TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK:
+      return (
+        <MissionControlTripInitForm
+          lang={lang}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
     case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
     case TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK:
       return <ShippingDetailsTaskForm lang={lang} task={task} />;

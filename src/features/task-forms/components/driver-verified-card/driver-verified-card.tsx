@@ -11,8 +11,12 @@ import { useFormState } from "react-dom";
 import { taskNextAction } from "../../services/client-form.service";
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TaskNextActionState } from "../../services/form.service.types";
+import {
+  ShippingCoordinatorProcessForms,
+  TaskNextActionState,
+} from "../../services/form.service.types";
 import { DriverVerifiedCardProps } from "./driver-verified-card.types";
+import TaskActions from "../task-actions/task-actions";
 
 export default function DriverVerifiedCard({
   lang,
@@ -20,6 +24,7 @@ export default function DriverVerifiedCard({
   msg,
   entityInfo,
   serviceValidation,
+  enableActions = false,
 }: DriverVerifiedCardProps) {
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
@@ -98,14 +103,25 @@ export default function DriverVerifiedCard({
             defaultValue={task.properties.mintral_driverObservations as string}
             disabled={true}
           />
-          <Button
-            color="blue"
-            type="submit"
-            theme={{ inner: { base: "px-5 py-3" } }}
-            className="w-full px-0 py-px"
-          >
-            {(msg!.buttons as I18nRecord).submit as string}
-          </Button>
+          {!enableActions && (
+            <Button
+              color="blue"
+              type="submit"
+              theme={{ inner: { base: "px-5 py-3" } }}
+              className="w-full px-0 py-px"
+            >
+              {(msg!.buttons as I18nRecord).submit as string}
+            </Button>
+          )}
+          {enableActions && (
+            <TaskActions
+              taskId={task.id}
+              taskType={task.name as ShippingCoordinatorProcessForms}
+              lang={lang}
+              dict={msg!}
+              fluid={true}
+            />
+          )}
         </div>
       </form>
     </Card>

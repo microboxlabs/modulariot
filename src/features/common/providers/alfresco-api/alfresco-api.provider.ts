@@ -85,7 +85,7 @@ export async function getTaskById(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "GET",
-    `api/task-instances/${taskId}`,
+    `mintral/tasks/details?taskId=${taskId}`,
   );
   return result as TaskResponse;
 }
@@ -167,7 +167,6 @@ export async function uploadNodeContent(
     method: "POST",
     body: formdata,
   });
-  console.log(result);
   return result as string;
 }
 

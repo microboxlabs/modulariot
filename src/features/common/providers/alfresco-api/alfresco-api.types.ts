@@ -20,7 +20,30 @@ export type PersistentState = {
 };
 
 export type TaskResponse = {
-  data: Task;
+  initiator: string;
+  bpm_assignee: string;
+  bpm_sendEMailNotifications: boolean;
+  bpm_workflowPriority: number;
+  bpm_hiddenTransitions: string;
+  workflowinstanceid: string;
+  taskFormKey: string;
+  id: string;
+  bpm_package: string;
+  bpm_packageItemActionGroup: string;
+  mintral_trailerLicensePlate: string;
+  initiatorhome: string;
+  mintral_serviceType: string;
+  cancelled: boolean;
+  bpm_packageActionGroup: string;
+  bpm_reassignable: boolean;
+  bpm_priority: number;
+  bpm_percentComplete: number;
+  instanceId: string;
+  bpm_workflowDescription: string;
+  _startTaskCompleted: string;
+  bpm_description: string;
+  bpm_status: string;
+  [key: string]: unknown;
 };
 
 export type Task = {

@@ -14,6 +14,7 @@ env:
   GAR_LOCATION: ${{ vars.GCP_DEFAULT_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mainbox/mintral-coordinador-webclient
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }} # GitHub Actions uses different ref names for PRs and pushes
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+  NEXT_PUBLIC_ECM_API_URL: https://coordinador-dev.mintral.cl
 
 jobs:
   build:

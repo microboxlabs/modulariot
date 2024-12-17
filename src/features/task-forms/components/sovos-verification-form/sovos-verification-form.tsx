@@ -36,11 +36,8 @@ export default function SovosVerificationForm({
 
     formData.append("taskId", task.id);
     formData.append("transitionId", "next");
-    formData.append("bpmPackage", task.properties.bpm_package as string);
-    formData.append(
-      "serviceCode",
-      task.properties.mintral_serviceCode as string,
-    );
+    formData.append("bpmPackage", task.bpm_package as string);
+    formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
     const result = await taskSignDocument({}, formData);
@@ -105,7 +102,7 @@ export default function SovosVerificationForm({
   };
 
   let steps = ["step1", "step2"];
-  if (task.properties.mintral_driver2Rut) {
+  if (task.mintral_driver2Rut) {
     steps.push("step3", "step4");
   }
   steps.push("step5", "step6");

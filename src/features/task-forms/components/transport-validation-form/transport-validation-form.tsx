@@ -23,10 +23,10 @@ export default function TransportValidationForm({
   const searchParams = useSearchParams();
   const currentStep = searchParams.get("step") ?? steps[0];
   const { data: entityInfo, isLoading: _isLoadingEntityInfo } =
-    useGetEntityInfo(task.properties.mintral_truckLicensePlate as string);
+    useGetEntityInfo(task.mintral_truckLicensePlate as string);
 
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
-    useGetServiceValidation(task.properties.mintral_serviceCode as string);
+    useGetServiceValidation(task.mintral_serviceCode as string);
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation

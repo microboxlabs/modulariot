@@ -34,7 +34,7 @@ export default function DriverVerificationCard({
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      serviceCode: (task.properties.mintral_serviceCode as string) || "",
+      serviceCode: (task.mintral_serviceCode as string) || "",
     },
   });
 

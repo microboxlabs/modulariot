@@ -19,11 +19,11 @@ export default async function MissionControlTripInitForm({
   const session = await auth();
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const entityInfo = await getInfoEntity(
-    task.properties.mintral_truckLicensePlate as string,
+    task.mintral_truckLicensePlate as string,
   );
   const serviceValidation = await getServiceValidation(
     session?.user.ticket as string,
-    task.properties.mintral_serviceCode as string,
+    task.mintral_serviceCode as string,
   );
 
   return (
@@ -36,7 +36,7 @@ export default async function MissionControlTripInitForm({
           ...(((dictionary.layout as I18nRecord).secured as I18nRecord)
             .sidebar as I18nRecord),
           details: dict("layout.secured.sidebar.details", {
-            serviceCode: task.properties.mintral_serviceCode as string,
+            serviceCode: task.mintral_serviceCode as string,
           }),
         }}
       />

@@ -10,7 +10,7 @@ import EllipseIcon from "@/features/icons/ellipse";
 
 export default function Validations({ task, lang, msg }: TaskFormProps) {
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
-    useGetServiceValidation(task.properties.mintral_serviceCode as string);
+    useGetServiceValidation(task.mintral_serviceCode as string);
   return (
     <div className="text-gray-600 flex flex-row justify-between w-full">
       <small className="flex items-center p-3">

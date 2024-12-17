@@ -22,8 +22,7 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
-
-  switch (task.name) {
+  switch (task.taskFormKey) {
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
       return (
         <TransportValidationForm

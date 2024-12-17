@@ -18,7 +18,7 @@ export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
   };
 
   const { data: entityInfo, isLoading: _isLoadingEntityInfo } =
-    useGetEntityInfo(task.properties.mintral_truckLicensePlate as string);
+    useGetEntityInfo(task.mintral_truckLicensePlate as string);
 
   const gpsValidationType = entityInfo
     ? calcGpsValidationType(entityInfo)

@@ -50,10 +50,10 @@ export default function SovosStartVerificationCard({
   function getRut(): string {
     const currentStep = stepperController.currentStep();
     if (currentStep === "step1") {
-      return task.properties.mintral_driver1Rut as string;
+      return task.mintral_driver1Rut as string;
     }
     if (currentStep === "step3") {
-      return task.properties.mintral_driver2Rut as string;
+      return task.mintral_driver2Rut as string;
     }
     const userObj = JSON.parse(user!) as PersonEntry;
     return userObj?.entry.jobTitle ?? "";

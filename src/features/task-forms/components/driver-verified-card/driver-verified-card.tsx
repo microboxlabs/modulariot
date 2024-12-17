@@ -42,21 +42,21 @@ export default function DriverVerifiedCard({
   }, [state]);
 
   const driver1: Driver = {
-    name: (task.properties.mintral_driver1Name as string) ?? "-",
-    email: (task.properties.mintral_driver1Email as string) ?? "-",
-    phone: (task.properties.mintral_driver1Phone as string) ?? "-",
-    rut: (task.properties.mintral_driver1Rut as string) ?? "-",
+    name: (task.mintral_driver1Name as string) ?? "-",
+    email: (task.mintral_driver1Email as string) ?? "-",
+    phone: (task.mintral_driver1Phone as string) ?? "-",
+    rut: (task.mintral_driver1Rut as string) ?? "-",
     status: "verified",
     varName: "driver1",
   };
   let driver2: Driver | undefined;
-  const driver2Name = task.properties.mintral_driver2Name as string;
+  const driver2Name = task.mintral_driver2Name as string;
   if (driver2Name && driver2Name.trim() !== "") {
     driver2 = {
-      name: (task.properties.mintral_driver2Name as string) ?? "-",
-      email: (task.properties.mintral_driver2Email as string) ?? "-",
-      phone: (task.properties.mintral_driver2Phone as string) ?? "-",
-      rut: (task.properties.mintral_driver2Rut as string) ?? "-",
+      name: (task.mintral_driver2Name as string) ?? "-",
+      email: (task.mintral_driver2Email as string) ?? "-",
+      phone: (task.mintral_driver2Phone as string) ?? "-",
+      rut: (task.mintral_driver2Rut as string) ?? "-",
       status: "verified",
       varName: "driver2",
     };
@@ -100,7 +100,7 @@ export default function DriverVerifiedCard({
           />
           <Textarea
             placeholder="Escribe aquí tus observaciones"
-            defaultValue={task.properties.mintral_driverObservations as string}
+            defaultValue={task.mintral_driverObservations as string}
             disabled={true}
           />
           {!enableActions && (

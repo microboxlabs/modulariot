@@ -22,12 +22,8 @@ export default function TripInformation({
     setShowGpsValidationModal(true);
   };
 
-  const eta = fromString(
-    task.properties.mintral_estimatedArrivalDate as string,
-  );
-  const etd = fromString(
-    task.properties.mintral_estimatedDepartureDate as string,
-  );
+  const eta = fromString(task.mintral_estimatedArrivalDate as string);
+  const etd = fromString(task.mintral_estimatedDepartureDate as string);
 
   const gpsValidationType = entityInfo
     ? calcGpsValidationType(entityInfo)
@@ -42,13 +38,13 @@ export default function TripInformation({
       <div className="flex flex-col gap-2.5 mt-3">
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}
-          {(task.properties.mintral_clientCode as string) ?? "-"}
+          {(task.mintral_clientCode as string) ?? "-"}
         </span>
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).origin as string}-
           {(msg!.cards as I18nRecord).destination as string}:{" "}
-          {task.properties.mintral_originDelegateCode as string}-
-          {task.properties.mintral_destinationDelegateCode as string}
+          {task.mintral_originDelegateCode as string}-
+          {task.mintral_destinationDelegateCode as string}
         </span>
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).scheduling as string}:{" "}

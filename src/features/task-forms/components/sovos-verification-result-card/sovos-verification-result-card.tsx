@@ -38,10 +38,10 @@ export default function SovosVerificationResultCard({
   const step = stepperController.currentStep();
   let personName = "";
   if (step === "step2") {
-    personName = `${msg!.driver as string} 1: ${task.properties.mintral_driver1Name as string}`;
+    personName = `${msg!.driver as string} 1: ${task.mintral_driver1Name as string}`;
   }
   if (step === "step4") {
-    personName = `${msg!.driver as string} 2: ${task.properties.mintral_driver2Name as string}`;
+    personName = `${msg!.driver as string} 2: ${task.mintral_driver2Name as string}`;
   }
   if (step === "step6") {
     personName = `${msg!.validator as string}: ${session?.user.name ?? ""}`;

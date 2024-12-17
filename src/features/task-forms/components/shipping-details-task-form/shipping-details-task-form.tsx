@@ -29,7 +29,7 @@ export default async function ShippingDetailsTaskForm({
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
 
   const detailsTitle = dict("layout.secured.sidebar.details", {
-    serviceCode: task.properties.mintral_serviceCode as string,
+    serviceCode: task.mintral_serviceCode as string,
   });
 
   const cardsMsg = (
@@ -37,16 +37,16 @@ export default async function ShippingDetailsTaskForm({
   ).cards as I18nRecord;
 
   const check1Subtitle = dict("layout.secured.sidebar.subtitle1", {
-    serviceCode: task.properties.mintral_serviceCode as string,
+    serviceCode: task.mintral_serviceCode as string,
   });
   const check2Subtitle = dict("layout.secured.sidebar.subtitle2", {
-    serviceCode: task.properties.mintral_serviceCode as string,
+    serviceCode: task.mintral_serviceCode as string,
   });
   const check3Subtitle = dict("layout.secured.sidebar.subtitle3", {
-    serviceCode: task.properties.mintral_serviceCode as string,
+    serviceCode: task.mintral_serviceCode as string,
   });
   const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
-    serviceCode: task.properties.mintral_serviceCode as string,
+    serviceCode: task.mintral_serviceCode as string,
   });
 
   return (
@@ -122,13 +122,13 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="serviceCode"
                       label={dict("pages.shippingDetailsTaskForm.serviceCode")}
-                      value={task.properties.mintral_serviceCode as string}
+                      value={task.mintral_serviceCode as string}
                     />
                     {/* serviceKind */}
                     <DetailsTextInput
                       name="serviceKind"
                       label={dict("pages.shippingDetailsTaskForm.serviceKind")}
-                      value={task.properties.mintral_serviceKind as string}
+                      value={task.mintral_serviceKind as string}
                     />
                   </div>
                   <div className="flex gap-4">
@@ -136,14 +136,14 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="creationDate"
                       label={dict("pages.shippingDetailsTaskForm.creationDate")}
-                      value={task.properties.mintral_creationDate as string}
+                      value={task.mintral_creationDate as string}
                       type="date"
                     />
                     {/* closureDate */}
                     <DetailsTextInput
                       name="closureDate"
                       label={dict("pages.shippingDetailsTaskForm.closureDate")}
-                      value={task.properties.mintral_closureDate as string}
+                      value={task.mintral_closureDate as string}
                       type="date"
                     />
                   </div>
@@ -152,7 +152,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="approxTime1"
                       label={dict("pages.shippingDetailsTaskForm.approxTime")}
-                      value={task.properties.mintral_approxTime as string}
+                      value={task.mintral_approxTime as string}
                       type="time"
                     />
                   </div>
@@ -166,14 +166,14 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="distance"
                       label={dict("pages.shippingDetailsTaskForm.distance")}
-                      value={task.properties.mintral_distance as string}
+                      value={task.mintral_distance as string}
                       type="number"
                     />
                     {/* speed */}
                     <DetailsTextInput
                       name="speed"
                       label={dict("pages.shippingDetailsTaskForm.speed")}
-                      value={task.properties.mintral_speed as string}
+                      value={task.mintral_speed as string}
                       type="number"
                     />
                   </div>
@@ -185,9 +185,7 @@ export default async function ShippingDetailsTaskForm({
                       label={dict(
                         "pages.shippingDetailsTaskForm.originDelegateCode",
                       )}
-                      value={
-                        task.properties.mintral_originDelegateCode as string
-                      }
+                      value={task.mintral_originDelegateCode as string}
                     />
                     {/* destinationDelegateCode */}
                     <DetailsTextInput
@@ -195,10 +193,7 @@ export default async function ShippingDetailsTaskForm({
                       label={dict(
                         "pages.shippingDetailsTaskForm.destinationDelegateCode",
                       )}
-                      value={
-                        task.properties
-                          .mintral_destinationDelegateCode as string
-                      }
+                      value={task.mintral_destinationDelegateCode as string}
                     />
                   </div>
                 </div>
@@ -218,13 +213,13 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="driverName"
                       label={dict("pages.shippingDetailsTaskForm.driverName")}
-                      value={task.properties.mintral_driver1Name as string}
+                      value={task.mintral_driver1Name as string}
                     />
                     {/* driver1Rut */}
                     <DetailsTextInput
                       name="driverRut"
                       label={dict("pages.shippingDetailsTaskForm.driverRut")}
-                      value={task.properties.mintral_driver1Rut as string}
+                      value={task.mintral_driver1Rut as string}
                     />
                   </div>
                   <div className="flex gap-4 w-1/2">
@@ -232,7 +227,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="driverPhone"
                       label={dict("pages.shippingDetailsTaskForm.driverPhone")}
-                      value={task.properties.mintral_driver1Phone as string}
+                      value={task.mintral_driver1Phone as string}
                       type="tel"
                     />
                   </div>
@@ -244,13 +239,13 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="driverName"
                       label={dict("pages.shippingDetailsTaskForm.driverName")}
-                      value={task.properties.mintral_driver2Name as string}
+                      value={task.mintral_driver2Name as string}
                     />
                     {/* driver2Rut */}
                     <DetailsTextInput
                       name="driverRut"
                       label={dict("pages.shippingDetailsTaskForm.driverRut")}
-                      value={task.properties.mintral_driver2Rut as string}
+                      value={task.mintral_driver2Rut as string}
                     />
                   </div>
                   <div className="flex gap-4 w-1/2">
@@ -258,7 +253,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="driverPhone"
                       label={dict("pages.shippingDetailsTaskForm.driverPhone")}
-                      value={task.properties.mintral_driver2Phone as string}
+                      value={task.mintral_driver2Phone as string}
                       type="tel"
                     />
                   </div>
@@ -267,7 +262,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="supplierName"
                       label={dict("pages.shippingDetailsTaskForm.supplierName")}
-                      value={task.properties.mintral_supplierName as string}
+                      value={task.mintral_supplierName as string}
                     />
                     {/* transportNumberCode */}
                     <DetailsTextInput
@@ -275,9 +270,7 @@ export default async function ShippingDetailsTaskForm({
                       label={dict(
                         "pages.shippingDetailsTaskForm.transportNumberCode",
                       )}
-                      value={
-                        task.properties.mintral_transportNumberCode as string
-                      }
+                      value={task.mintral_transportNumberCode as string}
                     />
                   </div>
                   <div className="flex gap-4">
@@ -287,9 +280,7 @@ export default async function ShippingDetailsTaskForm({
                       label={dict(
                         "pages.shippingDetailsTaskForm.truckLicensePlate",
                       )}
-                      value={
-                        task.properties.mintral_truckLicensePlate as string
-                      }
+                      value={task.mintral_truckLicensePlate as string}
                     />
                     {/* trailerLicensePlate */}
                     <DetailsTextInput
@@ -297,9 +288,7 @@ export default async function ShippingDetailsTaskForm({
                       label={dict(
                         "pages.shippingDetailsTaskForm.trailerLicensePlate",
                       )}
-                      value={
-                        task.properties.mintral_trailerLicensePlate as string
-                      }
+                      value={task.mintral_trailerLicensePlate as string}
                     />
                   </div>
                 </div>
@@ -318,13 +307,13 @@ export default async function ShippingDetailsTaskForm({
                   <DetailsTextInput
                     name="customerCode"
                     label={dict("pages.shippingDetailsTaskForm.customerCode")}
-                    value={task.properties.mintral_customerCode as string}
+                    value={task.mintral_customerCode as string}
                   />
                   {/* key */}
                   <DetailsTextInput
                     name="key"
                     label={dict("pages.shippingDetailsTaskForm.key")}
-                    value={task.properties.mintral_key as string}
+                    value={task.mintral_key as string}
                   />
                 </div>
               </AccordionContent>
@@ -346,9 +335,7 @@ export default async function ShippingDetailsTaskForm({
                       required
                       rows={4}
                       disabled={true}
-                      defaultValue={
-                        task.properties.mintral_observations as string
-                      }
+                      defaultValue={task.mintral_observations as string}
                     />
                   </div>
                 </div>

@@ -9,7 +9,7 @@ import TripInformation from "../trip-information-card/trip-information";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useFormState } from "react-dom";
 import { taskNextAction } from "../../services/client-form.service";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ShippingCoordinatorProcessForms,
@@ -31,15 +31,22 @@ export default function DriverVerifiedCard({
     {},
   );
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
     if (state.success) {
-      router.replace(
-        `/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step3`,
-      );
+      router.replace(`/${lang}/shipping`);
     }
   }, [state]);
+
+  const formActionWrapper = async (formData: FormData) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      formAction(formData);
+    }, 100);
+  };
 
   const driver1: Driver = {
     name: (task.mintral_driver1Name as string) ?? "-",
@@ -87,7 +94,7 @@ export default function DriverVerifiedCard({
       />
 
       <div className="h-px bg-gray-300 w-full"></div>
-      <form action={formAction}>
+      <form action={formActionWrapper}>
         <h5 className="text-sm font-medium leading-loose">
           {(msg!.cards as I18nRecord).comments as string}
         </h5>
@@ -108,6 +115,7 @@ export default function DriverVerifiedCard({
               color="blue"
               type="submit"
               theme={{ inner: { base: "px-5 py-3" } }}
+              isProcessing={isLoading}
               className="w-full px-0 py-px"
             >
               {(msg!.buttons as I18nRecord).submit as string}
@@ -116,7 +124,7 @@ export default function DriverVerifiedCard({
           {enableActions && (
             <TaskActions
               taskId={task.id}
-              taskType={task.name as ShippingCoordinatorProcessForms}
+              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
               lang={lang}
               dict={msg!}
               fluid={true}

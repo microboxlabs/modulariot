@@ -16,15 +16,15 @@ export default async function MissionControlTripInitForm({
   lang,
   msg,
 }: TaskFormProps) {
-  const session = await auth();
+  // const session = await auth();
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
-  const entityInfo = await getInfoEntity(
-    task.mintral_truckLicensePlate as string,
-  );
-  const serviceValidation = await getServiceValidation(
-    session?.user.ticket as string,
-    task.mintral_serviceCode as string,
-  );
+  // const entityInfo = await getInfoEntity(
+  //   task.mintral_truckLicensePlate as string,
+  // );
+  // const serviceValidation = await getServiceValidation(
+  //   session?.user.ticket as string,
+  //   task.mintral_serviceCode as string,
+  // );
 
   return (
     <div className="px-4 pt-6">
@@ -49,8 +49,8 @@ export default async function MissionControlTripInitForm({
               .shippingDetailsTaskForm as I18nRecord),
           }}
           task={task}
-          entityInfo={entityInfo}
-          serviceValidation={serviceValidation}
+          // entityInfo={entityInfo}
+          // serviceValidation={serviceValidation}
           enableActions={true}
         />
       </div>

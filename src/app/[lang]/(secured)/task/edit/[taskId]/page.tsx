@@ -13,11 +13,7 @@ export default async function TaskEditPage({
   const session = await auth();
   const [, _dictionary] = await getDictionary(lang);
   try {
-    // eslint-disable-next-line no-console
-    console.time(`getTaskById-${taskId}`);
     const task = await getTaskById(session!.user.ticket, taskId);
-    // eslint-disable-next-line no-console
-    console.timeEnd(`getTaskById-${taskId}`);
     return <TaskForm task={task} lang={lang} ticket={session!.user.ticket} />;
   } catch (e: any) {
     if (e?.status === 401) {

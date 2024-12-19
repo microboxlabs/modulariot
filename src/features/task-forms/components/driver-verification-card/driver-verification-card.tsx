@@ -25,6 +25,7 @@ export default function DriverVerificationCard({
   lang,
 }: TaskFormProps) {
   const [error /* setError */] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const {
@@ -39,10 +40,8 @@ export default function DriverVerificationCard({
   });
 
   const onSubmit = (/* data: FormData */) => {
-    // more logic here
-    router.push(
-      `/${lang}/task/edit/${task.id.replace("activiti$", "")}?step=step2`,
-    );
+    setIsLoading(true);
+    router.push(`/${lang}/task/edit/${task.id}?step=step2`);
   };
 
   return (
@@ -85,6 +84,7 @@ export default function DriverVerificationCard({
         </div>
         <div>
           <Button
+            isProcessing={isLoading}
             color="blue"
             type="submit"
             theme={{ inner: { base: "px-5 py-3" } }}

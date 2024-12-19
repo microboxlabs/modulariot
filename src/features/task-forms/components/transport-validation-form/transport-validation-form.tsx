@@ -22,11 +22,11 @@ export default function TransportValidationForm({
 }: TaskFormProps) {
   const searchParams = useSearchParams();
   const currentStep = searchParams.get("step") ?? steps[0];
-  const { data: entityInfo, isLoading: _isLoadingEntityInfo } =
-    useGetEntityInfo(task.mintral_truckLicensePlate as string);
+  // const { data: entityInfo, isLoading: _isLoadingEntityInfo } =
+  //   useGetEntityInfo(task.mintral_truckLicensePlate as string);
 
-  const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
-    useGetServiceValidation(task.mintral_serviceCode as string);
+  // const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
+  //   useGetServiceValidation(task.mintral_serviceCode as string);
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation
@@ -42,8 +42,8 @@ export default function TransportValidationForm({
           lang={lang}
           msg={msg}
           task={task}
-          entityInfo={entityInfo}
-          serviceValidation={serviceValidation}
+          // entityInfo={entityInfo}
+          // serviceValidation={serviceValidation}
         />
       )}
       {currentStep === "step3" && (

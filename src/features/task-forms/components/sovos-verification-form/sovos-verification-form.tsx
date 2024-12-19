@@ -45,7 +45,6 @@ export default function SovosVerificationForm({
     if (result.success) {
       router.push(`/${lang}/shipping`);
     }
-    console.log(result);
   };
 
   const stepperController: StepperController = {
@@ -125,7 +124,7 @@ export default function SovosVerificationForm({
           },
         }}
       />
-      <pre>{stepper.currentStep}</pre>
+
       {(stepper.currentStep === "step1" ||
         stepper.currentStep === "step3" ||
         stepper.currentStep === "step5") && (

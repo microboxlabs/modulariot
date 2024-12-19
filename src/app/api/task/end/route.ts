@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       });
     }
     const json = (await request.json()) as EndTaskRequest;
-    const taskId = json.taskId as string;
+    const taskId = json.taskId;
     const transitionId = json.transitionId;
     const comments = json.comments;
 

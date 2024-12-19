@@ -97,12 +97,12 @@ export async function endTask(
 ): Promise<EndTaskResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  let endpoint = `api/workflow/task/end/${taskId}`;
+  let endpoint = `mintral/tasks/end?taskId=${taskId}`;
   if (transitionId) {
-    endpoint += `/${transitionId}`;
+    endpoint += `&transition=${transitionId}`;
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript("POST", endpoint);
+  const result = await webscriptApi.executeWebScript("GET", endpoint);
   return result as EndTaskResponse;
 }
 

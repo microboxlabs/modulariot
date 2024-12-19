@@ -8,10 +8,10 @@ import DriverVerificationCard from "../driver-verification-card/driver-verificat
 import DriverVerifiedCard from "../driver-verified-card/driver-verified-card";
 import { Button } from "flowbite-react";
 import Link from "next/link";
-import {
-  useGetEntityInfo,
-  useGetServiceValidation,
-} from "@/features/common/providers/client-api.provider";
+// import {
+//   useGetEntityInfo,
+//   useGetServiceValidation,
+// } from "@/features/common/providers/client-api.provider";
 
 const steps = ["step1", "step2", "step3"];
 

@@ -4,7 +4,6 @@ import { Breadcrumb as FlowbiteBreadcrumb } from "flowbite-react";
 import { HiHome } from "react-icons/hi";
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import Link from "next/link";
 
 interface BreadcrumbProps {
   path: string[];

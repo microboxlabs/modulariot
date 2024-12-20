@@ -14,71 +14,93 @@ export default function KanbanCard({
   dict,
 }: PropsWithI18nDict<KanBanCardProps>) {
   return (
-    <Link href={`/task/edit/${task.id}`}>
-      <div
-        key={task.id}
-        className="mb-4 w-64 rounded-lg bg-white p-5 shadow dark:bg-gray-800 cursor-pointer hover:shadow-lg"
-      >
-        <div className="flex items-center justify-between pb-4">
+    <div
+      key={task.id}
+      className="mb-4 w-64 rounded-lg bg-white p-5 shadow dark:bg-gray-800 hover:shadow-lg"
+    >
+      <div className="flex items-center justify-between pb-4 cursor-pointer">
+        <Link href={`/task/edit/${task.id}`}>
           <div className="text-base text-gray-900 dark:text-gray-200">
             <strong>
               {tr("card.service", dict)}: {task.name}
             </strong>
           </div>
-          {/* <EditCardModal /> */}
+        </Link>
+        {/* <EditCardModal /> */}
+      </div>
+      <div className="flex flex-col">
+        {task.attachment && (
+          <div className="relative mb-3 aspect-video w-full">
+            <Image alt="" fill src={task.attachment} className="rounded-lg" />
+          </div>
+        )}
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400 flex">
+          <div className="basis-1/2">
+            {tr("card.origin", dict)}: <strong>{task.origin}</strong>
+          </div>
+          <div className="basis-1/2">
+            {tr("card.destination", dict)}: <strong>{task.destination}</strong>
+          </div>
+          {/* {task.description} */}
         </div>
-        <div className="flex flex-col">
-          {task.attachment && (
-            <div className="relative mb-3 aspect-video w-full">
-              <Image alt="" fill src={task.attachment} className="rounded-lg" />
-            </div>
-          )}
-          <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400 flex">
-            <div className="basis-1/2">
-              {tr("card.origin", dict)}: <strong>{task.origin}</strong>
-            </div>
-            <div className="basis-1/2">
-              {tr("card.destination", dict)}:{" "}
-              <strong>{task.destination}</strong>
-            </div>
-            {/* {task.description} */}
-          </div>
-          <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-            {tr("card.clientCode", dict)}:{" "}
-            <strong>{task.clientCode || "-"}</strong>
-          </div>
-          <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-            {tr("card.clientName", dict)}: <strong>{task.client || "-"}</strong>
-            {/* {task.description} */}
-          </div>
-          <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-            {tr("card.serviceKind", dict)}:{" "}
-            <strong>{task.serviceKind || "-"}</strong>
-            {/* {task.description} */}
-          </div>
-          <div className="flex justify-between">
-            <div className="flex items-center justify-start">
-              {task.members.map((member) => (
-                <Fragment key={member.id}>
-                  <Link href="#" className="-mr-3">
-                    <Image
-                      alt={member.name}
-                      height={28}
-                      src={`/app/images/users/${member.avatar}`}
-                      width={28}
-                      className="rounded-full border-2 border-white dark:border-gray-800"
-                    />
-                  </Link>
-                  <div className="invisible absolute z-50 inline-block rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white opacity-0 shadow-sm transition-opacity duration-300 dark:bg-gray-700">
-                    {member.name}
-                  </div>
-                </Fragment>
-              ))}
-            </div>
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+          {tr("card.clientCode", dict)}:{" "}
+          <strong>{task.clientCode || "-"}</strong>
+        </div>
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+          {tr("card.clientName", dict)}: <strong>{task.client || "-"}</strong>
+          {/* {task.description} */}
+        </div>
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+          {tr("card.serviceKind", dict)}:{" "}
+          <strong>{task.serviceKind || "-"}</strong>
+          {/* {task.description} */}
+        </div>
+        <div className="flex justify-between">
+          <div className="flex items-center justify-start">
             <DepartureDateShip date={task.expectedDepartureDate ?? ""} />
+          </div>
+          <div className="flex items-center justify-start">
+            {task.members.map((member) => (
+              <Fragment key={member.id}>
+                <Link href="#" className="-mr-3">
+                  <Image
+                    alt={member.name}
+                    height={28}
+                    src={`/app/images/users/${member.avatar}`}
+                    width={28}
+                    className="rounded-full border-2 border-white dark:border-gray-800"
+                  />
+                </Link>
+                <div className="invisible absolute z-50 inline-block rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white opacity-0 shadow-sm transition-opacity duration-300 dark:bg-gray-700">
+                  {member.name}
+                </div>
+              </Fragment>
+            ))}
+          </div>
+          <div className="flex items-center justify-end">
+            <div className="cursor-pointer">
+              <svg
+                className="w-6 h-6 text-gray-800 dark:text-white"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 15v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2m-8 1V4m0 12-4-4m4 4 4-4"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

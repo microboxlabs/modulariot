@@ -29,7 +29,7 @@ export default async function MissionControlTripInitForm({
   return (
     <div className="px-4 pt-6">
       <Breadcrumb
-        path={["my_tasks", "shipping", "details"]}
+        path={["tasks", "shipping", "details"]}
         lang={lang}
         rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
         dict={{

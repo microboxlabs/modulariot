@@ -7,15 +7,15 @@ export const pages: SidebarItem[] = [
   { href: "/", icon: HomeIcon, label: "home", totals: {} },
   {
     icon: ClipboardIcon,
-    label: "my_tasks",
+    label: "tasks",
     items: [
       {
-        href: "/warehouse",
+        href: "/shipping",
         label: "werehouse",
         totals: {},
       },
       {
-        href: "/logistics",
+        href: "/shipping",
         label: "logistics",
         totals: {},
       },
@@ -30,7 +30,7 @@ export const pages: SidebarItem[] = [
         totals: {},
       },
       {
-        href: "/others",
+        href: "/shipping",
         label: "others",
         totals: {},
       },

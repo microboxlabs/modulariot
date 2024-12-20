@@ -28,7 +28,7 @@
     },
     "shipping": {
       "breadcrumb": {
-        "my_tasks": "Mis tareas",
+        "tasks": "Mis tareas",
         "shipping": "Despachos"
       },
       "taskCounter": {
@@ -214,7 +214,7 @@
       "signout": "Cerrar sesión",
       "sidebar": {
         "home": "Home",
-        "my_tasks": "Mis tareas",
+        "tasks": "Mis tareas",
         "werehouse": "Bodega",
         "logistics": "Logística",
         "shipping": "Despachos",

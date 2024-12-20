@@ -30,14 +30,14 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             <FlowbiteBreadcrumb.Item
               icon={() => rootIcon}
               key={index}
-              href={`/${lang}/${path.slice(0, index + 1).join("/")}`}
+              // href={`/app/${lang}/${path.slice(0, index + 1).join("/")}`}
             >
               {item}
             </FlowbiteBreadcrumb.Item>
           ) : (
             <FlowbiteBreadcrumb.Item
               key={index}
-              href={`/${lang}/${path.slice(0, index + 1).join("/")}`}
+              href={`/app/${lang}/${path.slice(1, index + 1).join("/")}`}
             >
               {item}
             </FlowbiteBreadcrumb.Item>

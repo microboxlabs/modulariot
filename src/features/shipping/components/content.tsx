@@ -101,7 +101,7 @@ export default function KanbanPageContent({
     <div className="inline-block min-w-full align-middle h-full">
       <div className="mt-6 ml-4 flex items-start justify-start space-x-4 px-4">
         <ClientBreadcrumb
-          path={["breadcrumb.my_tasks", "breadcrumb.shipping"]}
+          path={["breadcrumb.tasks", "breadcrumb.shipping"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}

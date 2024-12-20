@@ -6,7 +6,7 @@ export default function DriverContactInfo({
   driver,
 }: DriverContactInfoProps) {
   return (
-    <div className="flex gap-5">
+    <div className="flex gap-5 sm:min-w-[400px] lg:min-w-[600px]">
       <div className="flex-1 flex flex-col">
         <h5 className="text-sm font-medium leading-loose">{driver.name}</h5>
         <span className="text-gray-400 text-sm">

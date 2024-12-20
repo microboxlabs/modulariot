@@ -28,7 +28,7 @@
     },
     "shipping": {
       "breadcrumb": {
-        "my_tasks": "My tasks",
+        "tasks": "My tasks",
         "shipping": "Shipping"
       },
       "taskCounter": {
@@ -214,7 +214,7 @@
       "signout": "Sign out",
       "sidebar": {
         "home": "Home",
-        "my_tasks": "My tasks",
+        "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
         "shipping": "Shipping",

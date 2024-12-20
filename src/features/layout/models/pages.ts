@@ -7,18 +7,18 @@ export const pages: SidebarItem[] = [
   { href: "/", icon: HomeIcon, label: "home", totals: {} },
   {
     icon: ClipboardIcon,
-    label: "my_tasks",
+    label: "tasks",
     items: [
-      {
-        href: "/warehouse",
-        label: "werehouse",
-        totals: {},
-      },
-      {
-        href: "/logistics",
-        label: "logistics",
-        totals: {},
-      },
+      // {
+      //   href: "/warehouse",
+      //   label: "werehouse",
+      //   totals: {},
+      // },
+      // {
+      //   href: "/logistics",
+      //   label: "logistics",
+      //   totals: {},
+      // },
       {
         href: "/shipping",
         label: "shipping",
@@ -29,11 +29,11 @@ export const pages: SidebarItem[] = [
         label: "finished",
         totals: {},
       },
-      {
-        href: "/others",
-        label: "others",
-        totals: {},
-      },
+      // {
+      //   href: "/others",
+      //   label: "others",
+      //   totals: {},
+      // },
     ],
     totals: {},
   },

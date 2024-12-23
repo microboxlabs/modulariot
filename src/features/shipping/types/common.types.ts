@@ -15,6 +15,7 @@ export type Task = {
 
 export type KanbanBoardTask = {
   id: string;
+  ho_reference: string;
   name: string;
   description: string;
   completed: boolean;

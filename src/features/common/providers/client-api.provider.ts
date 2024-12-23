@@ -82,3 +82,15 @@ export function useSearchTasks(searchTerm: string | null) {
     isLoading,
   };
 }
+
+export function useDownloadDocument(documentId: string | undefined) {
+  const { data, error, isLoading } = useSWR<{ content: string }>(
+    documentId ? `/app/api/document/download?documentId=${documentId}` : null,
+    fetcher,
+  );
+  return {
+    content: data?.content,
+    error,
+    isLoading,
+  };
+}

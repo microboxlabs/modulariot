@@ -292,5 +292,6 @@ export async function getFinishedWorkflows(
     undefined,
     JSON.stringify(data),
   );
+  console.log(result.workflows);
   return result as FinishedWorkflowsResponse;
 }

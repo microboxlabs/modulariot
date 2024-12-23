@@ -33,15 +33,14 @@ export default function DownloadSignedDocument({
   return (
     <div className="flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7">
       <Button
+        className="group"
         outline
         color="blue"
-        theme={{ inner: { base: "px-5 py-3" } }}
         size="xs"
         onClick={handleDownload}
         disabled={isLoading}
-        className="w-full px-0 py-px submit"
       >
-        <Download className="mr-1 h-4 w-4 text-primary-700" />
+        <Download className="h-4 w-4 group-hover:text-white text-blue-700" />
       </Button>
     </div>
   );

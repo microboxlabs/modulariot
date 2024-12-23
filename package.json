@@ -18,6 +18,7 @@
     "dayjs": "^1.11.12",
     "flowbite": "^2.4.1",
     "flowbite-react": "^0.10.1",
+    "flowbite-react-icons": "^1.1.0",
     "formatjs": "^0.1.1",
     "hexoid": "^1.0.0",
     "lottie-web": "^5.12.2",

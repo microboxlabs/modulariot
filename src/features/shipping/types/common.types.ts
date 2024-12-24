@@ -15,7 +15,6 @@ export type Task = {
 
 export type KanbanBoardTask = {
   id: string;
-  ho_reference: string;
   name: string;
   description: string;
   completed: boolean;
@@ -28,6 +27,7 @@ export type KanbanBoardTask = {
   expectedDepartureDate?: string;
   serviceKind: string;
   members: KanbanBoardTaskMember[];
+  hoReference: string;
 };
 
 export type KanbanBoardTaskMember = {

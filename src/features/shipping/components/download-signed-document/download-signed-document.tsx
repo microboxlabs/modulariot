@@ -1,6 +1,6 @@
 import { Download } from "flowbite-react-icons/outline";
 import { Button } from "flowbite-react";
-import { useDownloadDocument } from "@/features/common/providers/client-api.provider";
+import Link from "next/link";
 
 interface DownloadSignedDocumentProps {
   documentId?: string;
@@ -9,38 +9,19 @@ interface DownloadSignedDocumentProps {
 export default function DownloadSignedDocument({
   documentId, //= "c49faa70-fd56-4936-bb19-814c20a63266",
 }: DownloadSignedDocumentProps) {
-  const { content, isLoading } = useDownloadDocument(documentId);
-
-  const handleDownload = () => {
-    if (!content) return;
-
-    // Create blob from base64 content
-    const blob = new Blob([Buffer.from(content, "base64")], {
-      type: "application/pdf",
-    });
-    const url = window.URL.createObjectURL(blob);
-
-    // Create temporary link and trigger download
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "document.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  };
-
+  const documentPath = documentId?.replace(":/", "");
+  const href = `${process.env.NEXT_PUBLIC_ECM_API_URL}/alfresco/s/api/node/content/${documentPath}?a=true`;
   return (
-    <div className="flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7">
+    <div className="flex items-start rounded-lg text-sm font-medium h-7">
       <Button
         className="group"
         outline
+        as={Link}
         color="blue"
         size="xs"
-        onClick={handleDownload}
-        disabled={isLoading}
+        href={href}
       >
-        <Download className="h-4 w-4 group-hover:text-white text-blue-700" />
+        <Download className="h-4 w-4 text-blue-700" />
       </Button>
     </div>
   );

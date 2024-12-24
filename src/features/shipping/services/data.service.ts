@@ -39,6 +39,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     expectedDepartureDate,
     serviceKind: task.mintral_serviceKind as string,
     members: [],
+    hoReference: task.mintral_hoReference as string,
   };
 }
 

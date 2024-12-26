@@ -30,9 +30,9 @@ export default function ThemeDetector({
     return () => mediaQuery.removeEventListener("change", updateTheme);
   }, []);
 
-  // Log the current theme state whenever it changes
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    // Apply the theme class to the body element
+    document.body.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
   return <Flowbite theme={{ mode: theme }}>{children}</Flowbite>;

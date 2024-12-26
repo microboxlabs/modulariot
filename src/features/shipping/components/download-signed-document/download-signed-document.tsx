@@ -4,13 +4,15 @@ import Link from "next/link";
 
 interface DownloadSignedDocumentProps {
   documentId?: string;
+  documentName?: string;
 }
 
 export default function DownloadSignedDocument({
   documentId,
+  documentName,
 }: DownloadSignedDocumentProps) {
   const documentPath = documentId?.replace(":/", "");
-  const href = `/api/document/download?documentId=${documentPath}`;
+  const href = `/api/document/download?documentId=${documentPath}&documentName=${documentName}`;
 
   return (
     <div className="flex items-start rounded-lg text-sm font-medium h-7">
@@ -21,7 +23,7 @@ export default function DownloadSignedDocument({
         color="blue"
         size="xs"
         href={href}
-        download="document.pdf"
+        download={`${documentName}.pdf`}
       >
         <Download className="h-4 w-4 text-blue-700" />
       </Button>

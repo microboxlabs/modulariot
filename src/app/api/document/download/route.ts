@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const documentId = url.searchParams.get("documentId");
-
+  const documentName = url.searchParams.get("documentName");
   if (!documentId) {
     return NextResponse.json({ error: "Missing documentId" }, { status: 400 });
   }
@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
   try {
     const alfrescoUrl = `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${documentId}?alf_ticket=${session.user.ticket}`;
     const response = await fetch(alfrescoUrl);
+
+    console.log("response", response);
 
     if (!response.ok) {
       throw new Error(`Alfresco responded with status: ${response.status}`);
@@ -27,7 +29,22 @@ export async function GET(req: NextRequest) {
     const contentType = response.headers.get("Content-Type");
 
     // Extract filename from Content-Disposition or use default
-    let filename = documentId.split("/").pop() + ".pdf";
+    let filename = (documentName || documentId.split("/").pop()) + ".pdf";
+
+    const contentDisposition = response.headers.get("Content-Disposition");
+    if (contentDisposition) {
+      const matches = contentDisposition.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+      );
+      if (matches && matches[1]) {
+        filename = matches[1].replace(/['"]/g, "");
+      }
+    }
+
+    // Ensure filename has .pdf extension for PDF files
+    if (contentType?.includes("application/pdf")) {
+      filename = `${filename}.pdf`;
+    }
 
     return new NextResponse(response.body, {
       headers: {

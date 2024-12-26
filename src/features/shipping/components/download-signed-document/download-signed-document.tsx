@@ -7,10 +7,11 @@ interface DownloadSignedDocumentProps {
 }
 
 export default function DownloadSignedDocument({
-  documentId, //= "c49faa70-fd56-4936-bb19-814c20a63266",
+  documentId,
 }: DownloadSignedDocumentProps) {
   const documentPath = documentId?.replace(":/", "");
-  const href = `${process.env.NEXT_PUBLIC_ECM_API_URL}/alfresco/s/api/node/content/${documentPath}?a=true`;
+  const href = `/api/document/download?documentId=${documentPath}`;
+
   return (
     <div className="flex items-start rounded-lg text-sm font-medium h-7">
       <Button
@@ -20,6 +21,7 @@ export default function DownloadSignedDocument({
         color="blue"
         size="xs"
         href={href}
+        download="document.pdf"
       >
         <Download className="h-4 w-4 text-blue-700" />
       </Button>

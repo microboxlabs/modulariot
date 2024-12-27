@@ -60,10 +60,7 @@ export default function KanbanCard({
         <div className="flex justify-between">
           <div className="flex justify-start">
             {task.hoReference && (
-              <DownloadSignedDocument
-                documentId={task.hoReference}
-                documentName={task.name}
-              />
+              <DownloadSignedDocument documentId={task.hoReference} />
             )}
           </div>
           <div className="flex items-center justify-start">

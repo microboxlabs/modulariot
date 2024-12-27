@@ -21,7 +21,6 @@ export default function DownloadSignedDocument({
         color="blue"
         size="xs"
         href={href}
-        download="document.pdf"
       >
         <Download className="h-4 w-4 text-blue-700" />
       </Button>

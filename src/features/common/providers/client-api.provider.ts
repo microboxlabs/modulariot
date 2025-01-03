@@ -3,8 +3,10 @@ import fetcher from "./fetcher";
 import { FetcherError } from "./fetcher.types";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
+  DownloadDocumentResponse,
   ServiceValidationResponse,
   TaskCountResponse,
+  VerifyDocumentResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 
@@ -84,7 +86,10 @@ export function useSearchTasks(searchTerm: string | null) {
 }
 
 export function useDownloadDocument(documentId: string | undefined) {
-  const { data, error, isLoading } = useSWR<{ content: string }>(
+  const { data, error, isLoading } = useSWR<
+    DownloadDocumentResponse,
+    FetcherError
+  >(
     documentId ? `/app/api/document/download?documentId=${documentId}` : null,
     fetcher,
   );
@@ -92,5 +97,16 @@ export function useDownloadDocument(documentId: string | undefined) {
     content: data?.content,
     error,
     isLoading,
+  };
+}
+
+export function useVerifyDocument(documentId: string) {
+  const { data, error } = useSWR<VerifyDocumentResponse, FetcherError>(
+    `/app/api/document/verify?documentId=${documentId}`,
+    fetcher,
+  );
+  return {
+    exists: data?.exists,
+    error,
   };
 }

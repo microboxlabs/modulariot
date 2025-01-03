@@ -207,6 +207,27 @@
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}"
       }
+    },
+    "historicalTaskView": {
+      "serviceDetails": "Service details",
+      "serviceType": "Service type",
+      "client": "Client",
+      "supplier": "Supplier",
+      "distance": "Distance",
+      "speed": "Speed",
+      "routeInformation": "Route information",
+      "origin": "Origin",
+      "destination": "Destination",
+      "expectedDeparture": "Expected departure",
+      "estimatedArrival": "Estimated arrival",
+      "vehicleInformation": "Vehicle information",
+      "truckLicense": "Truck license",
+      "trailerLicense": "Trailer license",
+      "driverInformation": "Driver information",
+      "driver": "Driver",
+      "rut": "Rut",
+      "phone": "Phone",
+      "additionalInformation": "Additional information"
     }
   },
   "layout": {

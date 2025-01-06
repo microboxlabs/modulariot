@@ -1,20 +1,28 @@
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-## Getting Started
+## Running the project
 
-First, run the development server:
+Recently the project had a migration to `pnpm`, so, to have the best experience running the app use the commands:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. `pnpm i` to install the dependencies in your local machine.
+2. `pnpm dev` to run the code on a development server.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With this done you can access to it with the URL given on the CLI, by default it might be `128.0.0.1:3000` but if that direction is in use, it might give you another one.
+
+---
+
+## Routing
+
+When opening the page you’ll find yourself lose, with an error message showing that the actual route is not setted correctly, press the button “Back To Home” or go to the route `/app/en/sign-in` so you can get in the login screen.
+
+If you take a look on the URL you might find the `en` inside of it, the main reason of this is the fact that the page is designed to work around multiple languages, these for now being:
+
+1. `es`: for Spanish.
+2. `en`: for English.
+
+This is usually triggered by the system language, but you can manually set it by changing the URL.
+
+---
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

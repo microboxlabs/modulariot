@@ -19,7 +19,7 @@ export default async function TaskEditPage({
     // Get both results upfront
     const taskResult = await getTaskById(session!.user.ticket, taskId);
     let task = taskResult;
-    if (task == "null") {
+    if (typeof task == "string" && task == "null") {
       const finishedWorkflows = await getFinishedWorkflows(
         session!.user.ticket,
         {
@@ -31,7 +31,16 @@ export default async function TaskEditPage({
         tasks: res.workflows,
         total: res.total,
       }));
-      task = finishedWorkflows.tasks.find((t) => t.id === taskId);
+      const taskResponse = finishedWorkflows.tasks.find((t) => t.id === taskId);
+      if (taskResponse) {
+        return (
+          <TaskForm
+            task={taskResponse}
+            lang={lang}
+            ticket={session!.user.ticket}
+          />
+        );
+      }
     }
     return <TaskForm task={task} lang={lang} ticket={session!.user.ticket} />;
   } catch (e: any) {

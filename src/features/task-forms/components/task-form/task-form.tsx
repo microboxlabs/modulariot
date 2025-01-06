@@ -31,7 +31,6 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
-  console.log("task", task);
 
   // Handle historical tasks
   if (task?.persistentState?.endTime) {

@@ -24,7 +24,7 @@ export default async function TaskEditPage({
         session!.user.ticket,
         {
           from: 0,
-          size: 50,
+          size: 100,
           definitionKey: "shippingCoordinatorProcess",
         },
       ).then((res) => ({

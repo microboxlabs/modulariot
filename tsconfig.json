@@ -17,9 +17,11 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@assets/*": ["./public/*"]
+      "@assets/*": ["./public/*"],
+      "react-icons/*": ["./node_modules/react-icons/*"]
     }
   },
   "include": [

@@ -294,3 +294,20 @@ export async function getFinishedWorkflows(
   );
   return result as FinishedWorkflowsResponse;
 }
+
+export async function checkDocumentExists(
+  ticket: string,
+  nodeId: string,
+): Promise<boolean> {
+  try {
+    alfrescoApi.setTicket(ticket, "");
+    const nodesApi = new NodesApi(alfrescoApi.contentClient);
+
+    // This will throw an error if the node doesn't exist
+    const node = await nodesApi.getNode(nodeId);
+    return node && node?.entry?.isFile;
+  } catch (error) {
+    // just ignore and return false
+  }
+  return false;
+}

@@ -78,6 +78,7 @@ jobs:
           else
             NEXT_PUBLIC_ECM_API_URL=${{ env.PROD_NEXT_PUBLIC_ECM_API_URL }}
           fi
+          echo "NEXT_PUBLIC_ECM_API_URL: $NEXT_PUBLIC_ECM_API_URL"
           ${{ steps.detect-package-manager.outputs.runner }} next build
 
       - id: "auth"

@@ -1,35 +1,5 @@
-//import { Task } from "@/types/Task";
-import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
-//import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ExtendedTaskViewProps } from "@/features/task-forms/components/task-form/task-form.types";
 import { Card } from "flowbite-react";
-//import { DocumentList } from "../document-list";
-//import { DownloadSignedDocument } from "../download-signed-document";
-
-interface ExtendedTaskResponse extends TaskResponse {
-  mintral_serviceType: string;
-  mintral_serviceKind: string;
-  mintral_clientAbbreviation: string;
-  mintral_supplierName: string;
-  mintral_distance: number;
-  mintral_speed: number;
-  mintral_originDelegateCode: string;
-  mintral_destinationDelegateCode: string;
-  mintral_expectedDepartureDate: string;
-  mintral_estimatedArrivalDate: string;
-  mintral_truckLicensePlate: string;
-  mintral_trailerLicensePlate: string;
-  mintral_driver1Name: string;
-  mintral_driver1Rut: string;
-  mintral_driver1Phone: string;
-}
-
-interface HistoricalTaskViewProps {
-  task: ExtendedTaskResponse;
-  user: string;
-  msg: I18nRecord;
-  lang: string;
-}
 
 const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -42,78 +12,12 @@ const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   </Card>
 );
 
-export function CompletedTripView({
-  task,
-  msg,
-  //lang,
-}: HistoricalTaskViewProps) {
-  return (
-    <Card>
-      <TaskHeader title={msg.title as string} endTime={task.bpm_status} />
-      {/* <CardContent> */}
-      <div className="space-y-4">
-        <div className="grid gap-4">
-          <div>
-            <h3 className="font-medium mb-2">{msg.title as string}</h3>
-            {/* <DocumentList
-                documents={task.persistentState.documents}
-                lang={lang}
-              /> */}
-          </div>
-          {/* {task.persistentState.signedDocument && (
-              <div>
-                <h3 className="font-medium mb-2">{msg.signedDocument}</h3>
-                <DownloadSignedDocument
-                  document={task.persistentState.signedDocument}
-                  lang={lang}
-                />
-              </div>
-            )} */}
-        </div>
-      </div>
-      {/* </CardContent> */}
-    </Card>
-  );
-}
-
-export function CancelledTripView({ task, msg }: HistoricalTaskViewProps) {
-  return (
-    <Card>
-      <TaskHeader title={msg.title as string} endTime={task.bpm_status} />
-      {/* <CardContent> */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-medium mb-2">{msg.title as string}</h3>
-          <p className="text-muted-foreground">{task.bpm_description}</p>
-        </div>
-      </div>
-      {/* </CardContent> */}
-    </Card>
-  );
-}
-
-export function VoidedTripView({ task, msg }: HistoricalTaskViewProps) {
-  return (
-    <Card>
-      <TaskHeader title={msg.title as string} endTime={task.bpm_status} />
-      {/* <CardContent> */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-medium mb-2">{msg.title as string}</h3>
-          <p className="text-muted-foreground">{task.bpm_description}</p>
-        </div>
-      </div>
-      {/* </CardContent> */}
-    </Card>
-  );
-}
-
-export function GeneralTripView({ task, msg }: HistoricalTaskViewProps) {
+export function GeneralTripView({ task, msg }: ExtendedTaskViewProps) {
   return (
     <Card className="pb-4 dark:bg-gray-800 dark:text-white">
       <TaskHeader
         title={task.mintral_key as string}
-        endTime={task.bpm_status}
+        endTime={task.bpm_status ?? ""}
       />
       <div className="space-y-6 p-4">
         <div className="grid grid-cols-2 gap-4">

@@ -55,7 +55,9 @@ export default async function NotFound() {
                 <div className="w-12 h-12 text-blue-600 bg-blue-100 rounded-lg flex justify-center items-center">
                   <HomeAltIcon />
                 </div>
-                {dict("pages.notFound.backToHome")}
+                <p className="dark:text-white">
+                  {dict("pages.notFound.backToHome")}
+                </p>
               </div>
             </Card>
           </Link>

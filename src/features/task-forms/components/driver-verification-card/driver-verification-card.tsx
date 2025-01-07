@@ -6,6 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  HistoricalWorkflow,
+  TaskResponse,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 // Define the Zod schema
 const schema = z.object({
@@ -28,6 +32,13 @@ export default function DriverVerificationCard({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  const getServiceCode = (task: TaskResponse | HistoricalWorkflow): string => {
+    if ("mintral_serviceCode" in task) {
+      return task.mintral_serviceCode as string;
+    }
+    return "";
+  };
+
   const {
     register,
     handleSubmit,
@@ -35,7 +46,7 @@ export default function DriverVerificationCard({
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      serviceCode: (task.mintral_serviceCode as string) || "",
+      serviceCode: getServiceCode(task),
     },
   });
 

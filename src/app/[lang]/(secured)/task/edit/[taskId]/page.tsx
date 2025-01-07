@@ -9,6 +9,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { TaskForm } from "@/features/task-forms/components/task-form/task-form";
 import { notFound } from "next/navigation";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
+import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 
 export default async function TaskEditPage({
   params: { taskId, lang },
@@ -35,14 +36,24 @@ export default async function TaskEditPage({
       if (taskResponse) {
         return (
           <TaskForm
-            task={taskResponse}
+            task={taskResponse as ExtendedTaskResponse}
             lang={lang}
+            msg={_dictionary}
             ticket={session!.user.ticket}
+            user={session!.user.name ?? ""}
           />
         );
       }
     }
-    return <TaskForm task={task} lang={lang} ticket={session!.user.ticket} />;
+    return (
+      <TaskForm
+        task={task as ExtendedTaskResponse}
+        lang={lang}
+        msg={_dictionary}
+        ticket={session!.user.ticket}
+        user={session!.user.name ?? ""}
+      />
+    );
   } catch (e: any) {
     if (e?.status === 401) {
       redirectWithLang(`/sign-in`);

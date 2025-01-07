@@ -6,12 +6,9 @@ import {
   TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK,
   TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE,
   TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK,
-  OUTCOME_TRIP_INITIATED,
-  OUTCOME_TRIP_CANCELED,
-  OUTCOME_TRIP_ANNULLED,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
-import { TaskFormProps } from "./task-form.types";
+import { ExtendedTaskViewProps } from "./task-form.types";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -20,14 +17,10 @@ import ShippingDetailsTaskForm from "../shipping-details-task-form/shipping-deta
 import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
 import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import MissionControlTripInitForm from "../mission-control-trip-init-form/mission-control-trip-init-form";
-import {
-  CancelledTripView,
-  CompletedTripView,
-  GeneralTripView,
-  VoidedTripView,
-} from "@/features/shipping/components/historical-task-views";
+import { GeneralTripView } from "@/features/shipping/components/historical-task-views/historical-task-views";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
+export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
@@ -35,33 +28,6 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
   // Handle historical tasks
   if (task?.persistentState?.endTime) {
     switch (task.taskFormKey) {
-      case OUTCOME_TRIP_INITIATED: //TYPE_WFSHIP_COMPLETED_TRIP:
-        return (
-          <CompletedTripView
-            lang={lang ?? defaultLocale}
-            task={task}
-            user={user}
-            msg={(dictionary.pages as I18nRecord).completedTrip as I18nRecord}
-          />
-        );
-      case OUTCOME_TRIP_CANCELED: //TYPE_WFSHIP_CANCELLED_TRIP:
-        return (
-          <CancelledTripView
-            lang={lang ?? defaultLocale}
-            task={task}
-            user={user}
-            msg={(dictionary.pages as I18nRecord).cancelledTrip as I18nRecord}
-          />
-        );
-      case OUTCOME_TRIP_ANNULLED: //TYPE_WFSHIP_VOIDED_TRIP:
-        return (
-          <VoidedTripView
-            lang={lang ?? defaultLocale}
-            task={task}
-            user={user}
-            msg={(dictionary.pages as I18nRecord).voidedTrip as I18nRecord}
-          />
-        );
       default:
         return (
           <GeneralTripView
@@ -81,7 +47,7 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
       return (
         <TransportValidationForm
           lang={lang}
-          task={task}
+          task={task as TaskResponse}
           user={user}
           msg={
             (dictionary.pages as I18nRecord)
@@ -94,7 +60,7 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
       return (
         <SovosVerificationForm
           lang={lang}
-          task={task}
+          task={task as TaskResponse}
           user={user}
           msg={
             (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
@@ -105,7 +71,7 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
       return (
         <MissionControlTripInitForm
           lang={lang}
-          task={task}
+          task={task as TaskResponse}
           user={user}
           msg={
             (dictionary.pages as I18nRecord)
@@ -115,7 +81,13 @@ export async function TaskForm({ task, lang, ticket }: TaskFormProps) {
       );
     case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
     case TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK:
-      return <ShippingDetailsTaskForm lang={lang} task={task} />;
+      return (
+        <ShippingDetailsTaskForm
+          lang={lang}
+          task={task as TaskResponse}
+          user={user}
+        />
+      );
 
     default:
       return notFound();

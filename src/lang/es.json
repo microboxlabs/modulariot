@@ -207,6 +207,27 @@
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
+    },
+    "historicalTaskView": {
+      "serviceDetails": "Detalles del servicio",
+      "serviceType": "Tipo de servicio",
+      "client": "Cliente",
+      "supplier": "Proveedor",
+      "distance": "Distancia",
+      "speed": "Velocidad",
+      "routeInformation": "Información de ruta",
+      "origin": "Origen",
+      "destination": "Destino",
+      "expectedDeparture": "Salida esperada",
+      "estimatedArrival": "Llegada estimada",
+      "vehicleInformation": "Información del vehículo",
+      "truckLicense": "Patente camión",
+      "trailerLicense": "Patente rampla",
+      "driverInformation": "Información del conductor",
+      "driver": "Conductor",
+      "rut": "RUT",
+      "phone": "Teléfono",
+      "additionalInformation": "Información adicional"
     }
   },
   "layout": {

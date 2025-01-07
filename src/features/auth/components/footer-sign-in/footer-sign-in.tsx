@@ -5,10 +5,10 @@ export default function FooterSignIn({ messages }: FooterSignInProps) {
   return (
     <Footer
       date-testid="sign-footer"
-      className="fixed bottom-0 flex flex-row gap-1 items-center"
+      className="fixed bottom-3 flex flex-row gap-1 items-center"
       theme={{
         root: {
-          base: "w-full shadow dark:bg-gray-800 md:flex md:items-center md:justify-between",
+          base: "w-full md:flex md:items-center md:justify-between",
         },
       }}
     >

@@ -73,11 +73,16 @@ jobs:
 
       - name: Build with Next.js
         run: |
-          if [[ "${{ env.BRANCH_NAME }}" == "based/*" ]]; then
+          # Strip refs/heads/ prefix if present
+          CLEAN_BRANCH_NAME=${BRANCH_NAME#refs/heads/}
+          # Check if it starts with based/
+          if [[ "$CLEAN_BRANCH_NAME" =~ ^based/ ]]; then
             NEXT_PUBLIC_ECM_API_URL=${{ env.DEV_NEXT_PUBLIC_ECM_API_URL }}
           else
             NEXT_PUBLIC_ECM_API_URL=${{ env.PROD_NEXT_PUBLIC_ECM_API_URL }}
           fi
+          echo "Branch name: $BRANCH_NAME"
+          echo "Clean branch name: $CLEAN_BRANCH_NAME"
           echo "NEXT_PUBLIC_ECM_API_URL: $NEXT_PUBLIC_ECM_API_URL"
           ${{ steps.detect-package-manager.outputs.runner }} next build
 

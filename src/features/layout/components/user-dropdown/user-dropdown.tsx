@@ -2,7 +2,7 @@
 
 // import { signOutAction } from "@/features/auth/services/client-auth.service";
 // import { getBase64UserAvatar } from "@/features/common/providers/alfresco-api.provider";
-import { Avatar, Dropdown } from "flowbite-react";
+import { Avatar, Dropdown, Spinner } from "flowbite-react";
 import { signOut, useSession } from "next-auth/react";
 import { UserDropdownProps } from "./user-dropdown.types";
 import { useRouter } from "next/navigation";
@@ -18,14 +18,7 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
   const router = useRouter();
 
   if (status === "loading") {
-    return (
-      <Dropdown
-        className="rounded"
-        arrowIcon={false}
-        inline
-        label="Loading..."
-      />
-    );
+    return <Spinner aria-label="Default status example" />;
   }
 
   async function handleSignOut() {

@@ -37,9 +37,6 @@ export default function ClientThemeDetector({
     }
   };
 
-  /* 
-  
-*/
   useEffect(() => {
     const init = async () => {
       // If there is a theme in the cookies we load it, if not we create a new one based on the device

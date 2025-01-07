@@ -15,7 +15,7 @@ export async function SimpleNavbar() {
       <div className="w-full p-3 pr-4">
         <div className="flex items-center">
           <div className="flex items-start justify-start flex-1">
-            <NavbarBrand as={Link} href="/">
+            <NavbarBrand as={Link} href="https://www.mintral.cl/">
               <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
             </NavbarBrand>
           </div>

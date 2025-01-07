@@ -8,10 +8,7 @@ export default function NavbarSignIn() {
   return (
     <div className="min-h-8 mb-8">
       <Navbar fluid className="dark:bg-transparent">
-        <NavbarBrand
-          data-testid="login-navbar"
-          href="https://flowbite-react.com"
-        >
+        <NavbarBrand data-testid="login-navbar" href="https://www.mintral.cl/">
           <Image
             src={logoImage}
             className="mr-3"

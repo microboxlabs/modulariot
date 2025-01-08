@@ -100,6 +100,7 @@
         "documentSeparation": "Document Separation",
         "clientSystemValidation": "Client System Validation",
         "gpsValidation": "GPS Validation",
+        "gpsValidationError": "Error loading GPS validation",
         "entity": "Entity",
         "source": "Source",
         "ultimo_name": "Last location",

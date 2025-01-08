@@ -18,9 +18,9 @@ export default function RootLayout({
 
   return (
     <html lang="es" className={theme}>
-      <ThemeDetector>
-        <body>{children}</body>
-      </ThemeDetector>
+      <body>
+        <ThemeDetector>{children}</ThemeDetector>
+      </body>
     </html>
   );
 }

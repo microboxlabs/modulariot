@@ -20,7 +20,7 @@ export default async function NotFound() {
   const lang = getLocaleFromHeaders(headers());
   const [dict] = await getDictionary(lang);
   return (
-    <body
+    <div
       className={twMerge(
         inter.className,
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col",
@@ -63,6 +63,6 @@ export default async function NotFound() {
           </Link>
         </div>
       </SimpleLayout>
-    </body>
+    </div>
   );
 }

@@ -11,6 +11,8 @@ reviews:
   sequence_diagrams: false
   auto_review:
     enabled: true
+    base_branches:
+      - based/develop
     drafts: false
 chat:
   auto_reply: true

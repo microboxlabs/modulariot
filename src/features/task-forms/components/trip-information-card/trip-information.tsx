@@ -48,7 +48,7 @@ export default function TripInformation({
         </span>
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).scheduling as string}:{" "}
-          {eta.format("DD/MM/YYYY HH:mm")} - {etd.format("DD/MM/YYYY HH:mm")}
+          {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
         </span>
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">

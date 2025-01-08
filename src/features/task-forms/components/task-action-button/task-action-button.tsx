@@ -14,7 +14,7 @@ export default function TaskActionButton({
       size="md"
       color="blue"
       onClick={onClick}
-      className={fluid ? "w-full" : ""}
+      className={fluid ? "w-full" : "" + "sm:w-1/2"}
     >
       {label}
       <HiOutlineArrowRight className="ml-2 h-5 w-5" />

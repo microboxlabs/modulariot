@@ -49,27 +49,15 @@ export default function TaskActions({
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
-        <div className="flex gap-2">
-          <TaskActionButton
-            fluid={fluid}
-            label={(dict.outcome as I18nRecord).normalInitiation as string}
-            taskId={taskId}
-            transitionId={OUTCOME_NORMAL_INITIATION}
-            onClick={() =>
-              handleSelection(
-                OUTCOME_NORMAL_INITIATION,
-                (dict.outcome as I18nRecord).normalInitiation as string,
-              )
-            }
-          />
+        <div className="flex flex-col sm:flex-row w-full gap-2">
           <Dropdown
-            label={<VerticalDotsIcon />}
+            label="Otras opciones"
             arrowIcon={false}
-            className="flex gap-1"
+            className="flex gap-1 "
             inline
             theme={{
               inlineWrapper:
-                "cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
+                "w-full sm:w-1/2 cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
             }}
           >
             <DropdownItem
@@ -138,7 +126,18 @@ export default function TaskActions({
               {(dict.outcome as I18nRecord).annulled as string}
             </DropdownItem>
           </Dropdown>
-
+          <TaskActionButton
+            fluid={true}
+            label={(dict.outcome as I18nRecord).normalInitiation as string}
+            taskId={taskId}
+            transitionId={OUTCOME_NORMAL_INITIATION}
+            onClick={() =>
+              handleSelection(
+                OUTCOME_NORMAL_INITIATION,
+                (dict.outcome as I18nRecord).normalInitiation as string,
+              )
+            }
+          />
           <TaskConfirmModal
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}

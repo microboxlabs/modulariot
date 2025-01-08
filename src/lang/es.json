@@ -100,6 +100,7 @@
         "documentSeparation": "Separación Documental",
         "clientSystemValidation": "Validación Sistema Cliente",
         "gpsValidation": "Validación GPS",
+        "gpsValidationError": "Error al cargar la validación GPS",
         "entity": "Patente",
         "source": "Cliente",
         "ultimo_name": "Última ubicación",

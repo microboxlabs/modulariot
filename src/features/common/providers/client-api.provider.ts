@@ -44,6 +44,16 @@ export function useMyTasksCount() {
   };
 }
 
+// This gets replaced by a fetched action, since useSWR generates performance issues when loading the elements in the serverside component who reads it
+/**
+ * @deprecated Use getEntityInfo instead due to performance issues with SWR implementation
+ * @see GitHub Issue [#43](https://github.com/microboxlabs/coordinador-webclient/issues/43) for more details
+ *
+ * Example usage of new implementation:
+ * ```typescript
+ * const entityInfo = await getEntityInfo(entity);
+ * ```
+ */
 export function useGetEntityInfo(entity: string) {
   const { data, error, isLoading } = useSWR<
     GetEntityInfoResponse,
@@ -54,6 +64,17 @@ export function useGetEntityInfo(entity: string) {
     error,
     isLoading,
   };
+}
+
+/**
+ * Fetches entity information without SWR for better performance.
+ * Implements basic caching to prevent unnecessary API calls.
+ *
+ * @param entity - The entity identifier to fetch information for
+ * @returns Promise<GetEntityInfoResponse>
+ */
+export function getEntityInfo(entity: string) {
+  return fetcher(`/app/api/microboxlabs/entity?entity=${entity}`);
 }
 
 export function useGetServiceValidation(serviceCode: string) {

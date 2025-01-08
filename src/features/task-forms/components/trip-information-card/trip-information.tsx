@@ -3,31 +3,18 @@ import { fromString } from "@/features/common/services/days.service";
 import EllipseIcon from "@/features/icons/ellipse";
 import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified-card.types";
 import CheckCircleIcon from "@/features/icons/check-circle";
-import { calcGpsValidationType } from "../../services/client-form.service";
 import ErrorCircleIcon from "@/features/icons/error-circle";
 import ExclamationIcon from "@/features/icons/exclamation";
-import { useState } from "react";
-import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";
+import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 
 export default function TripInformation({
   lang,
   task,
   msg,
-  entityInfo,
   serviceValidation,
 }: DriverVerifiedCardProps) {
-  const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
-
-  const openGpsValidationModal = () => {
-    setShowGpsValidationModal(true);
-  };
-
   const eta = fromString(task.mintral_estimatedArrivalDate as string);
   const etd = fromString(task.mintral_estimatedDepartureDate as string);
-
-  const gpsValidationType = entityInfo
-    ? calcGpsValidationType(entityInfo)
-    : undefined;
 
   return (
     <div>
@@ -78,27 +65,9 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
-          {gpsValidationType === "ok" && <CheckCircleIcon />}
-          {gpsValidationType === "warning" && <ExclamationIcon />}
-          {gpsValidationType === "error" && <ErrorCircleIcon />}
-          {gpsValidationType === undefined && <EllipseIcon />}
-          <a
-            href="#"
-            className="text-gray-400 text-sm hover:underline"
-            onClick={openGpsValidationModal}
-          >
-            {(msg!.cards as I18nRecord).gpsValidation as string}
-          </a>
+          <GpsValidationItem msg={msg} lang={lang} task={task} />
         </div>
       </div>
-      <GpsValidationModal
-        openModal={showGpsValidationModal}
-        setOpenModal={() => setShowGpsValidationModal(false)}
-        msg={msg!}
-        entityInfo={entityInfo}
-        lang={lang}
-        task={task}
-      />
     </div>
   );
 }

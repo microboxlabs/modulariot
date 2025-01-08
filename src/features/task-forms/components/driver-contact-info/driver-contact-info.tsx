@@ -8,13 +8,15 @@ export default function DriverContactInfo({
   return (
     <div className="flex gap-5 sm:min-w-[400px] lg:min-w-[600px]">
       <div className="flex-1 flex flex-col">
-        <h5 className="text-sm font-medium leading-loose">{driver.name}</h5>
+        <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+          {driver.name}
+        </h5>
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord)[driver.varName] as string}
         </span>
       </div>
       <div className="flex-1 flex flex-col gap-2.5">
-        <span className="text-sm font-medium leading-loose">
+        <span className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
           {(msg.cards as I18nRecord).driverContactInfo as string}
         </span>
         <span className="text-gray-400 text-xs">

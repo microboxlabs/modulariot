@@ -11,11 +11,12 @@ import ExclamationIcon from "@/features/icons/exclamation";
 import EllipseIcon from "@/features/icons/ellipse";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
-import { Spinner, Breadcrumb } from "flowbite-react";
+import { Spinner } from "flowbite-react";
 
 export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [entityInfo, setEntityInfo] = useState<
     GetEntityInfoResponse | undefined
   >(undefined);
@@ -33,6 +34,8 @@ export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
         setEntityInfo(entity_info);
       } catch (error) {
         console.error(error);
+        setLoading(false);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -59,7 +62,7 @@ export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
           <Spinner /> <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
         </>
       )}
-      {!loading && (
+      {!loading && !error && (
         <>
           {gpsValidationType === "ok" && <CheckCircleIcon />}
           {gpsValidationType === "warning" && <ExclamationIcon />}
@@ -82,6 +85,11 @@ export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
             task={task}
           />
         </>
+      )}
+      {error && (
+        <p className=" text-red-400 text-sm">
+          {(msg!.cards as I18nRecord).gpsValidationError as string}
+        </p>
       )}
     </small>
   );

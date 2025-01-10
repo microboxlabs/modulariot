@@ -13,7 +13,7 @@ export default async function Layout({
   params,
 }: PropsWithChildren<ParamsWithLang>) {
   return (
-    <body
+    <main
       className={twMerge(
         inter.className,
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col",
@@ -22,6 +22,6 @@ export default async function Layout({
       <SessionProvider basePath="/app/api/auth">
         <SecuredLayout params={params}>{children}</SecuredLayout>;
       </SessionProvider>
-    </body>
+    </main>
   );
 }

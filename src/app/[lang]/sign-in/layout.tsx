@@ -11,8 +11,8 @@ export default async function Layout({
   children,
 }: PropsWithChildren<ParamsWithLang>) {
   return (
-    <body className={twMerge(inter.className, " dark:bg-gray-900 h-full")}>
+    <main className={twMerge(inter.className, " dark:bg-gray-900 h-full")}>
       <SessionProvider basePath="/app/api/auth">{children}</SessionProvider>
-    </body>
+    </main>
   );
 }

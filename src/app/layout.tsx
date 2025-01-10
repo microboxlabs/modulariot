@@ -18,7 +18,7 @@ export default function RootLayout({
 
   return (
     <html lang="es" className={theme}>
-      <body>
+      <body className="dark:bg-gray-900">
         <ThemeDetector>{children}</ThemeDetector>
       </body>
     </html>

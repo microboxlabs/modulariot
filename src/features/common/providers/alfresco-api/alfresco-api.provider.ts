@@ -246,7 +246,7 @@ export async function formProcessor(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "POST",
-    `/api/${itemKind}/${itemId}/formprocessor`,
+    `api/${itemKind}/${itemId}/formprocessor`,
     undefined,
     undefined,
     undefined,

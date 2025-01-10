@@ -20,7 +20,7 @@ export default function BottomMenu({
       )}
     >
       <Sidebar.ItemGroup>
-        <Sidebar.Item href="/users/settings" icon={HiCog}>
+        <Sidebar.Item href="/app/users/settings" icon={HiCog}>
           {tr("settings", dict)}
         </Sidebar.Item>
         <Sidebar.Item href="#" icon={LifeSaver}>

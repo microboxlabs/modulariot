@@ -42,7 +42,7 @@ export default function TaskActions({
         <div className="flex flex-col sm:flex-row w-full gap-2">
           <OtherOptions dict={dict} handleSelection={handleSelection} />
           <TaskActionButton
-            fluid={true}
+            fluid={fluid}
             label={
               (dict.outcome as I18nRecord)
                 .initiatedWithoutSovosSignature as string

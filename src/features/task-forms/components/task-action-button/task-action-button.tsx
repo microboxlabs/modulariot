@@ -14,7 +14,7 @@ export default function TaskActionButton({
       size="md"
       color="blue"
       onClick={onClick}
-      className={(fluid ? "w-full lg:w-1/2 h-10" : "")}
+      className={fluid ? "w-full lg:w-1/2 h-10" : ""}
     >
       <HiCheck className="mr-2 h-5 w-5" />
       {label}

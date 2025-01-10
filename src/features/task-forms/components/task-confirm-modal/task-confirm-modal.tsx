@@ -27,13 +27,14 @@ export default function TaskConfirmModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
-
+  const [comments, setComments] = useState("");
   async function handleConfirm() {
     try {
       setIsProcessing(true);
       const formData = new FormData();
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
+      formData.append("comments", comments);
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
@@ -75,7 +76,14 @@ export default function TaskConfirmModal({
             {commentsFieldEnabled && (
               <div className="flex-1 flex flex-col gap-y-2">
                 <Label htmlFor="comments">{tr("modal.reason", dict)}:</Label>
-                <Textarea id="comments" name="comments" required rows={8} />
+                <Textarea
+                  id="comments"
+                  name="comments"
+                  required
+                  rows={8}
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                />
               </div>
             )}
           </div>

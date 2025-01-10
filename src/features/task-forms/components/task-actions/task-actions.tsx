@@ -39,7 +39,7 @@ export default function TaskActions({
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
-        <div className="flex flex-col sm:flex-row w-full gap-2">
+        <div className="flex flex-col lg:flex-row w-full gap-2 items-center">
           <OtherOptions dict={dict} handleSelection={handleSelection} />
           <TaskActionButton
             fluid={fluid}

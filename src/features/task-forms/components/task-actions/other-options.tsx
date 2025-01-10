@@ -62,12 +62,11 @@ export default function OtherOptions({
       label="Otras opciones"
       className="flex gap-1 "
       inline
-      arrowIcon={false}
       theme={{
         inlineWrapper:
-          "h-10 sm:w-1/2 cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-
+          "flex flex-row-reverse items-center justify-center h-10 w-full lg:w-1/2 cursor-pointer rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
         content: "w-full py-1",
+        arrowIcon: "mr-2 h-5 w-5",
       }}
     >
       {other_options.map(({ id, label, icon: Icon }) => (

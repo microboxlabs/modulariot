@@ -42,7 +42,7 @@ module.exports = {
 
   rules: {
     "linebreak-style": "off",
-    "prettier/prettier": ["error", { endOfLine: "auto" }],
+    "prettier/prettier": "error",
     "react-hooks/exhaustive-deps": "off",
     "react/prop-types": "error",
     "object-shorthand": "error",

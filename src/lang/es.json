@@ -158,6 +158,7 @@
       "key": "Llave",
       "comments": "Comentarios",
       "outcome": {
+        "moreOptions": "Más opciones",
         "normalInitiation": "Iniciar viaje con Firma Sovos",
         "initiationWithObjections": "Iniciar viaje con reparos",
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",

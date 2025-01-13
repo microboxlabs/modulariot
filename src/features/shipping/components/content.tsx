@@ -165,6 +165,7 @@ export default function KanbanPageContent({
               {} as Record<string, KanbanBoard>,
             ),
           )}
+          dict={dict}
         />
       )}
     </div>

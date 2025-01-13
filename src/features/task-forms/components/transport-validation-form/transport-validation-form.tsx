@@ -37,15 +37,14 @@ export default function TransportValidationForm({
       {currentStep === "step1" && (
         <DriverVerificationCard lang={lang} msg={msg} task={task} />
       )}
-      {currentStep === "step2" && (
-        <DriverVerifiedCard
-          lang={lang}
-          msg={msg}
-          task={task}
+      {
+        currentStep === "step2" && (
+          <DriverVerifiedCard lang={lang} msg={msg} task={task} />
+        )
+        // this elements where taken off the Driver verified card (from step 2), because they where generating a error on the build
         // entityInfo={entityInfo}
         // serviceValidation={serviceValidation}
-        />
-      )}
+      }
       {currentStep === "step3" && (
         <div className="flex flex-col p-8 gap-12 shadow-lg items-center justify-center text-xl w-96 h-80 bg-white">
           <h5 className="font-bold text-gray-900 dark:text-white">

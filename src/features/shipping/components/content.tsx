@@ -32,12 +32,17 @@ import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
+import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
+import { useViewPreference } from "../hooks/use-view-preference";
+import { TableView } from "./views/table-view";
+import { transformBoardsToTableData } from "../utils/transform-data";
 
 export default function KanbanPageContent({
   kanbanBoards,
   dict,
   lang,
 }: PropsWithI18nDict<KanbanPageData>) {
+  const { activeView, handleViewChange } = useViewPreference("kanban");
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   /* const [searchTerm, setSearchTerm] = useState(""); */
   const router = useRouter();
@@ -99,48 +104,69 @@ export default function KanbanPageContent({
 
   return (
     <div className="inline-block min-w-full align-middle h-full">
-      <div className="mt-6 ml-4 flex items-start justify-start space-x-4 px-4">
+      <div className="mt-6 ml-4 flex items-center justify-between px-4">
         <ClientBreadcrumb
           path={["breadcrumb.tasks", "breadcrumb.shipping"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}
         />
+        <ViewSwitcher
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          dict={dict}
+        />
       </div>
-      <div className="flex items-start justify-start space-x-4 px-4">
-        {list.map((board) => (
-          <div key={board.id}>
-            <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-              <div className="flex-1">{tr(`kanban.${board.title}`, dict)}</div>
-              <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+      {activeView === "kanban" ? (
+        <div className="flex items-start justify-start space-x-4 px-4">
+          {list.map((board) => (
+            <div key={board.id}>
+              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                <div className="flex-1">
+                  {tr(`kanban.${board.title}`, dict)}
+                </div>
+                <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+              </div>
+              <div className="mb-6 space-y-4">
+                <ReactSortable
+                  animation={100}
+                  forceFallback
+                  group="kanban"
+                  list={board.tasks}
+                  setList={(tasks) =>
+                    setList((list) => {
+                      const newList = [...list];
+                      const index = newList.findIndex(
+                        (item) => item.id === board.id,
+                      );
+                      newList[index].tasks = tasks;
+                      return newList;
+                    })
+                  }
+                  disabled={true}
+                >
+                  {board.tasks.map((task) => (
+                    <KanbanCard key={task.id} task={task} dict={dict} />
+                  ))}
+                </ReactSortable>
+              </div>
+              <AddAnotherCardModal />
             </div>
-            <div className="mb-6 space-y-4">
-              <ReactSortable
-                animation={100}
-                forceFallback
-                group="kanban"
-                list={board.tasks}
-                setList={(tasks) =>
-                  setList((list) => {
-                    const newList = [...list];
-                    const index = newList.findIndex(
-                      (item) => item.id === board.id,
-                    );
-                    newList[index].tasks = tasks;
-                    return newList;
-                  })
-                }
-                disabled={true}
-              >
-                {board.tasks.map((task) => (
-                  <KanbanCard key={task.id} task={task} dict={dict} />
-                ))}
-              </ReactSortable>
-            </div>
-            <AddAnotherCardModal />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <TableView
+          data={transformBoardsToTableData(
+            list.reduce(
+              (acc, board) => {
+                acc[board.title] = board;
+                return acc;
+              },
+              {} as Record<string, KanbanBoard>,
+            ),
+          )}
+        />
+      )}
     </div>
   );
 }
@@ -264,7 +290,7 @@ export const EditCardModal: FC = function () {
           <div className="mb-4 space-y-2 text-base text-gray-500 dark:text-gray-400">
             <p>
               I made some wireframes that we would like you to follow since we
-              are building it in Google��s Material Design (Please learn more
+              are building it in Google's Material Design (Please learn more
               about this and see how to improve standard material design into
               something beautiful). But besides that, you can just do it how you
               like.
@@ -357,8 +383,8 @@ export const EditCardModal: FC = function () {
               <li>
                 Latest clicks/conversions. Where you currently have the logo for
                 merchant, we should instead have a logo that represent the
-                referring traffic sources (ex. Google or Facebook). So we’re
-                actually missing a column that should say “Source”. And there
+                referring traffic sources (ex. Google or Facebook). So we're
+                actually missing a column that should say "Source". And there
                 should be no icon for the merchants.
               </li>
             </ul>

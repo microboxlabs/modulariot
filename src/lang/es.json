@@ -158,7 +158,8 @@
       "key": "Llave",
       "comments": "Comentarios",
       "outcome": {
-        "normalInitiation": "Continuar",
+        "moreOptions": "Más opciones",
+        "normalInitiation": "Iniciar viaje con Firma Sovos",
         "initiationWithObjections": "Iniciar viaje con reparos",
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
         "requiresOverlord": "Escalar a superior",

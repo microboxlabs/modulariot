@@ -40,7 +40,7 @@ export default async function MissionControlTripInitForm({
           }),
         }}
       />
-      <div className="pt-8 flex-1 flex flex-col items-center">
+      <div className="py-8 flex-1 flex flex-col items-center">
         <DriverVerifiedCard
           lang={lang}
           msg={{

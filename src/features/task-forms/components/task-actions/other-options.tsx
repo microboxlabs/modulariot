@@ -1,9 +1,12 @@
-import { Dropdown, DropdownItem } from "flowbite-react";
+"use client";
+
+import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiCheck,
   HiOutlineHand,
   HiOutlineArrowLeft,
   HiTrash,
+  HiChevronUp,
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
@@ -14,11 +17,14 @@ import {
   OUTCOME_ANNULLED,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
+import React, { useState } from "react";
 
 export default function OtherOptions({
   dict,
   handleSelection,
 }: OtherOptionsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const other_options = [
     {
       id: OUTCOME_NORMAL_INITIATION,
@@ -56,29 +62,54 @@ export default function OtherOptions({
     },
   ];
 
+  const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
+  const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
+
   return (
-    <Dropdown
-      size="md"
-      label="Otras opciones"
-      className="flex gap-1 "
-      inline
-      theme={{
-        inlineWrapper:
-          "flex flex-row-reverse items-center justify-center h-10 w-full lg:w-1/2 cursor-pointer rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
-        content: "w-full py-1",
-        arrowIcon: "mr-2 h-5 w-5",
-      }}
-    >
-      {other_options.map(({ id, label, icon: Icon }) => (
-        <DropdownItem
-          key={id}
-          className="flex gap-1 w-full"
-          onClick={() => handleSelection(id, label)}
-        >
-          <Icon />
-          {label}
-        </DropdownItem>
-      ))}
-    </Dropdown>
+    <div className="w-full lg:w-1/2" onClick={() => setIsOpen(!isOpen)}>
+      <div
+        className={`fixed inset-0  z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(false);
+        }}
+      />
+      <Dropdown
+        label={false}
+        renderTrigger={() => (
+          <Button
+            color="gray"
+            className="h-10 w-full transition-all duration-100 z-50 bg-white dark:bg-gray-800"
+          >
+            <HiChevronUp
+              className={`text-gray-900 dark:text-gray-100 mr-2 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
+            />
+            <p className="text-sm text-gray-900 dark:text-gray-100">
+              {(dict.outcome as I18nRecord).moreOptions as string}
+            </p>
+          </Button>
+        )}
+        theme={{
+          content: "z-50",
+          floating: {
+            base: "overflow-hidden rounded-lg z-50 py-1",
+            item: {
+              container: "w-full z-50",
+            },
+          },
+        }}
+      >
+        {other_options.map(({ id, label, icon: Icon }) => (
+          <DropdownItem
+            key={id}
+            className="flex gap-1 w-full z-50"
+            onClick={() => handleSelection(id, label)}
+          >
+            <Icon />
+            {label}
+          </DropdownItem>
+        ))}
+      </Dropdown>
+    </div>
   );
 }

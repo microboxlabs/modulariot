@@ -18,7 +18,7 @@ export default function TripInformation({
 
   return (
     <div>
-      <h5 className="text-sm font-medium leading-loose">
+      <h5 className="text-sm font-medium leading-loose dark:text-white text-gray-900">
         {(msg!.cards as I18nRecord).tripInformation as string}
       </h5>
 

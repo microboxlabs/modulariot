@@ -158,7 +158,8 @@
       "key": "Key",
       "comments": "Comments",
       "outcome": {
-        "normalInitiation": "Continue",
+        "moreOptions": "More options",
+        "normalInitiation": "Init trip with Sovos signatures",
         "initiationWithObjections": "Init trip with objections",
         "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
         "requiresOverlord": "Requires overlord",

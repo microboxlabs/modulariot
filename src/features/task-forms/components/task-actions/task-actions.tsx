@@ -1,22 +1,11 @@
 "use client";
-import { Button, Dropdown, DropdownItem } from "flowbite-react";
-import {
-  HiOutlineArrowRight,
-  HiOutlineArrowLeft,
-  HiCheck,
-  HiOutlineHand,
-  HiTrash,
-} from "react-icons/hi";
+import { Button } from "flowbite-react";
+import { HiOutlineArrowRight } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
-import VerticalDotsIcon from "@/features/icons/vertical-dots";
 import TaskActionButton from "../task-action-button/task-action-button";
 import {
-  OUTCOME_ANNULLED,
-  OUTCOME_CANCELED,
-  OUTCOME_INITIATION_WITH_OBJECTIONS,
-  OUTCOME_NORMAL_INITIATION,
-  OUTCOME_OVERLORD_REQUIRED,
   OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+  OUTCOME_NORMAL_INITIATION,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -25,6 +14,7 @@ import {
 } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import { TaskOutcome } from "../../services/form.service.types";
+import OtherOptions from "./other-options";
 
 export default function TaskActions({
   taskId,
@@ -49,96 +39,24 @@ export default function TaskActions({
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
       return (
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+          <OtherOptions dict={dict} handleSelection={handleSelection} />
           <TaskActionButton
             fluid={fluid}
-            label={(dict.outcome as I18nRecord).normalInitiation as string}
+            label={
+              (dict.outcome as I18nRecord)
+                .initiatedWithoutSovosSignature as string
+            }
             taskId={taskId}
-            transitionId={OUTCOME_NORMAL_INITIATION}
+            transitionId={OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE}
             onClick={() =>
               handleSelection(
-                OUTCOME_NORMAL_INITIATION,
-                (dict.outcome as I18nRecord).normalInitiation as string,
+                OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+                (dict.outcome as I18nRecord)
+                  .initiatedWithoutSovosSignature as string,
               )
             }
           />
-          <Dropdown
-            label={<VerticalDotsIcon />}
-            arrowIcon={false}
-            className="flex gap-1"
-            inline
-            theme={{
-              inlineWrapper:
-                "cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
-            }}
-          >
-            <DropdownItem
-              className="flex gap-1"
-              onClick={() => {
-                handleSelection(
-                  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
-                  (dict.outcome as I18nRecord)
-                    .initiatedWithoutSovosSignature as string,
-                );
-              }}
-            >
-              <HiCheck />
-              {
-                (dict.outcome as I18nRecord)
-                  .initiatedWithoutSovosSignature as string
-              }
-            </DropdownItem>
-            <DropdownItem
-              className="flex gap-1"
-              onClick={() => {
-                handleSelection(
-                  OUTCOME_INITIATION_WITH_OBJECTIONS,
-                  (dict.outcome as I18nRecord)
-                    .initiationWithObjections as string,
-                );
-              }}
-            >
-              <HiCheck />
-              {(dict.outcome as I18nRecord).initiationWithObjections as string}
-            </DropdownItem>
-            <DropdownItem
-              className="flex gap-1"
-              onClick={() => {
-                handleSelection(
-                  OUTCOME_OVERLORD_REQUIRED,
-                  (dict.outcome as I18nRecord).requiresOverlord as string,
-                );
-              }}
-            >
-              <HiOutlineHand />
-              {(dict.outcome as I18nRecord).requiresOverlord as string}
-            </DropdownItem>
-            <DropdownItem
-              className="flex gap-1"
-              onClick={() => {
-                handleSelection(
-                  OUTCOME_CANCELED,
-                  (dict.outcome as I18nRecord).canceled as string,
-                );
-              }}
-            >
-              <HiOutlineArrowLeft />
-              {(dict.outcome as I18nRecord).canceled as string}
-            </DropdownItem>
-            <DropdownItem
-              className="flex gap-1"
-              onClick={() => {
-                handleSelection(
-                  OUTCOME_ANNULLED,
-                  (dict.outcome as I18nRecord).annulled as string,
-                );
-              }}
-            >
-              <HiTrash />
-              {(dict.outcome as I18nRecord).annulled as string}
-            </DropdownItem>
-          </Dropdown>
-
           <TaskConfirmModal
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}

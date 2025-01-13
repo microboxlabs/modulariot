@@ -10,7 +10,7 @@ export default function ClientThemeDetector({
 }: {
   children: React.ReactNode;
 }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [_, setTheme] = useState<"light" | "dark">("light");
   const [isLoading, setIsLoading] = useState(true);
 
   const isDeviceDarkMode = () => {

@@ -42,8 +42,8 @@ export default function TransportValidationForm({
           lang={lang}
           msg={msg}
           task={task}
-          // entityInfo={entityInfo}
-          // serviceValidation={serviceValidation}
+        // entityInfo={entityInfo}
+        // serviceValidation={serviceValidation}
         />
       )}
       {currentStep === "step3" && (

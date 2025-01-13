@@ -114,6 +114,7 @@
         "documentSeparation": "Document Separation",
         "clientSystemValidation": "Client System Validation",
         "gpsValidation": "GPS Validation",
+        "gpsValidationError": "Error loading GPS validation",
         "entity": "Entity",
         "source": "Source",
         "ultimo_name": "Last location",
@@ -171,7 +172,8 @@
       "key": "Key",
       "comments": "Comments",
       "outcome": {
-        "normalInitiation": "Continue",
+        "moreOptions": "More options",
+        "normalInitiation": "Init trip with Sovos signatures",
         "initiationWithObjections": "Init trip with objections",
         "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
         "requiresOverlord": "Requires overlord",
@@ -221,6 +223,27 @@
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}"
       }
+    },
+    "historicalTaskView": {
+      "serviceDetails": "Service details",
+      "serviceType": "Service type",
+      "client": "Client",
+      "supplier": "Supplier",
+      "distance": "Distance",
+      "speed": "Speed",
+      "routeInformation": "Route information",
+      "origin": "Origin",
+      "destination": "Destination",
+      "expectedDeparture": "Expected departure",
+      "estimatedArrival": "Estimated arrival",
+      "vehicleInformation": "Vehicle information",
+      "truckLicense": "Truck license",
+      "trailerLicense": "Trailer license",
+      "driverInformation": "Driver information",
+      "driver": "Driver",
+      "rut": "Rut",
+      "phone": "Phone",
+      "additionalInformation": "Additional information"
     }
   },
   "layout": {

@@ -205,3 +205,11 @@ export type ServiceValidationResponse = {
     v_01res: number;
   };
 };
+
+export type DownloadDocumentResponse = {
+  content: string;
+};
+
+export type VerifyDocumentResponse = {
+  exists: boolean;
+};

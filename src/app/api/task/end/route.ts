@@ -21,12 +21,13 @@ export async function POST(request: NextRequest) {
     const comments = json.comments;
 
     if (comments) {
-      const taskResponse = await updateTask(session.user.ticket, taskId, {
-        properties: {
+      try {
+        await updateTask(session.user.ticket, "activiti$" + taskId, {
           prop_bpm_comment: comments,
-        },
-      });
-      console.log("taskResponse", taskResponse);
+        });
+      } catch (error) {
+        // ignore for now, TODO: we need to do something if we got an error
+      }
     }
 
     const response = await endTask(session.user.ticket, taskId, transitionId);

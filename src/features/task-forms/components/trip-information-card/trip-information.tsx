@@ -3,35 +3,22 @@ import { fromString } from "@/features/common/services/days.service";
 import EllipseIcon from "@/features/icons/ellipse";
 import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified-card.types";
 import CheckCircleIcon from "@/features/icons/check-circle";
-import { calcGpsValidationType } from "../../services/client-form.service";
 import ErrorCircleIcon from "@/features/icons/error-circle";
 import ExclamationIcon from "@/features/icons/exclamation";
-import { useState } from "react";
-import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";
+import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 
 export default function TripInformation({
   lang,
   task,
   msg,
-  entityInfo,
   serviceValidation,
 }: DriverVerifiedCardProps) {
-  const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
-
-  const openGpsValidationModal = () => {
-    setShowGpsValidationModal(true);
-  };
-
   const eta = fromString(task.mintral_estimatedArrivalDate as string);
   const etd = fromString(task.mintral_estimatedDepartureDate as string);
 
-  const gpsValidationType = entityInfo
-    ? calcGpsValidationType(entityInfo)
-    : undefined;
-
   return (
     <div>
-      <h5 className="text-sm font-medium leading-loose">
+      <h5 className="text-sm font-medium leading-loose dark:text-white text-gray-900">
         {(msg!.cards as I18nRecord).tripInformation as string}
       </h5>
 
@@ -48,7 +35,7 @@ export default function TripInformation({
         </span>
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).scheduling as string}:{" "}
-          {eta.format("DD/MM/YYYY HH:mm")} - {etd.format("DD/MM/YYYY HH:mm")}
+          {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
         </span>
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">
@@ -78,27 +65,9 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
-          {gpsValidationType === "ok" && <CheckCircleIcon />}
-          {gpsValidationType === "warning" && <ExclamationIcon />}
-          {gpsValidationType === "error" && <ErrorCircleIcon />}
-          {gpsValidationType === undefined && <EllipseIcon />}
-          <a
-            href="#"
-            className="text-gray-400 text-sm hover:underline"
-            onClick={openGpsValidationModal}
-          >
-            {(msg!.cards as I18nRecord).gpsValidation as string}
-          </a>
+          <GpsValidationItem msg={msg} lang={lang} task={task} />
         </div>
       </div>
-      <GpsValidationModal
-        openModal={showGpsValidationModal}
-        setOpenModal={() => setShowGpsValidationModal(false)}
-        msg={msg!}
-        entityInfo={entityInfo}
-        lang={lang}
-        task={task}
-      />
     </div>
   );
 }

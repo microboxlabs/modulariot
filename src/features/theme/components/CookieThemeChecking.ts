@@ -2,8 +2,12 @@
 import { cookies } from "next/headers";
 
 export async function check_theme_cookie() {
-  const theme = cookies().get("theme");
-  return theme;
+  try {
+    const theme = cookies().get("theme");
+    return theme;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function set_theme_cookie(theme: "light" | "dark") {

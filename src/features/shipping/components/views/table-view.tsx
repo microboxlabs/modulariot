@@ -9,11 +9,12 @@ import Validations from "@/features/task-forms/components/validations/validation
 interface TableViewProps {
   data: KanbanBoardTask[];
   dict: I18nRecord;
+  lang: string;
 }
 
-export function TableView({ data, dict }: TableViewProps) {
+export function TableView({ data, dict, lang }: TableViewProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto p-4 bg-white">
       <Table striped>
         <Table.Head>
           <Table.HeadCell>{dict.table?.service || "Service"}</Table.HeadCell>
@@ -23,9 +24,9 @@ export function TableView({ data, dict }: TableViewProps) {
           <Table.HeadCell>
             {dict.table?.serviceKind || "Service Kind"}
           </Table.HeadCell>
-          <Table.HeadCell>
+          {/* <Table.HeadCell>
             {dict.table?.validations || "Validations"}
-          </Table.HeadCell>
+          </Table.HeadCell> */}
           <Table.HeadCell>{dict.table?.stage || "Stage"}</Table.HeadCell>
           <Table.HeadCell>{dict.table?.status || "Status"}</Table.HeadCell>
         </Table.Head>
@@ -44,14 +45,13 @@ export function TableView({ data, dict }: TableViewProps) {
                   : "-"}
               </Table.Cell>
               <Table.Cell>{task.serviceKind}</Table.Cell>
-              <Table.Cell>
-                {/* <div className="flex flex-wrap gap-2">
+              {/*  <Table.Cell>
+                <div className="flex flex-wrap gap-2">
                   <Badge icon={HiCheck} />
                   <Badge color="gray" icon={HiCheck} />
                   <Badge size="sm" icon={HiCheck} />
-                </div> */}
-                <Validations task={task} lang={lang} dict={dict} />
-              </Table.Cell>
+                </div>
+              </Table.Cell> */}
               <Table.Cell>{task.attachment}</Table.Cell>
               <Table.Cell>
                 {/* <span
@@ -64,7 +64,9 @@ export function TableView({ data, dict }: TableViewProps) {
                     ? dict.table?.completed || "Completed"
                     : dict.table?.active || "Active"}
                 </span> */}
-                <DepartureDateShip date={task.expectedDepartureDate ?? ""} />
+                <div className="w-fit">
+                  <DepartureDateShip date={task.expectedDepartureDate ?? ""} />
+                </div>
               </Table.Cell>
             </Table.Row>
           ))}

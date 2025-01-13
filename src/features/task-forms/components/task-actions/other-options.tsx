@@ -79,7 +79,7 @@ export default function OtherOptions({
         renderTrigger={() => (
           <Button
             color="gray"
-            className="h-10 w-full transition-all duration-100 z-50 bg-white dark:bg-gray-800"
+            className="h-10 w-full transition-all duration-100 z-20 bg-white dark:bg-gray-800"
           >
             <HiChevronUp
               className={`text-gray-900 dark:text-gray-100 mr-2 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
@@ -90,11 +90,11 @@ export default function OtherOptions({
           </Button>
         )}
         theme={{
-          content: "z-50",
+          content: "z-20",
           floating: {
-            base: "overflow-hidden rounded-lg z-50 py-1",
+            base: "overflow-hidden rounded-lg z-20 py-1",
             item: {
-              container: "w-full z-50",
+              container: "w-full",
             },
           },
         }}
@@ -102,7 +102,7 @@ export default function OtherOptions({
         {other_options.map(({ id, label, icon: Icon }) => (
           <DropdownItem
             key={id}
-            className="flex gap-1 w-full z-50"
+            className="flex gap-1 w-full"
             onClick={() => handleSelection(id, label)}
           >
             <Icon />

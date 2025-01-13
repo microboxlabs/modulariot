@@ -52,6 +52,10 @@
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
         "serviceKind": "Tipo de servicio"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
       }
     },
     "notFound": {

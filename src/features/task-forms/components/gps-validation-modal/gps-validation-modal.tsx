@@ -49,7 +49,14 @@ export default function GpsValidationModal({
                         <Table.Cell>
                           <strong>{tr(key, msg!.cards as I18nRecord)}</strong>
                         </Table.Cell>
-                        <Table.Cell>{`${value as string}`}</Table.Cell>
+                        <Table.Cell>
+                          {key !== "ultimo_last_timestamp" &&
+                            `${value as string}`}
+                          {key === "ultimo_last_timestamp" &&
+                            `${new Date(
+                              `${value as string}Z`,
+                            ).toLocaleString()}`}
+                        </Table.Cell>
                       </Table.Row>
                     ),
                 )}

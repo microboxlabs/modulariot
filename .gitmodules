@@ -1,3 +1,6 @@
 [submodule "rest-api"]
 	path = rest-api
 	url = ../coordinador-api-collection.git
+[submodule "mintral.wiki"]
+	path = mintral.wiki
+	url = git@github.com:microboxlabs/mintral.wiki.git

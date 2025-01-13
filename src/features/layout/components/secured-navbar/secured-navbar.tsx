@@ -1,13 +1,7 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import {
-  DarkThemeToggle,
-  Label,
-  Navbar,
-  TextInput,
-  Tooltip,
-} from "flowbite-react";
+import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
@@ -21,6 +15,7 @@ import { twMerge } from "tailwind-merge";
 import { useDebouncedCallback } from "use-debounce";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import React from "react";
+import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 
 export function SecuredNavbar({
   messages,
@@ -122,12 +117,12 @@ export function SecuredNavbar({
               <NotificationBellDropdown />
               <div className="hidden dark:block">
                 <Tooltip content="Toggle light mode">
-                  <DarkThemeToggle />
+                  <CustomThemeToggle />
                 </Tooltip>
               </div>
               <div className="dark:hidden">
                 <Tooltip content="Toggle dark mode">
-                  <DarkThemeToggle />
+                  <CustomThemeToggle />
                 </Tooltip>
               </div>
               {isUserMenuEnabled && (

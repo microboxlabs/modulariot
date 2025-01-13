@@ -95,7 +95,7 @@ export default function DriverVerifiedCard({
 
       <div className="h-px bg-gray-300 w-full"></div>
       <form action={formActionWrapper}>
-        <h5 className="text-sm font-medium leading-loose">
+        <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
           {(msg!.cards as I18nRecord).comments as string}
         </h5>
         <div className="flex flex-col gap-6">

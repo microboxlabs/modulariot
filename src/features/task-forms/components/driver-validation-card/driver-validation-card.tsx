@@ -9,7 +9,7 @@ export default function DriverValidation({
 }: DriverValidationProps) {
   return (
     <div>
-      <h5 className="text-sm font-medium leading-loose">
+      <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
         {(msg.cards as I18nRecord).driverValidation as string}
       </h5>
       <div className="flex">

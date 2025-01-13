@@ -103,71 +103,79 @@ export default function KanbanPageContent({
   };
 
   return (
-    <div className="inline-block min-w-full align-middle h-full">
-      <div className="mt-6 ml-4 flex items-center justify-between px-4">
-        <ClientBreadcrumb
-          path={["breadcrumb.tasks", "breadcrumb.shipping"]}
-          lang={lang}
-          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
-        />
-        <ViewSwitcher
-          activeView={activeView}
-          onViewChange={handleViewChange}
-          dict={dict}
-        />
-      </div>
-      {activeView === "kanban" ? (
-        <div className="flex items-start justify-start space-x-4 px-4">
-          {list.map((board) => (
-            <div key={board.id}>
-              <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-                <div className="flex-1">
-                  {tr(`kanban.${board.title}`, dict)}
-                </div>
-                <TaskCounter count={countTasks(board.tasks)} dict={dict} />
-              </div>
-              <div className="mb-6 space-y-4">
-                <ReactSortable
-                  animation={100}
-                  forceFallback
-                  group="kanban"
-                  list={board.tasks}
-                  setList={(tasks) =>
-                    setList((list) => {
-                      const newList = [...list];
-                      const index = newList.findIndex(
-                        (item) => item.id === board.id,
-                      );
-                      newList[index].tasks = tasks;
-                      return newList;
-                    })
-                  }
-                  disabled={true}
-                >
-                  {board.tasks.map((task) => (
-                    <KanbanCard key={task.id} task={task} dict={dict} />
-                  ))}
-                </ReactSortable>
-              </div>
-              <AddAnotherCardModal />
-            </div>
-          ))}
+    <div>
+      <div className="inline-block align-middle h-full relative w-full">
+        <div className="p-5 flex items-center justify-between stiky top-0 bg-white w-full">
+          <ClientBreadcrumb
+            path={["breadcrumb.tasks", "breadcrumb.shipping"]}
+            lang={lang}
+            rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+            dict={dict}
+          />
+          <ViewSwitcher
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            dict={dict}
+          />
         </div>
-      ) : (
-        <TableView
-          data={transformBoardsToTableData(
-            list.reduce(
-              (acc, board) => {
-                acc[board.title] = board;
-                return acc;
-              },
-              {} as Record<string, KanbanBoard>,
-            ),
-          )}
-          dict={dict}
-        />
-      )}
+      </div>
+      <div className="h-full w-full overflow-auto mr-5 mb-5">
+        {
+          activeView === "kanban" ? (
+            <div className="flex items-start justify-start space-x-4 px-4">
+              {list.map((board) => (
+                <div key={board.id}>
+                  <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                    <div className="flex-1">
+                      {tr(`kanban.${board.title}`, dict)}
+                    </div>
+                    <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+                  </div>
+                  <div className="mb-6 space-y-4">
+                    <ReactSortable
+                      animation={100}
+                      forceFallback
+                      group="kanban"
+                      list={board.tasks}
+                      setList={(tasks) =>
+                        setList((list) => {
+                          const newList = [...list];
+                          const index = newList.findIndex(
+                            (item) => item.id === board.id,
+                          );
+                          newList[index].tasks = tasks;
+                          return newList;
+                        })
+                      }
+                      disabled={true}
+                    >
+                      {board.tasks.map((task) => (
+                        <KanbanCard key={task.id} task={task} dict={dict} />
+                      ))}
+                    </ReactSortable>
+                  </div>
+                  <AddAnotherCardModal />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <TableView
+              data={transformBoardsToTableData(
+                list.reduce(
+                  (acc, board) => {
+                    acc[board.title] = board;
+                    return acc;
+                  },
+                  {} as Record<string, KanbanBoard>,
+                ),
+              )}
+              dict={dict}
+              lang={lang}
+            />
+
+          )
+        }
+      </div>
     </div>
   );
 }

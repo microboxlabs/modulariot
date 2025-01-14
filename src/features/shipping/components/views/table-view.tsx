@@ -13,7 +13,7 @@ interface TableViewProps {
 
 export function TableView({ data, dict }: TableViewProps) {
   return (
-    <div className="overflow-x-auto p-4 bg-white">
+    <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white">
       <Table striped>
         <Table.Head>
           <Table.HeadCell>{tr("table.service", dict)}</Table.HeadCell>

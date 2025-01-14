@@ -1,14 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Flowbite } from "flowbite-react";
+import { Spinner } from "flowbite-react";
 import { check_theme_cookie, set_theme_cookie } from "./CookieThemeChecking";
+
+type Theme = "light" | "dark";
 
 export default function ClientThemeDetector({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [_, setTheme] = useState<"light" | "dark">("light");
+  const [isLoading, setIsLoading] = useState(true);
 
   const isDeviceDarkMode = () => {
     const isDarkMode = window.matchMedia(
@@ -18,20 +21,25 @@ export default function ClientThemeDetector({
     return isDarkMode;
   };
 
+  const applyTheme = (newTheme: Theme) => {
+    setTheme(newTheme);
+    set_theme_cookie(newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
+
   const updateThemeFromDevice = async () => {
+    setIsLoading(true);
     const device_theme = isDeviceDarkMode() ? "dark" : "light";
     set_theme_cookie(device_theme);
-    await applyOrCreateSavedTheme();
+    applyTheme(device_theme);
+    setIsLoading(false);
   };
 
   const applyOrCreateSavedTheme = async () => {
     const savedTheme = await check_theme_cookie();
 
     if (savedTheme) {
-      document.documentElement.classList.toggle(
-        "dark",
-        savedTheme.value === "dark",
-      );
+      applyTheme(savedTheme.value as Theme);
     } else {
       updateThemeFromDevice();
     }
@@ -39,20 +47,17 @@ export default function ClientThemeDetector({
 
   useEffect(() => {
     const init = async () => {
-      // If there is a theme in the cookies we load it, if not we create a new one based on the device
-      applyOrCreateSavedTheme();
+      try {
+        await applyOrCreateSavedTheme();
+      } catch (error) {
+        console.error("ups: ", error);
+      } finally {
+        setIsLoading(false);
+      }
 
       // change the theme if the user changes the theme of the device (on runtime)
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      mediaQuery.addEventListener("change", () => {
-        const device_theme = isDeviceDarkMode() ? "dark" : "light";
-        set_theme_cookie(device_theme);
-        setTheme(device_theme);
-        document.documentElement.classList.toggle(
-          "dark",
-          device_theme === "dark",
-        );
-      });
+      mediaQuery.addEventListener("change", updateThemeFromDevice);
 
       // Clean up the listener when the component unmounts
       return () =>
@@ -60,7 +65,15 @@ export default function ClientThemeDetector({
     };
 
     init();
-  }, [theme]);
+  }, []);
 
-  return <Flowbite theme={{ mode: theme }}>{children}</Flowbite>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen dark:bg-gray-900">
+        <Spinner />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

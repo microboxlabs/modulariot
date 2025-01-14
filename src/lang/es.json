@@ -52,6 +52,20 @@
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
         "serviceKind": "Tipo de servicio"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Servicio",
+        "departureDateTime": "Fecha y hora de salida",
+        "serviceKind": "Tipo de servicio",
+        "validations": "Validaciones",
+        "status": "Estado",
+        "stage": "Etapa",
+        "active": "Activo",
+        "completed": "Completado"
       }
     },
     "notFound": {

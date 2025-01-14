@@ -53,6 +53,20 @@
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
         "tripInformation": "Trip Information"
+      },
+      "views": {
+        "table": "Table",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Service",
+        "departureDateTime": "Date and time departure",
+        "serviceKind": "Service Kind",
+        "validations": "Validations",
+        "status": "Status",
+        "stage": "Stage",
+        "active": "Active",
+        "completed": "Completed"
       }
     },
     "notFound": {

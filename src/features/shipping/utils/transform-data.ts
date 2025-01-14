@@ -4,6 +4,9 @@ export function transformBoardsToTableData(
   boards: Record<string, KanbanBoard>,
 ): KanbanBoardTask[] {
   return Object.values(boards).reduce<KanbanBoardTask[]>((acc, board) => {
-    return [...acc, ...board.tasks.map((task) => ({ ...task, title: board.title }))];
+    return [
+      ...acc,
+      ...board.tasks.map((task) => ({ ...task, title: board.title })),
+    ];
   }, []);
 }

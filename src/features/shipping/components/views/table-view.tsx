@@ -5,6 +5,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiCheck, HiClock } from "react-icons/hi";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import Validations from "@/features/task-forms/components/validations/validations";
+import { tr } from "@/features/i18n/tr.service";
 
 interface TableViewProps {
   data: KanbanBoardTask[];
@@ -52,7 +53,7 @@ export function TableView({ data, dict, lang }: TableViewProps) {
                   <Badge size="sm" icon={HiCheck} />
                 </div>
               </Table.Cell> */}
-              <Table.Cell>{task.attachment}</Table.Cell>
+              <Table.Cell> {tr(`kanban.${task.title}`, dict)}</Table.Cell>
               <Table.Cell>
                 {/* <span
                   className={`px-2 py-1 rounded-full text-xs ${task.completed

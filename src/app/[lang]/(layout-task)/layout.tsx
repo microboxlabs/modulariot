@@ -8,12 +8,16 @@ import SecuredTaskLayout from "@/features/layout/components/secured-task-layout"
 
 const inter = Inter({ subsets: ["latin"] });
 
+/**
+ * @deprecated This layout is deprecated for non use.
+ * This layout is supossed to be used for the task layout but since it has no children, the use of it is not possible.
+ */
 export default async function Layout({
   children,
   params,
 }: PropsWithChildren<ParamsWithLang>) {
   return (
-    <body
+    <main
       className={twMerge(
         inter.className,
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col",
@@ -22,6 +26,6 @@ export default async function Layout({
       <SessionProvider basePath="/app/api/auth">
         <SecuredTaskLayout params={params}>{children}</SecuredTaskLayout>;
       </SessionProvider>
-    </body>
+    </main>
   );
 }

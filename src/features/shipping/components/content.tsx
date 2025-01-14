@@ -37,7 +37,7 @@ import { useViewPreference } from "../hooks/use-view-preference";
 import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 
-export default function KanbanPageContent({
+export default function PageContent({
   kanbanBoards,
   dict,
   lang,

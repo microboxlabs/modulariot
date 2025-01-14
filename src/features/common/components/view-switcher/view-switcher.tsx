@@ -14,8 +14,8 @@ export function ViewSwitcher({
 }: ViewSwitcherProps) {
   return (
     <Button.Group>
-      <Button color="gray" onClick={() => onViewChange("table")} size="sm">{dict.views?.table || "Table"}</Button>
-      <Button color="gray" onClick={() => onViewChange("kanban")} size="sm">{dict.views?.kanban || "Kanban"}</Button>
+      <Button color="gray" onClick={() => onViewChange("table")} size="sm" disabled={activeView === "table"}>{dict.views?.table || "Table"}</Button>
+      <Button color="gray" onClick={() => onViewChange("kanban")} size="sm" disabled={activeView === "kanban"}>{dict.views?.kanban || "Kanban"}</Button>
     </Button.Group>
 
   );

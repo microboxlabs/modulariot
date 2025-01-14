@@ -28,6 +28,7 @@ export type KanbanBoardTask = {
   serviceKind: string;
   members: KanbanBoardTaskMember[];
   hoReference: string;
+  title?: string;
 };
 
 export type KanbanBoardTaskMember = {

@@ -31,18 +31,11 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
       <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (
-            <FlowbiteBreadcrumb.Item
-              icon={() => rootIcon}
-              key={index}
-            /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} TODO: Implement path and I18n, */
-            >
+            <FlowbiteBreadcrumb.Item icon={() => rootIcon} key={index}>
               {item}
             </FlowbiteBreadcrumb.Item>
           ) : (
-            <FlowbiteBreadcrumb.Item
-              key={index}
-            /* href={`/${lang}/${path.slice(0, index + 1).join("/")}`} */
-            >
+            <FlowbiteBreadcrumb.Item key={index}>
               {item}
             </FlowbiteBreadcrumb.Item>
           ),

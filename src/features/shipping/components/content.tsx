@@ -25,7 +25,12 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { PiCaretUpDownBold } from "react-icons/pi";
 import { ReactSortable } from "react-sortablejs";
-import { KanbanBoard, KanbanPageData, Task } from "../types/common.types";
+import {
+  KanbanBoard,
+  KanbanBoardTask,
+  KanbanPageData,
+  Task,
+} from "../types/common.types";
 import KanbanCard from "./kanban-card/kanban-card";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -44,7 +49,6 @@ export default function PageContent({
 }: PropsWithI18nDict<KanbanPageData>) {
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
-  /* const [searchTerm, setSearchTerm] = useState(""); */
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -58,14 +62,9 @@ export default function PageContent({
     data: searchTasksData,
     error: searchTasksError,
     isLoading: _2,
-  } = useSearchTasks(searchParams.get("search")); //searchTerm
+  } = useSearchTasks(searchParams.get("search"));
 
   const { data: _3, error: taskCountError } = useMyTasksCount();
-
-  /* useEffect(() => {
-    const searchParam = searchParams.get("search");
-    setSearchTerm(searchParam);
-  }, [searchParams]); */
 
   useEffect(() => {
     if (searchTasksData) {
@@ -120,61 +119,58 @@ export default function PageContent({
         </div>
       </div>
       <div className="h-full w-full overflow-auto mr-5 mb-5">
-        {
-          activeView === "kanban" ? (
-            <div className="flex items-start justify-start space-x-4 px-4">
-              {list.map((board) => (
-                <div key={board.id}>
-                  <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-                    <div className="flex-1">
-                      {tr(`kanban.${board.title}`, dict)}
-                    </div>
-                    <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+        {activeView === "kanban" ? (
+          <div className="flex items-start justify-start space-x-4 px-4">
+            {list.map((board) => (
+              <div key={board.id}>
+                <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                  <div className="flex-1">
+                    {tr(`kanban.${board.title}`, dict)}
                   </div>
-                  <div className="mb-6 space-y-4">
-                    <ReactSortable
-                      animation={100}
-                      forceFallback
-                      group="kanban"
-                      list={board.tasks}
-                      setList={(tasks) =>
-                        setList((list) => {
-                          const newList = [...list];
-                          const index = newList.findIndex(
-                            (item) => item.id === board.id,
-                          );
-                          newList[index].tasks = tasks;
-                          return newList;
-                        })
-                      }
-                      disabled={true}
-                    >
-                      {board.tasks.map((task) => (
-                        <KanbanCard key={task.id} task={task} dict={dict} />
-                      ))}
-                    </ReactSortable>
-                  </div>
-                  <AddAnotherCardModal />
+                  <TaskCounter count={countTasks(board.tasks)} dict={dict} />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <TableView
-              data={transformBoardsToTableData(
-                list.reduce(
-                  (acc, board) => {
-                    acc[board.title] = board;
-                    return acc;
-                  },
-                  {} as Record<string, KanbanBoard>,
-                ),
-              )}
-              dict={dict}
-              lang={lang}
-            />
-
-          )
-        }
+                <div className="mb-6 space-y-4">
+                  <ReactSortable
+                    animation={100}
+                    forceFallback
+                    group="kanban"
+                    list={board.tasks}
+                    setList={(tasks: KanbanBoardTask[]) =>
+                      setList((list) => {
+                        const newList = [...list];
+                        const index = newList.findIndex(
+                          (item) => item.id === board.id,
+                        );
+                        newList[index].tasks = tasks;
+                        return newList;
+                      })
+                    }
+                    disabled={true}
+                  >
+                    {board.tasks.map((task) => (
+                      <KanbanCard key={task.id} task={task} dict={dict} />
+                    ))}
+                  </ReactSortable>
+                </div>
+                <AddAnotherCardModal />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <TableView
+            data={transformBoardsToTableData(
+              list.reduce(
+                (acc, board) => {
+                  acc[board.title] = board;
+                  return acc;
+                },
+                {} as Record<string, KanbanBoard>,
+              ),
+            )}
+            dict={dict}
+            lang={lang}
+          />
+        )}
       </div>
     </div>
   );
@@ -298,11 +294,11 @@ export const EditCardModal: FC = function () {
           </div>
           <div className="mb-4 space-y-2 text-base text-gray-500 dark:text-gray-400">
             <p>
-              I made some wireframes that we would like you to follow since we
-              are building it in Google's Material Design (Please learn more
-              about this and see how to improve standard material design into
-              something beautiful). But besides that, you can just do it how you
-              like.
+              I&apos;m made some wireframes that we would like you to follow
+              since we are building it in Google&apos;s Material Design (Please
+              learn more about this and see how to improve standard material
+              design into something beautiful). But besides that, you can just
+              do it how you like.
             </p>
             <p>
               Next Friday should be done. Next Monday we should deliver the
@@ -392,9 +388,10 @@ export const EditCardModal: FC = function () {
               <li>
                 Latest clicks/conversions. Where you currently have the logo for
                 merchant, we should instead have a logo that represent the
-                referring traffic sources (ex. Google or Facebook). So we're
-                actually missing a column that should say "Source". And there
-                should be no icon for the merchants.
+                referring traffic sources (ex. Google or Facebook). So
+                we&apos;re actually missing a column that should say
+                &quot;Source&quot;. And there should be no icon for the
+                merchants.
               </li>
             </ul>
           </div>

@@ -40,23 +40,26 @@ export default function TaskActions({
     case "wfship:missionControlTripInitTask":
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <OtherOptions dict={dict} handleSelection={handleSelection} />
-          <TaskActionButton
-            fluid={fluid}
-            label={
-              (dict.outcome as I18nRecord)
-                .initiatedWithoutSovosSignature as string
-            }
-            taskId={taskId}
-            transitionId={OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE}
-            onClick={() =>
-              handleSelection(
-                OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+          <Button.Group className="w-full">
+            <OtherOptions dict={dict} handleSelection={handleSelection} />
+            <TaskActionButton
+              fluid={fluid}
+              label={
                 (dict.outcome as I18nRecord)
-                  .initiatedWithoutSovosSignature as string,
-              )
-            }
-          />
+                  .initiatedWithoutSovosSignature as string
+              }
+              taskId={taskId}
+              transitionId={OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE}
+              onClick={() =>
+                handleSelection(
+                  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+                  (dict.outcome as I18nRecord)
+                    .initiatedWithoutSovosSignature as string,
+                )
+              }
+            />
+          </Button.Group>
+
           <TaskConfirmModal
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}

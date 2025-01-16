@@ -3,7 +3,7 @@
 import React from "react";
 import Map from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator, LayersList } from "deck.gl";
+import DeckGL, { FlyToInterpolator } from "deck.gl";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -26,16 +26,14 @@ const INITIAL_VIEW_STATE = {
 };
 
 export default function GeographicViewPage() {
-  const layers: LayersList = [
+  /* 
+  const layers = [
     // Here we will add the layers of information that will be displayed in front of the map
   ];
+  */
 
   return (
-    <DeckGL
-      initialViewState={INITIAL_VIEW_STATE}
-      controller={true}
-      layers={layers}
-    >
+    <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true}>
       <Map
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
         initialViewState={{

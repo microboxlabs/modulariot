@@ -1,48 +1,33 @@
-"use client";
+import MapVisualization from "@/features/geographic-view/components/map-visualization";
+import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { getDictionary } from "@/features/i18n/i18n.service";
+import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { HiClipboardList } from "react-icons/hi";
 
-import React from "react";
-import Map from "react-map-gl";
-import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator } from "deck.gl";
+export default async function GeographicViewPage({
+  params: { lang },
+}: ParamsWithLang) {
+  const [, dict] = await getDictionary(lang);
 
-// This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
-const mapboxStyles = {
-  "streets-v9": "mapbox://styles/mapbox/streets-v9",
-  "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
-  "satellite-streets-v11": "mapbox://styles/mapbox/satellite-streets-v11",
-  "dark-v10": "mapbox://styles/mapbox/dark-v10",
-  "light-v10": "mapbox://styles/mapbox/light-v10",
-  "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
-  "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
-};
-const INITIAL_VIEW_STATE = {
-  longitude: -70.668505,
-  latitude: -33.439764,
-  zoom: 10,
-  pitch: 0,
-  transitionDuration: 1000,
-  transitionInterpolator: new FlyToInterpolator(),
-  transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
-};
-
-export default function GeographicViewPage() {
   /* 
-  const layers = [
-    // Here we will add the layers of information that will be displayed in front of the map
-  ];
-  */
+const layers = [
+  // Here we will add the layers of information that will be displayed in front of the map
+];
+*/
 
   return (
-    <DeckGL initialViewState={INITIAL_VIEW_STATE} controller={true}>
-      <Map
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-        initialViewState={{
-          longitude: 0.45,
-          latitude: 51.47,
-          zoom: 11,
-        }}
-        mapStyle={mapboxStyles["satellite-streets-v11"]}
-      />
-    </DeckGL>
+    <div className="h-full w-full flex flex-col">
+      <div className="px-4 pt-6 pb-2">
+        <Breadcrumb
+          path={["Control Tower", "geographic-view"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dict}
+        />
+      </div>
+      <div className="flex-1 relative">
+        <MapVisualization />
+      </div>
+    </div>
   );
 }

@@ -264,7 +264,9 @@
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
         "settings": "Ajustes",
-        "help": "Ayuda y cómo empezar"
+        "help": "Ayuda y cómo empezar",
+        "controlTower": "Torre de control",
+        "geographicView": "Vista geográfica"
       }
     }
   },

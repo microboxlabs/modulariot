@@ -40,7 +40,14 @@ export const pages: SidebarItem[] = [
   {
     href: "/reports",
     icon: ChartMixedIcon,
-    label: "reports",
+    label: "controlTower",
+    items: [
+      {
+        href: "/geographic-view",
+        label: "geographicView",
+        totals: {},
+      },
+    ],
     totals: {},
   },
 ];

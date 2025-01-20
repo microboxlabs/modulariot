@@ -1,6 +1,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ExtendedTaskViewProps } from "@/features/task-forms/components/task-form/task-form.types";
-import { Card, Textarea, TextInput } from "flowbite-react";
+import { Card } from "flowbite-react";
 import { HiClipboardList } from "react-icons/hi";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -10,9 +10,9 @@ import DriverValidation from "@/features/task-forms/components/driver-validation
 import { Driver } from "@/features/task-forms/components/driver-contact-info/driver-contact-info.type";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import TripInformation from "@/features/task-forms/components/trip-information-card/trip-information";
-import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
+/* import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types"; */
 import {
-  ServiceValidationResponse,
+  /* ServiceValidationResponse, */
   TaskResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 

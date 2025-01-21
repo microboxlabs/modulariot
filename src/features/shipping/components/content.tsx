@@ -102,9 +102,9 @@ export default function PageContent({
   };
 
   return (
-    <div>
+    <div className="">
       <div className="inline-block align-middle h-full relative w-full">
-        <div className="p-5 flex items-center justify-between stiky top-0 bg-white w-full">
+        <div className="p-5 flex items-center justify-between stiky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
             path={["breadcrumb.tasks", "breadcrumb.shipping"]}
             lang={lang}

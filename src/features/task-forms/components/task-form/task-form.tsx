@@ -17,8 +17,8 @@ import ShippingDetailsTaskForm from "../shipping-details-task-form/shipping-deta
 import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
 import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import MissionControlTripInitForm from "../mission-control-trip-init-form/mission-control-trip-init-form";
-import { GeneralTripView } from "@/features/shipping/components/historical-task-views/historical-task-views";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { GeneralTripView } from "@/features/shipping/components/general-trip-view/general-trip-view";
 
 export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -35,7 +35,8 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
             task={task}
             user={user}
             msg={
-              (dictionary.pages as I18nRecord).historicalTaskView as I18nRecord
+              (dictionary.pages as I18nRecord)
+                .transportValidationForm as I18nRecord
             }
           />
         );

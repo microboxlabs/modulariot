@@ -83,6 +83,9 @@ importers:
       sharp:
         specifier: ^0.33.4
         version: 0.33.5
+      supercluster:
+        specifier: ^8.0.1
+        version: 8.0.1
       swr:
         specifier: ^2.2.5
         version: 2.3.0(react@18.3.1)

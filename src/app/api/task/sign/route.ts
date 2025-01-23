@@ -6,11 +6,11 @@ import {
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  // endTask,
+  endTask,
   getContentByTaskId,
   uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-// import { endTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -145,9 +145,9 @@ export async function POST(request: NextRequest) {
 
     console.log(uploadResposne);
 
-    // const endTaskResult = await endTask(session.user.ticket, json.taskId);
+    const endTaskResult = await endTask(session.user.ticket, json.taskId);
 
-    // console.log(endTaskResult);
+    console.log(endTaskResult);
 
     // {
     //   type_code,

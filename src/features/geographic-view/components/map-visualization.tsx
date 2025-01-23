@@ -5,6 +5,9 @@ import Map from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import { PinLayer } from "./pin_layer_clustered";
+import { HiChevronLeft } from "react-icons/hi";
+import { Button } from "flowbite-react";
+import MapButton from "./map-button";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -63,14 +66,34 @@ export default function MapVisualization() {
           initialViewState={{
             longitude: 0.45,
             latitude: 51.47,
-            zoom: 11,
+            zoom: 10,
           }}
           mapStyle={mapboxStyles["satellite-v9"]}
         />
+        <div className="m-5 gap-[14px] flex flex-col w-fit">
+          <MapButton
+            main_color="bg-white dark:bg-gray-800"
+            button_color="bg-white dark:bg-gray-800"
+            icon={HiChevronLeft}
+            text="Este es un texto de ejemplo"
+          />
+          <MapButton
+            main_color="bg-white dark:bg-gray-800"
+            button_color="bg-white dark:bg-gray-800"
+            icon={HiChevronLeft}
+            text="Este es otro texto de ejemplo"
+          />
+          <MapButton
+            main_color="bg-white dark:bg-gray-800"
+            button_color="bg-white dark:bg-gray-800"
+            icon={HiChevronLeft}
+            text="Este es el ultimo texto de ejemplo aaaaa"
+          />
+        </div>
       </DeckGL>
 
-      {/* Add the rotation slider */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
+      {/* Rotation test elements */}
+      <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Rotation: {rotation}°
         </label>

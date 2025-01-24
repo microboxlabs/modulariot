@@ -1,7 +1,7 @@
 import { Dropdown } from "flowbite-react";
-import Image from "next/image";
-import Link from "next/link";
-import { HiBell, HiEye } from "react-icons/hi";
+/* import Image from "next/image";
+import Link from "next/link"; */
+import { HiBell /*  HiEye */ } from "react-icons/hi";
 
 export default function NotificationBellDropdown() {
   return (
@@ -17,7 +17,7 @@ export default function NotificationBellDropdown() {
       }
       theme={{ content: "py-0" }}
     >
-      <div className="max-w-sm">
+      {/* <div className="max-w-sm">
         <div className="block rounded-t-xl bg-gray-50 px-4 py-2 text-center text-base font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-400">
           Notifications
         </div>
@@ -230,7 +230,7 @@ export default function NotificationBellDropdown() {
             <span>View all</span>
           </div>
         </Link>
-      </div>
+      </div> */}
     </Dropdown>
   );
 }

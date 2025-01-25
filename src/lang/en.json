@@ -244,6 +244,10 @@
       "rut": "Rut",
       "phone": "Phone",
       "additionalInformation": "Additional information"
+    },
+    "errorTripView": {
+      "title": "Trip not found",
+      "subtitle": "The trip you are looking for does not exist or is not available."
     }
   },
   "layout": {

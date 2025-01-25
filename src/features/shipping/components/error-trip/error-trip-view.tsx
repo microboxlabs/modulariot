@@ -1,13 +1,11 @@
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Card } from "flowbite-react";
 import { HiClipboardList } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { ExtendedTaskViewProps } from "@/features/task-forms/components/task-form/task-form.types";
 
-export async function ErrorTripView({ lang }: ExtendedTaskViewProps) {
+export async function ErrorTripView({ lang }: { lang: string }) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   return (
     <div className="px-4 pt-6">

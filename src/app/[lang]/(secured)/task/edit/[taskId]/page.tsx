@@ -47,7 +47,7 @@ export default async function TaskEditPage({
           />
         );
       }
-      return <ErrorTripView task={taskResponse} msg={_dictionary} />;
+      return <ErrorTripView lang={lang} />;
       //return redirectWithLang(`/shipping`);
     }
     return (

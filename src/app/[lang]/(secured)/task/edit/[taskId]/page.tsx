@@ -38,26 +38,30 @@ export default async function TaskEditPage({
       console.log("taskResponse", taskResponse);
       if (taskResponse) {
         return (
-          <TaskForm
-            task={taskResponse as ExtendedTaskResponse}
-            lang={lang}
-            msg={_dictionary}
-            ticket={session!.user.ticket}
-            user={session!.user.name ?? ""}
-          />
+          <div className="overflow-y-auto">
+            <TaskForm
+              task={taskResponse as ExtendedTaskResponse}
+              lang={lang}
+              msg={_dictionary}
+              ticket={session!.user.ticket}
+              user={session!.user.name ?? ""}
+            />
+          </div>
         );
       }
       return <ErrorTripView lang={lang} />;
       //return redirectWithLang(`/shipping`);
     }
     return (
-      <TaskForm
-        task={task as ExtendedTaskResponse}
-        lang={lang}
-        msg={_dictionary}
-        ticket={session!.user.ticket}
-        user={session!.user.name ?? ""}
-      />
+      <div className="h-full pb-4">
+        <TaskForm
+          task={task as ExtendedTaskResponse}
+          lang={lang}
+          msg={_dictionary}
+          ticket={session!.user.ticket}
+          user={session!.user.name ?? ""}
+        />
+      </div>
     );
   } catch (e: any) {
     if (e?.status === 401) {

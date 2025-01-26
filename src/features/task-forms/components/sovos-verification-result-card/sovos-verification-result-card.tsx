@@ -11,12 +11,14 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiOutlineArrowLeft } from "react-icons/hi";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import { useState } from "react";
+import { PersonEntry } from "@alfresco/js-api";
 
 export default function SovosVerificationResultCard({
   msg,
   success,
   stepperController,
   task,
+  user,
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
@@ -40,13 +42,27 @@ export default function SovosVerificationResultCard({
   let personRut = "";
   if (step === "step2") {
     personName = `${msg!.driver as string} 1: ${task.mintral_driver1Name as string}`;
-    personRut = `Rut: ${task.mintral_driver1Rut as string}`;
+    personRut = `Rut: ${getRut() as string}`;
   }
   if (step === "step4") {
     personName = `${msg!.driver as string} 2: ${task.mintral_driver2Name as string}`;
+    personRut = `Rut: ${getRut() as string}`;
   }
   if (step === "step6") {
     personName = `${msg!.validator as string}: ${session?.user.name ?? ""}`;
+    personRut = `Rut: ${getRut() as string}`;
+  }
+
+  function getRut(): string {
+    const currentStep = stepperController.currentStep();
+    if (currentStep === "step2") {
+      return task.mintral_driver1Rut as string;
+    }
+    if (currentStep === "step4") {
+      return task.mintral_driver2Rut as string;
+    }
+    const userObj = JSON.parse(user!) as PersonEntry;
+    return userObj?.entry.jobTitle ?? "";
   }
 
   const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
@@ -117,6 +133,7 @@ export default function SovosVerificationResultCard({
             theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
             onClick={() => stepperController.toNextStep()}
+            isProcessing={stepperController.isLoading()}
           >
             {stepperController.hasNextStep()
               ? (msg?.continue as string)

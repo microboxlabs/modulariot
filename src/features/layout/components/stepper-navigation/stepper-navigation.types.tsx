@@ -11,6 +11,7 @@ export type StepperNavigationProps = {
 };
 
 export type StepperController = {
+  isLoading: () => boolean;
   currentStep: () => string;
   toStep: (step: string, isError?: boolean) => void;
   toNextStep: (isError?: boolean, audit?: AutentiaParamsGet) => void;

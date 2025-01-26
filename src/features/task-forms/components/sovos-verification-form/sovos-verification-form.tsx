@@ -148,6 +148,7 @@ export default function SovosVerificationForm({
             pluginReady={pluginReady}
             stepperController={stepperController}
             success={!stepper.isError}
+            user={user}
           />
         )}
       <SovosDeps onReady={() => setPluginReady(true)} />

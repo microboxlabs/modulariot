@@ -37,8 +37,10 @@ export default function SovosVerificationResultCard({
   }
   const step = stepperController.currentStep();
   let personName = "";
+  let personRut = "";
   if (step === "step2") {
     personName = `${msg!.driver as string} 1: ${task.mintral_driver1Name as string}`;
+    personRut = `Rut: ${task.mintral_driver1Rut as string}`;
   }
   if (step === "step4") {
     personName = `${msg!.driver as string} 2: ${task.mintral_driver2Name as string}`;
@@ -68,6 +70,8 @@ export default function SovosVerificationResultCard({
         </div>
         <div className="text-center text-gray-400 text-justified p-4">
           {personName}
+          <br />
+          {personRut}
         </div>
         {!success && (
           <div className="flex flex-row gap-2 w-full">

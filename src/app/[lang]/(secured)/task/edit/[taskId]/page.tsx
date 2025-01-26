@@ -38,7 +38,7 @@ export default async function TaskEditPage({
       console.log("taskResponse", taskResponse);
       if (taskResponse) {
         return (
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto h-full pb-4">
             <TaskForm
               task={taskResponse as ExtendedTaskResponse}
               lang={lang}
@@ -53,7 +53,7 @@ export default async function TaskEditPage({
       //return redirectWithLang(`/shipping`);
     }
     return (
-      <div className="h-full pb-4">
+      <div className="h-full pb-4 overflow-y-auto">
         <TaskForm
           task={task as ExtendedTaskResponse}
           lang={lang}

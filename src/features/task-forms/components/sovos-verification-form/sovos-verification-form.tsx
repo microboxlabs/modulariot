@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @next/next/no-sync-scripts */
 "use client";
 import StepperNavigation from "@/features/layout/components/stepper-navigation/stepper-navigation";

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const file = await getContentByTaskId(
       session.user.ticket,
-      json.taskId,
+      `activiti$${json.taskId}`,
       "ho-sin-firma.pdf",
     );
 

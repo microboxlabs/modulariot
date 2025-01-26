@@ -23,6 +23,7 @@ export default function SovosVerificationForm({
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [audits, setAudits] = useState<AutentiaParamsGet[]>([]);
   const router = useRouter();
   const [stepper, setStepper] = useState({
@@ -31,6 +32,7 @@ export default function SovosVerificationForm({
   });
 
   const handleSignDocument = async () => {
+    setLoading(true);
     const formData = new FormData();
     const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
     const signerRuts = audits.map((audit) => audit.Rut).join(",");
@@ -45,10 +47,20 @@ export default function SovosVerificationForm({
 
     if (result.success) {
       router.push(`/${lang}/shipping`);
+    } else {
+      setStepper({
+        ...stepper,
+        isError: true,
+      });
     }
+    setLoading(false);
+    //TODO: toast check for some errors
   };
 
   const stepperController: StepperController = {
+    isLoading: () => {
+      return loading;
+    },
     currentStep: () => {
       return stepper.currentStep;
     },

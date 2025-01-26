@@ -133,6 +133,7 @@ export default function SovosVerificationResultCard({
             theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
             onClick={() => stepperController.toNextStep()}
+            isProcessing={stepperController.isLoading()}
           >
             {stepperController.hasNextStep()
               ? (msg?.continue as string)

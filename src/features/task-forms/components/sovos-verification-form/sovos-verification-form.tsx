@@ -128,27 +128,27 @@ export default function SovosVerificationForm({
       {(stepper.currentStep === "step1" ||
         stepper.currentStep === "step3" ||
         stepper.currentStep === "step5") && (
-        <SovosStartVerificationCard
-          lang={lang}
-          msg={msg}
-          task={task}
-          user={user}
-          pluginReady={pluginReady}
-          stepperController={stepperController}
-        />
-      )}
+          <SovosStartVerificationCard
+            lang={lang}
+            msg={msg}
+            task={task}
+            user={user}
+            pluginReady={pluginReady}
+            stepperController={stepperController}
+          />
+        )}
       {(stepper.currentStep === "step2" ||
         stepper.currentStep === "step4" ||
         stepper.currentStep === "step6") && (
-        <SovosVerificationResultCard
-          lang={lang}
-          msg={msg}
-          task={task}
-          pluginReady={pluginReady}
-          stepperController={stepperController}
-          success={!stepper.isError}
-        />
-      )}
+          <SovosVerificationResultCard
+            lang={lang}
+            msg={msg}
+            task={task}
+            pluginReady={pluginReady}
+            stepperController={stepperController}
+            success={!stepper.isError}
+          />
+        )}
       <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );

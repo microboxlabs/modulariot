@@ -106,6 +106,7 @@
         "sleepinessTest": "Test de somnolencia",
         "tripInformation": "Información del viaje",
         "clientCode": "Código cliente",
+        "serviceCode": "Código servicio",
         "origin": "Origen",
         "destination": "Destino",
         "scheduling": "Horario",

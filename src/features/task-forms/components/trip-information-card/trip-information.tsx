@@ -24,6 +24,10 @@ export default function TripInformation({
 
       <div className="flex flex-col gap-2.5 mt-3">
         <span className="text-gray-400 text-xs">
+          {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
+          {(task.mintral_serviceCode as string) ?? "-"}
+        </span>
+        <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}
           {(task.mintral_clientCode as string) ?? "-"}
         </span>

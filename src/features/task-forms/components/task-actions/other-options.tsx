@@ -10,11 +10,11 @@ import {
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
-  OUTCOME_NORMAL_INITIATION,
   OUTCOME_INITIATION_WITH_OBJECTIONS,
   OUTCOME_OVERLORD_REQUIRED,
   OUTCOME_CANCELED,
   OUTCOME_ANNULLED,
+  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
@@ -41,20 +41,20 @@ export default function OtherOptions({
   }, []);
 
   const other_options = [
+    // This was commented since its something that might change in the future
+    /*
     {
       id: OUTCOME_NORMAL_INITIATION,
       label: (dict.outcome as I18nRecord).normalInitiation as string,
       icon: HiCheck,
     },
-    // This was commented since its something that might change in the future
-    /*
+    */
     {
       id: OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
       label: (dict.outcome as I18nRecord)
         .initiatedWithoutSovosSignature as string,
       icon: HiCheck,
     },
-    */
     {
       id: OUTCOME_INITIATION_WITH_OBJECTIONS,
       label: (dict.outcome as I18nRecord).initiationWithObjections as string,

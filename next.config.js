@@ -13,8 +13,8 @@ const nextConfig = {
     config.plugins.push(
       new NormalModuleReplacementPlugin(
         /^hexoid$/,
-        require.resolve("hexoid/dist/index.js"),
-      ),
+        require.resolve("hexoid/dist/index.js")
+      )
     );
     return config;
   },

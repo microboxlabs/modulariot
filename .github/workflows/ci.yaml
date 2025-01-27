@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - trunk
-      # - based/*
+      - based/develop
   pull_request:
 
 env:

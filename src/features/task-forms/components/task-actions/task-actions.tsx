@@ -3,10 +3,7 @@ import { Button } from "flowbite-react";
 import { HiOutlineArrowRight } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
-import {
-  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
-  OUTCOME_NORMAL_INITIATION,
-} from "../../services/form.service";
+import { OUTCOME_NORMAL_INITIATION } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
   I18nRecord,
@@ -44,17 +41,13 @@ export default function TaskActions({
             <OtherOptions dict={dict} handleSelection={handleSelection} />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord)
-                  .initiatedWithoutSovosSignature as string
-              }
+              label={(dict.outcome as I18nRecord).normalInitiation as string}
               taskId={taskId}
-              transitionId={OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE}
+              transitionId={OUTCOME_NORMAL_INITIATION}
               onClick={() =>
                 handleSelection(
-                  OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
-                  (dict.outcome as I18nRecord)
-                    .initiatedWithoutSovosSignature as string,
+                  OUTCOME_NORMAL_INITIATION,
+                  (dict.outcome as I18nRecord).normalInitiation as string,
                 )
               }
             />

@@ -8,6 +8,7 @@ import { PinLayer } from "./pin_layer_clustered";
 import { HiChevronLeft } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import MapButton from "./map-button";
+import SideBar from "./side-bar/side-bar";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -70,25 +71,46 @@ export default function MapVisualization() {
           }}
           mapStyle={mapboxStyles["satellite-v9"]}
         />
-        <div className="m-5 gap-[14px] flex flex-col w-fit">
-          <MapButton
-            main_color="bg-white dark:bg-gray-800"
-            button_color="bg-white dark:bg-gray-800"
-            icon={HiChevronLeft}
-            text="Este es un texto de ejemplo"
-          />
-          <MapButton
-            main_color="bg-white dark:bg-gray-800"
-            button_color="bg-white dark:bg-gray-800"
-            icon={HiChevronLeft}
-            text="Este es otro texto de ejemplo"
-          />
-          <MapButton
-            main_color="bg-white dark:bg-gray-800"
-            button_color="bg-white dark:bg-gray-800"
-            icon={HiChevronLeft}
-            text="Este es el ultimo texto de ejemplo aaaaa"
-          />
+        <div className="w-full h-full flex justify-between">
+          <div className="m-5 gap-[14px] flex flex-col">
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es un texto de ejemplo"
+            />
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es otro texto de ejemplo"
+            />
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es el ultimo texto de ejemplo aaaaa"
+            />
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es el ultimo texto de ejemplo aaaaa"
+            />
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es el ultimo texto de ejemplo aaaaa"
+            />
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={HiChevronLeft}
+              text="Este es el ultimo texto de ejemplo aaaaa"
+            />
+          </div>
+          <SideBar />
         </div>
       </DeckGL>
 

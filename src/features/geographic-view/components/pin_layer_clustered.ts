@@ -1,4 +1,4 @@
-import { CompositeLayer, IconLayer, Layer, LayersList } from "deck.gl";
+import { CompositeLayer, IconLayer, Layer } from "deck.gl";
 import pinbg from "@assets/testing/PinBg.svg";
 import face from "@assets/testing/Face.svg";
 import Supercluster from "supercluster";
@@ -27,14 +27,29 @@ const icon_definition = {
   },
 };
 
-export class PinLayer extends CompositeLayer {
+interface ClusterFeature {
+  type: "Feature";
+  properties: {
+    cluster?: boolean;
+    point_count?: number;
+    [key: string]: any;
+  };
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+}
+
+export class PinLayer extends CompositeLayer<any> {
   supercluster: Supercluster;
+  state!: {
+    clusters: ClusterFeature[];
+  };
 
   constructor(props: any) {
     super(props);
-    // Initialize supercluster in the constructor
     this.supercluster = new Supercluster({
-      radius: props.sizeScale * Math.sqrt(2) || 100, // Scale radius based on sizeScale prop
+      radius: props.sizeScale * Math.sqrt(2) || 100,
       maxZoom: 16,
       minPoints: 2,
       extent: 512,
@@ -42,24 +57,19 @@ export class PinLayer extends CompositeLayer {
     });
   }
 
-  initializeState() {
-    super.initializeState();
+  initializeState(context: any) {
+    super.initializeState(context);
 
     this.setState({
       clusters: [],
     });
   }
 
-  shouldUpdateState({ changeFlags }: any) {
-    return changeFlags.propsOrDataChanged;
-  }
-
   updateState({ props, changeFlags }: any) {
     const zoom = Math.floor(props.zoom || 10);
 
     if (changeFlags.propsOrDataChanged) {
-      // Convert points to GeoJSON features
-      const features = (props.data || []).map((point: unknown) => ({
+      const features = (props.data || []).map((point: any) => ({
         type: "Feature",
         properties: {
           ...point,
@@ -71,23 +81,22 @@ export class PinLayer extends CompositeLayer {
         },
       }));
 
-      // Load features into supercluster
       this.supercluster.load(features);
 
-      // Get clusters for current viewport
       const clusters = this.supercluster.getClusters(
         [-180, -85, 180, 85],
         zoom,
-      );
+      ) as ClusterFeature[];
+
       this.setState({ clusters });
     }
   }
 
-  renderLayers(): Layer | null | LayersList {
+  renderLayers(): Layer[] {
     const { clusters } = this.state;
 
     if (!clusters || clusters.length === 0) {
-      return null;
+      return [];
     }
 
     const getIconSize = (count: number) => {
@@ -99,32 +108,35 @@ export class PinLayer extends CompositeLayer {
       new IconLayer({
         id: "IconLayer-base",
         data: clusters,
-        getIcon: (d: any) => "pin",
-        getPosition: (d: any) => d.geometry.coordinates,
-        getAngle: (d) => (!d.properties.cluster ? this.props.rotation : 0),
+        getIcon: () => "pin",
+        getPosition: (d: ClusterFeature) => d.geometry.coordinates,
+        getAngle: (d: ClusterFeature) =>
+          !d.properties.cluster ? this.props.rotation : 0,
         iconAtlas: pinbg.src,
         iconMapping: icon_definition,
-        getSize: (d: any) =>
-          getIconSize(d.properties.cluster ? d.properties.point_count : 1),
+        getSize: (d: ClusterFeature) =>
+          getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
         updateTriggers: this.props.updateTriggers,
-      }),
+      }) as Layer,
       new IconLayer({
         id: "IconLayer-head",
         data: clusters,
         getIcon: () => "face",
-        getPosition: (d: any) => d.geometry.coordinates,
+        getPosition: (d: ClusterFeature) => d.geometry.coordinates,
         iconAtlas: face.src,
         iconMapping: icon_definition,
-        getSize: (d: any) =>
-          getIconSize(d.properties.cluster ? d.properties.point_count : 1) *
-          0.26, // Scale face proportionally
+        getSize: (d: ClusterFeature) =>
+          getIconSize(
+            d.properties.cluster ? d.properties.point_count || 1 : 1,
+          ) * 0.26,
         updateTriggers: this.props.updateTriggers,
-        getAngle: (d) => (!d.properties.cluster ? this.props.rotation : 0),
-      }),
+        getAngle: (d: ClusterFeature) =>
+          !d.properties.cluster ? this.props.rotation : 0,
+      }) as Layer,
       new PinCountLayer({
         id: "pin-counter",
         data: clusters.filter((d) => d.properties.cluster),
-      }),
+      }) as Layer,
     ];
   }
 }

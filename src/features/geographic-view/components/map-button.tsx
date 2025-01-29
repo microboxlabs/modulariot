@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "flowbite-react";
 import { useState } from "react";
-import { HiChevronLeft } from "react-icons/hi";
+import { IconType } from "react-icons";
 
 type MapButtonType = {
   main_color: string;
@@ -45,8 +45,7 @@ export default function MapButton({
           />
         </Button>
         <p
-          className={` text-gray-800 dark:text-white text-[14px] font-size mx-5 h-10 flex items-center transition-all duration-300 whitespace-nowrap overflow-hidden ${expanded ? "opacity-100" : "opacity-0 overflow-hidden"
-            }`}
+          className={` text-gray-800 dark:text-white text-[14px] font-size mx-5 h-10 flex items-center transition-all duration-300 whitespace-nowrap overflow-hidden ${expanded ? "opacity-100" : "opacity-0 overflow-hidden"}`}
         >
           {text}
         </p>

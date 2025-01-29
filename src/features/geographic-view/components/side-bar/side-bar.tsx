@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import MapButton from "../map-button";
 import { HiChevronLeft } from "react-icons/hi";
 import { Button } from "flowbite-react";
@@ -26,7 +26,7 @@ export default function SideBar() {
   const [openned_menu, set_openned_menu] = useState(0);
 
   return (
-    <div className="flex justify-end w-1/2">
+    <div className="flex justify-end">
       <MapButton
         main_color="m-5 bg-white dark:bg-gray-800"
         button_color="bg-white dark:bg-gray-800"
@@ -37,7 +37,7 @@ export default function SideBar() {
         activated={open}
       />
       <div
-        className={`flex flex-column overflow-hidden justify-center transition-all duration-300 ease-in-out ${open ? "w-2/4" : "w-0"} h-100% bg-white `}
+        className={`flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-full" : "w-0"} h-100% bg-white`}
       >
         <div
           className={`m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}

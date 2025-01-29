@@ -6,7 +6,6 @@ import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import { PinLayer } from "./pin_layer_clustered";
 import { HiChevronLeft } from "react-icons/hi";
-import { Button } from "flowbite-react";
 import MapButton from "./map-button";
 import SideBar from "./side-bar/side-bar";
 
@@ -20,11 +19,24 @@ const mapboxStyles = {
   "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
   "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
 };
-const INITIAL_VIEW_STATE = {
+
+type ViewStateType = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  pitch: number;
+  bearing: number;
+  transitionDuration?: number;
+  transitionInterpolator?: FlyToInterpolator;
+  transitionEasing?: (t: number) => number;
+};
+
+const INITIAL_VIEW_STATE: ViewStateType = {
   longitude: -70.668505,
   latitude: -33.439764,
   zoom: 10,
   pitch: 0,
+  bearing: 0,
   transitionDuration: 1000,
   transitionInterpolator: new FlyToInterpolator(),
   transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
@@ -58,11 +70,11 @@ export default function MapVisualization() {
         initialViewState={INITIAL_VIEW_STATE}
         controller={true}
         layers={layers}
-        onViewStateChange={({ viewState }) => setViewState(viewState)}
+        onViewStateChange={({ viewState }) =>
+          setViewState(viewState as ViewStateType)
+        }
       >
         <Map
-          viewState={viewState}
-          onMove={(evt) => setViewState(evt.viewState)}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           initialViewState={{
             longitude: 0.45,
@@ -71,7 +83,7 @@ export default function MapVisualization() {
           }}
           mapStyle={mapboxStyles["satellite-v9"]}
         />
-        <div className="w-full h-full flex justify-between">
+        <div className="w-full h-full flex justify-between absolute">
           <div className="m-5 gap-[14px] flex flex-col">
             <MapButton
               main_color="bg-white dark:bg-gray-800"

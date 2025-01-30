@@ -12,6 +12,7 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship:overlordTripInitTask": "overlordTripInit",
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
   tripInitiatedWithoutSovos: "tripInitiated",
+  tripInitiated: "tripInitiated",
   endevent1: "tripInitiated",
   tripNullified: "tripNullified",
   tripCanceled: "tripCancelled",

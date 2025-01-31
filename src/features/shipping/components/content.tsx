@@ -151,7 +151,12 @@ export default function PageContent({
                     disabled={true}
                   >
                     {board.tasks.map((task) => (
-                      <KanbanCard key={task.id} task={task} dict={dict} />
+                      <KanbanCard
+                        key={task.id}
+                        task={task}
+                        dict={dict}
+                        table_name={board.title}
+                      />
                     ))}
                   </ReactSortable>
                 </div>

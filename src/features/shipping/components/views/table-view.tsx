@@ -1,4 +1,4 @@
-import { Table } from "flowbite-react";
+import { Pagination, Table } from "flowbite-react";
 import { KanbanBoardTask } from "../../types/common.types";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -40,13 +40,26 @@ export function TableView({ data, dict }: TableViewProps) {
               <Table.Cell>{tr(`kanban.${task.title}`, dict)}</Table.Cell>
               <Table.Cell>
                 <div className="w-fit">
-                  <DepartureDateShip date={task.expectedDepartureDate ?? ""} />
+                  <DepartureDateShip
+                    table_name={task.title}
+                    date={task.expectedDepartureDate ?? ""}
+                  />
                 </div>
               </Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>
       </Table>
+      <div className="w-full flex justify-center align-middle">
+        <Pagination
+          currentPage={1}
+          totalPages={100}
+          onPageChange={() => {
+            console.log("a");
+          }}
+          showIcons
+        />
+      </div>
     </div>
   );
 }

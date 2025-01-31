@@ -106,6 +106,7 @@
         "drugTest": "Drug test",
         "sleepinessTest": "Sleepiness test",
         "clientCode": "Client Code",
+        "serviceCode": "Service Code",
         "origin": "Origin",
         "destination": "Destination",
         "scheduling": "Scheduling",
@@ -264,7 +265,9 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
-        "help": "Help and getting started"
+        "help": "Help and getting started",
+        "controlTower": "Control Tower",
+        "geographicView": "Geographic view"
       }
     }
   },

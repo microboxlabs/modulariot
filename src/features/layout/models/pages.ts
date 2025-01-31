@@ -40,7 +40,21 @@ export const pages: SidebarItem[] = [
   {
     href: "/reports",
     icon: ChartMixedIcon,
-    label: "reports",
+    label: "controlTower",
+    /* eslint-disable */
+    items: [
+      ...(process.env.NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW == "TRUE"
+        ? [
+          {
+            href: "/geographic-view",
+            label: "geographicView",
+            totals: {},
+          },
+        ]
+        : []),
+    ],
+    /* eslint-enable */
+
     totals: {},
   },
 ];

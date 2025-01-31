@@ -15,16 +15,25 @@ function shipBgColor(date: Dayjs) {
   return "bg-purple-100 dark:bg-purple-200 text-purple-800";
 }
 
-export default function DepartureDateShip({ date }: DepartureDateShipProps) {
+export default function DepartureDateShip({
+  date,
+  table_name,
+}: DepartureDateShipProps) {
   const dateObj = fromString(date);
   const humanizeDate = humanizeFrom(date);
   const classes = twMerge(
     "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
-    shipBgColor(dateObj),
+    table_name == "tripInitiated"
+      ? "bg-cyan-100 dark:bg-cyan-200 text-cyan-800"
+      : shipBgColor(dateObj),
   );
   return (
     <div className={classes}>
-      <CalendarMonthIcon className="mr-1 h-4 w-4" /> {humanizeDate}
+      <CalendarMonthIcon
+        className="mr-1 h-4 w-4"
+        color={table_name == "tripInitiated" ? "#155E75" : ""}
+      />{" "}
+      {humanizeDate}
     </div>
   );
 }

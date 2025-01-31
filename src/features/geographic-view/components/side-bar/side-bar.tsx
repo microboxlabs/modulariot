@@ -40,11 +40,12 @@ export default function SideBar() {
         className={`flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-full" : "w-0"} h-100% bg-white`}
       >
         <div
-          className={`m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
+          className={` m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
         >
           <Button.Group>
             {inner_menu.map((menu, i) => (
               <Button
+                className="z-30"
                 onClick={() => set_openned_menu(i)}
                 key={i}
                 color={i == openned_menu ? "blue" : "gray"}

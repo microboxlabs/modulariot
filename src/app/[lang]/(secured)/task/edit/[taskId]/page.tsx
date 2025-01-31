@@ -7,7 +7,7 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { TaskForm } from "@/features/task-forms/components/task-form/task-form";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 import { ErrorTripView } from "@/features/shipping/components/error-trip/error-trip-view";
 

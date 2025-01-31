@@ -26,7 +26,7 @@ export default function CustomDropdown({ text, Icon }: CustomDropdownProps) {
         renderTrigger={() => (
           <Button
             color="gray"
-            className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-full"
+            className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-full z-30"
             theme={{
               inner: {
                 base: "w-full",
@@ -49,9 +49,9 @@ export default function CustomDropdown({ text, Icon }: CustomDropdownProps) {
         theme={{
           content: "w-full",
           floating: {
-            base: "overflow-hidden rounded-lg",
+            base: "overflow-hidden rounded-lg z-40",
             item: {
-              container: "w-full",
+              container: "w-full ",
             },
           },
         }}

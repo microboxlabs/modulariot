@@ -265,7 +265,9 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "settings": "Settings",
-        "help": "Help and getting started"
+        "help": "Help and getting started",
+        "controlTower": "Control Tower",
+        "geographicView": "Geographic view"
       }
     }
   },

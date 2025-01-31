@@ -2,13 +2,14 @@ import { Label } from "flowbite-react";
 import CustomDropdown from "./components/custom_dropdown";
 import { HiTruck } from "react-icons/hi";
 import { FaArrowsRotate } from "react-icons/fa6";
+import { GiAtom } from "react-icons/gi";
 
 export default function Monitoring() {
   return (
-    <div className="w-full flex flex-col gap-2">
+    <div className="w-full flex flex-col gap-4">
       <Label className="w-full flex text-left text-lg">General</Label>
       {/* Glota total */}
-      <div className="w-full flex flex-col gap-4">
+      <div className="w-full flex flex-col gap-2">
         <CustomDropdown text="Flota total" Icon={HiTruck} />
         <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
           <p>
@@ -28,7 +29,7 @@ export default function Monitoring() {
         </div>
       </div>
       {/* Señales */}
-      <div className="w-full flex flex-col gap-4">
+      <div className="w-full flex flex-col gap-2">
         <CustomDropdown text="Señales" Icon={FaArrowsRotate} />
         <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
           <p>
@@ -40,8 +41,8 @@ export default function Monitoring() {
         </div>
       </div>
       {/* Contaminacion total */}
-      <div className="w-full flex flex-col gap-4">
-        <CustomDropdown text="Señales" Icon={FaArrowsRotate} />
+      <div className="w-full flex flex-col gap-2">
+        <CustomDropdown text="Señales" Icon={GiAtom} />
         <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
           <p>
             Total CO2: <span className="text-gray-500">91.155</span>

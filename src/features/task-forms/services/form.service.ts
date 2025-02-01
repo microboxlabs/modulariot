@@ -51,6 +51,21 @@ export const TASK_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessTask =
 export const TASK_TRIP_OUTSIDE_INITIATED: ShippingCoordinatorProcessTask =
   "tripOutsideInitiated";
 
+export const TASK_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessTask =
+  "monitoringInCourseTrip";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationArrival";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationDeparture";
+
+export const TASK_CONFIRM_DELIVERY: ShippingCoordinatorProcessTask =
+  "confirmDelivery";
+
+export const TASK_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "monitoringFinalization";
+
 export const OUTCOME_RETURN_TO_MISSION_CONTROL: SovosDigitalSignatureOutcome =
   "Devolver a Torre de Control";
 
@@ -76,4 +91,9 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_OVERLORD_TRIP_INIT,
     TASK_SOVOS_DIGITAL_SIGNATURE,
     TASK_TRIP_OUTSIDE_INITIATED,
+    TASK_MONITORING_IN_COURSE_TRIP,
+    TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL,
+    TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+    TASK_CONFIRM_DELIVERY,
+    TASK_MONITORING_FINALIZATION,
   ];

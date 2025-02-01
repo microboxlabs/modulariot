@@ -9,7 +9,12 @@ export type ShippingCoordinatorProcessForms =
   | "wfship:missionControlTripInitTask"
   | "wfship:overlordTripInitTask"
   | "wfship:sovosDigitalSignature"
-  | "wfship:tripOutsideInitiatedTask";
+  | "wfship:tripOutsideInitiatedTask"
+  | "wfship:monitoringInCourseTrip"
+  | "wfship:confirmTripDestinationArrival"
+  | "wfship:confirmTripDestinationDeparture"
+  | "wfship:confirmDelivery"
+  | "wfship:monitoringFinalization";
 
 export type MissionControlValidationOutcome =
   | "Iniciado Normal"

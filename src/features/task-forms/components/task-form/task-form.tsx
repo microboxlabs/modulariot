@@ -6,6 +6,7 @@ import {
   TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK,
   TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE,
   TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK,
+  TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
@@ -86,6 +87,19 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang}
           task={task as TaskResponse}
           user={user}
+        />
+      );
+
+    case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
+      return (
+        <GeneralTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
         />
       );
 

@@ -20,6 +20,21 @@ export const TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessForm
 export const TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK: ShippingCoordinatorProcessForms =
   "wfship:tripOutsideInitiatedTask";
 
+export const TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessForms =
+  "wfship:monitoringInCourseTrip";
+
+export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessForms =
+  "wfship:confirmTripDestinationArrival";
+
+export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessForms =
+  "wfship:confirmTripDestinationDeparture";
+
+export const TYPE_WFSHIP_CONFIRM_DELIVERY: ShippingCoordinatorProcessForms =
+  "wfship:confirmDelivery";
+
+export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
+  "wfship:monitoringFinalization";
+
 export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
   "Iniciado Normal";
 

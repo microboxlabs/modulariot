@@ -1,6 +1,6 @@
+"use client";
 import useSWR from "swr";
 import fetcher from "./fetcher";
-import { FetcherError } from "./fetcher.types";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
   DownloadDocumentResponse,
@@ -9,6 +9,7 @@ import {
   VerifyDocumentResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
+import { FetcherError } from "./fetcher.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);

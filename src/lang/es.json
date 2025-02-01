@@ -40,6 +40,11 @@
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "sovosDigitalSignature": "Firma digital de SOVOS",
         "tripInitiatedOutside": "Viajes iniciados sin coordinación",
+        "monitoringInCourseTrip": "Monitoreo en viaje en curso",
+        "confirmTripDestinationArrival": "Confirmar destino de viaje",
+        "confirmTripDestinationDeparture": "Confirmar destino de viaje",
+        "confirmDelivery": "Confirmar entrega",
+        "monitoringFinalization": "Monitoreo finalización",
         "tripInitiated": "Viaje iniciado",
         "tripNullified": "Viaje anulado",
         "tripCancelled": "Viaje cancelado"

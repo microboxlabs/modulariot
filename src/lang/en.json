@@ -40,6 +40,11 @@
         "overlordTripInit": "Overlord - Start Trip (Confirmation)",
         "sovosDigitalSignature": "SOVOS Digital Signature",
         "tripInitiatedOutside": "Trip Initiated without coordination",
+        "monitoringInCourseTrip": "Monitoring in course trip",
+        "confirmTripDestinationArrival": "Confirm trip destination arrival",
+        "confirmTripDestinationDeparture": "Confirm trip destination departure",
+        "confirmDelivery": "Confirm delivery",
+        "monitoringFinalization": "Monitoring finalization",
         "tripInitiated": "Trip Initiated",
         "tripNullified": "Trip Nullified",
         "tripCancelled": "Trip Cancelled"

@@ -9,7 +9,6 @@ import {
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
-import { notFound } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
@@ -91,6 +90,16 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
       );
 
     default:
-      return notFound();
+      return (
+        <GeneralTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
   }
 }

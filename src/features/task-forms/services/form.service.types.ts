@@ -35,8 +35,12 @@ export type ShippingCoordinatorProcessTask =
   | "transportValidation"
   | "missionControlTripInit"
   | "overlordTripInit"
-  | "overlordTripInit"
   | "sovosDigitalSignature"
-  | "tripOutsideInitiated";
+  | "tripOutsideInitiated"
+  | "monitoringInCourseTrip"
+  | "confirmTripDestinationArrival"
+  | "confirmTripDestinationDeparture"
+  | "confirmDelivery"
+  | "monitoringFinalization";
 
 export type GPSValidityType = "ok" | "warning" | "error";

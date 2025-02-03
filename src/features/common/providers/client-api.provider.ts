@@ -19,12 +19,17 @@ import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types
 //   };
 // }
 
-export function useMyTasks(columns: string[]) {
-  const qs = columns.map((column) => `columns=${column}`).join("&");
+export function useMyTasks(columns: string[], page?: number, limit?: number) {
+  const columnQuery = columns.map((column) => `columns=${column}`).join("&");
+  const paginationQuery =
+    page && limit ? `page=${page - 1}&limit=${limit}` : "";
+  const queryString = `${columnQuery}&${paginationQuery}`;
+
   const { data, error, isLoading } = useSWR<
     KanbanBoardTaskResponse,
     FetcherError
-  >(`/app/api/task/mytasks?${qs}`, fetcher);
+  >(`/app/api/task/mytasks?${queryString}`, fetcher);
+
   return {
     data,
     error,

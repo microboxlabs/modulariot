@@ -9,11 +9,22 @@ interface TableViewProps {
   data: KanbanBoardTask[];
   dict: I18nRecord;
   lang: string;
+  set_page: (page: number) => void;
+  page: number;
+  pageSize: number;
+  data_length: number | undefined;
 }
 
-export function TableView({ data, dict }: TableViewProps) {
+export function TableView({
+  data,
+  dict,
+  set_page,
+  page,
+  pageSize,
+  data_length,
+}: TableViewProps) {
   return (
-    <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white">
+    <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col">
       <Table striped>
         <Table.Head>
           <Table.HeadCell>{tr("table.service", dict)}</Table.HeadCell>
@@ -42,7 +53,11 @@ export function TableView({ data, dict }: TableViewProps) {
                 <div className="w-fit">
                   <DepartureDateShip
                     table_name={task.title}
-                    date={task.expectedDepartureDate ?? ""}
+                    date={
+                      (task.title == "tripInitiated"
+                        ? task.departureDate
+                        : task.expectedDepartureDate) ?? ""
+                    }
                   />
                 </div>
               </Table.Cell>
@@ -50,12 +65,12 @@ export function TableView({ data, dict }: TableViewProps) {
           ))}
         </Table.Body>
       </Table>
-      <div className="w-full flex justify-center align-middle">
+      <div className="w-full flex justify-center align-middle mt-auto">
         <Pagination
-          currentPage={1}
-          totalPages={100}
-          onPageChange={() => {
-            console.log("a");
+          currentPage={page}
+          totalPages={Math.ceil(data_length ? data_length : 100 / pageSize)}
+          onPageChange={(page) => {
+            set_page(page);
           }}
           showIcons
         />

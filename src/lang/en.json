@@ -267,7 +267,8 @@
         "settings": "Settings",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
-        "geographicView": "Geographic view"
+        "geographicView": "Geographic view",
+        "symptoms": "Symptoms"
       }
     }
   },

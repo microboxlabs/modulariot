@@ -271,7 +271,8 @@
         "settings": "Ajustes",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
-        "geographicView": "Vista geográfica"
+        "geographicView": "Vista geográfica",
+        "symptoms": "Síntomas"
       }
     }
   },

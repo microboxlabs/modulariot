@@ -43,3 +43,7 @@ export type KanbanPageData = {
   lang: string;
   // tasks: any;
 };
+
+export type GeographicViewPageData = {
+  lang: string;
+};

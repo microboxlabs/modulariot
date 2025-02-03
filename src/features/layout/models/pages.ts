@@ -50,6 +50,11 @@ export const pages: SidebarItem[] = [
             label: "geographicView",
             totals: {},
           },
+          {
+            href: "/symptoms",
+            label: "symptoms",
+            totals: {},
+          },
         ]
         : []),
     ],

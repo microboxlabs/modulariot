@@ -1,3 +1,55 @@
+import { Table, TableHead, TableHeadCell, TableBody } from "flowbite-react";
+import TableItem from "./components/table-item";
+
+// Condition can be:
+// - code black
+// - critic
+// - warning
+// - info
+
+const data = [
+  {
+    condition: "code black",
+    licensePlate: "XX BB 21",
+    time: "30 seg.",
+    trip: "STG-ANF",
+    driver: "ANONIMO ANDRÉS",
+    date: "2025-01-01 12:00:00",
+    service: "V1406865",
+    alertType: "Conducción máxima continua",
+  },
+  {
+    condition: "critic",
+    licensePlate: "XX BB 21",
+    time: "30 seg.",
+    trip: "STG-ANF",
+    driver: "ANONIMO ANDRÉS",
+    date: "2025-01-01 12:00:00",
+    service: "V1406865",
+    alertType: "Conducción máxima continua",
+  },
+];
+
 export default function SymptomsTable() {
-  return <div>SymptomsTable</div>;
+  return (
+    <div className="flex flex-col gap-4 w-full">
+      <div className="text-2xl font-bold">Condiciones</div>
+      <Table striped>
+        <TableHead>
+          <TableHeadCell>Condición</TableHeadCell>
+          <TableHeadCell>Tiempo Activo</TableHeadCell>
+          <TableHeadCell>viaje</TableHeadCell>
+          <TableHeadCell>Conductor</TableHeadCell>
+          <TableHeadCell>Fecha de salida</TableHeadCell>
+          <TableHeadCell>Servicio</TableHeadCell>
+          <TableHeadCell>Tipo de alerta</TableHeadCell>
+        </TableHead>
+        <TableBody className="divide-y">
+          {data.map((item) => (
+            <TableItem key={item.condition} data={item} />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
 }

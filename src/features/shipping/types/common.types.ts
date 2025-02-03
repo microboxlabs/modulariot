@@ -29,6 +29,7 @@ export type KanbanBoardTask = {
   members: KanbanBoardTaskMember[];
   hoReference: string;
   title?: string;
+  departureDate?: string;
 };
 
 export type KanbanBoardTaskMember = {

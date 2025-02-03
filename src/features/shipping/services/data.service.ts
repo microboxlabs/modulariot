@@ -27,6 +27,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
   const clientCode = task.mintral_customerCode as string;
   const client = task.mintral_clientAbbreviation as string;
   const expectedDepartureDate = task.mintral_expectedDepartureDate as string;
+  const departureDate = task.mintral_departureDate as string;
   return {
     id: task.id as string,
     name,
@@ -41,6 +42,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     serviceKind: task.mintral_serviceKind as string,
     members: [],
     hoReference: task.mintral_hoReference as string,
+    departureDate,
   };
 }
 

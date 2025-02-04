@@ -9,7 +9,7 @@ export default async function SymptomsPage({
 }: ParamsWithLang) {
   const [, dict] = await getDictionary(lang);
   return (
-    <div className="h-full w-full flex flex-col bg-white">
+    <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
           path={["Control Tower", "symptoms"]}

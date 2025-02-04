@@ -46,7 +46,7 @@ function StatusCard({
 export default function SymptomsCards() {
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+      <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
         Síntomas
       </h1>
       <div className="flex flex-col md:flex-row gap-4">
@@ -59,7 +59,7 @@ export default function SymptomsCards() {
               width={54}
               height={54}
             />
-            <h5 className="text-2xl font-bold tracking-tight text-gray-900">
+            <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
               Síntomas urgentes
             </h5>
           </div>
@@ -83,7 +83,7 @@ export default function SymptomsCards() {
               width={54}
               height={54}
             />
-            <h5 className="text-2xl font-bold tracking-tight text-gray-900">
+            <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
               Síntomas siendo tratados
             </h5>
           </div>

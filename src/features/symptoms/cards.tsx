@@ -3,11 +3,8 @@ import Image from "next/image";
 import alarmImage from "@assets/images/alarm.gif";
 import patchImage from "@assets/images/patch.gif";
 
-import codigoNegro from "@assets/conditions/codigo-negro.svg";
-import alertaCritica from "@assets/conditions/alerta-critica.svg";
-import alertaEnTratamiento from "@assets/conditions/en-tratamiento.svg";
-import alertaObservacion from "@assets/conditions/en-observacion.svg";
 import React from "react";
+import ConditionIcon from "./components/condition-icon";
 
 interface StatusCardProps {
   icon: React.ReactNode;
@@ -70,12 +67,12 @@ export default function SymptomsCards() {
           </div>
           <div className="flex gap-3">
             <StatusCard
-              icon={<Image src={codigoNegro} alt="Código negro" />}
+              icon={<ConditionIcon condition="code black" size="h-8 w-8" />}
               title="Código negro"
               count="00"
             />
             <StatusCard
-              icon={<Image src={alertaCritica} alt="Condición crítica" />}
+              icon={<ConditionIcon condition="critic" size="h-8 w-8" />}
               title="Condición crítica"
               count="05"
               variant="critical"
@@ -98,19 +95,12 @@ export default function SymptomsCards() {
           </div>
           <div className="flex gap-3">
             <StatusCard
-              icon={
-                <Image
-                  src={alertaEnTratamiento}
-                  alt="Condición en tratamiento"
-                />
-              }
+              icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
               title="Condición en tratamiento"
               count="22"
             />
             <StatusCard
-              icon={
-                <Image src={alertaObservacion} alt="Condición en observación" />
-              }
+              icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
               title="Condición en observación"
               count="15"
             />

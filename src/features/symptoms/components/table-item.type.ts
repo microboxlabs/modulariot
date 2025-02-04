@@ -1,3 +1,11 @@
+import codigoNegro from "@assets/conditions/codigo-negro.svg";
+import alertaCritica from "@assets/conditions/alerta-critica.svg";
+import enRemision from "@assets/conditions/en-remision.svg";
+import comprometida from "@assets/conditions/comprometida.svg";
+import enObservacion from "@assets/conditions/en-observacion.svg";
+import enTratamiento from "@assets/conditions/en-tratamiento.svg";
+import estable from "@assets/conditions/estable.svg";
+
 export type TableItemType = {
   condition: string;
   licensePlate: string;
@@ -12,8 +20,9 @@ export type TableItemType = {
 export type Condition = {
   color: string;
   bgColor?: string;
-  innerColor: string;
+  innerColor?: string;
   textColor: string;
+  icon: string;
 };
 
 export const Conditions: Record<string, Condition> = {
@@ -22,21 +31,43 @@ export const Conditions: Record<string, Condition> = {
     bgColor: "!bg-black",
     innerColor: "bg-gray-200",
     textColor: "text-white",
+    icon: codigoNegro,
   },
   critic: {
     color: "border-red-500",
     bgColor: "!bg-rose-500",
     innerColor: "bg-rose-200",
     textColor: "text-white",
+    icon: alertaCritica,
   },
-  warning: {
-    color: "border-yellow-500",
-    innerColor: "bg-amber-200",
-    textColor: "text-white",
+  treatment: {
+    color: "border-amber-500",
+    innerColor: "bg-amber-100",
+    textColor: "text-black dark:text-white",
+    icon: enTratamiento,
   },
-  info: {
-    color: "border-blue-500",
-    innerColor: "bg-blue-200",
-    textColor: "text-white",
+  stable: {
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    icon: estable,
+  },
+  compromised: {
+    color: "border-rose-700",
+    innerColor: "bg-rose-50",
+    textColor: "text-black dark:text-white",
+    icon: comprometida,
+  },
+  observation: {
+    color: "border-rose-700",
+    textColor: "text-black dark:text-white",
+    innerColor: "bg-white",
+    icon: enObservacion,
+  },
+  remission: {
+    color: "border-teal-700",
+    innerColor: "bg-teal-50",
+    textColor: "text-black dark:text-white",
+    icon: enRemision,
   },
 };

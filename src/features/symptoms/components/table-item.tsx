@@ -6,13 +6,13 @@ export default function TableItem({ data }: { data: TableItemType }) {
   return (
     <TableRow
       className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-        ${Conditions[data.condition as keyof typeof Conditions].bgColor} ${Conditions[data.condition as keyof typeof Conditions].color}`}
+        ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
-        <div className="flex justify-center align-middle">
+        <div className="flex justify-center items-center gap-2">
           <ConditionIcon condition={data.condition} />
           <p
-            className={`m-auto h-full ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+            className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
           >
             {data.licensePlate}
           </p>

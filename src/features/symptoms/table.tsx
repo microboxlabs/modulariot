@@ -66,6 +66,7 @@ const data = [
     service: "V1406865",
     alertType: "Conducción máxima continua",
   },
+  /*
   {
     condition: "observation",
     licensePlate: "XX BB 21",
@@ -86,6 +87,7 @@ const data = [
     service: "V1406865",
     alertType: "Conducción máxima continua",
   },
+  */
 ];
 
 export default function SymptomsTable() {

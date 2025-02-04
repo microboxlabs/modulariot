@@ -18,8 +18,8 @@ export default async function SymptomsPage({
           dict={dict}
         />
       </div>
-      <div className="flex-1 relative p-5">
-        <div className="flex flex-col gap-4">
+      <div className="flex-1 relative px-5">
+        <div className="flex flex-col gap-10">
           <SymptomsCards />
           <SymptomsTable />
         </div>

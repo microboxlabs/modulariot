@@ -7,11 +7,13 @@ import {
 
 const taskShippingBoardMap: Record<string, string> = {
   // "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
+  "wfship:tripOutsideInitiatedTask": "monitoringFinalization",
   "wfship:transportValidationTask": "transportValidation",
   "wfship:missionControlTripInitTask": "missionControlTripInit",
   "wfship:overlordTripInitTask": "overlordTripInit",
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
-  tripInitiatedWithoutSovos: "tripInitiated",
+  //tripInitiatedWithoutSovos: "tripInitiated",
+  tripInitiatedWithoutSovos: "monitoringFinalization",
 
   "wfship:monitoringInCourseTrip": "monitoringInCourseTrip",
   "wfship:confirmTripDestinationArrival": "confirmTripDestinationArrival",
@@ -19,7 +21,10 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship:confirmDelivery": "confirmDelivery",
   monitoringFinalization: "monitoringFinalization",
   //tripInitiated: "tripInitiated",
+  tripInitiated: "monitoringFinalization",
   //endevent1: "tripInitiated",
+  endevent1: "monitoringFinalization",
+
   tripNullified: "tripNullified",
   tripCanceled: "tripCancelled",
 };

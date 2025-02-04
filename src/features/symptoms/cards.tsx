@@ -1,3 +1,98 @@
+import { Card } from "flowbite-react";
+import Image from "next/image";
+import alarmImage from "@assets/images/alarm.gif";
+import patchImage from "@assets/images/patch.gif";
+import React from "react";
+
+interface StatusCardProps {
+  icon: React.ReactNode;
+  title: string;
+  count: string;
+  variant?: "black" | "critical";
+}
+
+function StatusCard({
+  icon,
+  title,
+  count,
+  variant = "black",
+}: StatusCardProps) {
+  const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
+  const borderColor =
+    variant === "critical" ? "border-rose-700" : "border-black";
+
+  return (
+    <div className="grow p-3 bg-white rounded-lg shadow-md border border-gray-200">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-6 h-6 ${bgColor} rounded-full border ${borderColor} flex items-center justify-center`}
+          >
+            <span className="text-white text-[8px] font-medium">!</span>
+          </div>
+          <span className="text-[#111928] text-sm font-semibold">{title}</span>
+        </div>
+        <div className="flex items-end gap-2">
+          <span className="text-gray-500 text-2xl font-semibold">{count}</span>
+          <span className="text-gray-500 text-xs font-medium mb-1">
+            Activos
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SymptomsCards() {
-  return <div>SymptomsCards</div>;
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+        Síntomas
+      </h1>
+      <div className="flex flex-col md:flex-row gap-4 p-4">
+        <Card className="flex-1" color="white">
+          <div className="flex items-center gap-2">
+            <Image
+              className="w-[54px] h-[54px]"
+              src={alarmImage}
+              alt="Síntomas Urgentes"
+              width={54}
+              height={54}
+            />
+            <h5 className="text-2xl font-bold tracking-tight text-gray-900">
+              Síntomas urgentes
+            </h5>
+          </div>
+          <div className="flex gap-3">
+            <StatusCard icon="!" title="Código negro" count="00" />
+            <StatusCard
+              icon="!"
+              title="Condición crítica"
+              count="05"
+              variant="critical"
+            />
+          </div>
+        </Card>
+
+        <Card className="flex-1" color="white">
+          <div className="flex items-center gap-2">
+            <Image
+              className="w-[54px] h-[54px]"
+              src={patchImage}
+              alt="Síntomas Siendo tratados"
+              width={54}
+              height={54}
+            />
+            <h5 className="text-2xl font-bold tracking-tight text-gray-900">
+              Síntomas siendo tratados
+            </h5>
+          </div>
+          <div className="flex gap-3">
+            <StatusCard icon="!" title="Condición en tratamiento" count="22" />
+            <StatusCard icon="!" title="Condición en observación" count="15" />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
 }

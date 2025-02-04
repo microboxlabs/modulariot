@@ -19,14 +19,25 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   const columns = url.searchParams.getAll("columns");
+  const page = url.searchParams.get("page");
+  const limit = url.searchParams.get("limit");
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
+
+  const options = {
+    from: page ? parseInt(page) * parseInt(limit as string) : 0,
+    size: limit ? parseInt(limit) : 10,
+    filter: undefined,
+  };
+
   try {
     const taskResponses = await Promise.all([
-      ...columns.map((column) => getUserTasks(session.user.ticket, column)),
+      ...columns.map((column) =>
+        getUserTasks(session.user.ticket, column, options),
+      ),
       getFinishedWorkflows(session.user.ticket, {
-        from: 0,
-        size: 10,
+        from: page ? parseInt(page) * parseInt(limit as string) : 0,
+        size: limit ? parseInt(limit) : 10,
         definitionKey: "shippingCoordinatorProcess",
       }).then((res) => ({
         tasks: res.workflows,

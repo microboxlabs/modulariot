@@ -1,5 +1,6 @@
 export type TaskNextActionState = {
   success?: boolean;
+  error?: string;
 };
 
 export type ShippingCoordinatorProcess = "shippingCoordinatorProcess";

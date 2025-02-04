@@ -34,6 +34,7 @@
     "react-sortablejs": "^6.1.4",
     "server-only": "^0.0.1",
     "sharp": "^0.33.4",
+    "sonner": "^1.7.2",
     "supercluster": "^8.0.1",
     "swr": "^2.2.5",
     "use-debounce": "^10.0.4",

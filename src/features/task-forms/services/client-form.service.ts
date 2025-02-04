@@ -1,9 +1,31 @@
-// "use client";
+"use client";
 
 // import fetcher from "@/features/common/providers/fetcher";
 import fetcher from "@/features/common/providers/fetcher";
 import { GPSValidityType, TaskNextActionState } from "./form.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
+
+import { ShowNotification } from "@/features/notifications/notification";
+import { FetcherError } from "@/features/common/providers/fetcher.types";
+
+async function fetcherClient<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<T> {
+  try {
+    return await fetcher<T>(input, init);
+  } catch (error) {
+    const fetcherError = error as FetcherError;
+    ShowNotification({
+      message: fetcherError.message,
+      type: "error",
+    });
+    return {
+      success: false,
+      error: fetcherError.message,
+    } as T;
+  }
+}
 
 export async function taskNextAction(
   _prevState: TaskNextActionState,
@@ -12,7 +34,7 @@ export async function taskNextAction(
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
   const comments = formData.get("comments");
-  return fetcher("/app/api/task/end", {
+  return fetcherClient<TaskNextActionState>("/app/api/task/end", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -33,7 +55,7 @@ export async function taskSignDocument(
   const transitionId = formData.get("transitionId");
   const serviceCode = formData.get("serviceCode");
 
-  return fetcher("/app/api/task/sign", {
+  return fetcherClient("/app/api/task/sign", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

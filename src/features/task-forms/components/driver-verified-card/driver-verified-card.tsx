@@ -36,8 +36,11 @@ export default function DriverVerifiedCard({
   const router = useRouter();
 
   useEffect(() => {
-    if (state.success) {
+    if (state?.success) {
       router.replace(`/${lang}/shipping`);
+    }
+    if (state?.error) {
+      setIsLoading(false);
     }
   }, [state]);
 

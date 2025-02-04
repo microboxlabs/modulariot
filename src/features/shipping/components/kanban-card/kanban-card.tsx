@@ -12,6 +12,7 @@ configureLocale();
 
 export default function KanbanCard({
   task,
+  table_name,
   dict,
 }: PropsWithI18nDict<KanBanCardProps>) {
   return (
@@ -81,7 +82,14 @@ export default function KanbanCard({
               </Fragment>
             ))}
           </div>
-          <DepartureDateShip date={task.expectedDepartureDate ?? ""} />
+          <DepartureDateShip
+            date={
+              (table_name == "tripInitiated"
+                ? task.departureDate
+                : task.expectedDepartureDate) ?? ""
+            }
+            table_name={table_name}
+          />
         </div>
       </div>
     </div>

@@ -2,6 +2,11 @@ import { Card } from "flowbite-react";
 import Image from "next/image";
 import alarmImage from "@assets/images/alarm.gif";
 import patchImage from "@assets/images/patch.gif";
+
+import codigoNegro from "@assets/conditions/codigo-negro.svg";
+import alertaCritica from "@assets/conditions/alerta-critica.svg";
+import alertaEnTratamiento from "@assets/conditions/en-tratamiento.svg";
+import alertaObservacion from "@assets/conditions/en-observacion.svg";
 import React from "react";
 
 interface StatusCardProps {
@@ -28,7 +33,7 @@ function StatusCard({
           <div
             className={`w-6 h-6 ${bgColor} rounded-full border ${borderColor} flex items-center justify-center`}
           >
-            <span className="text-white text-[8px] font-medium">!</span>
+            <span className="text-white text-[8px] font-medium">{icon}</span>
           </div>
           <span className="text-[#111928] text-sm font-semibold">{title}</span>
         </div>
@@ -64,9 +69,13 @@ export default function SymptomsCards() {
             </h5>
           </div>
           <div className="flex gap-3">
-            <StatusCard icon="!" title="Código negro" count="00" />
             <StatusCard
-              icon="!"
+              icon={<Image src={codigoNegro} alt="Código negro" />}
+              title="Código negro"
+              count="00"
+            />
+            <StatusCard
+              icon={<Image src={alertaCritica} alt="Condición crítica" />}
               title="Condición crítica"
               count="05"
               variant="critical"
@@ -88,8 +97,23 @@ export default function SymptomsCards() {
             </h5>
           </div>
           <div className="flex gap-3">
-            <StatusCard icon="!" title="Condición en tratamiento" count="22" />
-            <StatusCard icon="!" title="Condición en observación" count="15" />
+            <StatusCard
+              icon={
+                <Image
+                  src={alertaEnTratamiento}
+                  alt="Condición en tratamiento"
+                />
+              }
+              title="Condición en tratamiento"
+              count="22"
+            />
+            <StatusCard
+              icon={
+                <Image src={alertaObservacion} alt="Condición en observación" />
+              }
+              title="Condición en observación"
+              count="15"
+            />
           </div>
         </Card>
       </div>

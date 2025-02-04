@@ -49,7 +49,7 @@ export default function SymptomsCards() {
       <h1 className="text-2xl font-bold tracking-tight text-gray-900">
         Síntomas
       </h1>
-      <div className="flex flex-col md:flex-row gap-4 p-4">
+      <div className="flex flex-col md:flex-row gap-4">
         <Card className="flex-1" color="white">
           <div className="flex items-center gap-2">
             <Image

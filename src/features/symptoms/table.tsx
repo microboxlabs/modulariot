@@ -93,7 +93,9 @@ const data = [
 export default function SymptomsTable() {
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="text-2xl font-bold">Condiciones</div>
+      <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+        Condiciones
+      </h1>
       <div className="shadow-md rounded-lg w-full h-fit">
         <Table striped className="w-full">
           <TableHead>

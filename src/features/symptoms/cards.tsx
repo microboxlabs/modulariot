@@ -1,6 +1,7 @@
 import { Card } from "flowbite-react";
 import Image from "next/image";
-import alarmImage from "@assets/images/alarm.gif";
+//import alarmImage from "@assets/images/alarm.gif";
+import noAlarmImage from "@assets/images/no_alarm.gif";
 import patchImage from "@assets/images/patch.gif";
 
 import React from "react";
@@ -56,7 +57,7 @@ export default function SymptomsCards() {
           <div className="flex items-center gap-2">
             <Image
               className="w-[54px] h-[54px]"
-              src={alarmImage}
+              src={noAlarmImage}
               alt="Síntomas Urgentes"
               width={54}
               height={54}

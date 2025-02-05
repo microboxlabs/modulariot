@@ -2,8 +2,8 @@ import { HiClipboardList } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import SymptomsTable from "@/features/symptoms/table";
-import SymptomsCards from "@/features/symptoms/cards";
+import ClientSymptoms from "../../../../features/symptoms/client-symptoms";
+
 export default async function SymptomsPage({
   params: { lang },
 }: ParamsWithLang) {
@@ -18,11 +18,12 @@ export default async function SymptomsPage({
           dict={dict}
         />
       </div>
-      <div className="flex-1 relative px-5">
-        <div className="flex flex-col gap-10">
-          <SymptomsCards />
-          <SymptomsTable />
-        </div>
+      {/* 
+        The reason of why there is no padding here but in the individual elements inside, is because the
+        animation of hiding the cards is not working if there is padding.
+      */}
+      <div className="flex-1 relative">
+        <ClientSymptoms />
       </div>
     </div>
   );

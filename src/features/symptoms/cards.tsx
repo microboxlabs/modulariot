@@ -54,7 +54,7 @@ export default function SymptomsCards({ showCards }: { showCards: boolean }) {
   return (
     <div
       className={`px-5 flex flex-col gap-4 overflow-hidden transition-[max-height, padding] ease-in-out duration-300 
-        ${showCards ? "max-h-[500px] pb-5" : "max-h-0 pb-0 "}
+        ${showCards ? "max-h-[500px] pb-10" : "max-h-0 pb-0 "}
       `}
     >
       <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">

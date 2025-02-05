@@ -12,7 +12,7 @@ import {
 } from "flowbite-react";
 import TableItem from "./components/table-item";
 import { HiSearch } from "react-icons/hi";
-import { FiMaximize } from "react-icons/fi";
+import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { FaFilter } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 // Condition can be:
@@ -104,7 +104,7 @@ export default function SymptomsTable({
   showCards: boolean;
 }) {
   return (
-    <div className="p-5 flex flex-col gap-4 w-full">
+    <div className="px-5 flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between w-full text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
         Condiciones
         <div className="flex flex-row gap-2 h-full">
@@ -144,7 +144,11 @@ export default function SymptomsTable({
             className="justify-self-end flex justify-center items-center h-10 w-10"
             color="gray"
           >
-            <FiMaximize className="h-5 w-5" />
+            {showCards ? (
+              <FiMaximize className="h-5 w-5" />
+            ) : (
+              <FiMinimize className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
@@ -166,7 +170,7 @@ export default function SymptomsTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex overflow-x-auto sm:justify-center">
+      <div className="flex justify-end">
         <Pagination
           currentPage={1}
           totalPages={100}

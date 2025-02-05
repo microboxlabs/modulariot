@@ -25,7 +25,7 @@ function StatusCard({
     variant === "critical" ? "border-rose-700" : "border-black";
 
   return (
-    <div className="grow p-3 bg-white rounded-lg shadow-md border border-gray-200">
+    <div className="grow p-3 bg-white rounded-lg shadow-md border border-gray-400 dark:bg-gray-900">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <div
@@ -33,11 +33,15 @@ function StatusCard({
           >
             <span className="text-white text-[8px] font-medium">{icon}</span>
           </div>
-          <span className="text-[#111928] text-sm font-semibold">{title}</span>
+          <span className="text-[#111928] dark:text-white text-sm font-semibold">
+            {title}
+          </span>
         </div>
         <div className="flex items-end gap-2">
-          <span className="text-gray-500 text-2xl font-semibold">{count}</span>
-          <span className="text-gray-500 text-xs font-medium mb-1">
+          <span className="text-gray-500 dark:text-white text-2xl font-semibold">
+            {count}
+          </span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-1">
             Activos
           </span>
         </div>
@@ -46,14 +50,21 @@ function StatusCard({
   );
 }
 
-export default function SymptomsCards() {
+export default function SymptomsCards({ showCards }: { showCards: boolean }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className={`px-5 flex flex-col gap-4 overflow-hidden transition-[max-height, padding] ease-in-out duration-300 
+        ${showCards ? "max-h-[500px] pb-5" : "max-h-0 pb-0 "}
+      `}
+    >
       <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
         Síntomas
       </h1>
       <div className="flex flex-col md:flex-row gap-4">
-        <Card className="flex-1" color="white">
+        <Card
+          className={`flex-1 ${showCards ? "animate-shadow-toggle" : ""}`}
+          color="white"
+        >
           <div className="flex items-center gap-2">
             <Image
               className="w-[54px] h-[54px]"

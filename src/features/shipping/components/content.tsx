@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Label, Modal, Textarea, TextInput } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  Pagination,
+  Textarea,
+  TextInput,
+} from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { FC } from "react";
@@ -53,6 +60,16 @@ export default function PageContent({
   const searchParams = useSearchParams();
 
   // Pagination
+
+  // The problem here is that we get data based on the page and page size
+  // but we get data from 2 lists, 1. is the data in process and 2. is the data that is finnished
+  // since this data comes from 2 different sources, i have to bring an x ammount of 1 and x ammount of 2
+  // - so my way of handling this could be to make changes to first display x quantity of 1 untill i reach a page where the
+  //   page returns a < x quantity of elements, in that case i will start displaying the resting elements untill i make
+  //   the x ammount of elements
+
+  // Other approach could be to separate the table view in 2 pages, and add a pagination for each one
+
   const [page, setPage] = useState(1);
   const pageSize = activeView === "kanban" ? 100 : 5;
 
@@ -89,7 +106,7 @@ export default function PageContent({
 
       setList(newBoards);
     }
-  }, [searchTasksData, myTasksData]);
+  }, [searchTasksData, myTasksData, page]);
 
   if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
     router.replace(`/${lang}/sign-in`);
@@ -174,23 +191,35 @@ export default function PageContent({
             ))}
           </div>
         ) : (
-          <TableView
-            set_page={setPage}
-            page={page}
-            pageSize={pageSize}
-            data={transformBoardsToTableData(
-              list.reduce(
-                (acc, board) => {
-                  acc[board.title] = board;
-                  return acc;
-                },
-                {} as Record<string, KanbanBoard>,
-              ),
-            )}
-            dict={dict}
-            lang={lang}
-            data_length={myTasksData?.total}
-          />
+          <>
+            <TableView
+              set_page={setPage}
+              page={page}
+              pageSize={pageSize}
+              data={transformBoardsToTableData(
+                list.reduce(
+                  (acc, board) => {
+                    acc[board.title] = board;
+                    return acc;
+                  },
+                  {} as Record<string, KanbanBoard>,
+                ),
+              )}
+              dict={dict}
+              lang={lang}
+              data_length={myTasksData?.total}
+            />
+            <div className="w-full flex justify-center align-middle mt-auto">
+              <Pagination
+                currentPage={page}
+                totalPages={Math.ceil((myTasksData?.total ?? 100) / pageSize)}
+                onPageChange={(page) => {
+                  setPage(page);
+                }}
+                showIcons
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

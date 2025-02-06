@@ -53,6 +53,7 @@ export async function GeneralTripView({
       varName: "driver2",
     };
   }
+
   return (
     <div className="px-4 pt-6">
       <Breadcrumb
@@ -83,9 +84,6 @@ export async function GeneralTripView({
             task={task as TaskResponse}
             lang={lang}
             entityInfo={undefined /* task as GetEntityInfoResponse */}
-            serviceValidation={
-              undefined /* task as ServiceValidationResponse */
-            }
           />
 
           <div className="h-px bg-gray-300 w-full"></div>

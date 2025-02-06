@@ -22,7 +22,7 @@ export default async function SymptomsPage({
         The reason of why there is no padding here but in the individual elements inside, is because the
         animation of hiding the cards is not working if there is padding.
       */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-y-auto">
         <ClientSymptoms />
       </div>
     </div>

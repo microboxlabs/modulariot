@@ -104,7 +104,7 @@ export default function SymptomsTable({
   showCards: boolean;
 }) {
   return (
-    <div className="px-5 flex flex-col gap-4 w-full">
+    <div className="px-5 pb-5 flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between w-full text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
         Condiciones
         <div className="flex flex-row gap-2 h-full">
@@ -152,7 +152,7 @@ export default function SymptomsTable({
           </Button>
         </div>
       </div>
-      <div className="shadow-md rounded-lg w-full h-fit">
+      <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
         <Table striped className="w-full">
           <TableHead>
             <TableHeadCell>Condición</TableHeadCell>
@@ -170,10 +170,18 @@ export default function SymptomsTable({
           </TableBody>
         </Table>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-gray-500">
+          Mostrando <span className="font-bold">1-10</span> de{" "}
+          <span className="font-bold">1000</span>
+        </p>
         <Pagination
+          layout="pagination"
+          nextLabel=""
+          previousLabel=""
           currentPage={1}
           totalPages={100}
+          showIcons={true}
           onPageChange={() => {
             console.log("ejemplo");
           }}

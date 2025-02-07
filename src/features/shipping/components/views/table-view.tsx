@@ -1,4 +1,4 @@
-import { Pagination, Spinner, Table } from "flowbite-react";
+import { Spinner, Table } from "flowbite-react";
 import { KanbanBoardTask } from "../../types/common.types";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -15,21 +15,10 @@ interface TableViewProps {
   data_length: number | undefined;
 }
 
-export function TableView({
-  data,
-  dict,
-  pageSize,
-  data_length,
-}: TableViewProps) {
-  console.log("data length", data_length);
-  console.log("page size", pageSize);
-  const totalPages = Math.ceil(
-    data_length ? data_length / pageSize : 100 / pageSize,
-  );
-
-  if (data_length && data_length > 0) {
+export function TableView({ data, dict }: TableViewProps) {
+  if (data.length > 0) {
     return (
-      <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col">
+      <div className="overflow-x-auto bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col border-2 border-gray-200 rounded-lg">
         <Table striped>
           <Table.Head>
             <Table.HeadCell>{tr("table.service", dict)}</Table.HeadCell>

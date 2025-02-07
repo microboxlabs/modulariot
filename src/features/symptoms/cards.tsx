@@ -1,3 +1,4 @@
+
 import { Card } from "flowbite-react";
 import Image from "next/image";
 //import alarmImage from "@assets/images/alarm.gif";
@@ -6,54 +7,12 @@ import patchImage from "@assets/images/patch.gif";
 
 import React from "react";
 import ConditionIcon from "./components/condition-icon";
-
-interface StatusCardProps {
-  icon: React.ReactNode;
-  title: string;
-  count: string;
-  variant?: "black" | "critical";
-}
-
-function StatusCard({
-  icon,
-  title,
-  count,
-  variant = "black",
-}: StatusCardProps) {
-  const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
-  const borderColor =
-    variant === "critical" ? "border-rose-700" : "border-black";
-
-  return (
-    <div className="grow p-3 bg-white rounded-lg shadow-md border border-gray-400 dark:bg-gray-900">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-6 h-6 ${bgColor} rounded-full border ${borderColor} flex items-center justify-center`}
-          >
-            <span className="text-white text-[8px] font-medium">{icon}</span>
-          </div>
-          <span className="text-[#111928] dark:text-white text-sm font-semibold">
-            {title}
-          </span>
-        </div>
-        <div className="flex items-end gap-2">
-          <span className="text-gray-500 dark:text-white text-2xl font-semibold">
-            {count}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-1">
-            Activos
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
+import StatusCard from "./components/status-card";
 
 export default function SymptomsCards({ showCards }: { showCards: boolean }) {
   return (
     <div
-      className={`px-5 flex flex-col gap-4 overflow-hidden transition-[max-height, padding] ease-in-out duration-300 
+      className={`pt-2 px-5 flex flex-col gap-4 overflow-hidden transition-[max-height, padding] ease-in-out duration-300 
         ${showCards ? "max-h-[500px] pb-10" : "max-h-0 pb-0 "}
       `}
     >

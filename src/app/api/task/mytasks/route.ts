@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const taskResponses = await Promise.all([
-      ...columns.map((column) =>
-        getUserTasks(session.user.ticket, column, options),
-      ),
+      ...columns.map((column) => {
+        return getUserTasks(session.user.ticket, column, options);
+      }),
       getFinishedWorkflows(session.user.ticket, {
         from: page ? parseInt(page) * parseInt(limit as string) : 0,
         size: limit ? parseInt(limit) : 10,

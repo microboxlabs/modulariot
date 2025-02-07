@@ -39,6 +39,7 @@ export type KanbanBoardTaskMember = {
 };
 
 export type KanbanPageData = {
+  showFinishedTasks: boolean;
   kanbanBoards: KanbanBoard[];
   lang: string;
   // tasks: any;

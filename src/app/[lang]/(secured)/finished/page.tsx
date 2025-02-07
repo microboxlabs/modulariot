@@ -11,7 +11,7 @@ import {
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 
-export default async function ShippingPage({
+export default async function FinishedPage({
   params: { lang },
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
@@ -32,7 +32,7 @@ export default async function ShippingPage({
       <>
         <SseListener />
         <PageContent
-          showFinishedTasks={false}
+          showFinishedTasks={true}
           kanbanBoards={staticData}
           lang={lang}
           dict={(dictionary.pages as I18nRecord)?.shipping as I18nRecord}

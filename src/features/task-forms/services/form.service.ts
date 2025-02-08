@@ -1,5 +1,6 @@
 import {
   MissionControlValidationOutcome,
+  MonitoringInCourseTripOutcome,
   ShippingCoordinatorProcessForms,
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
@@ -37,6 +38,18 @@ export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForm
 
 export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
   "Iniciado Normal";
+
+export const OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Arribo a Destino";
+
+export const OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Salida del Destino";
+
+export const OUTCOME_CONFIRM_DELIVERY: MonitoringInCourseTripOutcome =
+  "Confirmar Entrega";
+
+export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Cierre de Monitoreo";
 
 export const OUTCOME_INITIATION_WITH_OBJECTIONS: MissionControlValidationOutcome =
   "Iniciado Con Reparos";

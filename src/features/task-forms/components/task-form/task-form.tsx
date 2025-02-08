@@ -7,6 +7,9 @@ import {
   TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE,
   TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK,
   TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
+  TYPE_WFSHIP_CONFIRM_DELIVERY,
+  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
@@ -19,6 +22,7 @@ import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresc
 import MissionControlTripInitForm from "../mission-control-trip-init-form/mission-control-trip-init-form";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { GeneralTripView } from "@/features/shipping/components/general-trip-view/general-trip-view";
+import { NextCancelTripView } from "@/features/shipping/components/next-cancel-trip-view/next-cancel-trip-view";
 
 export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -92,7 +96,44 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
 
     case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
       return (
-        <GeneralTripView
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+
+    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_DELIVERY:
+      return (
+        <NextCancelTripView
           lang={lang ?? defaultLocale}
           task={task}
           user={user}

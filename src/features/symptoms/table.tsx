@@ -104,7 +104,7 @@ export default function SymptomsTable({
   showCards: boolean;
 }) {
   return (
-    <div className="px-5 pb-5 flex flex-col gap-4 w-full">
+    <div className="px-5 pb-5 pt-2 flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between w-full text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
         Condiciones
         <div className="flex flex-row gap-2 h-full">

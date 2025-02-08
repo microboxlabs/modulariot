@@ -21,7 +21,6 @@ export default async function TaskEditPage({
     // Get both results upfront
     const taskResult = await getTaskById(session!.user.ticket, taskId);
     let task = taskResult;
-    console.log("task", task);
     if ((typeof task == "string" && task == "null") || task == null) {
       const finishedWorkflows = await getFinishedWorkflows(
         session!.user.ticket,
@@ -35,7 +34,6 @@ export default async function TaskEditPage({
         total: res.total,
       }));
       const taskResponse = finishedWorkflows.tasks.find((t) => t.id === taskId);
-      console.log("taskResponse", taskResponse);
       if (taskResponse) {
         return (
           <div className="overflow-y-auto h-full pb-4">

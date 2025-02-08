@@ -184,7 +184,11 @@
         "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
         "requiresOverlord": "Requires overlord",
         "canceled": "Canceled",
-        "annulled": "Annulled"
+        "annulled": "Annulled",
+        "confirmTripDestinationArrival": "Confirm trip destination arrival",
+        "confirmTripDestinationDeparture": "Confirm trip destination departure",
+        "confirmDelivery": "Confirm delivery",
+        "monitoringFinalization": "Monitoring finalization"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

@@ -40,11 +40,11 @@
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "sovosDigitalSignature": "Firma digital de SOVOS",
         "tripInitiatedOutside": "Viajes iniciados sin coordinación",
-        "monitoringInCourseTrip": "Monitoreo en viaje en curso",
-        "confirmTripDestinationArrival": "Confirmar destino de viaje",
-        "confirmTripDestinationDeparture": "Confirmar destino de viaje",
+        "monitoringInCourseTrip": "Monitorear Viaje Iniciado",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
         "confirmDelivery": "Confirmar entrega",
-        "monitoringFinalization": "Monitoreo finalización",
+        "monitoringFinalization": "Confirmar Cierre de Monitoreo",
         "tripInitiated": "Viaje iniciado",
         "tripNullified": "Viaje anulado",
         "tripCancelled": "Viaje cancelado"
@@ -184,7 +184,11 @@
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelado",
-        "annulled": "Anulado"
+        "annulled": "Anulado",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
+        "confirmDelivery": "Confirmar entrega",
+        "monitoringFinalization": "Confirmar cierre de monitoreo"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

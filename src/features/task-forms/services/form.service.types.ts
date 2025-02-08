@@ -25,6 +25,12 @@ export type MissionControlValidationOutcome =
   | "Anulado"
   | "Cancelado";
 
+export type MonitoringInCourseTripOutcome =
+  | "Confirmar Arribo a Destino"
+  | "Confirmar Salida del Destino"
+  | "Confirmar Entrega"
+  | "Cierre de Monitoreo";
+
 export type SovosDigitalSignatureOutcome =
   | "Devolver a Torre de Control"
   | "Devolver a Validacion de Transporte"
@@ -35,7 +41,8 @@ export type SovosDigitalSignatureOutcome =
 
 export type TaskOutcome =
   | MissionControlValidationOutcome
-  | SovosDigitalSignatureOutcome;
+  | SovosDigitalSignatureOutcome
+  | MonitoringInCourseTripOutcome;
 
 export type ShippingCoordinatorProcessTask =
   | "transportValidation"

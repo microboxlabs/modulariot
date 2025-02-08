@@ -31,12 +31,12 @@
   },
   {
     "id": 8,
-    "title": "confirmTripDestinationDeparture",
+    "title": "confirmDelivery",
     "tasks": []
   },
   {
     "id": 9,
-    "title": "confirmDelivery",
+    "title": "confirmTripDestinationDeparture",
     "tasks": []
   },
   {

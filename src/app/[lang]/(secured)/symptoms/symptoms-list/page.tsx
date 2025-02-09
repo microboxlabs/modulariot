@@ -23,7 +23,7 @@ const test_data = [
   {
     date: "2024-10-31",
   },
-]
+];
 
 export default async function SymptomsList({
   params: { lang },
@@ -67,8 +67,8 @@ export default async function SymptomsList({
           </div>
         </Card>
         <div className="flex flex-col gap-6">
-          {test_data.map((item) => (
-            <SymptomsData date={item.date} />
+          {test_data.map((item, index) => (
+            <SymptomsData key={index} date={item.date} />
           ))}
         </div>
       </div>

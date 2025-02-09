@@ -1,7 +1,8 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
-
+import { twMerge } from "tailwind-merge";
 interface StatusCardProps {
   icon: React.ReactNode;
   title: string;
@@ -18,14 +19,37 @@ export default function StatusCard({
   const router = useRouter();
 
   const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
-  const borderColor = variant === "critical" ? "border-rose-700" : "border-black";
+  const borderColor =
+    variant === "critical" ? "border-rose-700" : "border-black";
 
   return (
-    <div onClick={() => router.push("/symptoms/symptoms-list")} className="grow p-3 bg-white rounded-lg shadow-md border border-gray-400 dark:bg-gray-900 hover:bg-gray-100 active:bg-gray-200 cursor-pointer transition-all duration-300 ease-in-out">
+    <div
+      onClick={() => router.push("/symptoms/symptoms-list")}
+      className={twMerge(
+        "grow p-3",
+        "bg-white",
+        "rounded-lg",
+        "shadow-md",
+        "border",
+        "border-gray-400",
+        "dark:bg-gray-900",
+        "hover:bg-gray-100",
+        "active:bg-gray-200",
+        "cursor-pointer",
+        "transition-all",
+      )}
+    >
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <div
-            className={`w-6 h-6 ${bgColor} rounded-full border ${borderColor} flex items-center justify-center`}
+            className={twMerge(
+              "w-6 h-6",
+              bgColor,
+              "rounded-full",
+              "border",
+              borderColor,
+              "flex items-center justify-center",
+            )}
           >
             <span className="text-white text-[8px] font-medium">{icon}</span>
           </div>

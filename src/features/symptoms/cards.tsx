@@ -1,4 +1,3 @@
-
 import { Card } from "flowbite-react";
 import Image from "next/image";
 //import alarmImage from "@assets/images/alarm.gif";

@@ -33,6 +33,9 @@ export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinator
 export const TYPE_WFSHIP_CONFIRM_DELIVERY: ShippingCoordinatorProcessForms =
   "wfship:confirmDelivery";
 
+export const TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
+  "wfship:confirmMonitoringFinalization";
+
 export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
   "wfship:monitoringFinalization";
 
@@ -48,8 +51,14 @@ export const OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION: MonitoringInCourseTripOut
 export const OUTCOME_CONFIRM_DELIVERY: MonitoringInCourseTripOutcome =
   "Confirmar Entrega";
 
+export const OUTCOME_REDIRECT_TO_MISSION_CONTROL: MonitoringInCourseTripOutcome =
+  "Devolver a Torre de Control";
+
+export const OUTCOME_CONFIRM_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Confirmar Cierre del Monitoreo";
+
 export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
-  "Cierre de Monitoreo";
+  "Cerrar Monitoreo";
 
 export const OUTCOME_INITIATION_WITH_OBJECTIONS: MissionControlValidationOutcome =
   "Iniciado Con Reparos";
@@ -91,6 +100,9 @@ export const TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcess
 export const TASK_CONFIRM_DELIVERY: ShippingCoordinatorProcessTask =
   "confirmDelivery";
 
+export const TASK_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "confirmMonitoringFinalization";
+
 export const TASK_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
   "monitoringFinalization";
 
@@ -121,7 +133,8 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_TRIP_OUTSIDE_INITIATED,
     TASK_MONITORING_IN_COURSE_TRIP,
     TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL,
-    TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
     TASK_CONFIRM_DELIVERY,
+    TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+    TASK_CONFIRM_MONITORING_FINALIZATION,
     TASK_MONITORING_FINALIZATION,
   ];

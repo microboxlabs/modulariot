@@ -9,10 +9,13 @@ import {
   OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
   OUTCOME_MONITORING_FINALIZATION,
   OUTCOME_NORMAL_INITIATION,
+  OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+  OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   TYPE_WFSHIP_CONFIRM_DELIVERY,
   TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL,
   TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
   TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
+  TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -23,7 +26,7 @@ import { useState } from "react";
 import { TaskOutcome } from "../../services/form.service.types";
 import OtherOptions from "./other-options";
 import CanceledAnnulledOptions from "./canceled-annulled-options";
-
+import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
 export default function TaskActions({
   taskId,
   taskType,
@@ -46,7 +49,9 @@ export default function TaskActions({
       outcome !== OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION &&
       outcome !== OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION &&
       outcome !== OUTCOME_CONFIRM_DELIVERY &&
-      outcome !== OUTCOME_MONITORING_FINALIZATION
+      outcome !== OUTCOME_MONITORING_FINALIZATION &&
+      outcome !== OUTCOME_CONFIRM_MONITORING_FINALIZATION &&
+      outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL
     );
   };
 
@@ -156,23 +161,27 @@ export default function TaskActions({
           />
         </div>
       );
-    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
+    case TYPE_WFSHIP_CONFIRM_DELIVERY:
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <Button.Group className="w-full">
-            <CanceledAnnulledOptions
+            <CanceledAnnulledEndOptions
               dict={dict}
               handleSelection={handleSelection}
             />
             <TaskActionButton
               fluid={fluid}
-              label={(dict.outcome as I18nRecord).confirmDelivery as string}
+              label={
+                (dict.outcome as I18nRecord)
+                  .confirmTripDestinationDeparture as string
+              }
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION}
               onClick={() =>
                 handleSelection(
                   OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
-                  (dict.outcome as I18nRecord).confirmDelivery as string,
+                  (dict.outcome as I18nRecord)
+                    .confirmTripDestinationDeparture as string,
                 )
               }
             />
@@ -189,7 +198,44 @@ export default function TaskActions({
           />
         </div>
       );
-    case TYPE_WFSHIP_CONFIRM_DELIVERY:
+    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
+      return (
+        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+          <Button.Group className="w-full">
+            <CanceledAnnulledOptions
+              dict={dict}
+              handleSelection={handleSelection}
+            />
+            <TaskActionButton
+              fluid={fluid}
+              label={
+                (dict.outcome as I18nRecord)
+                  .confirmMonitoringFinalization as string
+              }
+              taskId={taskId}
+              transitionId={OUTCOME_CONFIRM_MONITORING_FINALIZATION}
+              onClick={() =>
+                handleSelection(
+                  OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+                  (dict.outcome as I18nRecord)
+                    .confirmMonitoringFinalization as string,
+                )
+              }
+            />
+          </Button.Group>
+
+          <TaskConfirmModal
+            commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+            dict={dict}
+            taskId={taskId}
+            outcome={outcome!}
+            outcomeLabel={outcomeLabel!}
+            openModal={openModal}
+            setOpenModal={setOpenModal}
+          />
+        </div>
+      );
+    case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <Button.Group className="w-full">

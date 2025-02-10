@@ -2,6 +2,7 @@ export type KanbanBoard = {
   id: number;
   title: string;
   tasks: KanbanBoardTask[];
+  finished: boolean;
 };
 
 export type KanbanBoardTaskResponse = {

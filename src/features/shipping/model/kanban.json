@@ -2,41 +2,49 @@
   {
     "id": 1,
     "title": "transportValidation",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 2,
     "title": "missionControlTripInit",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 3,
     "title": "overlordTripInit",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 4,
     "title": "sovosDigitalSignature",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 5,
     "title": "tripInitiatedOutside",
+    "finished": true,
     "tasks": []
   },
   {
     "id": 6,
     "title": "tripInitiated",
+    "finished": true,
     "tasks": []
   },
   {
     "id": 7,
     "title": "tripNullified",
+    "finished": true,
     "tasks": []
   },
   {
     "id": 8,
     "title": "tripCancelled",
+    "finished": true,
     "tasks": []
   }
 ]

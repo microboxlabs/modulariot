@@ -60,17 +60,6 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Pagination
-
-  // The problem here is that we get data based on the page and page size
-  // but we get data from 2 lists, 1. is the data in process and 2. is the data that is finnished
-  // since this data comes from 2 different sources, i have to bring an x ammount of 1 and x ammount of 2
-  // - so my way of handling this could be to make changes to first display x quantity of 1 untill i reach a page where the
-  //   page returns a < x quantity of elements, in that case i will start displaying the resting elements untill i make
-  //   the x ammount of elements
-
-  // Other approach could be to separate the table view in 2 pages, and add a pagination for each one
-
   const [page, setPage] = useState(1);
   const pageSize = 100;
 
@@ -152,45 +141,56 @@ export default function PageContent({
       >
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
-            {list.map((board) => (
-              <div key={board.id}>
-                <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-                  <div className="flex-1">
-                    {tr(`kanban.${board.title}`, dict)}
+            {list.map((board) => {
+              if (showFinishedTasks) {
+                if (!board.finished) {
+                  return null;
+                }
+              } else {
+                if (board.finished) {
+                  return null;
+                }
+              }
+              return (
+                <div key={board.id}>
+                  <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                    <div className="flex-1">
+                      {tr(`kanban.${board.title}`, dict)}
+                    </div>
+                    <TaskCounter count={countTasks(board.tasks)} dict={dict} />
                   </div>
-                  <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+                  <div className="mb-6 space-y-4">
+                    <ReactSortable
+                      animation={100}
+                      forceFallback
+                      group="kanban"
+                      list={board.tasks}
+                      setList={(tasks: KanbanBoardTask[]) =>
+                        setList((list) => {
+                          const newList = [...list];
+                          const index = newList.findIndex(
+                            (item) => item.id === board.id,
+                          );
+                          newList[index].tasks = tasks;
+                          return newList;
+                        })
+                      }
+                      disabled={true}
+                    >
+                      {board.tasks.map((task) => (
+                        <KanbanCard
+                          key={task.id}
+                          task={task}
+                          dict={dict}
+                          table_name={board.title}
+                        />
+                      ))}
+                    </ReactSortable>
+                  </div>
+                  <AddAnotherCardModal />
                 </div>
-                <div className="mb-6 space-y-4">
-                  <ReactSortable
-                    animation={100}
-                    forceFallback
-                    group="kanban"
-                    list={board.tasks}
-                    setList={(tasks: KanbanBoardTask[]) =>
-                      setList((list) => {
-                        const newList = [...list];
-                        const index = newList.findIndex(
-                          (item) => item.id === board.id,
-                        );
-                        newList[index].tasks = tasks;
-                        return newList;
-                      })
-                    }
-                    disabled={true}
-                  >
-                    {board.tasks.map((task) => (
-                      <KanbanCard
-                        key={task.id}
-                        task={task}
-                        dict={dict}
-                        table_name={board.title}
-                      />
-                    ))}
-                  </ReactSortable>
-                </div>
-                <AddAnotherCardModal />
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white flex flex-col h-full">

@@ -193,7 +193,7 @@ export default function PageContent({
             ))}
           </div>
         ) : (
-          <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col">
+          <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white flex flex-col h-full">
             <TableView
               set_page={setPage}
               page={page}
@@ -213,6 +213,8 @@ export default function PageContent({
             />
             <div className="w-full flex justify-center align-middle mt-auto">
               <Pagination
+                nextLabel=""
+                previousLabel=""
                 currentPage={page}
                 totalPages={Math.ceil((myTasksData?.total ?? 100) / pageSize)}
                 onPageChange={(page) => {

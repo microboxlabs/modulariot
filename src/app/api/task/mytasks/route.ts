@@ -23,30 +23,27 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   const columns = url.searchParams.getAll("columns");
-  const page = url.searchParams.get("page");
-  const limit = url.searchParams.get("limit");
+  const from = url.searchParams.get("from");
+  const size = url.searchParams.get("size");
   const show_finished = url.searchParams.get("showFinished") === "true";
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
   const options = {
-    from: page ? parseInt(page) * parseInt(limit as string) : 0,
-    size: limit ? parseInt(limit) : 10,
+    from: from ? parseInt(from) : 0,
+    size: size ? parseInt(size) : 10,
     filter: undefined,
   };
 
   try {
-    let taskResponses: FastTasksResponse | FinishedWorkflowsResponse = {
-      tasks: [],
-      total: 0,
-    };
+    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse;
 
     if (show_finished) {
       taskResponses = await Promise.all([
         getFinishedWorkflows(session.user.ticket, {
-          from: page ? parseInt(page) * parseInt(limit as string) : 0,
-          size: limit ? parseInt(limit) : 10,
+          from: from ? parseInt(from) : 0,
+          size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
         }).then((res) => ({
           tasks: res.workflows,
@@ -54,11 +51,11 @@ export async function GET(req: NextRequest) {
         })),
       ]);
     } else {
-      taskResponses = await Promise.all([
+      taskResponses = (await Promise.all([
         ...columns.map((column) => {
           return getUserTasks(session.user.ticket, column, options);
         }),
-      ]);
+      ])) as FastTasksResponse[];
     }
 
     taskResponses.forEach((tasks) => {

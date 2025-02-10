@@ -11,9 +11,18 @@ const config: Config = {
     "./public/**/*.html",
     flowbite.content(),
   ],
-  darkMode: 'class', // This is important
+  darkMode: "class", // This is important
   theme: {
     extend: {
+      animation: {
+        "shadow-toggle": "shadow-toggle 0.5s infinite alternate",
+      },
+      keyframes: {
+        "shadow-toggle": {
+          "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },
+          "100%": { boxShadow: "0px 0px 20px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48
+        },
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":

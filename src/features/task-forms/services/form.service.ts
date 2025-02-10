@@ -1,5 +1,6 @@
 import {
   MissionControlValidationOutcome,
+  MonitoringInCourseTripOutcome,
   ShippingCoordinatorProcessForms,
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
@@ -20,8 +21,44 @@ export const TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessForm
 export const TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK: ShippingCoordinatorProcessForms =
   "wfship:tripOutsideInitiatedTask";
 
+export const TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessForms =
+  "wfship:monitoringInCourseTrip";
+
+export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessForms =
+  "wfship:confirmTripDestinationArrival";
+
+export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessForms =
+  "wfship:confirmTripDestinationDeparture";
+
+export const TYPE_WFSHIP_CONFIRM_DELIVERY: ShippingCoordinatorProcessForms =
+  "wfship:confirmDelivery";
+
+export const TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
+  "wfship:confirmMonitoringFinalization";
+
+export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
+  "wfship:monitoringFinalization";
+
 export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
   "Iniciado Normal";
+
+export const OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Arribo a Destino";
+
+export const OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Salida del Destino";
+
+export const OUTCOME_CONFIRM_DELIVERY: MonitoringInCourseTripOutcome =
+  "Confirmar Entrega";
+
+export const OUTCOME_REDIRECT_TO_MISSION_CONTROL: MonitoringInCourseTripOutcome =
+  "Devolver a Torre de Control";
+
+export const OUTCOME_CONFIRM_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Confirmar Cierre del Monitoreo";
+
+export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Cerrar Monitoreo";
 
 export const OUTCOME_INITIATION_WITH_OBJECTIONS: MissionControlValidationOutcome =
   "Iniciado Con Reparos";
@@ -51,6 +88,24 @@ export const TASK_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessTask =
 export const TASK_TRIP_OUTSIDE_INITIATED: ShippingCoordinatorProcessTask =
   "tripOutsideInitiated";
 
+export const TASK_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessTask =
+  "monitoringInCourseTrip";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationArrival";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationDeparture";
+
+export const TASK_CONFIRM_DELIVERY: ShippingCoordinatorProcessTask =
+  "confirmDelivery";
+
+export const TASK_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "confirmMonitoringFinalization";
+
+export const TASK_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "monitoringFinalization";
+
 export const OUTCOME_RETURN_TO_MISSION_CONTROL: SovosDigitalSignatureOutcome =
   "Devolver a Torre de Control";
 
@@ -76,4 +131,10 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_OVERLORD_TRIP_INIT,
     TASK_SOVOS_DIGITAL_SIGNATURE,
     TASK_TRIP_OUTSIDE_INITIATED,
+    TASK_MONITORING_IN_COURSE_TRIP,
+    TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL,
+    TASK_CONFIRM_DELIVERY,
+    TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+    TASK_CONFIRM_MONITORING_FINALIZATION,
+    TASK_MONITORING_FINALIZATION,
   ];

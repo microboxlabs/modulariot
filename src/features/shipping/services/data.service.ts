@@ -6,14 +6,26 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const taskShippingBoardMap: Record<string, string> = {
-  "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
+  // "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
+  "wfship:tripOutsideInitiatedTask": "monitoringFinalization",
   "wfship:transportValidationTask": "transportValidation",
   "wfship:missionControlTripInitTask": "missionControlTripInit",
   "wfship:overlordTripInitTask": "overlordTripInit",
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
-  tripInitiatedWithoutSovos: "tripInitiated",
-  tripInitiated: "tripInitiated",
-  endevent1: "tripInitiated",
+  //tripInitiatedWithoutSovos: "tripInitiated",
+  tripInitiatedWithoutSovos: "monitoringFinalization",
+
+  "wfship:monitoringInCourseTrip": "monitoringInCourseTrip",
+  "wfship:confirmTripDestinationArrival": "confirmTripDestinationArrival",
+  "wfship:confirmTripDestinationDeparture": "confirmTripDestinationDeparture",
+  "wfship:confirmDelivery": "confirmDelivery",
+  "wfship:confirmMonitoringFinalization": "confirmMonitoringFinalization",
+  monitoringFinalization: "monitoringFinalization",
+  //tripInitiated: "tripInitiated",
+  tripInitiated: "monitoringFinalization",
+  //endevent1: "tripInitiated",
+  endevent1: "monitoringFinalization",
+
   tripNullified: "tripNullified",
   tripCanceled: "tripCancelled",
 };

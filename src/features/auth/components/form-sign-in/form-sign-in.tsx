@@ -78,7 +78,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           {msg.forgotPasswordLabel}
         </Link>
       </div>
-      {_state.message && (
+      {_state?.message && (
         <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
       )}
       {/* <div>

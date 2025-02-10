@@ -15,6 +15,7 @@ export type ShippingCoordinatorProcessForms =
   | "wfship:confirmTripDestinationArrival"
   | "wfship:confirmTripDestinationDeparture"
   | "wfship:confirmDelivery"
+  | "wfship:confirmMonitoringFinalization"
   | "wfship:monitoringFinalization";
 
 export type MissionControlValidationOutcome =
@@ -29,7 +30,9 @@ export type MonitoringInCourseTripOutcome =
   | "Confirmar Arribo a Destino"
   | "Confirmar Salida del Destino"
   | "Confirmar Entrega"
-  | "Cierre de Monitoreo";
+  | "Devolver a Torre de Control"
+  | "Confirmar Cierre del Monitoreo"
+  | "Cerrar Monitoreo";
 
 export type SovosDigitalSignatureOutcome =
   | "Devolver a Torre de Control"
@@ -54,6 +57,7 @@ export type ShippingCoordinatorProcessTask =
   | "confirmTripDestinationArrival"
   | "confirmTripDestinationDeparture"
   | "confirmDelivery"
+  | "confirmMonitoringFinalization"
   | "monitoringFinalization";
 
 export type GPSValidityType = "ok" | "warning" | "error";

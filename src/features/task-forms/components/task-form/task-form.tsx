@@ -10,6 +10,7 @@ import {
   TYPE_WFSHIP_CONFIRM_DELIVERY,
   TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
   TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL,
+  TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
@@ -132,6 +133,18 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
         />
       );
     case TYPE_WFSHIP_CONFIRM_DELIVERY:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
       return (
         <NextCancelTripView
           lang={lang ?? defaultLocale}

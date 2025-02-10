@@ -19,6 +19,7 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship:confirmTripDestinationArrival": "confirmTripDestinationArrival",
   "wfship:confirmTripDestinationDeparture": "confirmTripDestinationDeparture",
   "wfship:confirmDelivery": "confirmDelivery",
+  "wfship:confirmMonitoringFinalization": "confirmMonitoringFinalization",
   monitoringFinalization: "monitoringFinalization",
   //tripInitiated: "tripInitiated",
   tripInitiated: "monitoringFinalization",

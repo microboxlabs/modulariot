@@ -64,6 +64,10 @@ export function TableView({ data, dict }: TableViewProps) {
       </div>
     );
   } else {
-    return <Spinner aria-label="Default status example" />;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner aria-label="Default status example" />
+      </div>
+    );
   }
 }

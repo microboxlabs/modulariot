@@ -33,7 +33,7 @@ export default function DepartureDateShip({
         className="mr-1 h-4 w-4"
         color={table_name == "tripInitiated" ? "#155E75" : ""}
       />{" "}
-      {humanizeDate}
+      <p className="whitespace-nowrap">{humanizeDate}</p>
     </div>
   );
 }

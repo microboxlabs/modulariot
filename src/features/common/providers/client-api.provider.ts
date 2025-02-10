@@ -27,8 +27,10 @@ export function useMyTasks(
   limit?: number,
 ) {
   const columnQuery = columns.map((column) => `columns=${column}`).join("&");
-  const paginationQuery =
-    page && limit ? `page=${page - 1}&limit=${limit}` : "";
+
+  const from = page ? (page - 1) * (limit ?? 10) : 0;
+
+  const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
   const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}`;
 
   const { data, error, isLoading } = useSWR<

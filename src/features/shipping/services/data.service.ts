@@ -6,14 +6,26 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const taskShippingBoardMap: Record<string, string> = {
-  "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
+  // "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
+  "wfship:tripOutsideInitiatedTask": "monitoringFinalization",
   "wfship:transportValidationTask": "transportValidation",
   "wfship:missionControlTripInitTask": "missionControlTripInit",
   "wfship:overlordTripInitTask": "overlordTripInit",
   "wfship:sovosDigitalSignature": "sovosDigitalSignature",
-  tripInitiatedWithoutSovos: "tripInitiated",
-  tripInitiated: "tripInitiated",
-  endevent1: "tripInitiated",
+  //tripInitiatedWithoutSovos: "tripInitiated",
+  tripInitiatedWithoutSovos: "monitoringFinalization",
+
+  "wfship:monitoringInCourseTrip": "monitoringInCourseTrip",
+  "wfship:confirmTripDestinationArrival": "confirmTripDestinationArrival",
+  "wfship:confirmTripDestinationDeparture": "confirmTripDestinationDeparture",
+  "wfship:confirmDelivery": "confirmDelivery",
+  "wfship:confirmMonitoringFinalization": "confirmMonitoringFinalization",
+  monitoringFinalization: "monitoringFinalization",
+  //tripInitiated: "tripInitiated",
+  tripInitiated: "monitoringFinalization",
+  //endevent1: "tripInitiated",
+  endevent1: "monitoringFinalization",
+
   tripNullified: "tripNullified",
   tripCanceled: "tripCancelled",
 };
@@ -27,6 +39,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
   const clientCode = task.mintral_customerCode as string;
   const client = task.mintral_clientAbbreviation as string;
   const expectedDepartureDate = task.mintral_expectedDepartureDate as string;
+  const departureDate = task.mintral_departureDate as string;
   return {
     id: task.id as string,
     name,
@@ -41,6 +54,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     serviceKind: task.mintral_serviceKind as string,
     members: [],
     hoReference: task.mintral_hoReference as string,
+    departureDate,
   };
 }
 

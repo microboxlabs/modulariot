@@ -10,7 +10,13 @@ export type ShippingCoordinatorProcessForms =
   | "wfship:missionControlTripInitTask"
   | "wfship:overlordTripInitTask"
   | "wfship:sovosDigitalSignature"
-  | "wfship:tripOutsideInitiatedTask";
+  | "wfship:tripOutsideInitiatedTask"
+  | "wfship:monitoringInCourseTrip"
+  | "wfship:confirmTripDestinationArrival"
+  | "wfship:confirmTripDestinationDeparture"
+  | "wfship:confirmDelivery"
+  | "wfship:confirmMonitoringFinalization"
+  | "wfship:monitoringFinalization";
 
 export type MissionControlValidationOutcome =
   | "Iniciado Normal"
@@ -19,6 +25,14 @@ export type MissionControlValidationOutcome =
   | "Requiere Overlord"
   | "Anulado"
   | "Cancelado";
+
+export type MonitoringInCourseTripOutcome =
+  | "Confirmar Arribo a Destino"
+  | "Confirmar Salida del Destino"
+  | "Confirmar Entrega"
+  | "Devolver a Torre de Control"
+  | "Confirmar Cierre del Monitoreo"
+  | "Cerrar Monitoreo";
 
 export type SovosDigitalSignatureOutcome =
   | "Devolver a Torre de Control"
@@ -30,14 +44,20 @@ export type SovosDigitalSignatureOutcome =
 
 export type TaskOutcome =
   | MissionControlValidationOutcome
-  | SovosDigitalSignatureOutcome;
+  | SovosDigitalSignatureOutcome
+  | MonitoringInCourseTripOutcome;
 
 export type ShippingCoordinatorProcessTask =
   | "transportValidation"
   | "missionControlTripInit"
   | "overlordTripInit"
-  | "overlordTripInit"
   | "sovosDigitalSignature"
-  | "tripOutsideInitiated";
+  | "tripOutsideInitiated"
+  | "monitoringInCourseTrip"
+  | "confirmTripDestinationArrival"
+  | "confirmTripDestinationDeparture"
+  | "confirmDelivery"
+  | "confirmMonitoringFinalization"
+  | "monitoringFinalization";
 
 export type GPSValidityType = "ok" | "warning" | "error";

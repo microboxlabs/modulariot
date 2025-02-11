@@ -52,11 +52,19 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = activeView === "kanban" ? 100 : 5;
+
   const {
     data: myTasksData,
     error: myTasksError,
     isLoading: _1,
-  } = useMyTasks(SHIPPING_COORDINATOR_PROCESS_TASKS);
+  } = useMyTasks(
+    SHIPPING_COORDINATOR_PROCESS_TASKS,
+    activeView === "kanban" ? 1 : page,
+    pageSize,
+  );
 
   const {
     data: searchTasksData,
@@ -78,6 +86,7 @@ export default function PageContent({
         ...board,
         tasks: myTasksData.data[board.title]?.tasks ?? [],
       }));
+
       setList(newBoards);
     }
   }, [searchTasksData, myTasksData]);
@@ -151,7 +160,12 @@ export default function PageContent({
                     disabled={true}
                   >
                     {board.tasks.map((task) => (
-                      <KanbanCard key={task.id} task={task} dict={dict} />
+                      <KanbanCard
+                        key={task.id}
+                        task={task}
+                        dict={dict}
+                        table_name={board.title}
+                      />
                     ))}
                   </ReactSortable>
                 </div>
@@ -161,6 +175,9 @@ export default function PageContent({
           </div>
         ) : (
           <TableView
+            set_page={setPage}
+            page={page}
+            pageSize={pageSize}
             data={transformBoardsToTableData(
               list.reduce(
                 (acc, board) => {
@@ -172,6 +189,7 @@ export default function PageContent({
             )}
             dict={dict}
             lang={lang}
+            data_length={myTasksData?.total}
           />
         )}
       </div>

@@ -35,14 +35,20 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
-        "transportValidation": "Validación de conductor / transporte",
-        "missionControlTripInit": "Torre de control: Iniciar viaje",
+        "transportValidation": "Validación de Conductor / transporte",
+        "missionControlTripInit": "Torre de Control: Iniciar viaje",
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
-        "sovosDigitalSignature": "Firma digital de SOVOS",
+        "sovosDigitalSignature": "Firma Digital de SOVOS",
         "tripInitiatedOutside": "Viajes iniciados sin coordinación",
-        "tripInitiated": "Viaje iniciado",
-        "tripNullified": "Viaje anulado",
-        "tripCancelled": "Viaje cancelado"
+        "monitoringInCourseTrip": "Monitorear Viaje Iniciado",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
+        "confirmDelivery": "Confirmar Entrega",
+        "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "monitoringFinalization": "Monitoreo Finalizado",
+        "tripInitiated": "Viaje Iniciado",
+        "tripNullified": "Viaje Anulado",
+        "tripCancelled": "Viaje Cancelado"
       },
       "card": {
         "origin": "Origen",
@@ -178,8 +184,14 @@
         "initiationWithObjections": "Iniciar viaje con reparos",
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
         "requiresOverlord": "Escalar a superior",
-        "canceled": "Cancelado",
-        "annulled": "Anulado"
+        "canceled": "Cancelar",
+        "annulled": "Anular",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
+        "confirmDelivery": "Confirmar entrega",
+        "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "monitoringFinalization": "Finalizar Monitoreo",
+        "redirectToMissionControl": "Devolver a Torre de Control"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -271,7 +283,8 @@
         "settings": "Ajustes",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
-        "geographicView": "Vista geográfica"
+        "geographicView": "Vista geográfica",
+        "symptoms": "Síntomas"
       }
     }
   },

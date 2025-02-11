@@ -12,7 +12,6 @@ export function LayoutContent({ children }: PropsWithChildren) {
       id="main-content"
       className={twMerge(
         "relative h-full w-full overflow-y-hidden dark:bg-gray-900",
-        sidebar.desktop.isCollapsed ? "lg:ml-16" : "lg:ml-64",
       )}
     >
       {children}

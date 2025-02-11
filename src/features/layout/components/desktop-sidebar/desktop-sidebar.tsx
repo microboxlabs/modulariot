@@ -54,7 +54,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       collapsed={isCollapsed}
       theme={sideBarTheme}
       className={twMerge(
-        "fixed inset-y-0 left-0 z-20 flex h-full bg-white shrink-0 flex-col border-gray-200 pt-16 duration-75 lg:flex dark:border-gray-700",
+        " z-20 flex bg-white shrink-0 flex-col border-gray-200 duration-75 lg:flex dark:border-gray-700 h-full",
         isCollapsed && "hidden w-16",
       )}
       id="sidebar"

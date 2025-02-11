@@ -29,7 +29,7 @@ export default async function FinishedPage({
     //   };
     // });
     return (
-      <>
+      <div className="h-screen w-full overflow-auto mr-5">
         <SseListener />
         <PageContent
           showFinishedTasks={true}
@@ -37,7 +37,7 @@ export default async function FinishedPage({
           lang={lang}
           dict={(dictionary.pages as I18nRecord)?.shipping as I18nRecord}
         />
-      </>
+      </div>
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {

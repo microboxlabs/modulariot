@@ -10,7 +10,7 @@ export function SecuredSidebar({ dict }: PropsWithI18nDict) {
       <div className="lg:hidden">
         <MobileSidebar dict={dict} />
       </div>
-      <div className="hidden lg:block h-full">
+      <div className="hidden lg:block">
         <DesktopSidebar dict={dict} />
       </div>
     </>

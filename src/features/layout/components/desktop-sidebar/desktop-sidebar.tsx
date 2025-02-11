@@ -21,7 +21,10 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { data, error, isLoading: _ } = useMyTasksCount();
 
   const totals: { [key: string]: number } = {};
+
   if (!error) {
+    console.log(data);
+
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
@@ -54,7 +57,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       collapsed={isCollapsed}
       theme={sideBarTheme}
       className={twMerge(
-        " z-20 flex bg-white shrink-0 flex-col border-gray-200 duration-75 lg:flex dark:border-gray-700 h-full",
+        "fixed inset-y-0 left-0 z-20 flex h-full bg-white shrink-0 flex-col border-gray-200 pt-16 duration-75 lg:flex dark:border-gray-700",
         isCollapsed && "hidden w-16",
       )}
       id="sidebar"

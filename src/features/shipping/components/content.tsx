@@ -135,7 +135,10 @@ export default function PageContent({
           />
         </div>
       </div>
-      <div className="flex-grow h-96 w-full overflow-auto mr-5">
+      <div
+        className="h-screen w-full overflow-auto mr-5"
+        style={{ paddingBottom: "200px" }}
+      >
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
             {list.map((board) => {

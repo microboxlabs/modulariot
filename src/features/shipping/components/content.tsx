@@ -1,6 +1,13 @@
 "use client";
 
-import { Button, Label, Modal, Textarea, TextInput } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  Pagination,
+  Textarea,
+  TextInput,
+} from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { FC } from "react";
@@ -43,6 +50,7 @@ import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 
 export default function PageContent({
+  showFinishedTasks,
   kanbanBoards,
   dict,
   lang,
@@ -52,9 +60,8 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Pagination
   const [page, setPage] = useState(1);
-  const pageSize = activeView === "kanban" ? 100 : 5;
+  const pageSize = 100;
 
   const {
     data: myTasksData,
@@ -62,7 +69,8 @@ export default function PageContent({
     isLoading: _1,
   } = useMyTasks(
     SHIPPING_COORDINATOR_PROCESS_TASKS,
-    activeView === "kanban" ? 1 : page,
+    showFinishedTasks,
+    page,
     pageSize,
   );
 
@@ -89,7 +97,7 @@ export default function PageContent({
 
       setList(newBoards);
     }
-  }, [searchTasksData, myTasksData]);
+  }, [searchTasksData, myTasksData, page]);
 
   if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
     router.replace(`/${lang}/sign-in`);
@@ -111,9 +119,9 @@ export default function PageContent({
   };
 
   return (
-    <div className="">
-      <div className="inline-block align-middle h-full relative w-full">
-        <div className="p-5 flex items-center justify-between stiky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
+    <div className="w-full h-full flex flex-col overflow-auto mr-5">
+      <div className="inline-block align-middle relative">
+        <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
             path={["breadcrumb.tasks", "breadcrumb.shipping"]}
             lang={lang}
@@ -133,64 +141,89 @@ export default function PageContent({
       >
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
-            {list.map((board) => (
-              <div key={board.id}>
-                <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
-                  <div className="flex-1">
-                    {tr(`kanban.${board.title}`, dict)}
+            {list.map((board) => {
+              if (showFinishedTasks) {
+                if (!board.finished) {
+                  return null;
+                }
+              } else {
+                if (board.finished) {
+                  return null;
+                }
+              }
+              return (
+                <div key={board.id}>
+                  <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                    <div className="flex-1">
+                      {tr(`kanban.${board.title}`, dict)}
+                    </div>
+                    <TaskCounter count={countTasks(board.tasks)} dict={dict} />
                   </div>
-                  <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+                  <div className="mb-6 space-y-4">
+                    <ReactSortable
+                      animation={100}
+                      forceFallback
+                      group="kanban"
+                      list={board.tasks}
+                      setList={(tasks: KanbanBoardTask[]) =>
+                        setList((list) => {
+                          const newList = [...list];
+                          const index = newList.findIndex(
+                            (item) => item.id === board.id,
+                          );
+                          newList[index].tasks = tasks;
+                          return newList;
+                        })
+                      }
+                      disabled={true}
+                    >
+                      {board.tasks.map((task) => (
+                        <KanbanCard
+                          key={task.id}
+                          task={task}
+                          dict={dict}
+                          table_name={board.title}
+                        />
+                      ))}
+                    </ReactSortable>
+                  </div>
+                  <AddAnotherCardModal />
                 </div>
-                <div className="mb-6 space-y-4">
-                  <ReactSortable
-                    animation={100}
-                    forceFallback
-                    group="kanban"
-                    list={board.tasks}
-                    setList={(tasks: KanbanBoardTask[]) =>
-                      setList((list) => {
-                        const newList = [...list];
-                        const index = newList.findIndex(
-                          (item) => item.id === board.id,
-                        );
-                        newList[index].tasks = tasks;
-                        return newList;
-                      })
-                    }
-                    disabled={true}
-                  >
-                    {board.tasks.map((task) => (
-                      <KanbanCard
-                        key={task.id}
-                        task={task}
-                        dict={dict}
-                        table_name={board.title}
-                      />
-                    ))}
-                  </ReactSortable>
-                </div>
-                <AddAnotherCardModal />
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <TableView
-            set_page={setPage}
-            page={page}
-            pageSize={pageSize}
-            data={transformBoardsToTableData(
-              list.reduce(
-                (acc, board) => {
-                  acc[board.title] = board;
-                  return acc;
-                },
-                {} as Record<string, KanbanBoard>,
-              ),
-            )}
-            dict={dict}
-            lang={lang}
-            data_length={myTasksData?.total}
-          />
+          <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white flex flex-col h-full">
+            <TableView
+              set_page={setPage}
+              page={page}
+              pageSize={pageSize}
+              data={transformBoardsToTableData(
+                list.reduce(
+                  (acc, board) => {
+                    acc[board.title] = board;
+                    return acc;
+                  },
+                  {} as Record<string, KanbanBoard>,
+                ),
+              )}
+              dict={dict}
+              lang={lang}
+              data_length={myTasksData?.total}
+            />
+            <div className="w-full flex justify-center align-middle mt-auto">
+              <Pagination
+                nextLabel=""
+                previousLabel=""
+                currentPage={page}
+                totalPages={Math.ceil((myTasksData?.total ?? 100) / pageSize)}
+                onPageChange={(page) => {
+                  setPage(page);
+                }}
+                showIcons
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

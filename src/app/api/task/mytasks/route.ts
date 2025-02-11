@@ -7,6 +7,10 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { toShippingKanban } from "@/features/shipping/services/data.service";
 import { KanbanBoard } from "@/features/shipping/types/common.types";
+import {
+  FinishedWorkflowsResponse,
+  FastTasksResponse,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -19,31 +23,40 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   const columns = url.searchParams.getAll("columns");
-  const page = url.searchParams.get("page");
-  const limit = url.searchParams.get("limit");
+  const from = url.searchParams.get("from");
+  const size = url.searchParams.get("size");
+  const show_finished = url.searchParams.get("showFinished") === "true";
+
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
   const options = {
-    from: page ? parseInt(page) * parseInt(limit as string) : 0,
-    size: limit ? parseInt(limit) : 10,
+    from: from ? parseInt(from) : 0,
+    size: size ? parseInt(size) : 10,
     filter: undefined,
   };
 
   try {
-    const taskResponses = await Promise.all([
-      ...columns.map((column) =>
-        getUserTasks(session.user.ticket, column, options),
-      ),
-      getFinishedWorkflows(session.user.ticket, {
-        from: page ? parseInt(page) * parseInt(limit as string) : 0,
-        size: limit ? parseInt(limit) : 10,
-        definitionKey: "shippingCoordinatorProcess",
-      }).then((res) => ({
-        tasks: res.workflows,
-        total: res.total,
-      })),
-    ]);
+    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse;
+
+    if (show_finished) {
+      taskResponses = await Promise.all([
+        getFinishedWorkflows(session.user.ticket, {
+          from: from ? parseInt(from) : 0,
+          size: size ? parseInt(size) : 10,
+          definitionKey: "shippingCoordinatorProcess",
+        }).then((res) => ({
+          tasks: res.workflows,
+          total: res.total,
+        })),
+      ]);
+    } else {
+      taskResponses = (await Promise.all([
+        ...columns.map((column) => {
+          return getUserTasks(session.user.ticket, column, options);
+        }),
+      ])) as FastTasksResponse[];
+    }
 
     taskResponses.forEach((tasks) => {
       toShippingKanban(tasks, data);

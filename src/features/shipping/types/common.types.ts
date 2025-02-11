@@ -2,6 +2,7 @@ export type KanbanBoard = {
   id: number;
   title: string;
   tasks: KanbanBoardTask[];
+  finished: boolean;
 };
 
 export type KanbanBoardTaskResponse = {
@@ -39,6 +40,7 @@ export type KanbanBoardTaskMember = {
 };
 
 export type KanbanPageData = {
+  showFinishedTasks: boolean;
   kanbanBoards: KanbanBoard[];
   lang: string;
   // tasks: any;

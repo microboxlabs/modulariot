@@ -20,22 +20,42 @@
     "tasks": []
   },
   {
-    "id": 5,
-    "title": "tripInitiatedOutside",
-    "tasks": []
-  },
-  {
     "id": 6,
-    "title": "tripInitiated",
+    "title": "monitoringInCourseTrip",
     "tasks": []
   },
   {
     "id": 7,
-    "title": "tripNullified",
+    "title": "confirmTripDestinationArrival",
     "tasks": []
   },
   {
     "id": 8,
+    "title": "confirmDelivery",
+    "tasks": []
+  },
+  {
+    "id": 9,
+    "title": "confirmTripDestinationDeparture",
+    "tasks": []
+  },
+  {
+    "id": 10,
+    "title": "confirmMonitoringFinalization",
+    "tasks": []
+  },
+  {
+    "id": 11,
+    "title": "monitoringFinalization",
+    "tasks": []
+  },
+  {
+    "id": 12,
+    "title": "tripNullified",
+    "tasks": []
+  },
+  {
+    "id": 13,
     "title": "tripCancelled",
     "tasks": []
   }

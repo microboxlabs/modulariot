@@ -15,6 +15,8 @@ import {
   /* ServiceValidationResponse, */
   TaskResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import TaskActions from "@/features/task-forms/components/task-actions/task-actions";
+import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -27,7 +29,7 @@ import {
   </Card>
 ); */
 
-export async function GeneralTripView({
+export async function NextCancelTripView({
   task,
   msg,
   lang,
@@ -53,7 +55,6 @@ export async function GeneralTripView({
       varName: "driver2",
     };
   }
-
   return (
     <div className="px-4 pt-6">
       <Breadcrumb
@@ -84,6 +85,9 @@ export async function GeneralTripView({
             task={task as TaskResponse}
             lang={lang}
             entityInfo={undefined /* task as GetEntityInfoResponse */}
+            serviceValidation={
+              undefined /* task as ServiceValidationResponse */
+            }
           />
 
           <div className="h-px bg-gray-300 w-full"></div>
@@ -100,6 +104,19 @@ export async function GeneralTripView({
               <p>{task.mintral_driverObservations as string}</p>
             </div>
           </form>
+          <div className="h-px bg-gray-300 w-full"></div>
+
+          <div className="flex items-center justify-center">
+            <TaskActions
+              taskId={task.id ?? ""}
+              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+              lang={lang}
+              dict={
+                (dictionary.pages as I18nRecord)
+                  .shippingDetailsTaskForm as I18nRecord
+              }
+            />
+          </div>
         </Card>
       </div>
     </div>

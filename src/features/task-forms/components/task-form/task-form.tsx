@@ -6,10 +6,14 @@ import {
   TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK,
   TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE,
   TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK,
+  TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
+  TYPE_WFSHIP_CONFIRM_DELIVERY,
+  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL,
+  TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
-import { notFound } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
@@ -19,6 +23,7 @@ import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresc
 import MissionControlTripInitForm from "../mission-control-trip-init-form/mission-control-trip-init-form";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { GeneralTripView } from "@/features/shipping/components/general-trip-view/general-trip-view";
+import { NextCancelTripView } from "@/features/shipping/components/next-cancel-trip-view/next-cancel-trip-view";
 
 export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -90,7 +95,79 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
         />
       );
 
+    case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+
+    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_DELIVERY:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+    case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
+      return (
+        <NextCancelTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
+
     default:
-      return notFound();
+      return (
+        <GeneralTripView
+          lang={lang ?? defaultLocale}
+          task={task}
+          user={user}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+        />
+      );
   }
 }

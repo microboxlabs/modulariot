@@ -40,6 +40,12 @@
         "overlordTripInit": "Overlord - Start Trip (Confirmation)",
         "sovosDigitalSignature": "SOVOS Digital Signature",
         "tripInitiatedOutside": "Trip Initiated without coordination",
+        "monitoringInCourseTrip": "Monitoring in course trip",
+        "confirmTripDestinationArrival": "Confirm trip destination arrival",
+        "confirmTripDestinationDeparture": "Confirm trip destination departure",
+        "confirmDelivery": "Confirm delivery",
+        "confirmMonitoringFinalization": "Confirm monitoring finalization",
+        "monitoringFinalization": "Monitoring Finalized",
         "tripInitiated": "Trip Initiated",
         "tripNullified": "Trip Nullified",
         "tripCancelled": "Trip Cancelled"
@@ -178,8 +184,14 @@
         "initiationWithObjections": "Init trip with objections",
         "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
         "requiresOverlord": "Requires overlord",
-        "canceled": "Canceled",
-        "annulled": "Annulled"
+        "canceled": "To Canceled",
+        "annulled": "To Annulled",
+        "confirmTripDestinationArrival": "Confirm trip destination arrival",
+        "confirmTripDestinationDeparture": "Confirm trip destination departure",
+        "confirmDelivery": "Confirm Delivery",
+        "confirmMonitoringFinalization": "Confirm Monitoring Finalization",
+        "monitoringFinalization": "Monitoring Finalized",
+        "redirectToMissionControl": "Redirect to Mission Control"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -267,7 +279,8 @@
         "settings": "Settings",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
-        "geographicView": "Geographic view"
+        "geographicView": "Geographic view",
+        "symptoms": "Symptoms"
       }
     }
   },

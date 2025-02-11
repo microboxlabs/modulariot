@@ -1,3 +1,4 @@
+"use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { fromString } from "@/features/common/services/days.service";
 import EllipseIcon from "@/features/icons/ellipse";
@@ -6,16 +7,27 @@ import CheckCircleIcon from "@/features/icons/check-circle";
 import ErrorCircleIcon from "@/features/icons/error-circle";
 import ExclamationIcon from "@/features/icons/exclamation";
 import GpsValidationItem from "../gps-validation-item/gps-validation-item";
+import { useGetServiceValidation } from "@/features/common/providers/client-api.provider";
 
 export default function TripInformation({
   lang,
   task,
   msg,
-  serviceValidation,
 }: DriverVerifiedCardProps) {
   const eta = fromString(task.mintral_estimatedArrivalDate as string);
   const etd = fromString(task.mintral_estimatedDepartureDate as string);
+  const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
+    useGetServiceValidation(task?.mintral_serviceCode as string);
 
+  const isError = (value?: {
+    v_01eval?: number;
+    v_02eval?: number;
+    v_03eval?: number;
+  }) =>
+    serviceValidation?.error ||
+    value?.v_01eval == -1 ||
+    value?.v_02eval == -1 ||
+    value?.v_03eval == -1;
   return (
     <div>
       <h5 className="text-sm font-medium leading-loose dark:text-white text-gray-900">
@@ -44,6 +56,7 @@ export default function TripInformation({
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">
         <div className="flex gap-2">
+          {isError(serviceValidation?.v_01) && <EllipseIcon />}
           {serviceValidation?.v_01?.v_01eval === 1 && <CheckCircleIcon />}
           {serviceValidation?.v_01?.v_01eval === 2 && <ExclamationIcon />}
           {serviceValidation?.v_01?.v_01eval === 3 && <ErrorCircleIcon />}
@@ -52,6 +65,7 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
+          {isError(serviceValidation?.v_02) && <EllipseIcon />}
           {serviceValidation?.v_02?.v_02eval === 1 && <CheckCircleIcon />}
           {serviceValidation?.v_02?.v_02eval === 2 && <ExclamationIcon />}
           {serviceValidation?.v_02?.v_02eval === 3 && <ErrorCircleIcon />}
@@ -60,7 +74,7 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
-          {serviceValidation?.error && <EllipseIcon />}
+          {isError(serviceValidation?.v_03) && <EllipseIcon />}
           {serviceValidation?.v_03?.v_03eval === 1 && <CheckCircleIcon />}
           {serviceValidation?.v_03?.v_03eval === 2 && <ExclamationIcon />}
           {serviceValidation?.v_03?.v_03eval === 3 && <ErrorCircleIcon />}

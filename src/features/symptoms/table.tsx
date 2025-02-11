@@ -31,6 +31,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
+    status: "pia@mintral.com"
   },
   {
     condition: "critic",
@@ -41,6 +42,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
+    status: null
   },
   {
     condition: "treatment",
@@ -51,6 +53,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
+    status: null
   },
   {
     condition: "stable",
@@ -61,6 +64,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
+    status: "johnny.green@mintral.com"
   },
   {
     condition: "compromised",
@@ -71,6 +75,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
+    status: null,
   },
   /*
   {
@@ -162,6 +167,7 @@ export default function SymptomsTable({
             <TableHeadCell>Fecha de salida</TableHeadCell>
             <TableHeadCell>Servicio</TableHeadCell>
             <TableHeadCell>Tipo de alerta</TableHeadCell>
+            <TableHeadCell>Estado</TableHeadCell>
           </TableHead>
           <TableBody className="divide-y">
             {data.map((item) => (

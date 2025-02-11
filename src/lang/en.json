@@ -186,6 +186,7 @@
         "requiresOverlord": "Requires overlord",
         "canceled": "To Canceled",
         "annulled": "To Annulled",
+        "continue": "Continue",
         "confirmTripDestinationArrival": "Confirm trip destination arrival",
         "confirmTripDestinationDeparture": "Confirm trip destination departure",
         "confirmDelivery": "Confirm Delivery",

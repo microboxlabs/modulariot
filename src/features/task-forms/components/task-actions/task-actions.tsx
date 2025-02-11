@@ -134,17 +134,13 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord)
-                  .confirmTripDestinationDeparture as string
-              }
+              label={(dict.outcome as I18nRecord).confirmDelivery as string}
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_DELIVERY}
               onClick={() =>
                 handleSelection(
                   OUTCOME_CONFIRM_DELIVERY,
-                  (dict.outcome as I18nRecord)
-                    .confirmTripDestinationDeparture as string,
+                  (dict.outcome as I18nRecord).confirmDelivery as string,
                 )
               }
             />

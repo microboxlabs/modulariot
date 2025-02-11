@@ -24,55 +24,45 @@
     "tasks": []
   },
   {
-<<<<<<< HEAD
-    "id": 5,
-    "title": "tripInitiatedOutside",
-    "finished": true,
-    "tasks": []
-  },
-  {
-    "id": 6,
-    "title": "tripInitiated",
-    "finished": true,
-=======
     "id": 6,
     "title": "monitoringInCourseTrip",
->>>>>>> origin/based/develop
+    "finished": false,
     "tasks": []
   },
   {
     "id": 7,
-<<<<<<< HEAD
-    "title": "tripNullified",
-    "finished": true,
-=======
     "title": "confirmTripDestinationArrival",
->>>>>>> origin/based/develop
+    "finished": false,
     "tasks": []
   },
   {
     "id": 8,
     "title": "confirmDelivery",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 9,
     "title": "confirmTripDestinationDeparture",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 10,
     "title": "confirmMonitoringFinalization",
+    "finished": false,
     "tasks": []
   },
   {
     "id": 11,
     "title": "monitoringFinalization",
+    "finished": true,
     "tasks": []
   },
   {
     "id": 12,
     "title": "tripNullified",
+    "finished": true,
     "tasks": []
   },
   {

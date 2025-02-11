@@ -119,9 +119,9 @@ export default function PageContent({
   };
 
   return (
-    <div className="">
-      <div className="inline-block align-middle h-full relative w-full">
-        <div className="p-5 flex items-center justify-between stiky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
+    <div className="w-full h-full flex flex-col overflow-auto mr-5">
+      <div className="inline-block align-middle relative">
+        <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
             path={["breadcrumb.tasks", "breadcrumb.shipping"]}
             lang={lang}
@@ -135,10 +135,7 @@ export default function PageContent({
           />
         </div>
       </div>
-      <div
-        className="h-screen w-full overflow-auto mr-5"
-        style={{ paddingBottom: "200px" }}
-      >
+      <div className="flex-grow h-96 w-full overflow-auto mr-5">
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
             {list.map((board) => {

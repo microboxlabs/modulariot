@@ -63,7 +63,7 @@ export default function TaskActions({
             <OtherOptions dict={dict} handleSelection={handleSelection} />
             <TaskActionButton
               fluid={fluid}
-              label={(dict.outcome as I18nRecord).normalInitiation as string}
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_NORMAL_INITIATION}
               onClick={() =>
@@ -96,10 +96,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord)
-                  .confirmTripDestinationArrival as string
-              }
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION}
               onClick={() =>
@@ -134,7 +131,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={(dict.outcome as I18nRecord).confirmDelivery as string}
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_DELIVERY}
               onClick={() =>
@@ -167,10 +164,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord)
-                  .confirmTripDestinationDeparture as string
-              }
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION}
               onClick={() =>
@@ -204,10 +198,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord)
-                  .confirmMonitoringFinalization as string
-              }
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_CONFIRM_MONITORING_FINALIZATION}
               onClick={() =>
@@ -241,9 +232,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              label={
-                (dict.outcome as I18nRecord).monitoringFinalization as string
-              }
+              label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={OUTCOME_MONITORING_FINALIZATION}
               onClick={() =>

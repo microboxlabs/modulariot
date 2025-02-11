@@ -125,7 +125,7 @@ export default function TaskActions({
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <Button.Group className="w-full">
-            <CanceledAnnulledOptions
+            <CanceledAnnulledEndOptions
               dict={dict}
               handleSelection={handleSelection}
             />

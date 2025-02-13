@@ -6,6 +6,7 @@ import Image from "next/image";
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import { Card } from "flowbite-react";
 import SideInfo from "@/features/symptoms/side-info";
+import MapVisualization from "@/features/geographic-view/components/map-visualization";
 
 export default async function SymptomsList({
   params: { lang },
@@ -51,7 +52,8 @@ export default async function SymptomsList({
           <SideInfo />
         </div>
         {/* Map */}
-        <div className="w-full h-full rounded-lg">
+        <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <MapVisualization specific_view={true} />
         </div>
       </div>
     </div>

@@ -19,13 +19,13 @@ export default function ExpandableButton({ icon, title, children, description }:
         {React.cloneElement(icon, { className: `transition-all duration-200 bg-white border rounded-md border-gray-300 ${isExpanded ? " w-9 h-9 px-2" : "w-10 h-10 p-2 "}` })}
         <div className="flex flex-col">
           <h1 className="text-md font-bold">{title}</h1>
-          <p className={`text-sm text-gray-500 overflow-hidden transition-all duration-200 ${isExpanded ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>
+          <p className={`text-sm text-gray-500 overflow-hidden transition-all duration-100 ${isExpanded ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>
             {description}
           </p>
         </div>
       </div>
       {/* Content */}
-      <div className={`transition-all duration-200 ${isExpanded ? "max-h-[500px] opacity-100 mt-4" : "pointer-events-none max-h-0 opacity-0"}`}>
+      <div className={`transition-all duration-100 ${isExpanded ? "mt-4 animate-show" : "pointer-events-none animate-hide"}`}>
         {children}
       </div>
     </div >

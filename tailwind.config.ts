@@ -16,8 +16,19 @@ const config: Config = {
     extend: {
       animation: {
         "shadow-toggle": "shadow-toggle 0.5s infinite alternate",
+        "hide": "hide 0.2s ease-in-out forwards",
+        "show": "show 0.2s ease-in-out forwards",
       },
       keyframes: {
+        "hide": {
+          "0%": { opacity: "1", display: "block", maxHeight: "100%" },
+          "50%": { opacity: "0", display: "none", maxHeight: "50%" },
+          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+        },
+        "show": {
+          "0%": { opacity: "0", display: "none", maxHeight: "0" },
+          "100%": { opacity: "1", display: "block", maxHeight: "100%" },
+        },
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },
           "100%": { boxShadow: "0px 0px 20px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48

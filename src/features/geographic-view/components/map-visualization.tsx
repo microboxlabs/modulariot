@@ -12,7 +12,8 @@ import SideBar from "./side-bar/side-bar";
 import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-
+import { useMapPositions } from "../hooks/use-map-positions";
+import { MapPosition } from "../types/map";
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -46,7 +47,7 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
 };
 
-const GenerateRandomPositions = (numberOfPositions: number) => {
+/* const GenerateRandomPositions = (numberOfPositions: number) => {
   return Array.from({ length: numberOfPositions }, () => ({
     longitude: Math.random() * 360 - 180,
     latitude: Math.random() * 180 - 90,
@@ -54,7 +55,7 @@ const GenerateRandomPositions = (numberOfPositions: number) => {
   }));
 };
 
-const positions = GenerateRandomPositions(1000);
+const positions = GenerateRandomPositions(1000); */
 
 /* INDIVIDUAL POSITION TEST */
 const individual_position_test = [
@@ -67,7 +68,7 @@ const individual_position_test = [
 
 const states = ["stable", "critical", "code black", "none"];
 
-const generateRandomPulsarPositions = (count: number) => {
+/* const generateRandomPulsarPositions = (count: number) => {
   return Array.from({ length: count }, () => ({
     state: states[Math.floor(Math.random() * states.length)],
     geometry: {
@@ -80,7 +81,7 @@ const generateRandomPulsarPositions = (count: number) => {
 };
 
 // Example usage
-const pulsar_position_test = generateRandomPulsarPositions(100000);
+const pulsar_position_test = generateRandomPulsarPositions(100000); */
 
 const stateToColor = {
   "code black": [0, 0, 0], // Black
@@ -94,7 +95,7 @@ const stateToColor = {
 };
 
 // Convert the data to GeoJSON
-const geoJson = {
+/* const geoJson = {
   type: "FeatureCollection",
   features: pulsar_position_test.map((item) => ({
     type: "Feature",
@@ -106,7 +107,7 @@ const geoJson = {
       color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0], // Default to black if state is unknown
     },
   })),
-};
+}; */
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
@@ -116,13 +117,33 @@ type MapVisualizationProps = {
 export default function MapVisualization({
   specific_view = false,
 }: MapVisualizationProps) {
-  const [rotation, setRotation] = useState(0); // Add rotation state
+  const [rotation, setRotation] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+  const { positions: mapPositions, loading, error } = useMapPositions();
+
+  // Transform API data to GeoJSON format
+  const geoJson = React.useMemo(() => ({
+    type: "FeatureCollection",
+    features: mapPositions?.map((item: MapPosition) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [item.longitude, item.latitude],
+      },
+      properties: {
+        color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
+        rotation: 0,//item.rotation,
+        licensePlate: item.asset_id,//item.licensePlate,
+        driver: item.driver_id,//item.driver,
+        trip: item.trip_id,//item.trip,
+      },
+    })) || [],
+  }), [mapPositions]);
 
   const layers = !specific_view
     ? [
       new PinLayer({
-        data: positions,
+        data: mapPositions || [],
         zoom: viewState.zoom,
         rotation,
       }),
@@ -133,11 +154,22 @@ export default function MapVisualization({
         rotation,
       }),
       new PinLayer({
-        data: individual_position_test,
+        data: mapPositions || [],
         zoom: viewState.zoom,
         rotation,
       }),
     ];
+
+  if (loading) {
+    return <div className="h-full w-full flex items-center justify-center">
+      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+    </div>;
+  }
+
+  if (error) {
+    console.error('Map error:', error);
+    // Continue rendering with empty data instead of showing error
+  }
 
   return (
     <div className="h-full w-full relative overflow-hidden">

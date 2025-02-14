@@ -1,14 +1,7 @@
 "use client";
 
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
-import {
-  HiCheck,
-  HiOutlineHand,
-  HiOutlineArrowLeft,
-  HiTrash,
-  HiChevronUp,
-} from "react-icons/hi";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { HiCheck, HiOutlineHand, HiChevronUp } from "react-icons/hi";
 import React, { useState, useEffect } from "react";
 
 export default function BlurrableDropdown() {
@@ -83,11 +76,7 @@ export default function BlurrableDropdown() {
         }}
       >
         {other_options.map(({ id, label, icon: Icon }) => (
-          <DropdownItem
-            key={id}
-            className="flex gap-1 w-full"
-            onClick={() => { console.log("open option:" + label) }}
-          >
+          <DropdownItem key={id} className="flex gap-1 w-full">
             <Icon />
             {label}
           </DropdownItem>

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Map from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import { PinLayer } from "./pin_layer_clustered";
@@ -10,6 +9,7 @@ import MapButton from "./map-button";
 import SideBar from "./side-bar/side-bar";
 import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
+import Map from "react-map-gl";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -55,31 +55,13 @@ const GenerateRandomPositions = (numberOfPositions: number) => {
 const positions = GenerateRandomPositions(1000);
 
 /* INDIVIDUAL POSITION TEST */
-const individual_position_test = [{
-  longitude: -70.668505,
-  latitude: -33.439764,
-  rotation: 0,
-}];
-
-// code black
-// critic
-// treatment
-// stable
-// compromised
-// observation
-// remission
-
-// -33.434983, -70.668934
-// -33.436523, -70.668762
-// -33.439603, -70.668462
-// -33.442575, -70.667947
-// -33.442145, -70.665115
-// -33.442933, -70.661853
-// -33.443005, -70.660480
-// 33.445691, -70.660737
-// -33.450704, -33.454560
-// -33.457210, -70.656789
-// -33.460393, -70.657034
+const individual_position_test = [
+  {
+    longitude: -70.668505,
+    latitude: -33.439764,
+    rotation: 0,
+  },
+];
 
 const states = ["stable", "critical", "code black", "none"];
 
@@ -89,7 +71,7 @@ const generateRandomPulsarPositions = (count: number) => {
     geometry: {
       coordinates: [
         Math.random() * 360 - 180, // Random longitude
-        Math.random() * 180 - 90,  // Random latitude
+        Math.random() * 180 - 90, // Random latitude
       ],
     },
   }));
@@ -106,7 +88,7 @@ const stateToColor = {
   compromised: [190, 18, 60], // Rose 100
   observation: [190, 18, 60], // Rose 100
   remission: [13, 148, 136], // Green
-  "none": [180, 180, 180], // Gray for null state
+  none: [180, 180, 180], // Gray for null state
 };
 
 // Convert the data to GeoJSON
@@ -116,12 +98,12 @@ const geoJson = {
     type: "Feature",
     geometry: {
       type: "Point",
-      coordinates: item.geometry.coordinates
+      coordinates: item.geometry.coordinates,
     },
     properties: {
-      color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0] // Default to black if state is unknown
-    }
-  }))
+      color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0], // Default to black if state is unknown
+    },
+  })),
 };
 
 console.log(geoJson);
@@ -131,28 +113,31 @@ type MapVisualizationProps = {
   specific_view?: boolean;
 };
 
-export default function MapVisualization({ specific_view = false }: MapVisualizationProps) {
+export default function MapVisualization({
+  specific_view = false,
+}: MapVisualizationProps) {
   const [rotation, setRotation] = useState(0); // Add rotation state
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
 
-
-  const layers = !specific_view ? [
-    new PinLayer({
-      data: positions,
-      zoom: viewState.zoom,
-      rotation,
-    }),
-  ] : [
-    new PulsePinLayer({
-      data: geoJson,
-      rotation,
-    }),
-    new PinLayer({
-      data: individual_position_test,
-      zoom: viewState.zoom,
-      rotation,
-    }),
-  ];
+  const layers = !specific_view
+    ? [
+      new PinLayer({
+        data: positions,
+        zoom: viewState.zoom,
+        rotation,
+      }),
+    ]
+    : [
+      new PulsePinLayer({
+        data: geoJson,
+        rotation,
+      }),
+      new PinLayer({
+        data: individual_position_test,
+        zoom: viewState.zoom,
+        rotation,
+      }),
+    ];
 
   return (
     <div className="h-full w-full relative overflow-hidden">
@@ -173,62 +158,59 @@ export default function MapVisualization({ specific_view = false }: MapVisualiza
           }}
           mapStyle={mapboxStyles["satellite-v9"]}
         />
-        {
-          !specific_view ? (
-            <div className="w-full h-full flex justify-between absolute">
-              <div className="m-5 gap-[14px] flex flex-col">
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es un texto de ejemplo"
-                />
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es otro texto de ejemplo"
-                />
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es el ultimo texto de ejemplo aaaaa"
-                />
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es el ultimo texto de ejemplo aaaaa"
-                />
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es el ultimo texto de ejemplo aaaaa"
-                />
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={HiChevronLeft}
-                  text="Este es el ultimo texto de ejemplo aaaaa"
-                />
-              </div>
-              <SideBar />
+        {!specific_view ? (
+          <div className="w-full h-full flex justify-between absolute">
+            <div className="m-5 gap-[14px] flex flex-col">
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es un texto de ejemplo"
+              />
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es otro texto de ejemplo"
+              />
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es el ultimo texto de ejemplo aaaaa"
+              />
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es el ultimo texto de ejemplo aaaaa"
+              />
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es el ultimo texto de ejemplo aaaaa"
+              />
+              <MapButton
+                main_color="bg-white dark:bg-gray-800"
+                button_color="bg-white dark:bg-gray-800"
+                icon={HiChevronLeft}
+                text="Este es el ultimo texto de ejemplo aaaaa"
+              />
             </div>
-          )
-            : (
-              <div className="w-full h-full flex items-end absolute p-5 flex-col">
-                <MapButton
-                  main_color="bg-white dark:bg-gray-800"
-                  button_color="bg-white dark:bg-gray-800"
-                  icon={BsStars}
-                  text="Copilot"
-                  open_to_left={true}
-                />
-              </div>
-            )
-        }
+            <SideBar />
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-end absolute p-5 flex-col">
+            <MapButton
+              main_color="bg-white dark:bg-gray-800"
+              button_color="bg-white dark:bg-gray-800"
+              icon={BsStars}
+              text="Copilot"
+              open_to_left={true}
+            />
+          </div>
+        )}
       </DeckGL>
 
       {/* Rotation test elements */}

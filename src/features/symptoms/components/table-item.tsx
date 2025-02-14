@@ -58,20 +58,16 @@ export default function TableItem({ data }: { data: TableItemType }) {
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         <div className="flex items-center gap-2">
-          {
-            data.status != null ? (
-              <p className=" bg-gray-200 rounded-md p-2 text-gray-900 dark:text-white">
-                {data.status}
-              </p>
-            ) : (
-              <Button onClick={() => router.push("/symptoms/map-view")}>
-                <p>
-                  Diagnosticar
-                </p>
-                <HiArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            )
-          }
+          {data.status != null ? (
+            <p className=" bg-gray-200 rounded-md p-2 text-gray-900 dark:text-white">
+              {data.status}
+            </p>
+          ) : (
+            <Button onClick={() => router.push("/symptoms/map-view")}>
+              <p>Diagnosticar</p>
+              <HiArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>

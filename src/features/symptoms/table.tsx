@@ -31,7 +31,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
-    status: "pia@mintral.com"
+    status: "pia@mintral.com",
   },
   {
     condition: "critic",
@@ -42,7 +42,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
-    status: null
+    status: null,
   },
   {
     condition: "treatment",
@@ -53,7 +53,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
-    status: null
+    status: null,
   },
   {
     condition: "stable",
@@ -64,7 +64,7 @@ const data = [
     date: "2025-01-01 12:00:00",
     service: "V1406865",
     alertType: "Conducción máxima continua",
-    status: "johnny.green@mintral.com"
+    status: "johnny.green@mintral.com",
   },
   {
     condition: "compromised",

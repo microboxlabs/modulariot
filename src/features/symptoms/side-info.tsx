@@ -8,7 +8,6 @@ import { Conditions } from "./components/table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 import { Button } from "flowbite-react";
 import BlurrableDropdown from "./components/blurrable-dropdown";
-import { HiCheck } from "react-icons/hi";
 
 const data = {
   trip: {
@@ -38,7 +37,7 @@ const data = {
       gestion: "Torre de control",
       assigned_to: "pia@mintral.com",
       gestion_time: "00:00:00",
-    }
+    },
   ],
   timeline: [
     {
@@ -49,15 +48,15 @@ const data = {
           start: "2025-01-01 12:00:00",
           end: "2025-01-01 12:30:00",
           condition: "code black",
-          description: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          description: "Mensaje de ejemplo de descripción.",
         },
         {
           start: "2025-01-01 12:00:00",
           end: "2025-01-01 12:30:00",
           condition: "code black",
-          description: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          description: "Mensaje de ejemplo de descripción.",
         },
-      ]
+      ],
     },
     {
       date: "2025-02-12",
@@ -67,9 +66,9 @@ const data = {
           start: "2025-02-12 10:00:00",
           end: "2025-02-12 10:30:00",
           condition: "critic",
-          description: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          description: "Mensaje de ejemplo de descripción.",
         },
-      ]
+      ],
     },
     {
       date: "2025-02-12",
@@ -79,10 +78,11 @@ const data = {
           start: "2025-02-12 10:00:00",
           end: "2025-02-12 10:30:00",
           condition: "critic",
-          description: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          description: "Mensaje de ejemplo de descripción.",
         },
-      ]
-    }, {
+      ],
+    },
+    {
       date: "2025-02-12",
       assigned_to: "juan@mintral.com",
       items: [
@@ -90,11 +90,11 @@ const data = {
           start: "2025-02-12 10:00:00",
           end: "2025-02-12 10:30:00",
           condition: "critic",
-          description: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          description: "Mensaje de ejemplo de descripción.",
         },
-      ]
+      ],
     },
-  ]
+  ],
 };
 
 function formatDate(date: Date): string {
@@ -122,14 +122,13 @@ function calculateDuration(startTime: string): string {
   if (diffInMinutes < 60) {
     return `${diffInMinutes} min`;
   } else if (diffInHours < 24) {
-    return `${diffInHours} hr${diffInHours > 1 ? 's' : ''}`;
+    return `${diffInHours} hr${diffInHours > 1 ? "s" : ""}`;
   } else {
-    return `${diffInDays} day${diffInDays > 1 ? 's' : ''}`;
+    return `${diffInDays} day${diffInDays > 1 ? "s" : ""}`;
   }
 }
 
 export default function SideInfo() {
-
   return (
     <div className="flex flex-col gap-5 p-10 h-full">
       <div className="flex flex-col gap-2 h-[90%] overflow-y-auto">
@@ -139,9 +138,16 @@ export default function SideInfo() {
           description="Información relevante de la detección de anomalías."
         >
           <div className="flex flex-col gap-2">
-            <div className={`flex flex-row items-center gap-2 p-1 rounded-md ${Conditions[data.trip.condition as keyof typeof Conditions].bgColor}`}>
+            <div
+              className={`flex flex-row items-center gap-2 p-1 rounded-md ${Conditions[data.trip.condition as keyof typeof Conditions].bgColor}`}
+            >
               <ConditionIcon condition={data.trip.condition} size="h-7 w-7" />
-              <p className={`text-sm font-medium ${Conditions[data.trip.condition as keyof typeof Conditions].textColor}`}>{new Date(data.trip.date).toLocaleString().split(",")[1]}<span className="text-gray-400 text-xs">{" " + data.trip.licensePlate}</span></p>
+              <p
+                className={`text-sm font-medium ${Conditions[data.trip.condition as keyof typeof Conditions].textColor}`}>{new Date(data.trip.date).toLocaleString().split(",")[1]}
+                <span className="text-gray-400 text-xs">
+                  {" " + data.trip.licensePlate}
+                </span>
+              </p>
             </div>
             <p className="text-sm">
               Síntoma observado: <span className="text-gray-500">{data.trip.alertType}</span>

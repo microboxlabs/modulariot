@@ -23,8 +23,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const totals: { [key: string]: number } = {};
 
   if (!error) {
-    console.log(data);
-
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);

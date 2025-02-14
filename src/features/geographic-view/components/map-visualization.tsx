@@ -39,7 +39,7 @@ type ViewStateType = {
 const INITIAL_VIEW_STATE: ViewStateType = {
   longitude: -70.668505,
   latitude: -33.439764,
-  zoom: 10,
+  zoom: 6.5,
   pitch: 0,
   bearing: 0,
   transitionDuration: 1000,
@@ -121,6 +121,21 @@ export default function MapVisualization({
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const { positions: mapPositions, loading, error } = useMapPositions();
 
+  // Set initial view state when data is first received
+  React.useEffect(() => {
+    if (mapPositions && mapPositions.length > 0 && INITIAL_VIEW_STATE.zoom == 6.5) {
+      const firstPosition = mapPositions[0];
+      const newViewState = {
+        ...INITIAL_VIEW_STATE,
+        longitude: firstPosition.longitude,
+        latitude: firstPosition.latitude,
+        zoom: 6.5, // Slightly closer zoom to see the vehicle better
+        transitionDuration: 2000,
+      };
+      setViewState(newViewState);
+    }
+  }, [mapPositions]);
+
   // Transform API data to GeoJSON format
   const geoJson = React.useMemo(() => ({
     type: "FeatureCollection",
@@ -132,13 +147,15 @@ export default function MapVisualization({
       },
       properties: {
         color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
-        rotation: 0,//item.rotation,
+        rotation: item.heading || 0,//item.rotation,
         licensePlate: item.asset_id,//item.licensePlate,
         driver: item.driver_id,//item.driver,
         trip: item.trip_id,//item.trip,
       },
     })) || [],
   }), [mapPositions]);
+
+
 
   const layers = !specific_view
     ? [
@@ -174,7 +191,7 @@ export default function MapVisualization({
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        initialViewState={INITIAL_VIEW_STATE}
+        viewState={viewState}
         controller={true}
         layers={layers}
         onViewStateChange={({ viewState }) =>
@@ -183,17 +200,13 @@ export default function MapVisualization({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          initialViewState={{
-            longitude: 0.45,
-            latitude: 51.47,
-            zoom: 10,
-          }}
+          viewState={viewState}
           mapStyle={mapboxStyles["satellite-v9"]}
         />
         {!specific_view ? (
           <div className="w-full h-full flex justify-between absolute">
             <div className="m-5 gap-[14px] flex flex-col">
-              <MapButton
+              {/* <MapButton
                 main_color="bg-white dark:bg-gray-800"
                 button_color="bg-white dark:bg-gray-800"
                 icon={HiChevronLeft}
@@ -228,7 +241,7 @@ export default function MapVisualization({
                 button_color="bg-white dark:bg-gray-800"
                 icon={HiChevronLeft}
                 text="Este es el ultimo texto de ejemplo aaaaa"
-              />
+              /> */}
             </div>
             <SideBar />
           </div>

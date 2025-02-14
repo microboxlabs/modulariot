@@ -123,7 +123,7 @@ export default function MapVisualization({
 
   // Set initial view state when data is first received
   React.useEffect(() => {
-    if (mapPositions && mapPositions.length > 0 && INITIAL_VIEW_STATE.zoom == 6.5) {
+    if (mapPositions && mapPositions.length > 0) {
       const firstPosition = mapPositions[0];
       const newViewState = {
         ...INITIAL_VIEW_STATE,
@@ -132,6 +132,7 @@ export default function MapVisualization({
         zoom: 6.5, // Slightly closer zoom to see the vehicle better
         transitionDuration: 2000,
       };
+      console.log("View state updated:", newViewState);
       setViewState(newViewState);
     }
   }, [mapPositions]);
@@ -147,7 +148,7 @@ export default function MapVisualization({
       },
       properties: {
         color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
-        rotation: item.heading || 0,//item.rotation,
+        rotation: (item.heading * (180 / Math.PI)),//item.rotation,
         licensePlate: item.asset_id,//item.licensePlate,
         driver: item.driver_id,//item.driver,
         trip: item.trip_id,//item.trip,

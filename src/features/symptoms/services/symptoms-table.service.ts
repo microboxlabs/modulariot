@@ -14,9 +14,12 @@ export class SymptomsTableService {
   }: GetTableParams = {}): Promise<SymptomTableResponse> {
     const params = new URLSearchParams({
       page: page.toString(),
-      pageSize: pageSize.toString(),
-      ...(search && { search }),
+      limit: pageSize.toString(),
     });
+
+    if (search) {
+      params.set("search", search.trim());
+    }
 
     const response = await fetch(`/app/api/symptoms/table?${params}`);
 

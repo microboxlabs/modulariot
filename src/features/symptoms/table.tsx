@@ -9,6 +9,7 @@ import {
   Button,
   TextInput,
   Label,
+  Dropdown,
 } from "flowbite-react";
 import TableItem from "./components/table-item";
 import { HiSearch } from "react-icons/hi";
@@ -16,7 +17,7 @@ import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { FaFilter } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { useSymptomsTable } from "./hooks/use-symptoms-table";
-import { useState } from "react";
+import { useRef, useState } from "react";
 // Condition can be:
 // - code black
 // - critic
@@ -30,8 +31,11 @@ export default function SymptomsTable({
   setShowCards: (showCards: boolean) => void;
   showCards: boolean;
 }) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [condition, setCondition] = useState<string>("");
   const pageSize = 10;
 
   const { tableData, loading, error } = useSymptomsTable({
@@ -85,17 +89,41 @@ export default function SymptomsTable({
                 name="search"
                 placeholder="Search"
                 type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                ref={searchInputRef}
+                autoFocus
               />
             </form>
-            <Button
-              className="justify-self-end flex justify-center items-center h-10 w-10"
-              color="gray"
+            <Dropdown
+              label=""
+              renderTrigger={() => (
+                <Button
+                  className="justify-self-end flex justify-center items-center h-10 w-10"
+                  color="gray"
+                >
+                  <FaFilter />
+                </Button>
+              )}
             >
-              <FaFilter />
-            </Button>
+              <Dropdown.Header>
+                <span className="block text-sm">Filtrar por condición</span>
+              </Dropdown.Header>
+              <Dropdown.Item onClick={() => setCondition("code black")}>Código Negro</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("critic")}>Crítico</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("treatment")}>Tratamiento</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("stable")}>Estable</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("observation")}>Observación</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("remission")}>Remisión</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("compromised")}>Comprometido</Dropdown.Item>
+            </Dropdown>
             <Button
               className="justify-self-end flex justify-center items-center h-10 w-10"
               color="gray"
+              onClick={() => {
+                setCondition("");
+                setSearchTerm("");
+              }}
             >
               <FaArrowsRotate />
             </Button>

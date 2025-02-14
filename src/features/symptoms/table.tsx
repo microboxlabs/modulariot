@@ -65,8 +65,8 @@ export default function SymptomsTable({
   }
 
   // Calculate display ranges safely
-  const startItem = ((tableData?.pagination.currentPage - 1) * pageSize) + 1;
-  const endItem = Math.min(tableData?.pagination.currentPage * pageSize, tableData?.pagination.totalPages);
+  const startItem = tableData?.pagination.currentPage ? ((tableData?.pagination.currentPage - 1) * pageSize) + 1 : 0;
+  const endItem = tableData?.pagination.currentPage ? Math.min(tableData?.pagination.currentPage * pageSize, tableData?.pagination.totalPages) : 0;
 
   return (
     <div className="px-5 pb-5 pt-2 flex flex-col gap-4 w-full">
@@ -162,7 +162,7 @@ export default function SymptomsTable({
       </div>
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-500">
-          {tableData?.pagination.totalPages > 0 ? (
+          {tableData && tableData?.pagination.totalPages > 0 ? (
             <>
               Mostrando <span className="font-bold">{startItem}-{endItem}</span> de{" "}
               <span className="font-bold">{tableData?.pagination.totalPages}</span>
@@ -171,7 +171,7 @@ export default function SymptomsTable({
             "No hay resultados"
           )}
         </p>
-        {tableData?.pagination.totalPages > 0 && (
+        {tableData && tableData?.pagination.totalPages > 0 && (
           <Pagination
             layout="pagination"
             nextLabel=""

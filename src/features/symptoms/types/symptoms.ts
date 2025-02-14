@@ -21,4 +21,12 @@ export interface SymptomTableResponse {
   total: number;
   page: number;
   pageSize: number;
+  pagination: SymptomTablePagination;
+}
+
+export interface SymptomTablePagination {
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  limit: number;
 }

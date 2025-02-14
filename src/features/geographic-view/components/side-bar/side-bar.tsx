@@ -10,11 +10,11 @@ const inner_menu = [
   {
     button_text: "Monitoring",
     component: Monitoring,
-  },
+  },/* ,
   {
     button_text: "Symptoms",
     component: Symptoms,
-  },
+  }, */
   {
     button_text: "Download",
     component: Download,

@@ -151,6 +151,7 @@ export default function SymptomsTable({
             <TableHeadCell>Fecha de salida</TableHeadCell>
             <TableHeadCell>Servicio</TableHeadCell>
             <TableHeadCell>Tipo de alerta</TableHeadCell>
+            <TableHeadCell>Estado</TableHeadCell>
           </TableHead>
           <TableBody className="divide-y">
             {tableData?.data.map((item, index) => (

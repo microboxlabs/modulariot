@@ -15,6 +15,7 @@ export type TableItemType = {
   date: string;
   service: string;
   alertType: string;
+  status: string | null;
 };
 
 export type Condition = {

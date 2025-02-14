@@ -1,8 +1,14 @@
-import { TableRow, TableCell } from "flowbite-react";
+"use client";
+
+import { TableRow, TableCell, Button } from "flowbite-react";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
+import { HiArrowRight } from "react-icons/hi";
+import { useRouter } from "next/navigation";
 
 export default function TableItem({ data }: { data: TableItemType }) {
+  const router = useRouter();
+
   return (
     <TableRow
       className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
@@ -47,6 +53,22 @@ export default function TableItem({ data }: { data: TableItemType }) {
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.alertType}
+      </TableCell>
+      <TableCell
+        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+      >
+        <div className="flex items-center gap-2">
+          {data.status != null ? (
+            <p className=" bg-gray-200 rounded-md p-2 text-gray-900 dark:text-white">
+              {data.status}
+            </p>
+          ) : (
+            <Button onClick={() => router.push("/symptoms/map-view")}>
+              <p>Diagnosticar</p>
+              <HiArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          )}
+        </div>
       </TableCell>
     </TableRow>
   );

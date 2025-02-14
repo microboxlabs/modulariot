@@ -16,7 +16,12 @@ export default async function SymptomsList({
     <div className="pb-5 flex flex-col h-full w-full bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "symptoms", "Urgent Symptoms", "Form: code black"]}
+          path={[
+            "Control Tower",
+            "symptoms",
+            "Urgent Symptoms",
+            "Form: code black",
+          ]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}

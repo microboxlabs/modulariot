@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable */
+
 import React, { useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
@@ -106,9 +108,7 @@ const geoJson = {
   })),
 };
 
-console.log(geoJson);
 /* INDIVIDUAL POSITION TEST */
-
 type MapVisualizationProps = {
   specific_view?: boolean;
 };

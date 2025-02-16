@@ -29,7 +29,9 @@ export function useSymptomsTable({
         setTableData(data);
       } catch (err) {
         setError(
-          err instanceof Error ? err : new Error("Failed to fetch symptoms table"),
+          err instanceof Error
+            ? err
+            : new Error("Failed to fetch symptoms table"),
         );
       } finally {
         setLoading(false);
@@ -44,4 +46,4 @@ export function useSymptomsTable({
     loading,
     error,
   };
-} 
+}

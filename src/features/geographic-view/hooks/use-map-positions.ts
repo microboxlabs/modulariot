@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { MapService } from "../services/map.service";
 import { MapPosition } from "../types/map";
 
-export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
+export function useMapPositions(pollingInterval = 30000) {
+  // 30 seconds default
   const [positions, setPositions] = useState<MapPosition[] | null>(null);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -10,7 +11,7 @@ export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
 
   useEffect(() => {
     let mounted = true;
-    let intervalId: NodeJS.Timeout;
+    let intervalId: ReturnType<typeof setInterval>;
 
     async function fetchPositions() {
       try {
@@ -22,7 +23,12 @@ export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err : new Error("Failed to fetch map positions"));
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Failed to fetch map positions"),
+          );
+          // eslint-disable-next-line no-console
           console.error("Map positions fetch error:", err);
         }
       } finally {
@@ -46,4 +52,4 @@ export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
   }, [pollingInterval]);
 
   return { positions, count, loading, error };
-} 
+}

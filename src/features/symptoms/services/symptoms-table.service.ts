@@ -29,4 +29,4 @@ export class SymptomsTableService {
 
     return response.json() as Promise<SymptomTableResponse>;
   }
-} 
+}

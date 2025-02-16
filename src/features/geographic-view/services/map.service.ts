@@ -6,9 +6,9 @@ export class MapService {
     if (!response.ok) {
       throw new Error("Failed to fetch map positions");
     }
-    const data = await response.json() as MapPosition[];
+    const data = (await response.json()) as MapPosition[];
 
-    return data.map(position => {
+    return data.map((position) => {
       const [longitude, latitude] = this.parseWKBPoint(position.location);
       return {
         ...position,
@@ -30,14 +30,15 @@ export class MapService {
 
       return [longitude, latitude];
     } catch (error) {
-      console.error('Error parsing WKB point:', error);
+      // eslint-disable-next-line no-console
+      console.error("Error parsing WKB point:", error);
       return [-70.668505, -33.439764]; // Santiago, Chile
     }
   }
 
   private static hexToDouble(hex: string): number {
     // Reverse byte order for little-endian
-    const bytes = hex.match(/../g)?.reverse().join('') || '';
+    const bytes = hex.match(/../g)?.reverse().join("") || "";
     // Convert to binary buffer and read as float64
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
@@ -48,4 +49,4 @@ export class MapService {
 
     return view.getFloat64(0, false); // false for big-endian
   }
-} 
+}

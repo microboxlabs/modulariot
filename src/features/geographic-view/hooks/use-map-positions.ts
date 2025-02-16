@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { MapService } from "../services/map.service";
-import { MapPosition, MapResponse } from "../types/map";
+import { MapPosition } from "../types/map";
 
 export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
   const [positions, setPositions] = useState<MapPosition[] | null>(null);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -16,6 +17,7 @@ export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
         const data = await MapService.getPositions();
         if (mounted) {
           setPositions(data);
+          setCount(data.length);
           setError(null);
         }
       } catch (err) {
@@ -43,5 +45,5 @@ export function useMapPositions(pollingInterval = 30000) { // 30 seconds default
     };
   }, [pollingInterval]);
 
-  return { positions, loading, error };
+  return { positions, count, loading, error };
 } 

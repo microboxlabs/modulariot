@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useRef, useState } from "react";
 import {
   Table,
   TableHead,
@@ -14,10 +15,8 @@ import {
 import TableItem from "./components/table-item";
 import { HiSearch } from "react-icons/hi";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
-import { FaFilter } from "react-icons/fa";
-import { FaArrowsRotate } from "react-icons/fa6";
+import { FaFilter, FaArrowsRotate } from "react-icons/fa6";
 import { useSymptomsTable } from "./hooks/use-symptoms-table";
-import { useRef, useState } from "react";
 // Condition can be:
 // - code black
 // - critic
@@ -32,10 +31,9 @@ export default function SymptomsTable({
   showCards: boolean;
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
-
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [condition, setCondition] = useState<string>("");
+  const [_condition, setCondition] = useState<string>("");
   const pageSize = 10;
 
   const { tableData, loading, error } = useSymptomsTable({
@@ -51,73 +49,87 @@ export default function SymptomsTable({
     setCurrentPage(1);
   };
 
-  // Handle page change safely
   const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, tableData?.pagination.totalPages || 0)));
+    setCurrentPage(
+      Math.max(1, Math.min(page, tableData?.pagination.totalPages || 0)),
+    );
   };
 
   if (loading) {
-    return <div className="h-full w-full flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-    </div>
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    );
   }
 
   if (error) {
     return <div className="p-4 text-red-500">Error: {error.message}</div>;
   }
 
-  // Calculate display ranges safely
-  const startItem = tableData?.pagination.currentPage ? ((tableData?.pagination.currentPage - 1) * pageSize) + 1 : 0;
-  const endItem = tableData?.pagination.currentPage ? Math.min(tableData?.pagination.currentPage * pageSize, tableData?.pagination.totalPages) : 0;
+  const startItem = tableData?.pagination.currentPage
+    ? (tableData?.pagination.currentPage - 1) * pageSize + 1
+    : 0;
+
+  const endItem = tableData?.pagination.currentPage
+    ? Math.min(
+        tableData?.pagination.currentPage * pageSize,
+        tableData?.pagination.totalPages,
+      )
+    : 0;
 
   return (
     <div className="px-5 pb-5 pt-2 flex flex-col gap-4 w-full">
-      <div className="flex flex-row justify-between w-full text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Condiciones
-        <div className="flex flex-row gap-2 h-full">
-          <div
-            className={`flex flex-row gap-2 h-full overflow-hidden transition-all duration-300 
-              ${!showCards ? "max-w-[1000px]" : "max-w-0"}
-            `}
-          >
-            <form onSubmit={handleSearch} className="hidden lg:block">
-              <Label htmlFor="search" className="sr-only">
-                Search
-              </Label>
-              <TextInput
-                className="w-full"
-                icon={HiSearch}
-                id="search"
-                name="search"
-                placeholder="Search"
-                type="search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                ref={searchInputRef}
-                autoFocus
-              />
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-2 items-center">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <div>
+                <Label htmlFor="search" className="sr-only">
+                  Search
+                </Label>
+                <TextInput
+                  id="search"
+                  name="search"
+                  type="search"
+                  ref={searchInputRef}
+                  icon={HiSearch}
+                  placeholder="Buscar..."
+                  required
+                  className="w-full"
+                />
+              </div>
             </form>
             <Dropdown
               label=""
+              className="!p-0"
               renderTrigger={() => (
-                <Button
-                  className="justify-self-end flex justify-center items-center h-10 w-10"
-                  color="gray"
-                >
-                  <FaFilter />
+                <Button color="gray">
+                  <FaFilter className="h-4 w-4" />
                 </Button>
               )}
             >
-              <Dropdown.Header>
-                <span className="block text-sm">Filtrar por condición</span>
-              </Dropdown.Header>
-              <Dropdown.Item onClick={() => setCondition("code black")}>Código Negro</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("critic")}>Crítico</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("treatment")}>Tratamiento</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("stable")}>Estable</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("observation")}>Observación</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("remission")}>Remisión</Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("compromised")}>Comprometido</Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("code black")}>
+                Código Negro
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("critic")}>
+                Crítico
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("treatment")}>
+                Tratamiento
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("stable")}>
+                Estable
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("observation")}>
+                Observación
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("remission")}>
+                Remisión
+              </Dropdown.Item>
+              <Dropdown.Item onClick={() => setCondition("compromised")}>
+                Comprometido
+              </Dropdown.Item>
             </Dropdown>
             <Button
               className="justify-self-end flex justify-center items-center h-10 w-10"
@@ -166,8 +178,14 @@ export default function SymptomsTable({
         <p className="text-sm text-gray-500">
           {tableData && tableData?.pagination.totalPages > 0 ? (
             <>
-              Mostrando <span className="font-bold">{startItem}-{endItem}</span> de{" "}
-              <span className="font-bold">{tableData?.pagination.totalPages}</span>
+              Mostrando{" "}
+              <span className="font-bold">
+                {startItem}-{endItem}
+              </span>{" "}
+              de{" "}
+              <span className="font-bold">
+                {tableData?.pagination.totalPages}
+              </span>
             </>
           ) : (
             "No hay resultados"

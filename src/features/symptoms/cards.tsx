@@ -12,9 +12,11 @@ export default function SymptomsCards({ showCards }: { showCards: boolean }) {
 
   // Handle loading and error states
   if (loading) {
-    return <div className="h-full w-full flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-    </div>
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    );
   }
 
   if (error) {

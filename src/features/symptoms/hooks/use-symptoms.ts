@@ -10,7 +10,7 @@ export function useSymptoms(pollingInterval = 30000) {
 
   useEffect(() => {
     let mounted = true;
-    let intervalId: NodeJS.Timeout;
+    let intervalId: ReturnType<typeof setInterval>;
 
     async function fetchSymptoms() {
       try {
@@ -24,7 +24,9 @@ export function useSymptoms(pollingInterval = 30000) {
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err : new Error("Failed to fetch symptoms"));
+          setError(
+            err instanceof Error ? err : new Error("Failed to fetch symptoms"),
+          );
           console.error("Symptoms fetch error:", err);
         }
       } finally {

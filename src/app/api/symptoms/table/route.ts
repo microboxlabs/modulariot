@@ -7,7 +7,6 @@ import {
   AuthToken,
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-import { SymptomsTableRequest } from "./route.types";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -31,7 +30,7 @@ export async function GET(req: NextRequest) {
   params.set("page", url.searchParams.get("page") ?? "1");
   params.set("limit", url.searchParams.get("limit") ?? "10");
   if (url.searchParams.get("search")) {
-    params.set("service", url.searchParams.get("search") ?? "");
+    params.set("service", url.searchParams.get("service") ?? "");
   }
   if (url.searchParams.get("condition")) {
     params.set("condition", url.searchParams.get("condition") ?? "");
@@ -41,15 +40,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const token = await authToken.getToken();
-    const response = await fetch(
-      SYMPTOMS_API_URL + "?" + params.toString(),
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: ` Bearer ${token}`,
-        },
+    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
+      headers: {
+        accept: "application/json",
+        Authorization: ` Bearer ${token}`,
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -58,7 +54,6 @@ export async function GET(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error(error);
     return NextResponse.json(
       {
         error: "Failed to fetch symptoms data",

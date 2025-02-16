@@ -39,11 +39,6 @@ export function useSymptomsTable({
     fetchTableData();
   }, [page, pageSize, search]);
 
-  // Ensure we always have valid pagination values
-  /* const currentPage = tableData?.page || page;
-  const total = tableData?.total || 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize)); */
-
   return {
     tableData,
     loading,

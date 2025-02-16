@@ -14,6 +14,7 @@ export interface SymptomTableItem {
   date: string;
   service: string;
   alertType: string;
+  status: string;
 }
 
 export interface SymptomTableResponse {

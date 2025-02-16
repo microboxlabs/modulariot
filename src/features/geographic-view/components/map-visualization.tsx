@@ -31,6 +31,14 @@ type ViewStateType = {
   zoom: number;
   pitch: number;
   bearing: number;
+  padding: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  width: number;
+  height: number;
   transitionDuration?: number;
   transitionInterpolator?: FlyToInterpolator;
   transitionEasing?: (t: number) => number;
@@ -45,6 +53,14 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   transitionDuration: 1000,
   transitionInterpolator: new FlyToInterpolator(),
   transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+  padding: {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  width: 100,
+  height: 100,
 };
 
 /* const GenerateRandomPositions = (numberOfPositions: number) => {

@@ -137,7 +137,7 @@ export default function PageContent({
       </div>
       <div
         className="h-screen w-full overflow-auto mr-5"
-        style={{ paddingBottom: "200px" }}
+        style={{ paddingBottom: "20px" }}
       >
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">

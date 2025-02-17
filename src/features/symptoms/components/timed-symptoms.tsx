@@ -76,7 +76,7 @@ export default function TimedSymptoms({ initial_state = false, dict }: { initial
                   16:33:12 hrs
                 </span>
               </p>
-              <p className="text-gray-900 dark:text-white" >
+              <p className="text-gray-900 dark:text-white">
                 {dict.symptoms.contact}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">
                   +56 9 8348 5032
@@ -84,7 +84,9 @@ export default function TimedSymptoms({ initial_state = false, dict }: { initial
               </p>
               <p className="text-gray-900 dark:text-white">
                 {dict.symptoms.type_of_load}:{" "}
-                <span className="text-gray-500 dark:text-gray-400">{dict.symptoms.ramp}</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {dict.symptoms.ramp}
+                </span>
               </p>
               <p className="text-gray-900 dark:text-white">
                 {dict.symptoms.other}:{" "}
@@ -95,7 +97,12 @@ export default function TimedSymptoms({ initial_state = false, dict }: { initial
             </div>
             {/* Diagnose button */}
             <div className="flex flex-row gap-2 w-full justify-end">
-              <Button color="blue" onClick={() => router.push("/symptoms/map-view")}>{dict.symptoms.diagnose}</Button>
+              <Button 
+                color="blue" 
+                onClick={() => router.push("/symptoms/map-view")}
+              >
+                {dict.symptoms.diagnose}
+              </Button>
             </div>
           </div>
         ))}

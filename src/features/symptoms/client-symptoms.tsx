@@ -9,8 +9,15 @@ export default function ClientSymptoms({ dict }: { dict: any }) {
 
   return (
     <div className="flex flex-col">
-      <SymptomsCards showCards={showCards} dict={dict} />
-      <SymptomsTable setShowCards={setShowCards} showCards={showCards} dict={dict} />
+      <SymptomsCards 
+        showCards={showCards} 
+        dict={dict} 
+      />
+      <SymptomsTable 
+        setShowCards={setShowCards} 
+        showCards={showCards} 
+        dict={dict} 
+      />
     </div>
   );
 }

@@ -100,8 +100,8 @@ export class PinLayer extends CompositeLayer<any> {
     }
 
     const getIconSize = (count: number) => {
-      const baseSize = Math.min(100, count) / 100 + 1;
-      return count > 1 ? baseSize * 100 : 70;
+      const baseSize = Math.min(70, count) / 70 + 1;
+      return count > 1 ? baseSize * 70 : 50;
     };
 
     return [

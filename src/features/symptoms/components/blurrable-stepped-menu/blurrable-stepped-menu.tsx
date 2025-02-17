@@ -136,47 +136,47 @@ export default function BlurrableSteppedMenu({
         {/*Left data*/}
         <div className="w-3/6 h-full !flex flex-col gap-2 p-2">
           {side_sections.map((section, section_index) => (
+            <div
+              key={section.title}
+              className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
+                ${selected_section == section_index
+                ? "bg-gray-100 dark:bg-gray-700"
+                : "bg-white dark:bg-gray-800 opacity-30"
+                }`}
+              onClick={() => {
+                updateSelectedSection(section_index);
+              }}
+            >
+              <p className="text-sm mb-2 text-gray-900 dark:text-white">{section.title}</p>
+              {section.elements.map((element, inner_index) => (
               <div
-                key={section.title}
-                className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
-                  ${selected_section == section_index
-                  ? "bg-gray-100 dark:bg-gray-700"
-                  : "bg-white dark:bg-gray-800 opacity-30"
-                  }`}
-                onClick={() => {
-                  updateSelectedSection(section_index);
-                }}
-              >
-                <p className="text-sm mb-2 text-gray-900 dark:text-white">{section.title}</p>
-                {section.elements.map((element, inner_index) => (
-                <div
-                    className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                    selected_section == section_index
+                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                    : selected_elements[selected_section] > inner_index &&
                       selected_section == section_index
-                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                      : selected_elements[selected_section] > inner_index &&
-                        selected_section == section_index
-                        ? "text-gray-900 dark:text-white"
-                        : "opacity-30 text-gray-900 dark:text-white"
-                      }`}
-                    key={inner_index}
-                  >
-                    <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
-                      {element.logo ? (
-                        element.logo
-                      ) : (
-                        <p>{inner_index + 1}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <h1 className="text-sm font-medium">
-                        {element.element_name}
-                      </h1>
-                      <p className="text-xs font-light text-gray-500 dark:text-gray-400">
-                        {element.description}
-                      </p>
-                    </div>
+                      ? "text-gray-900 dark:text-white"
+                      : "opacity-30 text-gray-900 dark:text-white"
+                    }`}
+                  key={inner_index}
+                >
+                  <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
+                    {element.logo ? (
+                      element.logo
+                    ) : (
+                      <p>{inner_index + 1}</p>
+                    )}
                   </div>
-                ))}
+                  <div className="flex flex-col">
+                    <h1 className="text-sm font-medium">
+                      {element.element_name}
+                    </h1>
+                    <p className="text-xs font-light text-gray-500 dark:text-gray-400">
+                      {element.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>

@@ -49,11 +49,11 @@ const data = {
           value: 102,
         },
         {
-          key: "Calidad de señal (vehículos)",
+          key: "Calidad de señal de vehículos (spm)",
           value: 17,
         },
         {
-          key: "Retraso de señal (vehículos)",
+          key: "Retraso de señal de vehículos (seg)",
           value: 793,
         },
         {

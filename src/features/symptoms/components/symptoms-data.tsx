@@ -44,10 +44,15 @@ function getRelativeDayText(date: Date, lang: string): string {
   if (diffDays > 0) {
     return lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`;
   }
-  return lang === "es" ? `Hace ${Math.abs(diffDays)} días` : `In ${Math.abs(diffDays)} days`;
+
+  if (lang == "es") {
+    return `Hace ${Math.abs(diffDays)} días`;
+  }
+
+  return `In ${Math.abs(diffDays)} days`;
 }
 
-export default function SymptomsData({ 
+export default function SymptomsData({
   date,
   container_index,
   dict,
@@ -58,11 +63,8 @@ export default function SymptomsData({
   dict: any;
   lang: string;
 }) {
-
   const [year, month, day] = date.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
-
-  const [total_symptoms, setTotalSymptoms] = useState(0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -94,7 +96,10 @@ export default function SymptomsData({
             </div>
           </div>
           <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms dict={dict} initial_state={index === 0 && container_index === 0} />
+            <TimedSymptoms 
+              dict={dict} 
+              initial_state={index === 0 && container_index === 0} 
+            />
           </div>
         </div>
       ))}

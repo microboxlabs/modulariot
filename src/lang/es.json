@@ -365,6 +365,22 @@
     "load_type": "Tipo de carga",
     "recommended_prescription": "Prescripción recomendada",
     "message_to_communicate": "Mensaje a comunicar.",
-    "message_to_the_driver": "Escribe un mensaje para el conductor."
+    "message_to_the_driver": "Escribe un mensaje para el conductor.",
+    "trips": "Viajes",
+    "plates": "Patentes",
+    "incidents": "Incidencias",
+    "processed_distance": "Distancia procesada",
+    "average_duration_in_km": "Duración promedio en KM",
+    "movement_per_minute": "Movimiento por minuto",
+    "delay": "Retraso",
+    "total_co2": "Total CO2",
+    "methane": "Metano",
+    "nitrous_oxide": "Oxido de Nitroso",
+    "tank_to_tank": "Pozo a tanque",
+    "total_fleet": "Flota total",
+    "signals": "Señales",
+    "downloadable_elements": "Elementos descargables",
+    "screenshot": "Captura de pantalla",
+    "svg_document": "Documento SVG"
   }
 }

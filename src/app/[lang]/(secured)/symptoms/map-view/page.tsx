@@ -19,7 +19,6 @@ export default async function SymptomsList({
           path={[
             "Control Tower",
             "symptoms",
-            "symptoms-list",
             "map-view",
           ]}
           lang={lang}
@@ -54,11 +53,11 @@ export default async function SymptomsList({
       <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
         {/* Side information */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <SideInfo dict={dict} />
+          <SideInfo dict={dict} lang={lang} />
         </div>
         {/* Map */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <MapVisualization specific_view={true} />
+          <MapVisualization dict={dict} specific_view={true} />
         </div>
       </div>
     </div>

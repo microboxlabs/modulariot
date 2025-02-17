@@ -69,11 +69,13 @@ export default function SymptomsCards({ showCards, dict }: { showCards: boolean,
           </div>
           <div className="flex gap-3">
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="code black" size="h-8 w-8" />}
               title={dict.symptoms.code_black}
               count={codeBlack.toString().padStart(2, "0")}
             />
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="critic" size="h-8 w-8" />}
               title={dict.symptoms.critical_condition}
               count={critic.toString().padStart(2, "0")}
@@ -97,11 +99,13 @@ export default function SymptomsCards({ showCards, dict }: { showCards: boolean,
           </div>
           <div className="flex gap-3">
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
               title={dict.symptoms.condition_in_treatment}
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
               title={dict.symptoms.condition_in_observation}
               count={observation.toString().padStart(2, "0")}

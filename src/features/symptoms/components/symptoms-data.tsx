@@ -2,26 +2,16 @@
 
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import { headers } from "next/headers";
-import { getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import { useState } from "react";
+
 const test_data = [
   {
     time: "9:00 - 9:30",
     total: 2210,
   },
-  {
-    time: "8:30 - 9:00",
-    total: 2210,
-  },
-  {
-    time: "8:00 - 8:30",
-    total: 2210,
-  },
 ];
 
-function formatDate(date: Date): string {
+function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
     day: "numeric",
@@ -29,7 +19,7 @@ function formatDate(date: Date): string {
     year: "numeric",
   };
 
-  return new Intl.DateTimeFormat("es-ES", options)
+  return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
     .format(date)
     .toUpperCase()
     .replace(".", "");
@@ -64,7 +54,7 @@ export default function SymptomsData({ date, container_index, dict, lang,
       <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
         <div className="w-full flex flex-row gap-5 text-sm">
           <div className="text-black dark:text-white">
-            {formatDate(setted_date)}
+            {formatDate(setted_date, lang)}
           </div>
           <div className="flex flex-row flex-grow justify-between">
             <p className="text-gray-500 dark:text-gray-400">

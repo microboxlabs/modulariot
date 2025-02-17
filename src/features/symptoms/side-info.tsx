@@ -7,19 +7,20 @@ import SideInfoData from "./components/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 
-export default function SideInfo({ dict }: { dict: any }) {
+export default function SideInfo({ dict, lang }: { dict: any, lang: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-5 p-10 h-full">
       <BlurrableSteppedMenu
+        lang={lang}
         dict={dict}
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-[90%] overflow-y-auto">
-        <SideInfoData dict={dict} />
+        <SideInfoData dict={dict} lang={lang} />
       </div>
       <div className="flex flex-col justify-self-end">
         <Button.Group className="w-full">

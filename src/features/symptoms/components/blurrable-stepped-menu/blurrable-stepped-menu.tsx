@@ -18,11 +18,13 @@ export default function BlurrableSteppedMenu({
   isMenuOpen,
   className,
   dict,
+  lang,
 }: {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   className: string;
   dict: any;
+  lang: string;
 }) {
 
   const side_sections = [
@@ -32,9 +34,9 @@ export default function BlurrableSteppedMenu({
         {
           element_name: `${dict.symptoms.code_black}: ${dict.symptoms.continuous_driving_state}`,
           description: dict.symptoms.symptom_information,
-          component: <SideInfoData dict={dict} />,
+          component: <SideInfoData dict={dict} lang={lang} />,
           icon: null,
-          logo: noAlarmImage,
+          logo: <Image src={noAlarmImage} alt="Icon" width={100} height={100} />,
           button: null,
         },
       ],
@@ -81,20 +83,37 @@ export default function BlurrableSteppedMenu({
 
 
   const [selected_section, setSelectedSection] = useState<number>(1);
-  const [selected_element, setSelectedElement] = useState<number>(0);
+  const [selected_elements, setSelectedElements] = useState<number[]>([0, 0]);
   const [displayed_element, setDisplayedElement] = useState<React.ReactNode>(
-    side_sections[selected_section].elements[selected_element].component,
+    side_sections[selected_section].elements[selected_elements[selected_section]].component,
   );
+
+  const updateSelectedSection = (newSectionIndex: number) => {
+    setSelectedSection(newSectionIndex);
+    setSelectedElements((prev) => {
+      const updated = [...prev];
+      updated[newSectionIndex] = Math.min(updated[newSectionIndex], side_sections[newSectionIndex].elements.length - 1);
+      return updated;
+    });
+  };
+
+  const updateSelectedElement = (newElementIndex: number) => {
+    setSelectedElements((prev) => {
+      const updated = [...prev];
+      updated[selected_section] = newElementIndex;
+      return updated;
+    });
+  };
 
   useEffect(() => {
     setDisplayedElement(
-      side_sections[selected_section].elements[selected_element].component,
+      side_sections[selected_section].elements[selected_elements[selected_section]].component,
     );
-  }, [selected_element, selected_section]);
+  }, [selected_elements, selected_section]);
 
   useEffect(() => {
-    setSelectedSection(1);
-    setSelectedElement(0);
+    updateSelectedSection(1);
+    updateSelectedElement(0);
   }, [isMenuOpen]);
 
   return (
@@ -117,16 +136,16 @@ export default function BlurrableSteppedMenu({
                 : "bg-white dark:bg-gray-800 opacity-30"
                 }`}
               onClick={() => {
-                setSelectedSection(section_index);
+                updateSelectedSection(section_index);
               }}
             >
               <p className="text-sm mb-2 text-gray-900 dark:text-white">{section.title}</p>
               {section.elements.map((element, inner_index) => (
                 <div
-                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_element == inner_index &&
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
                     selected_section == section_index
                     ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                    : selected_element > inner_index &&
+                    : selected_elements[selected_section] > inner_index &&
                       selected_section == section_index
                       ? "text-gray-900 dark:text-white"
                       : "opacity-30 text-gray-900 dark:text-white"
@@ -135,12 +154,7 @@ export default function BlurrableSteppedMenu({
                 >
                   <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
                     {element.logo ? (
-                      <Image
-                        src={element.logo}
-                        alt="Icon"
-                        width={100}
-                        height={100}
-                      />
+                      element.logo
                     ) : (
                       <p>{inner_index + 1}</p>
                     )}
@@ -165,33 +179,24 @@ export default function BlurrableSteppedMenu({
             <div className="w-full flex flex-col">
               <div className="flex flex-row items-center justify-between">
                 <div className="w-full flex items-center gap-2 text-gray-500">
-                  {side_sections[selected_section].elements[selected_element]
+                  {side_sections[selected_section].elements[selected_elements[selected_section]]
                     .icon ? (
                     <div className="w-10 h-10 flex items-center justify-center text-gray-500">
                       {
                         side_sections[selected_section].elements[
-                          selected_element
+                          selected_elements[selected_section]
                         ].icon
                       }
                     </div>
-                  ) : side_sections[selected_section].elements[selected_element]
+                  ) : side_sections[selected_section].elements[selected_elements[selected_section]]
                     .logo ? (
                     <div className="w-10 h-10 flex items-center justify-center">
-                      <Image
-                        src={
-                          side_sections[selected_section].elements[
-                            selected_element
-                          ].logo
-                        }
-                        alt="Icon"
-                        width={100}
-                        height={100}
-                      />
+                      {side_sections[selected_section].elements[selected_elements[selected_section]].logo}
                     </div>
                   ) : null}
                   <h1 className="text-lg font-medium text-gray-900 dark:text-white">
                     {
-                      side_sections[selected_section].elements[selected_element]
+                      side_sections[selected_section].elements[selected_elements[selected_section]]
                         .element_name
                     }
                   </h1>
@@ -210,7 +215,7 @@ export default function BlurrableSteppedMenu({
                   (element, inner_index) => {
                     return (
                       <div
-                        className={`transition-all duration-200 w-8 h-2 ${selected_element >= inner_index ? "bg-blue-500" : "bg-gray-200"} rounded-full`}
+                        className={`transition-all duration-200 w-8 h-2 ${selected_elements[selected_section] >= inner_index ? "bg-blue-500" : "bg-gray-200"} rounded-full`}
                         key={inner_index}
                       />
                     );
@@ -221,7 +226,7 @@ export default function BlurrableSteppedMenu({
             {/*page data*/}
             <div className="flex flex-grow w-full flex-col gap-2 overflow-y-auto">
               {displayed_element}
-              {side_sections[selected_section].elements[selected_element]
+              {side_sections[selected_section].elements[selected_elements[selected_section]]
                 .button ? (
                 <Button
                   className="w-full"
@@ -229,18 +234,18 @@ export default function BlurrableSteppedMenu({
                   onClick={() => {
                     const buttonAction =
                       side_sections[selected_section]?.elements[
-                        selected_element
+                        selected_elements[selected_section]
                       ]?.button?.action;
                     if (buttonAction === "next") {
-                      setSelectedElement(selected_element + 1);
+                      updateSelectedElement(selected_elements[selected_section] + 1);
                     } else {
                       setIsMenuOpen(false);
                     }
                   }}
                 >
                   {
-                    side_sections[selected_section].elements[selected_element]
-                      .button.text
+                    side_sections[selected_section]?.elements[selected_elements[selected_section]]
+                      ?.button?.text ?? ''
                   }
                 </Button>
               ) : null}

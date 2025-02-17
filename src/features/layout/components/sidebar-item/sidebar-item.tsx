@@ -44,10 +44,10 @@ export default function SidebarItem({
                 className="float-right"
                 color={
                   getTotalCountBagaes(totals[item.label]) <= 0
-                    ? "info"
+                    ? "success"
                     : getTotalCountBagaes(totals[item.label]) >= 100
-                      ? "danger"
-                      : "warning"
+                      ? "warning"
+                      : "info"
                 }
                 size="sm"
               >

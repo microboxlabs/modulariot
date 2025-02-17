@@ -40,7 +40,7 @@ function calculateDuration(startTime: string): string {
 export default function SideInfoData({
   dict,
   lang,
-}:{
+}: {
   dict: any;
   lang: string;
 }) {
@@ -164,7 +164,7 @@ export default function SideInfoData({
           <p className="text-sm">
             {dict.symptoms.event}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              4.5 {dict.symptoms.hours}{" "}{dict.symptoms.continuous_driving}
+              4.5 {dict.symptoms.hours} {dict.symptoms.continuous_driving}
             </span>
           </p>
           <p className="text-sm">
@@ -279,7 +279,7 @@ export default function SideInfoData({
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}
-                          - {" "}
+                          -{" "}
                           {new Date(item.end).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",

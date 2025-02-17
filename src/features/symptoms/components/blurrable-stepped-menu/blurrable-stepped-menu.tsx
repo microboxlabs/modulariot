@@ -1,3 +1,5 @@
+/* prettier-ignore */
+
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";

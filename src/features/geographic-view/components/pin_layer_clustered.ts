@@ -111,7 +111,7 @@ export class PinLayer extends CompositeLayer<any> {
         getIcon: () => "pin",
         getPosition: (d: ClusterFeature) => d.geometry.coordinates,
         getAngle: (d: ClusterFeature) =>
-          !d.properties.cluster ? this.props.rotation : 0,
+          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
         iconAtlas: pinbg.src,
         iconMapping: icon_definition,
         getSize: (d: ClusterFeature) =>
@@ -130,8 +130,8 @@ export class PinLayer extends CompositeLayer<any> {
             d.properties.cluster ? d.properties.point_count || 1 : 1,
           ) * 0.26,
         updateTriggers: this.props.updateTriggers,
-        getAngle: (d: ClusterFeature) =>
-          !d.properties.cluster ? this.props.rotation : 0,
+        getAngle: (d: any) => !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
+        
       }) as Layer,
       new PinCountLayer({
         id: "pin-counter",

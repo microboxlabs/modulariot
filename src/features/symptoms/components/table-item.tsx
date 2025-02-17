@@ -6,10 +6,10 @@ import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import { useRouter } from "next/navigation";
 
-export default function TableItem({ 
-  data, 
+export default function TableItem({
+  data,
   dict,
-}: { 
+}: {
   data: TableItemType;
   dict: any;
 }) {
@@ -69,8 +69,8 @@ export default function TableItem({
               {data.status}
             </p>
           ) : (
-            <Button 
-              color="blue" 
+            <Button
+              color="blue"
               onClick={() => router.push("/symptoms/map-view")}
             >
               <p>{dict.symptoms.diagnose}</p>

@@ -59,9 +59,7 @@ export default function Monitoring({ dict }: { dict: any }) {
             </p>
             <p className="text-gray-900 dark:text-white">
               {dict.symptoms.delay}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">
-                00:02:21
-              </span>
+              <span className="text-gray-500 dark:text-gray-400">00:02:21</span>
             </p>
           </div>
         </ExpandableButton>

@@ -46,18 +46,16 @@ export default function SideBar({ dict }: { dict: any }) {
             className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
             <Button.Group>
-              {
-                inner_menu.map((menu, i) => (
-                  <Button
-                    className="z-10"
-                    onClick={() => set_openned_menu(i)}
-                    key={i}
-                    color={i == openned_menu ? "blue" : "gray"}
-                  >
-                    {menu.button_text}
-                  </Button>
-                ))
-              }
+              {inner_menu.map((menu, i) => (
+                <Button
+                  className="z-10"
+                  onClick={() => set_openned_menu(i)}
+                  key={i}
+                  color={i == openned_menu ? "blue" : "gray"}
+                >
+                  {menu.button_text}
+                </Button>
+              ))}
             </Button.Group>
             <div className="flex h-full w-full justify-center mt-6">
               {component}

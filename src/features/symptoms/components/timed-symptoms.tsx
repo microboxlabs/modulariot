@@ -21,10 +21,10 @@ const test_data = [
   },
 ];
 
-export default function TimedSymptoms({ 
-  initial_state = false, 
+export default function TimedSymptoms({
+  initial_state = false,
   dict,
-}: { 
+}: {
   initial_state: boolean;
   dict: any;
 }) {
@@ -102,8 +102,8 @@ export default function TimedSymptoms({
             </div>
             {/* Diagnose button */}
             <div className="flex flex-row gap-2 w-full justify-end">
-              <Button 
-                color="blue" 
+              <Button
+                color="blue"
                 onClick={() => router.push("/symptoms/map-view")}
               >
                 {dict.symptoms.diagnose}

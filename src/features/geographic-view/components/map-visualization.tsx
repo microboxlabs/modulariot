@@ -140,7 +140,7 @@ export default function MapVisualization({
   const { positions: mapPositions, loading, error } = useMapPositions();
 
   // Set initial view state when data is first received
-  React.useEffect(() => {
+  /* React.useEffect(() => {
     if (mapPositions && mapPositions.length > 0) {
       const firstPosition = mapPositions[0];
       const newViewState = {
@@ -153,26 +153,40 @@ export default function MapVisualization({
       console.log("View state updated:", newViewState);
       setViewState(newViewState);
     }
-  }, [mapPositions]);
+  }, [mapPositions]); */
 
   // Transform API data to GeoJSON format
-  const geoJson = React.useMemo(() => ({
-    type: "FeatureCollection",
-    features: mapPositions?.map((item: MapPosition) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [item.longitude, item.latitude],
-      },
-      properties: {
-        color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
-        rotation: (item.heading * (180 / Math.PI)),//item.rotation,
-        licensePlate: item.asset_id,//item.licensePlate,
-        driver: item.driver_id,//item.driver,
-        trip: item.trip_id,//item.trip,
-      },
-    })) || [],
-  }), [mapPositions]);
+  const geoJson = React.useMemo(() => {
+    if (mapPositions && mapPositions.length > 0) {
+      const firstPosition = mapPositions[0];
+        const newViewState = {
+          ...INITIAL_VIEW_STATE,
+          longitude: firstPosition.longitude,
+          latitude: firstPosition.latitude,
+          zoom: 6.5, // Slightly closer zoom to see the vehicle better
+          transitionDuration: 2000,
+        };
+      console.log("View state updated:", newViewState);
+      setViewState(newViewState);
+      }
+    return {
+      type: "FeatureCollection",
+      features: mapPositions?.map((item: MapPosition) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [item.longitude, item.latitude],
+        },
+        properties: {
+          color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
+          rotation: (item.heading * (180 / Math.PI)),//item.rotation,
+          licensePlate: item.asset_id,//item.licensePlate,
+          driver: item.driver_id,//item.driver,
+          trip: item.trip_id,//item.trip,
+        },
+      })) || [],
+    };    
+  }, [mapPositions]);
 
 
 

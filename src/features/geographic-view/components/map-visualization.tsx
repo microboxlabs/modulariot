@@ -140,7 +140,7 @@ export default function MapVisualization({
   const { positions: mapPositions, loading, error } = useMapPositions();
 
   // Set initial view state when data is first received
-  React.useEffect(() => {
+  /* React.useEffect(() => {
     if (mapPositions && mapPositions.length > 0) {
       const firstPosition = mapPositions[0];
       const newViewState = {
@@ -153,7 +153,7 @@ export default function MapVisualization({
       console.log("View state updated:", newViewState);
       setViewState(newViewState);
     }
-  }, [mapPositions]);
+  }, [mapPositions]); */
 
   // Transform API data to GeoJSON format
   const geoJson = React.useMemo(() => ({

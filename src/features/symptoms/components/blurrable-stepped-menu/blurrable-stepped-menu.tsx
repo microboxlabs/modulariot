@@ -156,10 +156,10 @@ export default function BlurrableSteppedMenu({
                   className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${
                     selected_elements[selected_section] == inner_index &&
                     selected_section == section_index
-                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                    : selected_elements[selected_section] > inner_index &&
-                      selected_section == section_index
-                        ? "text-gray-900 dark:text-white"
+                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                      : selected_elements[selected_section] > inner_index &&
+                          selected_section == section_index
+                      ? "text-gray-900 dark:text-white"
                         : "opacity-30 text-gray-900 dark:text-white"
                     }`}
                   key={inner_index}
@@ -254,7 +254,7 @@ export default function BlurrableSteppedMenu({
                       ]?.button?.action;
                     if (buttonAction === "next") {
                       updateSelectedElement(
-                        selected_elements[selected_section] + 1
+                        selected_elements[selected_section] + 1,
                       );
                     } else {
                       setIsMenuOpen(false);

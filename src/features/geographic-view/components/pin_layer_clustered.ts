@@ -49,7 +49,7 @@ export class PinLayer extends CompositeLayer<any> {
   constructor(props: any) {
     super(props);
     this.supercluster = new Supercluster({
-      radius: props.sizeScale * Math.sqrt(2) || 100,
+      radius: props.sizeScale * Math.sqrt(2) || 50,
       maxZoom: 16,
       minPoints: 2,
       extent: 512,
@@ -117,6 +117,7 @@ export class PinLayer extends CompositeLayer<any> {
         getSize: (d: ClusterFeature) =>
           getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
         updateTriggers: this.props.updateTriggers,
+        pickable: true,
       }) as Layer,
       new IconLayer({
         id: "IconLayer-head",

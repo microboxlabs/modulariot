@@ -26,7 +26,7 @@ const layers = [
         />
       </div>
       <div className="flex-1 relative">
-        <MapVisualization />
+        <MapVisualization dict={dict} />
       </div>
     </div>
   );

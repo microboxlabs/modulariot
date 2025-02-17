@@ -3,7 +3,7 @@
     "*.css": "tailwindcss"
   },
   "editor.tabSize": 2,
-  "editor.formatOnSave": true,
+  "editor.formatOnSave": false,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "always"
   },

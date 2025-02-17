@@ -1,5 +1,5 @@
 import MapVisualization from "@/features/geographic-view/components/map-visualization";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { HiClipboardList } from "react-icons/hi";
@@ -19,10 +19,10 @@ const layers = [
     <div className="h-full w-full flex flex-col">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "geographic-view"]}
+          path={["mission_control", "geographic_view"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
+          dict={dict["symptoms"] as I18nRecord}
         />
       </div>
       <div className="flex-1 relative">

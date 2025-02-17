@@ -381,6 +381,8 @@
     "signals": "Señales",
     "downloadable_elements": "Elementos descargables",
     "screenshot": "Captura de pantalla",
-    "svg_document": "Documento SVG"
+    "svg_document": "Documento SVG",
+    "mission_control": "Torre de control",
+    "geographic_view": "Vista geográfica"
   }
 }

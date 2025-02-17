@@ -38,11 +38,11 @@ function calculateDuration(startTime: string): string {
 }
 
 export default function SideInfoData({
-  dict, 
+  dict,
   lang,
-}:{ 
-  dict:any;
-  lang:string;
+}:{
+  dict: any;
+  lang: string;
 }) {
   const data = {
     trip: {
@@ -150,29 +150,40 @@ export default function SideInfoData({
             >
               {new Date(data.trip.date).toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
-                {" "}{data.trip.licensePlate}
+                {" "}
+                {data.trip.licensePlate}
               </span>
             </p>
           </div>
           <p className="text-sm">
             {dict.symptoms.observed_symptom}:{" "}
-            <span className="text-gray-500 dark:text-gray-400">{data.trip.alertType}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {data.trip.alertType}
+            </span>
           </p>
           <p className="text-sm">
             {dict.symptoms.event}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              4.5 {dict.symptoms.hours} {" "} {dict.symptoms.continuous_driving}
+              4.5 {dict.symptoms.hours}{" "}{dict.symptoms.continuous_driving}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.trip}: <span className="text-gray-500 dark:text-gray-400">{data.trip.trip}</span>
+            {dict.symptoms.trip}:{" "}
+            <span className="text-gray-500 dark:text-gray-400">
+              {data.trip.trip}
+            </span>
           </p>
           <p className="text-sm">
             {dict.symptoms.trip_time}:{" "}
-            <span className="text-gray-500 dark:text-gray-400">16:33:12 hrs</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              16:33:12 hrs
+            </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.service}: <span className="text-gray-500 dark:text-gray-400">{data.trip.service}</span>
+            {dict.symptoms.service}:{" "}
+            <span className="text-gray-500 dark:text-gray-400">
+              {data.trip.service}
+            </span>
           </p>
           <p className="text-sm">
             {dict.symptoms.prescription}:{" "}

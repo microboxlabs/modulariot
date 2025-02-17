@@ -173,15 +173,13 @@ export default function MapVisualization({
       },
     })) || [],
   }), [mapPositions]);
-
-
-
+  
   const layers = !specific_view
     ? [
       new PinLayer({
         data: mapPositions || [],
         zoom: viewState.zoom,
-        rotation,
+        getAngle: () => rotation,
       }),
     ]
     : [
@@ -192,7 +190,6 @@ export default function MapVisualization({
       new PinLayer({
         data: mapPositions || [],
         zoom: viewState.zoom,
-        rotation,
       }),
     ];
 

@@ -8,6 +8,7 @@ interface StatusCardProps {
   title: string;
   count: string;
   variant?: "black" | "critical";
+  dict: any;
 }
 
 export default function StatusCard({
@@ -15,6 +16,7 @@ export default function StatusCard({
   title,
   count,
   variant = "black",
+  dict,
 }: StatusCardProps) {
   const router = useRouter();
 
@@ -62,7 +64,7 @@ export default function StatusCard({
             {count}
           </span>
           <span className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-1">
-            Activos
+            {dict.symptoms.active}
           </span>
         </div>
       </div>

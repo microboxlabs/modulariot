@@ -51,8 +51,7 @@ export default async function SymptomsList({
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
               {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
-              {(dict.symptoms as I18nRecord).code_black as string}
-              {" "}
+              {(dict.symptoms as I18nRecord).code_black as string}{" "}
               {(dict.symptoms as I18nRecord).active as string}
             </h1>
           </div>

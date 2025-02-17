@@ -5,7 +5,6 @@ import ConditionIcon from "./condition-icon";
 import ExpandableButton from "./expandable-button";
 import { Conditions } from "./table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
-import Symptoms from '../../geographic-view/components/side-bar/inner-menu/symptoms';
 
 
 
@@ -40,7 +39,13 @@ function calculateDuration(startTime: string): string {
   }
 }
 
-export default function SideInfoData({ dict, lang }: { dict: any, lang: string }) {
+export default function SideInfoData({ 
+  dict, 
+  lang,
+}: { 
+  dict: any;
+  lang: string;
+}) {
   const data = {
     trip: {
       condition: "code black",
@@ -147,7 +152,7 @@ export default function SideInfoData({ dict, lang }: { dict: any, lang: string }
             >
               {new Date(data.trip.date).toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
-                {" " + data.trip.licensePlate}
+                {" "}{data.trip.licensePlate}
               </span>
             </p>
           </div>
@@ -173,7 +178,9 @@ export default function SideInfoData({ dict, lang }: { dict: any, lang: string }
           </p>
           <p className="text-sm">
             {dict.symptoms.prescription}:{" "}
-            <span className="text-gray-500 dark:text-gray-400">{dict.symptoms.call_driver}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {dict.symptoms.call_driver}
+            </span>
           </p>
         </div>
       </ExpandableButton>

@@ -35,9 +35,15 @@ function getRelativeDayText(date: Date, lang: string): string {
     (givenDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays === 0) return lang === "es" ? "Hoy" : "Today";
-  if (diffDays === -1) return lang === "es" ? "Ayer" : "Yesterday";
-  if (diffDays > 0) return lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`;
+  if (diffDays === 0) {
+    return lang === "es" ? "Hoy" : "Today";
+  }
+  if (diffDays === -1) {
+    return lang === "es" ? "Ayer" : "Yesterday";
+  }
+  if (diffDays > 0) {
+    return lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`;
+  }
   return lang === "es" ? `Hace ${Math.abs(diffDays)} días` : `In ${Math.abs(diffDays)} days`;
 }
 

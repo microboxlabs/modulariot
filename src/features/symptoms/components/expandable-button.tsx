@@ -28,7 +28,9 @@ export default function ExpandableButton({
           className: `transition-all duration-200 bg-white border rounded-md border-gray-300 ${isExpanded ? " w-9 h-9 px-2" : "w-10 h-10 p-2 "}`,
         })}
         <div className="flex flex-col">
-          <h1 className="text-md font-bold text-gray-900 dark:text-white">{title}</h1>
+          <h1 className="text-md font-bold text-gray-900 dark:text-white">
+            {title}
+          </h1>
           <p
             className={`text-sm text-gray-500 overflow-hidden transition-all duration-100 ${isExpanded ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}
           >

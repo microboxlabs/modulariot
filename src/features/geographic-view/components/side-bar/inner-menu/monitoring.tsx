@@ -7,9 +7,7 @@ import ExpandableButton from "../../../../symptoms/components/expandable-button"
 export default function Monitoring({ dict }: { dict: any }) {
   return (
     <div className="w-full flex flex-col gap-4">
-      <Label
-        className="w-full flex text-left text-lg text-gray-900 dark:text-white"
-      >
+      <Label className="w-full flex text-left text-lg text-gray-900 dark:text-white">
         General
       </Label>
       {/* Glota total */}
@@ -23,16 +21,11 @@ export default function Monitoring({ dict }: { dict: any }) {
           <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
             <p className="text-gray-900 dark:text-white">
               {dict.symptoms.trips}:
-              <span className="text-gray-500 dark:text-gray-400">
-                96
-              </span>
+              <span className="text-gray-500 dark:text-gray-400">96</span>
             </p>
             <p className="text-gray-900 dark:text-white">
               {dict.symptoms.plates}:
-              <span
-                className="text-gray-500 dark:text-gray-400"
-              >
-                96
+              <span className="text-gray-500 dark:text-gray-400">96
               </span>
             </p>
             <p className="text-red-600 dark:text-red-400">
@@ -42,11 +35,15 @@ export default function Monitoring({ dict }: { dict: any }) {
               {dict.symptoms.processed_distance}: <span className="text-gray-500 dark:text-gray-400">89.055</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.average_duration_in_km}: <span className="text-gray-500 dark:text-gray-400">11:51:07 hrs</span>
+              {dict.symptoms.average_duration_in_km}: 
+              <span className="text-gray-500 dark:text-gray-400">
+                11:51:07 hrs
+              </span>
             </p>
           </div>
         </ExpandableButton>
       </div>
+
       {/* Señales */}
       <div className="w-full flex flex-col gap-2">
         <ExpandableButton
@@ -60,7 +57,10 @@ export default function Monitoring({ dict }: { dict: any }) {
               {dict.symptoms.movement_per_minute}: <span className="text-gray-500 dark:text-gray-400 ">5.1</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.delay}: <span className="text-gray-500 dark:text-gray-400">00:02:21</span>
+              {dict.symptoms.delay}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">
+                00:02:21
+              </span>
             </p>
           </div>
         </ExpandableButton>

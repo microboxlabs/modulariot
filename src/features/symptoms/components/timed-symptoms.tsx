@@ -21,7 +21,13 @@ const test_data = [
   },
 ];
 
-export default function TimedSymptoms({ initial_state = false, dict }: { initial_state: boolean, dict: any }) {
+export default function TimedSymptoms({ 
+  initial_state = false, 
+  dict,
+}: { 
+  initial_state: boolean;
+  dict: any;
+}) {
   const [isOpen, setIsOpen] = useState(initial_state);
   const router = useRouter();
   return (
@@ -69,7 +75,6 @@ export default function TimedSymptoms({ initial_state = false, dict }: { initial
                   {item.driver}
                 </span>
               </p>
-
               <p className="text-gray-900 dark:text-white">
                 {dict.symptoms.trip_time}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">

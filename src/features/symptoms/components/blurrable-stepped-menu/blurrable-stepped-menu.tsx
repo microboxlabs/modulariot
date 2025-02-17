@@ -153,13 +153,14 @@ export default function BlurrableSteppedMenu({
               </p>
               {section.elements.map((element, inner_index) => (
                 <div
-                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${
+                    selected_elements[selected_section] == inner_index &&
                     selected_section == section_index
-                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                      : selected_elements[selected_section] > inner_index &&
-                        selected_section == section_index
-                          ? "text-gray-900 dark:text-white"
-                          : "opacity-30 text-gray-900 dark:text-white"
+                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                    : selected_elements[selected_section] > inner_index &&
+                      selected_section == section_index
+                        ? "text-gray-900 dark:text-white"
+                        : "opacity-30 text-gray-900 dark:text-white"
                     }`}
                   key={inner_index}
                 >
@@ -209,7 +210,9 @@ export default function BlurrableSteppedMenu({
                   ) : null}
                   <h1 className="text-lg font-medium text-gray-900 dark:text-white">
                     {
-                      side_sections[selected_section].elements[selected_elements[selected_section]].element_name
+                      side_sections[selected_section].elements[
+                        selected_elements[selected_section]
+                      ].element_name
                     }
                   </h1>
                 </div>
@@ -238,7 +241,9 @@ export default function BlurrableSteppedMenu({
             {/*page data*/}
             <div className="flex flex-grow w-full flex-col gap-2 overflow-y-auto">
               {displayed_element}
-              {side_sections[selected_section].elements[selected_elements[selected_section]].button ? (
+              {side_sections[selected_section].elements[
+                selected_elements[selected_section]
+              ].button ? (
                 <Button
                   className="w-full"
                   color="blue"

@@ -11,7 +11,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   OUTCOME_CANCELED,
   OUTCOME_ANNULLED,
-  OUTCOME_MONITORING_FINALIZATION,
+  OUTCOME_CONFIRM_MONITORING_FINALIZATION,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
@@ -49,7 +49,7 @@ export default function CanceledAnnulledEndOptions({
       icon: HiTrash,
     },
     {
-      id: OUTCOME_MONITORING_FINALIZATION,
+      id: OUTCOME_CONFIRM_MONITORING_FINALIZATION,
       label: (dict.outcome as I18nRecord)
         .confirmMonitoringFinalization as string,
       icon: HiOutlineArrowRight,

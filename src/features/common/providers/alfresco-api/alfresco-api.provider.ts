@@ -58,8 +58,10 @@ export async function getUserTasks(
 ): Promise<FastTasksResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+
   const { from = 0, size = 100, filter = undefined } = options;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await webscriptApi.executeWebScript(
     "POST",
     "mintral/tasks",
@@ -284,6 +286,7 @@ export async function getFinishedWorkflows(
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const result = await webscriptApi.executeWebScript(
     "POST",
     `mintral/finished/workflows`,

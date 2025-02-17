@@ -127,10 +127,12 @@ const stateToColor = {
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
+  dict: any;
   specific_view?: boolean;
 };
 
 export default function MapVisualization({
+  dict,
   specific_view = false,
 }: MapVisualizationProps) {
   const [rotation, setRotation] = useState(0);
@@ -218,7 +220,7 @@ export default function MapVisualization({
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           viewState={viewState}
-          mapStyle={mapboxStyles["satellite-v9"]}
+          mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
         {!specific_view ? (
           <div className="w-full h-full flex justify-between absolute">
@@ -260,7 +262,7 @@ export default function MapVisualization({
                 text="Este es el ultimo texto de ejemplo aaaaa"
               /> */}
             </div>
-            <SideBar />
+            <SideBar dict={dict} />
           </div>
         ) : (
           <div className="w-full h-full flex items-end absolute p-5 flex-col">

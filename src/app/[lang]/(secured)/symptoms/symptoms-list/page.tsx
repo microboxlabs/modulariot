@@ -1,5 +1,5 @@
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import Image from "next/image";
@@ -9,19 +9,7 @@ import SymptomsData from "@/features/symptoms/components/symptoms-data";
 
 const test_data = [
   {
-    date: "2025-02-06",
-  },
-  {
-    date: "2025-02-05",
-  },
-  {
-    date: "2025-02-04",
-  },
-  {
-    date: "2025-02-03",
-  },
-  {
-    date: "2024-10-31",
+    date: "2025-02-17",
   },
 ];
 
@@ -33,7 +21,7 @@ export default async function SymptomsList({
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "symptoms", "Urgent Symptoms"]}
+          path={["Control Tower", "symptoms", "symptoms-list"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}
@@ -62,13 +50,21 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Síntomas urgentes: Código Negro Activo
+              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+              {(dict.symptoms as I18nRecord).code_black as string}{" "}
+              {(dict.symptoms as I18nRecord).active as string}
             </h1>
           </div>
         </Card>
         <div className="flex flex-col gap-6">
           {test_data.map((item, index) => (
-            <SymptomsData key={index} date={item.date} />
+            <SymptomsData
+              key={index}
+              date={item.date}
+              container_index={index}
+              dict={dict}
+              lang={lang}
+            />
           ))}
         </div>
       </div>

@@ -25,7 +25,7 @@ export default function MapButton({
   const [expanded, set_expanded] = useState(false);
 
   return (
-    <div className="w-fit">
+    <div className="w-fit flex flex-col items-end">
       <div
         className={`flex ${open_to_left ? "flex-row-reverse justify-self-end" : "flex-row"} ${main_color} transition-all duration-300 rounded-full ${expanded ? "w-full" : "w-10"}`}
       >
@@ -45,6 +45,7 @@ export default function MapButton({
           />
         </Button>
         <p
+          style={{ pointerEvents: "none" }}
           className={` text-gray-800 dark:text-white text-[14px] font-size mx-5 h-10 flex items-center transition-all duration-300 whitespace-nowrap overflow-hidden ${expanded ? "opacity-100" : "opacity-0 overflow-hidden"}`}
         >
           {text}

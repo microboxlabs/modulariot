@@ -6,7 +6,13 @@ import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import { useRouter } from "next/navigation";
 
-export default function TableItem({ data }: { data: TableItemType }) {
+export default function TableItem({
+  data,
+  dict,
+}: {
+  data: TableItemType;
+  dict: any;
+}) {
   const router = useRouter();
 
   return (
@@ -27,7 +33,7 @@ export default function TableItem({ data }: { data: TableItemType }) {
       <TableCell
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
-        {data.time}
+        {data.time} {dict.symptoms.sec}.
       </TableCell>
       <TableCell
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
@@ -52,19 +58,22 @@ export default function TableItem({ data }: { data: TableItemType }) {
       <TableCell
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
-        {data.alertType}
+        {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
       </TableCell>
       <TableCell
         className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         <div className="flex items-center gap-2">
           {data.status != null ? (
-            <p className=" bg-gray-200 rounded-md p-2 text-gray-900 dark:text-white">
+            <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
               {data.status}
             </p>
           ) : (
-            <Button onClick={() => router.push("/symptoms/map-view")}>
-              <p>Diagnosticar</p>
+            <Button
+              color="blue"
+              onClick={() => router.push("/symptoms/map-view")}
+            >
+              <p>{dict.symptoms.diagnose}</p>
               <HiArrowRight className="w-5 h-5 ml-2" />
             </Button>
           )}

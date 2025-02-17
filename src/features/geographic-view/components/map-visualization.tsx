@@ -13,7 +13,7 @@ import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { useMapPositions } from "../hooks/use-map-positions";
-import { MapPosition } from "../types/map";
+import { MapPosition, MapPositionProperties } from "../types/map";
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -213,8 +213,11 @@ export default function MapVisualization({
         onViewStateChange={({ viewState }) =>
           setViewState(viewState as ViewStateType)
         }
-        getTooltip={({object}: PickingInfo<MapPosition>) => {
+        getTooltip={({object}: PickingInfo<MapPositionProperties>) => {
           if (object) {
+            if (object.properties.cluster) {
+              return null;
+            }
             return { text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}` };
           }
           return null;

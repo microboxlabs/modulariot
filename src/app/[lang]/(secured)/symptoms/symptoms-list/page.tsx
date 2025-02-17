@@ -9,19 +9,7 @@ import SymptomsData from "@/features/symptoms/components/symptoms-data";
 
 const test_data = [
   {
-    date: "2025-02-06",
-  },
-  {
-    date: "2025-02-05",
-  },
-  {
-    date: "2025-02-04",
-  },
-  {
-    date: "2025-02-03",
-  },
-  {
-    date: "2024-10-31",
+    date: "2025-02-17",
   },
 ];
 

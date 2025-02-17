@@ -19,26 +19,6 @@ const test_data = [
     service: "V1406865",
     alertType: "Conducción máxima continua",
   },
-  {
-    condition: "code black",
-    licensePlate: "XX BB 21",
-    time: "30 seg.",
-    trip: "STG-ANF",
-    driver: "ANONIMO ANDRÉS",
-    date: "2025-01-01 12:00:00",
-    service: "V1406865",
-    alertType: "Conducción máxima continua",
-  },
-  {
-    condition: "code black",
-    licensePlate: "XX BB 21",
-    time: "30 seg.",
-    trip: "STG-ANF",
-    driver: "ANONIMO ANDRÉS",
-    date: "2025-01-01 12:00:00",
-    service: "V1406865",
-    alertType: "Conducción máxima continua",
-  },
 ];
 
 export default function TimedSymptoms({ initial_state = false, dict }: { initial_state: boolean, dict: any }) {

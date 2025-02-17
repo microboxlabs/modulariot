@@ -361,6 +361,22 @@
     "load_type": "Load type",
     "recommended_prescription": "Recommended prescription",
     "message_to_communicate": "Message to communicate.",
-    "message_to_the_driver": "Write a message to the driver."
+    "message_to_the_driver": "Write a message to the driver.",
+    "trips": "Trips",
+    "plates": "Plates",
+    "incidents": "Incidents",
+    "processed_distance": "Processed distance",
+    "average_duration_in_km": "Average duration in km",
+    "movement_per_minute": "Movement per minute",
+    "delay": "Delay",
+    "total_co2": "Total CO2",
+    "methane": "Methane",
+    "nitrous_oxide": "Nitrous oxide",
+    "tank_to_tank": "Tank to tank",
+    "total_fleet": "Total fleet",
+    "signals": "Signals",
+    "downloadable_elements": "Downloadable elements",
+    "screenshot": "Screenshot",
+    "svg_document": "SVG document"
   }
 }

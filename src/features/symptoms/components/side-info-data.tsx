@@ -9,14 +9,14 @@ import Symptoms from '../../geographic-view/components/side-bar/inner-menu/sympt
 
 
 
-function formatDate(date: Date): string {
+function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "short",
     year: "numeric",
   };
 
-  return new Intl.DateTimeFormat("es-ES", options)
+  return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
     .format(date)
     .toUpperCase()
     .replace(".", "");
@@ -40,7 +40,7 @@ function calculateDuration(startTime: string): string {
   }
 }
 
-export default function SideInfoData({ dict }: { dict: any }) {
+export default function SideInfoData({ dict, lang }: { dict: any, lang: string }) {
   const data = {
     trip: {
       condition: "code black",
@@ -227,7 +227,7 @@ export default function SideInfoData({ dict }: { dict: any }) {
       >
         <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
           {data.timeline.map((item, index) => {
-            const date = formatDate(new Date(item.date));
+            const date = formatDate(new Date(item.date), lang);
             const duration = calculateDuration(
               item.items[item.items.length - 1].start,
             );

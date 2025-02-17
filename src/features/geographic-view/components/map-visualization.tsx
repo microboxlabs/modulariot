@@ -4,7 +4,7 @@
 
 import React, { useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator } from "deck.gl";
+import DeckGL, { FlyToInterpolator, PickingInfo } from "deck.gl";
 import { PinLayer } from "./pin_layer_clustered";
 import { HiChevronLeft } from "react-icons/hi";
 import MapButton from "./map-button";
@@ -174,22 +174,21 @@ export default function MapVisualization({
     })) || [],
   }), [mapPositions]);
   
-
   const layers = !specific_view
     ? [
       new PinLayer({
         data: mapPositions || [],
         zoom: viewState.zoom,
-        getAngle: () => rotation,
       }),
     ]
     : [
       new PulsePinLayer({
         data: geoJson,
         rotation,
+        zoom: viewState.zoom,
       }),
       new PinLayer({
-        data: mapPositions || [],
+        data: mapPositions ? [mapPositions[0]] : [],
         zoom: viewState.zoom,
       }),
     ];
@@ -214,6 +213,12 @@ export default function MapVisualization({
         onViewStateChange={({ viewState }) =>
           setViewState(viewState as ViewStateType)
         }
+        getTooltip={({object}: PickingInfo<MapPosition>) => {
+          if (object) {
+            return { text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}` };
+          }
+          return null;
+        }}
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}

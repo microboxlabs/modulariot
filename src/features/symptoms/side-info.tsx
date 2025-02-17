@@ -7,13 +7,7 @@ import SideInfoData from "./components/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 
-export default function SideInfo({ 
-  dict, 
-  lang,
-}: { 
-  dict: any;
-  lang: string;
-}) {
+export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (

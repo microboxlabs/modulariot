@@ -34,12 +34,7 @@ export default function BlurrableSteppedMenu({
           description: dict.symptoms.symptom_information,
           component: <SideInfoData dict={dict} lang={lang} />,
           icon: null,
-          logo: <Image 
-            src={noAlarmImage} 
-            alt="Icon" 
-            width={100} 
-            height={100} 
-          />,
+          logo: (<Image src={noAlarmImage} alt="Icon" width={100} height={100} />),
           button: null,
         },
       ],

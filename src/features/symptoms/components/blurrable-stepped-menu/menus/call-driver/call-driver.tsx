@@ -11,23 +11,33 @@ export default function CallDriver({ dict }: { dict: any }) {
           <div className="w-full grid grid-cols-2 gap-2">
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.driver_name}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">Anonimo Andres</span>
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                Anonimo Andres
+              </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.vehicle_plate}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">XX BB 21</span>
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                XX BB 21
+              </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.phone}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">+56 9 8241 9297</span>
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                +56 9 8241 9297
+              </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.service}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">V-1406865</span>
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                V-1406865
+              </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.load_type}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">Rampla Sider</span>
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                Rampla Sider
+              </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {dict.symptoms.recommended_prescription}:{" "}

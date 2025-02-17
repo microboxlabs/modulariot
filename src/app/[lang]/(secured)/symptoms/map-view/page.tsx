@@ -41,14 +41,13 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).urgent_symptoms as string}: {(dict.symptoms as I18nRecord).code_black as string}
+              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+              {(dict.symptoms as I18nRecord).code_black as string}
             </h1>
           </div>
         </Card>
       </div>
-      <div
-        className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden"
-      >
+      <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
         {/* Side information */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
           <SideInfo dict={dict} lang={lang} />

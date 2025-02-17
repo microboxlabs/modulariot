@@ -7,7 +7,13 @@ import ConditionIcon from "./components/condition-icon";
 import StatusCard from "./components/status-card";
 import { useSymptoms } from "./hooks/use-symptoms";
 
-export default function SymptomsCards({ showCards, dict }: { showCards: boolean, dict: any }) {
+export default function SymptomsCards({ 
+  showCards,
+  dict,
+}: {
+  showCards: boolean;
+  dict: any;
+}) {
   const { symptoms, loading, error } = useSymptoms();
 
   // Handle loading and error states

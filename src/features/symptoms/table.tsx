@@ -26,9 +26,11 @@ import { useSymptomsTable } from "./hooks/use-symptoms-table";
 export default function SymptomsTable({
   setShowCards,
   showCards,
+  dict,
 }: {
   setShowCards: (showCards: boolean) => void;
   showCards: boolean;
+  dict: any;
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,7 +96,7 @@ export default function SymptomsTable({
                   type="search"
                   ref={searchInputRef}
                   icon={HiSearch}
-                  placeholder="Buscar..."
+                  placeholder={dict.symptoms.search}
                   required
                   className="w-full"
                 />
@@ -158,18 +160,18 @@ export default function SymptomsTable({
       <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
         <Table striped className="w-full">
           <TableHead>
-            <TableHeadCell>Condición</TableHeadCell>
-            <TableHeadCell>Tiempo Activo</TableHeadCell>
-            <TableHeadCell>viaje</TableHeadCell>
-            <TableHeadCell>Conductor</TableHeadCell>
-            <TableHeadCell>Fecha de salida</TableHeadCell>
-            <TableHeadCell>Servicio</TableHeadCell>
-            <TableHeadCell>Tipo de alerta</TableHeadCell>
-            <TableHeadCell>Estado</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.trip}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.driver}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.service}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
           </TableHead>
           <TableBody className="divide-y">
             {tableData?.data.map((item, index) => (
-              <TableItem key={index} data={item} />
+              <TableItem key={index} data={item} dict={dict} />
             ))}
           </TableBody>
         </Table>
@@ -178,11 +180,11 @@ export default function SymptomsTable({
         <p className="text-sm text-gray-500">
           {tableData && tableData?.pagination.totalPages > 0 ? (
             <>
-              Mostrando{" "}
+              {dict.symptoms.showing}{" "}
               <span className="font-bold">
                 {startItem}-{endItem}
               </span>{" "}
-              de{" "}
+              {dict.symptoms.of}{" "}
               <span className="font-bold">
                 {tableData?.pagination.totalPages}
               </span>
@@ -200,6 +202,13 @@ export default function SymptomsTable({
             totalPages={Math.max(1, tableData?.pagination.totalPages)}
             showIcons={true}
             onPageChange={handlePageChange}
+            theme={{
+              pages: {
+                selector: {
+                  active: "bg-blue-100 text-blue-500",
+                },
+              },
+            }}
           />
         )}
       </div>

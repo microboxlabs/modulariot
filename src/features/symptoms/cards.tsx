@@ -7,7 +7,13 @@ import ConditionIcon from "./components/condition-icon";
 import StatusCard from "./components/status-card";
 import { useSymptoms } from "./hooks/use-symptoms";
 
-export default function SymptomsCards({ showCards }: { showCards: boolean }) {
+export default function SymptomsCards({
+  showCards,
+  dict,
+}: {
+  showCards: boolean;
+  dict: any;
+}) {
   const { symptoms, loading, error } = useSymptoms();
 
   // Handle loading and error states
@@ -38,7 +44,7 @@ export default function SymptomsCards({ showCards }: { showCards: boolean }) {
       `}
     >
       <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Síntomas
+        {dict.symptoms.symptoms}
       </h1>
       <div className="flex flex-col md:flex-row gap-4">
         <Card
@@ -64,18 +70,20 @@ export default function SymptomsCards({ showCards }: { showCards: boolean }) {
               />
             )}
             <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Síntomas urgentes
+              {dict.symptoms.urgent_symptoms}
             </h5>
           </div>
           <div className="flex gap-3">
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="code black" size="h-8 w-8" />}
-              title="Código negro"
+              title={dict.symptoms.code_black}
               count={codeBlack.toString().padStart(2, "0")}
             />
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="critic" size="h-8 w-8" />}
-              title="Condición crítica"
+              title={dict.symptoms.critical_condition}
               count={critic.toString().padStart(2, "0")}
               variant="critical"
             />
@@ -92,18 +100,20 @@ export default function SymptomsCards({ showCards }: { showCards: boolean }) {
               height={54}
             />
             <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Síntomas siendo tratados
+              {dict.symptoms.symptoms_under_treatment}
             </h5>
           </div>
           <div className="flex gap-3">
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
-              title="Condición en tratamiento"
+              title={dict.symptoms.condition_in_treatment}
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
+              dict={dict}
               icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
-              title="Condición en observación"
+              title={dict.symptoms.condition_in_observation}
               count={observation.toString().padStart(2, "0")}
             />
           </div>

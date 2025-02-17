@@ -14,7 +14,8 @@ export default function Download({ dict }: { dict: any }) {
           <FaCamera className="h-4 w-4 mr-2" /> {dict.symptoms.screenshot}
         </Button>
         <Button color="blue" className="flex align-middle justify-center">
-          <RiFileChartLine className="h-4 w-4 mr-2" /> {dict.symptoms.svg_document}
+          <RiFileChartLine className="h-4 w-4 mr-2" />
+          {dict.symptoms.svg_document}
         </Button>
         <Button color="blue" className="flex align-middle justify-center">
           <FaRegFile className="h-4 w-4 mr-2" /> {dict.symptoms.other}

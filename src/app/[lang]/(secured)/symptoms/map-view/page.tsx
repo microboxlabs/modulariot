@@ -16,11 +16,7 @@ export default async function SymptomsList({
     <div className="pb-5 flex flex-col h-full w-full bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={[
-            "Control Tower",
-            "symptoms",
-            "map-view",
-          ]}
+          path={["Control Tower", "symptoms", "map-view"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}
@@ -50,7 +46,9 @@ export default async function SymptomsList({
           </div>
         </Card>
       </div>
-      <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
+      <div
+        className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden"
+      >
         {/* Side information */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
           <SideInfo dict={dict} lang={lang} />

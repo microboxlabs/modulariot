@@ -50,13 +50,22 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).urgent_symptoms as string}: {(dict.symptoms as I18nRecord).code_black as string} {" "} {(dict.symptoms as I18nRecord).active as string}
+              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+              {(dict.symptoms as I18nRecord).code_black as string}
+              {" "}
+              {(dict.symptoms as I18nRecord).active as string}
             </h1>
           </div>
         </Card>
         <div className="flex flex-col gap-6">
           {test_data.map((item, index) => (
-            <SymptomsData key={index} date={item.date} container_index={index} dict={dict} lang={lang} />
+            <SymptomsData
+              key={index}
+              date={item.date}
+              container_index={index}
+              dict={dict}
+              lang={lang}
+            />
           ))}
         </div>
       </div>

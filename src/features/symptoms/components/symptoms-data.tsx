@@ -35,14 +35,24 @@ function getRelativeDayText(date: Date, lang: string): string {
     (givenDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays === 0) return (lang === "es" ? "Hoy" : "Today");
-  if (diffDays === -1) return (lang === "es" ? "Ayer" : "Yesterday");
-  if (diffDays > 0) return (lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`);
-  return (lang === "es" ? `Hace ${Math.abs(diffDays)} días` : `In ${Math.abs(diffDays)} days`);
+  if (diffDays === 0) return lang === "es" ? "Hoy" : "Today";
+  if (diffDays === -1) return lang === "es" ? "Ayer" : "Yesterday";
+  if (diffDays > 0) return lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`;
+  return lang === "es" ? `Hace ${Math.abs(diffDays)} días` : `In ${Math.abs(diffDays)} days`;
 }
 
-export default function SymptomsData({ date, container_index, dict, lang,
-}: { date: string, container_index: number, dict: any, lang: string }) {
+export default function SymptomsData({ 
+  date,
+  container_index,
+  dict,
+  lang,
+}: {
+  date: string;
+  container_index: number;
+  dict: any;
+  lang: string;
+}) {
+
   const [year, month, day] = date.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 

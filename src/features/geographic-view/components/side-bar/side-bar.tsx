@@ -4,11 +4,9 @@ import { HiChevronLeft } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
-import { BsStars } from "react-icons/bs";
 
 
 export default function SideBar({ dict }: { dict: any }) {
-
   const inner_menu = [
     {
       button_text: "Monitoring",
@@ -19,7 +17,6 @@ export default function SideBar({ dict }: { dict: any }) {
       component: <Download dict={dict} />,
     },
   ];
-
 
   const [open, set_open] = useState(false);
   const [openned_menu, set_openned_menu] = useState(0);
@@ -48,16 +45,18 @@ export default function SideBar({ dict }: { dict: any }) {
             className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
             <Button.Group>
-              {inner_menu.map((menu, i) => (
-                <Button
-                  className="z-10"
-                  onClick={() => set_openned_menu(i)}
-                  key={i}
-                  color={i == openned_menu ? "blue" : "gray"}
-                >
-                  {menu.button_text}
-                </Button>
-              ))}
+              {
+                inner_menu.map((menu, i) => (
+                  <Button
+                    className="z-10"
+                    onClick={() => set_openned_menu(i)}
+                    key={i}
+                    color={i == openned_menu ? "blue" : "gray"}
+                  >
+                    {menu.button_text}
+                  </Button>
+                ))
+              }
             </Button.Group>
             <div className="flex h-full w-full justify-center mt-6">
               {component}

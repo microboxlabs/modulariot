@@ -89,8 +89,8 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           color="blue"
           theme={{ inner: { base: "px-5 py-3" } }}
           className="w-full px-0 py-px submit"
-          isProcessing={pending && _state.success == undefined}
-          aria-disabled={pending && _state.success == undefined}
+          isProcessing={pending && _state?.success == undefined}
+          aria-disabled={pending && _state?.success == undefined}
           onClick={onSubmitForm}
         >
           {msg.buttonSubmitLabel}

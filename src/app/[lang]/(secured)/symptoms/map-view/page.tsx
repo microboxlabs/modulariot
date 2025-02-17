@@ -1,5 +1,5 @@
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import Image from "next/image";
@@ -45,7 +45,7 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {dict.symptoms.urgent_symptoms}: {dict.symptoms.code_black}
+              {(dict.symptoms as I18nRecord).urgent_symptoms as string}: {(dict.symptoms as I18nRecord).code_black as string}
             </h1>
           </div>
         </Card>

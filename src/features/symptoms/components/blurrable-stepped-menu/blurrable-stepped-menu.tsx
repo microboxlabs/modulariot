@@ -1,5 +1,3 @@
-/* prettier-ignore */
-
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
@@ -86,7 +84,9 @@ export default function BlurrableSteppedMenu({
   const [selected_section, setSelectedSection] = useState<number>(1);
   const [selected_elements, setSelectedElements] = useState<number[]>([0, 0]);
   const [displayed_element, setDisplayedElement] = useState<React.ReactNode>(
-    side_sections[selected_section].elements[selected_elements[selected_section]].component,
+    side_sections[selected_section].elements[
+      selected_elements[selected_section]
+    ].component,
   );
 
   const updateSelectedSection = (newSectionIndex: number) => {
@@ -94,7 +94,7 @@ export default function BlurrableSteppedMenu({
     setSelectedElements((prev) => {
       const updated = [...prev];
       updated[newSectionIndex] = Math.min(
-        updated[newSectionIndex], 
+        updated[newSectionIndex],
         side_sections[newSectionIndex].elements.length - 1,
       );
 
@@ -135,11 +135,10 @@ export default function BlurrableSteppedMenu({
       >
         {/*Left data*/}
         <div className="w-3/6 h-full !flex flex-col gap-2 p-2">
-          {
-            side_sections.map((section, section_index) => (
+          {side_sections.map((section, section_index) => (
               <div
                 key={section.title}
-                className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer 
+                className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
                   ${selected_section == section_index
                   ? "bg-gray-100 dark:bg-gray-700"
                   : "bg-white dark:bg-gray-800 opacity-30"
@@ -253,8 +252,9 @@ export default function BlurrableSteppedMenu({
                   }}
                 >
                   {
-                    side_sections[selected_section]?.elements[selected_elements[selected_section]]
-                      ?.button?.text ?? ''
+                    side_sections[selected_section]?.elements[
+                      selected_elements[selected_section]
+                    ]?.button?.text ?? ""
                   }
                 </Button>
               ) : null}

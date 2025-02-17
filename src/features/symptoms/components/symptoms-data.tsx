@@ -1,6 +1,11 @@
+"use client";
+
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
-
+import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { headers } from "next/headers";
+import { getLocaleFromHeaders } from "@/features/i18n/i18n.service";
+import { useState } from "react";
 const test_data = [
   {
     time: "9:00 - 9:30",
@@ -30,7 +35,7 @@ function formatDate(date: Date): string {
     .replace(".", "");
 }
 
-function getRelativeDayText(date: Date): string {
+function getRelativeDayText(date: Date, lang: string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Remove time part
   const givenDate = new Date(date);
@@ -40,15 +45,18 @@ function getRelativeDayText(date: Date): string {
     (givenDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === -1) return "Ayer";
-  if (diffDays > 0) return `En ${diffDays} días`;
-  return `Hace ${Math.abs(diffDays)} días`;
+  if (diffDays === 0) return (lang === "es" ? "Hoy" : "Today");
+  if (diffDays === -1) return (lang === "es" ? "Ayer" : "Yesterday");
+  if (diffDays > 0) return (lang === "es" ? `En ${diffDays} días` : `In ${diffDays} days`);
+  return (lang === "es" ? `Hace ${Math.abs(diffDays)} días` : `In ${Math.abs(diffDays)} days`);
 }
 
-export default function SymptomsData({ date }: { date: string }) {
+export default function SymptomsData({ date, container_index, dict, lang,
+}: { date: string, container_index: number, dict: any, lang: string }) {
   const [year, month, day] = date.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
+
+  const [total_symptoms, setTotalSymptoms] = useState(0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -60,10 +68,10 @@ export default function SymptomsData({ date }: { date: string }) {
           </div>
           <div className="flex flex-row flex-grow justify-between">
             <p className="text-gray-500 dark:text-gray-400">
-              {getRelativeDayText(setted_date)}
+              {getRelativeDayText(setted_date, lang)}
             </p>
             <p className="text-gray-500 dark:text-gray-400">
-              Síntomas totales: 2210
+              {dict.symptoms.total_symptoms}: 2210
             </p>
           </div>
         </div>
@@ -80,7 +88,7 @@ export default function SymptomsData({ date }: { date: string }) {
             </div>
           </div>
           <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms />
+            <TimedSymptoms dict={dict} initial_state={index === 0 && container_index === 0} />
           </div>
         </div>
       ))}

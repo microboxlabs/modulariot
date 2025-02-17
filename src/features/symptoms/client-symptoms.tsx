@@ -4,13 +4,13 @@ import { useState } from "react";
 import SymptomsCards from "./cards";
 import SymptomsTable from "./table";
 
-export default function ClientSymptoms() {
+export default function ClientSymptoms({ dict }: { dict: any }) {
   const [showCards, setShowCards] = useState(true);
 
   return (
     <div className="flex flex-col">
-      <SymptomsCards showCards={showCards} />
-      <SymptomsTable setShowCards={setShowCards} showCards={showCards} />
+      <SymptomsCards showCards={showCards} dict={dict} />
+      <SymptomsTable setShowCards={setShowCards} showCards={showCards} dict={dict} />
     </div>
   );
 }

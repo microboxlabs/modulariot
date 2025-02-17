@@ -6,6 +6,7 @@ import { HiChevronUp } from "react-icons/hi";
 import { Conditions } from "./table-item.type";
 import ConditionIcon from "./condition-icon";
 import { Button } from "flowbite-react";
+import { useRouter } from "next/navigation";
 
 const test_data = [
   {
@@ -40,9 +41,9 @@ const test_data = [
   },
 ];
 
-export default function TimedSymptoms() {
-  const [isOpen, setIsOpen] = useState(false);
-
+export default function TimedSymptoms({ initial_state = false, dict }: { initial_state: boolean, dict: any }) {
+  const [isOpen, setIsOpen] = useState(initial_state);
+  const router = useRouter();
   return (
     <div className="flex flex-col gap-2 w-full">
       {/* Expandable Button */}
@@ -53,7 +54,7 @@ export default function TimedSymptoms() {
         <div className="flex flex-row gap-2 items-center justify-center">
           <FaTruck color="gray" />
           <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-            {test_data.length} Síntomas detectados
+            {test_data.length} {dict.symptoms.symptoms_detected}
           </div>
         </div>
         <HiChevronUp
@@ -82,36 +83,31 @@ export default function TimedSymptoms() {
             </div>
             {/* Data */}
             <div className="grid grid-cols-3 w-full p-3 gap-2">
-              <p>
-                Conductor:{" "}
+              <p className="text-gray-900 dark:text-white">
+                {dict.symptoms.driver}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">
                   {item.driver}
                 </span>
               </p>
-              <p>
-                Modelo:{" "}
-                <span className="text-gray-500 dark:text-gray-400">
-                  Volvo Gama FH
-                </span>
-              </p>
-              <p>
-                Tiempo de trayecto:{" "}
+
+              <p className="text-gray-900 dark:text-white">
+                {dict.symptoms.trip_time}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">
                   16:33:12 hrs
                 </span>
               </p>
-              <p>
-                Contacto:{" "}
+              <p className="text-gray-900 dark:text-white" >
+                {dict.symptoms.contact}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">
                   +56 9 8348 5032
                 </span>
               </p>
-              <p>
-                Tipo de carga:{" "}
-                <span className="text-gray-500 dark:text-gray-400">Rampla</span>
+              <p className="text-gray-900 dark:text-white">
+                {dict.symptoms.type_of_load}:{" "}
+                <span className="text-gray-500 dark:text-gray-400">{dict.symptoms.ramp}</span>
               </p>
-              <p>
-                Otros:{" "}
+              <p className="text-gray-900 dark:text-white">
+                {dict.symptoms.other}:{" "}
                 <span className="text-gray-500 dark:text-gray-400">
                   xxxxxxxx
                 </span>
@@ -119,7 +115,7 @@ export default function TimedSymptoms() {
             </div>
             {/* Diagnose button */}
             <div className="flex flex-row gap-2 w-full justify-end">
-              <Button>Diagnóstico</Button>
+              <Button color="blue" onClick={() => router.push("/symptoms/map-view")}>{dict.symptoms.diagnose}</Button>
             </div>
           </div>
         ))}

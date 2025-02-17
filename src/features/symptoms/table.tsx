@@ -25,78 +25,78 @@ const data = [
   {
     condition: "code black",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
     status: "pia@mintral.com",
   },
   {
     condition: "critic",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
     status: null,
   },
   {
     condition: "treatment",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
     status: null,
   },
   {
     condition: "stable",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
     status: "johnny.green@mintral.com",
   },
   {
     condition: "compromised",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
     status: null,
   },
   /*
   {
     condition: "observation",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
   },
   {
     condition: "remission",
     licensePlate: "XX BB 21",
-    time: "30 seg.",
+    time: "30",
     trip: "STG-ANF",
     driver: "ANONIMO ANDRÉS",
     date: "2025-01-01 12:00:00",
     service: "V1406865",
-    alertType: "Conducción máxima continua",
+    alertType: "maximum_continuous_driving",
   },
   */
 ];
@@ -104,14 +104,16 @@ const data = [
 export default function SymptomsTable({
   setShowCards,
   showCards,
+  dict,
 }: {
   setShowCards: (showCards: boolean) => void;
   showCards: boolean;
+  dict: any;
 }) {
   return (
     <div className="px-5 pb-5 pt-2 flex flex-col gap-4 w-full">
       <div className="flex flex-row justify-between w-full text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Condiciones
+        {dict.symptoms.conditions}
         <div className="flex flex-row gap-2 h-full">
           <div
             className={`flex flex-row gap-2 h-full overflow-hidden transition-all duration-300 
@@ -120,14 +122,14 @@ export default function SymptomsTable({
           >
             <form className="hidden lg:block">
               <Label htmlFor="search" className="sr-only">
-                Search
+                {dict.symptoms.search}
               </Label>
               <TextInput
                 className="w-full "
                 icon={HiSearch}
                 id="search"
                 name="search"
-                placeholder="Search"
+                placeholder={dict.symptoms.search}
                 type="search"
               />
             </form>
@@ -160,25 +162,25 @@ export default function SymptomsTable({
       <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
         <Table striped className="w-full">
           <TableHead>
-            <TableHeadCell>Condición</TableHeadCell>
-            <TableHeadCell>Tiempo Activo</TableHeadCell>
-            <TableHeadCell>viaje</TableHeadCell>
-            <TableHeadCell>Conductor</TableHeadCell>
-            <TableHeadCell>Fecha de salida</TableHeadCell>
-            <TableHeadCell>Servicio</TableHeadCell>
-            <TableHeadCell>Tipo de alerta</TableHeadCell>
-            <TableHeadCell>Estado</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.trip}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.driver}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.service}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
+            <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
           </TableHead>
           <TableBody className="divide-y">
             {data.map((item) => (
-              <TableItem key={item.condition} data={item} />
+              <TableItem key={item.condition} data={item} dict={dict} />
             ))}
           </TableBody>
         </Table>
       </div>
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-500">
-          Mostrando <span className="font-bold">1-10</span> de{" "}
+          {dict.symptoms.showing} <span className="font-bold">1-10</span> {dict.symptoms.of}{" "}
           <span className="font-bold">1000</span>
         </p>
         <Pagination
@@ -188,8 +190,13 @@ export default function SymptomsTable({
           currentPage={1}
           totalPages={100}
           showIcons={true}
-          onPageChange={() => {
-            console.log("ejemplo");
+          onPageChange={() => { }}
+          theme={{
+            pages: {
+              selector: {
+                active: "bg-blue-100 text-blue-500",
+              },
+            },
           }}
         />
       </div>

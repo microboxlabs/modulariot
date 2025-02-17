@@ -20,7 +20,7 @@ export default function SideBar({ dict }: { dict: any }) {
   const [open, set_open] = useState(false);
   const [openned_menu, set_openned_menu] = useState(0);
   const [component, set_component] = useState(
-    inner_menu[openned_menu].component
+    inner_menu[openned_menu].component,
   );
 
   useEffect(() => {
@@ -42,7 +42,8 @@ export default function SideBar({ dict }: { dict: any }) {
         <div
           className={` bg-white dark:bg-gray-800 flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
         >
-          <div className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
+          <div
+            className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
             <Button.Group>
               {

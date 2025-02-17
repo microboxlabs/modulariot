@@ -7,7 +7,7 @@ import ConditionIcon from "./components/condition-icon";
 import StatusCard from "./components/status-card";
 import { useSymptoms } from "./hooks/use-symptoms";
 
-export default function SymptomsCards({ 
+export default function SymptomsCards({
   showCards,
   dict,
 }: {

@@ -131,8 +131,8 @@ export class PinLayer extends CompositeLayer<any> {
             d.properties.cluster ? d.properties.point_count || 1 : 1,
           ) * 0.26,
         updateTriggers: this.props.updateTriggers,
-        getAngle: (d: any) => !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
-        
+        getAngle: (d: any) =>
+          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
       }) as Layer,
       new PinCountLayer({
         id: "pin-counter",

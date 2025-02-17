@@ -174,6 +174,7 @@ export default function MapVisualization({
     })) || [],
   }), [mapPositions]);
   
+
   const layers = !specific_view
     ? [
       new PinLayer({

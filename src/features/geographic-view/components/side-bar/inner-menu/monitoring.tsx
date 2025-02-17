@@ -4,6 +4,97 @@ import { FaArrowsRotate } from "react-icons/fa6";
 import { GiAtom } from "react-icons/gi";
 import ExpandableButton from "../../../../symptoms/components/expandable-button";
 
+const data = {
+  "sections": [
+      {
+          "title": "Servicios",
+          "icon": <FaArrowsRotate />,
+          "items": [
+              {
+                  "key": "Viajes",
+                  "value": 147
+              },
+              {
+                  "key": "Emergencias",
+                  "value": 5
+              },
+              {
+                  "key": "En tránsito",
+                  "value": 93
+              },
+              {
+                  "key": "En destino",
+                  "value": 54
+              },
+              {
+                  "key": "Horas de monitoreo",
+                  "value": 1176
+              },
+              {
+                  "key": "Distancia monitoreada (km)",
+                  "value": 46410
+              }
+          ]
+      },
+      {
+          "title": "Flotas",
+          "icon": <HiTruck />,
+          "items": [
+              {
+                  "key": "Activos monitoreados",
+                  "value": 174
+              },
+              {
+                  "key": "Vehículos",
+                  "value": 102
+              },
+              {
+                  "key": "Calidad de señal (vehículos)",
+                  "value": 17
+              },
+              {
+                  "key": "Retraso de señal (vehículos)",
+                  "value": 793
+              },
+              {
+                  "key": "Contenedores",
+                  "value": 4
+              },
+              {
+                  "key": "Conductores",
+                  "value": 68
+              }
+          ]
+      },
+      {
+          "title": "Síntomas",
+          "icon": <GiAtom />,
+          "items": [
+              {
+                  "key": "Estable",
+                  "value": 98
+              },
+              {
+                  "key": "En observación",
+                  "value": 35
+              },
+              {
+                  "key": "Comprometido",
+                  "value": 18
+              },
+              {
+                  "key": "Critico",
+                  "value": 4
+              },
+              {
+                  "key": "Código negro",
+                  "value": 2
+              }
+          ]
+      }
+  ]
+};
+
 export default function Monitoring({ dict }: { dict: any }) {
   return (
     <div className="w-full flex flex-col gap-4">
@@ -12,85 +103,27 @@ export default function Monitoring({ dict }: { dict: any }) {
       </Label>
       {/* Glota total */}
       <div className="w-full flex flex-col gap-2">
-        <ExpandableButton
-          initial_state={true}
-          icon={<HiTruck />}
-          title={dict.symptoms.total_fleet}
-          description=""
-        >
-          <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.trips}:
-              <span className="text-gray-500 dark:text-gray-400">96</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.plates}:
-              <span className="text-gray-500 dark:text-gray-400">96</span>
-            </p>
-            <p className="text-red-600 dark:text-red-400">
-              {dict.symptoms.incidents}: 245
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.processed_distance}:
-              <span className="text-gray-500 dark:text-gray-400">89.055</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.average_duration_in_km}:
-              <span className="text-gray-500 dark:text-gray-400">
-                11:51:07 hrs
-              </span>
-            </p>
-          </div>
-        </ExpandableButton>
-      </div>
-
-      {/* Señales */}
-      <div className="w-full flex flex-col gap-2">
-        <ExpandableButton
-          initial_state={true}
-          icon={<FaArrowsRotate />}
-          title={dict.symptoms.signals}
-          description=""
-        >
-          <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.movement_per_minute}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">5.1</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.delay}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">00:02:21</span>
-            </p>
-          </div>
-        </ExpandableButton>
-      </div>
-      {/* Síntomas <- Contaminacion total */}
-      <div className="w-full flex flex-col gap-2">
-        <ExpandableButton
-          initial_state={true}
-          icon={<GiAtom />}
-          title={dict.symptoms.symptoms}
-          description=""
-        >
-          <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.total_co2}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">91.155</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.methane}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">17</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.nitrous_oxide}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">1.034</span>
-            </p>
-            <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.tank_to_tank}:{" "}
-              <span className="text-gray-500 dark:text-gray-400">15.978</span>
-            </p>
-          </div>
-        </ExpandableButton>
+        {
+          data.sections.map((section: any) => (
+            <ExpandableButton
+              initial_state={true}
+              icon={section.icon}
+              title={section.title}
+              description=""
+            >
+              <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
+                {
+                  section.items.map((item: any) => (
+                    <p className="text-gray-900 dark:text-white">
+                      {item.key}:{" "}
+                      <span className="text-gray-500 dark:text-gray-400">{item.value}</span>
+                    </p>
+                  ))
+                }
+              </div>
+            </ExpandableButton>
+          ))
+        }
       </div>
     </div>
   );

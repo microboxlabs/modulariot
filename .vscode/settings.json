@@ -8,10 +8,6 @@
     "source.fixAll.eslint": "always"
   },
   "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
-  }
+  "eslint.enable": true,
+  "eslint.validate": ["typescript", "typescriptreact"]
 }

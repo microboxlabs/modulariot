@@ -25,17 +25,17 @@ export default function Monitoring({ dict }: { dict: any }) {
             </p>
             <p className="text-gray-900 dark:text-white">
               {dict.symptoms.plates}:
-              <span className="text-gray-500 dark:text-gray-400">96
-              </span>
+              <span className="text-gray-500 dark:text-gray-400">96</span>
             </p>
             <p className="text-red-600 dark:text-red-400">
               {dict.symptoms.incidents}: 245
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.processed_distance}: <span className="text-gray-500 dark:text-gray-400">89.055</span>
+              {dict.symptoms.processed_distance}:
+              <span className="text-gray-500 dark:text-gray-400">89.055</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.average_duration_in_km}: 
+              {dict.symptoms.average_duration_in_km}:
               <span className="text-gray-500 dark:text-gray-400">
                 11:51:07 hrs
               </span>
@@ -54,7 +54,8 @@ export default function Monitoring({ dict }: { dict: any }) {
         >
           <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.movement_per_minute}: <span className="text-gray-500 dark:text-gray-400 ">5.1</span>
+              {dict.symptoms.movement_per_minute}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">5.1</span>
             </p>
             <p className="text-gray-900 dark:text-white">
               {dict.symptoms.delay}:{" "}
@@ -75,16 +76,20 @@ export default function Monitoring({ dict }: { dict: any }) {
         >
           <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.total_co2}: <span className="text-gray-500 dark:text-gray-400">91.155</span>
+              {dict.symptoms.total_co2}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">91.155</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.methane}: <span className="text-gray-500 dark:text-gray-400">17</span>
+              {dict.symptoms.methane}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">17</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.nitrous_oxide}: <span className="text-gray-500 dark:text-gray-400">1.034</span>
+              {dict.symptoms.nitrous_oxide}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">1.034</span>
             </p>
             <p className="text-gray-900 dark:text-white">
-              {dict.symptoms.tank_to_tank}: <span className="text-gray-500 dark:text-gray-400">15.978</span>
+              {dict.symptoms.tank_to_tank}:{" "}
+              <span className="text-gray-500 dark:text-gray-400">15.978</span>
             </p>
           </div>
         </ExpandableButton>

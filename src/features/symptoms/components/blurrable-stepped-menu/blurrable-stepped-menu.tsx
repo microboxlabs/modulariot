@@ -34,7 +34,9 @@ export default function BlurrableSteppedMenu({
           description: dict.symptoms.symptom_information,
           component: <SideInfoData dict={dict} lang={lang} />,
           icon: null,
-          logo: (<Image src={noAlarmImage} alt="Icon" width={100} height={100} />),
+          logo: (
+            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
+          ),
           button: null,
         },
       ],
@@ -89,7 +91,10 @@ export default function BlurrableSteppedMenu({
     setSelectedSection(newSectionIndex);
     setSelectedElements((prev) => {
       const updated = [...prev];
-      updated[newSectionIndex] = Math.min(updated[newSectionIndex], side_sections[newSectionIndex].elements.length - 1);
+      
+      updated[newSectionIndex] = 
+      Math.min(updated[newSectionIndex], side_sections[newSectionIndex].elements.length - 1);
+
       return updated;
     });
   };
@@ -124,12 +129,13 @@ export default function BlurrableSteppedMenu({
         className={`w-[1000px] h-[500px] bg-white dark:bg-gray-800 rounded-lg p-4 gap-2 !flex flex-row ${className}`}
       >
         {/*Left data*/}
-        <div className="w-3/6 h-full !flex flex-col gap-2 p-2 ">
+        <div className="w-3/6 h-full !flex flex-col gap-2 p-2">
           {
             side_sections.map((section, section_index) => (
               <div
                 key={section.title}
-                className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer ${selected_section == section_index
+                className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer 
+                  ${selected_section == section_index
                   ? "bg-gray-100 dark:bg-gray-700"
                   : "bg-white dark:bg-gray-800 opacity-30"
                   }`}

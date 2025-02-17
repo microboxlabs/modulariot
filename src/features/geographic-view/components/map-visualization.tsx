@@ -156,7 +156,7 @@ export default function MapVisualization({
             latitude: 51.47,
             zoom: 10,
           }}
-          mapStyle={mapboxStyles["satellite-v9"]}
+          mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
         {!specific_view ? (
           <div className="w-full h-full flex justify-between absolute">

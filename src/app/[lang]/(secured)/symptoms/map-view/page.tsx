@@ -19,8 +19,8 @@ export default async function SymptomsList({
           path={[
             "Control Tower",
             "symptoms",
-            "Urgent Symptoms",
-            "Form: code black",
+            "symptoms-list",
+            "map-view",
           ]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
@@ -46,7 +46,7 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Síntomas urgentes: Código Negro Activo
+              {dict.symptoms.urgent_symptoms}: {dict.symptoms.code_black}
             </h1>
           </div>
         </Card>
@@ -54,7 +54,7 @@ export default async function SymptomsList({
       <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
         {/* Side information */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <SideInfo />
+          <SideInfo dict={dict} />
         </div>
         {/* Map */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">

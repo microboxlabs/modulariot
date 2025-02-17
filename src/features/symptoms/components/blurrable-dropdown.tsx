@@ -1,10 +1,22 @@
 "use client";
 
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
-import { HiCheck, HiOutlineHand, HiChevronUp } from "react-icons/hi";
+import { HiChevronUp, HiArrowRight } from "react-icons/hi";
 import React, { useState, useEffect } from "react";
+import { FaWhatsapp } from "react-icons/fa";
+import { BsStars } from "react-icons/bs";
+import { GiPoliceBadge } from "react-icons/gi";
+import { MdCancel } from "react-icons/md";
 
-export default function BlurrableDropdown() {
+export default function BlurrableDropdown({
+  isMenuOpen,
+  setIsMenuOpen,
+  dict,
+}: {
+  isMenuOpen: boolean;
+  setIsMenuOpen: (isMenuOpen: boolean) => void;
+  dict: any;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -25,13 +37,28 @@ export default function BlurrableDropdown() {
   const other_options = [
     {
       id: 0,
-      label: "ejemplo 1",
-      icon: HiCheck,
+      label: dict.symptoms.derive_to_specialist,
+      icon: HiArrowRight,
     },
     {
       id: 1,
-      label: "ejemplo 2",
-      icon: HiOutlineHand,
+      label: dict.symptoms.contact_carabineros,
+      icon: GiPoliceBadge,
+    },
+    {
+      id: 2,
+      label: dict.symptoms.contact_via_whatsapp,
+      icon: FaWhatsapp,
+    },
+    {
+      id: 3,
+      label: dict.symptoms.copilot,
+      icon: BsStars,
+    },
+    {
+      id: 4,
+      label: dict.symptoms.ignore_condition,
+      icon: MdCancel,
     },
   ];
 
@@ -39,9 +66,9 @@ export default function BlurrableDropdown() {
   const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
   return (
-    <div className="" onClick={() => setIsOpen(!isOpen)}>
+    <div className="z-50" onClick={() => setIsOpen(!isOpen)}>
       <div
-        className={`fixed inset-0  z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
+        className={`fixed inset-0 flex justify-center items-center transition-all duration-300 ${isOpen ? blurred : clean}`}
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(false);
@@ -53,11 +80,11 @@ export default function BlurrableDropdown() {
         renderTrigger={() => (
           <Button
             color="gray"
-            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
+            className="h-10 transition-all duration-100 !z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
           >
             <div className="flex items-center gap-2">
               <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                Otras opciones
+                {dict.symptoms.other_options}
               </p>
               <HiChevronUp
                 className={`text-gray-900 dark:text-gray-100 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
@@ -76,8 +103,14 @@ export default function BlurrableDropdown() {
         }}
       >
         {other_options.map(({ id, label, icon: Icon }) => (
-          <DropdownItem key={id} className="flex gap-1 w-full">
-            <Icon />
+          <DropdownItem
+            key={id}
+            className="flex gap-1 w-full"
+            onClick={() => {
+              setIsMenuOpen(!isMenuOpen);
+            }}
+          >
+            <Icon className="h-4 w-4 mr-2" />
             {label}
           </DropdownItem>
         ))}

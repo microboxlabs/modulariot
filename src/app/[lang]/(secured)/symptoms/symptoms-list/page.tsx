@@ -33,7 +33,7 @@ export default async function SymptomsList({
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "symptoms", "Urgent Symptoms"]}
+          path={["Control Tower", "symptoms", "symptoms-list"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}
@@ -62,13 +62,13 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Síntomas urgentes: Código Negro Activo
+              {dict.symptoms.urgent_symptoms}: {dict.symptoms.code_black} {dict.symptoms.active}
             </h1>
           </div>
         </Card>
         <div className="flex flex-col gap-6">
           {test_data.map((item, index) => (
-            <SymptomsData key={index} date={item.date} />
+            <SymptomsData key={index} date={item.date} container_index={index} dict={dict} lang={lang} />
           ))}
         </div>
       </div>

@@ -21,13 +21,13 @@ const config: Config = {
       },
       keyframes: {
         "hide": {
-          "0%": { opacity: "1", display: "block", maxHeight: "100%" },
+          "0%": { opacity: "1", display: "inline", maxHeight: "100%" },
           "50%": { opacity: "0", display: "none", maxHeight: "50%" },
           "100%": { opacity: "0", display: "none", maxHeight: "0" },
         },
         "show": {
           "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "block", maxHeight: "100%" },
+          "100%": { opacity: "1", display: "inline", maxHeight: "100%" },
         },
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },

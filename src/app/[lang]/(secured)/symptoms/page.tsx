@@ -23,7 +23,7 @@ export default async function SymptomsPage({
         animation of hiding the cards is not working if there is padding.
       */}
       <div className="flex-1 relative overflow-y-auto">
-        <ClientSymptoms />
+        <ClientSymptoms dict={dict} />
       </div>
     </div>
   );

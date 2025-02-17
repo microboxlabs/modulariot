@@ -12,6 +12,8 @@ import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
+import { useMapPositions } from "@/features/geographic-view/hooks/use-map-positions";
+import { useSymptoms } from "@/features/symptoms/hooks/use-symptoms";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
@@ -19,18 +21,24 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const [isPreview, setIsPreview] = useState(isCollapsed);
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
-
-  const totals: { [key: string]: number } = {};
+  const { count: mapCount } = useMapPositions();
+  const { count: symptomsCount } = useSymptoms();
+  const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
   if (!error) {
-    console.log(data);
-
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
   } else if (error.status === 403 || error.status === 401) {
     router.push("/sign-in");
   }
+
+  useEffect(() => {
+    const newTotals = { ...totals };
+    newTotals["geographicView"] = mapCount;
+    newTotals["symptoms"] = symptomsCount;
+    setTotals(newTotals);
+  }, [mapCount, symptomsCount]);
 
   useEffect(() => {
     if (isCollapsed) setIsPreview(false);

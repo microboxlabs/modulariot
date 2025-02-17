@@ -377,6 +377,8 @@
     "signals": "Signals",
     "downloadable_elements": "Downloadable elements",
     "screenshot": "Screenshot",
-    "svg_document": "SVG document"
+    "svg_document": "SVG document",
+    "mission_control": "Control Tower",
+    "geographic_view": "Geographic view"
   }
 }

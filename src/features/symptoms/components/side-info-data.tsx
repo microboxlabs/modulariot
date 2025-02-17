@@ -6,8 +6,6 @@ import ExpandableButton from "./expandable-button";
 import { Conditions } from "./table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 
-
-
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
@@ -39,12 +37,12 @@ function calculateDuration(startTime: string): string {
   }
 }
 
-export default function SideInfoData({ 
+export default function SideInfoData({
   dict, 
   lang,
-}: { 
-  dict: any;
-  lang: string;
+}:{ 
+  dict:any;
+  lang:string;
 }) {
   const data = {
     trip: {

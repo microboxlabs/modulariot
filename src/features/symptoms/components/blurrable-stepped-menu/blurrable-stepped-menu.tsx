@@ -91,9 +91,10 @@ export default function BlurrableSteppedMenu({
     setSelectedSection(newSectionIndex);
     setSelectedElements((prev) => {
       const updated = [...prev];
-      
-      updated[newSectionIndex] = 
-      Math.min(updated[newSectionIndex], side_sections[newSectionIndex].elements.length - 1);
+      updated[newSectionIndex] = Math.min(
+        updated[newSectionIndex], 
+        side_sections[newSectionIndex].elements.length - 1,
+      );
 
       return updated;
     });
@@ -109,7 +110,9 @@ export default function BlurrableSteppedMenu({
 
   useEffect(() => {
     setDisplayedElement(
-      side_sections[selected_section].elements[selected_elements[selected_section]].component,
+      side_sections[selected_section].elements[
+        selected_elements[selected_section]
+      ].component,
     );
   }, [selected_elements, selected_section]);
 

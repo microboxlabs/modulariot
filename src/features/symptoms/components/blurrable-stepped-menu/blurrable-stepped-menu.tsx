@@ -159,9 +159,9 @@ export default function BlurrableSteppedMenu({
                       ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
                       : selected_elements[selected_section] > inner_index &&
                           selected_section == section_index
-                      ? "text-gray-900 dark:text-white"
+                        ? "text-gray-900 dark:text-white"
                         : "opacity-30 text-gray-900 dark:text-white"
-                    }`}
+                  }`}
                   key={inner_index}
                 >
                   <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">

@@ -141,23 +141,25 @@ export default function BlurrableSteppedMenu({
               className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
                 ${
                   selected_section == section_index
-                  ? "bg-gray-100 dark:bg-gray-700"
-                  : "bg-white dark:bg-gray-800 opacity-30"
+                    ? "bg-gray-100 dark:bg-gray-700"
+                    : "bg-white dark:bg-gray-800 opacity-30"
                 }`}
               onClick={() => {
                 updateSelectedSection(section_index);
               }}
             >
-              <p className="text-sm mb-2 text-gray-900 dark:text-white">{section.title}</p>
+              <p className="text-sm mb-2 text-gray-900 dark:text-white">
+                {section.title}
+              </p>
               {section.elements.map((element, inner_index) => (
-              <div
+                <div
                   className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
                     selected_section == section_index
-                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                    : selected_elements[selected_section] > inner_index &&
-                      selected_section == section_index
-                      ? "text-gray-900 dark:text-white"
-                      : "opacity-30 text-gray-900 dark:text-white"
+                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                      : selected_elements[selected_section] > inner_index &&
+                        selected_section == section_index
+                          ? "text-gray-900 dark:text-white"
+                          : "opacity-30 text-gray-900 dark:text-white"
                     }`}
                   key={inner_index}
                 >
@@ -184,8 +186,9 @@ export default function BlurrableSteppedMenu({
             <div className="w-full flex flex-col">
               <div className="flex flex-row items-center justify-between">
                 <div className="w-full flex items-center gap-2 text-gray-500">
-                  {side_sections[selected_section].elements[selected_elements[selected_section]]
-                    .icon ? (
+                  {side_sections[selected_section].elements[
+                    selected_elements[selected_section]
+                  ].icon ? (
                     <div className="w-10 h-10 flex items-center justify-center text-gray-500">
                       {
                         side_sections[selected_section].elements[
@@ -193,10 +196,15 @@ export default function BlurrableSteppedMenu({
                         ].icon
                       }
                     </div>
-                  ) : side_sections[selected_section].elements[selected_elements[selected_section]]
-                    .logo ? (
+                  ) : side_sections[selected_section].elements[
+                      selected_elements[selected_section]
+                    ].logo ? (
                     <div className="w-10 h-10 flex items-center justify-center">
-                      {side_sections[selected_section].elements[selected_elements[selected_section]].logo}
+                      {
+                        side_sections[selected_section].elements[
+                          selected_elements[selected_section]
+                        ].logo
+                      }
                     </div>
                   ) : null}
                   <h1 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -230,8 +238,7 @@ export default function BlurrableSteppedMenu({
             {/*page data*/}
             <div className="flex flex-grow w-full flex-col gap-2 overflow-y-auto">
               {displayed_element}
-              {side_sections[selected_section].elements[selected_elements[selected_section]]
-                .button ? (
+              {side_sections[selected_section].elements[selected_elements[selected_section]].button ? (
                 <Button
                   className="w-full"
                   color="blue"
@@ -241,7 +248,9 @@ export default function BlurrableSteppedMenu({
                         selected_elements[selected_section]
                       ]?.button?.action;
                     if (buttonAction === "next") {
-                      updateSelectedElement(selected_elements[selected_section] + 1);
+                      updateSelectedElement(
+                        selected_elements[selected_section] + 1
+                      );
                     } else {
                       setIsMenuOpen(false);
                     }

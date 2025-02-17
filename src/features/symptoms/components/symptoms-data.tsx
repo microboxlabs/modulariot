@@ -2,7 +2,6 @@
 
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
-import { useState } from "react";
 
 const test_data = [
   {
@@ -96,9 +95,9 @@ export default function SymptomsData({
             </div>
           </div>
           <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms 
-              dict={dict} 
-              initial_state={index === 0 && container_index === 0} 
+            <TimedSymptoms
+              dict={dict}
+              initial_state={index === 0 && container_index === 0}
             />
           </div>
         </div>

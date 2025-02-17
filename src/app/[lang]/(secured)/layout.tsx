@@ -20,7 +20,7 @@ export default async function Layout({
       )}
     >
       <SessionProvider basePath="/app/api/auth">
-        <SecuredLayout params={params}>{children}</SecuredLayout>;
+        <SecuredLayout params={params}>{children}</SecuredLayout>
       </SessionProvider>
     </main>
   );

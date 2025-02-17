@@ -186,9 +186,10 @@
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelar",
         "annulled": "Anular",
+        "continue": "Continuar",
         "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
         "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
-        "confirmDelivery": "Confirmar entrega",
+        "confirmDelivery": "Confirmar Entrega",
         "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
         "monitoringFinalization": "Finalizar Monitoreo",
         "redirectToMissionControl": "Devolver a Torre de Control"

@@ -40,9 +40,9 @@ export default function Monitoring() {
           </p>
         </div>
       </div>
-      {/* Contaminacion total */}
+      {/* Síntomas <- Contaminacion total */}
       <div className="w-full flex flex-col gap-2">
-        <CustomDropdown text="Señales" Icon={GiAtom} />
+        <CustomDropdown text="Síntomas" Icon={GiAtom} />
         <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
           <p>
             Total CO2: <span className="text-gray-500">91.155</span>

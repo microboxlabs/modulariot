@@ -4,6 +4,7 @@ import {
   ShippingCoordinatorProcessForms,
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
+  OverlordTripInitOutcome,
 } from "./form.service.types";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
@@ -41,6 +42,18 @@ export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForm
 
 export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
   "Iniciado Normal";
+
+export const OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS: OverlordTripInitOutcome =
+  "Autorizado Sin GPS";
+
+export const OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS: OverlordTripInitOutcome =
+  "Autorizado Con Reparos";
+
+export const OUTCOME_OVERLORD_ANULLED: OverlordTripInitOutcome =
+  "Anulado por Overlord";
+
+export const OUTCOME_OVERLORD_CANCELED: OverlordTripInitOutcome =
+  "Cancelado por Overlord";
 
 export const OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION: MonitoringInCourseTripOutcome =
   "Confirmar Arribo a Destino";

@@ -192,7 +192,11 @@
         "confirmDelivery": "Confirmar Entrega",
         "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
         "monitoringFinalization": "Finalizar Monitoreo",
-        "redirectToMissionControl": "Devolver a Torre de Control"
+        "redirectToMissionControl": "Devolver a Torre de Control",
+        "authorizedWithoutGPS": "Autorizado sin GPS",
+        "authorizedWithRepairs": "Autorizado con reparos",
+        "canceledByOverlord": "Cancelado por Overlord",
+        "annulledByOverlord": "Anulado por Overlord"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

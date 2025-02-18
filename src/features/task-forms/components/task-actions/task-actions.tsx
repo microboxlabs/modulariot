@@ -16,6 +16,8 @@ import {
   TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
   TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
   TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION,
+  TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK,
+  OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -86,6 +88,40 @@ export default function TaskActions({
           />
         </div>
       );
+    case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
+      return (
+        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+          <Button.Group className="w-full">
+            <CanceledAnnulledOptions
+              dict={dict}
+              handleSelection={handleSelection}
+            />
+            <TaskActionButton
+              fluid={fluid}
+              label={(dict.outcome as I18nRecord).continue as string}
+              taskId={taskId}
+              transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS}
+              onClick={() =>
+                handleSelection(
+                  OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS,
+                  (dict.outcome as I18nRecord).authorizedWithoutGPS as string,
+                )
+              }
+            />
+          </Button.Group>
+
+          <TaskConfirmModal
+            commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+            dict={dict}
+            taskId={taskId}
+            outcome={outcome!}
+            outcomeLabel={outcomeLabel!}
+            openModal={openModal}
+            setOpenModal={setOpenModal}
+          />
+        </div>
+      );
+
     case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">

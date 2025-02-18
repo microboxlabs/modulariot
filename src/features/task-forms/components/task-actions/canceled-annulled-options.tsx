@@ -31,7 +31,7 @@ export default function CanceledAnnulledOptions({
     };
   }, []);
 
-  const other_options = [
+  const otherOptions = [
     {
       id: OUTCOME_CANCELED,
       label: (dict.outcome as I18nRecord).canceled as string,
@@ -84,7 +84,7 @@ export default function CanceledAnnulledOptions({
           },
         }}
       >
-        {other_options.map(({ id, label, icon: Icon }) => (
+        {otherOptions.map(({ id, label, icon: Icon }) => (
           <DropdownItem
             key={id}
             className="flex gap-1 w-full"

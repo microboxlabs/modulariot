@@ -45,7 +45,8 @@ export type SovosDigitalSignatureOutcome =
 export type TaskOutcome =
   | MissionControlValidationOutcome
   | SovosDigitalSignatureOutcome
-  | MonitoringInCourseTripOutcome;
+  | MonitoringInCourseTripOutcome
+  | OverlordTripInitOutcome;
 
 export type ShippingCoordinatorProcessTask =
   | "transportValidation"
@@ -59,5 +60,11 @@ export type ShippingCoordinatorProcessTask =
   | "confirmDelivery"
   | "confirmMonitoringFinalization"
   | "monitoringFinalization";
+
+export type OverlordTripInitOutcome =
+  | "Autorizado Sin GPS"
+  | "Autorizado Con Reparos"
+  | "Anulado por Overlord"
+  | "Cancelado por Overlord";
 
 export type GPSValidityType = "ok" | "warning" | "error";

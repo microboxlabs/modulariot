@@ -85,7 +85,6 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           }
         />
       );
-    case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
     case TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK:
       return (
         <ShippingDetailsTaskForm
@@ -96,54 +95,10 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
       );
 
     case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
-      return (
-        <NextCancelTripView
-          lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
-        />
-      );
-
+    case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
-      return (
-        <NextCancelTripView
-          lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
-        />
-      );
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
-      return (
-        <NextCancelTripView
-          lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
-        />
-      );
     case TYPE_WFSHIP_CONFIRM_DELIVERY:
-      return (
-        <NextCancelTripView
-          lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
-        />
-      );
     case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
       return (
         <NextCancelTripView

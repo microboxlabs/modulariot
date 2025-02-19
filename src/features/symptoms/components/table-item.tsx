@@ -22,46 +22,46 @@ export default function TableItem({
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex justify-center items-center gap-2">
-          <ConditionIcon condition={data.condition} />
+          <ConditionIcon condition={data.condition} size="h-8 w-8" />
           <p
-            className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+            className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
           >
             {data.licensePlate}
           </p>
         </div>
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.time} {dict.symptoms.sec}.
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.trip}
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.driver}
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.date}
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {data.service}
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
       </TableCell>
       <TableCell
-        className={`${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
         <div className="flex items-center gap-2">
           {data.status != null ? (
@@ -70,11 +70,14 @@ export default function TableItem({
             </p>
           ) : (
             <Button
+              className="h-8 flex justify-center items-center !text-xs"
               color="blue"
               onClick={() => router.push("/symptoms/map-view")}
             >
-              <p>{dict.symptoms.diagnose}</p>
-              <HiArrowRight className="w-5 h-5 ml-2" />
+              <div className="flex items-center gap-2">
+                <p>{dict.symptoms.diagnose}</p>
+                <HiArrowRight className="w-4 h-4" />
+              </div>
             </Button>
           )}
         </div>

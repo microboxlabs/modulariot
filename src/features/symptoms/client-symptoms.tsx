@@ -8,7 +8,7 @@ export default function ClientSymptoms({ dict }: { dict: any }) {
   const [showCards, setShowCards] = useState(true);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full pb-3">
       <SymptomsCards showCards={showCards} dict={dict} />
       <SymptomsTable
         setShowCards={setShowCards}

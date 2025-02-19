@@ -4,12 +4,17 @@ import { HiChevronLeft } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
+import Symptoms from "./inner-menu/symptoms";
 
 export default function SideBar({ dict }: { dict: any }) {
   const inner_menu = [
     {
       button_text: "Monitoring",
       component: <Monitoring dict={dict} />,
+    },
+    {
+      button_text: "Symptoms",
+      component: <Symptoms />,
     },
     {
       button_text: "Download",

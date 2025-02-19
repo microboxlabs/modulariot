@@ -6,6 +6,7 @@ import { HiSearch } from "react-icons/hi";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { FaFilter, FaArrowsRotate } from "react-icons/fa6";
 import TableComponent from "./components/table-component";
+
 export default function SymptomsTable({
   setShowCards,
   showCards,
@@ -105,15 +106,13 @@ export default function SymptomsTable({
           </Button>
         </div>
       </div>
-      <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
-        <TableComponent
-          dict={dict}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          searchTerm={searchTerm}
-          setCurrentPage={setCurrentPage}
-        />
-      </div>
+      <TableComponent
+        dict={dict}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        searchTerm={searchTerm}
+        setCurrentPage={setCurrentPage}
+      />
     </div>
   );
 }

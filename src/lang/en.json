@@ -192,7 +192,11 @@
         "confirmDelivery": "Confirm Delivery",
         "confirmMonitoringFinalization": "Confirm Monitoring Finalization",
         "monitoringFinalization": "Monitoring Finalized",
-        "redirectToMissionControl": "Redirect to Mission Control"
+        "redirectToMissionControl": "Redirect to Mission Control",
+        "authorizedWithoutGPS": "Authorized without GPS",
+        "authorizedWithRepairs": "Authorized with Repairs",
+        "canceledByOverlord": "Canceled by Overlord",
+        "annulledByOverlord": "Annulled by Overlord"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

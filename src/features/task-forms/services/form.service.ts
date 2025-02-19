@@ -79,9 +79,11 @@ export const OUTCOME_INITIATION_WITH_OBJECTIONS: MissionControlValidationOutcome
 export const OUTCOME_OVERLORD_REQUIRED: MissionControlValidationOutcome =
   "Requiere Overlord";
 
-export const OUTCOME_CANCELED: MissionControlValidationOutcome = "Cancelado";
+export const OUTCOME_CANCELED: MissionControlValidationOutcome =
+  "Viaje Cancelado";
 
-export const OUTCOME_ANNULLED: MissionControlValidationOutcome = "Anulado";
+export const OUTCOME_ANNULLED: MissionControlValidationOutcome =
+  "Viaje Anulado";
 
 export const OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE: MissionControlValidationOutcome =
   "Iniciado sin Firma Sovos";

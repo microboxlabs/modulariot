@@ -39,7 +39,7 @@ export default function SymptomsCards({
 
   return (
     <div
-      className={`pt-2 px-5 flex flex-col gap-2 overflow-hidden transition-[max-height, padding] ease-in-out duration-300 
+      className={`h-2/6 pt-2 px-5 flex flex-col gap-2 overflow-hidden transition-all ease-in-out duration-300 
         ${showCards ? "max-h-[500px] pb-5" : "max-h-0 pb-0 "}
       `}
     >

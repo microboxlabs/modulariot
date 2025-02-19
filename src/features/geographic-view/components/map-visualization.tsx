@@ -209,7 +209,7 @@ export default function MapVisualization({
         viewState={viewState}
         controller={true}
         layers={layers}
-        oonViewStateChange={(e: any) => setViewState(e.viewState)}
+        onViewStateChange={(e: any) => setViewState(e.viewState)}
         getTooltip={({ object }: PickingInfo<MapPositionProperties>) => {
           if (object) {
             if (object.properties.cluster) {

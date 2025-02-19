@@ -97,7 +97,7 @@ export default function SymptomsTable({
                 dict={dict}
                 compact={compact}
               />
-            ))}    
+            ))}
           </TableBody>
         </Table>
       </div>

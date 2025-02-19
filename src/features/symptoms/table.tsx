@@ -81,7 +81,7 @@ export default function SymptomsTable({
     : 0;
 
   return (
-    <div className="px-5 pb-5 pt-2 flex flex-col gap-4 w-full">
+    <div className="h-4/6 px-5 pb-5 pt-2 flex flex-col gap-4 w-full flex-grow">
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <div className="flex gap-2 items-center">
@@ -157,8 +157,18 @@ export default function SymptomsTable({
           </Button>
         </div>
       </div>
-      <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
-        <Table striped className="w-full">
+      <div className="bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full h-full overflow-y-auto border-2 border-gray-300 dark:border-gray-600 transition-all duration-300">
+        <Table
+          striped
+          className="w-full overflow-y-auto"
+          theme={{
+            body: {
+              cell: {
+                base: "px-6 py-4 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
+              },
+            },
+          }}
+        >
           <TableHead>
             <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
             <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
@@ -169,7 +179,7 @@ export default function SymptomsTable({
             <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
             <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
           </TableHead>
-          <TableBody className="divide-y">
+          <TableBody className="divide-y overflow-y-auto">
             {tableData?.data.map((item, index) => (
               <TableItem key={index} data={item} dict={dict} />
             ))}

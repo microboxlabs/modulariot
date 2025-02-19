@@ -1,19 +1,24 @@
 "use client";
 
 import { Button, Dropdown, DropdownItem } from "flowbite-react";
-import { HiOutlineArrowLeft, HiTrash, HiChevronUp } from "react-icons/hi";
+import { HiChevronUp } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import {
-  OUTCOME_CANCELED,
-  OUTCOME_ANNULLED,
-} from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
+import { TaskOutcome } from "../../services/form.service.types";
+interface CanceledAnnulledAndOptionsProps extends OtherOptionsProps {
+  otherOptions: Array<{
+    id: string;
+    label: string;
+    icon: React.ElementType;
+  }>;
+}
 
-export default function CanceledAnnulledOptions({
+export default function CanceledAnnulledAndOptions({
   dict,
   handleSelection,
-}: OtherOptionsProps) {
+  otherOptions,
+}: CanceledAnnulledAndOptionsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -24,33 +29,18 @@ export default function CanceledAnnulledOptions({
     };
 
     document.addEventListener("keydown", handleEscapeKey);
-
-    // Cleanup listener when component unmounts
     return () => {
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, []);
 
-  const otherOptions = [
-    {
-      id: OUTCOME_CANCELED,
-      label: (dict.outcome as I18nRecord).canceled as string,
-      icon: HiOutlineArrowLeft,
-    },
-    {
-      id: OUTCOME_ANNULLED,
-      label: (dict.outcome as I18nRecord).annulled as string,
-      icon: HiTrash,
-    },
-  ];
-
   const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
   const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
   return (
-    <div className="" onClick={() => setIsOpen(!isOpen)}>
+    <div onClick={() => setIsOpen(!isOpen)}>
       <div
-        className={`fixed inset-0  z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
+        className={`fixed inset-0 z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(false);
@@ -88,7 +78,7 @@ export default function CanceledAnnulledOptions({
           <DropdownItem
             key={id}
             className="flex gap-1 w-full"
-            onClick={() => handleSelection(id, label)}
+            onClick={() => handleSelection(id as TaskOutcome, label)}
           >
             <Icon />
             {label}

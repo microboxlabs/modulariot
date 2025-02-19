@@ -4,6 +4,7 @@ import {
   HiOutlineArrowLeft,
   HiTrash,
   HiOutlineArrowRight,
+  HiCheck,
 } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
@@ -106,16 +107,6 @@ export default function TaskActions({
               handleSelection={handleSelection}
               otherOptions={[
                 {
-                  id: OUTCOME_OVERLORD_CANCELED,
-                  label: (dict.outcome as I18nRecord).canceled as string,
-                  icon: HiOutlineArrowLeft,
-                },
-                {
-                  id: OUTCOME_OVERLORD_ANULLED,
-                  label: (dict.outcome as I18nRecord).annulled as string,
-                  icon: HiTrash,
-                },
-                {
                   id: OUTCOME_REDIRECT_TO_MISSION_CONTROL,
                   label: (dict.outcome as I18nRecord)
                     .redirectToMissionControl as string,
@@ -125,7 +116,17 @@ export default function TaskActions({
                   id: OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
                   label: (dict.outcome as I18nRecord)
                     .authorizedWithRepairs as string,
-                  icon: HiOutlineArrowRight,
+                  icon: HiCheck,
+                },
+                {
+                  id: OUTCOME_OVERLORD_CANCELED,
+                  label: (dict.outcome as I18nRecord).canceled as string,
+                  icon: HiOutlineArrowLeft,
+                },
+                {
+                  id: OUTCOME_OVERLORD_ANULLED,
+                  label: (dict.outcome as I18nRecord).annulled as string,
+                  icon: HiTrash,
                 },
               ]}
             />

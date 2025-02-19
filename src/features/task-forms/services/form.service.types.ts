@@ -23,8 +23,8 @@ export type MissionControlValidationOutcome =
   | "Iniciado Con Reparos"
   | "Iniciado sin Firma Sovos"
   | "Requiere Overlord"
-  | "Anulado"
-  | "Cancelado";
+  | "Viaje Anulado"
+  | "Viaje Cancelado"; //"Cancelado";
 
 export type MonitoringInCourseTripOutcome =
   | "Confirmar Arribo a Destino"

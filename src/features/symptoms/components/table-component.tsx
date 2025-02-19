@@ -14,12 +14,14 @@ export default function SymptomsTable({
   pageSize,
   searchTerm,
   setCurrentPage,
+  compact = false,
 }: {
   dict: any;
   currentPage: number;
   pageSize: number;
   searchTerm: string;
   setCurrentPage: (page: number) => void;
+  compact?: boolean;
 }) {
   const { tableData, loading, error } = useSymptomsTable({
     page: currentPage,
@@ -57,62 +59,118 @@ export default function SymptomsTable({
     : 0;
 
   return (
-    <div>
-      <div className="shadow-md rounded-lg w-full h-fit overflow-y-auto">
-        <Table striped className="w-full">
-          <TableHead>
-            <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.trip}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.driver}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.service}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
-            <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
-          </TableHead>
-          <TableBody className="divide-y">
+    <div className="flex flex-col flex-grow">
+      <div className="h-10 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
+        <Table
+          striped
+          theme={{
+            body: {
+              cell: {
+                base: "px-6 py-4 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
+              },
+            },
+          }}
+        >
+          {!compact ? (
+            <TableHead>
+              <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.trip}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.driver}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.service}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
+            </TableHead>
+          ) : (
+            <TableHead>
+              <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
+              <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
+            </TableHead>
+          )}
+
+          <TableBody>
             {tableData?.data.map((item, index) => (
-              <TableItem key={index} data={item} dict={dict} />
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
             ))}
           </TableBody>
         </Table>
       </div>
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">
-          {tableData && tableData?.pagination.totalPages > 0 ? (
-            <>
-              {dict.symptoms.showing}{" "}
-              <span className="font-bold">
-                {startItem}-{endItem}
-              </span>{" "}
-              {dict.symptoms.of}{" "}
-              <span className="font-bold">
-                {tableData?.pagination.totalPages}
-              </span>
-            </>
-          ) : (
-            "No hay resultados"
-          )}
-        </p>
-        {tableData && tableData?.pagination.totalPages > 0 && (
-          <Pagination
-            layout="pagination"
-            nextLabel=""
-            previousLabel=""
-            currentPage={tableData?.pagination.currentPage}
-            totalPages={Math.max(1, tableData?.pagination.totalPages)}
-            showIcons={true}
-            onPageChange={handlePageChange}
-            theme={{
-              pages: {
-                selector: {
-                  active: "bg-blue-100 text-blue-500",
+      {!compact && (
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-gray-500">
+            {tableData && tableData?.pagination.totalPages > 0 ? (
+              <>
+                {dict.symptoms.showing}{" "}
+                <span className="font-bold">
+                  {startItem}-{endItem}
+                </span>{" "}
+                {dict.symptoms.of}{" "}
+                <span className="font-bold">
+                  {tableData?.pagination.totalPages}
+                </span>
+              </>
+            ) : (
+              "No hay resultados"
+            )}
+          </p>
+          {tableData && tableData?.pagination.totalPages > 0 && (
+            <Pagination
+              layout="pagination"
+              nextLabel=""
+              previousLabel=""
+              currentPage={tableData?.pagination.currentPage}
+              totalPages={Math.max(1, tableData?.pagination.totalPages)}
+              showIcons={true}
+              onPageChange={handlePageChange}
+              theme={{
+                pages: {
+                  selector: {
+                    active: "bg-blue-100 text-blue-500",
+                  },
                 },
-              },
-            }}
-          />
-        )}
-      </div>
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

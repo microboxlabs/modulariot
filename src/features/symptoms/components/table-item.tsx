@@ -9,19 +9,93 @@ import { useRouter } from "next/navigation";
 export default function TableItem({
   data,
   dict,
+  compact = false,
 }: {
   data: TableItemType;
   dict: any;
+  compact?: boolean;
 }) {
   const router = useRouter();
+
+  if (!compact) {
+    return (
+      <TableRow
+        className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
+        ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
+      >
+        <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
+          <div className="flex items-center gap-2">
+            <ConditionIcon condition={data.condition} size="h-8 w-8" />
+            <p
+              className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+            >
+              {data.licensePlate}
+            </p>
+          </div>
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {data.time} {dict.symptoms.sec}.
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {data.trip}
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {data.driver}
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {new Date(data.date).toLocaleString()}
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {data.service}
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
+        </TableCell>
+        <TableCell
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        >
+          <div className="flex items-center gap-2">
+            {data.status != null ? (
+              <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
+                {data.status}
+              </p>
+            ) : (
+              <Button
+                className="h-8 flex justify-center items-center !text-xs"
+                color="blue"
+                onClick={() => router.push("/symptoms/map-view")}
+              >
+                <div className="flex items-center gap-2">
+                  <p>{dict.symptoms.diagnose}</p>
+                  <HiArrowRight className="w-4 h-4" />
+                </div>
+              </Button>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
 
   return (
     <TableRow
       className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-        ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
+    ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
-        <div className="flex justify-center items-center gap-2">
+        <div className="flex items-center gap-2">
           <ConditionIcon condition={data.condition} size="h-8 w-8" />
           <p
             className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
@@ -33,54 +107,7 @@ export default function TableItem({
       <TableCell
         className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
       >
-        {data.time} {dict.symptoms.sec}.
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        {data.trip}
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        {data.driver}
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        {data.date}
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        {data.service}
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
-      </TableCell>
-      <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
-      >
-        <div className="flex items-center gap-2">
-          {data.status != null ? (
-            <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
-              {data.status}
-            </p>
-          ) : (
-            <Button
-              className="h-8 flex justify-center items-center !text-xs"
-              color="blue"
-              onClick={() => router.push("/symptoms/map-view")}
-            >
-              <div className="flex items-center gap-2">
-                <p>{dict.symptoms.diagnose}</p>
-                <HiArrowRight className="w-4 h-4" />
-              </div>
-            </Button>
-          )}
-        </div>
+        {new Date(data.date).toLocaleString()}
       </TableCell>
     </TableRow>
   );

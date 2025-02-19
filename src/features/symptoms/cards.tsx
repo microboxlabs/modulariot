@@ -19,7 +19,7 @@ export default function SymptomsCards({
   // Handle loading and error states
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="w-full h-2/6 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
       </div>
     );
@@ -39,8 +39,8 @@ export default function SymptomsCards({
 
   return (
     <div
-      className={`h-2/6 pt-2 px-5 flex flex-col gap-2 overflow-hidden transition-all ease-in-out duration-300 
-        ${showCards ? "max-h-[500px] pb-5" : "max-h-0 pb-0 "}
+      className={`pt-2 px-5 flex flex-col gap-2 transition-all ease-in-out duration-300
+      ${showCards ? "max-h-[1000px]" : "max-h-0 overflow-hidden"}
       `}
     >
       <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">

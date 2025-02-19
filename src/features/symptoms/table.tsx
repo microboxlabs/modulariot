@@ -30,81 +30,79 @@ export default function SymptomsTable({
   };
 
   return (
-    <div className="h-4/6 px-5 pb-5 pt-2 flex flex-col gap-4 w-full flex-grow">
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <div className="flex gap-2 items-center">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div>
-                <Label htmlFor="search" className="sr-only">
-                  Search
-                </Label>
-                <TextInput
-                  id="search"
-                  name="search"
-                  type="search"
-                  ref={searchInputRef}
-                  icon={HiSearch}
-                  placeholder={dict.symptoms.search}
-                  required
-                  className="w-full"
-                />
-              </div>
-            </form>
-            <Dropdown
-              label=""
-              className="!p-0"
-              renderTrigger={() => (
-                <Button color="gray">
-                  <FaFilter className="h-4 w-4" />
-                </Button>
-              )}
-            >
-              <Dropdown.Item onClick={() => setCondition("code black")}>
-                Código Negro
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("critic")}>
-                Crítico
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("treatment")}>
-                Tratamiento
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("stable")}>
-                Estable
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("observation")}>
-                Observación
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("remission")}>
-                Remisión
-              </Dropdown.Item>
-              <Dropdown.Item onClick={() => setCondition("compromised")}>
-                Comprometido
-              </Dropdown.Item>
-            </Dropdown>
-            <Button
-              className="justify-self-end flex justify-center items-center h-10 w-10"
-              color="gray"
-              onClick={() => {
-                setCondition("");
-                setSearchTerm("");
-              }}
-            >
-              <FaArrowsRotate />
-            </Button>
-          </div>
+    <div className="px-5 py-1 flex flex-col flex-grow gap-4 w-full transition-all duration-300 ease-in-out overflow-y-auto">
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2 items-center">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div>
+              <Label htmlFor="search" className="sr-only">
+                Search
+              </Label>
+              <TextInput
+                id="search"
+                name="search"
+                type="search"
+                ref={searchInputRef}
+                icon={HiSearch}
+                placeholder={dict.symptoms.search}
+                required
+                className="w-full"
+              />
+            </div>
+          </form>
+          <Dropdown
+            label=""
+            className="!p-0"
+            renderTrigger={() => (
+              <Button color="gray">
+                <FaFilter className="h-4 w-4" />
+              </Button>
+            )}
+          >
+            <Dropdown.Item onClick={() => setCondition("code black")}>
+              Código Negro
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("critic")}>
+              Crítico
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("treatment")}>
+              Tratamiento
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("stable")}>
+              Estable
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("observation")}>
+              Observación
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("remission")}>
+              Remisión
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => setCondition("compromised")}>
+              Comprometido
+            </Dropdown.Item>
+          </Dropdown>
           <Button
-            onClick={() => setShowCards(!showCards)}
             className="justify-self-end flex justify-center items-center h-10 w-10"
             color="gray"
+            onClick={() => {
+              setCondition("");
+              setSearchTerm("");
+            }}
           >
-            {showCards ? (
-              <FiMaximize className="h-5 w-5" />
-            ) : (
-              <FiMinimize className="h-5 w-5" />
-            )}
+            <FaArrowsRotate />
           </Button>
         </div>
+        <Button
+          onClick={() => setShowCards(!showCards)}
+          className="justify-self-end flex justify-center items-center h-10 w-10"
+          color="gray"
+        >
+          {showCards ? (
+            <FiMaximize className="h-5 w-5" />
+          ) : (
+            <FiMinimize className="h-5 w-5" />
+          )}
+        </Button>
       </div>
       <TableComponent
         dict={dict}

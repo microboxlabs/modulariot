@@ -14,7 +14,7 @@ export default function SideBar({ dict }: { dict: any }) {
     },
     {
       button_text: "Symptoms",
-      component: <Symptoms />,
+      component: <Symptoms dict={dict} />,
     },
     {
       button_text: "Download",

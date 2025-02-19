@@ -21,7 +21,7 @@ export default async function SecuredLayout({
       <SecuredNavbar messages={navBarMessages} />
       <div
         data-testid="content-with-sidebar"
-        className="mt-16 mb-6 flex items-start flex-1 overflow-hidden"
+        className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"
       >
         <SecuredSidebar
           dict={

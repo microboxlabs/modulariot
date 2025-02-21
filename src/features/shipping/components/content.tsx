@@ -48,13 +48,14 @@ import { ViewSwitcher } from "@/features/common/components/view-switcher/view-sw
 import { useViewPreference } from "../hooks/use-view-preference";
 import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
+import { configureLocale } from "@/features/common/services/days.service";
 
 export default function PageContent({
   showFinishedTasks,
   kanbanBoards,
   dict,
   lang,
-}: PropsWithI18nDict<KanbanPageData>) {
+}: PropsWithI18nDict<KanbanPageData>) {  
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   const router = useRouter();
@@ -62,6 +63,8 @@ export default function PageContent({
 
   const [page, setPage] = useState(1);
   const pageSize = 100;
+
+  configureLocale(lang);
 
   const {
     data: myTasksData,
@@ -137,7 +140,6 @@ export default function PageContent({
       </div>
       <div
         className="h-screen w-full overflow-auto mr-5"
-        style={{ paddingBottom: "20px" }}
       >
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">

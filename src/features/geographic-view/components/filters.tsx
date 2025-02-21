@@ -18,22 +18,20 @@ import con_retraso from "@assets/time_states/con_retraso.svg";
 import mucho_retraso from "@assets/time_states/mucho_retraso.svg";
 import time_icon from "@assets/time_states/time_icon.svg";
 
-
 import { AiOutlineInfo } from "react-icons/ai";
 import { IconType } from "react-icons";
 
-
-export default function Filters({dict}: {dict: any}) {
+export default function Filters({ dict }: { dict: any }) {
   return (
     <div className="absolute top-0 left-0 bottom-0">
       <div className="flex flex-col gap-2 pl-5 pt-5">
-      <FilterComponent
+        <FilterComponent
           label={dict.symptoms.conditions}
           icon={alerta_critica.src as string}
           icon_size="w-8 h-8"
           options={[
             {
-              text: "Codigo Negro", 
+              text: "Codigo Negro",
               filter_value: "codigo_negro",
               icon: codigo_negro as string,
               activated: false,
@@ -51,7 +49,7 @@ export default function Filters({dict}: {dict: any}) {
               activated: false,
             },
             {
-              text: "En Remision",  
+              text: "En Remision",
               filter_value: "en_remision",
               icon: en_remision as string,
               activated: false,

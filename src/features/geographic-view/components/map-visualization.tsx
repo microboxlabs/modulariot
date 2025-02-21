@@ -187,6 +187,7 @@ export default function MapVisualization({
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
           },
+          getElevation: 1,
         }),
       ];
 
@@ -230,42 +231,9 @@ export default function MapVisualization({
         {!specific_view ? (
           <div className="w-full h-full flex justify-between absolute">
             <div className="m-5 gap-[14px] flex flex-col">
-              {/* <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es un texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es otro texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              /> */}
+              <div className="absolute right-0 top-0 bottom-0">
+                <SideBar dict={dict} />
+              </div>
             </div>
           </div>
         ) : (
@@ -280,9 +248,7 @@ export default function MapVisualization({
           </div>
         )}
       </DeckGL>
-      <div className="absolute right-0 top-0 bottom-0">
-        <SideBar dict={dict} />
-      </div>
+      
       {/* Rotation test elements */}
       <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
         <label className="block text-sm font-medium text-gray-700 mb-2">

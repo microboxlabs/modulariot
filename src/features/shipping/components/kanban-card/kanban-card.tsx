@@ -8,7 +8,6 @@ import { configureLocale } from "@/features/common/services/days.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
 
-configureLocale();
 
 export default function KanbanCard({
   task,

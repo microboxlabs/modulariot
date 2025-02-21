@@ -109,7 +109,7 @@ export default function DriverVerifiedCard({
             defaultValue={task.id}
           />
           <Textarea
-            placeholder="Escribe aquí tus observaciones"
+            placeholder={(msg!.cards as I18nRecord).write_here_your_observations as string}
             defaultValue={task.mintral_driverObservations as string}
             disabled={true}
           />

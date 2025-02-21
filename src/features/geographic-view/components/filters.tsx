@@ -23,12 +23,12 @@ import { AiOutlineInfo } from "react-icons/ai";
 import { IconType } from "react-icons";
 
 
-export default function Filters() {
+export default function Filters({dict}: {dict: any}) {
   return (
     <div className="absolute top-0 left-0 bottom-0">
       <div className="flex flex-col gap-2 pl-5 pt-5">
       <FilterComponent
-          label="Condiciones"
+          label={dict.symptoms.conditions}
           icon={alerta_critica.src as string}
           icon_size="w-8 h-8"
           options={[
@@ -77,7 +77,7 @@ export default function Filters() {
           ]}
         />
         <FilterComponent
-          label="Marcadores"
+          label={dict.symptoms.markers}
           icon={blue_pin.src as string}
           icon_size="w-7 h-7"
           options={[
@@ -102,7 +102,7 @@ export default function Filters() {
           ]}
         />
         <FilterComponent
-          label="Viajes iniciados"
+          label={dict.symptoms.started_trips}
           icon={AiOutlineInfo as IconType}
           icon_size="w-5 h-5"
           options={[
@@ -121,7 +121,7 @@ export default function Filters() {
           ]}
         />
         <FilterComponent
-          label="Tiempos"
+          label={dict.symptoms.times}
           icon={time_icon.src as string}
           icon_size="w-10 h-10"
           options={[

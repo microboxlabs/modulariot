@@ -215,7 +215,7 @@ export default function MapVisualization({
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
         {!specific_view ? (
-          <Filters />
+          <Filters dict={dict} />
         ) : (
           <div className="w-full h-full flex items-end absolute p-5 flex-col">
             <MapButton

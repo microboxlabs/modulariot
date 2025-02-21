@@ -52,8 +52,7 @@ export default function MapButton({
         className={`flex align-middle justify-center h-10 w-10 transition-transform duration-100 z-20 ${button_color} rounded-full`}
         theme={{
           base: "group relative flex items-stretch justify-center p-0 text-center font-medium transition-[color,background-color,border-color,text-decoration-color,fill,stroke,box-shadow] focus:z-10 focus:outline-none",
-          color:
-          {
+          color: {
             gray: ":ring-cyan-700 border-gray-200 bg-white text-gray-900 focus:text-cyan-700 focus:ring-4 enabled:hover:bg-gray-100 enabled:hover:text-cyan-700 dark:border-gray-600 dark:bg-transparent dark:text-gray-400 dark:enabled:hover:bg-gray-700 dark:enabled:hover:text-white",
           },
           size: {
@@ -63,12 +62,7 @@ export default function MapButton({
       >
         {typeof Icon === "string" ? (
           <div className={`${icon_size} flex items-center justify-center`}>
-            <Image
-              src={Icon}
-              alt="icono"
-              width={100}
-              height={100}
-            />
+            <Image src={Icon} alt="icono" width={100} height={100} />
           </div>
         ) : (
           <Icon

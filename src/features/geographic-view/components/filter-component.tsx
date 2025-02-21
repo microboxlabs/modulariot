@@ -47,9 +47,9 @@ export default function FilterComponent({
         />
         <div className="absolute h-10 w-10 top-0 left-0">
           <div
-          className={`flex flex-row items-center justify-center gap-2 absolute transition-all duration-300 right-[-6px] top-[-6px] border-2 border-white z-50 bg-amber-300 rounded-full w-5 h-5 ${
-            activatedCount > 0 ? "opacity-100" : "opacity-0"
-          }`}
+            className={`flex flex-row items-center justify-center gap-2 absolute transition-all duration-300 right-[-6px] top-[-6px] border-2 border-white z-50 bg-amber-300 rounded-full w-5 h-5 ${
+              activatedCount > 0 ? "opacity-100" : "opacity-0"
+            }`}
           >
             <p className="text-gray-900 text-xs w-5 h-5 text-center mt-1">
               {activatedCount}
@@ -73,15 +73,18 @@ export default function FilterComponent({
             <Image src={option.icon} alt="icono" className="w-6 h-6" />
           </div>
         ))}
-        <div onClick={() => {
-          const new_options = [...filter_options];
-          new_options.forEach((option) => {
-            option.activated = false;
-          });
-          set_filter_options(new_options);
-          set_expanded(false);
-        }} className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300">
-        <IoClose />
+        <div
+          onClick={() => {
+            const new_options = [...filter_options];
+            new_options.forEach((option) => {
+              option.activated = false;
+            });
+            set_filter_options(new_options);
+            set_expanded(false);
+          }}
+          className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300"
+        >
+          <IoClose />
         </div>
       </div>
     </div>

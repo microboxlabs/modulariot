@@ -4,10 +4,8 @@ import Link from "next/link";
 import type { KanBanCardProps } from "./kanban-card.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { configureLocale } from "@/features/common/services/days.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
-
 
 export default function KanbanCard({
   task,

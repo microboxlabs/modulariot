@@ -55,7 +55,7 @@ export default function PageContent({
   kanbanBoards,
   dict,
   lang,
-}: PropsWithI18nDict<KanbanPageData>) {  
+}: PropsWithI18nDict<KanbanPageData>) {
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   const router = useRouter();
@@ -138,9 +138,7 @@ export default function PageContent({
           />
         </div>
       </div>
-      <div
-        className="h-screen w-full overflow-auto mr-5"
-      >
+      <div className="h-screen w-full overflow-auto mr-5">
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
             {list.map((board) => {

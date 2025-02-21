@@ -119,8 +119,8 @@ export class PinLayer extends CompositeLayer<any> {
         updateTriggers: this.props.updateTriggers,
         pickable: true,
         parameters: {
-          depthTest: false
-        }
+          depthTest: false,
+        },
       }) as Layer,
       new IconLayer({
         id: "IconLayer-head",
@@ -135,7 +135,7 @@ export class PinLayer extends CompositeLayer<any> {
           ) * 0.26,
         updateTriggers: this.props.updateTriggers,
         parameters: {
-          depthTest: false
+          depthTest: false,
         },
         getAngle: (d: any) =>
           !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,

@@ -21,10 +21,10 @@ export default async function SymptomsList({
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "symptoms", "symptoms-list"]}
+          path={["mission_control", "symptoms", "symptoms-list"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
+          dict={dict["symptoms"] as I18nRecord}
         />
       </div>
       {/* 

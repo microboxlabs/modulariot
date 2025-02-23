@@ -257,7 +257,7 @@ export default function SideInfoData({
                       <p className="bg-blue-200 rounded-md px-2 py-1 text-gray-600 flex items-center">
                         {item.assigned_to}
                       </p>
-                      <p className="text-gray-500 dark:text-gray-400">
+                      <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
                         {duration}
                       </p>
                     </div>

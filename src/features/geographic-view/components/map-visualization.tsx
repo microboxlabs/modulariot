@@ -174,6 +174,7 @@ export default function MapVisualization({
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
           },
+          getElevation: 1,
         }),
       ];
 
@@ -233,7 +234,6 @@ export default function MapVisualization({
           </div>
         )}
       </DeckGL>
-
       {/* Rotation test elements */}
       <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
         <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -9,15 +9,15 @@ import Symptoms from "./inner-menu/symptoms";
 export default function SideBar({ dict }: { dict: any }) {
   const inner_menu = [
     {
-      button_text: "Monitoring",
+      button_text: dict.symptoms.monitoring,
       component: <Monitoring dict={dict} />,
     },
     {
-      button_text: "Symptoms",
+      button_text: dict.symptoms.symptoms,
       component: <Symptoms dict={dict} />,
     },
     {
-      button_text: "Download",
+      button_text: dict.symptoms.download,
       component: <Download dict={dict} />,
     },
   ];

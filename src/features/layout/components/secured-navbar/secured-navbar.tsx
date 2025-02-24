@@ -88,14 +88,14 @@ export function SecuredNavbar({
             {isSeachEnabled && (
               <form className="hidden lg:block lg:pl-2">
                 <Label htmlFor="search" className="sr-only">
-                  Search
+                  {messages.search}
                 </Label>
                 <TextInput
                   className="w-full lg:w-96"
                   icon={HiSearch}
                   id="search"
                   name="search"
-                  placeholder="Search"
+                  placeholder={messages.search}
                   type="search"
                   defaultValue={searchParams.get("search") || ""}
                   onChange={handleSearch}

@@ -279,6 +279,7 @@
   "layout": {
     "secured": {
       "signout": "Cerrar sesión",
+      "search": "Buscar",
       "sidebar": {
         "home": "Home",
         "tasks": "Mis tareas",

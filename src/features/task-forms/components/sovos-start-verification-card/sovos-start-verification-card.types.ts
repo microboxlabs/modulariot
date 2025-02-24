@@ -5,4 +5,5 @@ export type SovosVerificationCardProps = TaskFormProps & {
   pluginReady: boolean;
   stepperController: StepperController;
   success?: boolean;
+  trParams?: Record<string, { [key: string]: string }>;
 };

@@ -137,7 +137,8 @@
         "avg_every_signals_mov": "Average time between signals in motion",
         "ultimo_last_timestamp": "Date and time of the last event",
         "avg_signals_per_minute_det": "Number of signals per minute in stops",
-        "avg_signals_per_minute_mov": "Number of signals per minute in motion"
+        "avg_signals_per_minute_mov": "Number of signals per minute in motion",
+        "write_here_your_observations": "Write here your observations"
       }
     },
     "shippingDetailsTaskForm": {
@@ -387,5 +388,9 @@
     "markers": "Markers",
     "started_trips": "Started trips",
     "times": "Times"
+    "monitoring": "Monitoring",
+    "symptoms-list": "Symptoms list",
+    "download": "Download",
+    "map-view": "Map view"
   }
 }

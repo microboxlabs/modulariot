@@ -1,7 +1,7 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
+import { Button, Label, Navbar, TextInput, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
@@ -16,6 +16,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+import { Filter } from "flowbite-react-icons/outline";
 
 export function SecuredNavbar({
   messages,
@@ -90,16 +91,21 @@ export function SecuredNavbar({
                 <Label htmlFor="search" className="sr-only">
                   {messages.search}
                 </Label>
-                <TextInput
-                  className="w-full lg:w-96"
-                  icon={HiSearch}
-                  id="search"
-                  name="search"
-                  placeholder={messages.search}
-                  type="search"
-                  defaultValue={searchParams.get("search") || ""}
-                  onChange={handleSearch}
-                />
+                <div className="flex items-center gap-2">
+                  <TextInput
+                    className="w-full lg:w-96"
+                    icon={HiSearch}
+                    id="search"
+                    name="search"
+                    placeholder={messages.search}
+                    type="search"
+                    defaultValue={searchParams.get("search") || ""}
+                    onChange={handleSearch}
+                  />
+                  <Button color="gray">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
               </form>
             )}
           </div>

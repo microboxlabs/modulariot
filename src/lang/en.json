@@ -82,6 +82,10 @@
       "backToHome": "Back to home"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "My tasks",
+        "shipping": "Shipping"
+      },
       "stepper": {
         "step1": "Driver verification",
         "step2": "Driver verified",

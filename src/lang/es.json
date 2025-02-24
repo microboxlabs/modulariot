@@ -81,6 +81,10 @@
       "backToHome": "Volver al inicio"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Despachos"
+      },
       "stepper": {
         "step1": "Verificación de conductor",
         "step2": "Conductor verificado",

@@ -42,6 +42,7 @@ export default function ConfirmDeliveryForm({
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
+    formData.append("taskType", "confirmDelivery");
     const result = await taskSignDocument({}, formData);
 
     if (result.success) {

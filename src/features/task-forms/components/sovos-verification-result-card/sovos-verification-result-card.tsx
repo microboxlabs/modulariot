@@ -19,6 +19,7 @@ export default function SovosVerificationResultCard({
   stepperController,
   task,
   user,
+  trParams,
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
@@ -49,7 +50,7 @@ export default function SovosVerificationResultCard({
     personRut = `Rut: ${getRut() as string}`;
   }
   if (step === "step6") {
-    personName = `${msg!.validator as string}: ${session?.user.name ?? ""}`;
+    personName = `${trParams?.step6?.stepVal}: ${session?.user.name ?? ""}`;
     personRut = `Rut: ${getRut() as string}`;
   }
 

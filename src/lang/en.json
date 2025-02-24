@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping"
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -84,7 +85,8 @@
     "transportValidationForm": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping"
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
       },
       "stepper": {
         "step1": "Driver verification",
@@ -222,6 +224,7 @@
       "title": "Identity verification",
       "driver": "Driver",
       "validator": "Dispatcher",
+      "receiver": "Receiver",
       "description": "Place your right index finger on the reader to be identified.",
       "successTitle": "Identity recognized",
       "successDescription": "Your identity has been successfully recognized",

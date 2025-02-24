@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos"
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -83,7 +84,8 @@
     "transportValidationForm": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos"
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
       },
       "stepper": {
         "step1": "Verificación de conductor",
@@ -222,6 +224,7 @@
       "title": "Verificación de identidad",
       "driver": "Conductor",
       "validator": "Despachador",
+      "receiver": "Receptor",
       "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado.",
       "successTitle": "Identidad reconocida",
       "successDescription": "Su identidad ha sido reconocida exitosamente",

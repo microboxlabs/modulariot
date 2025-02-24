@@ -279,6 +279,7 @@
   "layout": {
     "secured": {
       "signout": "Sign out",
+      "search": "Search",
       "sidebar": {
         "home": "Home",
         "tasks": "My tasks",

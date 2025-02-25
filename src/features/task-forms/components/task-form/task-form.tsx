@@ -113,13 +113,27 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
       );
 
     case TYPE_WFSHIP_CONFIRM_DELIVERY:
+      if (task.mintral_executionType === "T") {
+        return (
+          <ConfirmDeliveryForm
+            lang={lang ?? defaultLocale}
+            task={task as TaskResponse}
+            user={user}
+            msg={
+              (dictionary.pages as I18nRecord)
+                .sovosVerificationForm as I18nRecord
+            }
+          />
+        );
+      }
       return (
-        <ConfirmDeliveryForm
+        <NextCancelTripView
           lang={lang ?? defaultLocale}
-          task={task as TaskResponse}
+          task={task}
           user={user}
           msg={
-            (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
           }
         />
       );

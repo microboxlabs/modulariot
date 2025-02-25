@@ -6,9 +6,12 @@ import { useSession } from "next-auth/react";
 import FingerprintIcon from "@/features/icons/figerprint";
 import VerticalDotsIcon from "@/features/icons/vertical-dots";
 import { TaskOutcome } from "../../services/form.service.types";
-import { OUTCOME_RETURN_TO_MISSION_CONTROL } from "../../services/form.service";
+import {
+  OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+  OUTCOME_RETURN_TO_MISSION_CONTROL,
+} from "../../services/form.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { HiOutlineArrowLeft } from "react-icons/hi";
+import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
@@ -20,6 +23,7 @@ export default function SovosVerificationResultCard({
   task,
   user,
   trParams,
+  isSovosVerification,
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
@@ -112,19 +116,42 @@ export default function SovosVerificationResultCard({
                   "cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
               }}
             >
-              <DropdownItem
-                className="flex gap-1"
-                onClick={() => {
-                  handleSelection(
-                    OUTCOME_RETURN_TO_MISSION_CONTROL,
+              {isSovosVerification && (
+                <DropdownItem
+                  className="flex gap-1"
+                  onClick={() => {
+                    handleSelection(
+                      OUTCOME_RETURN_TO_MISSION_CONTROL,
+                      (msg?.outcome as I18nRecord)
+                        .returnToMissionControl as string,
+                    );
+                  }}
+                >
+                  <HiOutlineArrowLeft />
+                  {
                     (msg?.outcome as I18nRecord)
-                      .returnToMissionControl as string,
-                  );
-                }}
-              >
-                <HiOutlineArrowLeft />
-                {(msg?.outcome as I18nRecord).returnToMissionControl as string}
-              </DropdownItem>
+                      .returnToMissionControl as string
+                  }
+                </DropdownItem>
+              )}
+              {!isSovosVerification && (
+                <DropdownItem
+                  className="flex gap-1"
+                  onClick={() => {
+                    handleSelection(
+                      OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+                      (msg?.outcome as I18nRecord)
+                        .confirmMonitoringFinalization as string,
+                    );
+                  }}
+                >
+                  <HiOutlineArrowRight />
+                  {
+                    (msg?.outcome as I18nRecord)
+                      .confirmMonitoringFinalization as string
+                  }
+                </DropdownItem>
+              )}
             </Dropdown>
           </div>
         )}

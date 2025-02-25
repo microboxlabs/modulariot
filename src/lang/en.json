@@ -59,6 +59,7 @@
         "clientName": "Client",
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
+        "executionType": "Execution Type",
         "tripInformation": "Trip Information"
       },
       "views": {
@@ -238,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Return to Mission Control",
         "returnToTransportValidation": "Return to Transport Validation",
+        "confirmMonitoringFinalization": "Confirm delivery without Sovos signature",
         "returnToOverlord": "Return to Overlord",
         "tripInitiated": "Trip initiated",
         "tripCanceled": "Trip canceled",

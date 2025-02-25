@@ -13,6 +13,7 @@ import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-s
 import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
+import { OUTCOME_CONFIRM_MONITORING_FINALIZATION } from "../../services/form.service";
 
 export default function ConfirmDeliveryForm({
   lang,
@@ -37,7 +38,7 @@ export default function ConfirmDeliveryForm({
     const signerRuts = audits.map((audit) => audit.Rut).join(",");
 
     formData.append("taskId", task.id);
-    formData.append("transitionId", "next");
+    formData.append("transitionId", OUTCOME_CONFIRM_MONITORING_FINALIZATION);
     formData.append("bpmPackage", task.bpm_package as string);
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
@@ -148,6 +149,7 @@ export default function ConfirmDeliveryForm({
           user={user}
           pluginReady={pluginReady}
           stepperController={stepperController}
+          isSovosVerification={false}
         />
       )}
       {(stepper.currentStep === "step2" ||
@@ -172,6 +174,7 @@ export default function ConfirmDeliveryForm({
             },
           }}
           user={user}
+          isSovosVerification={false}
         />
       )}
       <SovosDeps onReady={() => setPluginReady(true)} />

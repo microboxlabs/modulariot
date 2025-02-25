@@ -58,7 +58,8 @@
         "clientCode": "Código cliente",
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
-        "serviceKind": "Tipo de servicio"
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución"
       },
       "views": {
         "table": "Tabla",
@@ -238,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Devolver a Torre de Control",
         "returnToTransportValidation": "Devolver a Validación de Transporte",
+        "confirmMonitoringFinalization": "Confirmar Entrega sin Firma Sovos",
         "returnToOverlord": "Devolver a Overlord",
         "tripInitiated": "Viaje Iniciado",
         "tripCanceled": "Viaje Cancelado",

@@ -222,8 +222,6 @@ export async function getContentByTaskId(
   const blob = await nodesApi.getNodeContent(result.node.id);
   const buffer = Buffer.from(await new Response(blob).arrayBuffer());
   return buffer.toString("base64");
-  // console.log(buffer.toString("base64"));
-  // return result as string;
 }
 
 export async function getCountTask(ticket: string): Promise<TaskCountResponse> {

@@ -42,12 +42,19 @@ export async function POST(request: NextRequest) {
       taskId: string;
       auditNumbers: string[];
       bpmPackage: string;
+      taskType: string;
     };
 
+    let documentName = "ho-sin-firma.pdf";
+    let uploadFileName = "ho-firmado.pdf";
+    if (json.taskType === "confirmDelivery") {
+      documentName = "ho-firmado.pdf";
+      uploadFileName = "ho-recepcionado.pdf";
+    }
     const file = await getContentByTaskId(
       session.user.ticket,
       `activiti$${json.taskId}`,
-      "ho-sin-firma.pdf",
+      documentName,
     );
 
     // const documentTypes = await getDocumentTypes(institutionId, sessionId);
@@ -130,15 +137,15 @@ export async function POST(request: NextRequest) {
     const blob = new Blob([bytes], { type: "application/pdf" });
 
     // Create a File object from the Blob
-    const signedFile = new File([blob], `ho-firmado.pdf`, {
+    const signedFile = new File([blob], uploadFileName, {
       type: "application/pdf",
     });
     console.log("uploadNodeContent", {
-      filename: "ho-firmado.pdf",
+      filename: uploadFileName,
       destination: json.bpmPackage,
     });
     const uploadResposne = await uploadNodeContent(session.user.ticket, {
-      filename: "ho-firmado.pdf",
+      filename: uploadFileName,
       filedata: signedFile,
       destination: json.bpmPackage,
     });

@@ -43,6 +43,8 @@ export default function SovosVerificationForm({
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
+    formData.append("taskType", "sovosVerification");
+    
     const result = await taskSignDocument({}, formData);
 
     if (result.success) {

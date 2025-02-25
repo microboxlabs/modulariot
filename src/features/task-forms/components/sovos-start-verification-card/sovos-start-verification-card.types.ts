@@ -4,6 +4,7 @@ import { TaskFormProps } from "../task-form/task-form.types";
 export type SovosVerificationCardProps = TaskFormProps & {
   pluginReady: boolean;
   stepperController: StepperController;
+  isSovosVerification: boolean;
   success?: boolean;
   trParams?: Record<string, { [key: string]: string }>;
 };

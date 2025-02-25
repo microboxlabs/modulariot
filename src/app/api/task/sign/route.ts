@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       auditNumbers: string[];
       bpmPackage: string;
       taskType: string;
+      transitionId: string;
     };
 
     let documentName = "ho-sin-firma.pdf";
@@ -152,7 +153,11 @@ export async function POST(request: NextRequest) {
 
     console.log(uploadResposne);
 
-    const endTaskResult = await endTask(session.user.ticket, json.taskId);
+    const endTaskResult = await endTask(
+      session.user.ticket,
+      json.taskId,
+      json.transitionId,
+    );
 
     console.log(endTaskResult);
 

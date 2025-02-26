@@ -6,6 +6,7 @@ export function buildNavBarMessages({
 }: MessagesType): NavBarMessages {
   return {
     signOutLabel: dict("layout.secured.signout"),
+    search: dict("layout.secured.search"),
   };
 }
 

@@ -14,6 +14,8 @@ interface CanceledAnnulledAndOptionsProps extends OtherOptionsProps {
   }>;
 }
 
+/* Canceled and Annulled and adding options */
+
 export default function CanceledAnnulledAndOptions({
   dict,
   handleSelection,

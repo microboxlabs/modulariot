@@ -61,7 +61,6 @@ export async function getUserTasks(
 
   const { from = 0, size = 100, filter = undefined } = options;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-
   const result = await webscriptApi.executeWebScript(
     "POST",
     "mintral/tasks",
@@ -198,6 +197,7 @@ export async function validateService(
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
 
   // Llamada a la API para validar el servicio
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "GET",
     `mintral/service/validation?serviceCode=${serviceCode}`,
@@ -222,8 +222,6 @@ export async function getContentByTaskId(
   const blob = await nodesApi.getNodeContent(result.node.id);
   const buffer = Buffer.from(await new Response(blob).arrayBuffer());
   return buffer.toString("base64");
-  // console.log(buffer.toString("base64"));
-  // return result as string;
 }
 
 export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
@@ -286,7 +284,6 @@ export async function getFinishedWorkflows(
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-
   const result = await webscriptApi.executeWebScript(
     "POST",
     `mintral/finished/workflows`,

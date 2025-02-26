@@ -13,6 +13,9 @@ export class PulsePinLayer extends CompositeLayer<any> {
         getLineWidth: 200000 / Math.pow(2, zoomLevel),
         getRadius: 800000 / Math.pow(2, zoomLevel),
         getPosition: (d: any) => d.geometry.coordinates,
+        parameters: {
+          depthTest: false,
+        },
       }) as Layer,
     ];
   }

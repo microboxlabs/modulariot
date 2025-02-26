@@ -4,17 +4,21 @@ import Link from "next/link";
 import type { KanBanCardProps } from "./kanban-card.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { configureLocale } from "@/features/common/services/days.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
-
-configureLocale();
 
 export default function KanbanCard({
   task,
   table_name,
   dict,
 }: PropsWithI18nDict<KanBanCardProps>) {
+  const executionType =
+    task.executionType === "T"
+      ? "Troncal"
+      : task.executionType === "F"
+        ? "Faena"
+        : task.executionType;
+
   return (
     <div
       key={task.id}
@@ -40,7 +44,7 @@ export default function KanbanCard({
           <div className="basis-1/2">
             {tr("card.origin", dict)}: <strong>{task.origin}</strong>
           </div>
-          <div className="basis-1/2">
+          <div className="basis-1/2 text-right">
             {tr("card.destination", dict)}: <strong>{task.destination}</strong>
           </div>
           {/* {task.description} */}
@@ -56,7 +60,10 @@ export default function KanbanCard({
         <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
           {tr("card.serviceKind", dict)}:{" "}
           <strong>{task.serviceKind || "-"}</strong>
-          {/* {task.description} */}
+        </div>
+        <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+          {tr("card.executionType", dict)}:{" "}
+          <strong>{executionType || "-"}</strong>
         </div>
         <div className="flex justify-between">
           <div className="flex justify-start">

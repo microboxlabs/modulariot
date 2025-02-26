@@ -16,10 +16,10 @@ export default async function SymptomsList({
     <div className="pb-5 flex flex-col h-full w-full bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
         <Breadcrumb
-          path={["Control Tower", "symptoms", "map-view"]}
+          path={["mission_control", "symptoms", "map-view"]}
           lang={lang}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={dict}
+          dict={dict["symptoms"] as I18nRecord}
         />
       </div>
       <div className=" m-5 relative flex flex-col gap-10 animate-shadow-toggle rounded-lg">
@@ -41,7 +41,7 @@ export default async function SymptomsList({
               height={54}
             />
             <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
               {(dict.symptoms as I18nRecord).code_black as string}
             </h1>
           </div>
@@ -49,7 +49,7 @@ export default async function SymptomsList({
       </div>
       <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
         {/* Side information */}
-        <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
+        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
           <SideInfo dict={dict} lang={lang} />
         </div>
         {/* Map */}

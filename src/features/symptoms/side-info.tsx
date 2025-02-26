@@ -2,8 +2,8 @@
 
 import { HiArrowRight } from "react-icons/hi";
 import { Button } from "flowbite-react";
-import BlurrableDropdown from "./components/blurrable-dropdown";
-import SideInfoData from "./components/side-info-data";
+import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
+import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 

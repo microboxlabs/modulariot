@@ -8,9 +8,7 @@ export default function ClientSymptoms({ dict }: { dict: any }) {
   const [showCards, setShowCards] = useState(true);
 
   return (
-    <div
-      className={`h-full flex flex-col overflow-y-auto ${showCards ? "gap-5" : ""}`}
-    >
+    <div className="h-full flex flex-col overflow-visible w-full">
       <SymptomsCards showCards={showCards} dict={dict} />
       <SymptomsTable
         setShowCards={setShowCards}

@@ -31,8 +31,16 @@ export default function SymptomsTable({
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      <div className="flex flex-col flex-grow">
+        <div className="h-10 bg-gray-200 dark:bg-gray-800  rounded-lg w-full flex flex-col flex-grow overflow-y-auto animate-pulse" />
+        {!compact && (
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-200 bg-gray-200 dark:text-gray-800 dark:bg-gray-800 rounded-md animate-pulse">
+              Mostrando 0-0 de 0
+            </p>
+            <div className="h-10 w-20 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse mt-2"></div>
+          </div>
+        )}
       </div>
     );
   }
@@ -60,13 +68,13 @@ export default function SymptomsTable({
 
   return (
     <div className="flex flex-col flex-grow">
-      <div className="h-10 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
+      <div className="h-10 p- bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
         <Table
           striped
           theme={{
             body: {
               cell: {
-                base: "px-6 py-4 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
+                base: "px-6 py-2 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
               },
             },
           }}
@@ -90,6 +98,22 @@ export default function SymptomsTable({
           )}
 
           <TableBody>
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
+            {tableData?.data.map((item, index) => (
+              <TableItem
+                key={index}
+                data={item}
+                dict={dict}
+                compact={compact}
+              />
+            ))}
             {tableData?.data.map((item, index) => (
               <TableItem
                 key={index}

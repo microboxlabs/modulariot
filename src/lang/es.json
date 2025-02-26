@@ -300,11 +300,15 @@
   "symptoms": {
     "symptoms": "Síntomas",
     "urgent_symptoms": "Síntomas urgentes",
-    "symptoms_under_treatment": "Síntomas bajo tratamiento",
+    "symptoms_under_treatment": "Síntomas siendo tratados",
     "code_black": "Código negro",
     "critical_condition": "Condición crítica",
     "condition_in_treatment": "Condición en tratamiento",
+    "in_treatment": "En tratamiento",
     "condition_in_observation": "Condición en observación",
+    "in_observation": "En observación",
+    "in_remission": "En remisión",
+    "stable": "Estable",
     "conditions": "Condiciones",
     "condition": "Condición",
     "active_time": "Tiempo activo",
@@ -392,6 +396,7 @@
     "monitoring": "Monitoreo",
     "download": "Descargar",
     "symptoms-list": "Lista de síntomas",
-    "map-view": "Vista de mapa"
+    "map-view": "Vista de mapa",
+    "restablished_symptoms": "Síntomas restablecidos"
   }
 }

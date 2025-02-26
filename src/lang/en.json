@@ -296,11 +296,15 @@
   "symptoms": {
     "symptoms": "Symptoms",
     "urgent_symptoms": "Urgent symptoms",
-    "symptoms_under_treatment": "Symptoms under treatment",
+    "symptoms_under_treatment": "Symptoms being treated",
     "code_black": "code black",
     "critical_condition": "critical condition",
     "condition_in_treatment": "condition in treatment",
+    "in_treatment": "in treatment",
     "condition_in_observation": "condition in observation",
+    "in_observation": "in observation",
+    "in_remission": "in remission",
+    "stable": "stable",
     "conditions": "conditions",
     "condition": "condition",
     "active_time": "active time",
@@ -388,6 +392,7 @@
     "monitoring": "Monitoring",
     "symptoms-list": "Symptoms list",
     "download": "Download",
-    "map-view": "Map view"
+    "map-view": "Map view",
+    "restablished_symptoms": "Restablished symptoms"
   }
 }

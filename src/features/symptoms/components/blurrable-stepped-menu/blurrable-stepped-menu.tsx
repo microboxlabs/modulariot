@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import CallDriver from "./menus/call-driver/call-driver";
 import DriverResponse from "./menus/call-driver/driver-response";
 import EndTreatment from "./end-treatment";
-import SideInfoData from "../side-info-data";
+import SideInfoData from "../map-view/side-info-data";
 import { FaCheck, FaPhoneAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";

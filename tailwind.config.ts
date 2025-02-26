@@ -18,12 +18,17 @@ const config: Config = {
         "shadow-toggle": "shadow-toggle 0.5s infinite alternate",
         "hide": "hide 0.2s ease-in-out forwards",
         "show": "show 0.2s ease-in-out forwards",
+        "show-flex": "show-flex 0.2s ease-in-out forwards",
       },
       keyframes: {
         "hide": {
           "0%": { opacity: "1", display: "inline", maxHeight: "100%" },
           "50%": { opacity: "0", display: "none", maxHeight: "50%" },
           "100%": { opacity: "0", display: "none", maxHeight: "0" },
+        },
+        "show-flex": {
+          "0%": { opacity: "0", display: "none", maxHeight: "0" },
+          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
         },
         "show": {
           "0%": { opacity: "0", display: "none", maxHeight: "0" },

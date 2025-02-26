@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping"
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -58,6 +59,7 @@
         "clientName": "Client",
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
+        "executionType": "Execution Type",
         "tripInformation": "Trip Information"
       },
       "views": {
@@ -82,6 +84,11 @@
       "backToHome": "Back to home"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "My tasks",
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
+      },
       "stepper": {
         "step1": "Driver verification",
         "step2": "Driver verified",
@@ -137,7 +144,8 @@
         "avg_every_signals_mov": "Average time between signals in motion",
         "ultimo_last_timestamp": "Date and time of the last event",
         "avg_signals_per_minute_det": "Number of signals per minute in stops",
-        "avg_signals_per_minute_mov": "Number of signals per minute in motion"
+        "avg_signals_per_minute_mov": "Number of signals per minute in motion",
+        "write_here_your_observations": "Write here your observations"
       }
     },
     "shippingDetailsTaskForm": {
@@ -217,6 +225,7 @@
       "title": "Identity verification",
       "driver": "Driver",
       "validator": "Dispatcher",
+      "receiver": "Receiver",
       "description": "Place your right index finger on the reader to be identified.",
       "successTitle": "Identity recognized",
       "successDescription": "Your identity has been successfully recognized",
@@ -230,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Return to Mission Control",
         "returnToTransportValidation": "Return to Transport Validation",
+        "confirmMonitoringFinalization": "Confirm delivery without Sovos signature",
         "returnToOverlord": "Return to Overlord",
         "tripInitiated": "Trip initiated",
         "tripCanceled": "Trip canceled",
@@ -271,6 +281,7 @@
   "layout": {
     "secured": {
       "signout": "Sign out",
+      "search": "Search",
       "sidebar": {
         "home": "Home",
         "tasks": "My tasks",
@@ -296,18 +307,18 @@
     "symptoms": "Symptoms",
     "urgent_symptoms": "Urgent symptoms",
     "symptoms_under_treatment": "Symptoms under treatment",
-    "code_black": "code black",
-    "critical_condition": "critical condition",
-    "condition_in_treatment": "condition in treatment",
-    "condition_in_observation": "condition in observation",
-    "conditions": "conditions",
-    "condition": "condition",
-    "active_time": "active time",
-    "trip": "trip",
+    "code_black": "Code black",
+    "critical_condition": "Critical condition",
+    "condition_in_treatment": "Condition in treatment",
+    "condition_in_observation": "Condition in observation",
+    "conditions": "Conditions",
+    "condition": "Condition",
+    "active_time": "Active time",
+    "trip": "Trip",
     "driver": "Driver",
-    "departure_date": "departure date",
-    "service": "service",
-    "alert_type": "alert type",
+    "departure_date": "Departure date",
+    "service": "Service",
+    "alert_type": "Alert type",
     "state": "state",
     "showing": "showing",
     "of": "of",
@@ -383,6 +394,13 @@
     "screenshot": "Screenshot",
     "svg_document": "SVG document",
     "mission_control": "Control Tower",
-    "geographic_view": "Geographic view"
+    "geographic_view": "Geographic view",
+    "markers": "Markers",
+    "started_trips": "Started trips",
+    "times": "Times",
+    "monitoring": "Monitoring",
+    "symptoms-list": "Symptoms list",
+    "download": "Download",
+    "map-view": "Map view"
   }
 }

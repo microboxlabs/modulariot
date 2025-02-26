@@ -12,8 +12,8 @@ import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { useMapPositions } from "../hooks/use-map-positions";
 import { MapPosition, MapPositionProperties } from "../types/map";
+import Filters from "./filters";
 
-// This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
   "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
@@ -75,22 +75,6 @@ const stateToColor = {
   none: [180, 180, 180], // Gray for null state
 };
 
-// Convert the data to GeoJSON
-/* const geoJson = {
-  type: "FeatureCollection",
-  features: pulsar_position_test.map((item) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: item.geometry.coordinates,
-    },
-    properties: {
-      color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0], // Default to black if state is unknown
-    },
-  })),
-}; */
-
-/* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
   dict: any;
   specific_view?: boolean;
@@ -173,6 +157,9 @@ export default function MapVisualization({
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
           },
+          updateTriggers: {
+            data: mapPositions,
+          },
         }),
       ]
     : [
@@ -187,6 +174,7 @@ export default function MapVisualization({
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
           },
+          getElevation: 1,
         }),
       ];
 
@@ -228,46 +216,12 @@ export default function MapVisualization({
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
         {!specific_view ? (
-          <div className="w-full h-full flex justify-between absolute">
-            <div className="m-5 gap-[14px] flex flex-col">
-              {/* <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es un texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es otro texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              /> */}
+          <>
+            <Filters dict={dict} />
+            <div className="absolute right-0 top-0 bottom-0">
+              <SideBar dict={dict} />
             </div>
-          </div>
+          </>
         ) : (
           <div className="w-full h-full flex items-end absolute p-5 flex-col">
             <MapButton
@@ -280,9 +234,6 @@ export default function MapVisualization({
           </div>
         )}
       </DeckGL>
-      <div className="absolute right-0 top-0 bottom-0">
-        <SideBar dict={dict} />
-      </div>
       {/* Rotation test elements */}
       <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
         <label className="block text-sm font-medium text-gray-700 mb-2">

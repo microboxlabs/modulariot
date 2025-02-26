@@ -40,10 +40,6 @@ const config: Config = {
           "90%": { opacity: "0", display: "none", maxWidth: "100%" },
           "100%": { opacity: "0", display: "none", maxWidth: "0%" },
         },
-        "show-flex": {
-          "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
-        },
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },
           "100%": { boxShadow: "0px 0px 20px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48

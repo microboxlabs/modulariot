@@ -27,6 +27,7 @@ export type KanbanBoardTask = {
   clientCode?: string;
   expectedDepartureDate?: string;
   serviceKind: string;
+  executionType: string;
   members: KanbanBoardTaskMember[];
   hoReference: string;
   title?: string;

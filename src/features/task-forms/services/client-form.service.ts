@@ -54,6 +54,7 @@ export async function taskSignDocument(
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
   const serviceCode = formData.get("serviceCode");
+  const taskType = formData.get("taskType");
 
   return fetcherClient("/app/api/task/sign", {
     method: "POST",
@@ -67,6 +68,7 @@ export async function taskSignDocument(
       bpmPackage: formData.get("bpmPackage"),
       signerRuts: (formData.get("signerRuts") as string).split(","),
       auditNumbers: (formData.get("auditNumbers") as string).split(","),
+      taskType,
     }),
   });
 }

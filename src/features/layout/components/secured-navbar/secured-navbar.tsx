@@ -16,6 +16,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+// import { Filter } from "flowbite-react-icons/outline";
 
 export function SecuredNavbar({
   messages,
@@ -88,18 +89,24 @@ export function SecuredNavbar({
             {isSeachEnabled && (
               <form className="hidden lg:block lg:pl-2">
                 <Label htmlFor="search" className="sr-only">
-                  Search
+                  {messages.search}
                 </Label>
-                <TextInput
-                  className="w-full lg:w-96"
-                  icon={HiSearch}
-                  id="search"
-                  name="search"
-                  placeholder="Search"
-                  type="search"
-                  defaultValue={searchParams.get("search") || ""}
-                  onChange={handleSearch}
-                />
+                <div className="flex items-center gap-2">
+                  <TextInput
+                    className="w-full lg:w-96"
+                    icon={HiSearch}
+                    id="search"
+                    name="search"
+                    placeholder={messages.search}
+                    type="search"
+                    defaultValue={searchParams.get("search") || ""}
+                    onChange={handleSearch}
+                  />
+                  {/* @TODO: Add filter button */}
+                  {/* <Button color="gray">
+                    <Filter className="h-4 w-4" />
+                  </Button> */}
+                </div>
               </form>
             )}
           </div>

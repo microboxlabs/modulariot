@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos"
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -57,7 +58,8 @@
         "clientCode": "Código cliente",
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
-        "serviceKind": "Tipo de servicio"
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución"
       },
       "views": {
         "table": "Tabla",
@@ -81,6 +83,11 @@
       "backToHome": "Volver al inicio"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
+      },
       "stepper": {
         "step1": "Verificación de conductor",
         "step2": "Conductor verificado",
@@ -218,6 +225,7 @@
       "title": "Verificación de identidad",
       "driver": "Conductor",
       "validator": "Despachador",
+      "receiver": "Receptor",
       "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado.",
       "successTitle": "Identidad reconocida",
       "successDescription": "Su identidad ha sido reconocida exitosamente",
@@ -231,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Devolver a Torre de Control",
         "returnToTransportValidation": "Devolver a Validación de Transporte",
+        "confirmMonitoringFinalization": "Confirmar Entrega sin Firma Sovos",
         "returnToOverlord": "Devolver a Overlord",
         "tripInitiated": "Viaje Iniciado",
         "tripCanceled": "Viaje Cancelado",
@@ -272,6 +281,7 @@
   "layout": {
     "secured": {
       "signout": "Cerrar sesión",
+      "search": "Buscar",
       "sidebar": {
         "home": "Home",
         "tasks": "Mis tareas",
@@ -393,6 +403,9 @@
     "svg_document": "Documento SVG",
     "mission_control": "Torre de control",
     "geographic_view": "Vista geográfica",
+    "markers": "Marcadores",
+    "started_trips": "Viajes iniciados",
+    "times": "Tiempos",
     "monitoring": "Monitoreo",
     "download": "Descargar",
     "symptoms-list": "Lista de síntomas",

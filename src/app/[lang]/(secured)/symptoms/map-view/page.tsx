@@ -6,15 +6,24 @@ import Image from "next/image";
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import { Card } from "flowbite-react";
 import SideInfo from "@/features/symptoms/side-info";
+
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
+
+import MapVisualization from "@/features/geographic-view/components/map-visualization";
+import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
+import TitleCardSkeleton from "@/features/symptoms/components/map-view/title-card-skeleton";
+
 
 export default async function SymptomsList({
   params: { lang },
 }: ParamsWithLang) {
   const [, dict] = await getDictionary(lang);
+
+  const loading = false;
+
   return (
-    <div className="pb-5 flex flex-col h-full w-full bg-white dark:bg-gray-900">
-      <div className="px-4 pt-6 pb-2">
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">
+      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
           path={["mission_control", "symptoms", "map-view"]}
           lang={lang}
@@ -22,35 +31,47 @@ export default async function SymptomsList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <div className=" m-5 relative flex flex-col gap-10 animate-shadow-toggle rounded-lg">
-        <Card
-          className="flex flex-row "
-          color="white"
-          theme={{
-            root: {
-              children: "p-4",
-            },
-          }}
-        >
-          <div className="flex flex-row gap-2 items-center justify-center">
-            <Image
-              className="w-[54px] h-[54px]"
-              src={noAlarmImage}
-              alt="Síntomas Urgentes"
-              width={54}
-              height={54}
-            />
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
-              {(dict.symptoms as I18nRecord).code_black as string}
-            </h1>
+      {loading ? (
+        <TitleCardSkeleton />
+      ) : (
+        <div className=" mx-5 relative flex flex-col gap-10 animate-shadow-toggle rounded-lg overflow-visible">
+          <Card
+            className="flex flex-row "
+            color="white"
+            theme={{
+              root: {
+                children: "p-3",
+              },
+            }}
+          >
+            <div className="flex flex-row gap-2 items-center justify-center">
+              <Image
+                className="w-[54px] h-[54px]"
+                src={noAlarmImage}
+                alt="Síntomas Urgentes"
+                width={54}
+                height={54}
+              />
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
+                {(dict.symptoms as I18nRecord).code_black as string}
+              </h1>
+            </div>
+          </Card>
+        </div>
+      )}
+      {loading ? (
+        <MapViewSkeleton />
+      ) : (
+        <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
+          {/* Side information */}
+          <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <SideInfo dict={dict} lang={lang} />
           </div>
-        </Card>
-      </div>
-      <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
-        {/* Side information */}
-        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <SideInfo dict={dict} lang={lang} />
+          {/* Map */}
+          <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <MapVisualization dict={dict} specific_view={true} />
+          </div>
         </div>
         {/* Map */}
         <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">

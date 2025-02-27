@@ -30,8 +30,8 @@ export default function SymptomsTable({
   };
 
   return (
-    <div className="px-5 py-1 flex flex-col flex-grow gap-4 w-full transition-all duration-300 ease-in-out overflow-y-auto">
-      <div className="flex justify-between items-center">
+    <div className="px-5 flex flex-col flex-grow gap-2 w-full overflow-visible">
+      <div className="flex justify-between items-center overflow-visible">
         <div className="flex gap-2 items-center">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div>
@@ -82,7 +82,9 @@ export default function SymptomsTable({
             </Dropdown.Item>
           </Dropdown>
           <Button
-            className="justify-self-end flex justify-center items-center h-10 w-10"
+            className={`justify-self-end flex justify-center items-center h-10 w-10 ${
+              showCards ? "animate-hide" : "animate-show-flex"
+            }`}
             color="gray"
             onClick={() => {
               setCondition("");

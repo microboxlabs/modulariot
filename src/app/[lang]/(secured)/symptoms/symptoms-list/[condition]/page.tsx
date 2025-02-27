@@ -26,6 +26,8 @@ export default async function SymptomsList({
   const [, dict] = await getDictionary(lang);
   const icuCondition = parseInt(condition);
 
+  console.log(icuCondition);
+
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">

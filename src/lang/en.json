@@ -379,6 +379,10 @@
     "screenshot": "Screenshot",
     "svg_document": "SVG document",
     "mission_control": "Control Tower",
-    "geographic_view": "Geographic view"
+    "geographic_view": "Geographic view",
+    "specialist": "Specialist",
+    "select_entity": "Select entity",
+    "derive_to_specialist_description": "Derive to specialist.",
+    "message_to_specialist": "Message to specialist."
   }
 }

@@ -7,15 +7,17 @@ import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
 import { MdCancel } from "react-icons/md";
-
+import { SelectedOption } from "../types/side-info";
 export default function BlurrableDropdown({
   isMenuOpen,
   setIsMenuOpen,
   dict,
+  setSelectedOption,
 }: {
   isMenuOpen: boolean;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   dict: any;
+  setSelectedOption: (option: SelectedOption) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -39,26 +41,31 @@ export default function BlurrableDropdown({
       id: 0,
       label: dict.symptoms.derive_to_specialist,
       icon: HiArrowRight,
+      option: "derive_to_specialist" as SelectedOption,
     },
     {
       id: 1,
       label: dict.symptoms.contact_carabineros,
       icon: GiPoliceBadge,
+      option: "contact_carabineros" as SelectedOption,
     },
     {
       id: 2,
       label: dict.symptoms.contact_via_whatsapp,
       icon: FaWhatsapp,
+      option: "contact_via_whatsapp" as SelectedOption,
     },
     {
       id: 3,
       label: dict.symptoms.copilot,
       icon: BsStars,
+      option: "copilot" as SelectedOption,
     },
     {
       id: 4,
       label: dict.symptoms.ignore_condition,
       icon: MdCancel,
+      option: "ignore_condition" as SelectedOption,
     },
   ];
 
@@ -102,11 +109,12 @@ export default function BlurrableDropdown({
           },
         }}
       >
-        {other_options.map(({ id, label, icon: Icon }) => (
+        {other_options.map(({ id, label, icon: Icon, option }) => (
           <DropdownItem
             key={id}
             className="flex gap-1 w-full"
             onClick={() => {
+              setSelectedOption(option);
               setIsMenuOpen(!isMenuOpen);
             }}
           >

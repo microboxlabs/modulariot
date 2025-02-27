@@ -383,6 +383,10 @@
     "screenshot": "Captura de pantalla",
     "svg_document": "Documento SVG",
     "mission_control": "Torre de control",
-    "geographic_view": "Vista geográfica"
+    "geographic_view": "Vista geográfica",
+    "specialist": "Especialista",
+    "select_entity": "Seleccionar entidad",
+    "derive_to_specialist_description": "Derivar a especialista.",
+    "message_to_specialist": "Mensaje al especialista."
   }
 }

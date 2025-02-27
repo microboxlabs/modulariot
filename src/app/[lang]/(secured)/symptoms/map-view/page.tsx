@@ -9,10 +9,8 @@ import SideInfo from "@/features/symptoms/side-info";
 
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 
-import MapVisualization from "@/features/geographic-view/components/map-visualization";
 import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
 import TitleCardSkeleton from "@/features/symptoms/components/map-view/title-card-skeleton";
-
 
 export default async function SymptomsList({
   params: { lang },
@@ -70,18 +68,14 @@ export default async function SymptomsList({
           </div>
           {/* Map */}
           <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <MapVisualization dict={dict} specific_view={true} />
+            <MapVisualizationTrip
+              dict={dict}
+              specific_view={true}
+              tripId="1439763"
+            />
           </div>
         </div>
-        {/* Map */}
-        <div className="w-full h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <MapVisualizationTrip
-            dict={dict}
-            specific_view={true}
-            tripId="1439763"
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

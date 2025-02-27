@@ -21,7 +21,6 @@ export default function StatusCard({
   title,
   count,
   variant = "black",
-  dict,
   icu_condition = 4,
   loading = false,
 }: StatusCardProps) {
@@ -54,8 +53,8 @@ export default function StatusCard({
       )}
     >
       <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-row justify-between gap-5">
+          <div className="flex items-center gap-3">
             <div
               className={twMerge(
                 "w-6 h-6",
@@ -68,44 +67,17 @@ export default function StatusCard({
             >
               <span className="text-white text-[8px] font-medium">{icon}</span>
             </div>
-            <span className="text-[#111928] dark:text-white text-sm font-semibold">
+            <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap">
               {title}
             </span>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-gray-500 dark:text-white text-2xl font-semibold">
+            <span className="text-gray-500 dark:text-white text-2xl font-medium">
               {count}
-            </span>
-            <span className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-1">
-              {dict.symptoms.active}
             </span>
           </div>
         </div>
       </Link>
-      <div className="flex flex-row justify-between gap-5">
-        <div className="flex items-center gap-3">
-          <div
-            className={twMerge(
-              "w-6 h-6",
-              bgColor,
-              "rounded-full",
-              "border",
-              borderColor,
-              "flex items-center justify-center",
-            )}
-          >
-            <span className="text-white text-[8px] font-medium">{icon}</span>
-          </div>
-          <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap">
-            {title}
-          </span>
-        </div>
-        <div className="flex items-end gap-2">
-          <span className="text-gray-500 dark:text-white text-2xl font-medium">
-            {count}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

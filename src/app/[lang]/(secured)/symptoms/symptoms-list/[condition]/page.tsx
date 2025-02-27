@@ -5,7 +5,7 @@ import { HiClipboardList } from "react-icons/hi";
 import Image from "next/image";
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import { Card } from "flowbite-react";
-import SymptomsData from "@/features/symptoms/components/symptoms-data";
+import SymptomsData from "@/features/symptoms/components/symptoms-list/symptoms-data";
 
 const test_data = [
   {

@@ -1,13 +1,10 @@
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import CallDriver from "./menus/call-driver/call-driver";
-import DriverResponse from "./menus/call-driver/driver-response";
-import EndTreatment from "./end-treatment";
 import SideInfoData from "../side-info-data";
-import { FaCheck, FaPhoneAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
+import { getCallDriver, getDeriveToSpecialist } from "./menus/menus";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -18,14 +15,16 @@ export default function BlurrableSteppedMenu({
   className,
   dict,
   lang,
+  selectedOption,
 }: {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   className: string;
   dict: any;
   lang: string;
+  selectedOption: string;
 }) {
-  const side_sections = [
+  const base_sections = [
     {
       title: dict.symptoms.symptoms,
       elements: [
@@ -41,45 +40,20 @@ export default function BlurrableSteppedMenu({
         },
       ],
     },
-    {
-      title: dict.symptoms.treatment,
-      elements: [
-        {
-          element_name: dict.symptoms.call_driver,
-          description: dict.symptoms.call_driver_description,
-          component: <CallDriver dict={dict} />,
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: dict.symptoms.save_treatment,
-            action: "next",
-          },
-        },
-        {
-          element_name: dict.symptoms.driver_response,
-          description: dict.symptoms.driver_response_description,
-          component: <DriverResponse dict={dict} />,
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: dict.symptoms.save_response,
-            action: "next",
-          },
-        },
-        {
-          element_name: dict.symptoms.end_treatment,
-          description: dict.symptoms.end_treatment_description,
-          component: <EndTreatment dict={dict} />,
-          icon: <FaCheck className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: dict.symptoms.finish_treatment,
-            action: "end",
-          },
-        },
-      ],
-    },
   ];
+
+  let side_sections: any[] = [];
+
+  switch (selectedOption) {
+    case "call_driver":
+      side_sections = [...base_sections, ...getCallDriver(dict)];
+      break;
+    case "derive_to_specialist":
+      side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
+      break;
+    default:
+      side_sections = base_sections;
+  }
 
   const [selected_section, setSelectedSection] = useState<number>(1);
   const [selected_elements, setSelectedElements] = useState<number[]>([0, 0]);

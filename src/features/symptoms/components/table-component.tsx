@@ -106,22 +106,6 @@ export default function SymptomsTable({
                 compact={compact}
               />
             ))}
-            {tableData?.data.map((item, index) => (
-              <TableItem
-                key={index}
-                data={item}
-                dict={dict}
-                compact={compact}
-              />
-            ))}
-            {tableData?.data.map((item, index) => (
-              <TableItem
-                key={index}
-                data={item}
-                dict={dict}
-                compact={compact}
-              />
-            ))}
           </TableBody>
         </Table>
       </div>

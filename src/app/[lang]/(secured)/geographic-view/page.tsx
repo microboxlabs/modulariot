@@ -17,7 +17,7 @@ const layers = [
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="px-4 pt-6 pb-2">
+      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
           path={["mission_control", "geographic_view"]}
           lang={lang}

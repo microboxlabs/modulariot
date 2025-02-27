@@ -1,12 +1,13 @@
-import { Card } from "flowbite-react";
 import Image from "next/image";
 import alarmImage from "@assets/images/alarm.gif";
 import noAlarmImage from "@assets/images/no_alarm.gif";
+import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
 import ConditionIcon from "./components/condition-icon";
-import StatusCard from "./components/status-card";
+import StatusCard from "./components/card/status-card";
 import { useSymptoms } from "./hooks/use-symptoms";
-
+import CardSkeleton from "./components/card/card-skeleton";
+import CustomCard from "./components/card/custom-card";
 export default function SymptomsCards({
   showCards,
   dict,
@@ -18,11 +19,7 @@ export default function SymptomsCards({
 
   // Handle loading and error states
   if (loading) {
-    return (
-      <div className="w-full h-2/6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-      </div>
-    );
+    return <CardSkeleton dict={dict} />;
   }
 
   if (error) {
@@ -39,37 +36,36 @@ export default function SymptomsCards({
 
   return (
     <div
-      className={`pt-2 px-5 flex flex-col gap-2 transition-all ease-in-out duration-300
-      ${showCards ? "max-h-[1000px]" : "max-h-0 overflow-hidden"}
+      className={`w-full flex flex-col transition-all duration-300 ease-in-out
+      ${showCards ? "max-h-[1000px] overflow-visible" : "max-h-0 overflow-hidden"}
       `}
     >
-      <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+      <h1 className="px-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
         {dict.symptoms.symptoms}
       </h1>
-      <div className="flex flex-col md:flex-row gap-4">
-        <Card
-          className={`flex-1 ${showCards ? "animate-shadow-toggle" : ""}`}
-          color="white"
-        >
+      <div className="p-5 flex flex-row md:flex-row gap-4 overflow-x-auto">
+        <CustomCard className={`${showCards ? "animate-shadow-toggle" : ""}`}>
           <div className="flex items-center gap-2">
-            {codeBlack > 0 ? (
-              <Image
-                className="w-[54px] h-[54px]"
-                src={alarmImage}
-                alt="Síntomas Urgentes"
-                width={54}
-                height={54}
-              />
-            ) : (
-              <Image
-                className="w-[54px] h-[54px]"
-                src={noAlarmImage}
-                alt="Síntomas Urgentes"
-                width={54}
-                height={54}
-              />
-            )}
-            <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <div className="h-[54px] w-[54px]">
+              {codeBlack > 0 ? (
+                <Image
+                  className="w-[54px] h-[54px]"
+                  src={alarmImage}
+                  alt="Síntomas Urgentes"
+                  width={54}
+                  height={54}
+                />
+              ) : (
+                <Image
+                  className="w-[54px] h-[54px]"
+                  src={noAlarmImage}
+                  alt="Síntomas Urgentes"
+                  width={54}
+                  height={54}
+                />
+              )}
+            </div>
+            <h5 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white hidden lg:block">
               {dict.symptoms.urgent_symptoms}
             </h5>
           </div>
@@ -88,18 +84,19 @@ export default function SymptomsCards({
               variant="critical"
             />
           </div>
-        </Card>
-
-        <Card className="flex-1" color="white">
+        </CustomCard>
+        <CustomCard>
           <div className="flex items-center gap-2">
-            <Image
-              className="w-[54px] h-[54px]"
-              src={patchImage}
-              alt="Síntomas Siendo tratados"
-              width={54}
-              height={54}
-            />
-            <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <div className="h-[54px] w-[54px]">
+              <Image
+                className="w-[54px] h-[54px]"
+                src={maskImage}
+                alt="Síntomas Siendo tratados"
+                width={54}
+                height={54}
+              />
+            </div>
+            <h5 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white hidden lg:block">
               {dict.symptoms.symptoms_under_treatment}
             </h5>
           </div>
@@ -107,17 +104,47 @@ export default function SymptomsCards({
             <StatusCard
               dict={dict}
               icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
-              title={dict.symptoms.condition_in_treatment}
+              title={dict.symptoms.in_treatment}
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
               icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
-              title={dict.symptoms.condition_in_observation}
+              title={dict.symptoms.in_observation}
               count={observation.toString().padStart(2, "0")}
             />
           </div>
-        </Card>
+        </CustomCard>
+        <CustomCard>
+          <div className="flex items-center gap-2">
+            <div className="h-[54px] w-[54px]">
+              <Image
+                className="w-[54px] h-[54px]"
+                src={patchImage}
+                alt="Síntomas Siendo tratados"
+                width={54}
+                height={54}
+              />
+            </div>
+            <h5 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white hidden lg:block">
+              {dict.symptoms.restablished_symptoms}
+            </h5>
+          </div>
+          <div className="flex gap-3">
+            <StatusCard
+              dict={dict}
+              icon={<ConditionIcon condition="remission" size="h-8 w-8" />}
+              title={dict.symptoms.in_remission}
+              count={treatment.toString().padStart(2, "0")}
+            />
+            <StatusCard
+              dict={dict}
+              icon={<ConditionIcon condition="stable" size="h-8 w-8" />}
+              title={dict.symptoms.stable}
+              count={observation.toString().padStart(2, "0")}
+            />
+          </div>
+        </CustomCard>
       </div>
     </div>
   );

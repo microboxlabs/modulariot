@@ -306,15 +306,19 @@
   "symptoms": {
     "symptoms": "Symptoms",
     "urgent_symptoms": "Urgent symptoms",
-    "symptoms_under_treatment": "Symptoms under treatment",
-    "code_black": "Code black",
-    "critical_condition": "Critical condition",
-    "condition_in_treatment": "Condition in treatment",
-    "condition_in_observation": "Condition in observation",
-    "conditions": "Conditions",
-    "condition": "Condition",
-    "active_time": "Active time",
-    "trip": "Trip",
+    "symptoms_under_treatment": "Symptoms being treated",
+    "code_black": "code black",
+    "critical_condition": "critical condition",
+    "condition_in_treatment": "condition in treatment",
+    "in_treatment": "in treatment",
+    "condition_in_observation": "condition in observation",
+    "in_observation": "in observation",
+    "in_remission": "in remission",
+    "stable": "stable",
+    "conditions": "conditions",
+    "condition": "condition",
+    "active_time": "active time",
+    "trip": "trip",
     "driver": "Driver",
     "departure_date": "Departure date",
     "service": "Service",
@@ -401,6 +405,7 @@
     "monitoring": "Monitoring",
     "symptoms-list": "Symptoms list",
     "download": "Download",
-    "map-view": "Map view"
+    "map-view": "Map view",
+    "restablished_symptoms": "Restablished symptoms"
   }
 }

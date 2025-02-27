@@ -27,6 +27,10 @@ const config: Config = {
           "50%": { opacity: "0", display: "none", maxHeight: "50%" },
           "100%": { opacity: "0", display: "none", maxHeight: "0" },
         },
+        "show-flex": {
+          "0%": { opacity: "0", display: "none", maxHeight: "0" },
+          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
+        },
         "show": {
           "0%": { opacity: "0", display: "none", maxHeight: "0" },
           "100%": { opacity: "1", display: "inline", maxHeight: "100%" },
@@ -35,10 +39,6 @@ const config: Config = {
           "0%": { opacity: "1", display: "flex", maxWidth: "100%" },
           "90%": { opacity: "0", display: "none", maxWidth: "100%" },
           "100%": { opacity: "0", display: "none", maxWidth: "0%" },
-        },
-        "show-flex": {
-          "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
         },
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },

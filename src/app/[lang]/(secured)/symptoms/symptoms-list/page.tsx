@@ -14,7 +14,7 @@ const test_data = [
   },
 ];
 
-export default async function SymptomsList({
+export default async function DefaultSymptomsList({
   params: { lang },
 }: ParamsWithLang) {
   const [, dict] = await getDictionary(lang);

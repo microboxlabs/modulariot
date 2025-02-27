@@ -1,25 +1,25 @@
-/* eslint-disable prettier/prettier */
-/* eslint-disable @next/next/no-sync-scripts */
 "use client";
-import StepperNavigation from "@/features/layout/components/stepper-navigation/stepper-navigation";
+
+// import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { TaskFormProps } from "../task-form/task-form.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
+import StepperNavigation from "@/features/layout/components/stepper-navigation/stepper-navigation";
+import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
 import { useState } from "react";
-import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
-import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
 import { taskSignDocument } from "../../services/client-form.service";
+import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
+import { TaskOutcome } from "../../services/form.service.types";
+import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-start-verification-card";
+import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
-import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
-import { TaskOutcome } from "../../services/form.service.types";
-// import { useSession } from "next-auth/react";
+import { OUTCOME_CONFIRM_MONITORING_FINALIZATION } from "../../services/form.service";
 
-export default function SovosVerificationForm({
-  msg,
-  task,
+export default function ConfirmDeliveryForm({
   lang,
+  task,
   user,
+  msg,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -38,13 +38,12 @@ export default function SovosVerificationForm({
     const signerRuts = audits.map((audit) => audit.Rut).join(",");
 
     formData.append("taskId", task.id);
-    formData.append("transitionId", "next");
+    formData.append("transitionId", OUTCOME_CONFIRM_MONITORING_FINALIZATION);
     formData.append("bpmPackage", task.bpm_package as string);
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
-    formData.append("taskType", "sovosVerification");
-
+    formData.append("taskType", "confirmDelivery");
     const result = await taskSignDocument({}, formData);
 
     if (result.success) {
@@ -135,7 +134,7 @@ export default function SovosVerificationForm({
             stepVal: `${msg!.driver as string} 2`,
           },
           step6: {
-            stepVal: `${msg!.validator as string}`,
+            stepVal: `${msg!.receiver as string}`,
           },
         }}
       />
@@ -143,30 +142,41 @@ export default function SovosVerificationForm({
       {(stepper.currentStep === "step1" ||
         stepper.currentStep === "step3" ||
         stepper.currentStep === "step5") && (
-          <SovosStartVerificationCard
-            lang={lang}
-            msg={msg}
-            task={task}
-            user={user}
-            pluginReady={pluginReady}
-            stepperController={stepperController}
-            isSovosVerification={true}
-          />
-        )}
+        <SovosStartVerificationCard
+          lang={lang}
+          msg={msg}
+          task={task}
+          user={user}
+          pluginReady={pluginReady}
+          stepperController={stepperController}
+          isSovosVerification={false}
+        />
+      )}
       {(stepper.currentStep === "step2" ||
         stepper.currentStep === "step4" ||
         stepper.currentStep === "step6") && (
-          <SovosVerificationResultCard
-            lang={lang}
-            msg={msg}
-            task={task}
-            pluginReady={pluginReady}
-            stepperController={stepperController}
-            success={!stepper.isError}
-            isSovosVerification={true}
-            user={user}
-          />
-        )}
+        <SovosVerificationResultCard
+          lang={lang}
+          msg={msg}
+          task={task}
+          pluginReady={pluginReady}
+          stepperController={stepperController}
+          success={!stepper.isError}
+          trParams={{
+            step2: {
+              stepVal: `${msg!.driver as string} 1`,
+            },
+            step4: {
+              stepVal: `${msg!.driver as string} 2`,
+            },
+            step6: {
+              stepVal: `${msg!.receiver as string}`,
+            },
+          }}
+          user={user}
+          isSovosVerification={false}
+        />
+      )}
       <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );

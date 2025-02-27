@@ -13,10 +13,19 @@ const test_data = [
   },
 ];
 
-export default async function DefaultSymptomsList({
-  params: { lang },
-}: ParamsWithLang) {
+interface SymptomsListParams extends ParamsWithLang {
+  condition: string;
+  lang: string;
+}
+
+export default async function SymptomsList({
+  params: { lang, condition },
+}: {
+  params: SymptomsListParams;
+}) {
   const [, dict] = await getDictionary(lang);
+  const icuCondition = parseInt(condition);
+
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
       <div className="px-4 pt-6 pb-2">
@@ -27,10 +36,6 @@ export default async function DefaultSymptomsList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      {/* 
-        The reason of why there is no padding here but in the individual elements inside, is because the
-        animation of hiding the cards is not working if there is padding.
-      */}
       <div className="relative overflow-y-auto p-5 flex flex-col gap-10">
         <Card
           className="flex flex-row animate-shadow-toggle"

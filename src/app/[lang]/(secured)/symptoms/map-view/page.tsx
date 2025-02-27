@@ -15,7 +15,7 @@ export default async function SymptomsList({
 }: ParamsWithLang) {
   const [, dict] = await getDictionary(lang);
 
-  const loading = true;
+  const loading = false;
 
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">

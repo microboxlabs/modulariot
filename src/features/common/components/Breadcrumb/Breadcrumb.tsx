@@ -23,7 +23,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   const translatedPath = path.map((item) => tr(item, dict));
 
   return (
-    <div className="flex justify-between items-center mb-4">
+    <div className="flex justify-between items-center">
       <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (

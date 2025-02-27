@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+/* import { useRouter } from "next/navigation"; */
 import { twMerge } from "tailwind-merge";
+import Link from "next/link";
 import StatusCardSkeleton from "./status-card-skeleton";
 
 interface StatusCardProps {
@@ -11,6 +12,7 @@ interface StatusCardProps {
   count: string;
   variant?: "black" | "critical";
   dict: any;
+  icu_condition?: number;
   loading?: boolean;
 }
 
@@ -19,9 +21,10 @@ export default function StatusCard({
   title,
   count,
   variant = "black",
+  icu_condition = 4,
   loading = false,
 }: StatusCardProps) {
-  const router = useRouter();
+  /* const router = useRouter(); */
 
   const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
   const borderColor =
@@ -33,7 +36,7 @@ export default function StatusCard({
 
   return (
     <div
-      onClick={() => router.push("/symptoms/symptoms-list")}
+      /* onClick={() => router.push("/symptoms/symptoms-list")} */
       className={twMerge(
         "grow p-3",
         "bg-white",
@@ -49,30 +52,32 @@ export default function StatusCard({
         "transition-all",
       )}
     >
-      <div className="flex flex-row justify-between gap-5">
-        <div className="flex items-center gap-3">
-          <div
-            className={twMerge(
-              "w-6 h-6",
-              bgColor,
-              "rounded-full",
-              "border",
-              borderColor,
-              "flex items-center justify-center",
-            )}
-          >
-            <span className="text-white text-[8px] font-medium">{icon}</span>
+      <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
+        <div className="flex flex-row justify-between gap-5">
+          <div className="flex items-center gap-3">
+            <div
+              className={twMerge(
+                "w-6 h-6",
+                bgColor,
+                "rounded-full",
+                "border",
+                borderColor,
+                "flex items-center justify-center",
+              )}
+            >
+              <span className="text-white text-[8px] font-medium">{icon}</span>
+            </div>
+            <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap">
+              {title}
+            </span>
           </div>
-          <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap">
-            {title}
-          </span>
+          <div className="flex items-end gap-2">
+            <span className="text-gray-500 dark:text-white text-2xl font-medium">
+              {count}
+            </span>
+          </div>
         </div>
-        <div className="flex items-end gap-2">
-          <span className="text-gray-500 dark:text-white text-2xl font-medium">
-            {count}
-          </span>
-        </div>
-      </div>
+      </Link>
     </div>
   );
 }

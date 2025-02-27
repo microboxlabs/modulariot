@@ -1,9 +1,9 @@
 "use client";
 
 import { FaFilePen } from "react-icons/fa6";
-import ConditionIcon from "./condition-icon";
-import ExpandableButton from "./expandable-button";
-import { Conditions } from "./table-item.type";
+import ConditionIcon from "../condition-icon";
+import ExpandableButton from "../expandable-button";
+import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 
 function formatDate(date: Date, lang: string): string {

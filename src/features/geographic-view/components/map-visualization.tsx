@@ -149,6 +149,16 @@ export default function MapVisualization({
     [mapPositions],
   );
 
+  /*
+  // here we make a check for duplicated elements in map positions
+  const asset_id_counter = mapPositions?.reduce((acc: any, item) => {
+    acc[item.asset_id] = (acc[item.asset_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log(asset_id_counter);
+  */
+
   const layers = !specific_view
     ? [
         new PinLayer({

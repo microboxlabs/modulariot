@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { FaTruck } from "react-icons/fa";
 import { HiChevronUp } from "react-icons/hi";
-import { Conditions } from "./table-item.type";
-import ConditionIcon from "./condition-icon";
+import { Conditions } from "../table-item.type";
+import ConditionIcon from "../condition-icon";
 import { Button } from "flowbite-react";
 import { useRouter } from "next/navigation";
 

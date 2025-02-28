@@ -32,7 +32,15 @@ export default function BlurrableSteppedMenu({
         {
           element_name: `${dict.symptoms.code_black}: ${dict.symptoms.continuous_driving_state}`,
           description: dict.symptoms.symptom_information,
-          component: <SideInfoData dict={dict} lang={lang} />,
+          component: (
+            <SideInfoData
+              dict={dict}
+              lang={lang}
+              treatmentData={null}
+              loading={false}
+              error={null}
+            />
+          ),
           icon: null,
           logo: (
             <Image src={noAlarmImage} alt="Icon" width={100} height={100} />

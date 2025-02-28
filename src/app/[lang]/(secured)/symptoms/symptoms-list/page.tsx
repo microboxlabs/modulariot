@@ -10,7 +10,19 @@ import SymptomsListSkeleton from "@/features/symptoms/components/symptoms-list/s
 
 const test_data = [
   {
-    date: "2025-02-17",
+    id: 1,
+    client: "Test Client",
+    driver: "Test Driver",
+    trip_id: "TEST-123",
+    asset_id: "ASSET-123",
+    end_time: "2025-02-17T12:30:00",
+    start_time: "2025-02-17T12:00:00",
+    duration_sec: 1800,
+    symptom_name: "Test Symptom",
+    icu_condition: "CODE_BLACK",
+    treatment_count: 0,
+    type_of_incidence: "Test Incidence",
+    geographical_reference_point: "Test Location",
   },
 ];
 
@@ -64,13 +76,7 @@ export default async function DefaultSymptomsList({
           </Card>
           <div className="flex flex-col gap-6">
             {test_data.map((item, index) => (
-              <SymptomsData
-                key={index}
-                date={item.date}
-                container_index={index}
-                dict={dict}
-                lang={lang}
-              />
+              <SymptomsData key={index} data={item} dict={dict} lang={lang} />
             ))}
           </div>
         </div>

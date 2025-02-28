@@ -1,17 +1,10 @@
-export interface SymptomsTableRequest {
-  page: number;
-  limit: number;
-  service: string;
-  condition: string;
-}
-
-export interface SymptomsTableResponse {
-  data: SymptomsTable[];
+export interface SymptomsICUResponse {
+  data: SymptomsICUItemResponse[];
   status: number;
   message: string;
 }
 
-export interface SymptomsTable {
+export interface SymptomsICUItemResponse {
   id: number;
   client: string;
   driver: string;

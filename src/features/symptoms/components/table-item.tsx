@@ -4,7 +4,7 @@ import { TableRow, TableCell, Button } from "flowbite-react";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function TableItem({
   data,
@@ -15,8 +15,6 @@ export default function TableItem({
   dict: any;
   compact?: boolean;
 }) {
-  const router = useRouter();
-
   if (!compact) {
     return (
       <TableRow
@@ -61,27 +59,30 @@ export default function TableItem({
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
         >
-          {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
+          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
+          {data.alertType}
         </TableCell>
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
         >
           <div className="flex items-center gap-2">
-            {data.status != null ? (
+            {data.status ? (
               <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
                 {data.status}
               </p>
             ) : (
-              <Button
-                className="h-8 flex justify-center items-center !text-xs"
-                color="blue"
-                onClick={() => router.push("/symptoms/map-view")}
-              >
-                <div className="flex items-center gap-2">
-                  <p>{dict.symptoms.diagnose}</p>
-                  <HiArrowRight className="w-4 h-4" />
-                </div>
-              </Button>
+              <Link href={`/symptoms/map-view/${data.trip}`}>
+                <Button
+                  className="h-8 flex justify-center items-center !text-xs"
+                  color="blue"
+                  /* onClick={() => router.push("/symptoms/map-view")} */
+                >
+                  <div className="flex items-center gap-2">
+                    <p>{dict?.symptoms?.diagnose}</p>
+                    <HiArrowRight className="w-4 h-4" />
+                  </div>
+                </Button>
+              </Link>
             )}
           </div>
         </TableCell>

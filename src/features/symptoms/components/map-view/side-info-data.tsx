@@ -1,10 +1,11 @@
 "use client";
 
-import { FaFilePen } from "react-icons/fa6";
 import ConditionIcon from "../condition-icon";
 import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
+import { Spinner } from "flowbite-react";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
@@ -40,97 +41,62 @@ function calculateDuration(startTime: string): string {
 export default function SideInfoData({
   dict,
   lang,
+  treatmentData,
+  loading,
+  error,
 }: {
   dict: any;
   lang: string;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  loading: boolean;
+  error: Error | null;
 }) {
-  const data = {
-    trip: {
-      condition: "code black",
-      licensePlate: "XX BB 21",
-      date: "2025-01-01 12:00:00",
-      trip: "STG-ANF",
-      driver: "ANONIMO ANDRÉS",
-      service: "V-1406865",
-      alertType: dict.symptoms.continuous_driving,
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error || !treatmentData) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        {error?.message || "No treatment data available"}
+      </div>
+    );
+  }
+
+  // For timeline display, we need to group by date and format appropriately
+  const groupedTimeline = treatmentData.timeline.reduce(
+    (acc, event) => {
+      const date = new Date(event.event_time).toISOString().split("T")[0];
+
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          assigned_to: "N/A", // This might need to come from the API
+          items: [],
+        };
+      }
+
+      acc[date].items.push({
+        start: event.event_time,
+        end: event.event_time, // The API doesn't provide end time
+        condition: event.event_type.toLowerCase().includes("critical")
+          ? "critic"
+          : event.event_type.toLowerCase().includes("black")
+            ? "code black"
+            : "stable",
+        description: event.description,
+      });
+
+      return acc;
     },
-    actions: [
-      {
-        actions: dict.symptoms.warning,
-        gestion: dict.symptoms.control_tower,
-        assigned_to: "pia@mintral.com",
-        gestion_time: "00:00:00",
-      },
-      {
-        actions: dict.symptoms.warning,
-        gestion: dict.symptoms.control_tower,
-        assigned_to: "pia@mintral.com",
-        gestion_time: "00:00:00",
-      },
-      {
-        actions: dict.symptoms.warning,
-        gestion: dict.symptoms.control_tower,
-        assigned_to: "pia@mintral.com",
-        gestion_time: "00:00:00",
-      },
-    ],
-    timeline: [
-      {
-        date: "2025-01-01",
-        assigned_to: "juan@mintral.com",
-        items: [
-          {
-            start: "2025-01-01 12:00:00",
-            end: "2025-01-01 12:30:00",
-            condition: "code black",
-            description: "Mensaje de ejemplo de descripción.",
-          },
-          {
-            start: "2025-01-01 12:00:00",
-            end: "2025-01-01 12:30:00",
-            condition: "code black",
-            description: "Mensaje de ejemplo de descripción.",
-          },
-        ],
-      },
-      {
-        date: "2025-02-12",
-        assigned_to: "juan@mintral.com",
-        items: [
-          {
-            start: "2025-02-12 10:00:00",
-            end: "2025-02-12 10:30:00",
-            condition: "critic",
-            description: "Mensaje de ejemplo de descripción.",
-          },
-        ],
-      },
-      {
-        date: "2025-02-12",
-        assigned_to: "juan@mintral.com",
-        items: [
-          {
-            start: "2025-02-12 10:00:00",
-            end: "2025-02-12 10:30:00",
-            condition: "critic",
-            description: "Mensaje de ejemplo de descripción.",
-          },
-        ],
-      },
-      {
-        date: "2025-02-12",
-        assigned_to: "juan@mintral.com",
-        items: [
-          {
-            start: "2025-02-12 10:00:00",
-            end: "2025-02-12 10:30:00",
-            condition: "critic",
-            description: "Mensaje de ejemplo de descripción.",
-          },
-        ],
-      },
-    ],
-  };
+    {} as Record<string, any>,
+  );
+
+  const timelineData = Object.values(groupedTimeline);
 
   return (
     <div className="flex flex-col gap-2 w-full">
@@ -142,164 +108,118 @@ export default function SideInfoData({
       >
         <div className="flex flex-col gap-2">
           <div
-            className={`flex flex-row items-center gap-2 p-1 rounded-md ${Conditions[data.trip.condition as keyof typeof Conditions].bgColor}`}
+            className={`flex flex-row items-center gap-2 p-1 rounded-md ${
+              Conditions["code black"].bgColor
+            }`}
           >
-            <ConditionIcon condition={data.trip.condition} size="h-7 w-7" />
+            <ConditionIcon condition="code black" size="h-7 w-7" />
             <p
-              className={`text-sm font-medium ${Conditions[data.trip.condition as keyof typeof Conditions].textColor}`}
+              className={`text-sm font-medium ${
+                Conditions["code black"].textColor
+              }`}
             >
-              {new Date(data.trip.date).toLocaleString().split(",")[1]}
+              {new Date().toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
                 {" "}
-                {data.trip.licensePlate}
+                {treatmentData.trip_info.trip_id}
               </span>
             </p>
           </div>
           <p className="text-sm">
             {dict.symptoms.observed_symptom}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {data.trip.alertType}
+              {treatmentData.symptom_info.name}
             </span>
           </p>
           <p className="text-sm">
             {dict.symptoms.event}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              4.5 {dict.symptoms.hours} {dict.symptoms.continuous_driving}
+              {treatmentData.symptom_info.type}
             </span>
           </p>
           <p className="text-sm">
             {dict.symptoms.trip}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {data.trip.trip}
+              {treatmentData.trip_info.trip_id}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.trip_time}:{" "}
+            {dict.symptoms.driver}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              16:33:12 hrs
+              {treatmentData.trip_info.driver}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.service}:{" "}
+            {dict.symptoms.client}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {data.trip.service}
-            </span>
-          </p>
-          <p className="text-sm">
-            {dict.symptoms.prescription}:{" "}
-            <span className="text-gray-500 dark:text-gray-400">
-              {dict.symptoms.call_driver}
+              {treatmentData.trip_info.client}
             </span>
           </p>
         </div>
       </ExpandableButton>
-      {/* Registro de acciones */}
-      <ExpandableButton
-        icon={<FaFilePen />}
-        title={dict.symptoms.actions}
-        description={dict.symptoms.actions_description}
-      >
-        <div className="flex flex-col gap-2">
-          {data.actions.map((action, index) => (
-            <div key={index} className="flex flex-col gap-2 p-1 ">
-              <p className="rounded-md bg-gray-200 dark:bg-gray-600 w-full p-2 px-5">
-                {index + 1}.
-              </p>
-              <div className="grid grid-cols-2 gap-1 px-2">
-                <p className="text-sm font-medium w-full">
-                  {dict.symptoms.actions}:
-                  <span className="font-light text-gray-500 dark:text-gray-400">
-                    {" " + action.actions}
-                  </span>
-                </p>
-                <p className="text-sm font-medium w-full">
-                  {dict.symptoms.management}:
-                  <span className="font-light text-gray-500 dark:text-gray-400">
-                    {" " + action.gestion}
-                  </span>
-                </p>
-                <p className="text-sm font-medium w-full">
-                  {dict.symptoms.assigned_to}:
-                  <span className="font-light text-gray-500 dark:text-gray-400">
-                    {" " + action.assigned_to}
-                  </span>
-                </p>
-                <p className="text-sm font-medium w-full">
-                  {dict.symptoms.management_time}:
-                  <span className="font-light text-gray-500 dark:text-gray-400">
-                    {" " + action.gestion_time}
-                  </span>
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </ExpandableButton>
-      {/* Timeline */}
-      <ExpandableButton
-        icon={<FaClock />}
-        title={dict.symptoms.timeline}
-        description={dict.symptoms.timeline_description}
-      >
-        <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
-          {data.timeline.map((item, index) => {
-            const date = formatDate(new Date(item.date), lang);
-            const duration = calculateDuration(
-              item.items[item.items.length - 1].start,
-            );
 
-            return (
-              <div key={index} className="flex flex-col gap-2">
-                <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-                  <div className="w-full flex flex-row gap-5 text-sm items-center justify-between px-2">
-                    <div className="text-black dark:text-white">{date}</div>
-                    <div className="flex flex-row flex-grow justify-between">
-                      <p className="bg-blue-200 rounded-md px-2 py-1 text-gray-600 flex items-center">
-                        {item.assigned_to}
-                      </p>
-                      <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
-                        {duration}
-                      </p>
+      {/* Timeline section - show only if we have timeline data */}
+      {timelineData.length > 0 && (
+        <ExpandableButton
+          icon={<FaClock />}
+          title={dict.symptoms.timeline}
+          description={dict.symptoms.timeline_description}
+        >
+          <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
+            {timelineData.map((item, index) => {
+              const date = formatDate(new Date(item.date), lang);
+              const duration = calculateDuration(
+                item.items[item.items.length - 1].start,
+              );
+
+              return (
+                <div key={index} className="flex flex-col gap-2">
+                  <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
+                    <div className="w-full flex flex-row gap-5 text-sm items-center justify-between px-2">
+                      <div className="text-black dark:text-white">{date}</div>
+                      <div className="flex flex-row flex-grow justify-between">
+                        <p className="bg-blue-200 rounded-md px-2 py-1 text-gray-600 flex items-center">
+                          {item.assigned_to}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
+                          {duration}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col gap-2 bg">
-                  {item.items.map((item, index) => (
-                    <div key={index} className="flex flex-row gap-2">
-                      <div className="flex flex-col">
-                        <ConditionIcon
-                          condition={item.condition}
-                          size="h-7 w-7"
-                        />
-                        <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
+                  <div className="flex flex-col gap-2 bg">
+                    {item.items.map((subItem: any, subIndex: any) => (
+                      <div key={subIndex} className="flex flex-row gap-2">
+                        <div className="flex flex-col">
+                          <ConditionIcon
+                            condition={subItem.condition}
+                            size="h-7 w-7"
+                          />
+                          <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            {new Date(subItem.start).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {subItem.condition}
+                          </p>
+                          <p className="text-sm font-light text-gray-900 dark:text-gray-200">
+                            {subItem.description}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                          {new Date(item.start).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(item.end).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                          {item.condition}
-                        </p>
-                        <p className="text-sm font-light text-gray-900 dark:text-gray-200">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </ExpandableButton>
+              );
+            })}
+          </div>
+        </ExpandableButton>
+      )}
     </div>
   );
 }

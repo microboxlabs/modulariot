@@ -122,7 +122,7 @@ export default function PageContent({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-auto mr-5">
+    <div className="w-full h-full flex flex-col overflow-auto">
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
@@ -138,7 +138,7 @@ export default function PageContent({
           />
         </div>
       </div>
-      <div className="h-screen w-full overflow-auto mr-5">
+      <div className="h-screen w-full overflow-auto">
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
             {list.map((board) => {

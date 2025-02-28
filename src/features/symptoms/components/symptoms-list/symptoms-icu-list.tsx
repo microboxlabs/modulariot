@@ -69,7 +69,7 @@ export default function SymptomsIcuList({ condition, dict, lang }: SymptomsIcuLi
       {icuData.map((item: SymptomsICUItemResponse, index: number) => (
         <SymptomsData
           key={index}
-          date={item.start_time}
+          data={item}
           container_index={index}
           dict={dict}
           lang={lang}

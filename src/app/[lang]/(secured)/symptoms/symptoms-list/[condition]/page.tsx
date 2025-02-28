@@ -18,7 +18,7 @@ export default async function SymptomsList({
 
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
-      <div className="px-4 pt-6 pb-2">
+      <div className="p-5">
         <Breadcrumb
           path={["mission_control", "symptoms", "symptoms-list"]}
           lang={lang}

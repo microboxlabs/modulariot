@@ -7,6 +7,7 @@ import { Conditions } from "../table-item.type";
 import ConditionIcon from "../condition-icon";
 import { Button } from "flowbite-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 
 export default function TimedSymptoms({
@@ -76,26 +77,27 @@ export default function TimedSymptoms({
                     {i.value}
                   </span>
                 </p>
-              ))} */}
+              ))}
+            </div>
+            {/* Diagnose button */}
+            <div className="flex flex-row gap-2 w-full justify-end">
+              <Button
+                color="blue"
+                onClick={() => router.push("/symptoms/map-view")}
+              >
+                {dict.symptoms.diagnose}
+              </Button>
+              <Button
+                as={Link}
+                color="blue"
+                href="https://maps.app.goo.gl/TvADzBVqJv4W91AY8"
+                target="_blank"
+              >
+                {dict.symptoms.geographic_view}
+              </Button>
+            </div>
           </div>
-          {/* Diagnose button */}
-          <div className="flex flex-row gap-2 w-full justify-end">
-            <Button
-              color="blue"
-              onClick={() => router.push("/symptoms/map-view")}
-            >
-              {dict.symptoms.diagnose}
-            </Button>
-            <a
-              href="https://maps.app.goo.gl/TvADzBVqJv4W91AY8"
-              target="_blank"
-              className="bg-blue-500 text-white px-4 py-2 rounded-md"
-            >
-              {dict.symptoms.geographic_view}
-            </a>
-          </div>
-        </div>
-        {/* ))} */}
+        ))}
       </div>
     </div>
   );

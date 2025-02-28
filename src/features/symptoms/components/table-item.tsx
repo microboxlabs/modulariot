@@ -61,13 +61,14 @@ export default function TableItem({
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
         >
-          {dict.symptoms[data.alertType as keyof typeof dict.symptoms]}
+          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
+          {data.alertType}
         </TableCell>
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
         >
           <div className="flex items-center gap-2">
-            {data.status != null ? (
+            {data.status ? (
               <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
                 {data.status}
               </p>

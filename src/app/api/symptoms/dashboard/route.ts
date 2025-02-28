@@ -1,7 +1,10 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { SymptomsDashboardResponse, SymptomsDashboard } from "./route.type";
 
-const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/alerts/dashboard";
+const SYMPTOMS_API_URL =
+  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_symptoms_dashboard";
+//const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/alerts/dashboard";
 
 import {
   AuthToken,
@@ -24,6 +27,7 @@ export async function GET() {
       status: 401,
     });
   }
+
   try {
     const token = await authToken.getToken();
     const response = await fetch(SYMPTOMS_API_URL, {
@@ -37,13 +41,34 @@ export async function GET() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    const apiData = (await response.json()) as SymptomsDashboardResponse;
+
+    // Transform API data into our desired structure
+    const formattedResponse: SymptomsDashboard = {
+      critic: apiData.data.critic || 0,
+      stable: apiData.data.stable || 0,
+      codeBlack: apiData.data.codeBlack || 0,
+      remission: apiData.data.remission || 0,
+      treatment: apiData.data.treatment || 0,
+      compromised: apiData.data.compromised || 0,
+      observation: apiData.data.observation || 0,
+    };
+
+    return NextResponse.json(formattedResponse);
   } catch (error) {
     return NextResponse.json(
       {
-        error: "Failed to fetch symptoms data",
-        errorMessage: error,
+        data: {
+          critic: 0,
+          stable: 0,
+          codeBlack: 0,
+          remission: 0,
+          treatment: 0,
+          compromised: 0,
+          observation: 0,
+        },
+        status: 500,
+        message: "Failed to fetch symptoms data",
       },
       { status: 500 },
     );

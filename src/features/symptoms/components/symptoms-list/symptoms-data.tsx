@@ -19,7 +19,7 @@ function formatDate(date: Date, lang: string): string {
   };
 
   return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
-    .format(date)    
+    .format(date)
     .toUpperCase()
     .replace(".", "");
 }

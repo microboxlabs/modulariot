@@ -74,7 +74,7 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="code black" size="h-8 w-8" />}
               title={dict.symptoms.code_black}
-              icu_condition={4}
+              icu_condition={"CODE_BLACK"} //4
               count={codeBlack.toString().padStart(2, "0")}
             />
 
@@ -82,7 +82,7 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="critic" size="h-8 w-8" />}
               title={dict.symptoms.critical_condition}
-              icu_condition={3}
+              icu_condition={"CRITICAL"} //3
               count={critic.toString().padStart(2, "0")}
               variant="critical"
             />
@@ -108,14 +108,14 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
               title={dict.symptoms.condition_in_treatment}
-              icu_condition={6}
+              icu_condition={"TREATMENT"} //6
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
               icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
               title={dict.symptoms.condition_in_observation}
-              icu_condition={1}
+              icu_condition={"OBSERVATION"} //1
               count={observation.toString().padStart(2, "0")}
             />
           </div>

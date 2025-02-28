@@ -15,13 +15,15 @@ interface SymptomsIcuListProps {
   lang: string;
 }
 
-export default function SymptomsIcuList({ condition, dict, lang }: SymptomsIcuListProps) {
+export default function SymptomsIcuList({
+  condition,
+  dict,
+  lang,
+}: SymptomsIcuListProps) {
   const { icuData, loading, error } = useSymptomsIcu(condition);
 
   if (loading) {
-    return (
-      <SymptomsListSkeleton />
-    );
+    return <SymptomsListSkeleton />;
   }
 
   if (error) {
@@ -43,38 +45,32 @@ export default function SymptomsIcuList({ condition, dict, lang }: SymptomsIcuLi
   return (
     <div className="flex flex-col gap-6">
       <Card
-          className="flex flex-row animate-shadow-toggle"
-          color="white"
-          theme={{
-            root: {
-              children: "p-4",
-            },
-          }}
-        >
-          <div className="flex flex-row gap-2 items-center justify-center">
-            <Image
-              className="w-[54px] h-[54px]"
-              src={noAlarmImage}
-              alt="Síntomas Urgentes"
-              width={54}
-              height={54}
-            />
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
-              {(dict.symptoms as I18nRecord).code_black as string}{" "}
-              {(dict.symptoms as I18nRecord).active as string}
-            </h1>
-          </div>
-        </Card>
+        className="flex flex-row animate-shadow-toggle"
+        color="white"
+        theme={{
+          root: {
+            children: "p-4",
+          },
+        }}
+      >
+        <div className="flex flex-row gap-2 items-center justify-center">
+          <Image
+            className="w-[54px] h-[54px]"
+            src={noAlarmImage}
+            alt="Síntomas Urgentes"
+            width={54}
+            height={54}
+          />
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+            {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+            {(dict.symptoms as I18nRecord).code_black as string}{" "}
+            {(dict.symptoms as I18nRecord).active as string}
+          </h1>
+        </div>
+      </Card>
       {icuData.map((item: SymptomsICUItemResponse, index: number) => (
-        <SymptomsData
-          key={index}
-          data={item}
-          container_index={index}
-          dict={dict}
-          lang={lang}
-        />
+        <SymptomsData key={index} data={item} dict={dict} lang={lang} />
       ))}
     </div>
   );
-} 
+}

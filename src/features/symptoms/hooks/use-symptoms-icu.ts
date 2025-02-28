@@ -12,20 +12,25 @@ export function useSymptomsIcu(condition?: string) {
     async function fetchIcuData() {
       try {
         setLoading(true);
-        const response = await fetch('/app/api/symptoms/icu');
-        if (!response.ok) throw new Error('Failed to fetch ICU data');
-        
-        const data = await response.json();        
+        const response = await fetch("/app/api/symptoms/icu");
+        if (!response.ok) throw new Error("Failed to fetch ICU data");
+
+        const data = await response.json();
         console.log(data);
         // Filter by condition if provided
-        const filteredData = condition 
-          ? data.filter((item: SymptomsICUItemResponse) => 
-              item.icu_condition.toLowerCase().replaceAll(" ", "_") === condition.toLowerCase())
+        const filteredData = condition
+          ? data.filter(
+              (item: SymptomsICUItemResponse) =>
+                item.icu_condition.toLowerCase().replaceAll(" ", "_") ===
+                condition.toLowerCase(),
+            )
           : data;
-        
+
         setIcuData(filteredData);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch ICU data'));
+        setError(
+          err instanceof Error ? err : new Error("Failed to fetch ICU data"),
+        );
       } finally {
         setLoading(false);
       }
@@ -35,4 +40,4 @@ export function useSymptomsIcu(condition?: string) {
   }, [condition]);
 
   return { icuData, loading, error };
-} 
+}

@@ -4,10 +4,10 @@ export type TreatmentsGeneralResponse = {
   message: string;
 };
 
-export type TreatmentsGeneralResponseItem = {  
-  timeline: TreatmentsTimelineResponse[],
-  trip_info: TreatmentsTripInfoResponse,
-  symptom_info: TreatmentsSymptomInfoResponse
+export type TreatmentsGeneralResponseItem = {
+  timeline: TreatmentsTimelineResponse[];
+  trip_info: TreatmentsTripInfoResponse;
+  symptom_info: TreatmentsSymptomInfoResponse;
 };
 
 export type TreatmentsTimelineResponse = {
@@ -27,4 +27,3 @@ export type TreatmentsSymptomInfoResponse = {
   name: string;
   type: string;
 };
-

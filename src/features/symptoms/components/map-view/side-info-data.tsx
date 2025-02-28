@@ -1,6 +1,5 @@
 "use client";
 
-import { FaFilePen } from "react-icons/fa6";
 import ConditionIcon from "../condition-icon";
 import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
@@ -48,12 +47,10 @@ export default function SideInfoData({
 }: {
   dict: any;
   lang: string;
-  treatmentData: TreatmentsGeneralResponseItem;
+  treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
 }) {
-  
-  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -61,7 +58,7 @@ export default function SideInfoData({
       </div>
     );
   }
-  
+
   if (error || !treatmentData) {
     return (
       <div className="text-red-500 text-center p-4">
@@ -69,32 +66,38 @@ export default function SideInfoData({
       </div>
     );
   }
-  
+
   // For timeline display, we need to group by date and format appropriately
-  const groupedTimeline = treatmentData.timeline.reduce((acc, event) => {
-    const date = new Date(event.event_time).toISOString().split('T')[0];
-    
-    if (!acc[date]) {
-      acc[date] = {
-        date,
-        assigned_to: "N/A", // This might need to come from the API
-        items: []
-      };
-    }
-    
-    acc[date].items.push({
-      start: event.event_time,
-      end: event.event_time, // The API doesn't provide end time
-      condition: event.event_type.toLowerCase().includes("critical") ? "critic" : 
-                event.event_type.toLowerCase().includes("black") ? "code black" : "stable",
-      description: event.description
-    });
-    
-    return acc;
-  }, {} as Record<string, any>);
-  
+  const groupedTimeline = treatmentData.timeline.reduce(
+    (acc, event) => {
+      const date = new Date(event.event_time).toISOString().split("T")[0];
+
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          assigned_to: "N/A", // This might need to come from the API
+          items: [],
+        };
+      }
+
+      acc[date].items.push({
+        start: event.event_time,
+        end: event.event_time, // The API doesn't provide end time
+        condition: event.event_type.toLowerCase().includes("critical")
+          ? "critic"
+          : event.event_type.toLowerCase().includes("black")
+            ? "code black"
+            : "stable",
+        description: event.description,
+      });
+
+      return acc;
+    },
+    {} as Record<string, any>,
+  );
+
   const timelineData = Object.values(groupedTimeline);
-  
+
   return (
     <div className="flex flex-col gap-2 w-full">
       <ExpandableButton
@@ -154,7 +157,7 @@ export default function SideInfoData({
           </p>
         </div>
       </ExpandableButton>
-      
+
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
@@ -166,7 +169,7 @@ export default function SideInfoData({
             {timelineData.map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
               const duration = calculateDuration(
-                item.items[item.items.length - 1].start
+                item.items[item.items.length - 1].start,
               );
 
               return (
@@ -185,7 +188,7 @@ export default function SideInfoData({
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 bg">
-                    {item.items.map((subItem, subIndex) => (
+                    {item.items.map((subItem: any, subIndex: any) => (
                       <div key={subIndex} className="flex flex-row gap-2">
                         <div className="flex flex-col">
                           <ConditionIcon

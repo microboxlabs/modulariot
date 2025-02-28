@@ -27,11 +27,7 @@ export default async function SymptomsList({
         />
       </div>
       <div className="relative overflow-y-auto p-5 flex flex-col gap-10">
-        <SymptomsIcuList 
-          condition={condition}
-          dict={dict}
-          lang={lang}
-        />
+        <SymptomsIcuList condition={condition} dict={dict} lang={lang} />
       </div>
     </div>
   );

@@ -8,7 +8,10 @@ import {
   AuthToken,
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-import { TreatmentsGeneralResponse, TreatmentsGeneralResponseItem } from "./route.type";
+import {
+  TreatmentsGeneralResponse,
+  TreatmentsGeneralResponseItem,
+} from "./route.type";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,

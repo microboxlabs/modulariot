@@ -83,7 +83,8 @@ export default function TimedSymptoms({
             <div className="flex flex-row gap-2 w-full justify-end">
               <Button
                 color="blue"
-                onClick={() => router.push("/symptoms/map-view")}
+                as={Link}
+                href={"/symptoms/map-view/" + item.trip_id}
               >
                 {dict.symptoms.diagnose}
               </Button>

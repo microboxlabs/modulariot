@@ -6,7 +6,6 @@ import { HiChevronUp } from "react-icons/hi";
 import { Conditions } from "../table-item.type";
 import ConditionIcon from "../condition-icon";
 import { Button } from "flowbite-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 
@@ -20,7 +19,6 @@ export default function TimedSymptoms({
   dict: any;
 }) {
   const [isOpen, setIsOpen] = useState(initial_state);
-  const router = useRouter();
   const item = data;
   return (
     <div className="flex flex-col gap-2 w-full">

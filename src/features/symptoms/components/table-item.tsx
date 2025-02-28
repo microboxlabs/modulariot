@@ -5,6 +5,7 @@ import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function TableItem({
   data,
@@ -73,16 +74,18 @@ export default function TableItem({
                 {data.status}
               </p>
             ) : (
+              <Link href={`/symptoms/map-view/${data.trip}`}>
               <Button
                 className="h-8 flex justify-center items-center !text-xs"
                 color="blue"
-                onClick={() => router.push("/symptoms/map-view")}
+                /* onClick={() => router.push("/symptoms/map-view")} */
               >
                 <div className="flex items-center gap-2">
                   <p>{dict.symptoms.diagnose}</p>
                   <HiArrowRight className="w-4 h-4" />
                 </div>
               </Button>
+              </Link>
             )}
           </div>
         </TableCell>

@@ -8,7 +8,15 @@ import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 
-export default function SideInfo({ dict, lang, symptomId }: { dict: any; lang: string, symptomId: string }) {
+export default function SideInfo({
+  dict,
+  lang,
+  symptomId,
+}: {
+  dict: any;
+  lang: string;
+  symptomId: string;
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
 
@@ -22,7 +30,13 @@ export default function SideInfo({ dict, lang, symptomId }: { dict: any; lang: s
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-[90%] overflow-y-auto">
-        <SideInfoData dict={dict} lang={lang} treatmentData={treatmentData} loading={loading} error={error} />
+        <SideInfoData
+          dict={dict}
+          lang={lang}
+          treatmentData={treatmentData}
+          loading={loading}
+          error={error}
+        />
       </div>
       <div className="flex flex-col justify-self-end">
         <Button.Group className="w-full">

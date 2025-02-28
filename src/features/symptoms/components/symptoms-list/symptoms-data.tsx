@@ -4,13 +4,6 @@ import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 
-const test_data = [
-  {
-    time: "9:00 - 9:30",
-    total: 2210,
-  },
-];
-
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
@@ -20,7 +13,7 @@ function formatDate(date: Date, lang: string): string {
   };
 
   return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
-    .format(date)    
+    .format(date)
     .toUpperCase()
     .replace(".", "");
 }
@@ -54,12 +47,10 @@ function getRelativeDayText(date: Date, lang: string): string {
 
 export default function SymptomsData({
   data,
-  container_index,
   dict,
   lang,
 }: {
   data: SymptomsICUItemResponse;
-  container_index: number;
   dict: any;
   lang: string;
 }) {
@@ -87,23 +78,19 @@ export default function SymptomsData({
       </div>
       {/* Symptoms data */}
       {/* {test_data.map((item, index) => ( */}
-        <div className="pl-3 flex flex-row  text-sm gap-10">
-          <div className="py-2">
-            <div className="flex flex-row items-center justify-center gap-2 ">
-              <FaClock color="gray" />
-              <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-                {data.start_time}
-              </div>
+      <div className="pl-3 flex flex-row  text-sm gap-10">
+        <div className="py-2">
+          <div className="flex flex-row items-center justify-center gap-2 ">
+            <FaClock color="gray" />
+            <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
+              {data.start_time}
             </div>
           </div>
-          <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms
-              data={data}
-              dict={dict}
-              initial_state={true}
-            />
-          </div>
         </div>
+        <div className="flex flex-grow flex-column gap-2">
+          <TimedSymptoms data={data} dict={dict} initial_state={true} />
+        </div>
+      </div>
       {/* ))} */}
     </div>
   );

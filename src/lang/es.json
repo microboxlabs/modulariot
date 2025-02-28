@@ -410,6 +410,7 @@
     "download": "Descargar",
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
-    "restablished_symptoms": "Síntomas restablecidos"
+    "restablished_symptoms": "Síntomas restablecidos",
+    "under_treatment": "Síntomas siendo tratados"
   }
 }

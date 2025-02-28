@@ -43,26 +43,26 @@ export default function SymptomsIcuList({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3 mx-5">
       <Card
-        className="flex flex-row animate-shadow-toggle"
+        className="flex flex-row bg-gray-100 dark:bg-gray-800"
         color="white"
         theme={{
           root: {
-            children: "p-4",
+            children: "p-2",
           },
         }}
       >
         <div className="flex flex-row gap-2 items-center justify-center">
           <Image
-            className="w-[54px] h-[54px]"
+            className="w-[50px] h-[50px]"
             src={noAlarmImage}
             alt="Síntomas Urgentes"
-            width={54}
-            height={54}
+            width={50}
+            height={50}
           />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-            {(dict.symptoms as I18nRecord).urgent_symptoms as string}:
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+            {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
             {(dict.symptoms as I18nRecord).code_black as string}{" "}
             {(dict.symptoms as I18nRecord).active as string}
           </h1>

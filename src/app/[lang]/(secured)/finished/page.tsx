@@ -29,7 +29,7 @@ export default async function FinishedPage({
     //   };
     // });
     return (
-      <div className="h-full w-full overflow-auto mr-5">
+      <div className="h-full w-full overflow-auto">
         <SseListener />
         <PageContent
           showFinishedTasks={true}

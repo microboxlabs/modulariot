@@ -1,5 +1,5 @@
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import Image from "next/image";
@@ -12,9 +12,16 @@ import MapVisualizationTrip from "@/features/geographic-view/components/map-visu
 import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
 import TitleCardSkeleton from "@/features/symptoms/components/map-view/title-card-skeleton";
 
-export default async function SymptomsList({
-  params: { lang },
-}: ParamsWithLang) {
+interface MapViewParams {
+  params: {
+    lang: string;
+    id: string;
+  };
+}
+
+export default async function SymptomList({
+  params: { lang, id },
+}: MapViewParams) {
   const [, dict] = await getDictionary(lang);
 
   const loading = false;
@@ -64,14 +71,15 @@ export default async function SymptomsList({
         <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
           {/* Side information */}
           <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <SideInfo dict={dict} lang={lang} />
+            <SideInfo dict={dict} lang={lang} symptomId={id} />
+            {/* 1439763 */}
           </div>
           {/* Map */}
           <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <MapVisualizationTrip
               dict={dict}
               specific_view={true}
-              tripId="1439763"
+              tripId={id}
             />
           </div>
         </div>

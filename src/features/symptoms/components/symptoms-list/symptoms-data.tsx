@@ -2,13 +2,7 @@
 
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
-
-const test_data = [
-  {
-    time: "9:00 - 9:30",
-    total: 2210,
-  },
-];
+import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
@@ -52,17 +46,16 @@ function getRelativeDayText(date: Date, lang: string): string {
 }
 
 export default function SymptomsData({
-  date,
-  container_index,
+  data,
   dict,
   lang,
 }: {
-  date: string;
-  container_index: number;
+  data: SymptomsICUItemResponse;
   dict: any;
   lang: string;
 }) {
-  const [year, month, day] = date.split("-").map(Number);
+  const date_part = data.start_time.split("T")[0];
+  const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 
   return (
@@ -78,30 +71,27 @@ export default function SymptomsData({
               {getRelativeDayText(setted_date, lang)}
             </p>
             <p className="text-gray-500 dark:text-gray-400">
-              {dict.symptoms.total_symptoms}: 2210
+              {dict.symptoms.total_symptoms}: {data.treatment_count}
             </p>
           </div>
         </div>
       </div>
       {/* Symptoms data */}
-      {test_data.map((item, index) => (
-        <div key={index} className="pl-3 flex flex-row  text-sm gap-10">
-          <div className="py-2">
-            <div className="flex flex-row items-center justify-center gap-2 ">
-              <FaClock color="gray" />
-              <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-                {item.time}
-              </div>
+      {/* {test_data.map((item, index) => ( */}
+      <div className="pl-3 flex flex-row  text-sm gap-10">
+        <div className="py-2">
+          <div className="flex flex-row items-center justify-center gap-2 ">
+            <FaClock color="gray" />
+            <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
+              {data.start_time}
             </div>
           </div>
-          <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms
-              dict={dict}
-              initial_state={index === 0 && container_index === 0}
-            />
-          </div>
         </div>
-      ))}
+        <div className="flex flex-grow flex-column gap-2">
+          <TimedSymptoms data={data} dict={dict} initial_state={true} />
+        </div>
+      </div>
+      {/* ))} */}
     </div>
   );
 }

@@ -6,9 +6,19 @@ import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
 import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
+import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 
-export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
+export default function SideInfo({
+  dict,
+  lang,
+  symptomId,
+}: {
+  dict: any;
+  lang: string;
+  symptomId: string;
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
 
   return (
     <div className="flex flex-col gap-5 p-10 h-full">
@@ -20,7 +30,13 @@ export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-[90%] overflow-y-auto">
-        <SideInfoData dict={dict} lang={lang} />
+        <SideInfoData
+          dict={dict}
+          lang={lang}
+          treatmentData={treatmentData}
+          loading={loading}
+          error={error}
+        />
       </div>
       <div className="flex flex-col justify-self-end">
         <Button.Group className="w-full">

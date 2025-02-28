@@ -97,7 +97,8 @@ export default function TimedSymptoms({
               </Button>
             </div>
           </div>
-        ))}
+        </div>
+        {/* ))} */}
       </div>
     </div>
   );

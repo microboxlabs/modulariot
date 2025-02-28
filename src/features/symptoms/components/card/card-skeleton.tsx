@@ -5,10 +5,10 @@ import CustomCard from "./custom-card";
 export default function CardSkeleton({ dict }: { dict: any }) {
   return (
     <div className="flex flex-col">
-      <h1 className="px-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-        {dict.symptoms.symptoms}
-      </h1>
-      <div className="p-5 flex flex-row md:flex-row gap-4 overflow-x-auto">
+      <div className="relative pb-5 px-5 pt-10 flex flex-row md:flex-row gap-4 overflow-x-auto">
+        <h1 className="absolute top-0 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+          {dict.symptoms.symptoms}
+        </h1>
         <CustomCard>
           <div className="flex items-center gap-2">
             <div className="w-[54px] h-[54px] bg-gray-300 dark:bg-gray-700 rounded-md animate-pulse" />

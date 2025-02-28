@@ -7,6 +7,7 @@ import { Conditions } from "../table-item.type";
 import ConditionIcon from "../condition-icon";
 import { Button } from "flowbite-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const test_data = [
   {
@@ -247,13 +248,14 @@ export default function TimedSymptoms({
               >
                 {dict.symptoms.diagnose}
               </Button>
-              <a
+              <Button
+                as={Link}
+                color="blue"
                 href="https://maps.app.goo.gl/TvADzBVqJv4W91AY8"
                 target="_blank"
-                className="bg-blue-500 text-white px-4 py-2 rounded-md"
               >
                 {dict.symptoms.geographic_view}
-              </a>
+              </Button>
             </div>
           </div>
         ))}

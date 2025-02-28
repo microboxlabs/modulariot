@@ -6,6 +6,7 @@ export interface SymptomDashboard {
 }
 
 export interface SymptomTableItem {
+  id: number;
   condition: string;
   licensePlate: string;
   time: string;

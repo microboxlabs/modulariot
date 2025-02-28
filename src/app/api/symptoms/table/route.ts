@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     const data = (await response.json()) as SymptomsTable[];
     const formattedResponse: SymptomTableResponse = {
       data: data.map((item) => ({
+        id: item.id,
         condition: item.icu_condition.toLowerCase(),
         licensePlate: item.asset_id,
         time: item.duration_sec.toString(),

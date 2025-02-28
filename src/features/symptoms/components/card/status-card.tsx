@@ -12,7 +12,7 @@ interface StatusCardProps {
   count: string;
   variant?: "black" | "critical";
   dict: any;
-  icu_condition?: number;
+  icu_condition?: string;
   loading?: boolean;
 }
 
@@ -21,7 +21,7 @@ export default function StatusCard({
   title,
   count,
   variant = "black",
-  icu_condition = 4,
+  icu_condition = "CODE_BLACK",
   loading = false,
 }: StatusCardProps) {
   /* const router = useRouter(); */

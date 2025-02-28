@@ -19,7 +19,7 @@ function formatDate(date: Date, lang: string): string {
   };
 
   return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
-    .format(date)
+    .format(date)    
     .toUpperCase()
     .replace(".", "");
 }
@@ -62,7 +62,8 @@ export default function SymptomsData({
   dict: any;
   lang: string;
 }) {
-  const [year, month, day] = date.split("-").map(Number);
+  const date_part = date.split("T")[0];
+  const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 
   return (

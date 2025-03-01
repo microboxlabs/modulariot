@@ -9,7 +9,7 @@ import {
   AuthToken,
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-import { SymptomsTable } from "./route.types";
+import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
 
 const config: AuthTokenConfig = {
@@ -40,8 +40,6 @@ export async function GET(req: NextRequest) {
     params.set("condition", url.searchParams.get("condition") ?? "");
   }
 
-  console.log(params.toString());
-
   try {
     const token = await authToken.getToken();
     const response = await fetch(SYMPTOMS_API_URL, {
@@ -55,29 +53,28 @@ export async function GET(req: NextRequest) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-
-    const data = (await response.json()) as SymptomsTable[];
+    const data = (await response.json()) as SymptomsTableResponse;
     const formattedResponse: SymptomTableResponse = {
-      data: data.map((item) => ({
+      data: data?.data.map((item) => ({
         id: item.id,
-        condition: item.icu_condition.toLowerCase(),
-        licensePlate: item.asset_id,
-        time: item.duration_sec.toString(),
-        trip: item.trip_id,
-        driver: item.driver,
-        date: item.start_time,
-        service: item.asset_id,
-        alertType: item.type_of_incidence,
-        status: item.treatment_count === 0 ? "" : "Tratado",
+        condition: item?.icu_condition?.toLowerCase(),
+        licensePlate: item?.asset_id,
+        time: item?.duration_sec?.toString(),
+        trip: item?.trip_id,
+        driver: item?.driver,
+        date: item?.start_time,
+        service: item?.asset_id,
+        alertType: item?.type_of_incidence,
+        status: item?.treatment_count === 0 ? "" : "Tratado",
       })),
-      total: data.length,
+      total: data.data.length,
       page: 1,
-      pageSize: data.length,
+      pageSize: data.data.length,
       pagination: {
         currentPage: 1,
         totalPages: 1,
-        totalRecords: data.length,
-        limit: data.length,
+        totalRecords: data.data.length,
+        limit: data.data.length,
       },
     };
 

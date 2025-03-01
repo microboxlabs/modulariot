@@ -276,6 +276,19 @@
     "errorTripView": {
       "title": "Viaje no encontrado",
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
+    },
+    "userSettings": {
+      "breadcrumb": {
+        "user": "Usuario",
+        "settings": "Ajustes"
+      },
+      "symptoms": {
+        "config": {
+          "title": "Configuración de síntomas",
+          "description": "Configura las notificaciones para los síntomas.",
+          "addButton": "Agregar"
+        }
+      }
     }
   },
   "layout": {

@@ -2,15 +2,6 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
-import Image from "next/image";
-import noAlarmImage from "@assets/images/no_alarm.gif";
-import { Card } from "flowbite-react";
-import SideInfo from "@/features/symptoms/side-info";
-
-import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
-
-import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
-import TitleCardSkeleton from "@/features/symptoms/components/map-view/title-card-skeleton";
 import GeneralMap from "@/features/symptoms/components/map-view/general-map";
 
 interface MapViewParams {

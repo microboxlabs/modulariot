@@ -22,13 +22,15 @@ export default function SideInfo({
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
 
   if (loading) {
-    return <div className="flex flex-col gap-5 p-10 h-full">
-      <SideMenuSkeleton />
-    </div>
+    return (
+      <div className="flex flex-col gap-5 p-5 h-full">
+        <SideMenuSkeleton />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-5 p-10 h-full">
+    <div className="flex flex-col gap-5 p-5 h-full">
       <BlurrableSteppedMenu
         lang={lang}
         dict={dict}

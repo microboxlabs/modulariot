@@ -225,39 +225,12 @@ export default function MapVisualization({
           viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
-        {!specific_view ? (
-          <>
-            <Filters dict={dict} />
-            <div className="absolute right-0 top-0 bottom-0">
-              <SideBar dict={dict} />
-            </div>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-end absolute p-5 flex-col">
-            <MapButton
-              main_color="bg-white dark:bg-gray-800"
-              button_color="bg-white dark:bg-gray-800"
-              icon={BsStars}
-              text="Copilot"
-              open_to_left={true}
-            />
-          </div>
-        )}
+        
+        <Filters dict={dict} />
+        <div className="absolute right-0 top-0 bottom-0">
+          <SideBar dict={dict} />
+        </div>
       </DeckGL>
-      {/* Rotation test elements */}
-      <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rotation: {rotation}°
-        </label>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={rotation}
-          onChange={(e) => setRotation(Number(e.target.value))}
-          className="w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
-      </div>
     </div>
   );
 }

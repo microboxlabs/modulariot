@@ -1,18 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import MapButton from "./map-button";
-import SideBar from "./side-bar/side-bar";
 import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
-import { useTripPositions } from "../hooks/use-trip-positions";
-import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -93,10 +90,7 @@ const stateToColor = {
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
-  dict: any;
-  specific_view?: boolean;
-  tripId: string;
-  positions: MapPosition[];
+  positions: MapPosition[] | null;
   loading: boolean;
   error: Error | null;
 };
@@ -122,23 +116,12 @@ function zoom_on_pin(
 }
 
 export default function MapVisualizationTrip({
-  dict,
-  tripId,
   positions,
   loading,
   error,
 }: MapVisualizationProps) {
-  const [rotation, setRotation] = useState(0);
+  const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-
-  // Use positions to update your map
-  useEffect(() => {
-    if (positions.length > 0) {
-      // Update map with new positions
-      //console.log("New positions received:", positions.length);
-      console.log(positions);
-    }
-  }, [positions]);
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -215,7 +198,8 @@ export default function MapVisualizationTrip({
   ];
 
   if (loading) {
-    return (<div className="h-full w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700 animate-pulse"/>
+    return (
+      <div className="h-full w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700 animate-pulse" />
     );
   }
 
@@ -250,13 +234,13 @@ export default function MapVisualizationTrip({
         />
       </DeckGL>
       <div className="absolute right-5 top-5 bottom-0">
-          <MapButton
-            main_color="bg-white dark:bg-gray-800"
-            button_color="bg-white dark:bg-gray-800"
-            icon={BsStars}
-            text="Copilot"
-            open_to_left={true}
-          />
+        <MapButton
+          main_color="bg-white dark:bg-gray-800"
+          button_color="bg-white dark:bg-gray-800"
+          icon={BsStars}
+          text="Copilot"
+          open_to_left={true}
+        />
       </div>
     </div>
   );

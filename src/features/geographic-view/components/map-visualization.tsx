@@ -5,12 +5,9 @@ import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
-import MapButton from "./map-button";
 import SideBar from "./side-bar/side-bar";
-import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { useMapPositions } from "../hooks/use-map-positions";
 import { MapPosition, MapPositionProperties } from "../types/map";
 import Filters from "./filters";
 
@@ -44,8 +41,8 @@ type ViewStateType = {
 };
 
 const INITIAL_VIEW_STATE: ViewStateType = {
-  longitude: -70.668505,
-  latitude: -33.439764,
+  longitude: 0,
+  latitude: 0,
   zoom: 6.5,
   // base rotation
   pitch: 45,
@@ -76,6 +73,7 @@ const stateToColor = {
 };
 
 type MapVisualizationProps = {
+  mapPositions: MapPosition[] | null;
   dict: any;
   specific_view?: boolean;
 };
@@ -101,12 +99,28 @@ function zoom_on_pin(
 }
 
 export default function MapVisualization({
+  mapPositions,
   dict,
   specific_view = false,
 }: MapVisualizationProps) {
-  const [rotation, setRotation] = useState(0);
-  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const { positions: mapPositions, loading, error } = useMapPositions();
+  const [rotation, _] = useState(0);
+
+  // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
+  const NEW_INITIAL_VIEW_STATE = {
+    ...INITIAL_VIEW_STATE,
+    longitude:
+      mapPositions && mapPositions.length > 0
+        ? mapPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
+          mapPositions.length
+        : 0,
+    latitude:
+      mapPositions && mapPositions.length > 0
+        ? mapPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
+          mapPositions.length
+        : 0,
+  };
+
+  const [viewState, setViewState] = useState(NEW_INITIAL_VIEW_STATE);
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -188,19 +202,6 @@ export default function MapVisualization({
         }),
       ];
 
-  if (loading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-      </div>
-    );
-  }
-
-  if (error) {
-    console.error("Map error:", error);
-    // Continue rendering with empty data instead of showing error
-  }
-
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
@@ -225,7 +226,6 @@ export default function MapVisualization({
           viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
-        
         <Filters dict={dict} />
         <div className="absolute right-0 top-0 bottom-0">
           <SideBar dict={dict} />

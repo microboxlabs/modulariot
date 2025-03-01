@@ -43,9 +43,9 @@ export default function SymptomsIcuList({
   }
 
   return (
-    <div className="flex flex-col gap-3 mx-5">
+    <div className="flex flex-col gap-3 mx-5 overflow-y-auto">
       <Card
-        className="flex flex-row bg-gray-100 dark:bg-gray-800"
+        className="flex flex-row"
         color="white"
         theme={{
           root: {

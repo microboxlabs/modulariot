@@ -11,6 +11,7 @@ import MapVisualizationTrip from "@/features/geographic-view/components/map-visu
 
 import MapViewSkeleton from "@/features/symptoms/components/map-view/map-view-skeleton";
 import TitleCardSkeleton from "@/features/symptoms/components/map-view/title-card-skeleton";
+import GeneralMap from "@/features/symptoms/components/map-view/general-map";
 
 interface MapViewParams {
   params: {
@@ -24,8 +25,6 @@ export default async function SymptomList({
 }: MapViewParams) {
   const [, dict] = await getDictionary(lang);
 
-  const loading = false;
-
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">
       <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
@@ -36,54 +35,7 @@ export default async function SymptomList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      {loading ? (
-        <TitleCardSkeleton />
-      ) : (
-        <div className=" mx-5 relative flex flex-col gap-10 animate-shadow-toggle rounded-lg overflow-visible">
-          <Card
-            className="flex flex-row "
-            color="white"
-            theme={{
-              root: {
-                children: "p-3",
-              },
-            }}
-          >
-            <div className="flex flex-row gap-2 items-center justify-center">
-              <Image
-                className="w-[54px] h-[54px]"
-                src={noAlarmImage}
-                alt="Síntomas Urgentes"
-                width={54}
-                height={54}
-              />
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-                {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
-                {(dict.symptoms as I18nRecord).code_black as string}
-              </h1>
-            </div>
-          </Card>
-        </div>
-      )}
-      {loading ? (
-        <MapViewSkeleton />
-      ) : (
-        <div className="flex flex-row gap-6 w-full h-full p-5 overflow-hidden">
-          {/* Side information */}
-          <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <SideInfo dict={dict} lang={lang} symptomId={id} />
-            {/* 1439763 */}
-          </div>
-          {/* Map */}
-          <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <MapVisualizationTrip
-              dict={dict}
-              specific_view={true}
-              tripId={id}
-            />
-          </div>
-        </div>
-      )}
+      <GeneralMap dict={dict} lang={lang} id={id} />
     </div>
   );
 }

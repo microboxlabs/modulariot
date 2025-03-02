@@ -18,7 +18,12 @@ export function useSymptoms(pollingInterval = 30000) {
         if (mounted) {
           setSymptoms(data);
           // Calculate total from all symptom counts
-          const total = data ? data.codeBlack + data.critic : 0;
+          const total = data
+            ? Object.values(data).reduce<number>(
+                (sum, value) => (typeof value === "number" ? sum + value : sum),
+                0,
+              )
+            : 0;
           setCount(total);
           setError(null);
         }

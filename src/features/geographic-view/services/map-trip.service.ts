@@ -10,7 +10,7 @@ export class MapService {
     );
     if (!response.ok) throw new Error("Failed to fetch positions");
     const { data } = await response.json();
-
+    //console.log(data);
     return data.map((position: MapPosition) => {
       const [longitude, latitude] = this.parseWKBPoint(position.location);
       return {

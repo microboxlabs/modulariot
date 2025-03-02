@@ -32,6 +32,9 @@ export default function SymptomsCards({
     critic = 0,
     treatment = 0,
     observation = 0,
+    stable = 0,
+    remission = 0,
+    //compromised = 0,
   } = symptoms || {};
 
   return (
@@ -74,7 +77,7 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="code black" size="h-8 w-8" />}
               title={dict.symptoms.code_black}
-              icu_condition="CODE_BLACK" //4
+              icu_condition="4"
               count={codeBlack.toString().padStart(2, "0")}
             />
 
@@ -82,7 +85,7 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="critic" size="h-8 w-8" />}
               title={dict.symptoms.critical_condition}
-              icu_condition="CRITICAL" //3
+              icu_condition="3"
               count={critic.toString().padStart(2, "0")}
               variant="critical"
             />
@@ -108,14 +111,14 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="treatment" size="h-8 w-8" />}
               title={dict.symptoms.in_treatment}
-              icu_condition="TREATMENT" //6
+              icu_condition="6"
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
               icon={<ConditionIcon condition="observation" size="h-8 w-8" />}
               title={dict.symptoms.in_observation}
-              icu_condition="OBSERVATION" //1
+              icu_condition="1"
               count={observation.toString().padStart(2, "0")}
             />
           </div>
@@ -140,13 +143,15 @@ export default function SymptomsCards({
               dict={dict}
               icon={<ConditionIcon condition="remission" size="h-8 w-8" />}
               title={dict.symptoms.in_remission}
-              count={treatment.toString().padStart(2, "0")}
+              icu_condition="8"
+              count={remission.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
               icon={<ConditionIcon condition="stable" size="h-8 w-8" />}
               title={dict.symptoms.stable}
-              count={observation.toString().padStart(2, "0")}
+              icu_condition="0"
+              count={stable.toString().padStart(2, "0")}
             />
           </div>
         </CustomCard>

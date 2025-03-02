@@ -19,51 +19,51 @@ export default function TableItem({
     return (
       <TableRow
         className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-        ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
+        ${Conditions[data.condition as keyof typeof Conditions]?.bgColor} !border-0`}
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
           <div className="flex items-center gap-2">
             <ConditionIcon condition={data.condition} size="h-8 w-8" />
             <p
-              className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+              className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
               {data.licensePlate}
             </p>
           </div>
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.time} {dict.symptoms.sec}.
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.trip}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.driver}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {new Date(data.date).toLocaleString()}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.service}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
           {data.alertType}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           <div className="flex items-center gap-2">
             {data.status ? (
@@ -71,7 +71,7 @@ export default function TableItem({
                 {data.status}
               </p>
             ) : (
-              <Link href={`/symptoms/map-view/${data.trip}`}>
+              <Link href={`/symptoms/map-view/${data.id}?tripId=${data.trip}`}>
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"
@@ -99,14 +99,14 @@ export default function TableItem({
         <div className="flex items-center gap-2">
           <ConditionIcon condition={data.condition} size="h-8 w-8" />
           <p
-            className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+            className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
           >
             {data.licensePlate}
           </p>
         </div>
       </TableCell>
       <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions].textColor}`}
+        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
       >
         {new Date(data.date).toLocaleString()}
       </TableCell>

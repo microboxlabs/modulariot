@@ -67,7 +67,7 @@ export default function StatusCard({
             >
               <span className="text-white text-[8px] font-medium">{icon}</span>
             </div>
-            <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap">
+            <span className="text-[#111928] dark:text-white text-sm font-light hidden lg:block whitespace-nowrap first-letter:uppercase">
               {title}
             </span>
           </div>

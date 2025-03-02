@@ -276,6 +276,19 @@
     "errorTripView": {
       "title": "Trip not found",
       "subtitle": "The trip you are looking for does not exist or is not available."
+    },
+    "userSettings": {
+      "breadcrumb": {
+        "user": "User",
+        "settings": "Settings"
+      },
+      "symptoms": {
+        "config": {
+          "title": "Symptoms configuration",
+          "description": "Configure notifications for symptoms.",
+          "addButton": "Add symptom"
+        }
+      }
     }
   },
   "layout": {
@@ -305,18 +318,25 @@
   },
   "symptoms": {
     "symptoms": "Symptoms",
+    "client": "Client",
+    "route": "Route",
+    "transporter": "Transporter",
+    "active": "Active",
     "urgent_symptoms": "Urgent symptoms",
     "symptoms_under_treatment": "Symptoms being treated",
-    "code_black": "code black",
-    "critical_condition": "critical condition",
+    "code_black": "Black code",
+    "4": "Black code",
+    "critical_condition": "Critical condition",
+    "3": "Critical condition",
     "condition_in_treatment": "condition in treatment",
     "in_treatment": "in treatment",
     "condition_in_observation": "condition in observation",
-    "in_observation": "in observation",
+    "1": "condition in observation",
+    "in_observation": "in observation",    
     "in_remission": "in remission",
     "stable": "stable",
     "conditions": "conditions",
-    "condition": "condition",
+    "condition": "Condition",
     "active_time": "active time",
     "trip": "trip",
     "driver": "Driver",
@@ -331,7 +351,6 @@
     "search": "Search",
     "seconds": "seconds",
     "sec": "sec",
-    "active": "active",
     "days_ago": "days ago",
     "total_symptoms": "Total symptoms",
     "symptoms_detected": "Symptoms detected",
@@ -409,18 +428,5 @@
     "map-view": "Map view",
     "restablished_symptoms": "Restablished symptoms",
     "under_treatment": "Symptoms being treated"
-  },
-  "userSettings": {
-    "breadcrumb": {
-      "user": "User",
-      "settings": "Settings"
-    },
-    "symptoms": {
-      "config": {
-        "title": "Symptoms configuration",
-        "description": "Configure notifications for symptoms.",
-        "addButton": "Add symptom"
-      }
-    }
   }
 }

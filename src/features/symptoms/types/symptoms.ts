@@ -3,6 +3,9 @@ export interface SymptomDashboard {
   critic: number;
   treatment: number;
   observation: number;
+  stable: number;
+  compromised: number;
+  remission: number;
 }
 
 export interface SymptomTableItem {

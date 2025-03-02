@@ -13,13 +13,18 @@ export default function GeneralMap({
   dict,
   lang,
   id,
+  tripId,
 }: {
   dict: I18nRecord;
   lang: string;
   id: string;
+  tripId?: string;
 }) {
-  const { positions, loading, error } = useTripPositions(id);
+  const { positions, loading, error } = useTripPositions(tripId ?? "");
 
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  }
   return (
     <>
       {loading ? (
@@ -57,13 +62,13 @@ export default function GeneralMap({
         <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
           <SideInfo dict={dict} lang={lang} symptomId={id} />
           {/* Map */}
-          <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <MapVisualizationTrip
-              positions={positions}
-              loading={loading}
-              error={error}
-            />
-          </div>
+        </div>
+        <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <MapVisualizationTrip
+            positions={positions}
+            loading={loading}
+            error={error}
+          />
         </div>
       </div>
     </>

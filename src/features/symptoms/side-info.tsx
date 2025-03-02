@@ -7,6 +7,7 @@ import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
+import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 
 export default function SideInfo({
   dict,
@@ -20,8 +21,16 @@ export default function SideInfo({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
 
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-5 p-5 h-full">
+        <SideMenuSkeleton />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-5 p-10 h-full">
+    <div className="flex flex-col gap-5 p-5 h-full">
       <BlurrableSteppedMenu
         lang={lang}
         dict={dict}

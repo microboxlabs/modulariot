@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+//import { useState } from "react";
 
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
-import { useRouter, useSearchParams } from "next/navigation";
+//import { useRouter, useSearchParams } from "next/navigation";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
 import SymptomsCard from "./symptoms";
 
 export default function PageContent({ dict }: PropsWithI18nDict) {
-  const router = useRouter();
+  /* const router = useRouter();
   const searchParams = useSearchParams();
 
   const [page, setPage] = useState(1);
-  const pageSize = 100;
+  const pageSize = 100; */
 
   return (
     <div className="w-full h-full flex flex-col overflow-auto">

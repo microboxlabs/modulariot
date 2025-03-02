@@ -99,7 +99,7 @@ export default function SideInfoData({
   const timelineData = Object.values(groupedTimeline);
 
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-2 w-full  overflow-y-auto">
       <ExpandableButton
         initial_state={true}
         icon={<FaTruck />}
@@ -165,6 +165,59 @@ export default function SideInfoData({
           title={dict.symptoms.timeline}
           description={dict.symptoms.timeline_description}
         >
+          <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
+            {timelineData.map((item, index) => {
+              const date = formatDate(new Date(item.date), lang);
+              const duration = calculateDuration(
+                item.items[item.items.length - 1].start,
+              );
+
+              return (
+                <div key={index} className="flex flex-col gap-2">
+                  <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
+                    <div className="w-full flex flex-row gap-5 text-sm items-center justify-between px-2">
+                      <div className="text-black dark:text-white">{date}</div>
+                      <div className="flex flex-row flex-grow justify-between">
+                        <p className="bg-blue-200 rounded-md px-2 py-1 text-gray-600 flex items-center">
+                          {item.assigned_to}
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
+                          {duration}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 bg">
+                    {item.items.map((subItem: any, subIndex: any) => (
+                      <div key={subIndex} className="flex flex-row gap-2">
+                        <div className="flex flex-col">
+                          <ConditionIcon
+                            condition={subItem.condition}
+                            size="h-7 w-7"
+                          />
+                          <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            {new Date(subItem.start).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {subItem.condition}
+                          </p>
+                          <p className="text-sm font-light text-gray-900 dark:text-gray-200">
+                            {subItem.description}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
             {timelineData.map((item, index) => {
               const date = formatDate(new Date(item.date), lang);

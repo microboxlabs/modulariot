@@ -50,11 +50,11 @@ export default function SymptomsData({
   dict,
   lang,
 }: {
-  data: SymptomsICUItemResponse;
+  data: SymptomsICUItemResponse[];
   dict: any;
   lang: string;
 }) {
-  const date_part = data.start_time.split("T")[0];
+  const date_part = data[0].start_time.split("T")[0];
   const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 
@@ -71,26 +71,29 @@ export default function SymptomsData({
               {getRelativeDayText(setted_date, lang)}
             </p>
             <p className="text-gray-500 dark:text-gray-400">
-              {dict.symptoms.total_symptoms}: {data.treatment_count}
+              {dict.symptoms.total_treatment}:
+              {data.reduce((acc, item) => acc + item.treatment_count, 0)}
             </p>
           </div>
         </div>
       </div>
       {/* Symptoms data */}
       {/* {test_data.map((item, index) => ( */}
-      <div className="pl-3 flex flex-row  text-sm gap-10">
-        <div className="py-2">
-          <div className="flex flex-row items-center justify-center gap-2 ">
-            <FaClock color="gray" />
-            <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-              {data.start_time}
+      {data.map((item) => (
+        <div className="pl-3 flex flex-row  text-sm gap-10" key={item.id}>
+          <div className="py-2">
+            <div className="flex flex-row items-center justify-center gap-2 ">
+              <FaClock color="gray" />
+              <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
+                {item.start_time.split("T")[1].slice(0, 5)}
+              </div>
             </div>
           </div>
+          <div className="flex flex-grow flex-column gap-2" key={item.id}>
+            <TimedSymptoms data={item} dict={dict} initial_state={true} />
+          </div>
         </div>
-        <div className="flex flex-grow flex-column gap-2">
-          <TimedSymptoms data={data} dict={dict} initial_state={true} />
-        </div>
-      </div>
+      ))}
       {/* ))} */}
     </div>
   );

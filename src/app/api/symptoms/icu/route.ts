@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
 const SYMPTOMS_API_URL =
-  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_symptms_icu_view";
+  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_symptoms_icu_view";
 
 import {
   AuthToken,
@@ -19,7 +19,7 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
@@ -28,8 +28,11 @@ export async function GET() {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const pIcuCode = searchParams.get("p_icu_code");
+
     const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL, {
+    const response = await fetch(SYMPTOMS_API_URL + "?p_icu_code=" + pIcuCode, {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,

@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = (await response.json()) as SymptomsTableResponse;
+
     const formattedResponse: SymptomTableResponse = {
       data: data?.data.map((item) => ({
         id: item.id,

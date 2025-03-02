@@ -12,20 +12,22 @@ export function useSymptomsIcu(condition?: string) {
     async function fetchIcuData() {
       try {
         setLoading(true);
-        const response = await fetch("/app/api/symptoms/icu");
+        const response = await fetch(
+          "/app/api/symptoms/icu?p_icu_code=" + condition,
+        );
         if (!response.ok) throw new Error("Failed to fetch ICU data");
 
         const data = await response.json();
         // Filter by condition if provided
-        const filteredData = condition
+        /* const filteredData = condition
           ? data.filter(
               (item: SymptomsICUItemResponse) =>
                 item.icu_condition.toLowerCase().replaceAll(" ", "_") ===
                 condition.toLowerCase(),
             )
-          : data;
+          : data; */
 
-        setIcuData(filteredData);
+        setIcuData(data);
       } catch (err) {
         setError(
           err instanceof Error ? err : new Error("Failed to fetch ICU data"),

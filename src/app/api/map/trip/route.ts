@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const token = await authToken.getToken();
     const tripId = req.nextUrl.searchParams.get("tripId") || "";
     const offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
-    const chunkSize = 10;
+    const chunkSize = 100;
 
     if (!tripId) {
       return NextResponse.json({ error: "Missing tripId" }, { status: 400 });
@@ -97,7 +97,6 @@ export async function GET(req: NextRequest) {
       hasMore: false,
     });
   } catch (error) {
-    console.error("Error fetching trip positions:", error);
     return NextResponse.json(
       {
         error: "Failed to fetch trip positions",

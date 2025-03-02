@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import MapButton from "./map-button";
-import SideBar from "./side-bar/side-bar";
 import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
-import { useTripPositions } from "../hooks/use-trip-positions";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -92,9 +90,9 @@ const stateToColor = {
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
-  dict: any;
-  specific_view?: boolean;
-  tripId: string;
+  positions: MapPosition[] | null;
+  loading: boolean;
+  error: Error | null;
 };
 
 function zoom_on_pin(
@@ -118,22 +116,12 @@ function zoom_on_pin(
 }
 
 export default function MapVisualizationTrip({
-  dict,
-  specific_view = false,
-  tripId,
+  positions,
+  loading,
+  error,
 }: MapVisualizationProps) {
-  const [rotation, setRotation] = useState(0);
+  const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const { positions, loading, error } = useTripPositions(tripId);
-
-  // Use positions to update your map
-  useEffect(() => {
-    if (positions.length > 0) {
-      // Update map with new positions
-      //console.log("New positions received:", positions.length);
-      console.log(positions);
-    }
-  }, [positions]);
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -211,9 +199,7 @@ export default function MapVisualizationTrip({
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-      </div>
+      <div className="h-full w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700 animate-pulse" />
     );
   }
 
@@ -246,74 +232,14 @@ export default function MapVisualizationTrip({
           viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
-        {!specific_view ? (
-          <div className="w-full h-full flex justify-between absolute">
-            <div className="m-5 gap-[14px] flex flex-col">
-              {/* <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es un texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es otro texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              /> */}
-            </div>
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-end absolute p-5 flex-col">
-            <MapButton
-              main_color="bg-white dark:bg-gray-800"
-              button_color="bg-white dark:bg-gray-800"
-              icon={BsStars}
-              text="Copilot"
-              open_to_left={true}
-            />
-          </div>
-        )}
       </DeckGL>
-      <div className="absolute right-0 top-0 bottom-0">
-        <SideBar dict={dict} />
-      </div>
-      {/* Rotation test elements */}
-      <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rotation: {rotation}°
-        </label>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={rotation}
-          onChange={(e) => setRotation(Number(e.target.value))}
-          className="w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+      <div className="absolute right-5 top-5 bottom-0">
+        <MapButton
+          main_color="bg-white dark:bg-gray-800"
+          button_color="bg-white dark:bg-gray-800"
+          icon={BsStars}
+          text="Copilot"
+          open_to_left={true}
         />
       </div>
     </div>

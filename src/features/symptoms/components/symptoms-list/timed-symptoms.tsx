@@ -30,7 +30,7 @@ export default function TimedSymptoms({
         <div className="flex flex-row gap-2 items-center justify-center">
           <FaTruck color="gray" />
           <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-            {item.treatment_count} {dict.symptoms.symptoms_detected}
+            {item.treatment_count} {dict.symptoms.total_treatment}
           </div>
         </div>
         <HiChevronUp

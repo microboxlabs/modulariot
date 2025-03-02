@@ -16,7 +16,6 @@ export function useSymptomsIcu(condition?: string) {
         if (!response.ok) throw new Error("Failed to fetch ICU data");
 
         const data = await response.json();
-        console.log(data);
         // Filter by condition if provided
         const filteredData = condition
           ? data.filter(

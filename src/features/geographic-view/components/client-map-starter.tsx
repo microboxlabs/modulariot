@@ -1,0 +1,31 @@
+"use client";
+
+import { useMapPositions } from "../hooks/use-map-positions";
+import MapVisualization from "./map-visualization";
+
+export default function ClientMapStarter({ dict }: { dict: any }) {
+  const { positions: mapPositions, loading, error } = useMapPositions();
+
+  if (loading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse">
+        <div className="absolute top-5 left-5 flex flex-col gap-1 items-center justify-center">
+          <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 flex flex-col gap-2 rounded-full animate-pulse" />
+          <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 flex flex-col gap-2 rounded-full animate-pulse" />
+          <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 flex flex-col gap-2 rounded-full animate-pulse" />
+          <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 flex flex-col gap-2 rounded-full animate-pulse" />
+        </div>
+        <div className="absolute top-5 right-5 flex flex-col gap-1 items-center justify-center">
+          <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 flex flex-col gap-2 rounded-full animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    console.error("Map error:", error);
+    // Continue rendering with empty data instead of showing error
+  }
+
+  return <MapVisualization dict={dict} mapPositions={mapPositions} />;
+}

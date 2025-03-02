@@ -76,7 +76,7 @@ export default async function DefaultSymptomsList({
           </Card>
           <div className="flex flex-col gap-6">
             {test_data.map((item, index) => (
-              <SymptomsData key={index} data={item} dict={dict} lang={lang} />
+              <SymptomsData key={index} data={[item]} dict={dict} lang={lang} />
             ))}
           </div>
         </div>

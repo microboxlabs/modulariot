@@ -42,10 +42,28 @@ export default function SymptomsIcuList({
     );
   }
 
+  // Group data by date (extracting date from start_time)
+  const groupedByDate = icuData.reduce(
+    (groups: Record<string, SymptomsICUItemResponse[]>, item) => {
+      // Extract date part from start_time (assuming ISO format)
+      const date = new Date(item.start_time).toLocaleDateString(lang);
+
+      // Create group if it doesn't exist
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+
+      // Add item to group
+      groups[date].push(item);
+      return groups;
+    },
+    {},
+  );
+
   return (
-    <div className="flex flex-col gap-3 mx-5">
+    <div className="flex flex-col gap-3 mx-5 overflow-y-auto">
       <Card
-        className="flex flex-row bg-gray-100 dark:bg-gray-800"
+        className="flex flex-row"
         color="white"
         theme={{
           root: {
@@ -68,8 +86,12 @@ export default function SymptomsIcuList({
           </h1>
         </div>
       </Card>
-      {icuData.map((item: SymptomsICUItemResponse, index: number) => (
-        <SymptomsData key={index} data={item} dict={dict} lang={lang} />
+
+      {/* Map through grouped data by date */}
+      {Object.entries(groupedByDate).map(([date, items]) => (
+        <div className="flex flex-col gap-3" key={date}>
+          <SymptomsData key={`${date}`} data={items} dict={dict} lang={lang} />
+        </div>
       ))}
     </div>
   );

@@ -45,15 +45,13 @@ function getRelativeDayText(date: Date, lang: string): string {
   return `In ${Math.abs(diffDays)} days`;
 }
 
-export default function SymptomsData({
-  data,
-  dict,
-  lang,
-}: {
+interface SymptomsDataProps {
   data: SymptomsICUItemResponse[];
   dict: any;
   lang: string;
-}) {
+}
+
+export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
   const date_part = data[0].start_time.split("T")[0];
   const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);

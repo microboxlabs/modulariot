@@ -12,6 +12,7 @@ export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
+
   try {
     return (
       <>

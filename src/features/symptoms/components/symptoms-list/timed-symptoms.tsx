@@ -20,6 +20,7 @@ export default function TimedSymptoms({
 }) {
   const [isOpen, setIsOpen] = useState(initial_state);
   const item = data;
+
   return (
     <div className="flex flex-col gap-2 w-full">
       {/* Expandable Button */}
@@ -55,34 +56,29 @@ export default function TimedSymptoms({
               condition={item.icu_condition.toLowerCase()}
               size="h-7 w-7"
             />
-            <p className="text-white">{item.start_time}</p>|
-            <p className="text-gray-500 dark:text-gray-400">
-              {item.type_of_incidence}
+            <p className="text-gray-400 dark:text-gray-400">
+              {item.start_time} |
             </p>
-            |<p className="text-gray-500 dark:text-gray-400">{item.asset_id}</p>
-            |<p className="text-gray-500 dark:text-gray-400">{item.trip_id}</p>|
-            <p className="text-gray-500 dark:text-gray-400">{item.client}</p>|
-            <p className="text-gray-500 dark:text-gray-400">{item.driver}</p>
+            <p className="text-gray-400 dark:text-gray-400">
+              {item.type_of_incidence} |
+            </p>
+            <p className="text-gray-400 dark:text-gray-400">{item.trip_id} |</p>
+            <p className="text-gray-400 dark:text-gray-400">{item.driver}</p>
           </div>
           {/* Data */}
-          <div className="grid grid-cols-3 w-full p-3 gap-2">
-            {/* each item in the grid is a p tag with a span tag inside */}
-
-            {/* @TODO: {item.items.map((i) => (
-                <p className="text-gray-900 dark:text-white" key={i.key}>
-                  {i.key} :
-                  <span className="text-gray-500 dark:text-gray-400">
-                    {i.value}
-                  </span>
-                </p>
-              ))}
+          <div className="flex flex-col w-full p-3 gap-2">
+            {/* Grid section for data items */}
+            <div className="grid grid-cols-3 w-full gap-2">
+              {/* @TODO: Map grid items here */}
+              {/* each item in the grid is a p tag with a span tag inside */}
             </div>
-            {/* Diagnose button */}
+
+            {/* Diagnose button - now in a separate div with justify-end */}
             <div className="flex flex-row gap-2 w-full justify-end">
               <Button
                 color="blue"
                 as={Link}
-                href={"/symptoms/map-view/" + item.trip_id}
+                href={`/symptoms/map-view/${item.id}?tripId=${item.trip_id}`}
               >
                 {dict.symptoms.diagnose}
               </Button>

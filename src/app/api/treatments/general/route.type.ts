@@ -11,15 +11,19 @@ export type TreatmentsGeneralResponseItem = {
 };
 
 export type TreatmentsTimelineResponse = {
-  event_time: string;
-  event_type: string;
+  end: string;
+  start: string;
+  type: string;
   description: string;
 };
 
 export type TreatmentsTripInfoResponse = {
-  client: string;
+  asset_id: string;
+  carrier: string;
+  destination: string;
   driver: string;
   trip_id: string;
+  origin: string;
 };
 
 export type TreatmentsSymptomInfoResponse = {

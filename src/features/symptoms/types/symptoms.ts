@@ -1,11 +1,16 @@
+import { TableItemType } from "../components/table-item.type";
+
 export interface SymptomDashboard {
   codeBlack: number;
   critic: number;
   treatment: number;
   observation: number;
+  stable: number;
+  compromised: number;
+  remission: number;
 }
 
-export interface SymptomTableItem {
+/* export interface SymptomTableItem {
   id: number;
   condition: string;
   licensePlate: string;
@@ -16,10 +21,10 @@ export interface SymptomTableItem {
   service: string;
   alertType: string;
   status: string;
-}
+} */
 
 export interface SymptomTableResponse {
-  data: SymptomTableItem[];
+  data: TableItemType[];
   total: number;
   page: number;
   pageSize: number;

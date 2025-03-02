@@ -7,6 +7,7 @@ import enTratamiento from "@assets/conditions/en-tratamiento.svg";
 import estable from "@assets/conditions/estable.svg";
 
 export type TableItemType = {
+  id: string;
   condition: string;
   licensePlate: string;
   time: string;
@@ -41,34 +42,60 @@ export const Conditions: Record<string, Condition> = {
     textColor: "text-white",
     icon: alertaCritica,
   },
+  "critical condition": {
+    color: "border-red-500",
+    bgColor: "!bg-rose-500",
+    innerColor: "bg-rose-200",
+    textColor: "text-white",
+    icon: alertaCritica,
+  },
   treatment: {
     color: "border-amber-500",
     innerColor: "bg-amber-100",
     textColor: "text-black dark:text-white",
+    bgColor: "!bg-gray-200",
     icon: enTratamiento,
   },
   stable: {
     color: "border-blue-600",
     innerColor: "bg-blue-100",
     textColor: "text-black dark:text-white",
+    bgColor: "!bg-gray-200",
     icon: estable,
   },
   compromised: {
     color: "border-rose-700",
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
+    bgColor: "!bg-gray-200",
     icon: comprometida,
+  },
+  "compromised condition": {
+    color: "border-rose-700",
+    innerColor: "bg-rose-50",
+    textColor: "text-black dark:text-white",
+    bgColor: "!bg-gray-200",
+    icon: comprometida,
+  },
+  "under observation": {
+    color: "border-rose-700",
+    textColor: "text-black dark:text-white",
+    innerColor: "bg-white",
+    bgColor: "!bg-gray-200",
+    icon: enObservacion,
   },
   observation: {
     color: "border-rose-700",
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
+    bgColor: "!bg-gray-200",
     icon: enObservacion,
   },
   remission: {
     color: "border-teal-700",
     innerColor: "bg-teal-50",
     textColor: "text-black dark:text-white",
+    bgColor: "!bg-gray-200",
     icon: enRemision,
   },
 };

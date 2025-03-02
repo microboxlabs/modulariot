@@ -43,56 +43,73 @@ export default function SymptomsIcuList({
   }
 
   // Group data by date (extracting date from start_time)
-  const groupedByDate = icuData.reduce(
-    (groups: Record<string, SymptomsICUItemResponse[]>, item) => {
-      // Extract date part from start_time (assuming ISO format)
-      const date = new Date(item.start_time).toLocaleDateString(lang);
+  const groupedByDate =
+    icuData.length > 0
+      ? icuData.reduce(
+          (groups: Record<string, SymptomsICUItemResponse[]>, item) => {
+            // Extract date part from start_time (assuming ISO format)
+            const date = new Date(item.start_time).toLocaleDateString(lang);
 
-      // Create group if it doesn't exist
-      if (!groups[date]) {
-        groups[date] = [];
-      }
+            // Create group if it doesn't exist
+            if (!groups[date]) {
+              groups[date] = [];
+            }
 
-      // Add item to group
-      groups[date].push(item);
-      return groups;
-    },
-    {},
-  );
+            // Add item to group
+            groups[date].push(item);
+            return groups;
+          },
+          {},
+        )
+      : {};
 
   return (
-    <div className="flex flex-col gap-3 mx-5 overflow-y-auto">
-      <Card
-        className="flex flex-row"
-        color="white"
-        theme={{
-          root: {
-            children: "p-2",
-          },
-        }}
-      >
-        <div className="flex flex-row gap-2 items-center justify-center">
-          <Image
-            className="w-[50px] h-[50px]"
-            src={noAlarmImage}
-            alt="Síntomas Urgentes"
-            width={50}
-            height={50}
-          />
-          <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-            {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
-            {(dict.symptoms as I18nRecord).code_black as string}{" "}
-            {(dict.symptoms as I18nRecord).active as string}
-          </h1>
-        </div>
-      </Card>
+    <>
+      {icuData.length > 0 ? (
+        <div className="flex flex-col gap-3 mx-5 overflow-y-auto">
+          <Card
+            className="flex flex-row"
+            color="white"
+            theme={{
+              root: {
+                children: "p-2",
+              },
+            }}
+          >
+            <div className="flex flex-row gap-2 items-center justify-center">
+              <Image
+                className="w-[50px] h-[50px]"
+                src={noAlarmImage}
+                alt="Síntomas Urgentes"
+                width={50}
+                height={50}
+              />
+              <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white first-letter:uppercase">
+                {(dict.symptoms as I18nRecord)[condition] as string}:{" "}
+                {/* 
+                {(dict.symptoms as I18nRecord)[conditionKey] as string}{" "} */}
+                {(dict.symptoms as I18nRecord).active as string}
+              </h1>
+            </div>
+          </Card>
 
-      {/* Map through grouped data by date */}
-      {Object.entries(groupedByDate).map(([date, items]) => (
-        <div className="flex flex-col gap-3" key={date}>
-          <SymptomsData key={`${date}`} data={items} dict={dict} lang={lang} />
+          {Object.entries(groupedByDate).map(([date, items]) => (
+            <div className="flex flex-col gap-3" key={date}>
+              <SymptomsData
+                key={`${date}`}
+                data={items}
+                dict={dict}
+                lang={lang}
+              />
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      ) : (
+        <div className="text-center my-8 text-gray-500">
+          {/* @TODO: Add a message to the user in i18n */}
+          No ICU data available for this condition
+        </div>
+      )}
+    </>
   );
 }

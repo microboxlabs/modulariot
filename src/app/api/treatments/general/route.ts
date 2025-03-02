@@ -22,17 +22,19 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
       status: 401,
     });
   }
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
 
   try {
     const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL, {
+    const response = await fetch(SYMPTOMS_API_URL + "?p_symptom_id=" + id, {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,
@@ -44,7 +46,6 @@ export async function GET() {
     }
 
     const apiData = (await response.json()) as TreatmentsGeneralResponse;
-
     // Transform API data into our desired structure
     const formattedResponse: TreatmentsGeneralResponseItem = apiData.data;
 

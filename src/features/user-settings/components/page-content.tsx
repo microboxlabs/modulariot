@@ -14,6 +14,7 @@ export default function PageContent({ dict }: PropsWithI18nDict) {
 
   const [page, setPage] = useState(1);
   const pageSize = 100; */
+  console.log(dict);
 
   return (
     <div className="w-full h-full flex flex-col overflow-auto">

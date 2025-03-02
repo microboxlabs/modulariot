@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     const formattedResponse: SymptomTableResponse = {
       data: data?.data.map((item) => ({
-        id: item.id,
+        id: String(item.id),
         condition: item?.icu_condition?.toLowerCase(),
         licensePlate: item?.asset_id,
         time: item?.duration_sec?.toString(),

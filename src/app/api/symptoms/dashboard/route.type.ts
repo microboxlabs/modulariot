@@ -1,5 +1,7 @@
 export interface SymptomsDashboardResponse {
-  data: SymptomsDashboard;
+  data: {
+    [key: string]: number; // Allow any string as a key
+  };
   status: number;
   message: string;
 }

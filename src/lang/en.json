@@ -409,5 +409,18 @@
     "map-view": "Map view",
     "restablished_symptoms": "Restablished symptoms",
     "under_treatment": "Symptoms being treated"
+  },
+  "userSettings": {
+    "breadcrumb": {
+      "user": "User",
+      "settings": "Settings"
+    },
+    "symptoms": {
+      "config": {
+        "title": "Symptoms configuration",
+        "description": "Configure notifications for symptoms.",
+        "addButton": "Add symptom"
+      }
+    }
   }
 }

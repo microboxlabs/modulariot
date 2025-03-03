@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { MapPosition } from "../types/map";
 import { MapService } from "../services/map-trip.service";
 
-export function useTripPositions(tripId: string, interval = 2000) {
+export function useTripPositions(
+  tripId: string,
+  assetId: string,
+  interval = 2000,
+) {
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -15,7 +19,7 @@ export function useTripPositions(tripId: string, interval = 2000) {
 
     async function fetchNextChunk() {
       try {
-        const response = await MapService.getPositions(tripId, offset);
+        const response = await MapService.getPositions(tripId, assetId, offset);
         if (!response.length) {
           setHasMore(false);
           return;

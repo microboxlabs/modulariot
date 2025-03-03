@@ -2,7 +2,7 @@ import { Card } from "flowbite-react";
 
 export default function TitleCardSkeleton() {
   return (
-    <div className=" mx-5 relative flex flex-col gap-10 rounded-lg">
+    <div className=" mb-5 mx-5 relative flex flex-col gap-10 rounded-lg">
       <Card
         className="flex flex-row animate-pulse bg-gray-100 dark:bg-gray-800"
         color="white"

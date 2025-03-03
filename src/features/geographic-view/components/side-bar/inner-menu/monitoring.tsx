@@ -4,7 +4,7 @@ import { HiTruck } from "react-icons/hi";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { GiAtom } from "react-icons/gi";
 import ExpandableButton from "../../../../symptoms/components/expandable-button";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 const data = {
   sections: [
     {
@@ -96,7 +96,7 @@ const data = {
   ],
 };
 
-export default function Monitoring(_dict: any) {
+export default function Monitoring(_dict: I18nRecord) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

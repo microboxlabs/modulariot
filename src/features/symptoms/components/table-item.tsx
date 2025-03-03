@@ -5,14 +5,14 @@ import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import Link from "next/link";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function TableItem({
   data,
   dict,
   compact = false,
 }: {
   data: TableItemType;
-  dict: any;
+  dict: I18nRecord;
   compact?: boolean;
 }) {
   if (!compact) {
@@ -34,7 +34,7 @@ export default function TableItem({
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {data.time} {dict.symptoms.sec}.
+          {data.time} {(dict.symptoms as I18nRecord).sec as string}.
         </TableCell>
         <TableCell
           className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
@@ -80,7 +80,7 @@ export default function TableItem({
                   /* onClick={() => router.push("/symptoms/map-view")} */
                 >
                   <div className="flex items-center gap-2">
-                    <p>{dict?.symptoms?.diagnose}</p>
+                    <p>{(dict.symptoms as I18nRecord).diagnose as string}</p>
                     <HiArrowRight className="w-4 h-4" />
                   </div>
                 </Button>

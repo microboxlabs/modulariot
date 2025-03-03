@@ -33,6 +33,7 @@ export async function GETa(req: NextRequest) {
   try {
     const token = await authToken.getToken();
     console.log(token);
+    const assetId = req.nextUrl.searchParams.get("assetId") || "";
     const offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
     const chunkSize = 100;
 
@@ -43,6 +44,8 @@ export async function GETa(req: NextRequest) {
     const params = new URLSearchParams();
     params.set("tripId", tripId);
     /* const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
+    params.set("assetId", assetId);
+    const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,
@@ -81,7 +84,6 @@ export async function GETa(req: NextRequest) {
         }),
         {},
       );
-
       positions.push(lowercaseRecord);
 
       // Return when we have enough records for this chunk

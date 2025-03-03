@@ -14,13 +14,18 @@ export default function GeneralMap({
   lang,
   id,
   tripId,
+  assetId,
 }: {
   dict: I18nRecord;
   lang: string;
   id: string;
   tripId?: string;
+  assetId?: string;
 }) {
-  const { positions, loading, error } = useTripPositions(tripId ?? "");
+  const { positions, loading, error } = useTripPositions(
+    tripId ?? "",
+    assetId ?? "",
+  );
 
   if (error) {
     return <div>Error: {error.message}</div>;

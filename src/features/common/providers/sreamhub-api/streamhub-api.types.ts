@@ -9,3 +9,18 @@ export interface AuthTokenConfig {
   audience: string;
   grantType: string;
 }
+
+export type JWTPayload = {
+  iss: string;
+  sub: string;
+  aud: string[];
+  iat: number;
+  exp: number;
+};
+
+export type Auth0JWTPayload = JWTPayload & {
+  role?: string;
+  scope: string;
+  gty: string;
+  azp: string;
+};

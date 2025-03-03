@@ -11,6 +11,7 @@ interface MapViewParams {
   };
   searchParams: {
     tripId?: string;
+    assetId?: string;
   };
 }
 
@@ -21,7 +22,7 @@ export default async function SymptomList({
   const [, dict] = await getDictionary(lang);
   // Get tripId from query parameters if available
   const tripId = searchParams.tripId;
-
+  const assetId = searchParams.assetId;
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">
       <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
@@ -32,7 +33,13 @@ export default async function SymptomList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <GeneralMap dict={dict} lang={lang} id={id} tripId={tripId} />
+      <GeneralMap
+        dict={dict}
+        lang={lang}
+        id={id}
+        tripId={tripId}
+        assetId={assetId}
+      />
     </div>
   );
 }

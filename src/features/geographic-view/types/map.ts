@@ -70,7 +70,7 @@ export interface MapPositionProperties {
     peripherals: null;
     events: null;
     status: string;
-    assetid: string;
+    asset_id: string;
     telcom_iccid: string | null;
     telcom_imsi: string | null;
     telcom_operator: string;
@@ -90,7 +90,7 @@ export interface MapPositionProperties {
     co_driver_license_number: string | null;
     co_driver_contact_phone: string | null;
     co_driver_contact_email: string | null;
-    tripid: string;
+    trip_id: string;
     client_id: string;
     data_validation_status: string | null;
     signal_quality_status: string | null;

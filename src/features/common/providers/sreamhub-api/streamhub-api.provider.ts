@@ -1,4 +1,10 @@
-import { AuthTokenConfig, TokenData } from "./streamhub-api.types";
+import "server-only";
+
+import {
+  Auth0JWTPayload,
+  AuthTokenConfig,
+  TokenData,
+} from "./streamhub-api.types";
 
 export class AuthToken {
   private clientId: string;
@@ -49,6 +55,12 @@ export class AuthToken {
     return !this.expiry || new Date() > this.expiry;
   }
 
+  private jwtDecode(token: string): Auth0JWTPayload {
+    const base64 = token.split(".")[1];
+    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
+    return JSON.parse(jsonPayload) as Auth0JWTPayload;
+  }
+
   public async getToken(): Promise<string> {
     if (!this.token || this._isTokenExpired()) {
       if (this.tokenRequest) {
@@ -59,7 +71,8 @@ export class AuthToken {
       this.tokenRequest = this._fetchToken()
         .then((tokenData) => {
           this.token = tokenData.access_token;
-          this.expiry = new Date(Date.now() + tokenData.expires_in * 1000);
+          const decodedToken = this.jwtDecode(this.token);
+          this.expiry = new Date(decodedToken.exp * 1000);
           this.tokenRequest = null;
           return this.token;
         })

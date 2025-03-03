@@ -7,7 +7,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
 import { MdCancel } from "react-icons/md";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function BlurrableDropdown({
   isMenuOpen,
   setIsMenuOpen,
@@ -15,7 +15,7 @@ export default function BlurrableDropdown({
 }: {
   isMenuOpen: boolean;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
-  dict: any;
+  dict: I18nRecord;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -37,27 +37,27 @@ export default function BlurrableDropdown({
   const other_options = [
     {
       id: 0,
-      label: dict.symptoms.derive_to_specialist,
+      label: (dict.symptoms as I18nRecord).derive_to_specialist as string,
       icon: HiArrowRight,
     },
     {
       id: 1,
-      label: dict.symptoms.contact_carabineros,
+      label: (dict.symptoms as I18nRecord).contact_carabineros as string,
       icon: GiPoliceBadge,
     },
     {
       id: 2,
-      label: dict.symptoms.contact_via_whatsapp,
+      label: (dict.symptoms as I18nRecord).contact_via_whatsapp as string,
       icon: FaWhatsapp,
     },
     {
       id: 3,
-      label: dict.symptoms.copilot,
+      label: (dict.symptoms as I18nRecord).copilot as string,
       icon: BsStars,
     },
     {
       id: 4,
-      label: dict.symptoms.ignore_condition,
+      label: (dict.symptoms as I18nRecord).ignore_condition as string,
       icon: MdCancel,
     },
   ];
@@ -84,7 +84,7 @@ export default function BlurrableDropdown({
           >
             <div className="flex items-center gap-2">
               <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                {dict.symptoms.other_options}
+                {(dict.symptoms as I18nRecord).other_options as string}
               </p>
               <HiChevronUp
                 className={`text-gray-900 dark:text-gray-100 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}

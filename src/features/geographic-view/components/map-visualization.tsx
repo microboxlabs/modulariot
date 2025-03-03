@@ -10,6 +10,7 @@ import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
 import Filters from "./filters";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -74,7 +75,7 @@ const stateToColor = {
 
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
-  dict: any;
+  dict: I18nRecord;
   specific_view?: boolean;
 };
 

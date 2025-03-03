@@ -8,6 +8,7 @@ import SideInfoData from "../map-view/side-info-data";
 import { FaCheck, FaPhoneAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -22,16 +23,17 @@ export default function BlurrableSteppedMenu({
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   className: string;
-  dict: any;
+  dict: I18nRecord;
   lang: string;
 }) {
   const side_sections = [
     {
-      title: dict.symptoms.symptoms,
+      title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
         {
-          element_name: `${dict.symptoms.code_black}: ${dict.symptoms.continuous_driving_state}`,
-          description: dict.symptoms.symptom_information,
+          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
+          description: (dict.symptoms as I18nRecord)
+            .symptom_information as string,
           component: (
             <SideInfoData
               dict={dict}
@@ -50,38 +52,41 @@ export default function BlurrableSteppedMenu({
       ],
     },
     {
-      title: dict.symptoms.treatment,
+      title: (dict.symptoms as I18nRecord).treatment as string,
       elements: [
         {
-          element_name: dict.symptoms.call_driver,
-          description: dict.symptoms.call_driver_description,
+          element_name: (dict.symptoms as I18nRecord).call_driver as string,
+          description: (dict.symptoms as I18nRecord)
+            .call_driver_description as string,
           component: <CallDriver dict={dict} />,
           icon: <FaPhoneAlt className="h-5 w-5" />,
           logo: null,
           button: {
-            text: dict.symptoms.save_treatment,
+            text: (dict.symptoms as I18nRecord).save_treatment as string,
             action: "next",
           },
         },
         {
-          element_name: dict.symptoms.driver_response,
-          description: dict.symptoms.driver_response_description,
+          element_name: (dict.symptoms as I18nRecord).driver_response as string,
+          description: (dict.symptoms as I18nRecord)
+            .driver_response_description as string,
           component: <DriverResponse dict={dict} />,
           icon: <FaPhoneAlt className="h-5 w-5" />,
           logo: null,
           button: {
-            text: dict.symptoms.save_response,
+            text: (dict.symptoms as I18nRecord).save_response as string,
             action: "next",
           },
         },
         {
-          element_name: dict.symptoms.end_treatment,
-          description: dict.symptoms.end_treatment_description,
+          element_name: (dict.symptoms as I18nRecord).end_treatment as string,
+          description: (dict.symptoms as I18nRecord)
+            .end_treatment_description as string,
           component: <EndTreatment dict={dict} />,
           icon: <FaCheck className="h-5 w-5" />,
           logo: null,
           button: {
-            text: dict.symptoms.finish_treatment,
+            text: (dict.symptoms as I18nRecord).finish_treatment as string,
             action: "end",
           },
         },

@@ -215,7 +215,7 @@ export default function MapVisualization({
               return null;
             }
             return {
-              text: `Patente: ${object.properties.assetid}\n Servicio: ${object.properties.tripid}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
             };
           }
           return null;

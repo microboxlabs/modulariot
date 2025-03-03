@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
   try {
     const token = await authToken.getToken();
     const tripId = req.nextUrl.searchParams.get("tripId") || "";
+    const assetId = req.nextUrl.searchParams.get("assetId") || "";
     const offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
     const chunkSize = 100;
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     const params = new URLSearchParams();
     params.set("tripId", tripId);
-
+    params.set("assetId", assetId);
     const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",
@@ -79,7 +80,6 @@ export async function GET(req: NextRequest) {
         }),
         {},
       );
-
       positions.push(lowercaseRecord);
 
       // Return when we have enough records for this chunk

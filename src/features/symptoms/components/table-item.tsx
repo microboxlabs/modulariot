@@ -71,7 +71,9 @@ export default function TableItem({
                 {data.status}
               </p>
             ) : (
-              <Link href={`/symptoms/map-view/${data.id}?tripId=${data.trip}`}>
+              <Link
+                href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
+              >
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"

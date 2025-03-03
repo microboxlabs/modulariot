@@ -3,14 +3,14 @@ import { MapPosition } from "../types/map";
 export class MapService {
   static async getPositions(
     tripId: string,
+    assetId: string,
     offset = 0,
   ): Promise<MapPosition[]> {
     const response = await fetch(
-      `/app/api/map/trip?tripId=${tripId}&offset=${offset}`,
+      `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}&offset=${offset}`,
     );
     if (!response.ok) throw new Error("Failed to fetch positions");
-    const { data } = await response.json();
-    //console.log(data);
+    const { data } = (await response.json()) as { data: MapPosition[] };
     return data.map((position: MapPosition) => {
       const [longitude, latitude] = this.parseWKBPoint(position.location);
       return {

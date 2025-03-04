@@ -47,7 +47,13 @@ export default function SymptomsCards({
         <h1 className="absolute top-0 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
           {dict.symptoms.symptoms}
         </h1>
-        <CustomCard className={`${showCards ? "animate-shadow-toggle" : ""}`}>
+        <CustomCard
+          className={`${
+            showCards && (codeBlack > 0 || critic > 0)
+              ? "animate-shadow-toggle"
+              : ""
+          }`}
+        >
           <div className="flex items-center gap-2">
             <div className="h-[54px] w-[54px]">
               {codeBlack > 0 ? (

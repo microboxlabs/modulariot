@@ -157,7 +157,6 @@ export function useSymptoms() {
     },
   );
 
-  // Calculate total count from all symptom counts
   const count = data
     ? Object.values(data).reduce<number>(
         (sum, value) => (typeof value === "number" ? sum + value : sum),

@@ -5,10 +5,10 @@ import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
 import ConditionIcon from "./components/condition-icon";
 import StatusCard from "./components/card/status-card";
-import { useSymptoms } from "./hooks/use-symptoms";
 import CardSkeleton from "./components/card/card-skeleton";
 import CustomCard from "./components/card/custom-card";
 import icuConditions from "./model/icu_condition.json";
+import { useSymptoms } from "../common/providers/client-api.provider";
 
 export default function SymptomsCards({
   showCards,

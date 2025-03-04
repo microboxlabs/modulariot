@@ -18,8 +18,8 @@ export default function TableItem({
   if (!compact) {
     return (
       <TableRow
-        className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-        ${Conditions[data.condition as keyof typeof Conditions]?.bgColor} !border-0`}
+        className={`dark:bg-gray-800 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700
+        ${Conditions[data.condition as keyof typeof Conditions]?.bgColor}`}
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
           <div className="flex items-center gap-2">

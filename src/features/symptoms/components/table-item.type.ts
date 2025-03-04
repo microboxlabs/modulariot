@@ -89,7 +89,7 @@ export const Conditions: Record<string, Condition> = {
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
     bgColor: "",
-    bgColor: "!bg-gray-200",
+    icon: observation,
   },
   remission: {
     color: "border-teal-700",

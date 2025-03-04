@@ -91,7 +91,6 @@ const stateToColor = {
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
   positions: MapPosition[] | null;
-  loading: boolean;
   error: Error | null;
 };
 
@@ -117,7 +116,6 @@ function zoom_on_pin(
 
 export default function MapVisualizationTrip({
   positions,
-  loading,
   error,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
@@ -196,12 +194,6 @@ export default function MapVisualizationTrip({
       },
     }),
   ];
-
-  if (loading) {
-    return (
-      <div className="h-full w-full relative overflow-hidden bg-gray-100 dark:bg-gray-700 animate-pulse" />
-    );
-  }
 
   if (error) {
     console.error("Map error:", error);

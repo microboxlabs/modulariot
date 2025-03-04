@@ -48,7 +48,7 @@ export default function SideBar({ dict }: { dict: any }) {
           className={` bg-white dark:bg-gray-800 flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
         >
           <div
-            className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
+            className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
             <Button.Group>
               {inner_menu.map((menu, i) => (
@@ -62,7 +62,7 @@ export default function SideBar({ dict }: { dict: any }) {
                 </Button>
               ))}
             </Button.Group>
-            <div className="flex h-full w-full justify-center mt-6">
+            <div className="flex flex-grow  w-full justify-center overflow-y-auto">
               {component}
             </div>
           </div>

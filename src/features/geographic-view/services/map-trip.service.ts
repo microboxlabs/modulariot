@@ -1,54 +1,42 @@
-import { MapPosition } from "../types/map";
-
 export class MapService {
-  static async getPositions(
-    tripId: string,
-    assetId: string,
-    offset = 0,
-  ): Promise<MapPosition[]> {
-    const response = await fetch(
-      `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}&offset=${offset}`,
-    );
-    if (!response.ok) throw new Error("Failed to fetch positions");
-    const { data } = (await response.json()) as { data: MapPosition[] };
-    return data.map((position: MapPosition) => {
-      const [longitude, latitude] = this.parseWKBPoint(position.location);
-      return {
-        ...position,
-        longitude,
-        latitude,
-      };
+  static createPositionStream(tripId: string, assetId: string) {
+    let eventSource: EventSource;
+
+    return new ReadableStream({
+      async start(controller) {
+        eventSource = new EventSource(
+          `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
+        );
+
+        eventSource.onopen = () => {
+          //console.log("SSE connection established");
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const position = JSON.parse(event.data);
+            controller.enqueue(position);
+          } catch (err) {
+            // TODO: Check if this is the correct way to handle the error Ignore some common errors
+            //console.error("Failed to parse position data:", err, event.data);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          // TODO: Check if this is the correct way to handle the error Ignore some common errors
+          //console.error("EventSource error:", error);
+          if (eventSource.readyState === 2) {
+            controller.error(error);
+            eventSource.close();
+          }
+        };
+      },
+      cancel() {
+        if (eventSource) {
+          //console.log("Closing EventSource connection");
+          eventSource.close();
+        }
+      },
     });
-  }
-
-  private static parseWKBPoint(wkbPoint: string): [number, number] {
-    try {
-      // Skip first 8 bytes (endian + type + srid) by starting from position 18
-      const lonHex = wkbPoint.substring(18, 34);
-      const latHex = wkbPoint.substring(34, 50);
-
-      // Convert hex to float64
-      const longitude = this.hexToDouble(lonHex);
-      const latitude = this.hexToDouble(latHex);
-
-      return [longitude, latitude];
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Error parsing WKB point:", error);
-      return [-70.668505, -33.439764]; // Santiago, Chile
-    }
-  }
-
-  private static hexToDouble(hex: string): number {
-    // Reverse byte order for little-endian
-    const bytes = hex.match(/../g)?.reverse().join("") || "";
-    const buffer = new ArrayBuffer(8);
-    const view = new DataView(buffer);
-
-    for (let i = 0; i < 8; i++) {
-      view.setUint8(i, parseInt(bytes.substring(i * 2, i * 2 + 2), 16));
-    }
-
-    return view.getFloat64(0, false); // false for big-endian
   }
 }

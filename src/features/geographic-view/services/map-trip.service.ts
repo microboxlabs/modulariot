@@ -24,16 +24,17 @@ export class MapService {
 
         eventSource.onerror = (error) => {
           // TODO: Check if this is the correct way to handle the error Ignore some common errors
-          //console.error("EventSource error:", error);
-          if (eventSource.readyState === 2) {
+          console.error("EventSource error:", error);
+          console.log("eventSource.readyState:", eventSource.readyState);
+          if (eventSource.readyState === 2 || eventSource.readyState === 0) {
             controller.error(error);
-            eventSource.close();
+            //eventSource.close();
           }
         };
       },
       cancel() {
         if (eventSource) {
-          //console.log("Closing EventSource connection");
+          console.log("Closing EventSource connection");
           eventSource.close();
         }
       },

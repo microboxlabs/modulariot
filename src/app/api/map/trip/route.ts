@@ -57,6 +57,7 @@ async function streamPositions(
 ) {
   const writer = writable.getWriter();
   const token = await authToken.getToken();
+  //console.log("token", token);
 
   try {
     const response = await fetch(
@@ -74,6 +75,7 @@ async function streamPositions(
 
     // Read the entire response as text first, then create a readable stream
     const responseText = await response.text();
+    //console.log("responseText:", responseText.split("\n").length);
     const csvStream = Readable.from([responseText]);
     const parser = parse({
       columns: (headers: string[]) =>
@@ -91,16 +93,16 @@ async function streamPositions(
         longitude,
         latitude,
       } as MapPosition;
-
       // Format data according to SSE protocol
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
+    await writer.close();
   } catch (error) {
     // Send error event
     //console.error("Error streaming positions:", error);
-    await writer.write(
+    /* await writer.write(
       `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`,
-    );
+    ); */
   } finally {
     await writer.close();
   }

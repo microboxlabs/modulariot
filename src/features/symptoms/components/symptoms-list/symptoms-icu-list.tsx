@@ -26,7 +26,7 @@ const titles = {
   "1": {
     base: "restablished_symptoms",
     title: "in_observation",
-    icon: patchImage,
+    icon: maskImage,
   },
   "3": {
     base: "urgent_symptoms",
@@ -46,7 +46,7 @@ const titles = {
   "8": {
     base: "symptoms_being_treated",
     title: "in_remission",
-    icon: maskImage,
+    icon: patchImage,
   },
 };
 

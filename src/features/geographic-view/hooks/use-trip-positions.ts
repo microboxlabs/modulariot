@@ -2,58 +2,45 @@ import { useState, useEffect } from "react";
 import { MapPosition } from "../types/map";
 import { MapService } from "../services/map-trip.service";
 
-export function useTripPositions(
-  tripId: string,
-  assetId: string,
-  interval = 2000,
-) {
+export function useTripPositions(tripId: string, assetId: string) {
   const [positions, setPositions] = useState<MapPosition[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
+  const bufferSize = 10;
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    const positionBuffer: MapPosition[] = [];
 
-    async function fetchNextChunk() {
+    async function startStreaming() {
       try {
-        const response = await MapService.getPositions(tripId, assetId, offset);
-        if (!response.length) {
-          setHasMore(false);
-          return;
-        }
+        const stream = MapService.createPositionStream(tripId, assetId);
+        const reader = stream.getReader();
 
-        if (mounted) {
-          setPositions((prev) => [...prev, ...response]);
-          setOffset((prev) => prev + response.length);
-          setError(null);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(
-            err instanceof Error ? err : new Error("Failed to fetch positions"),
-          );
-          setHasMore(false);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-          if (hasMore) {
-            timeoutId = setTimeout(fetchNextChunk, interval);
+        while (mounted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          positionBuffer.push(value);
+
+          // Update positions when buffer reaches size or on last item
+          if (positionBuffer.length >= bufferSize) {
+            if (mounted) {
+              setPositions((prev) => [...prev, ...positionBuffer]);
+              positionBuffer.length = 0; // Clear buffer
+            }
           }
         }
+      } catch (err) {
+        console.error("Stream error:", err);
+        setError(err instanceof Error ? err : new Error("Stream error"));
       }
     }
 
-    fetchNextChunk();
-
+    startStreaming();
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
     };
-  }, [tripId, interval, offset, hasMore]);
+  }, [tripId, assetId]);
 
-  return { positions, loading, error, hasMore };
+  return { positions, error };
 }

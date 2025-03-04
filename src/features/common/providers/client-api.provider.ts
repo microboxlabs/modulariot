@@ -10,6 +10,7 @@ import {
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
+import { SymptomDashboard } from "../../symptoms/types/symptoms";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -141,6 +142,32 @@ export function useVerifyDocument(documentId: string) {
   );
   return {
     exists: data?.exists,
+    error,
+  };
+}
+
+export function useSymptoms() {
+  const { data, error, isLoading } = useSWR<SymptomDashboard, FetcherError>(
+    "/app/api/symptoms/dashboard",
+    fetcher,
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  const count = data
+    ? Object.values(data).reduce<number>(
+        (sum, value) => (typeof value === "number" ? sum + value : sum),
+        0,
+      )
+    : 0;
+
+  return {
+    symptoms: data,
+    count,
+    loading: isLoading,
     error,
   };
 }

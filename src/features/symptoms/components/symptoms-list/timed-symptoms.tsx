@@ -8,6 +8,7 @@ import ConditionIcon from "../condition-icon";
 import { Button } from "flowbite-react";
 import Link from "next/link";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function TimedSymptoms({
   data,
@@ -16,7 +17,7 @@ export default function TimedSymptoms({
 }: {
   data: SymptomsICUItemResponse;
   initial_state: boolean;
-  dict: any;
+  dict: I18nRecord;
 }) {
   const [isOpen, setIsOpen] = useState(initial_state);
   const item = data;
@@ -31,7 +32,8 @@ export default function TimedSymptoms({
         <div className="flex flex-row gap-2 items-center justify-center">
           <FaTruck color="gray" />
           <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-            {item.treatment_count} {dict.symptoms.total_treatment}
+            {item.treatment_count}{" "}
+            {(dict.symptoms as I18nRecord).total_treatment as string}
           </div>
         </div>
         <HiChevronUp
@@ -80,7 +82,7 @@ export default function TimedSymptoms({
                 as={Link}
                 href={`/symptoms/map-view/${item.id}?tripId=${item.trip_id}`}
               >
-                {dict.symptoms.diagnose}
+                {(dict.symptoms as I18nRecord).diagnose as string}
               </Button>
               <Button
                 as={Link}
@@ -88,7 +90,7 @@ export default function TimedSymptoms({
                 href="https://maps.app.goo.gl/TvADzBVqJv4W91AY8"
                 target="_blank"
               >
-                {dict.symptoms.geographic_view}
+                {(dict.symptoms as I18nRecord).geographic_view as string}
               </Button>
             </div>
           </div>

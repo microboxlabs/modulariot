@@ -8,13 +8,13 @@ import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function SideInfo({
   dict,
   lang,
   symptomId,
 }: {
-  dict: any;
+  dict: I18nRecord;
   lang: string;
   symptomId: string;
 }) {
@@ -60,7 +60,7 @@ export default function SideInfo({
             className="h-10 rounded-l-none w-full"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            {dict.symptoms.call_driver}
+            {(dict.symptoms as I18nRecord).call_driver as string}
             <HiArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Button.Group>

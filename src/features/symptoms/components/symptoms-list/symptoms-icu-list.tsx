@@ -11,7 +11,7 @@ import SymptomsListSkeleton from "./symptoms-list-skeleton";
 
 interface SymptomsIcuListProps {
   condition: string;
-  dict: any;
+  dict: I18nRecord;
   lang: string;
 }
 

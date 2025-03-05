@@ -3,6 +3,7 @@ import MapButton from "./map-button";
 import Image from "next/image";
 import { IoClose } from "react-icons/io5";
 import { IconType } from "react-icons";
+
 type Option = {
   text: string;
   filter_value: string;

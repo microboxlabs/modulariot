@@ -3,7 +3,7 @@
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
@@ -47,7 +47,7 @@ function getRelativeDayText(date: Date, lang: string): string {
 
 interface SymptomsDataProps {
   data: SymptomsICUItemResponse[];
-  dict: any;
+  dict: I18nRecord;
   lang: string;
 }
 
@@ -69,7 +69,7 @@ export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
               {getRelativeDayText(setted_date, lang)}
             </p>
             <p className="text-gray-500 dark:text-gray-400">
-              {dict.symptoms.total_treatment}:
+              {(dict.symptoms as I18nRecord).total_treatment as string}:
               {data.reduce((acc, item) => acc + item.treatment_count, 0)}
             </p>
           </div>

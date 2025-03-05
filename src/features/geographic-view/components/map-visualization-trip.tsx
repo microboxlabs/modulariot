@@ -184,7 +184,7 @@ export default function MapVisualizationTrip({
       },
     }),
     new PinLayer({
-      data: positions ? [positions[0]] : [],
+      data: positions ? [positions[positions.length - 1]] : [],
       zoom: viewState.zoom,
       onClick: ({ object }: { object: any }) => {
         zoom_on_pin(object, setViewState, viewState);

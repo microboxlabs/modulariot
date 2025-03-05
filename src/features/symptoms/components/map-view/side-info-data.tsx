@@ -7,6 +7,7 @@ import { FaClock, FaTruck } from "react-icons/fa";
 import { Spinner } from "flowbite-react";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { FaUser } from "react-icons/fa6";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
@@ -46,7 +47,7 @@ export default function SideInfoData({
   loading,
   error,
 }: {
-  dict: any;
+  dict: I18nRecord;
   lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
@@ -107,8 +108,10 @@ export default function SideInfoData({
       <ExpandableButton
         initial_state={true}
         icon={<FaTruck />}
-        title={dict.symptoms.condition}
-        description={dict.symptoms.relevant_information}
+        title={(dict.symptoms as I18nRecord).condition as string}
+        description={
+          (dict.symptoms as I18nRecord).relevant_information as string
+        }
       >
         <div className="flex flex-col gap-2">
           <div
@@ -130,7 +133,7 @@ export default function SideInfoData({
             </p>
           </div>
           <p className="text-sm">
-            {dict.symptoms.observed_symptom}:{" "}
+            {(dict.symptoms as I18nRecord).observed_symptom as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
               {treatmentData?.symptom_info?.name}
             </span>
@@ -165,8 +168,8 @@ export default function SideInfoData({
       <ExpandableButton
         initial_state={true}
         icon={<FaUser />}
-        title={dict.symptoms.service}
-        description={dict.symptoms.driver_description}
+        title={(dict.symptoms as I18nRecord).service as string}
+        description={(dict.symptoms as I18nRecord).driver_description as string}
       >
         <div className="flex flex-col gap-2">
           <div
@@ -194,26 +197,26 @@ export default function SideInfoData({
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.active}:{" "}
+            {(dict.symptoms as I18nRecord).active as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
               {treatmentData?.trip_info?.asset_id}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.route}:{" "}
+            {(dict.symptoms as I18nRecord).route as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
               {treatmentData?.trip_info?.origin} -{" "}
               {treatmentData?.trip_info?.destination}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.transporter}:{" "}
+            {(dict.symptoms as I18nRecord).transporter as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
               {treatmentData?.trip_info?.carrier}
             </span>
           </p>
           <p className="text-sm">
-            {dict.symptoms.driver}:{" "}
+            {(dict.symptoms as I18nRecord).driver as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
               {treatmentData?.trip_info?.driver}
             </span>
@@ -225,8 +228,10 @@ export default function SideInfoData({
       {timelineData.length > 0 && (
         <ExpandableButton
           icon={<FaClock />}
-          title={dict.symptoms.timeline}
-          description={dict.symptoms.timeline_description}
+          title={(dict.symptoms as I18nRecord).timeline as string}
+          description={
+            (dict.symptoms as I18nRecord).timeline_description as string
+          }
         >
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
             {timelineData.map((item, index) => {

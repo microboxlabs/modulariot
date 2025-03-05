@@ -2,7 +2,9 @@
 
 import MapVisualization from "./map-visualization";
 import { useMapPositions } from "@/features/common/providers/client-api.provider";
-export default function ClientMapStarter({ dict }: { dict: any }) {
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
+export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
   const { positions: mapPositions, isLoading, error } = useMapPositions();
 
   if (isLoading) {

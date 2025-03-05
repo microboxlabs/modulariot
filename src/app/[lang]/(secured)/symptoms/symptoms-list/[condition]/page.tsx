@@ -18,7 +18,7 @@ export default async function SymptomsList({
 
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
-      <div className="p-5">
+      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
           path={["mission_control", "symptoms", "symptoms-list"]}
           lang={lang}
@@ -26,9 +26,7 @@ export default async function SymptomsList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <div className="relative overflow-y-auto p-5 flex flex-col gap-10">
-        <SymptomsIcuList condition={condition} dict={dict} lang={lang} />
-      </div>
+      <SymptomsIcuList condition={condition} dict={dict} lang={lang} />
     </div>
   );
 }

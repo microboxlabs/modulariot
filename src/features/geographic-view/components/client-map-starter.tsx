@@ -1,12 +1,11 @@
 "use client";
 
-import { useMapPositions } from "../hooks/use-map-positions";
 import MapVisualization from "./map-visualization";
-
+import { useMapPositions } from "@/features/common/providers/client-api.provider";
 export default function ClientMapStarter({ dict }: { dict: any }) {
-  const { positions: mapPositions, loading, error } = useMapPositions();
+  const { positions: mapPositions, isLoading, error } = useMapPositions();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 animate-pulse">
         <div className="absolute top-5 left-5 flex flex-col gap-1 items-center justify-center">

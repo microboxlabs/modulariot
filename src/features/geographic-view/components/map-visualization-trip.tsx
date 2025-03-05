@@ -203,7 +203,7 @@ export default function MapVisualizationTrip({
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        viewState={viewState}
+        initialViewState={viewState}
         controller={true}
         layers={layers}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
@@ -221,7 +221,6 @@ export default function MapVisualizationTrip({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
       </DeckGL>

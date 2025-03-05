@@ -11,6 +11,7 @@ import {
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
 import { SymptomDashboard } from "../../symptoms/types/symptoms";
+import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -169,5 +170,36 @@ export function useSymptoms() {
     count,
     loading: isLoading,
     error,
+  };
+}
+
+export function useSymptomsIcu(condition?: string) {
+  const url = condition
+    ? `/app/api/symptoms/icu?p_icu_code=${condition}`
+    : "/app/api/symptoms/icu";
+
+  const { data, error, isLoading, isValidating, mutate } = useSWR<
+    SymptomsICUItemResponse[],
+    Error
+  >(
+    url,
+    async (fetchUrl) => {
+      const response = await fetch(fetchUrl);
+      if (!response.ok) throw new Error("Failed to fetch ICU data");
+      return response.json();
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    icuData: data || [],
+    isLoading,
+    isError: !!error,
+    error,
+    isValidating,
+    mutate,
   };
 }

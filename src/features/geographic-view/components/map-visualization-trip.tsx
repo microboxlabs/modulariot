@@ -212,8 +212,9 @@ export default function MapVisualizationTrip({
             if (object.properties.cluster) {
               return null;
             }
+            //Servicio: ${object.properties.trip_id}\n
             return {
-              text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
             };
           }
           return null;

@@ -5,13 +5,14 @@ import React from "react";
 import { twMerge } from "tailwind-merge";
 import Link from "next/link";
 import StatusCardSkeleton from "./status-card-skeleton";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface StatusCardProps {
   icon: React.ReactNode;
   title: string;
   count: string;
   variant?: "black" | "critical";
-  dict: any;
+  dict: I18nRecord;
   icu_condition?: string;
   loading?: boolean;
 }

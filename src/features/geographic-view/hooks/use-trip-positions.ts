@@ -1,57 +1,70 @@
 import { useState, useEffect } from "react";
 import { MapPosition } from "../types/map";
-import { MapService } from "../services/map-trip.service";
 
 export function useTripPositions(tripId: string, assetId: string) {
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [error, _setError] = useState<Error | null>(null);
-  const bufferSize = 500;
-
+  const positionBuffer: MapPosition[] = [];
   useEffect(() => {
-    let mounted = true;
-    const positionBuffer: MapPosition[] = [];
-    let reader: ReadableStreamDefaultReader<MapPosition>;
+    async function createPositionStream(tripId: string, assetId: string) {
+      let eventSource: EventSource;
+      let size = 0;
 
-    async function startStreaming() {
-      const stream = MapService.createPositionStream(tripId, assetId);
-      reader = stream.getReader();
+      return new ReadableStream({
+        async start(_controller) {
+          eventSource = new EventSource(
+            `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
+          );
 
-      try {
-        while (mounted) {
-          const { done, value } = await reader.read();
-
-          if (done) {
-            // Final flush of buffer
-            if (positionBuffer.length > 0 && mounted) {
-              setPositions((prev) => [...prev, ...positionBuffer.slice()]);
+          eventSource.onmessage = (event) => {
+            try {
+              const position = JSON.parse(event.data as string) as MapPosition;
+              //controller.enqueue(position);
+              positionBuffer[size++] = position;
+              //console.log("positionBuffer:", positionBuffer.length);
+              //console.log("size:", size);
+              if (size % 2 === 0) {
+                setPositions((_prev) => [...positionBuffer.slice()]);
+              }
+            } catch (err) {
+              // TODO: Check if this is the correct way to handle the error Ignore some common errors
+              //console.error("Failed to parse position data:", err, event.data);
             }
-            console.log("done");
-            break;
-          }
+          };
 
-          positionBuffer.push(value);
-          if (positionBuffer.length >= bufferSize) {
-            if (mounted) {
-              setPositions((prev) => [...prev, ...positionBuffer.slice()]);
-              positionBuffer.length = 0;
+          eventSource.onerror = (_error) => {
+            // TODO: Check if this is the correct way to handle the error Ignore some common errors
+            //console.error("EventSource error:", error);
+            //console.log("eventSource.readyState:", eventSource.readyState);
+            if (eventSource.readyState === 2) {
+              //controller.error(error);
+              eventSource.close();
+              //console.log("size:", size);
+              //console.log("positionBuffer:", positionBuffer.length);
+              //setPositions((prev) => [...prev, ...positionBuffer.slice()]);
             }
+            if (eventSource.readyState === 0) {
+              //controller.error(error);
+              eventSource.close();
+            }
+            //setPositions((_prev) => [...positionBuffer.slice()]);
+            //positionBuffer.length = 0;
+            //size = 0;
+          };
+        },
+        cancel() {
+          if (eventSource) {
+            //console.log("Closing EventSource connection");
+            eventSource.close();
           }
-        }
-      } catch (err) {
-        console.dir(err);
-        if (mounted) {
-          //setError(err instanceof Error ? err : new Error("Stream error"));
-        }
-      }
+        },
+      });
     }
 
-    startStreaming();
+    createPositionStream(tripId, assetId);
 
     return () => {
-      mounted = false;
-      if (reader) {
-        reader.cancel().catch(console.error);
-      }
+      //console.log("Unmounting useTripPositions");
     };
   }, [tripId, assetId]);
 

@@ -12,6 +12,8 @@ import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types
 import { FetcherError } from "./fetcher.types";
 import { SymptomDashboard } from "../../symptoms/types/symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
+import { MapPosition } from "@/features/geographic-view/types/map";
+import { MapService } from "@/features/geographic-view/services/map.service";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -200,6 +202,41 @@ export function useSymptomsIcu(condition?: string) {
     isError: !!error,
     error,
     isValidating,
+    mutate,
+  };
+}
+
+export function useMapPositions() {
+  const { data, error, isLoading, mutate } = useSWR<MapPosition[], Error>(
+    "/app/api/map",
+    async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch map positions");
+      const data = (await response.json()) as MapPosition[];
+
+      return data.map((position: MapPosition) => {
+        const [longitude, latitude] = MapService.parseWKBPoint(
+          position.location,
+        );
+        return {
+          ...position,
+          longitude,
+          latitude,
+        };
+      });
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    positions: data || [],
+    isLoading,
+    isError: !!error,
+    error,
+    count: data?.length || 0,
     mutate,
   };
 }

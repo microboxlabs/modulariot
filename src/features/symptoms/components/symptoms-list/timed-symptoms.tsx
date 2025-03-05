@@ -52,20 +52,19 @@ export default function TimedSymptoms({
         >
           {/* Condition */}
           <div
-            className={`flex flex-row items-center p-2 gap-3 text-gray-500 dark:text-gray-400 w-full rounded-lg ${Conditions[item.icu_condition.toLowerCase()].bgColor}`} /*  */
+            className={`flex flex-row items-center p-2 gap-3 ${Conditions[item.icu_condition.toLowerCase()].textColor} w-full rounded-lg ${Conditions[item.icu_condition.toLowerCase()].bgColor}`} /*  */
           >
             <ConditionIcon
               condition={item.icu_condition.toLowerCase()}
               size="h-7 w-7"
             />
-            <p className="text-gray-400 dark:text-gray-400">
-              {item.start_time} |
-            </p>
-            <p className="text-gray-400 dark:text-gray-400">
-              {item.type_of_incidence} |
-            </p>
-            <p className="text-gray-400 dark:text-gray-400">{item.trip_id} |</p>
-            <p className="text-gray-400 dark:text-gray-400">{item.driver}</p>
+            <p>{item.start_time}</p>
+            {" | "}
+            <p>{item.type_of_incidence}</p>
+            {" | "}
+            <p>{item.trip_id}</p>
+            {" | "}
+            <p>{item.driver}</p>
           </div>
           {/* Data */}
           <div className="flex flex-col w-full p-3 gap-2">

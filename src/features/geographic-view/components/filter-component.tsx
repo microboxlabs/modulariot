@@ -69,7 +69,7 @@ export default function FilterComponent({
               set_filter_options(new_options);
             }}
             key={index}
-            className={`w-8 h-8 bg-blue-500 ${option.activated ? "brightness-100" : "brightness-50"}  rounded-full p-1 flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:border-2 hover:border-gray-300`}
+            className={`w-8 h-8 bg-blue-500 ${option.activated ? "border-2 border-white" : ""}  rounded-full p-1 flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:brightness-75 hover:border-gray-300`}
           >
             <Image src={option.icon} alt="icono" className="w-6 h-6" />
           </div>
@@ -83,7 +83,7 @@ export default function FilterComponent({
             set_filter_options(new_options);
             set_expanded(false);
           }}
-          className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300"
+          className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300 text-white"
         >
           <IoClose />
         </div>

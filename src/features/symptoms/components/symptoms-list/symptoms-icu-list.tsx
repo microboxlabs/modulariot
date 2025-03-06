@@ -1,7 +1,6 @@
 "use client";
 
 import { Card } from "flowbite-react";
-import { useSymptomsIcu } from "@/features/symptoms/hooks/use-symptoms-icu";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 import SymptomsData from "@/features/symptoms/components/symptoms-list/symptoms-data";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -9,6 +8,7 @@ import Image from "next/image";
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import maskImage from "@assets/images/mask.gif";
 import SymptomsListSkeleton from "./symptoms-list-skeleton";
+import { useSymptomsIcu } from "@/features/common/providers/client-api.provider";
 import patchImage from "@assets/images/patch.gif";
 
 interface SymptomsIcuListProps {
@@ -55,9 +55,9 @@ export default function SymptomsIcuList({
   dict,
   lang,
 }: SymptomsIcuListProps) {
-  const { icuData, loading, error } = useSymptomsIcu(condition);
+  const { icuData, isLoading, error } = useSymptomsIcu(condition);
 
-  if (loading) {
+  if (isLoading) {
     return <SymptomsListSkeleton />;
   }
 
@@ -81,7 +81,10 @@ export default function SymptomsIcuList({
   const groupedByDate =
     icuData.length > 0
       ? icuData.reduce(
-          (groups: Record<string, SymptomsICUItemResponse[]>, item) => {
+          (
+            groups: Record<string, SymptomsICUItemResponse[]>,
+            item: SymptomsICUItemResponse,
+          ) => {
             // Extract date part from start_time (assuming ISO format)
             const date = new Date(item.start_time).toLocaleDateString(lang);
 

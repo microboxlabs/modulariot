@@ -79,7 +79,7 @@ export default function TimedSymptoms({
               <Button
                 color="blue"
                 as={Link}
-                href={`/symptoms/map-view/${item.id}?tripId=${item.trip_id}`}
+                href={`/symptoms/map-view/${item.id}?tripId=${item.trip_id}&assetId=${item.asset_id}`}
               >
                 {(dict.symptoms as I18nRecord).diagnose as string}
               </Button>

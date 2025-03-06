@@ -172,32 +172,7 @@ export function useSymptoms() {
   };
 }
 
-export function useSymptoms() {
-  const { data, error, isLoading } = useSWR<SymptomDashboard, FetcherError>(
-    "/app/api/symptoms/dashboard",
-    fetcher,
-    {
-      refreshInterval: 30000,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    },
-  );
-
-  const count = data
-    ? Object.values(data).reduce<number>(
-        (sum, value) => (typeof value === "number" ? sum + value : sum),
-        0,
-      )
-    : 0;
-
-  return {
-    symptoms: data,
-    count,
-    loading: isLoading,
-    error,
-  };
-}
-
+/*
 export function useGeofences() {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     "/app/api/symptoms/geofences",
@@ -210,3 +185,4 @@ export function useGeofences() {
     geofence_isLoading: isLoading,
   };
 }
+*/

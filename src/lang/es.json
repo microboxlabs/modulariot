@@ -431,6 +431,7 @@
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
     "restablished_symptoms": "Síntomas restablecidos",
-    "under_treatment": "Síntomas siendo tratados"
+    "under_treatment": "Síntomas siendo tratados",
+    "symptoms_being_treated": "Síntomas siendo tratados"
   }
 }

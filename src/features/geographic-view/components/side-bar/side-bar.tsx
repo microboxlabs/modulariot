@@ -5,19 +5,20 @@ import { Button } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function SideBar({ dict }: { dict: any }) {
+export default function SideBar({ dict }: { dict: I18nRecord }) {
   const inner_menu = [
     {
-      button_text: dict.symptoms.monitoring,
+      button_text: (dict.symptoms as I18nRecord).monitoring as string,
       component: <Monitoring dict={dict} />,
     },
     {
-      button_text: dict.symptoms.symptoms,
+      button_text: (dict.symptoms as I18nRecord).symptoms as string,
       component: <Symptoms dict={dict} />,
     },
     {
-      button_text: dict.symptoms.download,
+      button_text: (dict.symptoms as I18nRecord).download as string,
       component: <Download dict={dict} />,
     },
   ];

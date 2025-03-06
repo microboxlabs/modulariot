@@ -20,13 +20,14 @@ import time_icon from "@assets/time_states/time_icon.svg";
 
 import { AiOutlineInfo } from "react-icons/ai";
 import { IconType } from "react-icons";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function Filters({ dict }: { dict: any }) {
+export default function Filters({ dict }: { dict: I18nRecord }) {
   return (
     <div className="absolute top-0 left-0 bottom-0">
       <div className="flex flex-col gap-2 pl-5 pt-5">
         <FilterComponent
-          label={dict.symptoms.conditions}
+          label={(dict.symptoms as I18nRecord).conditions as string}
           icon={alerta_critica.src as string}
           icon_size="w-8 h-8"
           options={[
@@ -75,7 +76,7 @@ export default function Filters({ dict }: { dict: any }) {
           ]}
         />
         <FilterComponent
-          label={dict.symptoms.markers}
+          label={(dict.symptoms as I18nRecord).markers as string}
           icon={blue_pin.src as string}
           icon_size="w-7 h-7"
           options={[
@@ -100,7 +101,7 @@ export default function Filters({ dict }: { dict: any }) {
           ]}
         />
         <FilterComponent
-          label={dict.symptoms.started_trips}
+          label={(dict.symptoms as I18nRecord).started_trips as string}
           icon={AiOutlineInfo as IconType}
           icon_size="w-5 h-5"
           options={[
@@ -119,7 +120,7 @@ export default function Filters({ dict }: { dict: any }) {
           ]}
         />
         <FilterComponent
-          label={dict.symptoms.times}
+          label={(dict.symptoms as I18nRecord).times as string}
           icon={time_icon.src as string}
           icon_size="w-10 h-10"
           options={[

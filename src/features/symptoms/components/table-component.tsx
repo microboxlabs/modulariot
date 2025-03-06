@@ -7,7 +7,7 @@ import {
 } from "flowbite-react";
 import { useSymptomsTable } from "../hooks/use-symptoms-table";
 import TableItem from "./table-item";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function SymptomsTable({
   dict,
   currentPage,
@@ -16,7 +16,7 @@ export default function SymptomsTable({
   setCurrentPage,
   compact = false,
 }: {
-  dict: any;
+  dict: I18nRecord;
   currentPage: number;
   pageSize: number;
   searchTerm: string;
@@ -81,19 +81,36 @@ export default function SymptomsTable({
         >
           {!compact ? (
             <TableHead>
-              <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.active_time}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.trip}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.driver}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.service}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.alert_type}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.state}</TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).condition as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).active_time as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).trip as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).driver as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).departure_date as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).alert_type as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).state as string}
+              </TableHeadCell>
             </TableHead>
           ) : (
             <TableHead>
-              <TableHeadCell>{dict.symptoms.condition}</TableHeadCell>
-              <TableHeadCell>{dict.symptoms.departure_date}</TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).condition as string}
+              </TableHeadCell>
+              <TableHeadCell>
+                {(dict.symptoms as I18nRecord).departure_date as string}
+              </TableHeadCell>
             </TableHead>
           )}
 
@@ -114,11 +131,11 @@ export default function SymptomsTable({
           <p className="text-sm text-gray-500">
             {tableData && tableData?.pagination.totalPages > 0 ? (
               <>
-                {dict.symptoms.showing}{" "}
+                {(dict.symptoms as I18nRecord).showing as string}{" "}
                 <span className="font-bold">
                   {startItem}-{endItem}
                 </span>{" "}
-                {dict.symptoms.of}{" "}
+                {(dict.symptoms as I18nRecord).of as string}{" "}
                 <span className="font-bold">
                   {tableData?.pagination.totalPages}
                 </span>

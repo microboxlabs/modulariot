@@ -171,3 +171,16 @@ export function useSymptoms() {
     error,
   };
 }
+
+export function useGeofences() {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    "/app/api/symptoms/geofences",
+    fetcher,
+  );
+
+  return {
+    geofence_data: data,
+    geofence_error: error,
+    geofence_isLoading: isLoading,
+  };
+}

@@ -10,7 +10,9 @@ import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
-
+import { useGeofences } from "@/features/common/providers/client-api.provider";
+import wkx from "wkx";
+import { ShowNotification } from "@/features/notifications/notification";
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -120,6 +122,7 @@ export default function MapVisualizationTrip({
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+  const { geofence_data, geofence_error, geofence_isLoading } = useGeofences();
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -174,7 +177,7 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  const layers = [
+  let layers = [
     new PulsePinLayer({
       data: geoJson,
       rotation,
@@ -199,6 +202,28 @@ export default function MapVisualizationTrip({
     console.error("Map error:", error);
     // Continue rendering with empty data instead of showing error
   }
+
+  /*
+  {
+    if (geofence_error) {
+      return <div>Error: {geofence_error.message}</div>;
+    }
+
+    if (geofence_isLoading) {
+      ShowNotification({
+        type: "info",
+        message: "Cargando geofences...",
+      });
+    }
+
+    const wkbHexString = geofence_data.data[0].zone.location;
+    const wkbBuffer = Buffer.from(wkbHexString, "hex");
+    const geometry = wkx.Geometry.parse(wkbBuffer);
+    const geoJsonData = geometry.toGeoJSON();
+
+    console.log(geoJsonData);
+  }
+  */
 
   return (
     <div className="h-full w-full relative overflow-hidden">

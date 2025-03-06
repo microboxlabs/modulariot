@@ -65,7 +65,11 @@ export default function GeneralMap({
           {/* Map */}
         </div>
         <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <MapVisualizationTrip positions={positions} error={error} />
+          <MapVisualizationTrip
+            positions={positions}
+            error={error}
+            tripId={tripId ?? ""}
+          />
         </div>
       </div>
     </>

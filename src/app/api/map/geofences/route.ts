@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 const SYMPTOMS_API_URL =
   "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_treatments_geofences_service";
@@ -18,7 +18,7 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
@@ -28,14 +28,16 @@ export async function GET() {
 
   try {
     const token = await authToken.getToken();
-    console.log(token);
 
-    const response = await fetch(SYMPTOMS_API_URL + "?p_trip_id=1446256", {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
+    const response = await fetch(
+      SYMPTOMS_API_URL + "?p_trip_id=" + req.nextUrl.searchParams.get("tripId"),
+      {
+        headers: {
+          accept: "application/json",
+          Authorization: ` Bearer ${token}`,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

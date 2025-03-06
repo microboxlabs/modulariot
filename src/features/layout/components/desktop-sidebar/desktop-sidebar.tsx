@@ -12,10 +12,10 @@ import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
+  useMapPositions,
   useMyTasksCount,
   useSymptoms,
 } from "@/features/common/providers/client-api.provider";
-import { useMapPositions } from "@/features/geographic-view/hooks/use-map-positions";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());

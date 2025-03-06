@@ -128,14 +128,14 @@ export default function SideInfoData({
               {new Date().toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
                 {" "}
-                {treatmentData.trip_info.trip_id}
+                {treatmentData?.trip_info?.trip_id}
               </span>
             </p>
           </div>
           <p className="text-sm">
             {(dict.symptoms as I18nRecord).observed_symptom as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.symptom_info.name}
+              {treatmentData?.symptom_info?.name}
             </span>
           </p>
           {/* <p className="text-sm">
@@ -186,39 +186,39 @@ export default function SideInfoData({
               {new Date().toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
                 {" "}
-                {treatmentData.trip_info.trip_id}
+                {treatmentData?.trip_info?.trip_id}
               </span>
             </p>
           </div>
           <p className="text-sm">
             ID:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.trip_info.trip_id}
+              {treatmentData?.trip_info?.trip_id}
             </span>
           </p>
           <p className="text-sm">
             {(dict.symptoms as I18nRecord).active as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.trip_info.asset_id}
+              {treatmentData?.trip_info?.asset_id}
             </span>
           </p>
           <p className="text-sm">
             {(dict.symptoms as I18nRecord).route as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.trip_info.origin} -{" "}
-              {treatmentData.trip_info.destination}
+              {treatmentData?.trip_info?.origin} -{" "}
+              {treatmentData?.trip_info?.destination}
             </span>
           </p>
           <p className="text-sm">
             {(dict.symptoms as I18nRecord).transporter as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.trip_info.carrier}
+              {treatmentData?.trip_info?.carrier}
             </span>
           </p>
           <p className="text-sm">
             {(dict.symptoms as I18nRecord).driver as string}:{" "}
             <span className="text-gray-500 dark:text-gray-400">
-              {treatmentData.trip_info.driver}
+              {treatmentData?.trip_info?.driver}
             </span>
           </p>
         </div>

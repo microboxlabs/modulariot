@@ -71,6 +71,7 @@ export interface MapPositionProperties {
     events: null;
     status: string;
     asset_id: string;
+    assetid: string; //alias for asset_id TODO: remove unused field
     telcom_iccid: string | null;
     telcom_imsi: string | null;
     telcom_operator: string;

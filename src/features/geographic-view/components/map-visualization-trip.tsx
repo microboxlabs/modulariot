@@ -122,7 +122,7 @@ export default function MapVisualizationTrip({
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const { geofence_data, geofence_error, geofence_isLoading } = useGeofences();
+  // const { geofence_data, geofence_error, geofence_isLoading } = useGeofences();
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -204,9 +204,10 @@ export default function MapVisualizationTrip({
   }
 
   {
+    /*
     if (geofence_error) {
       return <div>Error: {geofence_error.message}</div>;
-    }
+      }
 
     if (geofence_isLoading) {
       ShowNotification({
@@ -215,12 +216,13 @@ export default function MapVisualizationTrip({
       });
     }
 
+    console.log(geofence_data);
     const wkbHexString = geofence_data.data[0].zone.location;
     const wkbBuffer = Buffer.from(wkbHexString, "hex");
     const geometry = wkx.Geometry.parse(wkbBuffer);
     const geoJsonData = geometry.toGeoJSON();
-
     console.log(geoJsonData);
+    */
   }
 
   return (

@@ -111,13 +111,16 @@ export async function GETa(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session) return NextResponse.next({ status: 401 });
+  if (!session)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const tripId = req.nextUrl.searchParams.get("tripId");
-  if (!tripId) return NextResponse.next({ status: 400 });
+  if (!tripId)
+    return NextResponse.json({ error: "Missing tripId" }, { status: 400 });
 
   const assetId = req.nextUrl.searchParams.get("assetId") || "";
-  if (!assetId) return NextResponse.next({ status: 400 });
+  if (!assetId)
+    return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
 
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();

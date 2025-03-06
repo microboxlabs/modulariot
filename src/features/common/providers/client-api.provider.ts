@@ -241,10 +241,9 @@ export function useMapPositions() {
   };
 }
 
-/*
-export function useGeofences() {
+export function useGeofences(tripId: string) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
-    "/app/api/symptoms/geofences",
+    `/app/api/map/geofences?tripId=${tripId}`,
     fetcher,
   );
 
@@ -254,4 +253,3 @@ export function useGeofences() {
     geofence_isLoading: isLoading,
   };
 }
-*/

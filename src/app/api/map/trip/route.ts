@@ -34,8 +34,8 @@ export async function GETa(req: NextRequest) {
   try {
     const token = await authToken.getToken();
     console.log(token);
-    const offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
-    const chunkSize = 100;
+    const _offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
+    const _chunkSize = 100;
 
     if (!tripId) {
       return NextResponse.json({ error: "Missing tripId" }, { status: 400 });

@@ -12,7 +12,7 @@ import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx from "wkx";
-import { ShowNotification } from "@/features/notifications/notification";
+import { GeofenceLayer } from "./geofence";
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -92,6 +92,7 @@ const stateToColor = {
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
+  tripId: string;
   positions: MapPosition[] | null;
   error: Error | null;
 };
@@ -117,42 +118,16 @@ function zoom_on_pin(
 }
 
 export default function MapVisualizationTrip({
+  tripId,
   positions,
   error,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  // const { geofence_data, geofence_error, geofence_isLoading } = useGeofences();
+  const { geofence_data, geofence_error, geofence_isLoading } =
+    useGeofences(tripId);
 
-  // Set initial view state when data is first received
-  /* React.useEffect(() => {
-    if (positions && positions.length > 0) {
-      const firstPosition = positions[0];
-      const newViewState = {
-        ...INITIAL_VIEW_STATE,
-        longitude: firstPosition.longitude,
-        latitude: firstPosition.latitude,
-        zoom: 6.5, // Slightly closer zoom to see the vehicle better
-        transitionDuration: 2000,
-      };
-      setViewState(newViewState);
-
-      layers = [
-        new PinLayer({
-          data: positions || [],
-          zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
-          },
-          updateTriggers: {
-            data: positions,
-          },
-        }),
-      ];
-    }
-  }, [positions]); */
-
-  // Transform API data to GeoJSON format
+  // Memoize the geoJson conversion for positions
   const geoJson = React.useMemo(
     () => ({
       type: "FeatureCollection",
@@ -177,52 +152,73 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  let layers = [
-    new PulsePinLayer({
-      data: geoJson,
-      rotation,
-      zoom: viewState.zoom,
-      updateTriggers: {
-        data: positions,
-      },
-    }),
-    new PinLayer({
-      data: positions ? [positions[positions.length - 1]] : [],
-      zoom: viewState.zoom,
-      onClick: ({ object }: { object: any }) => {
-        zoom_on_pin(object, setViewState, viewState);
-      },
-      updateTriggers: {
-        data: positions,
-      },
-    }),
-  ];
+  // Memoize the geofence processing
+  const processedGeofence = React.useMemo(() => {
+    if (!geofence_data?.data?.[0]?.zone?.location) return null;
+
+    try {
+      const wkbHexString = geofence_data.data[0].zone.location;
+      const wkbBuffer = Buffer.from(wkbHexString, "hex");
+      const geometry = wkx.Geometry.parse(wkbBuffer);
+      return geometry.toGeoJSON();
+    } catch (error) {
+      console.error("Error processing geofence data:", error);
+      return null;
+    }
+  }, [geofence_data]);
+
+  // Memoize the layers array
+  const layers = React.useMemo(() => {
+    const baseLayers = [
+      new PulsePinLayer({
+        data: geoJson,
+        rotation,
+        zoom: viewState.zoom,
+        updateTriggers: {
+          data: positions,
+        },
+      }),
+      new PinLayer({
+        data: positions ? [positions[positions.length - 1]] : [],
+        zoom: viewState.zoom,
+        onClick: ({ object }: { object: any }) => {
+          zoom_on_pin(object, setViewState, viewState);
+        },
+        updateTriggers: {
+          data: positions,
+        },
+      }),
+    ];
+
+    // Add geofence layer if available
+    if (processedGeofence) {
+      baseLayers.push(
+        new GeofenceLayer({
+          data: processedGeofence,
+          zoom: viewState.zoom,
+          onClick: ({ object }: { object: any }) => {
+            zoom_on_pin(object, setViewState, viewState);
+          },
+        }),
+      );
+    }
+
+    return baseLayers;
+  }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
+
+  // Handle errors and loading states
+  React.useEffect(() => {
+    if (geofence_error) {
+      console.error("Error loading geofences:", geofence_error);
+    }
+
+    if (geofence_isLoading) {
+      console.log("Loading geofences...");
+    }
+  }, [geofence_error, geofence_isLoading]);
 
   if (error) {
     console.error("Map error:", error);
-    // Continue rendering with empty data instead of showing error
-  }
-
-  {
-    /*
-    if (geofence_error) {
-      return <div>Error: {geofence_error.message}</div>;
-      }
-
-    if (geofence_isLoading) {
-      ShowNotification({
-        type: "info",
-        message: "Cargando geofences...",
-      });
-    }
-
-    console.log(geofence_data);
-    const wkbHexString = geofence_data.data[0].zone.location;
-    const wkbBuffer = Buffer.from(wkbHexString, "hex");
-    const geometry = wkx.Geometry.parse(wkbBuffer);
-    const geoJsonData = geometry.toGeoJSON();
-    console.log(geoJsonData);
-    */
   }
 
   return (
@@ -237,9 +233,10 @@ export default function MapVisualizationTrip({
             if (object.properties.cluster) {
               return null;
             }
-            //Servicio: ${object.properties.trip_id}\n
             return {
-              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
+                object.properties.timestamp,
+              ).toLocaleString()}`,
             };
           }
           return null;

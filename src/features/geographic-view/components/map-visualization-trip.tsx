@@ -203,7 +203,6 @@ export default function MapVisualizationTrip({
     // Continue rendering with empty data instead of showing error
   }
 
-  /*
   {
     if (geofence_error) {
       return <div>Error: {geofence_error.message}</div>;
@@ -223,7 +222,6 @@ export default function MapVisualizationTrip({
 
     console.log(geoJsonData);
   }
-  */
 
   return (
     <div className="h-full w-full relative overflow-hidden">

@@ -187,7 +187,7 @@ export default function MapVisualizationTrip({
       },
     }),
     new PinLayer({
-      data: positions ? [positions[0]] : [],
+      data: positions ? [positions[positions.length - 1]] : [],
       zoom: viewState.zoom,
       onClick: ({ object }: { object: any }) => {
         zoom_on_pin(object, setViewState, viewState);
@@ -228,7 +228,7 @@ export default function MapVisualizationTrip({
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        viewState={viewState}
+        initialViewState={viewState}
         controller={true}
         layers={layers}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
@@ -237,8 +237,9 @@ export default function MapVisualizationTrip({
             if (object.properties.cluster) {
               return null;
             }
+            //Servicio: ${object.properties.trip_id}\n
             return {
-              text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
             };
           }
           return null;
@@ -246,7 +247,6 @@ export default function MapVisualizationTrip({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
       </DeckGL>

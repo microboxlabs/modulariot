@@ -10,6 +10,7 @@ import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
 import Filters from "./filters";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -74,7 +75,7 @@ const stateToColor = {
 
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
-  dict: any;
+  dict: I18nRecord;
   specific_view?: boolean;
 };
 
@@ -205,7 +206,7 @@ export default function MapVisualization({
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        viewState={viewState}
+        initialViewState={viewState}
         controller={true}
         layers={layers}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
@@ -223,7 +224,6 @@ export default function MapVisualization({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
         <Filters dict={dict} />

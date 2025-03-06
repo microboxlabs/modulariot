@@ -6,6 +6,7 @@ import { HiSearch } from "react-icons/hi";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { FaFilter, FaArrowsRotate } from "react-icons/fa6";
 import TableComponent from "./components/table-component";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function SymptomsTable({
   setShowCards,
@@ -14,7 +15,7 @@ export default function SymptomsTable({
 }: {
   setShowCards: (showCards: boolean) => void;
   showCards: boolean;
-  dict: any;
+  dict: I18nRecord;
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,7 +45,7 @@ export default function SymptomsTable({
                 type="search"
                 ref={searchInputRef}
                 icon={HiSearch}
-                placeholder={dict.symptoms.search}
+                placeholder={(dict.symptoms as I18nRecord).search as string}
                 required
                 className="w-full"
               />

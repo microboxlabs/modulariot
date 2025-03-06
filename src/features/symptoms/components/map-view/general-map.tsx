@@ -23,6 +23,7 @@ export default function GeneralMap({
   assetId?: string;
 }) {
   const { positions, error } = useTripPositions(tripId ?? "", assetId ?? "");
+
   if (error) {
     return <div>Error: {error.message}</div>;
   }

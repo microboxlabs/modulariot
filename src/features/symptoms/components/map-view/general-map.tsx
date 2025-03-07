@@ -24,6 +24,17 @@ export default function GeneralMap({
 }) {
   const { positions, error } = useTripPositions(tripId ?? "", assetId ?? "");
 
+  // this is wrong, we should get the average of the positions but im getting an acumulated value
+  const averagePosition = positions?.reduce(
+    (acc, curr) => {
+      return {
+        latitude: acc.latitude + curr.latitude / positions.length,
+        longitude: acc.longitude + curr.longitude / positions.length,
+      };
+    },
+    { latitude: 0, longitude: 0 },
+  );
+
   if (error) {
     return <div>Error: {error.message}</div>;
   }
@@ -65,7 +76,11 @@ export default function GeneralMap({
           {/* Map */}
         </div>
         <div className="w-[65%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <MapVisualizationTrip positions={positions} error={error} />
+          <MapVisualizationTrip
+            positions={positions}
+            error={error}
+            averagePosition={averagePosition}
+          />
         </div>
       </div>
     </>

@@ -428,6 +428,8 @@
     "map-view": "Map view",
     "restablished_symptoms": "Restablished symptoms",
     "under_treatment": "Symptoms being treated",
-    "symptoms_being_treated": "Symptoms being treated"
+    "symptoms_being_treated": "Symptoms being treated",
+    "critical_symptoms": "Critical symptoms",
+    "compromised_condition": "Compromised condition"
   }
 }

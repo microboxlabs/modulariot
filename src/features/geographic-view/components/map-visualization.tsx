@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
@@ -105,6 +105,15 @@ export default function MapVisualization({
   specific_view = false,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
+  const [positions, setPositions] = useState<MapPosition[]>([]);
+  const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
+
+  useEffect(() => {
+    if (mapPositions) {
+      setPositions(mapPositions);
+      setOriginalPositions(mapPositions); // Store original unfiltered positions
+    }
+  }, [mapPositions]);
 
   // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
   const NEW_INITIAL_VIEW_STATE = {
@@ -144,7 +153,7 @@ export default function MapVisualization({
     () => ({
       type: "FeatureCollection",
       features:
-        mapPositions?.map((item: MapPosition) => ({
+        positions?.map((item: MapPosition) => ({
           type: "Feature",
           geometry: {
             type: "Point",
@@ -161,11 +170,11 @@ export default function MapVisualization({
           },
         })) || [],
     }),
-    [mapPositions],
+    [positions],
   );
 
   /*
-  // here we make a check for duplicated elements in map positions
+  // here we make a check for duplicated elements in map mapPositions
   const asset_id_counter = mapPositions?.reduce((acc: any, item) => {
     acc[item.asset_id] = (acc[item.asset_id] || 0) + 1;
     return acc;
@@ -177,13 +186,13 @@ export default function MapVisualization({
   const layers = !specific_view
     ? [
         new PinLayer({
-          data: mapPositions || [],
+          data: positions || [],
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
           },
           updateTriggers: {
-            data: mapPositions,
+            data: positions,
           },
         }),
       ]
@@ -194,7 +203,7 @@ export default function MapVisualization({
           zoom: viewState.zoom,
         }),
         new PinLayer({
-          data: mapPositions ? [mapPositions[0]] : [],
+          data: positions ? [positions[0]] : [],
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
@@ -226,7 +235,11 @@ export default function MapVisualization({
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
-        <Filters dict={dict} />
+        <Filters
+          dict={dict}
+          originalPositions={originalPositions}
+          setPositions={setPositions}
+        />
         <div className="absolute right-0 top-0 bottom-0">
           <SideBar dict={dict} />
         </div>

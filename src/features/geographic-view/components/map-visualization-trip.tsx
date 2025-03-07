@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
@@ -10,6 +10,7 @@ import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
+import { Spinner } from "flowbite-react";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -44,7 +45,7 @@ type ViewStateType = {
 const INITIAL_VIEW_STATE: ViewStateType = {
   longitude: -70.668505,
   latitude: -33.439764,
-  zoom: 6.5,
+  zoom: 4.0,
   // base rotation
   pitch: 45,
   bearing: 45,
@@ -92,65 +93,66 @@ const stateToColor = {
 type MapVisualizationProps = {
   positions: MapPosition[] | null;
   error: Error | null;
+  averagePosition: {
+    latitude: number;
+    longitude: number;
+  };
 };
 
 function zoom_on_pin(
-  object: any,
+  longitude: number,
+  latitude: number,
+  clustered: boolean,
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
 ) {
-  if (object) {
-    const longitude = object.geometry.coordinates[0];
-    const latitude = object.geometry.coordinates[1];
-
+  if (latitude && longitude) {
     setViewState({
       ...viewState,
       longitude,
       latitude,
-      zoom: object.properties.cluster ? viewState.zoom + 2.0 : 15.0,
+      zoom: 15.0,
       transitionDuration: 1000,
       transitionInterpolator: new FlyToInterpolator(),
     });
   }
 }
 
+function move_to_pin(
+  averagePosition: {
+    latitude: number;
+    longitude: number;
+  },
+  setViewState: (viewState: ViewStateType) => void,
+  viewState: ViewStateType,
+) {
+  setViewState({
+    ...viewState,
+    longitude: averagePosition.longitude,
+    latitude: averagePosition.latitude,
+    zoom: 6.5,
+    transitionDuration: 500,
+    transitionInterpolator: new FlyToInterpolator(),
+  });
+}
+
 export default function MapVisualizationTrip({
   positions,
   error,
+  averagePosition,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
 
-  // Set initial view state when data is first received
-  /* React.useEffect(() => {
+  // Handle initial zoom when positions are loaded
+  useEffect(() => {
     if (positions && positions.length > 0) {
-      const firstPosition = positions[0];
-      const newViewState = {
-        ...INITIAL_VIEW_STATE,
-        longitude: firstPosition.longitude,
-        latitude: firstPosition.latitude,
-        zoom: 6.5, // Slightly closer zoom to see the vehicle better
-        transitionDuration: 2000,
-      };
-      setViewState(newViewState);
-
-      layers = [
-        new PinLayer({
-          data: positions || [],
-          zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
-          },
-          updateTriggers: {
-            data: positions,
-          },
-        }),
-      ];
+      move_to_pin(averagePosition, setViewState, viewState);
     }
-  }, [positions]); */
+  }, [positions]);
 
   // Transform API data to GeoJSON format
-  const geoJson = React.useMemo(
+  const geoJson = useMemo(
     () => ({
       type: "FeatureCollection",
       features:
@@ -174,30 +176,38 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  const layers = [
-    new PulsePinLayer({
-      data: geoJson,
-      rotation,
-      zoom: viewState.zoom,
-      updateTriggers: {
-        data: positions,
-      },
-    }),
-    new PinLayer({
-      data: positions ? [positions[positions.length - 1]] : [],
-      zoom: viewState.zoom,
-      onClick: ({ object }: { object: any }) => {
-        zoom_on_pin(object, setViewState, viewState);
-      },
-      updateTriggers: {
-        data: positions,
-      },
-    }),
-  ];
+  const layers = useMemo(
+    () => [
+      new PulsePinLayer({
+        data: geoJson,
+        rotation,
+        zoom: viewState.zoom,
+        updateTriggers: {
+          data: positions,
+        },
+      }),
+      new PinLayer({
+        data: positions ? [positions[positions.length - 1]] : [],
+        zoom: viewState.zoom,
+        onClick: ({ object }: { object: any }) => {
+          zoom_on_pin(
+            object.geometry.coordinates[0],
+            object.geometry.coordinates[1],
+            false,
+            setViewState,
+            viewState,
+          );
+        },
+        updateTriggers: {
+          data: positions,
+        },
+      }),
+    ],
+    [geoJson, positions, rotation, viewState.zoom],
+  );
 
   if (error) {
     console.error("Map error:", error);
-    // Continue rendering with empty data instead of showing error
   }
 
   return (
@@ -212,7 +222,6 @@ export default function MapVisualizationTrip({
             if (object.properties.cluster) {
               return null;
             }
-            //Servicio: ${object.properties.trip_id}\n
             return {
               text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
             };
@@ -233,6 +242,9 @@ export default function MapVisualizationTrip({
           text="Copilot"
           open_to_left={true}
         />
+      </div>
+      <div className="absolute left-5 bottom-5">
+        {positions?.length === 0 ? <Spinner /> : null}
       </div>
     </div>
   );

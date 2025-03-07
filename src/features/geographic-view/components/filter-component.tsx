@@ -4,7 +4,8 @@ import Image from "next/image";
 import { IoClose } from "react-icons/io5";
 import { IconType } from "react-icons";
 
-type Option = {
+// Export the Option type so it can be imported in other files
+export type Option = {
   text: string;
   filter_value: string;
   icon: string;

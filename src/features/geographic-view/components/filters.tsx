@@ -2,7 +2,7 @@ import blue_pin from "@assets/pin/blue_pin.svg";
 import red_pin from "@assets/pin/red_pin.svg";
 import yellow_pin from "@assets/pin/yellow_pin.svg";
 
-import FilterComponent from "./filter-component";
+import FilterComponent, { Option } from "./filter-component";
 import alerta_critica from "@assets/conditions/alerta-critica.svg";
 import codigo_negro from "@assets/conditions/codigo-negro.svg";
 import comprometida from "@assets/conditions/comprometida.svg";
@@ -157,7 +157,7 @@ export default function Filters({
             {
               text: "Terminado",
               filter_value: "terminado",
-              icu_code: "2",
+              code: "2",
               icon: terminado as string,
               activated: false,
             },

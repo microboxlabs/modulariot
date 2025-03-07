@@ -213,8 +213,7 @@ export function useMapPositions() {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch map positions");
       const data = (await response.json()) as MapPosition[];
-
-      return data.map((position: MapPosition) => {
+      return data?.map((position: MapPosition) => {
         const [longitude, latitude] = MapService.parseWKBPoint(
           position.location,
         );

@@ -1,7 +1,9 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/fleet/positions";
+//const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/fleet/positions";
+const SYMPTOMS_API_URL =
+  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_map_positions";
 
 import {
   AuthToken,
@@ -26,7 +28,6 @@ export async function GET() {
   }
   try {
     const token = await authToken.getToken();
-
     const params = new URLSearchParams();
     //params.set("lastUpdatedSince", new Date().toISOString());
     params.set("limit", "100");
@@ -43,7 +44,7 @@ export async function GET() {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data.data); //TODO: ask to standardize the response
   } catch (error) {
     return NextResponse.json(
       {

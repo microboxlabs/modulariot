@@ -8,6 +8,7 @@ type Option = {
   text: string;
   filter_value: string;
   icon: string;
+  code: string;
   activated: boolean;
 };
 
@@ -16,11 +17,13 @@ export default function FilterComponent({
   options,
   label,
   icon_size = "w-5 h-5",
+  onChange,
 }: {
   icon: string | IconType;
   options: Option[];
   label: string;
   icon_size?: string;
+  onChange?: (updatedOptions: Option[]) => void;
 }) {
   const [expanded, set_expanded] = useState(false);
   const [filter_options, set_filter_options] = useState<Option[]>(options);
@@ -29,6 +32,33 @@ export default function FilterComponent({
   const activatedCount = filter_options.filter(
     (option) => option.activated,
   ).length;
+
+  // Handle option toggle with direct onChange call
+  const handleOptionToggle = (index: number) => {
+    const new_options = [...filter_options];
+    new_options[index].activated = !new_options[index].activated;
+    set_filter_options(new_options);
+
+    // Call onChange directly after state update
+    if (onChange) {
+      onChange(new_options);
+    }
+  };
+
+  // Handle clear all options
+  const handleClearOptions = () => {
+    const new_options = [...filter_options];
+    new_options.forEach((option) => {
+      option.activated = false;
+    });
+    set_filter_options(new_options);
+    set_expanded(false);
+
+    // Call onChange directly after state update
+    if (onChange) {
+      onChange(new_options);
+    }
+  };
 
   return (
     <div className="relative h-full flex flex-row gap-2">
@@ -63,11 +93,7 @@ export default function FilterComponent({
       >
         {filter_options.map((option, index) => (
           <div
-            onClick={() => {
-              const new_options = [...filter_options];
-              new_options[index].activated = !new_options[index].activated;
-              set_filter_options(new_options);
-            }}
+            onClick={() => handleOptionToggle(index)}
             key={index}
             className={`w-8 h-8 bg-blue-500 ${option.activated ? "border-2 border-white" : ""}  rounded-full p-1 flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:brightness-75 hover:border-gray-300`}
           >
@@ -75,14 +101,7 @@ export default function FilterComponent({
           </div>
         ))}
         <div
-          onClick={() => {
-            const new_options = [...filter_options];
-            new_options.forEach((option) => {
-              option.activated = false;
-            });
-            set_filter_options(new_options);
-            set_expanded(false);
-          }}
+          onClick={handleClearOptions}
           className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300 text-white"
         >
           <IoClose />

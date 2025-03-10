@@ -8,7 +8,11 @@ import { PinLayer } from "./pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { MapPosition, MapPositionProperties } from "../types/map";
+import {
+  MapPosition,
+  MapPositionProperties,
+  MapPositionResume,
+} from "../types/map";
 import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -77,6 +81,7 @@ type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;
   specific_view?: boolean;
+  mapPositionsResume: MapPositionResume;
 };
 
 function zoom_on_pin(
@@ -101,6 +106,7 @@ function zoom_on_pin(
 
 export default function MapVisualization({
   mapPositions,
+  mapPositionsResume,
   dict,
   specific_view = false,
 }: MapVisualizationProps) {
@@ -241,7 +247,7 @@ export default function MapVisualization({
           setPositions={setPositions}
         />
         <div className="absolute right-0 top-0 bottom-0">
-          <SideBar dict={dict} />
+          <SideBar dict={dict} mapPositionsResume={mapPositionsResume} />
         </div>
       </DeckGL>
     </div>

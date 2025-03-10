@@ -24,6 +24,18 @@ const mapboxStyles = {
   "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
 };
 
+type Zone = {
+  id: string;
+  name: string;
+  location: string;
+};
+
+type GeofenceData = {
+  zone: Zone;
+  asset_id: string;
+  trip_id: string;
+};
+
 type ViewStateType = {
   longitude: number;
   latitude: number;
@@ -44,9 +56,9 @@ type ViewStateType = {
 };
 
 const INITIAL_VIEW_STATE: ViewStateType = {
-  longitude: -70.668505,
-  latitude: -33.439764,
-  zoom: 6.5,
+  longitude: -70.30659987165973,
+  latitude: -23.77344191861658,
+  zoom: 15.5,
   // base rotation
   pitch: 45,
   bearing: 45,
@@ -154,13 +166,32 @@ export default function MapVisualizationTrip({
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
-    if (!geofence_data?.data?.[0]?.zone?.location) return null;
+    if (!geofence_data?.data || geofence_data.data.length === 0) return null;
 
     try {
-      const wkbHexString = geofence_data.data[0].zone.location;
-      const wkbBuffer = Buffer.from(wkbHexString, "hex");
-      const geometry = wkx.Geometry.parse(wkbBuffer);
-      return geometry.toGeoJSON();
+      // Process all geofences into features
+      const features = geofence_data.data.map((item: GeofenceData) => {
+        const wkbHexString = item.zone.location;
+        const wkbBuffer = Buffer.from(wkbHexString, "hex");
+        const geometry = wkx.Geometry.parse(wkbBuffer);
+
+        return {
+          type: "Feature",
+          geometry: geometry.toGeoJSON(),
+          properties: {
+            // You can add additional properties from your zone data here
+            id: item.zone.id,
+            name: item.zone.name,
+            // Add any other relevant properties from item.zone
+          },
+        };
+      });
+
+      // Return a FeatureCollection containing all geofences
+      return {
+        type: "FeatureCollection",
+        features,
+      };
     } catch (error) {
       console.error("Error processing geofence data:", error);
       return null;
@@ -169,26 +200,7 @@ export default function MapVisualizationTrip({
 
   // Memoize the layers array
   const layers = React.useMemo(() => {
-    const baseLayers = [
-      new PulsePinLayer({
-        data: geoJson,
-        rotation,
-        zoom: viewState.zoom,
-        updateTriggers: {
-          data: positions,
-        },
-      }),
-      new PinLayer({
-        data: positions ? [positions[positions.length - 1]] : [],
-        zoom: viewState.zoom,
-        onClick: ({ object }: { object: any }) => {
-          zoom_on_pin(object, setViewState, viewState);
-        },
-        updateTriggers: {
-          data: positions,
-        },
-      }),
-    ];
+    const baseLayers = [];
 
     // Add geofence layer if available
     if (processedGeofence) {
@@ -198,6 +210,34 @@ export default function MapVisualizationTrip({
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(object, setViewState, viewState);
+          },
+        }),
+      );
+    }
+
+    if (geoJson) {
+      baseLayers.push(
+        new PulsePinLayer({
+          data: geoJson,
+          rotation,
+          zoom: viewState.zoom,
+          updateTriggers: {
+            data: positions,
+          },
+        }),
+      );
+    }
+
+    if (positions?.length != 0) {
+      baseLayers.push(
+        new PinLayer({
+          data: positions ? [positions[positions.length - 1]] : [],
+          zoom: viewState.zoom,
+          onClick: ({ object }: { object: any }) => {
+            zoom_on_pin(object, setViewState, viewState);
+          },
+          updateTriggers: {
+            data: positions,
           },
         }),
       );

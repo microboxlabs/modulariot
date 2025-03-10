@@ -68,7 +68,7 @@ export default function GeneralMap({
           <MapVisualizationTrip
             positions={positions}
             error={error}
-            tripId={tripId ?? ""}
+            tripId={id ?? ""}
           />
         </div>
       </div>

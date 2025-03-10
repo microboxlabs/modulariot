@@ -6,14 +6,10 @@ import {
   useMapPositionsResume,
 } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import { MapPositionResume } from "../types/map";
 export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
   const { positions: mapPositions, isLoading, error } = useMapPositions();
-  const {
-    data: mapPositionsResume,
-    isLoading: isLoadingResume,
-    error: errorResume,
-  } = useMapPositionsResume();
+  const { data: mapPositionsResume } = useMapPositionsResume();
 
   if (isLoading) {
     return (
@@ -40,7 +36,7 @@ export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
     <MapVisualization
       dict={dict}
       mapPositions={mapPositions}
-      mapPositionsResume={mapPositionsResume}
+      mapPositionsResume={mapPositionsResume as MapPositionResume}
     />
   );
 }

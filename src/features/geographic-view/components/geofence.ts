@@ -6,9 +6,9 @@ export class GeofenceLayer extends CompositeLayer<any> {
       new GeoJsonLayer({
         id: "geofence-layer",
         data: this.props.data,
-        getFillColor: [160, 160, 180, 200],
+        getFillColor: [255, 105, 180, 100],
         getLineColor: [255, 255, 255, 255],
-        getLineWidth: 2,
+        getLineWidth: 5,
       }),
     ];
   }

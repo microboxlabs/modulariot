@@ -266,3 +266,16 @@ export function useMapPositionsResume() {
     mutate,
   };
 }
+
+export function useGeofences(tripId: string) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/map/geofences?tripId=${tripId}`,
+    fetcher,
+  );
+
+  return {
+    geofence_data: data,
+    geofence_error: error,
+    geofence_isLoading: isLoading,
+  };
+}

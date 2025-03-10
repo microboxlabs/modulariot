@@ -79,6 +79,7 @@ export default function GeneralMap({
           <MapVisualizationTrip
             positions={positions}
             error={error}
+            tripId={id ?? ""}
             averagePosition={averagePosition}
           />
         </div>

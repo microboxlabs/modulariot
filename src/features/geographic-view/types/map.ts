@@ -1,3 +1,5 @@
+import React from "react";
+
 export interface Symptom {
   created_at: string;
   description: string | null;
@@ -133,4 +135,19 @@ export interface MapSensorAcceleration {
   y_axis: number;
   z_axis: number;
   g_force: number | null;
+}
+
+export interface MapPositionResume {
+  sections: MapSection[];
+}
+
+export interface MapSection {
+  title: string;
+  icon: React.ReactNode;
+  items: MapItem[];
+}
+
+export interface MapItem {
+  key: string;
+  value: number;
 }

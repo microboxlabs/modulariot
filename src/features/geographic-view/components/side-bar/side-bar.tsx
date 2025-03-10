@@ -6,22 +6,33 @@ import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
-export default function SideBar({ dict }: { dict: I18nRecord }) {
-  const inner_menu = [
-    {
-      button_text: (dict.symptoms as I18nRecord).monitoring as string,
-      component: <Monitoring dict={dict} />,
-    },
-    {
-      button_text: (dict.symptoms as I18nRecord).symptoms as string,
-      component: <Symptoms dict={dict} />,
-    },
-    {
-      button_text: (dict.symptoms as I18nRecord).download as string,
-      component: <Download dict={dict} />,
-    },
-  ];
+import { MapPositionResume } from "@/features/geographic-view/types/map";
+export default function SideBar({
+  dict,
+  mapPositionsResume,
+}: {
+  dict: I18nRecord;
+  mapPositionsResume: MapPositionResume;
+}) {
+  const inner_menu = React.useMemo(
+    () => [
+      {
+        button_text: (dict.symptoms as I18nRecord).monitoring as string,
+        component: (
+          <Monitoring dict={dict} mapPositionsResume={mapPositionsResume} />
+        ),
+      },
+      {
+        button_text: (dict.symptoms as I18nRecord).symptoms as string,
+        component: <Symptoms dict={dict} />,
+      },
+      {
+        button_text: (dict.symptoms as I18nRecord).download as string,
+        component: <Download dict={dict} />,
+      },
+    ],
+    [dict, mapPositionsResume],
+  );
 
   const [open, set_open] = useState(false);
   const [openned_menu, set_openned_menu] = useState(0);

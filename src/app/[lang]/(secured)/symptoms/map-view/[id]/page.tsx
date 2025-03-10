@@ -22,6 +22,9 @@ export default async function SymptomList({
   const [, dict] = await getDictionary(lang);
   // Get tripId from query parameters if available
   const tripId = searchParams.tripId;
+
+  console.log(id);
+
   const assetId = searchParams.assetId;
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">

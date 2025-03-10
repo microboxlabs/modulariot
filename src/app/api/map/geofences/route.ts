@@ -29,15 +29,16 @@ export async function GET(req: NextRequest) {
   try {
     const token = await authToken.getToken();
 
-    const response = await fetch(
-      SYMPTOMS_API_URL + "?p_trip_id=" + req.nextUrl.searchParams.get("tripId"),
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: ` Bearer ${token}`,
-        },
+    const tripId = req.nextUrl.searchParams.get("tripId");
+
+    if (!tripId) return NextResponse.error();
+
+    const response = await fetch(SYMPTOMS_API_URL + "?p_trip_id=" + tripId, {
+      headers: {
+        accept: "application/json",
+        Authorization: ` Bearer ${token}`,
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

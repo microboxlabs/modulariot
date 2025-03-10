@@ -39,7 +39,7 @@ export default function StatusCard({
     <div
       /* onClick={() => router.push("/symptoms/symptoms-list")} */
       className={twMerge(
-        "grow p-3",
+        "px-3 py-1",
         "bg-white",
         "rounded-lg",
         "shadow-md",
@@ -54,8 +54,8 @@ export default function StatusCard({
       )}
     >
       <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
-        <div className="flex flex-row justify-between gap-5">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-row justify-between gap-4">
+          <div className="flex items-center gap-2">
             <div
               className={twMerge(
                 "w-6 h-6",

@@ -432,6 +432,8 @@
     "map-view": "Vista de mapa",
     "restablished_symptoms": "Síntomas restablecidos",
     "under_treatment": "Síntomas siendo tratados",
-    "symptoms_being_treated": "Síntomas siendo tratados"
+    "symptoms_being_treated": "Síntomas siendo tratados",
+    "critical_symptoms": "Síntomas críticos",
+    "compromised_condition": "Condición comprometida"
   }
 }

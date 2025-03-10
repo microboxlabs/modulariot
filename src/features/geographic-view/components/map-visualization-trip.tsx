@@ -200,25 +200,25 @@ export default function MapVisualizationTrip({
     if (!geofence_data?.data || geofence_data.data.length === 0) return null;
 
     try {
-      // Process all geofences into features
-      const features = geofence_data.data.map((item: GeofenceData) => {
-        const wkbHexString = item.zone.location;
-        const wkbBuffer = Buffer.from(wkbHexString, "hex");
-        const geometry = wkx.Geometry.parse(wkbBuffer);
+      // Process all geofences into features, filtering out null locations
+      const features = geofence_data.data
+        .filter((item: GeofenceData) => item.zone.location !== null)
+        .map((item: GeofenceData) => {
+          const wkbHexString = item.zone.location;
+          const wkbBuffer = Buffer.from(wkbHexString, "hex");
+          const geometry = wkx.Geometry.parse(wkbBuffer);
 
-        return {
-          type: "Feature",
-          geometry: geometry.toGeoJSON(),
-          properties: {
-            // You can add additional properties from your zone data here
-            id: item.zone.id,
-            name: item.zone.name,
-            // Add any other relevant properties from item.zone
-          },
-        };
-      });
+          return {
+            type: "Feature",
+            geometry: geometry.toGeoJSON(),
+            properties: {
+              id: item.zone.id,
+              name: item.zone.name,
+            },
+          };
+        });
 
-      // Return a FeatureCollection containing all geofences
+      // Return a FeatureCollection containing all valid geofences
       return {
         type: "FeatureCollection",
         features,
@@ -234,7 +234,7 @@ export default function MapVisualizationTrip({
     const baseLayers = [];
 
     // Add geofence layer if available
-    if (processedGeofence) {
+    if (processedGeofence && processedGeofence.features.length > 0) {
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,

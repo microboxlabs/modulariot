@@ -430,6 +430,23 @@
     "under_treatment": "Symptoms being treated",
     "symptoms_being_treated": "Symptoms being treated",
     "critical_symptoms": "Critical symptoms",
-    "compromised_condition": "Compromised condition"
+    "compromised_condition": "Compromised condition",
+    "general": "General",
+    "services": "Services",
+    "flotas": "Flotas",
+    "vehicles": "Vehicles",
+    "containers": "Containers",
+    "drivers": "Drivers",
+    "active_monitored": "Active monitored",
+    "vehicle_signal_quality": "Vehicle signal quality",
+    "vehicle_signal_delay": "Vehicle signal delay",
+    "compromised": "Compromised",
+    "critical": "Critical",
+    "black_code": "Black code",
+    "monitoring_hours": "Monitoring hours",
+    "monitored_distance": "Monitored distance",
+    "emergencies": "Emergencies",
+    "in_transit": "In transit",
+    "in_destination": "In destination"
   }
 }

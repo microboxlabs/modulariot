@@ -241,7 +241,7 @@ export default function MapVisualization({
           setPositions={setPositions}
         />
         <div className="absolute right-0 top-0 bottom-0">
-          <SideBar dict={dict} />
+          <SideBar dict={dict} positions={positions} />
         </div>
       </DeckGL>
     </div>

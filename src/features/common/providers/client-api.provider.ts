@@ -12,7 +12,10 @@ import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types
 import { FetcherError } from "./fetcher.types";
 import { SymptomDashboard } from "../../symptoms/types/symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
-import { MapPosition } from "@/features/geographic-view/types/map";
+import {
+  MapPosition,
+  MapPositionResume,
+} from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
 
 // export function useI8n(lang: string) {
@@ -236,6 +239,30 @@ export function useMapPositions() {
     isError: !!error,
     error,
     count: data?.length || 0,
+    mutate,
+  };
+}
+
+export function useMapPositionsResume() {
+  const { data, error, isLoading, mutate } = useSWR<MapPositionResume, Error>(
+    "/app/api/map/resume",
+    async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch map positions");
+      const data = (await response.json()) as MapPositionResume;
+      return data;
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    data: data || [],
+    isLoading,
+    isError: !!error,
+    error,
     mutate,
   };
 }

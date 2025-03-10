@@ -432,23 +432,6 @@
     "map-view": "Vista de mapa",
     "restablished_symptoms": "Síntomas restablecidos",
     "under_treatment": "Síntomas siendo tratados",
-    "symptoms_being_treated": "Síntomas siendo tratados",
-    "services": "Servicios",
-    "flotas": "Flotas",
-    "vehicles": "Vehículos",
-    "containers": "Contenedores",
-    "drivers": "Conductores",
-    "active_monitored": "Monitoreados activos",
-    "vehicle_signal_quality": "Calidad de señal de vehículos",
-    "vehicle_signal_delay": "Retraso de señal de vehículos",
-    "compromised": "Comprometido",
-    "critical": "Crítico",
-    "black_code": "Código negro",
-    "monitoring_hours": "Horas monitoreadas",
-    "monitored_distance": "Distancia monitoreada",
-    "emergencies": "Emergencias",
-    "in_transit": "En tránsito",
-    "in_destination": "En destino",
-    "general": "General"
+    "symptoms_being_treated": "Síntomas siendo tratados"
   }
 }

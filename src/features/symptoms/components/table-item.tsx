@@ -23,47 +23,47 @@ export default function TableItem({
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
           <div className="flex items-center gap-2">
-            <ConditionIcon condition={data.condition} size="h-8 w-8" />
+            <ConditionIcon condition={data.condition} size="h-7 w-7" />
             <p
-              className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+              className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
               {data.licensePlate}
             </p>
           </div>
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.time} {(dict.symptoms as I18nRecord).sec as string}.
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.trip}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.driver}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {new Date(data.date).toLocaleString()}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.service}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
           {data.alertType}
         </TableCell>
         <TableCell
-          className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           <div className="flex items-center gap-2">
             {data.status ? (
@@ -99,16 +99,16 @@ export default function TableItem({
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex items-center gap-2">
-          <ConditionIcon condition={data.condition} size="h-8 w-8" />
+          <ConditionIcon condition={data.condition} size="h-7 w-7" />
           <p
-            className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+            className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
           >
             {data.licensePlate}
           </p>
         </div>
       </TableCell>
       <TableCell
-        className={`text-xs ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+        className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
       >
         {new Date(data.date).toLocaleString()}
       </TableCell>

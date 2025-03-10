@@ -1,18 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Label } from "flowbite-react";
 import { HiTruck } from "react-icons/hi";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { GiAtom } from "react-icons/gi";
 import ExpandableButton from "../../../../symptoms/components/expandable-button";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { MapPosition } from "@/features/geographic-view/types/map";
-import icuConditions from "@/features/symptoms/model/icu_condition.json";
+import { MapPositionResume } from "@/features/geographic-view/types/map";
+
 export default function Monitoring({
   dict,
-  positions,
+  mapPositionsResume,
 }: {
   dict: I18nRecord;
-  positions: MapPosition[];
+  mapPositionsResume: MapPositionResume;
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -20,242 +20,134 @@ export default function Monitoring({
     () => ({
       sections: [
         {
-          title: "Servicios",
+          title: (dict.symptoms as I18nRecord).services as string,
           icon: <FaArrowsRotate />,
           items: [
             {
-              key: "Viajes",
-              value: positions.length > 0 ? positions.length : 0,
+              key: (dict.symptoms as I18nRecord).trips as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[0]?.value
+                : 0,
             },
             {
-              key: "Emergencias",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["code_black"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).emergencies as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[1]?.value
+                : 0,
             },
             {
-              key: "En tránsito",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.engine_status === "On" && position.is_moving,
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).in_transit as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[2]?.value
+                : 0,
             },
             {
-              key: "En destino",
-              value: 0,
+              key: (dict.symptoms as I18nRecord).in_destination as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[3]?.value
+                : 0,
             },
             {
-              key: "Horas de monitoreo",
-              value: 0,
+              key: (dict.symptoms as I18nRecord).monitoring_hours as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[4]?.value
+                : 0,
             },
             {
-              key: "Distancia monitoreada (km)",
-              value: 0,
+              key: (dict.symptoms as I18nRecord).monitored_distance as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[0]?.items?.[5]?.value
+                : 0,
             },
           ],
         },
         {
-          title: "Flotas",
+          title: (dict.symptoms as I18nRecord).flotas as string,
           icon: <HiTruck />,
           items: [
             {
-              key: "Activos monitoreados",
-              value: positions.length > 0 ? positions.length : 0,
+              key: (dict.symptoms as I18nRecord).active_monitored as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[0]?.value
+                : 0,
             },
             {
-              key: "Vehículos",
-              value: positions.length > 0 ? positions.length : 0,
+              key: (dict.symptoms as I18nRecord).vehicles as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[1]?.value
+                : 0,
             },
             {
-              key: "Calidad de señal de vehículos (spm)",
-              value: 0,
+              key: (dict.symptoms as I18nRecord)
+                .vehicle_signal_quality as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[2]?.value
+                : 0,
             },
             {
-              key: "Retraso de señal de vehículos (seg)",
-              value: 0,
+              key: (dict.symptoms as I18nRecord).vehicle_signal_delay as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[3]?.value
+                : 0,
             },
             {
-              key: "Contenedores",
-              value: 0,
+              key: (dict.symptoms as I18nRecord).containers as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[4]?.value
+                : 0,
             },
             {
-              key: "Conductores",
-              value: positions.length > 0 ? positions.length : 0,
+              key: (dict.symptoms as I18nRecord).drivers as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[1]?.items?.[5]?.value
+                : 0,
             },
           ],
         },
         {
-          title: "Síntomas",
+          title: (dict.symptoms as I18nRecord).symptoms as string,
           icon: <GiAtom />,
           items: [
             {
-              key: "Estable",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["stable"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).stable as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[2]?.items?.[0]?.value
+                : 0,
             },
             {
-              key: "En observación",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["under_observation"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).in_observation as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[2]?.items?.[1]?.value
+                : 0,
             },
             {
-              key: "Comprometido",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["compromised_condition"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).compromised as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[2]?.items?.[2]?.value
+                : 0,
             },
             {
-              key: "Critico",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["critical_condition"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).critical as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[2]?.items?.[3]?.value
+                : 0,
             },
             {
-              key: "Código negro",
-              value:
-                positions.length > 0
-                  ? positions.filter(
-                      (position) =>
-                        position.symptoms &&
-                        position.symptoms[0].icu_code ===
-                          +icuConditions["code_black"],
-                    ).length
-                  : 0,
+              key: (dict.symptoms as I18nRecord).black_code as string,
+              value: mapPositionsResume?.sections
+                ? mapPositionsResume?.sections[2]?.items?.[4]?.value
+                : 0,
             },
           ],
         },
       ],
     }),
-    [positions],
-  ) || {
-    sections: [
-      {
-        title: "Servicios",
-        icon: <FaArrowsRotate />,
-        items: [
-          {
-            key: "Viajes",
-            value: 0,
-          },
-          {
-            key: "Emergencias",
-            value: 0,
-          },
-          {
-            key: "En tránsito",
-            value: 0,
-          },
-          {
-            key: "En destino",
-            value: 0,
-          },
-          {
-            key: "Horas de monitoreo",
-            value: 0,
-          },
-          {
-            key: "Distancia monitoreada (km)",
-            value: 0,
-          },
-        ],
-      },
-      {
-        title: "Flotas",
-        icon: <HiTruck />,
-        items: [
-          {
-            key: "Activos monitoreados",
-            value: 0,
-          },
-          {
-            key: "Vehículos",
-            value: 0,
-          },
-          {
-            key: "Calidad de señal de vehículos (spm)",
-            value: 0,
-          },
-          {
-            key: "Retraso de señal de vehículos (seg)",
-            value: 0,
-          },
-          {
-            key: "Contenedores",
-            value: 0,
-          },
-          {
-            key: "Conductores",
-            value: 0,
-          },
-        ],
-      },
-      {
-        title: "Síntomas",
-        icon: <GiAtom />,
-        items: [
-          {
-            key: "Estable",
-            value: 0,
-          },
-          {
-            key: "En observación",
-            value: 0,
-          },
-          {
-            key: "Comprometido",
-            value: 0,
-          },
-          {
-            key: "Critico",
-            value: 0,
-          },
-          {
-            key: "Código negro",
-            value: 0,
-          },
-        ],
-      },
-    ],
-  };
+    [mapPositionsResume, dict],
+  );
 
   useEffect(() => {
-    console.log(positions);
-  }, [positions]);
+    console.log(mapPositionsResume);
+  }, [mapPositionsResume]);
 
   useEffect(() => {
     const handleWheel = (event: WheelEvent) => {
@@ -277,7 +169,7 @@ export default function Monitoring({
   return (
     <div className="w-full flex flex-col gap-4">
       <Label className="w-full flex text-left text-lg text-gray-900 dark:text-white">
-        General
+        {(dict.symptoms as I18nRecord).general as string}
       </Label>
       {/* Glota total */}
       <div
@@ -294,7 +186,10 @@ export default function Monitoring({
           >
             <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
               {section.items.map((item: any) => (
-                <p className="text-gray-900 dark:text-white" key={item.key}>
+                <p
+                  className="text-gray-900 dark:text-white first-letter:capitalize"
+                  key={item.key}
+                >
                   {item.key}:{" "}
                   <span className="text-gray-500 dark:text-gray-400">
                     {item.value}

@@ -21,9 +21,7 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-/**
- * @deprecated
- */
+/*
 export async function GETa(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -46,7 +44,7 @@ export async function GETa(req: NextRequest) {
 
     const params = new URLSearchParams();
     params.set("tripId", tripId);
-    /* const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
+    const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,
@@ -100,7 +98,7 @@ export async function GETa(req: NextRequest) {
     return NextResponse.json({
       data: positions,
       hasMore: false,
-    }); */
+    }); 
   } catch (error) {
     return NextResponse.json(
       {
@@ -111,6 +109,7 @@ export async function GETa(req: NextRequest) {
     );
   }
 }
+*/
 
 export async function GET(req: NextRequest) {
   const session = await auth();

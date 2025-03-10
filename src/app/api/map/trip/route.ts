@@ -21,6 +21,9 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
+/**
+ * @deprecated
+ */
 export async function GETa(req: NextRequest) {
   const session = await auth();
   if (!session) {

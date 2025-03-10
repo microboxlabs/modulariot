@@ -277,5 +277,5 @@ export function useGeofences(tripId: string) {
     geofence_data: data,
     geofence_error: error,
     geofence_isLoading: isLoading,
- };
+  };
 }

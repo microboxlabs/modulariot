@@ -238,10 +238,6 @@ export default function MapVisualizationTrip({
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,
-          zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
-          },
         }),
       );
     }
@@ -265,7 +261,13 @@ export default function MapVisualizationTrip({
           data: positions ? [positions[positions.length - 1]] : [],
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
+            zoom_on_pin(
+              object.geometry.coordinates[0],
+              object.geometry.coordinates[1],
+              false,
+              setViewState,
+              viewState,
+            );
           },
           updateTriggers: {
             data: positions,
@@ -287,7 +289,6 @@ export default function MapVisualizationTrip({
       console.log("Loading geofences...");
     }
   }, [geofence_error, geofence_isLoading]);
-
 
   if (error) {
     console.error("Map error:", error);

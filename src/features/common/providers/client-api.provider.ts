@@ -17,6 +17,7 @@ import {
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
+import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -277,5 +278,18 @@ export function useGeofences(tripId: string) {
     geofence_data: data,
     geofence_error: error,
     geofence_isLoading: isLoading,
+  };
+}
+
+export function useTreatmentsTemplates(id: string) {
+  const { data, error, isLoading } = useSWR<
+    TreatmentsTemplatesResponse,
+    FetcherError
+  >(`/app/api/treatments/templates?id=${id}`, fetcher);
+
+  return {
+    treatments_templates: data,
+    treatments_templates_error: error,
+    treatments_templates_isLoading: isLoading,
   };
 }

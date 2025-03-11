@@ -9,7 +9,7 @@ import { FaCheck, FaPhoneAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
@@ -19,12 +19,14 @@ export default function BlurrableSteppedMenu({
   className,
   dict,
   lang,
+  treatmentData,
 }: {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   className: string;
   dict: I18nRecord;
   lang: string;
+  treatmentData: TreatmentsGeneralResponseItem | null;
 }) {
   const side_sections = [
     {
@@ -38,7 +40,7 @@ export default function BlurrableSteppedMenu({
             <SideInfoData
               dict={dict}
               lang={lang}
-              treatmentData={null}
+              treatmentData={treatmentData}
               loading={false}
               error={null}
             />
@@ -58,7 +60,7 @@ export default function BlurrableSteppedMenu({
           element_name: (dict.symptoms as I18nRecord).call_driver as string,
           description: (dict.symptoms as I18nRecord)
             .call_driver_description as string,
-          component: <CallDriver dict={dict} />,
+          component: <CallDriver dict={dict} treatmentData={treatmentData} />,
           icon: <FaPhoneAlt className="h-5 w-5" />,
           logo: null,
           button: {

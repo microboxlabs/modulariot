@@ -1,7 +1,14 @@
 import { Textarea } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 
-export default function CallDriver({ dict }: { dict: I18nRecord }) {
+export default function CallDriver({
+  dict,
+  treatmentData,
+}: {
+  dict: I18nRecord;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+}) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-5 flex-grow">
@@ -13,31 +20,31 @@ export default function CallDriver({ dict }: { dict: I18nRecord }) {
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).driver_name as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                Anonimo Andres
+                {treatmentData?.trip_info.driver}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).vehicle_plate as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                XX BB 21
+                {treatmentData?.trip_info.asset_id}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).phone as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                +56 9 8241 9297
+                {/* treatmentData.phone */}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).service as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                V-1406865
+                {treatmentData?.symptom_info.name}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).load_type as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                Rampla Sider
+                {/* treatmentData?.symptom_info.type */}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">

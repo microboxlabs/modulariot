@@ -9,6 +9,7 @@ import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-
 import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
 export default function SideInfo({
   dict,
   lang,
@@ -36,6 +37,7 @@ export default function SideInfo({
         dict={dict}
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
+        treatmentData={treatmentData}
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-[90%] overflow-y-auto">

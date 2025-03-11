@@ -1,5 +1,4 @@
 import { MapPosition } from "../types/map";
-
 export class MapService {
   static async getPositions(): Promise<MapPosition[]> {
     const response = await fetch("/app/api/map");
@@ -18,7 +17,7 @@ export class MapService {
     });
   }
 
-  private static parseWKBPoint(wkbPoint: string): [number, number] {
+  public static parseWKBPoint(wkbPoint: string): [number, number] {
     try {
       // Skip first 8 bytes (endian + type + srid) by starting from position 18
       const lonHex = wkbPoint.substring(18, 34);

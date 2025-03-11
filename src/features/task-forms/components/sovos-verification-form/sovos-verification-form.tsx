@@ -43,6 +43,8 @@ export default function SovosVerificationForm({
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);
     formData.append("signerRuts", signerRuts);
+    formData.append("taskType", "sovosVerification");
+
     const result = await taskSignDocument({}, formData);
 
     if (result.success) {
@@ -148,6 +150,7 @@ export default function SovosVerificationForm({
             user={user}
             pluginReady={pluginReady}
             stepperController={stepperController}
+            isSovosVerification={true}
           />
         )}
       {(stepper.currentStep === "step2" ||
@@ -160,6 +163,7 @@ export default function SovosVerificationForm({
             pluginReady={pluginReady}
             stepperController={stepperController}
             success={!stepper.isError}
+            isSovosVerification={true}
             user={user}
           />
         )}

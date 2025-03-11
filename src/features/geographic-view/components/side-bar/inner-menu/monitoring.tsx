@@ -1,9 +1,10 @@
+import React, { useEffect, useRef } from "react";
 import { Label } from "flowbite-react";
 import { HiTruck } from "react-icons/hi";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { GiAtom } from "react-icons/gi";
 import ExpandableButton from "../../../../symptoms/components/expandable-button";
-
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 const data = {
   sections: [
     {
@@ -95,14 +96,36 @@ const data = {
   ],
 };
 
-export default function Monitoring(_dict: any) {
+export default function Monitoring(_dict: I18nRecord) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleWheel = (event: WheelEvent) => {
+      event.stopPropagation();
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener("wheel", handleWheel);
+    }
+
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("wheel", handleWheel);
+      }
+    };
+  }, []);
+
   return (
     <div className="w-full flex flex-col gap-4">
       <Label className="w-full flex text-left text-lg text-gray-900 dark:text-white">
         General
       </Label>
       {/* Glota total */}
-      <div className="w-full flex flex-col gap-2">
+      <div
+        ref={scrollContainerRef}
+        className="z-50 w-full h-full overflow-y-auto flex flex-col gap-2"
+      >
         {data.sections.map((section: any) => (
           <ExpandableButton
             key={section.title}

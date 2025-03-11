@@ -5,6 +5,7 @@ import SideInfoData from "../side-info-data";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
 import { getCallDriver, getDeriveToSpecialist } from "./menus/menus";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -20,18 +21,27 @@ export default function BlurrableSteppedMenu({
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   className: string;
-  dict: any;
+  dict: I18nRecord;
   lang: string;
   selectedOption: string;
 }) {
   const base_sections = [
     {
-      title: dict.symptoms.symptoms,
+      title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
         {
-          element_name: `${dict.symptoms.code_black}: ${dict.symptoms.continuous_driving_state}`,
-          description: dict.symptoms.symptom_information,
-          component: <SideInfoData dict={dict} lang={lang} />,
+          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
+          description: (dict.symptoms as I18nRecord)
+            .symptom_information as string,
+          component: (
+            <SideInfoData
+              dict={dict}
+              lang={lang}
+              treatmentData={null}
+              loading={false}
+              error={null}
+            />
+          ),
           icon: null,
           logo: (
             <Image src={noAlarmImage} alt="Icon" width={100} height={100} />

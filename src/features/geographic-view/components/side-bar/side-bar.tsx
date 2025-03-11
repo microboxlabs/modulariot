@@ -4,15 +4,21 @@ import { HiChevronLeft } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
+import Symptoms from "./inner-menu/symptoms";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function SideBar({ dict }: { dict: any }) {
+export default function SideBar({ dict }: { dict: I18nRecord }) {
   const inner_menu = [
     {
-      button_text: "Monitoring",
+      button_text: (dict.symptoms as I18nRecord).monitoring as string,
       component: <Monitoring dict={dict} />,
     },
     {
-      button_text: "Download",
+      button_text: (dict.symptoms as I18nRecord).symptoms as string,
+      component: <Symptoms dict={dict} />,
+    },
+    {
+      button_text: (dict.symptoms as I18nRecord).download as string,
       component: <Download dict={dict} />,
     },
   ];
@@ -43,7 +49,7 @@ export default function SideBar({ dict }: { dict: any }) {
           className={` bg-white dark:bg-gray-800 flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
         >
           <div
-            className={` w-full flex flex-col items-center m-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
+            className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
             <Button.Group>
               {inner_menu.map((menu, i) => (
@@ -57,7 +63,7 @@ export default function SideBar({ dict }: { dict: any }) {
                 </Button>
               ))}
             </Button.Group>
-            <div className="flex h-full w-full justify-center mt-6">
+            <div className="flex flex-grow  w-full justify-center overflow-y-auto">
               {component}
             </div>
           </div>

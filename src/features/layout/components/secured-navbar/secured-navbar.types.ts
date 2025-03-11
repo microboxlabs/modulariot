@@ -1,5 +1,6 @@
 export type NavBarMessages = {
   signOutLabel: string;
+  search: string;
 };
 
 export type SecuredNavBarProps = {

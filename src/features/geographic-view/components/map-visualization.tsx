@@ -1,20 +1,17 @@
 "use client";
 
-/* eslint-disable */
-
 import React, { useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator, PickingInfo } from "deck.gl";
+import DeckGL, { FlyToInterpolator } from "deck.gl";
+import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
-import { HiChevronLeft } from "react-icons/hi";
-import MapButton from "./map-button";
 import SideBar from "./side-bar/side-bar";
-import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { useMapPositions } from "../hooks/use-map-positions";
 import { MapPosition, MapPositionProperties } from "../types/map";
-// This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
+import Filters from "./filters";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
   "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
@@ -45,12 +42,14 @@ type ViewStateType = {
 };
 
 const INITIAL_VIEW_STATE: ViewStateType = {
-  longitude: -70.668505,
-  latitude: -33.439764,
+  longitude: 0,
+  latitude: 0,
   zoom: 6.5,
-  pitch: 0,
-  bearing: 0,
-  transitionDuration: 1000,
+  // base rotation
+  pitch: 45,
+  bearing: 45,
+  // base rotation
+  transitionDuration: 500,
   transitionInterpolator: new FlyToInterpolator(),
   transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
   padding: {
@@ -63,42 +62,6 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
-/* const GenerateRandomPositions = (numberOfPositions: number) => {
-  return Array.from({ length: numberOfPositions }, () => ({
-    longitude: Math.random() * 360 - 180,
-    latitude: Math.random() * 180 - 90,
-    rotation: Math.random() * 360,
-  }));
-};
-
-const positions = GenerateRandomPositions(1000); */
-
-/* INDIVIDUAL POSITION TEST */
-const individual_position_test = [
-  {
-    longitude: -70.668505,
-    latitude: -33.439764,
-    rotation: 0,
-  },
-];
-
-const states = ["stable", "critical", "code black", "none"];
-
-/* const generateRandomPulsarPositions = (count: number) => {
-  return Array.from({ length: count }, () => ({
-    state: states[Math.floor(Math.random() * states.length)],
-    geometry: {
-      coordinates: [
-        Math.random() * 360 - 180, // Random longitude
-        Math.random() * 180 - 90, // Random latitude
-      ],
-    },
-  }));
-};
-
-// Example usage
-const pulsar_position_test = generateRandomPulsarPositions(100000); */
-
 const stateToColor = {
   "code black": [0, 0, 0], // Black
   critical: [244, 63, 94], // Red
@@ -110,34 +73,55 @@ const stateToColor = {
   none: [180, 180, 180], // Gray for null state
 };
 
-// Convert the data to GeoJSON
-/* const geoJson = {
-  type: "FeatureCollection",
-  features: pulsar_position_test.map((item) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: item.geometry.coordinates,
-    },
-    properties: {
-      color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0], // Default to black if state is unknown
-    },
-  })),
-}; */
-
-/* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
-  dict: any;
+  mapPositions: MapPosition[] | null;
+  dict: I18nRecord;
   specific_view?: boolean;
 };
 
+function zoom_on_pin(
+  object: any,
+  setViewState: (viewState: ViewStateType) => void,
+  viewState: ViewStateType,
+) {
+  if (object) {
+    const longitude = object.geometry.coordinates[0];
+    const latitude = object.geometry.coordinates[1];
+
+    setViewState({
+      ...viewState,
+      longitude,
+      latitude,
+      zoom: object.properties.cluster ? viewState.zoom + 2.0 : 15.0,
+      transitionDuration: 1000,
+      transitionInterpolator: new FlyToInterpolator(),
+    });
+  }
+}
+
 export default function MapVisualization({
+  mapPositions,
   dict,
   specific_view = false,
 }: MapVisualizationProps) {
-  const [rotation, setRotation] = useState(0);
-  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const { positions: mapPositions, loading, error } = useMapPositions();
+  const [rotation, _] = useState(0);
+
+  // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
+  const NEW_INITIAL_VIEW_STATE = {
+    ...INITIAL_VIEW_STATE,
+    longitude:
+      mapPositions && mapPositions.length > 0
+        ? mapPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
+          mapPositions.length
+        : 0,
+    latitude:
+      mapPositions && mapPositions.length > 0
+        ? mapPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
+          mapPositions.length
+        : 0,
+  };
+
+  const [viewState, setViewState] = useState(NEW_INITIAL_VIEW_STATE);
 
   // Set initial view state when data is first received
   /* React.useEffect(() => {
@@ -156,147 +140,97 @@ export default function MapVisualization({
   }, [mapPositions]); */
 
   // Transform API data to GeoJSON format
-  const geoJson = React.useMemo(() => ({
-    type: "FeatureCollection",
-    features: mapPositions?.map((item: MapPosition) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [item.longitude, item.latitude],
-      },
-      properties: {
-        color: stateToColor[item.status as keyof typeof stateToColor] || [0, 0, 0],
-        rotation: (item.heading * (180 / Math.PI)),//item.rotation,
-        licensePlate: item.asset_id,//item.licensePlate,
-        driver: item.driver_id,//item.driver,
-        trip: item.trip_id,//item.trip,
-      },
-    })) || [],
-  }), [mapPositions]);
-  
+  const geoJson = React.useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features:
+        mapPositions?.map((item: MapPosition) => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [item.longitude, item.latitude],
+          },
+          properties: {
+            color: stateToColor[item.status as keyof typeof stateToColor] || [
+              0, 0, 0,
+            ],
+            rotation: item.heading * (180 / Math.PI),
+            licensePlate: item.asset_id,
+            driver: item.driver_id,
+            trip: item.trip_id,
+          },
+        })) || [],
+    }),
+    [mapPositions],
+  );
+
+  /*
+  // here we make a check for duplicated elements in map positions
+  const asset_id_counter = mapPositions?.reduce((acc: any, item) => {
+    acc[item.asset_id] = (acc[item.asset_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  console.log(asset_id_counter);
+  */
+
   const layers = !specific_view
     ? [
-      new PinLayer({
-        data: mapPositions || [],
-        zoom: viewState.zoom,
-      }),
-    ]
+        new PinLayer({
+          data: mapPositions || [],
+          zoom: viewState.zoom,
+          onClick: ({ object }: { object: any }) => {
+            zoom_on_pin(object, setViewState, viewState);
+          },
+          updateTriggers: {
+            data: mapPositions,
+          },
+        }),
+      ]
     : [
-      new PulsePinLayer({
-        data: geoJson,
-        rotation,
-        zoom: viewState.zoom,
-      }),
-      new PinLayer({
-        data: mapPositions ? [mapPositions[0]] : [],
-        zoom: viewState.zoom,
-      }),
-    ];
-
-  if (loading) {
-    return <div className="h-full w-full flex items-center justify-center">
-      <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
-    </div>;
-  }
-
-  if (error) {
-    console.error('Map error:', error);
-    // Continue rendering with empty data instead of showing error
-  }
+        new PulsePinLayer({
+          data: geoJson,
+          rotation,
+          zoom: viewState.zoom,
+        }),
+        new PinLayer({
+          data: mapPositions ? [mapPositions[0]] : [],
+          zoom: viewState.zoom,
+          onClick: ({ object }: { object: any }) => {
+            zoom_on_pin(object, setViewState, viewState);
+          },
+          getElevation: 1,
+        }),
+      ];
 
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        viewState={viewState}
+        initialViewState={viewState}
         controller={true}
         layers={layers}
-        onViewStateChange={({ viewState }) =>
-          setViewState(viewState as ViewStateType)
-        }
-        getTooltip={({object}: PickingInfo<MapPositionProperties>) => {
+        onViewStateChange={(e: any) => setViewState(e.viewState)}
+        getTooltip={({ object }: PickingInfo<MapPositionProperties>) => {
           if (object) {
             if (object.properties.cluster) {
               return null;
             }
-            return { text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}` };
+            return {
+              text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+            };
           }
           return null;
         }}
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          viewState={viewState}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
-        {!specific_view ? (
-          <div className="w-full h-full flex justify-between absolute">
-            <div className="m-5 gap-[14px] flex flex-col">
-              {/* <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es un texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es otro texto de ejemplo"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              />
-              <MapButton
-                main_color="bg-white dark:bg-gray-800"
-                button_color="bg-white dark:bg-gray-800"
-                icon={HiChevronLeft}
-                text="Este es el ultimo texto de ejemplo aaaaa"
-              /> */}
-            </div>
-            <SideBar dict={dict} />
-          </div>
-        ) : (
-          <div className="w-full h-full flex items-end absolute p-5 flex-col">
-            <MapButton
-              main_color="bg-white dark:bg-gray-800"
-              button_color="bg-white dark:bg-gray-800"
-              icon={BsStars}
-              text="Copilot"
-              open_to_left={true}
-            />
-          </div>
-        )}
+        <Filters dict={dict} />
+        <div className="absolute right-0 top-0 bottom-0">
+          <SideBar dict={dict} />
+        </div>
       </DeckGL>
-
-      {/* Rotation test elements */}
-      <div className="invisible absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rotation: {rotation}°
-        </label>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={rotation}
-          onChange={(e) => setRotation(Number(e.target.value))}
-          className="w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
-      </div>
     </div>
   );
 }

@@ -2,14 +2,8 @@
 
 import { FaClock } from "react-icons/fa";
 import TimedSymptoms from "./timed-symptoms";
-
-const test_data = [
-  {
-    time: "9:00 - 9:30",
-    total: 2210,
-  },
-];
-
+import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 function formatDate(date: Date, lang: string): string {
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
@@ -51,18 +45,15 @@ function getRelativeDayText(date: Date, lang: string): string {
   return `In ${Math.abs(diffDays)} days`;
 }
 
-export default function SymptomsData({
-  date,
-  container_index,
-  dict,
-  lang,
-}: {
-  date: string;
-  container_index: number;
-  dict: any;
+interface SymptomsDataProps {
+  data: SymptomsICUItemResponse[];
+  dict: I18nRecord;
   lang: string;
-}) {
-  const [year, month, day] = date.split("-").map(Number);
+}
+
+export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
+  const date_part = data[0].start_time.split("T")[0];
+  const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 
   return (
@@ -78,30 +69,30 @@ export default function SymptomsData({
               {getRelativeDayText(setted_date, lang)}
             </p>
             <p className="text-gray-500 dark:text-gray-400">
-              {dict.symptoms.total_symptoms}: 2210
+              {(dict.symptoms as I18nRecord).total_treatment as string}:
+              {data.reduce((acc, item) => acc + item.treatment_count, 0)}
             </p>
           </div>
         </div>
       </div>
       {/* Symptoms data */}
-      {test_data.map((item, index) => (
-        <div key={index} className="pl-3 flex flex-row  text-sm gap-10">
+      {/* {test_data.map((item, index) => ( */}
+      {data.map((item) => (
+        <div className="pl-3 flex flex-row  text-sm gap-10" key={item.id}>
           <div className="py-2">
             <div className="flex flex-row items-center justify-center gap-2 ">
               <FaClock color="gray" />
               <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-                {item.time}
+                {item.start_time.split("T")[1].slice(0, 5)}
               </div>
             </div>
           </div>
-          <div className="flex flex-grow flex-column gap-2">
-            <TimedSymptoms
-              dict={dict}
-              initial_state={index === 0 && container_index === 0}
-            />
+          <div className="flex flex-grow flex-column gap-2" key={item.id}>
+            <TimedSymptoms data={item} dict={dict} initial_state={true} />
           </div>
         </div>
       ))}
+      {/* ))} */}
     </div>
   );
 }

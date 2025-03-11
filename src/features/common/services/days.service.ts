@@ -29,10 +29,32 @@ dayjs.updateLocale("es-mx", {
   },
 });
 
+dayjs.updateLocale("en", {
+  relativeTime: {
+    future: "in %s",
+    past: "%s ago",
+    s: "a few seconds",
+    m: "a minute",
+    mm: "%d minutes",
+    h: "an hour",
+    hh: "%d hours",
+    d: "a day",
+    dd: "%d days",
+    M: "a month",
+    MM: "%d months",
+    y: "a year",
+    yy: "%d years",
+  },
+});
+
 export function configureLocale(locale?: string) {
+  console.log(locale);
+
   locale = locale || defaultLocale;
   if (locale === "es") {
     locale = "es-mx";
+  } else if (locale === "en") {
+    locale = "en";
   }
   dayjs.locale(locale);
 }

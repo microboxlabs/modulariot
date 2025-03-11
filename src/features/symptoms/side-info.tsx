@@ -2,20 +2,40 @@
 
 import { HiArrowRight } from "react-icons/hi";
 import { Button } from "flowbite-react";
-import BlurrableDropdown from "./components/blurrable-dropdown";
-import SideInfoData from "./components/side-info-data";
+import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
+import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
+import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
+import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
+export default function SideInfo({
+  dict,
+  lang,
+  symptomId,
+}: {
+  dict: I18nRecord;
+  lang: string;
+  symptomId: string;
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-5 p-5 h-full">
+        <SideMenuSkeleton />
+      </div>
+    );
+  }
 
   const [selectedOption, setSelectedOption] =
     useState<SelectedOption>("call_driver");
 
   return (
-    <div className="flex flex-col gap-5 p-10 h-full">
+    <div className="flex flex-col gap-5 p-5 h-full">
       <BlurrableSteppedMenu
         selectedOption={selectedOption}
         lang={lang}
@@ -25,7 +45,13 @@ export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-[90%] overflow-y-auto">
-        <SideInfoData dict={dict} lang={lang} />
+        <SideInfoData
+          dict={dict}
+          lang={lang}
+          treatmentData={treatmentData}
+          loading={loading}
+          error={error}
+        />
       </div>
       <div className="flex flex-col justify-self-end">
         <Button.Group className="w-full">
@@ -44,7 +70,7 @@ export default function SideInfo({ dict, lang }: { dict: any; lang: string }) {
               setSelectedOption("call_driver");
             }}
           >
-            {dict.symptoms.call_driver}
+            {(dict.symptoms as I18nRecord).call_driver as string}
             <HiArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Button.Group>

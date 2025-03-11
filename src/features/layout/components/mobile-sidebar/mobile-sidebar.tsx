@@ -51,7 +51,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
               </Sidebar.ItemGroup>
             </Sidebar.Items>
           </div>
-          <BottomMenu isCollapsed={false} dict={dict} />
+          <BottomMenu isCollapsed={false} dict={dict} pathname={pathname} />
         </div>
       </Sidebar>
       <div

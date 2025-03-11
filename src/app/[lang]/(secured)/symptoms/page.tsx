@@ -10,7 +10,7 @@ export default async function SymptomsPage({
   const [, dict] = await getDictionary(lang);
   return (
     <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
-      <div className="px-4 pt-6 pb-2">
+      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
           path={["mission_control", "symptoms"]}
           lang={lang}
@@ -22,9 +22,7 @@ export default async function SymptomsPage({
         The reason of why there is no padding here but in the individual elements inside, is because the
         animation of hiding the cards is not working if there is padding.
       */}
-      <div className="flex-1 relative overflow-y-auto">
-        <ClientSymptoms dict={dict} />
-      </div>
+      <ClientSymptoms dict={dict} />
     </div>
   );
 }

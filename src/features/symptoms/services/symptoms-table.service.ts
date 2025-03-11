@@ -26,7 +26,7 @@ export class SymptomsTableService {
     if (!response.ok) {
       throw new Error("Failed to fetch symptoms table");
     }
-
-    return response.json() as Promise<SymptomTableResponse>;
+    const data = await response.json();
+    return data as Promise<SymptomTableResponse>;
   }
 }

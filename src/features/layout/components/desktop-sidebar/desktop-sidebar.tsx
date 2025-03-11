@@ -11,9 +11,11 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
-import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
-import { useMapPositions } from "@/features/geographic-view/hooks/use-map-positions";
-import { useSymptoms } from "@/features/symptoms/hooks/use-symptoms";
+import {
+  useMapPositions,
+  useMyTasksCount,
+  useSymptoms,
+} from "@/features/common/providers/client-api.provider";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
@@ -87,7 +89,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
             </Sidebar.ItemGroup>
           </Sidebar.Items>
         </div>
-        <BottomMenu isCollapsed={isCollapsed} dict={dict} />
+        <BottomMenu isCollapsed={isCollapsed} dict={dict} pathname={pathname} />
       </div>
     </Sidebar>
   );

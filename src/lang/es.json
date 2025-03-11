@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos"
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -57,7 +58,8 @@
         "clientCode": "Código cliente",
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
-        "serviceKind": "Tipo de servicio"
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución"
       },
       "views": {
         "table": "Tabla",
@@ -81,6 +83,11 @@
       "backToHome": "Volver al inicio"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega"
+      },
       "stepper": {
         "step1": "Verificación de conductor",
         "step2": "Conductor verificado",
@@ -137,7 +144,8 @@
         "avg_every_signals_mov": "Tiempo promedio entre señales en movimiento",
         "ultimo_last_timestamp": "Fecha y hora del último evento",
         "avg_signals_per_minute_det": "Cantidad de señales por minuto en detenciones",
-        "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento"
+        "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
+        "write_here_your_observations": "Escribe aquí tus observaciones"
       }
     },
     "shippingDetailsTaskForm": {
@@ -192,7 +200,11 @@
         "confirmDelivery": "Confirmar Entrega",
         "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
         "monitoringFinalization": "Finalizar Monitoreo",
-        "redirectToMissionControl": "Devolver a Torre de Control"
+        "redirectToMissionControl": "Devolver a Torre de Control",
+        "authorizedWithoutGPS": "Autorizado sin GPS",
+        "authorizedWithRepairs": "Autorizado con reparos",
+        "canceledByOverlord": "Cancelado por Overlord",
+        "annulledByOverlord": "Anulado por Overlord"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -213,6 +225,7 @@
       "title": "Verificación de identidad",
       "driver": "Conductor",
       "validator": "Despachador",
+      "receiver": "Receptor",
       "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado.",
       "successTitle": "Identidad reconocida",
       "successDescription": "Su identidad ha sido reconocida exitosamente",
@@ -226,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Devolver a Torre de Control",
         "returnToTransportValidation": "Devolver a Validación de Transporte",
+        "confirmMonitoringFinalization": "Confirmar Entrega sin Firma Sovos",
         "returnToOverlord": "Devolver a Overlord",
         "tripInitiated": "Viaje Iniciado",
         "tripCanceled": "Viaje Cancelado",
@@ -262,11 +276,25 @@
     "errorTripView": {
       "title": "Viaje no encontrado",
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
+    },
+    "userSettings": {
+      "breadcrumb": {
+        "user": "Usuario",
+        "settings": "Ajustes"
+      },
+      "symptoms": {
+        "config": {
+          "title": "Configuración de síntomas",
+          "description": "Configura las notificaciones para los síntomas.",
+          "addButton": "Agregar"
+        }
+      }
     }
   },
   "layout": {
     "secured": {
       "signout": "Cerrar sesión",
+      "search": "Buscar",
       "sidebar": {
         "home": "Home",
         "tasks": "Mis tareas",
@@ -294,12 +322,23 @@
   },
   "symptoms": {
     "symptoms": "Síntomas",
+    "client": "Cliente",
+    "route": "Ruta",
+    "transporter": "Transportista",
+    "active": "Activo",
     "urgent_symptoms": "Síntomas urgentes",
-    "symptoms_under_treatment": "Síntomas bajo tratamiento",
+    "symptoms_under_treatment": "Síntomas siendo tratados",
     "code_black": "Código negro",
+    "4": "Código negro",
     "critical_condition": "Condición crítica",
+    "3": "Condición crítica",
     "condition_in_treatment": "Condición en tratamiento",
+    "in_treatment": "En tratamiento",
     "condition_in_observation": "Condición en observación",
+    "1": "Condición en observación",
+    "in_observation": "En observación",
+    "in_remission": "En remisión",
+    "stable": "Estable",
     "conditions": "Condiciones",
     "condition": "Condición",
     "active_time": "Tiempo activo",
@@ -312,14 +351,14 @@
     "showing": "Mostrando",
     "of": "de",
     "maximum_continuous_driving": "Conducción máxima continua",
-    "diagnose": "Diagnosticar",
+    "diagnose": "Tratar",
     "search": "Buscar",
     "seconds": "segundos",
     "sec": "seg",
-    "active": "activo",
     "days_ago": "días atrás",
     "total_symptoms": "Síntomas totales",
     "symptoms_detected": "Síntomas detectados",
+    "total_treatment": "Total tratamientos",
     "type_of_load": "Tipo de carga",
     "other": "Otros",
     "trip_time": "Tiempo del trayecto",
@@ -387,6 +426,16 @@
     "specialist": "Especialista",
     "select_entity": "Seleccionar entidad",
     "derive_to_specialist_description": "Derivar a especialista.",
-    "message_to_specialist": "Mensaje al especialista."
+    "message_to_specialist": "Mensaje al especialista.",
+    "markers": "Marcadores",
+    "started_trips": "Viajes iniciados",
+    "times": "Tiempos",
+    "monitoring": "Monitoreo",
+    "download": "Descargar",
+    "symptoms-list": "Lista de síntomas",
+    "map-view": "Vista de mapa",
+    "restablished_symptoms": "Síntomas restablecidos",
+    "under_treatment": "Síntomas siendo tratados",
+    "symptoms_being_treated": "Síntomas siendo tratados"
   }
 }

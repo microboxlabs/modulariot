@@ -48,6 +48,7 @@ import { ViewSwitcher } from "@/features/common/components/view-switcher/view-sw
 import { useViewPreference } from "../hooks/use-view-preference";
 import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
+import { configureLocale } from "@/features/common/services/days.service";
 
 export default function PageContent({
   showFinishedTasks,
@@ -62,6 +63,8 @@ export default function PageContent({
 
   const [page, setPage] = useState(1);
   const pageSize = 100;
+
+  configureLocale(lang);
 
   const {
     data: myTasksData,
@@ -119,7 +122,7 @@ export default function PageContent({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-auto mr-5">
+    <div className="w-full h-full flex flex-col overflow-auto">
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
@@ -135,10 +138,7 @@ export default function PageContent({
           />
         </div>
       </div>
-      <div
-        className="h-screen w-full overflow-auto mr-5"
-        style={{ paddingBottom: "20px" }}
-      >
+      <div className="h-screen w-full overflow-auto">
         {activeView === "kanban" ? (
           <div className="flex items-start justify-start space-x-4 px-4">
             {list.map((board) => {

@@ -29,7 +29,8 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping"
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -58,6 +59,7 @@
         "clientName": "Client",
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
+        "executionType": "Execution Type",
         "tripInformation": "Trip Information"
       },
       "views": {
@@ -82,6 +84,11 @@
       "backToHome": "Back to home"
     },
     "transportValidationForm": {
+      "breadcrumb": {
+        "tasks": "My tasks",
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery"
+      },
       "stepper": {
         "step1": "Driver verification",
         "step2": "Driver verified",
@@ -137,7 +144,8 @@
         "avg_every_signals_mov": "Average time between signals in motion",
         "ultimo_last_timestamp": "Date and time of the last event",
         "avg_signals_per_minute_det": "Number of signals per minute in stops",
-        "avg_signals_per_minute_mov": "Number of signals per minute in motion"
+        "avg_signals_per_minute_mov": "Number of signals per minute in motion",
+        "write_here_your_observations": "Write here your observations"
       }
     },
     "shippingDetailsTaskForm": {
@@ -192,7 +200,11 @@
         "confirmDelivery": "Confirm Delivery",
         "confirmMonitoringFinalization": "Confirm Monitoring Finalization",
         "monitoringFinalization": "Monitoring Finalized",
-        "redirectToMissionControl": "Redirect to Mission Control"
+        "redirectToMissionControl": "Redirect to Mission Control",
+        "authorizedWithoutGPS": "Authorized without GPS",
+        "authorizedWithRepairs": "Authorized with Repairs",
+        "canceledByOverlord": "Canceled by Overlord",
+        "annulledByOverlord": "Annulled by Overlord"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -213,6 +225,7 @@
       "title": "Identity verification",
       "driver": "Driver",
       "validator": "Dispatcher",
+      "receiver": "Receiver",
       "description": "Place your right index finger on the reader to be identified.",
       "successTitle": "Identity recognized",
       "successDescription": "Your identity has been successfully recognized",
@@ -226,6 +239,7 @@
       "outcome": {
         "returnToMissionControl": "Return to Mission Control",
         "returnToTransportValidation": "Return to Transport Validation",
+        "confirmMonitoringFinalization": "Confirm delivery without Sovos signature",
         "returnToOverlord": "Return to Overlord",
         "tripInitiated": "Trip initiated",
         "tripCanceled": "Trip canceled",
@@ -262,11 +276,25 @@
     "errorTripView": {
       "title": "Trip not found",
       "subtitle": "The trip you are looking for does not exist or is not available."
+    },
+    "userSettings": {
+      "breadcrumb": {
+        "user": "User",
+        "settings": "Settings"
+      },
+      "symptoms": {
+        "config": {
+          "title": "Symptoms configuration",
+          "description": "Configure notifications for symptoms.",
+          "addButton": "Add symptom"
+        }
+      }
     }
   },
   "layout": {
     "secured": {
       "signout": "Sign out",
+      "search": "Search",
       "sidebar": {
         "home": "Home",
         "tasks": "My tasks",
@@ -290,32 +318,43 @@
   },
   "symptoms": {
     "symptoms": "Symptoms",
+    "client": "Client",
+    "route": "Route",
+    "transporter": "Transporter",
+    "active": "Active",
     "urgent_symptoms": "Urgent symptoms",
-    "symptoms_under_treatment": "Symptoms under treatment",
-    "code_black": "code black",
-    "critical_condition": "critical condition",
+    "symptoms_under_treatment": "Symptoms being treated",
+    "code_black": "Black code",
+    "4": "Black code",
+    "critical_condition": "Critical condition",
+    "3": "Critical condition",
     "condition_in_treatment": "condition in treatment",
+    "in_treatment": "in treatment",
     "condition_in_observation": "condition in observation",
+    "1": "condition in observation",
+    "in_observation": "in observation",    
+    "in_remission": "in remission",
+    "stable": "stable",
     "conditions": "conditions",
-    "condition": "condition",
+    "condition": "Condition",
     "active_time": "active time",
     "trip": "trip",
     "driver": "Driver",
-    "departure_date": "departure date",
-    "service": "service",
-    "alert_type": "alert type",
+    "departure_date": "Departure date",
+    "service": "Service",
+    "alert_type": "Alert type",
     "state": "state",
     "showing": "showing",
     "of": "of",
     "maximum_continuous_driving": "Maximum continuous driving",
-    "diagnose": "Diagnose",
+    "diagnose": "Treat",
     "search": "Search",
     "seconds": "seconds",
     "sec": "sec",
-    "active": "active",
     "days_ago": "days ago",
     "total_symptoms": "Total symptoms",
     "symptoms_detected": "Symptoms detected",
+    "total_treatment": "Total treatment",
     "type_of_load": "Type of load",
     "other": "Other",
     "trip_time": "Trip time",
@@ -383,6 +422,16 @@
     "specialist": "Specialist",
     "select_entity": "Select entity",
     "derive_to_specialist_description": "Derive to specialist.",
-    "message_to_specialist": "Message to specialist."
+    "message_to_specialist": "Message to specialist.",
+    "markers": "Markers",
+    "started_trips": "Started trips",
+    "times": "Times",
+    "monitoring": "Monitoring",
+    "symptoms-list": "Symptoms list",
+    "download": "Download",
+    "map-view": "Map view",
+    "restablished_symptoms": "Restablished symptoms",
+    "under_treatment": "Symptoms being treated",
+    "symptoms_being_treated": "Symptoms being treated"
   }
 }

@@ -25,4 +25,5 @@ export interface SymptomsTable {
   treatment_count: number;
   type_of_incidence: string;
   geographical_reference_point: string;
+  last_assigned_to: string;
 }

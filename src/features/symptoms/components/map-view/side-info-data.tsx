@@ -73,38 +73,40 @@ export default function SideInfoData({
   const groupedTimeline =
     treatmentData?.timeline?.length > 0
       ? treatmentData?.timeline.reduce(
-          (acc, event) => {
-            const date = new Date(event.start).toISOString().split("T")[0];
+        (acc, event) => {
+          const date = new Date(event.start).toISOString().split("T")[0];
 
-            if (!acc[date]) {
-              acc[date] = {
-                date,
-                assigned_to: "N/A", // This might need to come from the API
-                items: [],
-              };
-            }
+          if (!acc[date]) {
+            acc[date] = {
+              date,
+              assigned_to: "N/A", // This might need to come from the API
+              items: [],
+            };
+          }
 
-            acc[date].items.push({
-              start: event.start,
-              end: event.end, // The API doesn't provide end time
-              condition: event.type.toLowerCase().includes("critical")
-                ? "critic"
-                : event.type.toLowerCase().includes("black")
-                  ? "code black"
-                  : "stable",
-              description: event.description,
-            });
+          acc[date].items.push({
+            start: event.start,
+            end: event.end, // The API doesn't provide end time
+            condition: event.type.toLowerCase().includes("critical")
+              ? "critic"
+              : event.type.toLowerCase().includes("black")
+                ? "code black"
+                : "stable",
+            description: event.description,
+            type: event.type,
+          });
 
-            return acc;
-          },
-          {} as Record<string, any>,
-        )
+          return acc;
+        },
+        {} as Record<string, any>,
+      )
       : [];
 
-  const timelineData = Object.values(groupedTimeline);
+  const timelineData = Object.values(groupedTimeline);  
 
   return (
     <div className="flex flex-col gap-2 w-full  overflow-y-auto">
+      hola
       <ExpandableButton
         initial_state={true}
         icon={<FaTruck />}
@@ -115,15 +117,13 @@ export default function SideInfoData({
       >
         <div className="flex flex-col gap-2">
           <div
-            className={`flex flex-row items-center gap-2 p-1 rounded-md ${
-              Conditions["code black"].bgColor
-            }`}
+            className={`flex flex-row items-center gap-2 p-1 rounded-md ${Conditions["code black"].bgColor
+              }`}
           >
             <ConditionIcon condition="code black" size="h-7 w-7" />
             <p
-              className={`text-sm font-medium ${
-                Conditions["code black"].textColor
-              }`}
+              className={`text-sm font-medium ${Conditions["code black"].textColor
+                }`}
             >
               {new Date().toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
@@ -173,15 +173,13 @@ export default function SideInfoData({
       >
         <div className="flex flex-col gap-2">
           <div
-            className={`flex flex-row items-center gap-2 p-1 rounded-md ${
-              Conditions["code black"].bgColor
-            }`}
+            className={`flex flex-row items-center gap-2 p-1 rounded-md ${Conditions["code black"].bgColor
+              }`}
           >
             <ConditionIcon condition="code black" size="h-7 w-7" />
             <p
-              className={`text-sm font-medium ${
-                Conditions["code black"].textColor
-              }`}
+              className={`text-sm font-medium ${Conditions["code black"].textColor
+                }`}
             >
               {new Date().toLocaleString().split(",")[1]}
               <span className="text-gray-400 text-xs">
@@ -277,9 +275,9 @@ export default function SideInfoData({
                               minute: "2-digit",
                             })}
                           </p>
-                          {/* <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                            {subItem.condition}
-                          </p> */}
+                          {<p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {subItem.type}
+                          </p>}
                           <p className="text-sm font-light text-gray-900 dark:text-gray-200">
                             {subItem.description}
                           </p>

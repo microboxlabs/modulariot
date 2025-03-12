@@ -41,6 +41,7 @@ export default function SideInfo({
         dict={dict}
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
+        treatmentData={treatmentData}
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
       <div className="flex flex-col h-full overflow-y-auto">

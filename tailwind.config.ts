@@ -42,7 +42,7 @@ const config: Config = {
         },
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },
-          "100%": { boxShadow: "0px 0px 20px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48
+          "100%": { boxShadow: "0px 0px 10px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48
         },
       },
       backgroundImage: {

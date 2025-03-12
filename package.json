@@ -39,6 +39,7 @@
     "supercluster": "^8.0.1",
     "swr": "^2.2.5",
     "use-debounce": "^10.0.4",
+    "wkx": "^0.5.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

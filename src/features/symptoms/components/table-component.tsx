@@ -38,7 +38,7 @@ export default function SymptomsTable({
             <p className="text-sm text-gray-200 bg-gray-200 dark:text-gray-800 dark:bg-gray-800 rounded-md animate-pulse">
               Mostrando 0-0 de 0
             </p>
-            <div className="h-10 w-20 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse mt-2"></div>
+            <div className="h-10 w-20 bg-gray-200 dark:bg-gray-800 rounded-md animate-pulse mt-1 mb-1"></div>
           </div>
         )}
       </div>
@@ -74,41 +74,41 @@ export default function SymptomsTable({
           theme={{
             body: {
               cell: {
-                base: "px-6 py-2 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
+                base: "px-6 py-1 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
               },
             },
           }}
         >
           {!compact ? (
             <TableHead>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).condition as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).active_time as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).trip as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).driver as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).departure_date as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).alert_type as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).state as string}
               </TableHeadCell>
             </TableHead>
           ) : (
             <TableHead>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).condition as string}
               </TableHeadCell>
-              <TableHeadCell>
+              <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).departure_date as string}
               </TableHeadCell>
             </TableHead>
@@ -155,6 +155,7 @@ export default function SymptomsTable({
               onPageChange={handlePageChange}
               theme={{
                 pages: {
+                  base: "mt-1 mb-1 inline-flex items-center -space-x-px",
                   selector: {
                     active: "bg-blue-100 text-blue-500",
                   },

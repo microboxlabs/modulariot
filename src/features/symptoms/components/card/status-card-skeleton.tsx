@@ -4,7 +4,7 @@ export default function StatusCardSkeleton() {
   return (
     <div
       className={twMerge(
-        "grow p-3",
+        "px-3 py-1",
         "bg-white",
         "rounded-lg",
         "shadow-md",
@@ -18,11 +18,11 @@ export default function StatusCardSkeleton() {
         "transition-all",
       )}
     >
-      <div className="flex flex-row justify-between gap-5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-row justify-between gap-4">
+        <div className="flex items-center gap-2">
           <div
             className={twMerge(
-              "w-8 h-8",
+              "w-6 h-6",
               "rounded-full",
               "bg-gray-200 dark:bg-gray-800",
               "flex items-center justify-center",
@@ -30,7 +30,7 @@ export default function StatusCardSkeleton() {
             )}
           ></div>
           <span className="text-gray-200 dark:text-gray-800 bg-gray-200 dark:bg-gray-800 text-sm font-light hidden lg:block whitespace-nowrap">
-            Ejemplo
+            Codigo negro
           </span>
         </div>
         <div className="flex items-end gap-2">

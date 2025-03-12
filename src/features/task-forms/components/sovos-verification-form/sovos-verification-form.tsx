@@ -38,7 +38,7 @@ export default function SovosVerificationForm({
     const signerRuts = audits.map((audit) => audit.Rut).join(",");
 
     formData.append("taskId", task.id);
-    formData.append("transitionId", "next");
+    formData.append("transitionId", "Viaje Iniciado");
     formData.append("bpmPackage", task.bpm_package as string);
     formData.append("serviceCode", task.mintral_serviceCode as string);
     formData.append("auditNumbers", auditNumbers);

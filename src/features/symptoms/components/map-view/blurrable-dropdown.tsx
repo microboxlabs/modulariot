@@ -7,7 +7,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
 import { MdCancel } from "react-icons/md";
-import { SelectedOption } from "../types/side-info";
+import { SelectedOption } from "../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function BlurrableDropdown({
   isMenuOpen,

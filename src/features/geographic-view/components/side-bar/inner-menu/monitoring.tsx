@@ -146,10 +146,6 @@ export default function Monitoring({
   );
 
   useEffect(() => {
-    console.log(mapPositionsResume);
-  }, [mapPositionsResume]);
-
-  useEffect(() => {
     const handleWheel = (event: WheelEvent) => {
       event.stopPropagation();
     };

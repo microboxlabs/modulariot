@@ -436,7 +436,7 @@
     "end_treatment_notification": "Send notification by",
     "confirmation_required": "Confirmation required",
     "ignore_alert": "Are you sure you want to ignore this condition? This action cannot be undone and the condition will no longer be displayed in the Control Tower section.",
-    "save_and_confirm": "Save and confirm"
+    "save_and_confirm": "Save and confirm",
     "critical_symptoms": "Critical symptoms",
     "compromised_condition": "Compromised condition",
     "general": "General",

@@ -9,6 +9,7 @@ import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-
 import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useTreatmentsTemplates } from "../common/providers/client-api.provider";
 
 export default function SideInfo({
   dict,
@@ -21,6 +22,9 @@ export default function SideInfo({
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
+  const { treatments_templates } = useTreatmentsTemplates(
+    treatmentData?.symptom_info?.icu_code.toString() ?? "",
+  );
 
   if (loading) {
     return (
@@ -32,14 +36,17 @@ export default function SideInfo({
 
   return (
     <div className="flex flex-col gap-5 p-5 h-full">
-      <BlurrableSteppedMenu
-        lang={lang}
-        dict={dict}
-        isMenuOpen={isMenuOpen}
-        setIsMenuOpen={setIsMenuOpen}
-        treatmentData={treatmentData}
-        className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
-      />
+      {treatments_templates && (
+        <BlurrableSteppedMenu
+          lang={lang}
+          dict={dict}
+          isMenuOpen={isMenuOpen}
+          setIsMenuOpen={setIsMenuOpen}
+          treatmentData={treatmentData}
+          treatments_templates={treatments_templates}
+          className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
+        />
+      )}
       <div className="flex flex-col h-[90%] overflow-y-auto">
         <SideInfoData
           dict={dict}

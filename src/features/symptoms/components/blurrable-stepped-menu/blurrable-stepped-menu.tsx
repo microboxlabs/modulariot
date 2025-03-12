@@ -10,6 +10,12 @@ import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+
+import { useSession } from "next-auth/react";
+import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { useRouter } from "next/navigation";
+import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
@@ -20,6 +26,7 @@ export default function BlurrableSteppedMenu({
   dict,
   lang,
   treatmentData,
+  treatments_templates,
 }: {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
@@ -27,7 +34,35 @@ export default function BlurrableSteppedMenu({
   dict: I18nRecord;
   lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
+  treatments_templates: TreatmentsTemplatesResponse | null;
 }) {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email ?? "";
+
+  const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
+    treatments_templates?.message?.replace(
+      "[nombre conductor]",
+      treatmentData?.trip_info.driver ?? "",
+    ) ?? "",
+  );
+
+  const [driverResponse, setDriverResponse] = useState<string>("");
+
+  const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
+    asset_id: treatmentData?.trip_info.asset_id ?? "",
+    assigned_to: userEmail,
+    client_id: null,
+    status: "active",
+    symptom_id: treatmentData?.symptom_info.id.toString() ?? "",
+    treatment_type: "llamar al conductor",
+    trip_id: treatmentData?.trip_info.trip_id ?? "",
+    message: messageToCommunicate ?? "",
+    driver_response: driverResponse ?? "",
+    description: undefined,
+    treatment_id: undefined,
+  });
+
   const side_sections = [
     {
       title: (dict.symptoms as I18nRecord).symptoms as string,
@@ -60,24 +95,47 @@ export default function BlurrableSteppedMenu({
           element_name: (dict.symptoms as I18nRecord).call_driver as string,
           description: (dict.symptoms as I18nRecord)
             .call_driver_description as string,
-          component: <CallDriver dict={dict} treatmentData={treatmentData} />,
+          component: (
+            <CallDriver
+              dict={dict}
+              treatmentData={treatmentData}
+              messageToCommunicate={messageToCommunicate}
+              setMessageToCommunicate={setMessageToCommunicate}
+            />
+          ),
           icon: <FaPhoneAlt className="h-5 w-5" />,
           logo: null,
           button: {
             text: (dict.symptoms as I18nRecord).save_treatment as string,
             action: "next",
+            function: async () => {
+              const response = await requestTreatment(treatmentRequest);
+              setTreatmentRequest({
+                ...treatmentRequest,
+                treatment_id: response.treatment_id,
+              });
+            },
           },
         },
         {
           element_name: (dict.symptoms as I18nRecord).driver_response as string,
           description: (dict.symptoms as I18nRecord)
             .driver_response_description as string,
-          component: <DriverResponse dict={dict} />,
+          component: (
+            <DriverResponse
+              dict={dict}
+              driverResponse={driverResponse}
+              setDriverResponse={setDriverResponse}
+            />
+          ),
           icon: <FaPhoneAlt className="h-5 w-5" />,
           logo: null,
           button: {
             text: (dict.symptoms as I18nRecord).save_response as string,
             action: "next",
+            function: async () => {
+              await requestTreatment(treatmentRequest);              
+            },
           },
         },
         {
@@ -90,6 +148,8 @@ export default function BlurrableSteppedMenu({
           button: {
             text: (dict.symptoms as I18nRecord).finish_treatment as string,
             action: "end",
+            function: () => {
+            },
           },
         },
       ],
@@ -154,10 +214,9 @@ export default function BlurrableSteppedMenu({
             <div
               key={section.title}
               className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
-                ${
-                  selected_section == section_index
-                    ? "bg-gray-100 dark:bg-gray-700"
-                    : "bg-white dark:bg-gray-800 opacity-30"
+                ${selected_section == section_index
+                  ? "bg-gray-100 dark:bg-gray-700"
+                  : "bg-white dark:bg-gray-800 opacity-30"
                 }`}
               onClick={() => {
                 updateSelectedSection(section_index);
@@ -168,15 +227,14 @@ export default function BlurrableSteppedMenu({
               </p>
               {section.elements.map((element, inner_index) => (
                 <div
-                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${
-                    selected_elements[selected_section] == inner_index &&
-                    selected_section == section_index
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                      selected_section == section_index
                       ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
                       : selected_elements[selected_section] > inner_index &&
-                          selected_section == section_index
+                        selected_section == section_index
                         ? "text-gray-900 dark:text-white"
                         : "opacity-30 text-gray-900 dark:text-white"
-                  }`}
+                    }`}
                   key={inner_index}
                 >
                   <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
@@ -213,8 +271,8 @@ export default function BlurrableSteppedMenu({
                       }
                     </div>
                   ) : side_sections[selected_section].elements[
-                      selected_elements[selected_section]
-                    ].logo ? (
+                    selected_elements[selected_section]
+                  ].logo ? (
                     <div className="w-10 h-10 flex items-center justify-center">
                       {
                         side_sections[selected_section].elements[
@@ -267,10 +325,21 @@ export default function BlurrableSteppedMenu({
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
                       ]?.button?.action;
+                    const buttonActionFunction =
+                      side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.button?.function;
+
+                    buttonActionFunction && buttonActionFunction();
+
                     if (buttonAction === "next") {
                       updateSelectedElement(
                         selected_elements[selected_section] + 1,
                       );
+                    } else if (buttonAction === "end") {
+                      setIsMenuOpen(false);
+                      //server side of router.push("/app/symptoms");
+                      router.push("/symptoms");
                     } else {
                       setIsMenuOpen(false);
                     }

@@ -1,11 +1,15 @@
 "use client";
 
 import MapVisualization from "./map-visualization";
-import { useMapPositions } from "@/features/common/providers/client-api.provider";
+import {
+  useMapPositions,
+  useMapPositionsResume,
+} from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import { MapPositionResume } from "../types/map";
 export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
   const { positions: mapPositions, isLoading, error } = useMapPositions();
+  const { data: mapPositionsResume } = useMapPositionsResume();
 
   if (isLoading) {
     return (
@@ -28,5 +32,11 @@ export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
     // Continue rendering with empty data instead of showing error
   }
 
-  return <MapVisualization dict={dict} mapPositions={mapPositions} />;
+  return (
+    <MapVisualization
+      dict={dict}
+      mapPositions={mapPositions}
+      mapPositionsResume={mapPositionsResume as MapPositionResume}
+    />
+  );
 }

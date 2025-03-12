@@ -7,11 +7,11 @@ export class PulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "ScatterPlotLayer-pulse-base",
         data: this.props.data.features,
-        stroked: true,
+        stroked: zoomLevel > 14,
         getFillColor: (d: any) => d.properties.color,
         getLineColor: [255, 255, 255, 255],
         getLineWidth: 200000 / Math.pow(2, zoomLevel),
-        getRadius: 800000 / Math.pow(2, zoomLevel),
+        getRadius: 200000 / Math.pow(1.85, zoomLevel),
         getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,

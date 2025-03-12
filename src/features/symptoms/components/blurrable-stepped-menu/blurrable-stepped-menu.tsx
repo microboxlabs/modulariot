@@ -10,7 +10,7 @@ import {
   getIgnoreCondition,
 } from "./menus/menus";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
@@ -21,6 +21,7 @@ export default function BlurrableSteppedMenu({
   dict,
   lang,
   selectedOption,
+  treatmentData,
 }: {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
@@ -28,6 +29,7 @@ export default function BlurrableSteppedMenu({
   dict: I18nRecord;
   lang: string;
   selectedOption: string;
+  treatmentData: TreatmentsGeneralResponseItem | null;
 }) {
   const base_sections = [
     {
@@ -41,7 +43,7 @@ export default function BlurrableSteppedMenu({
             <SideInfoData
               dict={dict}
               lang={lang}
-              treatmentData={null}
+              treatmentData={treatmentData}
               loading={false}
               error={null}
             />

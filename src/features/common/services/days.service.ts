@@ -48,8 +48,6 @@ dayjs.updateLocale("en", {
 });
 
 export function configureLocale(locale?: string) {
-  console.log(locale);
-
   locale = locale || defaultLocale;
   if (locale === "es") {
     locale = "es-mx";

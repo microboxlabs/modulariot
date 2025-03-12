@@ -134,7 +134,7 @@ export default function BlurrableSteppedMenu({
             text: (dict.symptoms as I18nRecord).save_response as string,
             action: "next",
             function: async () => {
-              await requestTreatment(treatmentRequest);              
+              await requestTreatment(treatmentRequest);
             },
           },
         },
@@ -228,12 +228,12 @@ export default function BlurrableSteppedMenu({
               {section.elements.map((element, inner_index) => (
                 <div
                   className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                    selected_section == section_index
+                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                    : selected_elements[selected_section] > inner_index &&
                       selected_section == section_index
-                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                      : selected_elements[selected_section] > inner_index &&
-                        selected_section == section_index
-                        ? "text-gray-900 dark:text-white"
-                        : "opacity-30 text-gray-900 dark:text-white"
+                      ? "text-gray-900 dark:text-white"
+                      : "opacity-30 text-gray-900 dark:text-white"
                     }`}
                   key={inner_index}
                 >

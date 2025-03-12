@@ -21,6 +21,8 @@ export default function SideInfo({
   symptomId: string;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedOption, setSelectedOption] =
+    useState<SelectedOption>("call_driver");
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
 
   if (loading) {
@@ -31,11 +33,8 @@ export default function SideInfo({
     );
   }
 
-  const [selectedOption, setSelectedOption] =
-    useState<SelectedOption>("call_driver");
-
   return (
-    <div className="flex flex-col gap-5 p-5 h-full">
+    <div className="relative flex flex-col p-1 h-full">
       <BlurrableSteppedMenu
         selectedOption={selectedOption}
         lang={lang}
@@ -44,7 +43,7 @@ export default function SideInfo({
         setIsMenuOpen={setIsMenuOpen}
         className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
       />
-      <div className="flex flex-col h-[90%] overflow-y-auto">
+      <div className="flex flex-col h-full overflow-y-auto">
         <SideInfoData
           dict={dict}
           lang={lang}
@@ -53,7 +52,7 @@ export default function SideInfo({
           error={error}
         />
       </div>
-      <div className="flex flex-col justify-self-end">
+      <div className="absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5">
         <Button.Group className="w-full">
           <BlurrableDropdown
             dict={dict}

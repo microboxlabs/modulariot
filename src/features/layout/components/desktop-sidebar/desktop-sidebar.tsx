@@ -13,9 +13,11 @@ import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
   useMapPositions,
+  useMyTasks,
   useMyTasksCount,
   useSymptoms,
 } from "@/features/common/providers/client-api.provider";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
@@ -23,6 +25,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const [isPreview, setIsPreview] = useState(isCollapsed);
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
+  const { data: finishedTasks } = useMyTasks(
+    SHIPPING_COORDINATOR_PROCESS_TASKS,
+    true,
+    1,
+    0,
+  );
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
@@ -39,8 +47,9 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     const newTotals = { ...totals };
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
+    newTotals["finished"] = finishedTasks?.total ?? 0;
     setTotals(newTotals);
-  }, [mapCount, symptomsCount]);
+  }, [mapCount, symptomsCount, finishedTasks]);
 
   useEffect(() => {
     if (isCollapsed) setIsPreview(false);

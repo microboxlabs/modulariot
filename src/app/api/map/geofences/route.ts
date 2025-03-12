@@ -1,9 +1,8 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
-//const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/fleet/positions";
 const SYMPTOMS_API_URL =
-  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_map_positions";
+  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_treatments_geofences_service";
 
 import {
   AuthToken,
@@ -19,20 +18,22 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.next({
       status: 401,
     });
   }
+
   try {
     const token = await authToken.getToken();
-    const params = new URLSearchParams();
-    //params.set("lastUpdatedSince", new Date().toISOString());
-    params.set("limit", "100");
 
-    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
+    const tripId = req.nextUrl.searchParams.get("tripId");
+
+    if (!tripId) return NextResponse.error();
+
+    const response = await fetch(SYMPTOMS_API_URL + "?p_trip_id=" + tripId, {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,
@@ -43,13 +44,15 @@ export async function GET() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return NextResponse.json(data.data); //TODO: ask to standardize the response
+    const apiData = await response.json();
+
+    return NextResponse.json(apiData);
   } catch (error) {
     return NextResponse.json(
       {
-        error: "Failed to fetch symptoms data",
-        errorMessage: error,
+        data: {},
+        status: 500,
+        message: "Failed to fetch symptoms data",
       },
       { status: 500 },
     );

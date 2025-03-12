@@ -5,41 +5,42 @@ import DeriveToSpecialist from "../menus/derive-to-specialist/derive-to-speciali
 import { FaPhoneAlt, FaCheck, FaArrowRight } from "react-icons/fa";
 import IgnoreCondition from "./ignore-condition/ignore-condition";
 import { TiDelete } from "react-icons/ti";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export const getCallDriver = (dict: any) => [
+export const getCallDriver = (dict: I18nRecord) => [
   {
-    title: dict.symptoms.treatment,
+    title: (dict.symptoms as I18nRecord).treatment,
     elements: [
       {
-        element_name: dict.symptoms.call_driver,
-        description: dict.symptoms.call_driver_description,
-        component: <CallDriver dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).call_driver,
+        description: (dict.symptoms as I18nRecord).call_driver_description,
+        component: <CallDriver dict={dict as I18nRecord} />,
         icon: <FaPhoneAlt className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.save_treatment,
+          text: (dict.symptoms as I18nRecord).save_treatment,
           action: "next",
         },
       },
       {
-        element_name: dict.symptoms.driver_response,
-        description: dict.symptoms.driver_response_description,
-        component: <DriverResponse dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).driver_response,
+        description: (dict.symptoms as I18nRecord).driver_response_description,
+        component: <DriverResponse dict={dict as I18nRecord} />,
         icon: <FaPhoneAlt className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.save_response,
+          text: (dict.symptoms as I18nRecord).save_response,
           action: "next",
         },
       },
       {
-        element_name: dict.symptoms.end_treatment,
-        description: dict.symptoms.end_treatment_description,
-        component: <EndTreatment dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).end_treatment,
+        description: (dict.symptoms as I18nRecord).end_treatment_description,
+        component: <EndTreatment dict={dict as I18nRecord} />,
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.finish_treatment,
+          text: (dict.symptoms as I18nRecord).finish_treatment,
           action: "end",
         },
       },
@@ -47,29 +48,32 @@ export const getCallDriver = (dict: any) => [
   },
 ];
 
-export const getDeriveToSpecialist = (dict: any) => [
+export const getDeriveToSpecialist = (dict: I18nRecord) => [
   {
-    title: dict.symptoms.treatment,
+    title: (dict.symptoms as I18nRecord).treatment,
     elements: [
       {
-        element_name: dict.symptoms.derive_to_specialist,
-        description: dict.symptoms.derive_to_specialist_description,
-        component: <DeriveToSpecialist dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord)
+          .derive_to_specialist as string,
+        description: (dict.symptoms as I18nRecord)
+          .derive_to_specialist_description as string,
+        component: <DeriveToSpecialist dict={dict as I18nRecord} />,
         icon: <FaArrowRight className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.save_treatment,
+          text: (dict.symptoms as I18nRecord).save_treatment,
           action: "next",
         },
       },
       {
-        element_name: dict.symptoms.end_treatment,
-        description: dict.symptoms.end_treatment_description,
-        component: <EndTreatment dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).end_treatment,
+        description: (dict.symptoms as I18nRecord)
+          .end_treatment_description as string,
+        component: <EndTreatment dict={dict as I18nRecord} />,
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.finish_treatment,
+          text: (dict.symptoms as I18nRecord).finish_treatment,
           action: "end",
         },
       },
@@ -77,29 +81,29 @@ export const getDeriveToSpecialist = (dict: any) => [
   },
 ];
 
-export const getIgnoreCondition = (dict: any) => [
+export const getIgnoreCondition = (dict: I18nRecord) => [
   {
-    title: dict.symptoms.treatment,
+    title: (dict.symptoms as I18nRecord).treatment,
     elements: [
       {
-        element_name: dict.symptoms.ignore_condition,
-        description: dict.symptoms.ignore_condition_description,
-        component: <IgnoreCondition dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).ignore_condition,
+        description: (dict.symptoms as I18nRecord).ignore_condition_description,
+        component: <IgnoreCondition dict={dict as I18nRecord} />,
         icon: <TiDelete className="h-8 w-8" />,
         logo: null,
         button: {
-          text: dict.symptoms.save_and_confirm,
+          text: (dict.symptoms as I18nRecord).save_and_confirm,
           action: "next",
         },
       },
       {
-        element_name: dict.symptoms.end_treatment,
-        description: dict.symptoms.end_treatment_description,
-        component: <EndTreatment dict={dict} />,
+        element_name: (dict.symptoms as I18nRecord).end_treatment,
+        description: (dict.symptoms as I18nRecord).end_treatment_description,
+        component: <EndTreatment dict={dict as I18nRecord} />,
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {
-          text: dict.symptoms.finish_treatment,
+          text: (dict.symptoms as I18nRecord).finish_treatment,
           action: "end",
         },
       },

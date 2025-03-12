@@ -10,7 +10,10 @@ import {
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
-import { SymptomDashboard } from "../../symptoms/types/symptoms";
+import {
+  SymptomDashboard,
+  SymptomTableResponse,
+} from "../../symptoms/types/symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 import {
   MapPosition,
@@ -18,6 +21,7 @@ import {
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -179,6 +183,32 @@ export function useSymptoms() {
   };
 }
 
+export function useSymptomsTable({
+  page = 1,
+  pageSize = 10,
+  search = "",
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}) {
+  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+    `/app/api/symptoms/table?page=${page}&limit=${pageSize}&search=${search}`,
+    fetcher,
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    tableData: data,
+    loading: isLoading,
+    error,
+  };
+}
+
 export function useSymptomsIcu(condition?: string) {
   const url = condition
     ? `/app/api/symptoms/icu?p_icu_code=${condition}`
@@ -292,4 +322,17 @@ export function useTreatmentsTemplates(id: string) {
     treatments_templates_error: error,
     treatments_templates_isLoading: isLoading,
   };
+}
+
+export function requestTreatment(
+  treatmentRequest: TreatmentsRequest,
+): Promise<TreatmentsRequest> {
+  const url = `/app/api/treatments`;
+  return fetcher(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify(treatmentRequest),
+  });
 }

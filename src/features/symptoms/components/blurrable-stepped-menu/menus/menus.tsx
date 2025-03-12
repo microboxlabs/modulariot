@@ -14,7 +14,9 @@ export const getCallDriver = (dict: I18nRecord) => [
       {
         element_name: (dict.symptoms as I18nRecord).call_driver,
         description: (dict.symptoms as I18nRecord).call_driver_description,
-        component: <CallDriver dict={dict as I18nRecord} />,
+        component: (
+          <CallDriver dict={dict as I18nRecord} treatmentData={null} />
+        ),
         icon: <FaPhoneAlt className="h-5 w-5" />,
         logo: null,
         button: {

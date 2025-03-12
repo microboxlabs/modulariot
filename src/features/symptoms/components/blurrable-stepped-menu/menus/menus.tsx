@@ -3,6 +3,8 @@ import CallDriver from "../menus/call-driver/call-driver";
 import DriverResponse from "../menus/call-driver/driver-response";
 import DeriveToSpecialist from "../menus/derive-to-specialist/derive-to-specialist";
 import { FaPhoneAlt, FaCheck, FaArrowRight } from "react-icons/fa";
+import IgnoreCondition from "./ignore-condition/ignore-condition";
+import { TiDelete } from "react-icons/ti";
 
 export const getCallDriver = (dict: any) => [
   {
@@ -57,6 +59,36 @@ export const getDeriveToSpecialist = (dict: any) => [
         logo: null,
         button: {
           text: dict.symptoms.save_treatment,
+          action: "next",
+        },
+      },
+      {
+        element_name: dict.symptoms.end_treatment,
+        description: dict.symptoms.end_treatment_description,
+        component: <EndTreatment dict={dict} />,
+        icon: <FaCheck className="h-5 w-5" />,
+        logo: null,
+        button: {
+          text: dict.symptoms.finish_treatment,
+          action: "end",
+        },
+      },
+    ],
+  },
+];
+
+export const getIgnoreCondition = (dict: any) => [
+  {
+    title: dict.symptoms.treatment,
+    elements: [
+      {
+        element_name: dict.symptoms.ignore_condition,
+        description: dict.symptoms.ignore_condition_description,
+        component: <IgnoreCondition dict={dict} />,
+        icon: <TiDelete className="h-8 w-8" />,
+        logo: null,
+        button: {
+          text: dict.symptoms.save_and_confirm,
           action: "next",
         },
       },

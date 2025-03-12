@@ -440,7 +440,7 @@
     "end_treatment_notification": "Enviar notificación por",
     "confirmation_required": "Confirmación requerida",
     "ignore_alert": "¿Estás seguro de querer ignorar esta condición? Esta acción no se puede deshacer y la condición ya no se mostrará en la sección de Torre de control.",
-    "save_and_confirm": "Guardar y confirmar"
+    "save_and_confirm": "Guardar y confirmar",
     "critical_symptoms": "Síntomas críticos",
     "compromised_condition": "Condición comprometida",
     "general": "General",

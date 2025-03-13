@@ -14,8 +14,8 @@ export default function SymptomsListSkeleton() {
         }}
       >
         <div className="flex flex-row gap-2 items-center justify-center animate-pulse">
-          <div className="w-[50px] h-[50px] bg-gray-200 dark:bg-gray-700 rounded-full" />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-200 dark:text-gray-700 bg-gray-200 dark:bg-gray-700 rounded-lg">
+          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full" />
+          <h1 className="text-lg font-bold tracking-tight text-gray-200 dark:text-gray-700 bg-gray-200 dark:bg-gray-700 rounded-lg">
             Sintomas urgentes: codigo negro
           </h1>
         </div>

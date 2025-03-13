@@ -104,7 +104,7 @@ export default function SideInfoData({
   const timelineData = Object.values(groupedTimeline);
 
   return (
-    <div className="flex flex-col gap-2 w-full  overflow-y-auto">
+    <div className="flex flex-col gap-2 w-full pb-20 overflow-y-auto">
       <ExpandableButton
         initial_state={true}
         icon={<FaTruck />}

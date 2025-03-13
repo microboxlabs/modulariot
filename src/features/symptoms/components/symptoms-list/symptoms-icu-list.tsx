@@ -123,13 +123,13 @@ export default function SymptomsIcuList({
             >
               <div className="flex flex-row gap-2 items-center justify-center">
                 <Image
-                  className="w-[50px] h-[50px]"
+                  className="w-8 h-8"
                   src={this_title.icon}
                   alt="Síntomas Urgentes"
                   width={50}
                   height={50}
                 />
-                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+                <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
                   {
                     (dict.symptoms as I18nRecord)[
                       this_title.base as keyof I18nRecord

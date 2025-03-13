@@ -81,7 +81,7 @@ export default function SymptomsCards({
           <div className="flex gap-3">
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="code black" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="code black" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).code_black as string}
               icu_condition={icuConditions.code_black}
               count={codeBlack.toString().padStart(2, "0")}
@@ -106,7 +106,7 @@ export default function SymptomsCards({
           <div className="flex gap-3">
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="critic" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="critic" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).critical_condition as string}
               icu_condition={icuConditions.critical_condition}
               count={critic.toString().padStart(2, "0")}
@@ -115,7 +115,7 @@ export default function SymptomsCards({
 
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="compromised" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="compromised" size="h-7 w-7" dict={dict} />}
               title={
                 (dict.symptoms as I18nRecord).compromised_condition as string
               }
@@ -143,14 +143,14 @@ export default function SymptomsCards({
           <div className="flex gap-3">
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="treatment" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="treatment" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).in_treatment as string}
               icu_condition={icuConditions.under_treatment}
               count={treatment.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="observation" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="observation" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).in_observation as string}
               icu_condition={icuConditions.under_observation}
               count={observation.toString().padStart(2, "0")}
@@ -175,14 +175,14 @@ export default function SymptomsCards({
           <div className="flex gap-3">
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="remission" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="remission" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).in_remission as string}
               icu_condition={icuConditions.remission_state}
               count={remission.toString().padStart(2, "0")}
             />
             <StatusCard
               dict={dict}
-              icon={<ConditionIcon condition="stable" size="h-7 w-7" />}
+              icon={<ConditionIcon condition="stable" size="h-7 w-7" dict={dict} />}
               title={(dict.symptoms as I18nRecord).stable as string}
               icu_condition={icuConditions.stable}
               count={stable.toString().padStart(2, "0")}

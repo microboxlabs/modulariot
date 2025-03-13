@@ -55,13 +55,13 @@ export default function GeneralMap({
         >
           <div className="flex flex-row gap-2 items-center justify-center">
             <Image
-              className="w-[50px] h-[50px]"
+              className="w-8 h-8"
               src={noAlarmImage}
               alt="Síntomas Urgentes"
               width={50}
               height={50}
             />
-            <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
               {(dict.symptoms as I18nRecord).urgent_symptoms as string}:{" "}
               {(dict.symptoms as I18nRecord).code_black as string}{" "}
               {(dict.symptoms as I18nRecord).active as string}

@@ -1,13 +1,14 @@
 import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import CallDriver from "./menus/call-driver/call-driver";
-import DriverResponse from "./menus/call-driver/driver-response";
-import EndTreatment from "./end-treatment";
 import SideInfoData from "../map-view/side-info-data";
-import { FaCheck, FaPhoneAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import { Button } from "flowbite-react";
+import {
+  getCallDriver,
+  getDeriveToSpecialist,
+  getIgnoreCondition,
+} from "./menus/menus";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
@@ -25,6 +26,7 @@ export default function BlurrableSteppedMenu({
   className,
   dict,
   lang,
+  selectedOption,
   treatmentData,
   treatments_templates,
 }: {
@@ -33,6 +35,7 @@ export default function BlurrableSteppedMenu({
   className: string;
   dict: I18nRecord;
   lang: string;
+  selectedOption: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   treatments_templates: TreatmentsTemplatesResponse | null;
 }) {
@@ -62,6 +65,33 @@ export default function BlurrableSteppedMenu({
     description: undefined,
     treatment_id: undefined,
   });
+
+  const base_sections = [
+    {
+      title: (dict.symptoms as I18nRecord).symptoms as string,
+      elements: [
+        {
+          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
+          description: (dict.symptoms as I18nRecord)
+            .symptom_information as string,
+          component: (
+            <SideInfoData
+              dict={dict}
+              lang={lang}
+              treatmentData={treatmentData}
+              loading={false}
+              error={null}
+            />
+          ),
+          icon: null,
+          logo: (
+            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
+          ),
+          button: null,
+        },
+      ],
+    },
+  ];
 
   const side_sections = [
     {
@@ -155,8 +185,25 @@ export default function BlurrableSteppedMenu({
     },
   ];
 
+  //let side_sections: any[] = [];
+
+  switch (selectedOption) {
+    case "call_driver":
+      side_sections = [...base_sections, ...getCallDriver(dict)];
+      break;
+    case "derive_to_specialist":
+      side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
+      break;
+    case "ignore_condition":
+      side_sections = [...base_sections, ...getIgnoreCondition(dict)];
+      break;
+    default:
+      side_sections = base_sections;
+  }
+
   const [selected_section, setSelectedSection] = useState<number>(1);
   const [selected_elements, setSelectedElements] = useState<number[]>([0, 0]);
+  const [max_selected_element, setMaxSelectedElement] = useState<number>(0);
   const [displayed_element, setDisplayedElement] = useState<React.ReactNode>(
     side_sections[selected_section].elements[
       selected_elements[selected_section]
@@ -225,18 +272,29 @@ export default function BlurrableSteppedMenu({
               <p className="text-sm mb-2 text-gray-900 dark:text-white">
                 {section.title}
               </p>
-              {section.elements.map((element, inner_index) => (
+              {section.elements.map((element: any, inner_index: number) => (
                 <div
-                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${
-                    selected_elements[selected_section] == inner_index &&
-                    selected_section == section_index
-                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                      : selected_elements[selected_section] > inner_index &&
-                          selected_section == section_index
-                        ? "text-gray-900 dark:text-white"
-                        : "opacity-30 text-gray-900 dark:text-white"
-                  }`}
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3
+                    ${
+                      inner_index <= max_selected_element
+                        ? "hover:bg-gray-100 dark:hover:bg-gray-600"
+                        : ""
+                    }
+                ${
+                  selected_elements[selected_section] == inner_index &&
+                  selected_section == section_index
+                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                    : inner_index <= max_selected_element &&
+                        selected_section == section_index
+                      ? "text-gray-900 dark:text-white"
+                      : "opacity-30 text-gray-900 dark:text-white"
+                }`}
                   key={inner_index}
+                  onClick={() => {
+                    if (inner_index <= max_selected_element) {
+                      updateSelectedElement(inner_index);
+                    }
+                  }}
                 >
                   <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
                     {element.logo ? element.logo : <p>{inner_index + 1}</p>}
@@ -293,6 +351,7 @@ export default function BlurrableSteppedMenu({
                 <div
                   onClick={() => {
                     setIsMenuOpen(false);
+                    setMaxSelectedElement(0);
                   }}
                   className="flex flex-row text-gray-500 items-center gap-2 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                 >
@@ -301,7 +360,7 @@ export default function BlurrableSteppedMenu({
               </div>
               <div className="w-full flex flex-row  gap-2 mt-2 mb-5">
                 {side_sections[selected_section].elements.map(
-                  (element, inner_index) => {
+                  (element: any, inner_index: number) => {
                     return (
                       <div
                         className={`transition-all duration-200 w-8 h-2 ${selected_elements[selected_section] >= inner_index ? "bg-blue-500" : "bg-gray-200"} rounded-full`}
@@ -322,6 +381,9 @@ export default function BlurrableSteppedMenu({
                   className="w-full"
                   color="blue"
                   onClick={() => {
+                    const new_selected_element =
+                      selected_elements[selected_section] + 1;
+
                     const buttonAction =
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
@@ -334,15 +396,17 @@ export default function BlurrableSteppedMenu({
                     buttonActionFunction && buttonActionFunction();
 
                     if (buttonAction === "next") {
-                      updateSelectedElement(
-                        selected_elements[selected_section] + 1,
-                      );
+                      if (max_selected_element <= new_selected_element) {
+                        setMaxSelectedElement(new_selected_element);
+                      }
+                      updateSelectedElement(new_selected_element);
                     } else if (buttonAction === "end") {
                       setIsMenuOpen(false);
                       //server side of router.push("/app/symptoms");
                       router.push("/symptoms");
                     } else {
                       setIsMenuOpen(false);
+                      setMaxSelectedElement(0);
                     }
                   }}
                 >

@@ -81,11 +81,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(formattedResponse);
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch symptoms data",
-        errorMessage: error,
-      },
+      { error: "Failed to fetch symptoms data", errorMessage: error },
       { status: 500 },
     );
   }

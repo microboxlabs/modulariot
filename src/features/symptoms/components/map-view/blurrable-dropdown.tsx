@@ -7,15 +7,18 @@ import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
 import { MdCancel } from "react-icons/md";
+import { SelectedOption } from "../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function BlurrableDropdown({
   isMenuOpen,
   setIsMenuOpen,
   dict,
+  setSelectedOption,
 }: {
   isMenuOpen: boolean;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
-  dict: I18nRecord;
+  dict: any;
+  setSelectedOption: (option: SelectedOption) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -39,26 +42,31 @@ export default function BlurrableDropdown({
       id: 0,
       label: (dict.symptoms as I18nRecord).derive_to_specialist as string,
       icon: HiArrowRight,
+      option: "derive_to_specialist" as SelectedOption,
     },
     {
       id: 1,
       label: (dict.symptoms as I18nRecord).contact_carabineros as string,
       icon: GiPoliceBadge,
+      option: "contact_carabineros" as SelectedOption,
     },
     {
       id: 2,
       label: (dict.symptoms as I18nRecord).contact_via_whatsapp as string,
       icon: FaWhatsapp,
+      option: "contact_via_whatsapp" as SelectedOption,
     },
     {
       id: 3,
       label: (dict.symptoms as I18nRecord).copilot as string,
       icon: BsStars,
+      option: "copilot" as SelectedOption,
     },
     {
       id: 4,
       label: (dict.symptoms as I18nRecord).ignore_condition as string,
       icon: MdCancel,
+      option: "ignore_condition" as SelectedOption,
     },
   ];
 
@@ -102,11 +110,12 @@ export default function BlurrableDropdown({
           },
         }}
       >
-        {other_options.map(({ id, label, icon: Icon }) => (
+        {other_options.map(({ id, label, icon: Icon, option }) => (
           <DropdownItem
             key={id}
             className="flex gap-1 w-full"
             onClick={() => {
+              setSelectedOption(option);
               setIsMenuOpen(!isMenuOpen);
             }}
           >

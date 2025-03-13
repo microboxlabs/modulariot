@@ -10,6 +10,9 @@ import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
+import { useGeofences } from "@/features/common/providers/client-api.provider";
+import wkx, { Geometry } from "wkx";
+import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
@@ -21,6 +24,18 @@ const mapboxStyles = {
   "light-v10": "mapbox://styles/mapbox/light-v10",
   "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
   "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
+};
+
+type Zone = {
+  id: string;
+  name: string;
+  location: string;
+};
+
+type GeofenceData = {
+  zone: Zone;
+  asset_id: string;
+  trip_id: string;
 };
 
 type ViewStateType = {
@@ -91,12 +106,24 @@ const stateToColor = {
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
+  tripId: string;
   positions: MapPosition[] | null;
   error: Error | null;
   averagePosition: {
     latitude: number;
     longitude: number;
   };
+};
+
+type GeometryFeature = {
+  type: string;
+  geometry: Geometry;
+  properties: GeometryFeatureProperties;
+};
+
+type GeometryFeatureProperties = {
+  id: string;
+  name: string;
 };
 
 function zoom_on_pin(
@@ -137,12 +164,15 @@ function move_to_pin(
 }
 
 export default function MapVisualizationTrip({
+  tripId,
   positions,
   error,
   averagePosition,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+  const { geofence_data, geofence_error, geofence_isLoading } =
+    useGeofences(tripId);
 
   // Handle initial zoom when positions are loaded
   useEffect(() => {
@@ -176,35 +206,100 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  const layers = useMemo(
-    () => [
-      new PulsePinLayer({
-        data: geoJson,
-        rotation,
-        zoom: viewState.zoom,
-        updateTriggers: {
-          data: positions,
-        },
-      }),
-      new PinLayer({
-        data: positions ? [positions[positions.length - 1]] : [],
-        zoom: viewState.zoom,
-        onClick: ({ object }: { object: any }) => {
-          zoom_on_pin(
-            object.geometry.coordinates[0],
-            object.geometry.coordinates[1],
-            false,
-            setViewState,
-            viewState,
-          );
-        },
-        updateTriggers: {
-          data: positions,
-        },
-      }),
-    ],
-    [geoJson, positions, rotation, viewState.zoom],
-  );
+  // Memoize the geofence processing
+  const processedGeofence = React.useMemo(() => {
+    if (!geofence_data?.data || geofence_data?.data.length === 0) return null;
+
+    try {
+      // Process all geofences into features, filtering out null locations
+      const features = geofence_data?.data
+        ?.filter((item: GeofenceData) => item.zone.location !== null)
+        .map((item: GeofenceData) => {
+          const wkbHexString = item.zone.location;
+          const wkbBuffer = Buffer.from(wkbHexString, "hex");
+          const geometry = wkx.Geometry.parse(wkbBuffer);
+
+          return {
+            type: "Feature",
+            geometry: geometry.toGeoJSON(),
+            properties: {
+              id: item.zone.id,
+              name: item.zone.name,
+            },
+          };
+        }) as GeometryFeature[];
+
+      // Return a FeatureCollection containing all valid geofences
+      return {
+        type: "FeatureCollection",
+        features,
+      };
+    } catch (error) {
+      console.error("Error processing geofence data:", error);
+      return null;
+    }
+  }, [geofence_data]);
+
+  // Memoize the layers array
+  const layers = React.useMemo(() => {
+    const baseLayers = [];
+
+    // Add geofence layer if available
+    if (processedGeofence && processedGeofence.features.length > 0) {
+      baseLayers.push(
+        new GeofenceLayer({
+          data: processedGeofence,
+        }),
+      );
+    }
+
+    if (geoJson) {
+      baseLayers.push(
+        new PulsePinLayer({
+          data: geoJson,
+          rotation,
+          zoom: viewState.zoom,
+          updateTriggers: {
+            data: positions,
+          },
+        }),
+      );
+    }
+
+    if (positions?.length != 0) {
+      baseLayers.push(
+        new PinLayer({
+          data: positions ? [positions[positions.length - 1]] : [],
+          zoom: viewState.zoom,
+          onClick: ({ object }: { object: any }) => {
+            zoom_on_pin(
+              object.geometry.coordinates[0],
+              object.geometry.coordinates[1],
+              false,
+              setViewState,
+              viewState,
+            );
+          },
+          updateTriggers: {
+            data: positions,
+          },
+        }),
+      );
+    }
+
+    return baseLayers;
+  }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
+
+  // Handle errors and loading states
+  React.useEffect(() => {
+    if (geofence_error) {
+      console.error("Error loading geofences:", geofence_error);
+    }
+
+    if (geofence_isLoading) {
+      console.log("Loading geofences...");
+    }
+  }, [geofence_error, geofence_isLoading]);
 
   if (error) {
     console.error("Map error:", error);
@@ -223,7 +318,9 @@ export default function MapVisualizationTrip({
               return null;
             }
             return {
-              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
+                object.properties.timestamp,
+              ).toLocaleString()}`,
             };
           }
           return null;

@@ -423,6 +423,10 @@
     "svg_document": "Documento SVG",
     "mission_control": "Torre de control",
     "geographic_view": "Vista geográfica",
+    "specialist": "Especialista",
+    "select_entity": "Seleccionar entidad",
+    "derive_to_specialist_description": "Derivar a especialista.",
+    "message_to_specialist": "Mensaje al especialista.",
     "markers": "Marcadores",
     "started_trips": "Viajes iniciados",
     "times": "Tiempos",
@@ -433,7 +437,20 @@
     "restablished_symptoms": "Síntomas restablecidos",
     "under_treatment": "Síntomas siendo tratados",
     "symptoms_being_treated": "Síntomas siendo tratados",
+    "end_treatment_notification": "Enviar notificación por",
+    "confirmation_required": "Confirmación requerida",
+    "ignore_alert": "¿Estás seguro de querer ignorar esta condición? Esta acción no se puede deshacer y la condición ya no se mostrará en la sección de Torre de control.",
+    "save_and_confirm": "Guardar y confirmar",
     "critical_symptoms": "Síntomas críticos",
-    "compromised_condition": "Condición comprometida"
+    "compromised_condition": "Condición comprometida",
+    "general": "General",
+    "services": "Servicios",
+    "flotas": "Flotas",
+    "vehicles": "Vehículos",
+    "containers": "Contenedores",
+    "drivers": "Conductores",
+    "emergencies": "Emergencias",
+    "in_transit": "En tránsito",
+    "in_destination": "En destino"
   }
 }

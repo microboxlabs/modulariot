@@ -1,0 +1,22 @@
+{
+  "0": {
+    "name": "Stable",
+    "message": ""
+  },
+  "1": {
+    "name": "Under observation",
+    "message": "Estimado [nombre conductor] detectamos un exceso en el límite permitido, favor reducir la velocidad"
+  },
+  "2": {
+    "name": "Compromised condition",
+    "message": "Estimado [nombre conductor] detectamos un exceso en el límite permitido, favor reducir la velocidad"
+  },
+  "3": {
+    "name": "Critical condition",
+    "message": "Aviso de seguridad: Su velocidad ha superado el límite permitido. Por favor, reduzca su velocidad."
+  },
+  "4": {
+    "name": "Code black",
+    "message": "Aviso de seguridad: Su velocidad ha superado el límite permitido. Por favor, reduzca su velocidad."
+  }
+}

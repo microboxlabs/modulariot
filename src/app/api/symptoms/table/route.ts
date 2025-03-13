@@ -31,19 +31,18 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const params = new URLSearchParams();
-  params.set("page", url.searchParams.get("page") ?? "1");
-  params.set("limit", url.searchParams.get("limit") ?? "10");
+  //params.set("page", url.searchParams.get("page") ?? "1");
+  //params.set("limit", url.searchParams.get("limit") ?? "10");
   if (url.searchParams.get("search")) {
-    params.set("service", url.searchParams.get("service") ?? "");
+    params.set("p_asset_id", url.searchParams.get("search") ?? "");
   }
   if (url.searchParams.get("condition")) {
-    params.set("condition", url.searchParams.get("condition") ?? "");
+    params.set("p_icu_code", url.searchParams.get("condition") ?? "");
   }
 
   try {
     const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL, {
-      //+ "?" + params.toString()
+    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,

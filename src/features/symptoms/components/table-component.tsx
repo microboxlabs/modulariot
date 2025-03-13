@@ -16,6 +16,7 @@ export default function SymptomsTable({
   searchTerm,
   setCurrentPage,
   compact = false,
+  condition,
 }: {
   dict: I18nRecord;
   currentPage: number;
@@ -23,11 +24,13 @@ export default function SymptomsTable({
   searchTerm: string;
   setCurrentPage: (page: number) => void;
   compact?: boolean;
+  condition: string;
 }) {
   const { tableData, loading, error } = useSymptomsTable({
     page: currentPage,
     pageSize,
     search: searchTerm,
+    condition,
   });
 
   if (loading) {

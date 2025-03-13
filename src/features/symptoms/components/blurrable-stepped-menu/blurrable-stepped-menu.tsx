@@ -14,7 +14,6 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 import { useSession } from "next-auth/react";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { useRouter } from "next/navigation";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
@@ -93,7 +92,7 @@ export default function BlurrableSteppedMenu({
     },
   ];
 
-  const side_sections = [
+  /* const side_sections = [
     {
       title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
@@ -183,13 +182,25 @@ export default function BlurrableSteppedMenu({
         },
       ],
     },
-  ];
+  ]; */
 
-  //let side_sections: any[] = [];
+  let side_sections: any[] = [];
 
   switch (selectedOption) {
     case "call_driver":
-      side_sections = [...base_sections, ...getCallDriver(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getCallDriver(
+          dict,
+          treatmentData,
+          messageToCommunicate,
+          setMessageToCommunicate,
+          driverResponse,
+          setDriverResponse,
+          treatmentRequest,
+          setTreatmentRequest,
+        ),
+      ];
       break;
     case "derive_to_specialist":
       side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
@@ -402,7 +413,6 @@ export default function BlurrableSteppedMenu({
                       updateSelectedElement(new_selected_element);
                     } else if (buttonAction === "end") {
                       setIsMenuOpen(false);
-                      //server side of router.push("/app/symptoms");
                       router.push("/symptoms");
                     } else {
                       setIsMenuOpen(false);

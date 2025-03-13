@@ -70,9 +70,18 @@ export default function TableItem({
               <Link
                 href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
               >
-                <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
+                {/* <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
                   {data.status}
-                </p>
+                </p> */}
+                <Button
+                  className="h-8 flex justify-center items-center !text-xs"
+                  color="blue"
+                >
+                  <div className="flex items-center gap-2">
+                    <p>{data.status}</p>
+                    <HiArrowRight className="w-4 h-4" />
+                  </div>
+                </Button>
               </Link>
             ) : (
               <Link

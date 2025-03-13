@@ -23,7 +23,7 @@ export default function SideInfo({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
   const { treatments_templates } = useTreatmentsTemplates(
-    treatmentData?.symptom_info?.icu_code.toString() ?? "",
+    treatmentData?.symptom_info?.icu_code.toString() ?? "4",
   );
 
   if (loading) {

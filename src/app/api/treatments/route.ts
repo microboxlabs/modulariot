@@ -32,10 +32,10 @@ export async function POST(request: Request) {
   if (!body.client_id) {
     body.client_id = `${process.env.STREAMHUB_CLIENT_ID}`;
   }
-  
+
   try {
     const token = await authToken.getToken();
-    
+
     const response = await fetch(SYMPTOMS_API_URL, {
       method: "POST",
       headers: {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        p_json: body
+        p_json: body,
       }),
     });
 

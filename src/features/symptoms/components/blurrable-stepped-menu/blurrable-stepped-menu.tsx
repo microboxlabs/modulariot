@@ -148,8 +148,7 @@ export default function BlurrableSteppedMenu({
           button: {
             text: (dict.symptoms as I18nRecord).finish_treatment as string,
             action: "end",
-            function: () => {
-            },
+            function: () => {},
           },
         },
       ],
@@ -214,9 +213,10 @@ export default function BlurrableSteppedMenu({
             <div
               key={section.title}
               className={`rounded-lg p-5 mb-1 transition-all duration-200 items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 hover:cursor-pointer
-                ${selected_section == section_index
-                  ? "bg-gray-100 dark:bg-gray-700"
-                  : "bg-white dark:bg-gray-800 opacity-30"
+                ${
+                  selected_section == section_index
+                    ? "bg-gray-100 dark:bg-gray-700"
+                    : "bg-white dark:bg-gray-800 opacity-30"
                 }`}
               onClick={() => {
                 updateSelectedSection(section_index);
@@ -227,14 +227,15 @@ export default function BlurrableSteppedMenu({
               </p>
               {section.elements.map((element, inner_index) => (
                 <div
-                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${selected_elements[selected_section] == inner_index &&
+                  className={`rounded-lg p-2 transition-all duration-200 flex flex-row items-center gap-3 ${
+                    selected_elements[selected_section] == inner_index &&
                     selected_section == section_index
-                    ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
-                    : selected_elements[selected_section] > inner_index &&
-                      selected_section == section_index
-                      ? "text-gray-900 dark:text-white"
-                      : "opacity-30 text-gray-900 dark:text-white"
-                    }`}
+                      ? "bg-gray-100 dark:bg-gray-700 text-blue-500"
+                      : selected_elements[selected_section] > inner_index &&
+                          selected_section == section_index
+                        ? "text-gray-900 dark:text-white"
+                        : "opacity-30 text-gray-900 dark:text-white"
+                  }`}
                   key={inner_index}
                 >
                   <div className="border-2 ml-1 font-light text-lg flex items-center justify-center border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 rounded-lg w-10 h-10">
@@ -271,8 +272,8 @@ export default function BlurrableSteppedMenu({
                       }
                     </div>
                   ) : side_sections[selected_section].elements[
-                    selected_elements[selected_section]
-                  ].logo ? (
+                      selected_elements[selected_section]
+                    ].logo ? (
                     <div className="w-10 h-10 flex items-center justify-center">
                       {
                         side_sections[selected_section].elements[

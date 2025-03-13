@@ -31,25 +31,25 @@ type GeofencePinData = {
       2: End
       3: Intermediate Stop
   */
-}
+};
 
 export class GeofencePinLayer extends CompositeLayer<any> {
   calculateAveragePosition(coordinates: number[][]): [number, number] {
     let sumLng = 0;
     let sumLat = 0;
     let count = 0;
-  
+
     // Sum up all coordinates
     for (const coord of coordinates) {
       sumLng += coord[0];
       sumLat += coord[1];
       count++;
     }
-  
+
     // Calculate average
     return [sumLng / count, sumLat / count];
   }
-  
+
   renderLayers(): Layer[] {
     let processedData: GeofencePinData[] = [];
 
@@ -66,7 +66,8 @@ export class GeofencePinLayer extends CompositeLayer<any> {
       new IconLayer({
         id: "IconLayer-pin",
         data: processedData,
-        getIcon: (d: GeofencePinData) => d.location_type === 2 ? "finish_pin" : "base_pin",
+        getIcon: (d: GeofencePinData) =>
+          d.location_type === 2 ? "finish_pin" : "base_pin",
         getPosition: (d: GeofencePinData) => d.coordinates,
         iconAtlas: pin_atlas.src,
         iconMapping: icon_definition,
@@ -75,8 +76,8 @@ export class GeofencePinLayer extends CompositeLayer<any> {
         parameters: {
           depthTest: false,
         },
-        pickable: true
-      })
+        pickable: true,
+      }),
     ];
   }
 }

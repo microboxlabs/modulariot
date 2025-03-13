@@ -2,21 +2,19 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator, IconLayer } from "deck.gl";
+import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import MapButton from "./map-button";
 import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { MapPosition, MapPositionProperties } from "../types/map";
+import { MapPosition } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
-import finish_pin from "@assets/icons/map/finish-pin.png";
 import { GeofencePinLayer } from "./geofence_pin";
-
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -312,28 +310,31 @@ export default function MapVisualizationTrip({
   }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
 
   // Memoize the tooltip function
-  const getTooltip = React.useCallback(({ object, layer }: PickingInfo<any>) => {
-    if (!object) return null;
-    
-    // Handle PinLayer objects (which have properties.cluster)
-    if (layer?.id === 'pin-layer' && 'properties' in object) {
-      if (!object.properties.cluster) {
-        return {
-          text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
-            object.properties.timestamp,
-          ).toLocaleString()}`,
-        };
+  const getTooltip = React.useCallback(
+    ({ object, layer }: PickingInfo<any>) => {
+      if (!object) return null;
+
+      // Handle PinLayer objects (which have properties.cluster)
+      if (layer?.id === "pin-layer" && "properties" in object) {
+        if (!object.properties.cluster) {
+          return {
+            text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
+              object.properties.timestamp,
+            ).toLocaleString()}`,
+          };
+        }
+        return null;
       }
-      return null;
-    }
 
-    // Handle IconLayer objects (geofence pins)
-    if (layer?.id === 'IconLayer-pin' && Array.isArray(object)) {
-      return null;
-    }
+      // Handle IconLayer objects (geofence pins)
+      if (layer?.id === "IconLayer-pin" && Array.isArray(object)) {
+        return null;
+      }
 
-    return null;
-  }, []);
+      return null;
+    },
+    [],
+  );
 
   // Handle errors and loading states
   React.useEffect(() => {
@@ -357,9 +358,9 @@ export default function MapVisualizationTrip({
         controller={true}
         layers={layers}
         onViewStateChange={handleViewStateChange}
-        getCursor={({isHovering}) => {
-          if (isHovering) return 'pointer';
-          return 'grab';
+        getCursor={({ isHovering }) => {
+          if (isHovering) return "pointer";
+          return "grab";
         }}
         getTooltip={getTooltip}
       >

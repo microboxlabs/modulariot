@@ -67,9 +67,22 @@ export default function TableItem({
         >
           <div className="flex items-center gap-2">
             {data.status ? (
-              <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
-                {data.status}
-              </p>
+              <Link
+                href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
+              >
+                {/* <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
+                  {data.status}
+                </p> */}
+                <Button
+                  className="h-8 flex justify-center items-center !text-xs"
+                  color="blue"
+                >
+                  <div className="flex items-center gap-2">
+                    <p>{data.status}</p>
+                    <HiArrowRight className="w-4 h-4" />
+                  </div>
+                </Button>
+              </Link>
             ) : (
               <Link
                 href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
@@ -77,7 +90,6 @@ export default function TableItem({
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"
-                  /* onClick={() => router.push("/symptoms/map-view")} */
                 >
                   <div className="flex items-center gap-2">
                     <p>{(dict.symptoms as I18nRecord).diagnose as string}</p>

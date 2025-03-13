@@ -5,9 +5,10 @@ import {
   TableHeadCell,
   Pagination,
 } from "flowbite-react";
-import { useSymptomsTable } from "../hooks/use-symptoms-table";
 import TableItem from "./table-item";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
+
 export default function SymptomsTable({
   dict,
   currentPage,

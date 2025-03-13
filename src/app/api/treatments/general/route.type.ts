@@ -30,4 +30,6 @@ export type TreatmentsSymptomInfoResponse = {
   id: number;
   name: string;
   type: string;
+  icu_code: number;
+  icu_condition: string;
 };

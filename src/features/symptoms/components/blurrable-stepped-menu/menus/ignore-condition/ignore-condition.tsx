@@ -1,18 +1,7 @@
-import { Textarea } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { TiDelete } from "react-icons/ti";
 
-export default function CallDriver({
-  dict,
-  treatmentData,
-  messageToCommunicate,
-  setMessageToCommunicate,
-}: {
-  dict: I18nRecord;
-  treatmentData: TreatmentsGeneralResponseItem | null;
-  messageToCommunicate: string;
-  setMessageToCommunicate: (message: string) => void;
-}) {
+export default function IgnoreCondition({ dict }: { dict: I18nRecord }) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-5 flex-grow">
@@ -24,31 +13,31 @@ export default function CallDriver({
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).driver_name as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info.driver}
+                Anonimo Andres
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).vehicle_plate as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info.asset_id}
+                XX BB 21
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).phone as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {/* treatmentData.phone */}
+                +56 9 8241 9297
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).service as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.symptom_info.name}
+                V-1406865
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).load_type as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {/* treatmentData?.symptom_info.type */}
+                Rampla Sider
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
@@ -60,16 +49,14 @@ export default function CallDriver({
             </p>
           </div>
         </div>
-        <div className="w-full flex flex-col gap-2">
-          <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-            {(dict.symptoms as I18nRecord).message_to_communicate as string}
-          </h1>
-          <Textarea
-            /* placeholder={messageToCommunicate} */
-            defaultValue={messageToCommunicate}
-            className="w-full h-32"
-            onChange={(e) => setMessageToCommunicate(e.target.value)}
-          />
+        <div className="w-full flex flex-col gap-2 bg-orange-50 p-4 rounded-lg">
+          <div className="flex flex-row items-center gap-2 text-orange-800">
+            <TiDelete size={25} />
+            {(dict.symptoms as I18nRecord).confirmation_required as string}
+          </div>
+          <p className="text-sm font-light text-orange-800 dark:text-gray-200">
+            {(dict.symptoms as I18nRecord).ignore_alert as string}
+          </p>
         </div>
       </div>
     </div>

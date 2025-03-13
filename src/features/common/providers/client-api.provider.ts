@@ -10,10 +10,18 @@ import {
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
-import { SymptomDashboard } from "../../symptoms/types/symptoms";
+import {
+  SymptomDashboard,
+  SymptomTableResponse,
+} from "../../symptoms/types/symptoms";
 import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
-import { MapPosition } from "@/features/geographic-view/types/map";
+import {
+  MapPosition,
+  MapPositionResume,
+} from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
+import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -175,6 +183,32 @@ export function useSymptoms() {
   };
 }
 
+export function useSymptomsTable({
+  page = 1,
+  pageSize = 10,
+  search = "",
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}) {
+  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+    `/app/api/symptoms/table?page=${page}&limit=${pageSize}&search=${search}`,
+    fetcher,
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    tableData: data,
+    loading: isLoading,
+    error,
+  };
+}
+
 export function useSymptomsIcu(condition?: string) {
   const url = condition
     ? `/app/api/symptoms/icu?p_icu_code=${condition}`
@@ -238,4 +272,67 @@ export function useMapPositions() {
     count: data?.length || 0,
     mutate,
   };
+}
+
+export function useMapPositionsResume() {
+  const { data, error, isLoading, mutate } = useSWR<MapPositionResume, Error>(
+    "/app/api/map/resume",
+    async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch map positions");
+      const data = (await response.json()) as MapPositionResume;
+      return data;
+    },
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    data: data || [],
+    isLoading,
+    isError: !!error,
+    error,
+    mutate,
+  };
+}
+
+export function useGeofences(tripId: string) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/map/geofences?tripId=${tripId}`,
+    fetcher,
+  );
+
+  return {
+    geofence_data: data,
+    geofence_error: error,
+    geofence_isLoading: isLoading,
+  };
+}
+
+export function useTreatmentsTemplates(id: string) {
+  const { data, error, isLoading } = useSWR<
+    TreatmentsTemplatesResponse,
+    FetcherError
+  >(`/app/api/treatments/templates?id=${id}`, fetcher);
+
+  return {
+    treatments_templates: data,
+    treatments_templates_error: error,
+    treatments_templates_isLoading: isLoading,
+  };
+}
+
+export function requestTreatment(
+  treatmentRequest: TreatmentsRequest,
+): Promise<TreatmentsRequest> {
+  const url = `/app/api/treatments`;
+  return fetcher(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify(treatmentRequest),
+  });
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator } from "deck.gl";
+import DeckGL, { FlyToInterpolator, IconLayer } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import MapButton from "./map-button";
@@ -14,6 +14,9 @@ import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
+import finish_pin from "@assets/icons/map/finish-pin.png";
+import { GeofencePinLayer } from "./geofence_pin";
+
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -27,6 +30,7 @@ const mapboxStyles = {
 };
 
 type Zone = {
+  location_type: any;
   id: string;
   name: string;
   location: string;
@@ -163,6 +167,12 @@ export default function MapVisualizationTrip({
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
 
+  const handleViewStateChange = useCallback((e: any) => {
+    if (e.viewState) {
+      setViewState(e.viewState);
+    }
+  }, []);
+
   // Handle initial zoom when positions are loaded
   useEffect(() => {
     if (positions && positions.length > 0) {
@@ -214,6 +224,7 @@ export default function MapVisualizationTrip({
             properties: {
               id: item.zone.id,
               name: item.zone.name,
+              location_type: item.zone.location_type,
             },
           };
         });
@@ -238,6 +249,7 @@ export default function MapVisualizationTrip({
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,
+          zoom: viewState.zoom,
         }),
       );
     }
@@ -276,8 +288,52 @@ export default function MapVisualizationTrip({
       );
     }
 
+    // Geofences icons
+    if (processedGeofence && processedGeofence.features.length > 0) {
+      baseLayers.push(
+        new GeofencePinLayer({
+          data: processedGeofence,
+          zoom: viewState.zoom,
+          onClick: (info: any) => {
+            zoom_on_pin(
+              info.object.coordinates[0],
+              info.object.coordinates[1],
+              false,
+              setViewState,
+              viewState,
+            );
+            return true;
+          },
+        }),
+      );
+    }
+
     return baseLayers;
   }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
+
+  // Memoize the tooltip function
+  const getTooltip = React.useCallback(({ object, layer }: PickingInfo<any>) => {
+    if (!object) return null;
+    
+    // Handle PinLayer objects (which have properties.cluster)
+    if (layer?.id === 'pin-layer' && 'properties' in object) {
+      if (!object.properties.cluster) {
+        return {
+          text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
+            object.properties.timestamp,
+          ).toLocaleString()}`,
+        };
+      }
+      return null;
+    }
+
+    // Handle IconLayer objects (geofence pins)
+    if (layer?.id === 'IconLayer-pin' && Array.isArray(object)) {
+      return null;
+    }
+
+    return null;
+  }, []);
 
   // Handle errors and loading states
   React.useEffect(() => {
@@ -300,20 +356,12 @@ export default function MapVisualizationTrip({
         initialViewState={viewState}
         controller={true}
         layers={layers}
-        onViewStateChange={(e: any) => setViewState(e.viewState)}
-        getTooltip={({ object }: PickingInfo<MapPositionProperties>) => {
-          if (object) {
-            if (object.properties.cluster) {
-              return null;
-            }
-            return {
-              text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
-                object.properties.timestamp,
-              ).toLocaleString()}`,
-            };
-          }
-          return null;
+        onViewStateChange={handleViewStateChange}
+        getCursor={({isHovering}) => {
+          if (isHovering) return 'pointer';
+          return 'grab';
         }}
+        getTooltip={getTooltip}
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}

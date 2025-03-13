@@ -93,6 +93,7 @@ export default function SideInfoData({
                   ? "code black"
                   : "stable",
               description: event.description,
+              type: event.type,
             });
 
             return acc;
@@ -164,7 +165,6 @@ export default function SideInfoData({
           </p> */}
         </div>
       </ExpandableButton>
-
       <ExpandableButton
         initial_state={true}
         icon={<FaUser />}
@@ -223,7 +223,6 @@ export default function SideInfoData({
           </p>
         </div>
       </ExpandableButton>
-
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
@@ -277,9 +276,9 @@ export default function SideInfoData({
                               minute: "2-digit",
                             })}
                           </p>
-                          {/* <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                            {subItem.condition}
-                          </p> */}
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {subItem.type}
+                          </p>
                           <p className="text-sm font-light text-gray-900 dark:text-gray-200">
                             {subItem.description}
                           </p>

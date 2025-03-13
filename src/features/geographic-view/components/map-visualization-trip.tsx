@@ -11,7 +11,7 @@ import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition, MapPositionProperties } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
-import wkx from "wkx";
+import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 
@@ -115,6 +115,17 @@ type MapVisualizationProps = {
   };
 };
 
+type GeometryFeature = {
+  type: string;
+  geometry: Geometry;
+  properties: GeometryFeatureProperties;
+};
+
+type GeometryFeatureProperties = {
+  id: string;
+  name: string;
+};
+
 function zoom_on_pin(
   longitude: number,
   latitude: number,
@@ -197,12 +208,12 @@ export default function MapVisualizationTrip({
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
-    if (!geofence_data?.data || geofence_data.data.length === 0) return null;
+    if (!geofence_data?.data || geofence_data?.data.length === 0) return null;
 
     try {
       // Process all geofences into features, filtering out null locations
-      const features = geofence_data.data
-        .filter((item: GeofenceData) => item.zone.location !== null)
+      const features = geofence_data?.data
+        ?.filter((item: GeofenceData) => item.zone.location !== null)
         .map((item: GeofenceData) => {
           const wkbHexString = item.zone.location;
           const wkbBuffer = Buffer.from(wkbHexString, "hex");
@@ -216,7 +227,7 @@ export default function MapVisualizationTrip({
               name: item.zone.name,
             },
           };
-        });
+        }) as GeometryFeature[];
 
       // Return a FeatureCollection containing all valid geofences
       return {

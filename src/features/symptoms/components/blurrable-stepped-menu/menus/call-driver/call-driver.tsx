@@ -1,31 +1,18 @@
 import { Textarea } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useTreatmentsTemplates } from "@/features/common/providers/client-api.provider";
 
 export default function CallDriver({
   dict,
   treatmentData,
+  messageToCommunicate,
+  setMessageToCommunicate,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
+  messageToCommunicate: string;
+  setMessageToCommunicate: (message: string) => void;
 }) {
-  const {
-    treatments_templates,
-    treatments_templates_error,
-    treatments_templates_isLoading,
-  } = useTreatmentsTemplates(
-    treatmentData?.symptom_info?.icu_code.toString() ?? "",
-  );
-
-  if (treatments_templates_isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (treatments_templates_error) {
-    return <div>Error: {treatments_templates_error.message}</div>;
-  }
-
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-5 flex-grow">
@@ -78,11 +65,10 @@ export default function CallDriver({
             {(dict.symptoms as I18nRecord).message_to_communicate as string}
           </h1>
           <Textarea
-            placeholder={treatments_templates?.message.replace(
-              "[nombre conductor]",
-              treatmentData?.trip_info.driver ?? "",
-            )}
+            /* placeholder={messageToCommunicate} */
+            defaultValue={messageToCommunicate}
             className="w-full h-32"
+            onChange={(e) => setMessageToCommunicate(e.target.value)}
           />
         </div>
       </div>

@@ -124,6 +124,7 @@ export default function SymptomsTable({
         pageSize={pageSize}
         searchTerm={searchTerm}
         setCurrentPage={setCurrentPage}
+        condition={condition}
       />
     </div>
   );

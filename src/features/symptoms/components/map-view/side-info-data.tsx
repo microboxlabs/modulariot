@@ -106,7 +106,6 @@ export default function SideInfoData({
 
   return (
     <div className="flex flex-col gap-2 w-full  overflow-y-auto">
-      hola
       <ExpandableButton
         initial_state={true}
         icon={<FaTruck />}

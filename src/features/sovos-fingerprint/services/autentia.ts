@@ -28,6 +28,7 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (result.ParamsGet.Erc !== 0) {
             // Error rut, resultado
+
             console.error(result);
             const error: Error & { status?: number } = new Error(
               "rut validation failed",
@@ -36,11 +37,10 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
             reject(error);
           }
 
-          if (
-            typeof result.token === "string" &&
-            token === parseFloat(result.token.replace(",", "."))
-          ) {
-            resolve(result.ParamsGet);
+          if (typeof result.token === "string") {
+            if (token === parseFloat(result.token.replace(",", "."))) {
+              resolve(result.ParamsGet);
+            }
           } else {
             // Error rut, resultado
             console.error(result);
@@ -48,6 +48,7 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
               "rut validation failed",
             );
             error.status = 500;
+
             reject(error);
           }
         },

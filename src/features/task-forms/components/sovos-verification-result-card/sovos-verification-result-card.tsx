@@ -1,10 +1,9 @@
 "use client";
 
-import { Button, Card, Dropdown, DropdownItem } from "flowbite-react";
+import { Button, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "../sovos-start-verification-card/sovos-start-verification-card.types";
 import { useSession } from "next-auth/react";
 import FingerprintIcon from "@/features/icons/figerprint";
-import VerticalDotsIcon from "@/features/icons/vertical-dots";
 import { TaskOutcome } from "../../services/form.service.types";
 import {
   OUTCOME_CONFIRM_MONITORING_FINALIZATION,
@@ -15,7 +14,7 @@ import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
-
+import BlurrableDropdown from "@/features/layout/components/blurrable-dropdown/blurrable-dropdown";
 export default function SovosVerificationResultCard({
   msg,
   success,
@@ -86,10 +85,10 @@ export default function SovosVerificationResultCard({
         <h5 className="text-xl font-medium tracking-tight text-gray-900 dark:text-white mt-9">
           {title}
         </h5>
-        <div className="text-center text-gray-500 text-justified p-4">
+        <div className="text-center text-gray-500 dark:text-gray-400 text-justified p-4">
           {description}
         </div>
-        <div className="text-center text-gray-400 text-justified p-4">
+        <div className="text-center text-gray-400 dark:text-gray-500 text-justified p-4">
           {personName}
           <br />
           {personRut}
@@ -97,62 +96,53 @@ export default function SovosVerificationResultCard({
         {!success && (
           <div className="flex flex-row gap-2 w-full">
             <div className="flex-1">
-              <Button
-                color="blue"
-                theme={{ inner: { base: "px-5 py-3" } }}
-                className="w-full px-0 py-px"
-                onClick={() => stepperController.toStep("step1")}
-              >
-                {msg?.tryAgain as string}
-              </Button>
+              <Button.Group className="w-full">
+                <BlurrableDropdown
+                  dict={msg as I18nRecord}
+                  options={
+                    isSovosVerification
+                      ? [
+                          {
+                            id: 1,
+                            label: (msg?.outcome as I18nRecord)
+                              .returnToMissionControl as string,
+                            icon: HiOutlineArrowLeft,
+                            function: () => {
+                              handleSelection(
+                                OUTCOME_RETURN_TO_MISSION_CONTROL,
+                                (msg?.outcome as I18nRecord)
+                                  .returnToMissionControl as string,
+                              );
+                            },
+                          },
+                        ]
+                      : [
+                          {
+                            id: 1,
+                            label: (msg?.outcome as I18nRecord)
+                              .confirmMonitoringFinalization as string,
+                            icon: HiOutlineArrowRight,
+                            function: () => {
+                              handleSelection(
+                                OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+                                (msg?.outcome as I18nRecord)
+                                  .confirmMonitoringFinalization as string,
+                              );
+                            },
+                          },
+                        ]
+                  }
+                />
+                <Button
+                  color="blue"
+                  theme={{ inner: { base: "px-5 py-3" } }}
+                  className="w-full px-0 py-px"
+                  onClick={() => stepperController.toStep("step1")}
+                >
+                  {msg?.tryAgain as string}
+                </Button>
+              </Button.Group>
             </div>
-            <Dropdown
-              label={<VerticalDotsIcon />}
-              arrowIcon={false}
-              className="flex gap-1"
-              inline
-              theme={{
-                inlineWrapper:
-                  "cursor-pointer justify-center rounded px-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white",
-              }}
-            >
-              {isSovosVerification && (
-                <DropdownItem
-                  className="flex gap-1"
-                  onClick={() => {
-                    handleSelection(
-                      OUTCOME_RETURN_TO_MISSION_CONTROL,
-                      (msg?.outcome as I18nRecord)
-                        .returnToMissionControl as string,
-                    );
-                  }}
-                >
-                  <HiOutlineArrowLeft />
-                  {
-                    (msg?.outcome as I18nRecord)
-                      .returnToMissionControl as string
-                  }
-                </DropdownItem>
-              )}
-              {!isSovosVerification && (
-                <DropdownItem
-                  className="flex gap-1"
-                  onClick={() => {
-                    handleSelection(
-                      OUTCOME_CONFIRM_MONITORING_FINALIZATION,
-                      (msg?.outcome as I18nRecord)
-                        .confirmMonitoringFinalization as string,
-                    );
-                  }}
-                >
-                  <HiOutlineArrowRight />
-                  {
-                    (msg?.outcome as I18nRecord)
-                      .confirmMonitoringFinalization as string
-                  }
-                </DropdownItem>
-              )}
-            </Dropdown>
           </div>
         )}
         {success && (

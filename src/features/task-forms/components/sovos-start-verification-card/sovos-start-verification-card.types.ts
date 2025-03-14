@@ -7,6 +7,6 @@ export type SovosVerificationCardProps = TaskFormProps & {
   isSovosVerification: boolean;
   success?: boolean;
   trParams?: Record<string, { [key: string]: string }>;
-  validationError: string | null;
-  setValidationError: (validationError: string | null) => void;
+  validationError: string | null | undefined;
+  setValidationError: (validationError: string | null) => void | undefined;
 };

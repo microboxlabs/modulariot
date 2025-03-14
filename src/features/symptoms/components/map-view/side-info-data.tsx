@@ -87,11 +87,7 @@ export default function SideInfoData({
             acc[date].items.push({
               start: event.start,
               end: event.end,
-              condition: event.type.toLowerCase().includes("critical")
-                ? "critic"
-                : event.type.toLowerCase().includes("black")
-                  ? "code black"
-                  : "stable",
+              icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
               type: event.type,
             });
@@ -259,7 +255,7 @@ export default function SideInfoData({
                       <div key={subIndex} className="flex flex-row gap-2">
                         <div className="flex flex-col">
                           <ConditionIcon
-                            condition={subItem.condition}
+                            condition={subItem?.icu_condition}
                             size="h-7 w-7"
                           />
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />

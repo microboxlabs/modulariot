@@ -7,24 +7,27 @@ import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
-import { useTreatmentsGeneral } from "./hooks/use-treatments-general";
 import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useTreatmentsTemplates } from "../common/providers/client-api.provider";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 
 export default function SideInfo({
   dict,
   lang,
-  symptomId,
+  treatmentData,
+  loading,
+  error,
 }: {
   dict: I18nRecord;
   lang: string;
-  symptomId: string;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  loading: boolean;
+  error: Error | null;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedOption, setSelectedOption] =
     useState<SelectedOption>("call_driver");
-  const { treatmentData, loading, error } = useTreatmentsGeneral(symptomId);
   const { treatments_templates } = useTreatmentsTemplates(
     treatmentData?.symptom_info?.icu_code.toString() ?? "4",
   );

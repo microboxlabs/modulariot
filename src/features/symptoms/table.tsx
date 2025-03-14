@@ -7,7 +7,7 @@ import { FiMaximize, FiMinimize } from "react-icons/fi";
 import { FaFilter, FaArrowsRotate } from "react-icons/fa6";
 import TableComponent from "./components/table-component";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import icu_code from "./model/icu_condition.json";
 export default function SymptomsTable({
   setShowCards,
   showCards,
@@ -20,13 +20,14 @@ export default function SymptomsTable({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [_condition, setCondition] = useState<string>("");
+  const [condition, setCondition] = useState<string>("");
   const pageSize = 10;
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setSearchTerm(formData.get("search")?.toString() || "");
+    setCondition(formData.get("condition")?.toString() || "");
     setCurrentPage(1);
   };
 
@@ -60,25 +61,35 @@ export default function SymptomsTable({
               </Button>
             )}
           >
-            <Dropdown.Item onClick={() => setCondition("code black")}>
+            <Dropdown.Item onClick={() => setCondition(icu_code["code_black"])}>
               Código Negro
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("critic")}>
+            <Dropdown.Item
+              onClick={() => setCondition(icu_code["critical_condition"])}
+            >
               Crítico
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("treatment")}>
+            <Dropdown.Item
+              onClick={() => setCondition(icu_code["under_treatment"])}
+            >
               Tratamiento
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("stable")}>
+            <Dropdown.Item onClick={() => setCondition(icu_code["stable"])}>
               Estable
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("observation")}>
+            <Dropdown.Item
+              onClick={() => setCondition(icu_code["under_observation"])}
+            >
               Observación
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("remission")}>
+            <Dropdown.Item
+              onClick={() => setCondition(icu_code["remission_state"])}
+            >
               Remisión
             </Dropdown.Item>
-            <Dropdown.Item onClick={() => setCondition("compromised")}>
+            <Dropdown.Item
+              onClick={() => setCondition(icu_code["compromised_condition"])}
+            >
               Comprometido
             </Dropdown.Item>
           </Dropdown>
@@ -113,6 +124,7 @@ export default function SymptomsTable({
         pageSize={pageSize}
         searchTerm={searchTerm}
         setCurrentPage={setCurrentPage}
+        condition={condition}
       />
     </div>
   );

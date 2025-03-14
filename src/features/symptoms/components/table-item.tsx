@@ -70,9 +70,6 @@ export default function TableItem({
               <Link
                 href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
               >
-                {/* <p className=" bg-gray-200 dark:bg-gray-700 dark:border dark:border-white rounded-md p-2 text-gray-900 dark:text-white">
-                  {data.status}
-                </p> */}
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
                   color="blue"
@@ -115,7 +112,11 @@ export default function TableItem({
           <p
             className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
           >
-            {data.licensePlate}
+            <Link
+              href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
+            >
+              {data.licensePlate}
+            </Link>
           </p>
         </div>
       </TableCell>

@@ -15,6 +15,7 @@ export default function Symptoms({ dict }: { dict: I18nRecord }) {
           pageSize={100}
           searchTerm=""
           setCurrentPage={() => {}}
+          condition=""
           compact={true}
         />
       </div>

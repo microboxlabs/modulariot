@@ -86,7 +86,7 @@ export default function SideInfoData({
 
             acc[date].items.push({
               start: event.start,
-              end: event.end, // The API doesn't provide end time
+              end: event.end,
               condition: event.type.toLowerCase().includes("critical")
                 ? "critic"
                 : event.type.toLowerCase().includes("black")
@@ -233,7 +233,7 @@ export default function SideInfoData({
           }
         >
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
-            {timelineData.map((item, index) => {
+            {timelineData.reverse().map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
               const duration = calculateDuration(
                 item.items[item.items.length - 1].start,

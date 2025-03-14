@@ -351,6 +351,7 @@
     "departure_date": "Fecha de salida",
     "service": "Servicio",
     "alert_type": "Tipo de alerta",
+    "event_type": "Tipo de evento",
     "state": "Estado",
     "showing": "Mostrando",
     "of": "de",

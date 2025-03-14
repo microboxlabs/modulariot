@@ -124,7 +124,8 @@ export default function SideInfoData({
                 treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
                 "stable"
               }
-              size="h-7 w-7" dict={dict}
+              size="h-7 w-7"
+              dict={dict}
             />
             <p
               className={`text-sm font-medium ${
@@ -194,10 +195,14 @@ export default function SideInfoData({
                 "stable"
               }
               size="h-7 w-7"
-            dict={dict} />
+              dict={dict}
+            />
             <p
               className={`text-sm font-medium ${
-                Conditions["code black"].textColor
+                Conditions[
+                  treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                    "stable"
+                ].textColor
               }`}
             >
               {new Date().toLocaleString().split(",")[1]}

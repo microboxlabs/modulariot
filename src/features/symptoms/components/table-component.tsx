@@ -101,7 +101,7 @@ export default function SymptomsTable({
                 {(dict.symptoms as I18nRecord).departure_date as string}
               </TableHeadCell>
               <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).alert_type as string}
+                {(dict.symptoms as I18nRecord).event_type as string}
               </TableHeadCell>
               <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).state as string}

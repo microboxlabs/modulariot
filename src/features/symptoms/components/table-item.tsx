@@ -23,7 +23,11 @@ export default function TableItem({
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
           <div className="flex items-center gap-2">
-            <ConditionIcon condition={data.condition} size="h-7 w-7" />
+            <ConditionIcon
+              condition={data.condition}
+              size="h-7 w-7"
+              dict={dict}
+            />
             <p
               className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
             >
@@ -108,7 +112,11 @@ export default function TableItem({
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex items-center gap-2">
-          <ConditionIcon condition={data.condition} size="h-7 w-7" />
+          <ConditionIcon
+            condition={data.condition}
+            size="h-7 w-7"
+            dict={dict}
+          />
           <p
             className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
           >

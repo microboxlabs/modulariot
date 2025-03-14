@@ -74,6 +74,7 @@ export default function SovosVerificationForm({
       });
     },
     toNextStep: (isError: boolean = false, audit?: AutentiaParamsGet) => {
+
       if (audit) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         setAudits([...audits, audit]);
@@ -120,6 +121,7 @@ export default function SovosVerificationForm({
     steps.push("step3", "step4");
   }
   steps.push("step5", "step6");
+
   return (
     <div className="flex-1 flex flex-col items-center gap-6">
       <StepperNavigation

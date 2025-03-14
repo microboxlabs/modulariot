@@ -57,6 +57,7 @@ export default function TimedSymptoms({
             <ConditionIcon
               condition={item.icu_condition.toLowerCase()}
               size="h-7 w-7"
+              dict={dict}
             />
             <p>{item.start_time}</p>
             {" | "}

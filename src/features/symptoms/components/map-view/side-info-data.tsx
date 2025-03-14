@@ -124,7 +124,7 @@ export default function SideInfoData({
                 treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
                 "stable"
               }
-              size="h-7 w-7"
+              size="h-7 w-7" dict={dict}
             />
             <p
               className={`text-sm font-medium ${
@@ -194,7 +194,7 @@ export default function SideInfoData({
                 "stable"
               }
               size="h-7 w-7"
-            />
+            dict={dict} />
             <p
               className={`text-sm font-medium ${
                 Conditions["code black"].textColor
@@ -278,6 +278,7 @@ export default function SideInfoData({
                           <ConditionIcon
                             condition={subItem?.icu_condition}
                             size="h-7 w-7"
+                            dict={dict}
                           />
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>

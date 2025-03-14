@@ -322,6 +322,7 @@
   },
   "symptoms": {
     "symptoms": "Síntomas",
+    "symptom": "Síntoma",
     "client": "Cliente",
     "route": "Ruta",
     "transporter": "Transportista",
@@ -337,6 +338,8 @@
     "condition_in_observation": "Condición en observación",
     "1": "Condición en observación",
     "in_observation": "En observación",
+    "under_observation": "En observación",
+    "under observation": "En observación",
     "in_remission": "En remisión",
     "stable": "Estable",
     "conditions": "Condiciones",

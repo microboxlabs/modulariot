@@ -108,7 +108,7 @@ export default function SideInfoData({
     <div className="flex flex-col gap-2 w-full pb-20 overflow-y-auto">
       <ExpandableButton
         initial_state={true}
-        icon={<FaTruck className="text-gray-900 dark:text-white" />}
+        icon={<FaTruck />}
         title={(dict.symptoms as I18nRecord).condition as string}
         description={
           (dict.symptoms as I18nRecord).relevant_information as string
@@ -167,7 +167,7 @@ export default function SideInfoData({
       </ExpandableButton>
       <ExpandableButton
         initial_state={true}
-        icon={<FaUser className="text-gray-900 dark:text-white" />}
+        icon={<FaUser />}
         title={(dict.symptoms as I18nRecord).service as string}
         description={(dict.symptoms as I18nRecord).driver_description as string}
       >
@@ -226,7 +226,7 @@ export default function SideInfoData({
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
-          icon={<FaClock className="text-gray-900 dark:text-white" />}
+          icon={<FaClock />}
           title={(dict.symptoms as I18nRecord).timeline as string}
           description={
             (dict.symptoms as I18nRecord).timeline_description as string

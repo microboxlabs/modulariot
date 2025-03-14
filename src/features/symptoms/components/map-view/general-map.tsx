@@ -74,7 +74,7 @@ export default function GeneralMap({
               height={50}
             />
             <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-              {(dict.symptoms as I18nRecord).symptom as string}:{" "}              
+              {(dict.symptoms as I18nRecord).symptom as string}:{" "}
               {
                 (dict.symptoms as I18nRecord)?.[
                   treatmentData?.symptom_info?.icu_condition.toLowerCase() ??

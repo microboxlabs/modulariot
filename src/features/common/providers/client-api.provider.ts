@@ -187,13 +187,15 @@ export function useSymptomsTable({
   page = 1,
   pageSize = 10,
   search = "",
+  condition = "",
 }: {
   page?: number;
   pageSize?: number;
   search?: string;
+  condition?: string;
 }) {
   const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
-    `/app/api/symptoms/table?page=${page}&limit=${pageSize}&search=${search}`,
+    `/app/api/symptoms/table?page=${page}&limit=${pageSize}${search ? "&search=" + search : ""}${condition ? "&condition=" + condition : ""}`,
     fetcher,
     {
       refreshInterval: 30000,

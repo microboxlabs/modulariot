@@ -108,7 +108,7 @@ export default function SideInfoData({
     <div className="flex flex-col gap-2 w-full pb-20 overflow-y-auto">
       <ExpandableButton
         initial_state={true}
-        icon={<FaTruck />}
+        icon={<FaTruck className="text-gray-900 dark:text-white" />}
         title={(dict.symptoms as I18nRecord).condition as string}
         description={
           (dict.symptoms as I18nRecord).relevant_information as string
@@ -167,7 +167,7 @@ export default function SideInfoData({
       </ExpandableButton>
       <ExpandableButton
         initial_state={true}
-        icon={<FaUser />}
+        icon={<FaUser className="text-gray-900 dark:text-white" />}
         title={(dict.symptoms as I18nRecord).service as string}
         description={(dict.symptoms as I18nRecord).driver_description as string}
       >
@@ -226,7 +226,7 @@ export default function SideInfoData({
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
-          icon={<FaClock />}
+          icon={<FaClock className="text-gray-900 dark:text-white" />}
           title={(dict.symptoms as I18nRecord).timeline as string}
           description={
             (dict.symptoms as I18nRecord).timeline_description as string
@@ -240,12 +240,19 @@ export default function SideInfoData({
               );
 
               return (
-                <div key={index} className="flex flex-col gap-2">
-                  <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
-                    <div className="w-full flex flex-row gap-5 text-sm items-center justify-between px-2">
-                      <div className="text-black dark:text-white">{date}</div>
+                <div
+                  key={index}
+                  className={`flex flex-col gap-2 ${
+                    index != timelineData.length - 1 ? "pb-2" : ""
+                  }`}
+                >
+                  <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-1 text-xs">
+                    <div className="w-full flex flex-row gap-5 items-center justify-between px-2">
+                      <div className="text-black dark:text-white text-sm">
+                        {date}
+                      </div>
                       <div className="flex flex-row flex-grow justify-between">
-                        <p className="bg-blue-200 rounded-md px-2 py-1 text-gray-600 flex items-center">
+                        <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
                           {item.assigned_to}
                         </p>
                         <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
@@ -254,7 +261,7 @@ export default function SideInfoData({
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 bg">
+                  <div className="flex flex-col gap-3 bg">
                     {item.items.map((subItem: any, subIndex: any) => (
                       <div key={subIndex} className="flex flex-row gap-2">
                         <div className="flex flex-col">
@@ -264,8 +271,8 @@ export default function SideInfoData({
                           />
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        <div className="flex flex-col">
+                          <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
                             {new Date(subItem.start).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -276,12 +283,14 @@ export default function SideInfoData({
                               minute: "2-digit",
                             })}
                           </p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                            {subItem.type}
-                          </p>
-                          <p className="text-sm font-light text-gray-900 dark:text-gray-200">
-                            {subItem.description}
-                          </p>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                              {subItem.type}
+                            </p>
+                            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+                              {subItem.description}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}

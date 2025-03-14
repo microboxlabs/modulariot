@@ -24,13 +24,11 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
         giveFocusToAutentia,
         token,
         (result) => {
-          console.log(result);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (result.ParamsGet.Erc !== 0) {
             // Error rut, resultado
-            console.error(result);
             const error: Error & { status?: number } = new Error(
-              "rut validation failed",
+              result.ParamsGet.ercText || "rut validation failed",
             );
             error.status = result.ParamsGet.Erc;
             reject(error);
@@ -43,9 +41,8 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
             resolve(result.ParamsGet);
           } else {
             // Error rut, resultado
-            console.error(result);
             const error: Error & { status?: number } = new Error(
-              "rut validation failed",
+              result.ParamsGet.ercText || "rut validation failed",
             );
             error.status = 500;
             reject(error);
@@ -64,6 +61,7 @@ export function fakeValidateRut(_pRut: string): Promise<AutentiaParamsGet> {
     setTimeout(() => {
       resolve({
         Erc: 0,
+        ercText: "",
         NroAudit: "SMIN-M1KG-BYBF-JJD4",
         Rut: "",
       });

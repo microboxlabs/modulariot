@@ -38,7 +38,7 @@ export default function SymptomsCards({
     observation = 0,
     stable = 0,
     remission = 0,
-    //compromised = 0,
+    compromised = 0,
   } = symptoms || {};
 
   return (
@@ -120,7 +120,7 @@ export default function SymptomsCards({
                 (dict.symptoms as I18nRecord).compromised_condition as string
               }
               icu_condition={icuConditions.compromised_condition}
-              count={critic.toString().padStart(2, "0")}
+              count={compromised.toString().padStart(2, "0")}
               variant="critical"
             />
           </div>

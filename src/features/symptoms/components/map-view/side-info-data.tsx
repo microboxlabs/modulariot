@@ -87,11 +87,7 @@ export default function SideInfoData({
             acc[date].items.push({
               start: event.start,
               end: event.end,
-              condition: event.type.toLowerCase().includes("critical")
-                ? "critic"
-                : event.type.toLowerCase().includes("black")
-                  ? "code black"
-                  : "stable",
+              icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
               type: event.type,
             });
@@ -117,13 +113,26 @@ export default function SideInfoData({
         <div className="flex flex-col gap-2">
           <div
             className={`flex flex-row items-center gap-2 p-1 rounded-md ${
-              Conditions["code black"].bgColor
+              Conditions[
+                treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                  "stable"
+              ].bgColor
             }`}
           >
-            <ConditionIcon condition="code black" size="h-7 w-7" dict={dict} />
+            <ConditionIcon
+              condition={
+                treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                "stable"
+              }
+              size="h-7 w-7"
+              dict={dict}
+            />
             <p
               className={`text-sm font-medium ${
-                Conditions["code black"].textColor
+                Conditions[
+                  treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                    "stable"
+                ].textColor
               }`}
             >
               {new Date().toLocaleString().split(",")[1]}
@@ -174,13 +183,26 @@ export default function SideInfoData({
         <div className="flex flex-col gap-2">
           <div
             className={`flex flex-row items-center gap-2 p-1 rounded-md ${
-              Conditions["code black"].bgColor
+              Conditions[
+                treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                  "stable"
+              ].bgColor
             }`}
           >
-            <ConditionIcon condition="code black" size="h-7 w-7" dict={dict} />
+            <ConditionIcon
+              condition={
+                treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                "stable"
+              }
+              size="h-7 w-7"
+              dict={dict}
+            />
             <p
               className={`text-sm font-medium ${
-                Conditions["code black"].textColor
+                Conditions[
+                  treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
+                    "stable"
+                ].textColor
               }`}
             >
               {new Date().toLocaleString().split(",")[1]}
@@ -259,7 +281,7 @@ export default function SideInfoData({
                       <div key={subIndex} className="flex flex-row gap-2">
                         <div className="flex flex-col">
                           <ConditionIcon
-                            condition={subItem.condition}
+                            condition={subItem?.icu_condition}
                             size="h-7 w-7"
                             dict={dict}
                           />

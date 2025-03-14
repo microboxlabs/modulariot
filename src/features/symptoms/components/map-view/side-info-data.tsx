@@ -120,7 +120,7 @@ export default function SideInfoData({
               Conditions["code black"].bgColor
             }`}
           >
-            <ConditionIcon condition="code black" size="h-7 w-7" />
+            <ConditionIcon condition="code black" size="h-7 w-7" dict={dict} />
             <p
               className={`text-sm font-medium ${
                 Conditions["code black"].textColor
@@ -177,7 +177,7 @@ export default function SideInfoData({
               Conditions["code black"].bgColor
             }`}
           >
-            <ConditionIcon condition="code black" size="h-7 w-7" />
+            <ConditionIcon condition="code black" size="h-7 w-7" dict={dict} />
             <p
               className={`text-sm font-medium ${
                 Conditions["code black"].textColor
@@ -261,6 +261,7 @@ export default function SideInfoData({
                           <ConditionIcon
                             condition={subItem.condition}
                             size="h-7 w-7"
+                            dict={dict}
                           />
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>

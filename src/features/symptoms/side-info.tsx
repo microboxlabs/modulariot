@@ -74,14 +74,14 @@ export default function SideInfo({
           <Button
             size="md"
             color="blue"
-            className="h-10 rounded-l-none w-full"
+            className="h-10 rounded-l-none w-full whitespace-nowrap"
             onClick={() => {
               setIsMenuOpen(!isMenuOpen);
               setSelectedOption("call_driver");
             }}
           >
             {(dict.symptoms as I18nRecord).call_driver as string}
-            <HiArrowRight className="ml-2 h-5 w-5" />
+            <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
           </Button>
         </Button.Group>
       </div>

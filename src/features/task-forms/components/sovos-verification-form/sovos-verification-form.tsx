@@ -30,7 +30,7 @@ export default function SovosVerificationForm({
     currentStep: "step1",
     isError: false,
   });
-
+  const [validationError, setValidationError] = useState<string | null>(null);
   const handleSignDocument = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -153,6 +153,8 @@ export default function SovosVerificationForm({
             pluginReady={pluginReady}
             stepperController={stepperController}
             isSovosVerification={true}
+            validationError={validationError}
+            setValidationError={setValidationError}
           />
         )}
       {(stepper.currentStep === "step2" ||
@@ -167,6 +169,8 @@ export default function SovosVerificationForm({
             success={!stepper.isError}
             isSovosVerification={true}
             user={user}
+            validationError={validationError}
+            setValidationError={setValidationError}
           />
         )}
       <SovosDeps onReady={() => setPluginReady(true)} />

@@ -5,19 +5,28 @@ const icon_definition = {
   base_pin: {
     x: 0,
     y: 0,
-    width: 540,
-    height: 540,
-    anchorX: 540 / 2,
-    anchorY: 540 / 2,
+    width: 2700,
+    height: 2700,
+    anchorX: 2700 / 2,
+    anchorY: 2700 / 2,
     mask: false,
   },
   finish_pin: {
-    x: 540,
+    x: 2700,
     y: 0,
-    width: 540,
-    height: 540,
-    anchorX: 540 / 2,
-    anchorY: 540 / 2,
+    width: 2700,
+    height: 2700,
+    anchorX: 0,
+    anchorY: 2700,
+    mask: false,
+  },
+  start_pin: {
+    x: 5400,
+    y: 0,
+    width: 2700,
+    height: 2700,
+    anchorX: 0,
+    anchorY: 2700,
     mask: false,
   },
 };
@@ -67,7 +76,11 @@ export class GeofencePinLayer extends CompositeLayer<any> {
         id: "IconLayer-pin",
         data: processedData,
         getIcon: (d: GeofencePinData) =>
-          d.location_type === 2 ? "finish_pin" : "base_pin",
+          d.location_type === 1
+            ? "start_pin"
+            : d.location_type === 2
+              ? "finish_pin"
+              : "base_pin",
         getPosition: (d: GeofencePinData) => d.coordinates,
         iconAtlas: pin_atlas.src,
         iconMapping: icon_definition,

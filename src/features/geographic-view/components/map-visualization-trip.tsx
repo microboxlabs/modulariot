@@ -5,8 +5,6 @@ import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
-import MapButton from "./map-button";
-import { BsStars } from "react-icons/bs";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import { MapPosition } from "../types/map";
@@ -276,6 +274,26 @@ export default function MapVisualizationTrip({
       );
     }
 
+    // Geofences icons
+    if (processedGeofence && processedGeofence.features.length > 0) {
+      baseLayers.push(
+        new GeofencePinLayer({
+          data: processedGeofence,
+          zoom: viewState.zoom,
+          onClick: (info: any) => {
+            zoom_on_pin(
+              info.object.coordinates[0],
+              info.object.coordinates[1],
+              false,
+              setViewState,
+              viewState,
+            );
+            return true;
+          },
+        }),
+      );
+    }
+
     if (positions?.length != 0) {
       baseLayers.push(
         new PinLayer({
@@ -292,26 +310,6 @@ export default function MapVisualizationTrip({
           },
           updateTriggers: {
             data: positions,
-          },
-        }),
-      );
-    }
-
-    // Geofences icons
-    if (processedGeofence && processedGeofence.features.length > 0) {
-      baseLayers.push(
-        new GeofencePinLayer({
-          data: processedGeofence,
-          zoom: viewState.zoom,
-          onClick: (info: any) => {
-            zoom_on_pin(
-              info.object.coordinates[0],
-              info.object.coordinates[1],
-              false,
-              setViewState,
-              viewState,
-            );
-            return true;
           },
         }),
       );
@@ -380,7 +378,9 @@ export default function MapVisualizationTrip({
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
       </DeckGL>
+
       <div className="absolute right-5 top-5 bottom-0">
+        {/*
         <MapButton
           main_color="bg-white dark:bg-gray-800"
           button_color="bg-white dark:bg-gray-800"
@@ -388,6 +388,7 @@ export default function MapVisualizationTrip({
           text="Copilot"
           open_to_left={true}
         />
+        */}
       </div>
       <div className="absolute left-5 bottom-5">
         {positions?.length === 0 ? <Spinner /> : null}

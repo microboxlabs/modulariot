@@ -17,9 +17,11 @@ export default function SovosStartVerificationCard({
   pluginReady,
   stepperController,
   user,
+  setValidationError,
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
+
   function startVerification() {
     const currentStep = stepperController.currentStep();
 
@@ -29,17 +31,24 @@ export default function SovosStartVerificationCard({
         ? fakeValidateRut
         : validateRut;
     setIsVerificationInProgress(true);
+    setValidationError(null);
     validator(getRut())
       .then((result) => {
         if (result) {
           stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }
       })
-      .catch((_error) => {
+      .catch((error: unknown) => {
         ShowNotification({
           type: "error",
-          message: _error.message,
+          message: error.message,
         });
+        
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Error durante la validación del RUT";
+        setValidationError(errorMessage);
         let nextStep;
         if (!currentStep.startsWith("step")) {
           nextStep = 2;
@@ -48,6 +57,9 @@ export default function SovosStartVerificationCard({
           nextStep += 1;
         }
         stepperController.toStep(`step${nextStep}`, true);
+      })
+      .finally(() => {
+        setIsVerificationInProgress(false);
       });
   }
 

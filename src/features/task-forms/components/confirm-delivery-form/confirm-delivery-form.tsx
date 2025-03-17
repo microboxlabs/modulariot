@@ -31,6 +31,8 @@ export default function ConfirmDeliveryForm({
     isError: false,
   });
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleSignDocument = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -151,6 +153,8 @@ export default function ConfirmDeliveryForm({
           pluginReady={pluginReady}
           stepperController={stepperController}
           isSovosVerification={false}
+          validationError={validationError}
+          setValidationError={setValidationError}
         />
       )}
       {(stepper.currentStep === "step2" ||
@@ -176,6 +180,8 @@ export default function ConfirmDeliveryForm({
           }}
           user={user}
           isSovosVerification={false}
+          validationError={validationError}
+          setValidationError={setValidationError}
         />
       )}
       <SovosDeps onReady={() => setPluginReady(true)} />

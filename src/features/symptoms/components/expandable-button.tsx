@@ -24,9 +24,11 @@ export default function ExpandableButton({
     >
       {/* Title */}
       <div className="flex flex-row items-center gap-2">
-        {React.cloneElement(icon, {
-          className: `transition-all duration-200  rounded-md  ${isExpanded ? "w-5 h-5 bg-transparent" : "w-10 h-10 p-2 border border-gray-300 bg-white"}`,
-        })}
+        <div
+          className={`text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md  ${isExpanded ? "w-5 h-5 border-transparent bg-transparent" : "w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"}`}
+        >
+          {icon}
+        </div>
         <div className="flex flex-col">
           <h1 className="text-md font-bold text-gray-900 dark:text-white">
             {title}

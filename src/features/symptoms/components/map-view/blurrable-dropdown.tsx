@@ -43,30 +43,35 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).derive_to_specialist as string,
       icon: HiArrowRight,
       option: "derive_to_specialist" as SelectedOption,
+      disabled: false,
     },
     {
       id: 1,
       label: (dict.symptoms as I18nRecord).contact_carabineros as string,
       icon: GiPoliceBadge,
       option: "contact_carabineros" as SelectedOption,
+      disabled: true,
     },
     {
       id: 2,
       label: (dict.symptoms as I18nRecord).contact_via_whatsapp as string,
       icon: FaWhatsapp,
       option: "contact_via_whatsapp" as SelectedOption,
+      disabled: true,
     },
     {
       id: 3,
       label: (dict.symptoms as I18nRecord).copilot as string,
       icon: BsStars,
       option: "copilot" as SelectedOption,
+      disabled: true,
     },
     {
       id: 4,
       label: (dict.symptoms as I18nRecord).ignore_condition as string,
       icon: MdCancel,
       option: "ignore_condition" as SelectedOption,
+      disabled: false,
     },
   ];
 
@@ -110,10 +115,11 @@ export default function BlurrableDropdown({
           },
         }}
       >
-        {other_options.map(({ id, label, icon: Icon, option }) => (
+        {other_options.map(({ id, label, icon: Icon, option, disabled }) => (
           <DropdownItem
             key={id}
-            className="flex gap-1 w-full"
+            className={`flex gap-1 w-full ${disabled ? "opacity-50 !cursor-not-allowed" : ""}`}
+            disabled={disabled}
             onClick={() => {
               setSelectedOption(option);
               setIsMenuOpen(!isMenuOpen);

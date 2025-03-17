@@ -96,7 +96,7 @@ export default function BlurrableDropdown({
             className="h-10 transition-all duration-100 !z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
           >
             <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
+              <p className="text-sm text-gray-900 dark:text-gray-100 hidden whitespace-nowrap xl:flex lg:hidden">
                 {(dict.symptoms as I18nRecord).other_options as string}
               </p>
               <HiChevronUp

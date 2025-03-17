@@ -5,11 +5,12 @@ import { SymptomsICUItemResponse } from "@/app/api/symptoms/icu/route.type";
 import SymptomsData from "@/features/symptoms/components/symptoms-list/symptoms-data";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import Image from "next/image";
-import noAlarmImage from "@assets/images/no_alarm.gif";
-import maskImage from "@assets/images/mask.gif";
 import SymptomsListSkeleton from "./symptoms-list-skeleton";
 import { useSymptomsIcu } from "@/features/common/providers/client-api.provider";
+import noAlarmImage from "@assets/images/no_alarm.gif";
+import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
+import hospitalImage from "@assets/images/hospital.svg";
 
 interface SymptomsIcuListProps {
   condition: string;
@@ -28,10 +29,15 @@ const titles = {
     title: "in_observation",
     icon: maskImage,
   },
+  "2": {
+    base: "restablished_symptoms",
+    title: "compromised_condition",
+    icon: hospitalImage,
+  },
   "3": {
     base: "urgent_symptoms",
     title: "critical_condition",
-    icon: noAlarmImage,
+    icon: hospitalImage,
   },
   "4": {
     base: "urgent_symptoms",

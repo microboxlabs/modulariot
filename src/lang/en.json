@@ -222,6 +222,7 @@
         "step5": "Identity verification",
         "step6": "{driverNumber} verified"
       },
+      "other_options": "Other options",
       "title": "Identity verification",
       "driver": "Driver",
       "validator": "Dispatcher",

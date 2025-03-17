@@ -34,17 +34,17 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
             reject(error);
           }
 
-          if (
-            typeof result.token === "string" &&
-            token === parseFloat(result.token.replace(",", "."))
-          ) {
-            resolve(result.ParamsGet);
+          if (typeof result.token === "string") {
+            if (token === parseFloat(result.token.replace(",", "."))) {
+              resolve(result.ParamsGet);
+            }
           } else {
             // Error rut, resultado
             const error: Error & { status?: number } = new Error(
               result.ParamsGet.ercText || "rut validation failed",
             );
             error.status = 500;
+
             reject(error);
           }
         },

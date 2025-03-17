@@ -11,11 +11,15 @@ export default function CustomThemeToggle() {
     <div>
       <DarkThemeToggle
         onClick={async () => {
-          const theme = document.documentElement.classList.contains("dark")
-            ? "light"
-            : "dark";
+          // Get current theme
+          const isDark = document.documentElement.classList.contains("dark");
+          const newTheme = isDark ? "light" : "dark";
 
-          await set_theme_cookie(theme);
+          // Toggle the class manually
+          document.documentElement.classList.toggle("dark");
+
+          // Set the cookie
+          await set_theme_cookie(newTheme);
         }}
       />
     </div>

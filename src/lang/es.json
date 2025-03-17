@@ -222,6 +222,7 @@
         "step5": "Verificación de identidad",
         "step6": "{stepVal} verificado"
       },
+      "other_options": "Otras opciones",
       "title": "Verificación de identidad",
       "driver": "Conductor",
       "validator": "Despachador",

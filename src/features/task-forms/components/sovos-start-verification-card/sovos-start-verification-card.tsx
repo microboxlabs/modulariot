@@ -9,7 +9,7 @@ import SmartCardIcon from "@/features/icons/smartcard";
 import FingerprintIcon from "@/features/icons/figerprint";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
-
+import { ShowNotification } from "@/features/notifications/notification";
 export default function SovosStartVerificationCard({
   // lang,
   task,
@@ -39,6 +39,11 @@ export default function SovosStartVerificationCard({
         }
       })
       .catch((error: unknown) => {
+        ShowNotification({
+          type: "error",
+          message: (error as Error).message,
+        });
+
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -84,7 +89,7 @@ export default function SovosStartVerificationCard({
           {msg!.title as string}
         </h5>
         <div className="text-gray-900">{msg!.subtitle as string}</div>
-        <div className="text-center text-justified p-4">
+        <div className="text-gray-700 dark:text-gray-200 text-center text-justified p-4">
           {msg!.description as string}
         </div>
         {!isVerificationInProgress && (

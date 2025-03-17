@@ -24,6 +24,7 @@ export default function SovosVerificationResultCard({
   user,
   trParams,
   isSovosVerification,
+  validationError,
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
@@ -89,6 +90,11 @@ export default function SovosVerificationResultCard({
         <div className="text-center text-gray-500 text-justified p-4">
           {description}
         </div>
+        {validationError && (
+          <div className="text-red-500 text-center text-sm" role="alert">
+            {validationError}
+          </div>
+        )}
         <div className="text-center text-gray-400 text-justified p-4">
           {personName}
           <br />

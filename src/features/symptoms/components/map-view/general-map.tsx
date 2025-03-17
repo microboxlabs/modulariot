@@ -4,12 +4,52 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Card } from "flowbite-react";
 import Image from "next/image";
-import noAlarmImage from "@assets/images/no_alarm.gif";
 import alarmImage from "@assets/images/alarm.gif";
 import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
+import maskImage from "@assets/images/mask.gif";
+import patchImage from "@assets/images/patch.gif";
+import hospitalImage from "@assets/images/hospital.svg";
+
+const titles = {
+  "0": {
+    base: "restablished_symptoms",
+    title: "stable",
+    icon: patchImage,
+  },
+  "1": {
+    base: "restablished_symptoms",
+    title: "in_observation",
+    icon: maskImage,
+  },
+  "2": {
+    base: "restablished_symptoms",
+    title: "compromised_condition",
+    icon: hospitalImage,
+  },
+  "3": {
+    base: "urgent_symptoms",
+    title: "critical_condition",
+    icon: hospitalImage,
+  },
+  "4": {
+    base: "urgent_symptoms",
+    title: "code_black",
+    icon: alarmImage,
+  },
+  "6": {
+    base: "symptoms_being_treated",
+    title: "in_treatment",
+    icon: maskImage,
+  },
+  "8": {
+    base: "symptoms_being_treated",
+    title: "in_remission",
+    icon: patchImage,
+  },
+};
 
 export default function GeneralMap({
   dict,
@@ -45,12 +85,21 @@ export default function GeneralMap({
   if (error) {
     return <div>Error: {error.message}</div>;
   }
+
   return (
     <>
       {/*  {loading ? (
         <TitleCardSkeleton />
       ) :  */}
-      <div className="mx-5 mb-5 relative flex flex-col gap-10 animate-shadow-toggle rounded-lg">
+      <div
+        className={`mx-5 mb-5 relative flex flex-col gap-10 ${
+          ["3", "4"].includes(
+            treatmentData?.symptom_info.icu_code?.toString() ?? "",
+          )
+            ? "animate-shadow-toggle"
+            : ""
+        } rounded-lg`}
+      >
         <Card
           className="flex flex-row"
           color="white"
@@ -61,26 +110,38 @@ export default function GeneralMap({
           }}
         >
           <div className="flex flex-row gap-2 items-center justify-center">
-            <Image
-              className="w-8 h-8"
-              src={
-                treatmentData?.symptom_info.icu_code === 3 ||
-                treatmentData?.symptom_info.icu_code === 4
-                  ? alarmImage
-                  : noAlarmImage
-              }
-              alt="Síntomas"
-              width={50}
-              height={50}
-            />
-            <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+            {loading ? (
+              <div className="w-8 h-8 bg-gray-400 dark:bg-gray-600 animate-pulse rounded-md" />
+            ) : (
+              <Image
+                className="w-8 h-8"
+                src={
+                  titles[
+                    treatmentData?.symptom_info
+                      .icu_code as unknown as keyof typeof titles
+                  ].icon
+                }
+                alt="Síntomas"
+                width={50}
+                height={50}
+              />
+            )}
+            <h1
+              className={`text-lg font-bold tracking-tight ${
+                loading
+                  ? "bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md"
+                  : "text-gray-900 dark:text-white"
+              }`}
+            >
               {(dict.symptoms as I18nRecord).symptom as string}:{" "}
-              {
-                (dict.symptoms as I18nRecord)?.[
-                  treatmentData?.symptom_info?.icu_condition.toLowerCase() ??
-                    "stable"
-                ] as string
-              }{" "}
+              {loading
+                ? "Estado critico"
+                : ((dict.symptoms as I18nRecord)?.[
+                    titles[
+                      treatmentData?.symptom_info
+                        .icu_code as unknown as keyof typeof titles
+                    ].title as string
+                  ] as string)}{" "}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>

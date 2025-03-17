@@ -240,6 +240,7 @@ export default function MapVisualization({
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
+          preserveDrawingBuffer={true}
         />
         <Filters
           dict={dict}

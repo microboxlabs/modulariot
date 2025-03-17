@@ -38,7 +38,7 @@ export default function TableItem({
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {data.time} {(dict.symptoms as I18nRecord).sec as string}.
+          {data.time} {/* {(dict.symptoms as I18nRecord).sec as string}. */}
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}

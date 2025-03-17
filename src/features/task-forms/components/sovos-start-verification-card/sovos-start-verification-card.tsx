@@ -41,9 +41,9 @@ export default function SovosStartVerificationCard({
       .catch((error: unknown) => {
         ShowNotification({
           type: "error",
-          message: error.message,
+          message: (error as Error).message,
         });
-        
+
         const errorMessage =
           error instanceof Error
             ? error.message

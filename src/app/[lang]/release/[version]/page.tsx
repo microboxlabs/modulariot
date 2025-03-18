@@ -14,8 +14,8 @@ export default function Page() {
     const loadReleaseNotes = async () => {
       try {
         // Dynamically import the MDX file based on the version
-        const module = await import(`@/releases/${version}.mdx`);
-        setReleaseNotes(() => module.default);
+        const releaseModule = await import(`@/releases/${version}.mdx`);
+        setReleaseNotes(() => releaseModule.default);
       } catch (error) {
         console.error(
           `Failed to load release notes for version ${version}:`,

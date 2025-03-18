@@ -338,3 +338,21 @@ export function requestTreatment(
     body: JSON.stringify(treatmentRequest),
   });
 }
+
+interface Release {
+  version: string;
+  // Add other release properties as needed
+}
+
+export function useReleases() {
+  const { data, error, isLoading } = useSWR<Release[], FetcherError>(
+    `/app/api/releases`,
+    fetcher,
+  );
+
+  return {
+    releases: data || [],
+    error,
+    isLoading,
+  };
+}

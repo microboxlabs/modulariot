@@ -1,44 +1,27 @@
-"use client";
-
 import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
-import { useParams } from "next/navigation";
-import { useState, useEffect } from "react";
-
-export default function Page() {
-  const params = useParams();
-  const releaseName = params.version;
-  const version = releaseName || "v1.1";
-  const [ReleaseNotes, setReleaseNotes] = useState<any>(null);
-
-  useEffect(() => {
-    const loadReleaseNotes = async () => {
-      try {
-        // Dynamically import the MDX file based on the version
-        const releaseModule = await import(`@/releases/${version}.mdx`);
-        setReleaseNotes(() => releaseModule.default);
-      } catch (error) {
-        console.error(
-          `Failed to load release notes for version ${version}:`,
-          error,
-        );
-        // Fallback to v1.1 if the requested version doesn't exist
-        const fallbackModule = await import(`@/releases/v1.1.mdx`);
-        setReleaseNotes(() => fallbackModule.default);
-      }
-    };
-
-    loadReleaseNotes();
-  }, [version]);
-
-  if (!ReleaseNotes) {
-    return <div>Loading...</div>;
-  }
+import { getDictionary } from "@/features/i18n/i18n.service";
+import ReleaseNotes from "@/features/layout/components/release-view/release-notes";
+import OtherVersions from "@/features/layout/components/release-view/other-versions";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+export default async function Page({
+  params,
+}: {
+  params: { lang: string; version: string };
+}) {
+  const [, dict] = await getDictionary(params.lang);
+  const version = params.version;
 
   return (
     <div className="flex flex-col w-full justify-center items-center">
       <NavbarSignIn />
       <div className="flex flex-col w-fit gap-4 pb-5 px-5 text-gray-900 dark:text-gray-100">
-        <ReleaseNotes />
+        <ReleaseNotes version={version} />
+        <div className="border-t border-gray-200 dark:border-gray-800 mt-5 pt-2 flex flex-col gap-2 w-full justify-center items-center">
+          <h2 className="text-lg text-gray-700 dark:text-gray-300">
+            {(dict.release as I18nRecord).other_versions as string}
+          </h2>
+          <OtherVersions version={version} />
+        </div>
       </div>
     </div>
   );

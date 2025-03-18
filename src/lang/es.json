@@ -466,5 +466,8 @@
     "emergencies": "Emergencias",
     "in_transit": "En tránsito",
     "in_destination": "En destino"
+  },
+  "release": {
+    "other_versions": "Otras versiones"
   }
 }

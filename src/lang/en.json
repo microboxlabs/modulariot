@@ -461,7 +461,8 @@
     "monitored_distance": "Monitored distance",
     "emergencies": "Emergencies",
     "in_transit": "In transit",
-    "in_destination": "In destination"
+    "in_destination": "In destination",
+    "document_preview": "Document preview"
   },
   "release": {
     "other_versions": "Other Versions"

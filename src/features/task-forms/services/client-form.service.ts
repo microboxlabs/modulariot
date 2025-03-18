@@ -16,8 +16,22 @@ async function fetcherClient<T>(
     return await fetcher<T>(input, init);
   } catch (error) {
     const fetcherError = error as FetcherError;
+    let errorMessage = fetcherError.message;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (fetcherError?.info?.error?.code === "ALERCE_LOGIN_ERROR") {
+      errorMessage =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (fetcherError?.info?.error?.message as string) ??
+        "Error al iniciar sesión";
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    } else if (fetcherError?.info?.error?.code === "ERROR_ACCION") {
+      errorMessage =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (fetcherError?.info?.error?.details?.involvedObject
+          ?.respuesta as string) ?? "Error al realizar la acción";
+    }
     ShowNotification({
-      message: fetcherError.message,
+      message: errorMessage,
       type: "error",
     });
     return {

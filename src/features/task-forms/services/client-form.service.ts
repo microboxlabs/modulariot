@@ -16,23 +16,19 @@ async function fetcherClient<T>(
     return await fetcher<T>(input, init);
   } catch (error) {
     const fetcherError = error as FetcherError;
-    //   {
-    //     "info": {
-    //         "success": false,
-    //         "error": {
-    //             "code": "ALERCE_LOGIN_ERROR",
-    //             "message": "Failed to login to Alerce TMS",
-    //             "exceptionType": "AlerceLoginError",
-    //             "details": {}
-    //         }
-    //     },
-    //     "status": 500
-    // }
     let errorMessage = fetcherError.message;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (fetcherError?.info?.error?.code === "ALERCE_LOGIN_ERROR") {
+      errorMessage =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (fetcherError?.info?.error?.message as string) ??
+        "Error al iniciar sesión";
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      errorMessage = fetcherError?.info?.error?.message as string;
+    } else if (fetcherError?.info?.error?.code === "ERROR_ACCION") {
+      errorMessage =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (fetcherError?.info?.error?.details?.involvedObject
+          ?.respuesta as string) ?? "Error al realizar la acción";
     }
     ShowNotification({
       message: errorMessage,

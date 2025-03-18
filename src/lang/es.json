@@ -465,6 +465,7 @@
     "monitored_distance": "Distancia monitoreada",
     "emergencies": "Emergencias",
     "in_transit": "En tránsito",
-    "in_destination": "En destino"
+    "in_destination": "En destino",
+    "document_preview": "Previsualización del documento"
   }
 }

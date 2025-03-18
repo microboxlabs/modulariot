@@ -38,6 +38,12 @@ export default function TableItem({
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
+          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
+          {data.status}
+        </TableCell>
+        <TableCell
+          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
+        >
           {data.time} {/* {(dict.symptoms as I18nRecord).sec as string}. */}
         </TableCell>
         <TableCell
@@ -59,12 +65,6 @@ export default function TableItem({
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.alertType}
-        </TableCell>
-        <TableCell
-          className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
-        >
-          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
-          {data.status}
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}

@@ -85,6 +85,19 @@ function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
       };
     }
 
+    regex = /com\.alerce\.errors\.AlerceLoginError: (.*)/;
+    match = errorMessage.match(regex);
+
+    if (match) {
+      let [, message] = match;
+      return {
+        code: "ALERCE_LOGIN_ERROR",
+        message,
+        exceptionType: "AlerceLoginError",
+        details: {},
+      };
+    }
+
     throw new Error("Unable to parse error details");
   } catch (parseError) {
     return {

@@ -462,7 +462,12 @@
     "emergencies": "Emergencies",
     "in_transit": "In transit",
     "in_destination": "In destination",
-    "document_preview": "Document preview"
+    "document_preview": "Document preview",
+    "minutes": "minutes",
+    "days": "days",    
+    "ago": "ago",
+    "LLAMAR AL CONDUCTOR": "Call driver",
+    "RISK ZONE STOP": "Risk zone stop"
   },
   "release": {
     "other_versions": "Other Versions"

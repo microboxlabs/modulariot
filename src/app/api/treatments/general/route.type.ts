@@ -25,6 +25,8 @@ export type TreatmentsTripInfoResponse = {
   driver: string;
   trip_id: string;
   origin: string;
+  type_load: string;
+  driver_contact: string;
 };
 
 export type TreatmentsSymptomInfoResponse = {

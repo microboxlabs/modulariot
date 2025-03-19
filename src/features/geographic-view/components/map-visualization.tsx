@@ -248,7 +248,7 @@ export default function MapVisualization({
           setPositions={setPositions}
         />
         <div className="absolute right-0 top-0 bottom-0">
-          {mapPositionsResume && (
+          {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
             <SideBar dict={dict} mapPositionsResume={mapPositionsResume} />
           )}
         </div>

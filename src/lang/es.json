@@ -466,7 +466,12 @@
     "emergencies": "Emergencias",
     "in_transit": "En tránsito",
     "in_destination": "En destino",
-    "document_preview": "Previsualización del documento"
+    "document_preview": "Previsualización del documento",
+    "minutes": "minutos",
+    "days": "días",
+    "ago": "Hace",
+    "LLAMAR AL CONDUCTOR": "Llamar al conductor",
+    "RISK ZONE STOP": "Parada en zona de riesgo"
   },
   "release": {
     "other_versions": "Otras versiones"

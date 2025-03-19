@@ -56,5 +56,11 @@ const config: Config = {
     // ...
     flowbite.plugin(),
   ],
+  safelist: [
+    {
+      pattern: /^no-dot$/,
+      variants: ['hover', 'focus', 'active'],
+    },
+  ],
 };
 export default config;

@@ -1,5 +1,6 @@
 import { Footer, FooterCopyright } from "flowbite-react";
 import { FooterSecuredProps } from "./footer-secured.types";
+import ReleaseView from "@/features/layout/components/release-view/release-view";
 
 export default function FooterSecuredLayout({ messages }: FooterSecuredProps) {
   return (
@@ -18,6 +19,7 @@ export default function FooterSecuredLayout({ messages }: FooterSecuredProps) {
         by={messages("footer.rights")}
         year={2024}
       />
+      <ReleaseView />
     </Footer>
   );
 }

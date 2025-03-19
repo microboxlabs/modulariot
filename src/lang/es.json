@@ -467,5 +467,8 @@
     "in_transit": "En tránsito",
     "in_destination": "En destino",
     "document_preview": "Previsualización del documento"
+  },
+  "release": {
+    "other_versions": "Otras versiones"
   }
 }

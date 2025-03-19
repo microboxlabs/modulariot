@@ -1,7 +1,10 @@
 const { NormalModuleReplacementPlugin } = require("webpack");
-
+const withMDX = require("@next/mdx")({
+  extension: /\.mdx?$/,
+});
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
   output: "standalone",
   basePath: "/app",
   webpack: (config, { isServer }) => {
@@ -20,4 +23,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withMDX(nextConfig);

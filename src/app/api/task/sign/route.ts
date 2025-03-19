@@ -49,11 +49,11 @@ export async function POST(request: NextRequest) {
 
     let documentName = "ho-sin-firma.pdf";
     let uploadFileName = "ho-firmado.pdf";
-    let targetRole = receiverRole;
+    let targetRole = dispatcherRole;
     if (json.taskType === "confirmDelivery") {
       documentName = "ho-firmado.pdf";
       uploadFileName = "ho-recepcionado.pdf";
-      targetRole = dispatcherRole;
+      targetRole = receiverRole;
     }
     const file = await getContentByTaskId(
       session.user.ticket,

@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .no-dot {
+    text-decoration: none;
+  }
+  
+  .no-dot::before {
+    content: none;
+  }
+}
+
+/* Remove dots from the start of links */
+a[href^="."] {
+  text-decoration: none;
+}
+
+a[href^="."]::before {
+  content: none;
+}

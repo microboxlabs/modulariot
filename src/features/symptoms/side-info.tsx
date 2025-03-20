@@ -30,6 +30,7 @@ export default function SideInfo({
     useState<SelectedOption>("call_driver");
   const { treatments_templates } = useTreatmentsTemplates(
     treatmentData?.symptom_info?.icu_code.toString() ?? "4",
+    treatmentData?.symptom_info?.name ?? "Bad Sign",
   );
 
   if (loading) {

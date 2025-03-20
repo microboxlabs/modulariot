@@ -467,7 +467,15 @@
     "days": "days",    
     "ago": "ago",
     "LLAMAR AL CONDUCTOR": "Call driver",
-    "RISK ZONE STOP": "Risk zone stop"
+    "RISK ZONE STOP": "Risk zone stop",
+    "BAD SIGN": "Bad sign",
+    "SPEED LIMIT": "Speed limit",
+    "OUTSIDE SCHEDULE": "Outside schedule",
+    "PANIC BUTTON": "Panic button",
+    "RISK ZONE SLEEP": "Risk zone sleep",
+    "MIN REST": "Min rest",
+    "TRIP_START": "Trip start",
+    "TRIP_END": "Trip end"
   },
   "release": {
     "other_versions": "Other Versions"

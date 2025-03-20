@@ -1,6 +1,13 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import treatments from "./treatments.json";
+import speedLimit from "./speedLimit.json";
+import badSign from "./badSign.json";
+import outsideSchedule from "./outsideSchedule.json";
+import panicButton from "./panicButton.json";
+import riskZoneSleep from "./riskZoneSleep.json";
+import riskZoneStop from "./riskZoneStop.json";
+import minRest from "./minRest.json";
+
 /* const SYMPTOMS_API_URL = "TODO:DEFINE";
 
 import {
@@ -24,9 +31,19 @@ export async function GET(request: Request) {
       status: 401,
     });
   }
+
+  const templates = {
+    "Bad Sign": badSign,
+    "Speed Limit": speedLimit,
+    "Outside Schedule": outsideSchedule,
+    "Panic Button": panicButton,
+    "Risk Zone Sleep": riskZoneSleep,
+    "Risk Zone Stop": riskZoneStop,
+    "Min Rest": minRest,
+  };
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
-
+  const name = searchParams.get("name");
   try {
     //const token = await authToken.getToken();
     /* const response = await fetch(SYMPTOMS_API_URL + "?p_symptom_id=" + id, {
@@ -44,9 +61,14 @@ export async function GET(request: Request) {
     // Transform API data into our desired structure
     //const formattedResponse: TreatmentsGeneralResponseItem = apiData.data;
 
-    return NextResponse.json(treatments[id as keyof typeof treatments], {
-      status: 200,
-    });
+    return NextResponse.json(
+      templates[name as keyof typeof templates][
+        id as keyof (typeof templates)[keyof typeof templates]
+      ],
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     return NextResponse.json(
       {

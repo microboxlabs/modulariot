@@ -466,7 +466,20 @@
     "emergencies": "Emergencias",
     "in_transit": "En tránsito",
     "in_destination": "En destino",
-    "document_preview": "Previsualización del documento"
+    "document_preview": "Previsualización del documento",
+    "minutes": "minutos",
+    "days": "días",
+    "ago": "Hace",
+    "LLAMAR AL CONDUCTOR": "Llamar al conductor",
+    "RISK ZONE STOP": "Parada en zona de riesgo",
+    "BAD SIGN": "Mala Señal ",
+    "SPEED LIMIT": "Límite de velocidad",
+    "OUTSIDE SCHEDULE": "Conducción fuera de horario",
+    "PANIC BUTTON": "Botón de pánico",
+    "RISK ZONE SLEEP": "Dormir en zona de riesgo",
+    "MIN REST": "Descanso mínimo",
+    "TRIP_START": "Inicio de viaje",
+    "TRIP_END": "Fin de viaje"
   },
   "release": {
     "other_versions": "Otras versiones"

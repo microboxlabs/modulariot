@@ -16,6 +16,8 @@ import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
+import icuConditions from "@/features/symptoms/model/icu_condition.json";
+
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
@@ -70,7 +72,19 @@ export default function BlurrableSteppedMenu({
       title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
         {
-          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
+          element_name: `${
+            (dict.symptoms as I18nRecord)[
+              icuConditions[
+                ("" +
+                  treatmentData?.symptom_info
+                    ?.icu_code) as unknown as keyof typeof icuConditions
+              ].toLowerCase() as string
+            ] as string
+          }: ${
+            (dict.symptoms as I18nRecord)[
+              treatmentData?.symptom_info?.name?.toUpperCase() as string
+            ] as string
+          }`,
           description: (dict.symptoms as I18nRecord)
             .symptom_information as string,
           component: (

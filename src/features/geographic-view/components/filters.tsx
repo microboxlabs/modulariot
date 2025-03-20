@@ -4,12 +4,6 @@ import yellow_pin from "@assets/pin/yellow_pin.svg";
 
 import FilterComponent, { Option } from "./filter-component";
 import alerta_critica from "@assets/conditions/alerta-critica.svg";
-import codigo_negro from "@assets/conditions/codigo-negro.svg";
-import comprometida from "@assets/conditions/comprometida.svg";
-import en_observacion from "@assets/conditions/en-observacion.svg";
-import en_remision from "@assets/conditions/en-remision.svg";
-import en_tratamiento from "@assets/conditions/en-tratamiento.svg";
-import estable from "@assets/conditions/estable.svg";
 import iniciado from "@assets/finished_state/iniciado.svg";
 import terminado from "@assets/finished_state/terminado.svg";
 
@@ -23,6 +17,7 @@ import { IconType } from "react-icons";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icu_codes from "@/features/symptoms/model/icu_condition.json";
 import { MapPosition } from "@/features/geographic-view/types/map";
+import ConditionIcon from "@/features/symptoms/components/condition-icon";
 
 export default function Filters({
   dict,
@@ -66,49 +61,78 @@ export default function Filters({
               text: "Codigo Negro",
               filter_value: "codigo_negro",
               code: icu_codes.code_black,
-              icon: codigo_negro as string,
+              icon: (
+                <ConditionIcon
+                  condition="code black"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
             {
               text: "Alerta Critica",
               filter_value: "alerta_critica",
               code: icu_codes.critical_condition,
-              icon: alerta_critica as string,
+              icon: (
+                <ConditionIcon
+                  condition="critical condition"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
             {
               text: "En Observacion",
               filter_value: "en_observacion",
               code: icu_codes.under_observation,
-              icon: en_observacion as string,
-              activated: false,
-            },
-            {
-              text: "En Remision",
-              filter_value: "en_remision",
-              code: icu_codes.remission_state,
-              icon: en_remision as string,
+              icon: (
+                <ConditionIcon
+                  condition="under observation"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
             {
               text: "Comprometida",
               filter_value: "comprometida",
               code: icu_codes.compromised_condition,
-              icon: comprometida as string,
+              icon: (
+                <ConditionIcon
+                  condition="compromised condition"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
             {
               text: "En Tratamiento",
               filter_value: "en_tratamiento",
               code: icu_codes.under_treatment,
-              icon: en_tratamiento as string,
+              icon: (
+                <ConditionIcon
+                  condition="treatment"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
             {
               text: "Estable",
               filter_value: "estable",
               code: icu_codes.stable,
-              icon: estable as string,
+              icon: (
+                <ConditionIcon
+                  condition="stable"
+                  size="w-fit h-fit"
+                  dict={dict}
+                />
+              ),
               activated: false,
             },
           ]}
@@ -116,28 +140,28 @@ export default function Filters({
         />
         <FilterComponent
           label={(dict.symptoms as I18nRecord).markers as string}
-          icon={blue_pin.src as string}
+          icon={blue_pin.src}
           icon_size="w-7 h-7"
           options={[
             {
               text: "normal",
               filter_value: "normal",
               code: "1",
-              icon: blue_pin as string,
+              icon: blue_pin.src,
               activated: false,
             },
             {
               text: "grave",
               filter_value: "grave",
               code: "2",
-              icon: yellow_pin as string,
+              icon: yellow_pin.src,
               activated: false,
             },
             {
               text: "gravisimo",
               filter_value: "gravisimo",
               code: "3",
-              icon: red_pin as string,
+              icon: red_pin.src,
               activated: false,
             },
           ]}
@@ -151,14 +175,14 @@ export default function Filters({
               text: "Iniciado",
               filter_value: "iniciado",
               code: "1",
-              icon: iniciado as string,
+              icon: iniciado.src,
               activated: false,
             },
             {
               text: "Terminado",
               filter_value: "terminado",
               code: "2",
-              icon: terminado as string,
+              icon: terminado.src,
               activated: false,
             },
           ]}
@@ -172,21 +196,21 @@ export default function Filters({
               text: "A tiempo",
               filter_value: "a_tiempo",
               code: "1",
-              icon: a_tiempo as string,
+              icon: a_tiempo.src,
               activated: false,
             },
             {
               text: "Con retraso",
               filter_value: "con_retraso",
               code: "2",
-              icon: con_retraso as string,
+              icon: con_retraso.src,
               activated: false,
             },
             {
               text: "Con mucho retraso",
               filter_value: "con_mucho_retraso",
               code: "3",
-              icon: mucho_retraso as string,
+              icon: mucho_retraso.src,
               activated: false,
             },
           ]}

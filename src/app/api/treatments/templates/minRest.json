@@ -1,0 +1,22 @@
+{
+  "0": {
+    "name": "Stable",
+    "message": ""
+  },
+  "1": {
+    "name": "Under observation",
+    "message": ""
+  },
+  "2": {
+    "name": "Compromised condition",
+    "message": ""
+  },
+  "3": {
+    "name": "Critical condition",
+    "message": ""
+  },
+  "4": {
+    "name": "Code black",
+    "message": ""
+  }
+}

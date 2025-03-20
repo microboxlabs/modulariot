@@ -313,11 +313,11 @@ export function useGeofences(tripId: string) {
   };
 }
 
-export function useTreatmentsTemplates(id: string) {
+export function useTreatmentsTemplates(id: string, name: string) {
   const { data, error, isLoading } = useSWR<
     TreatmentsTemplatesResponse,
     FetcherError
-  >(`/app/api/treatments/templates?id=${id}`, fetcher);
+  >(`/app/api/treatments/templates?id=${id}&name=${name}`, fetcher);
 
   return {
     treatments_templates: data,

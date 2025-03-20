@@ -14,6 +14,7 @@ function formatDate(date: Date, lang: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   };
 
   return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
@@ -22,7 +23,11 @@ function formatDate(date: Date, lang: string): string {
     .replace(".", "");
 }
 
-function calculateDuration(startTime: string): string {
+function calculateDuration(
+  startTime: string,
+  dict: I18nRecord,
+  lang: string,
+): string {
   const start = new Date(startTime);
   const now = new Date();
   const diffInMs = now.getTime() - start.getTime();
@@ -31,13 +36,23 @@ function calculateDuration(startTime: string): string {
   const diffInHours = Math.floor(diffInMinutes / 60);
   const diffInDays = Math.floor(diffInHours / 24);
 
+  let duration = "";
+
   if (diffInMinutes < 60) {
-    return `${diffInMinutes} min`;
+    duration = `${diffInMinutes} ${(dict.symptoms as I18nRecord).minutes as string}`;
   } else if (diffInHours < 24) {
-    return `${diffInHours} hr${diffInHours > 1 ? "s" : ""}`;
+    duration = `${diffInHours} ${(dict.symptoms as I18nRecord).hours as string}`;
   } else {
-    return `${diffInDays} day${diffInDays > 1 ? "s" : ""}`;
+    duration = `${diffInDays} ${(dict.symptoms as I18nRecord).days as string}`;
   }
+
+  if (lang === "es") {
+    duration = (dict.symptoms as I18nRecord).ago + " " + duration;
+  } else if (lang === "en") {
+    duration = duration + " " + (dict.symptoms as I18nRecord).ago;
+  }
+
+  return duration;
 }
 
 export default function SideInfoData({
@@ -89,7 +104,7 @@ export default function SideInfoData({
               end: event.end,
               icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
-              type: event.type,
+              type: event.type.toUpperCase(),
             });
 
             return acc;
@@ -258,7 +273,9 @@ export default function SideInfoData({
             {timelineData.reverse().map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
               const duration = calculateDuration(
-                item.items[item.items.length - 1].start,
+                item.items[0].start,
+                dict,
+                lang,
               );
 
               return (
@@ -274,9 +291,13 @@ export default function SideInfoData({
                         {date}
                       </div>
                       <div className="flex flex-row flex-grow justify-between">
-                        <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
-                          {item.assigned_to}
-                        </p>
+                        {index == 0 ? (
+                          <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
+                            {item.assigned_to}
+                          </p>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center"></p>
+                        )}
                         <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
                           {duration}
                         </p>
@@ -284,7 +305,7 @@ export default function SideInfoData({
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 bg">
-                    {item.items.map((subItem: any, subIndex: any) => (
+                    {item.items.reverse().map((subItem: any, subIndex: any) => (
                       <div key={subIndex} className="flex flex-row gap-2">
                         <div className="flex flex-col">
                           <ConditionIcon
@@ -308,7 +329,9 @@ export default function SideInfoData({
                           </p>
                           <div className="flex flex-col">
                             <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                              {subItem.type}
+                              {((dict.symptoms as I18nRecord)[
+                                subItem.type
+                              ] as string) ?? subItem.type}
                             </p>
                             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
                               {subItem.description}

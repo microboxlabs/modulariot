@@ -329,11 +329,9 @@ export default function SideInfoData({
                           </p>
                           <div className="flex flex-col">
                             <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                              {
-                                (dict.symptoms as I18nRecord)[
-                                  subItem.type
-                                ] as string
-                              }
+                              {((dict.symptoms as I18nRecord)[
+                                subItem.type
+                              ] as string) ?? subItem.type}
                             </p>
                             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
                               {subItem.description}

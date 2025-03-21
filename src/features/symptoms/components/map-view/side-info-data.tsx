@@ -5,7 +5,10 @@ import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 import { Spinner } from "flowbite-react";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
 import { FaUser } from "react-icons/fa6";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -61,12 +64,18 @@ export default function SideInfoData({
   treatmentData,
   loading,
   error,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
 }: {
   dict: I18nRecord;
   lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
+  setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
+  setSelectedTreatmentIndex: (
+    treatmentIndex: TreatmentsTimelineResponse,
+  ) => void;
 }) {
   if (loading) {
     return (
@@ -319,7 +328,14 @@ export default function SideInfoData({
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>
                         <div className="flex flex-col">
-                          <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
+                          <p
+                            className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTreatment(treatmentData);
+                              setSelectedTreatmentIndex(subItem);
+                            }}
+                          >
                             {new Date(subItem.start).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",

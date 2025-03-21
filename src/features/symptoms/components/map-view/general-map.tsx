@@ -12,6 +12,13 @@ import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
 import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
 import hospitalImage from "@assets/images/hospital.svg";
+import { useState } from "react";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
+
+import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 
 const titles = {
   "0": {
@@ -70,6 +77,22 @@ export default function GeneralMap({
     loading,
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
+
+  const [selectedTreatment, setSelectedTreatment] =
+    useState<TreatmentsGeneralResponseItem | null>(null);
+  const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
+    useState<TreatmentsTimelineResponse | null>(null);
+
+  const {
+    data: filteredLocationData,
+    error: _locationError,
+    isLoading: _locationLoading,
+  } = useTreatmentsLocation(
+    selectedTreatment?.trip_info?.trip_id ?? "",
+    selectedTreatment?.symptom_info?.name ?? "",
+    selectedTreatmentIndex?.start ?? "",
+    selectedTreatmentIndex?.end ?? "",
+  );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value
   const averagePosition = positions?.reduce(
@@ -153,6 +176,8 @@ export default function GeneralMap({
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />
           {/* Map */}
         </div>
@@ -162,6 +187,7 @@ export default function GeneralMap({
             error={error}
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
+            filteredLocationData={filteredLocationData ?? null}
           />
         </div>
       </div>

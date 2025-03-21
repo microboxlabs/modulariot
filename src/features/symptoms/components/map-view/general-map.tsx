@@ -129,9 +129,9 @@ export default function GeneralMap({
                     ("" +
                       treatmentData?.symptom_info
                         ?.icu_code) as unknown as keyof typeof icuConditions
-                  ].toLowerCase() as string
+                  ]?.toLowerCase() as string
                 ] as string
-              ).trim()}
+              )?.trim()}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>

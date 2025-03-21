@@ -10,6 +10,17 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
+const sendTeamsNotification = async (phoneNumber: string) => {
+  // Get the phone number from the treatment request
+  if (!phoneNumber) return;
+
+  // Open Teams with the phone number parameter
+  window.open(
+    `https://teams.microsoft.com/l/call/0/0?users=4:${phoneNumber}`,
+    "_blank",
+  );
+};
+
 export const getCallDriver = (
   dict: I18nRecord,
   treatmentData: TreatmentsGeneralResponseItem | null,
@@ -19,6 +30,8 @@ export const getCallDriver = (
   setDriverResponse: (response: string) => void,
   treatmentRequest: TreatmentsRequest,
   setTreatmentRequest: (request: TreatmentsRequest) => void,
+  isTeamsNotificationOn: boolean,
+  setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void,
 ) => [
   {
     title: (dict.symptoms as I18nRecord).treatment,
@@ -74,19 +87,36 @@ export const getCallDriver = (
       {
         element_name: (dict.symptoms as I18nRecord).end_treatment,
         description: (dict.symptoms as I18nRecord).end_treatment_description,
-        component: <EndTreatment dict={dict as I18nRecord} />,
+        component: (
+          <EndTreatment
+            dict={dict as I18nRecord}
+            isTeamsNotificationOn={isTeamsNotificationOn}
+            setIsTeamsNotificationOn={setIsTeamsNotificationOn}
+          />
+        ),
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {
           text: (dict.symptoms as I18nRecord).finish_treatment,
           action: "end",
+          function: async () => {
+            if (isTeamsNotificationOn) {
+              await sendTeamsNotification(
+                treatmentData?.trip_info?.driver_contact ?? "",
+              );
+            }
+          },
         },
       },
     ],
   },
 ];
 
-export const getDeriveToSpecialist = (dict: I18nRecord) => [
+export const getDeriveToSpecialist = (
+  dict: I18nRecord,
+  isTeamsNotificationOn: boolean,
+  setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void,
+) => [
   {
     title: (dict.symptoms as I18nRecord).treatment,
     elements: [
@@ -107,7 +137,13 @@ export const getDeriveToSpecialist = (dict: I18nRecord) => [
         element_name: (dict.symptoms as I18nRecord).end_treatment,
         description: (dict.symptoms as I18nRecord)
           .end_treatment_description as string,
-        component: <EndTreatment dict={dict as I18nRecord} />,
+        component: (
+          <EndTreatment
+            dict={dict as I18nRecord}
+            isTeamsNotificationOn={isTeamsNotificationOn}
+            setIsTeamsNotificationOn={setIsTeamsNotificationOn}
+          />
+        ),
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {
@@ -119,7 +155,11 @@ export const getDeriveToSpecialist = (dict: I18nRecord) => [
   },
 ];
 
-export const getIgnoreCondition = (dict: I18nRecord) => [
+export const getIgnoreCondition = (
+  dict: I18nRecord,
+  isTeamsNotificationOn: boolean,
+  setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void,
+) => [
   {
     title: (dict.symptoms as I18nRecord).treatment,
     elements: [
@@ -137,7 +177,13 @@ export const getIgnoreCondition = (dict: I18nRecord) => [
       {
         element_name: (dict.symptoms as I18nRecord).end_treatment,
         description: (dict.symptoms as I18nRecord).end_treatment_description,
-        component: <EndTreatment dict={dict as I18nRecord} />,
+        component: (
+          <EndTreatment
+            dict={dict as I18nRecord}
+            isTeamsNotificationOn={isTeamsNotificationOn}
+            setIsTeamsNotificationOn={setIsTeamsNotificationOn}
+          />
+        ),
         icon: <FaCheck className="h-5 w-5" />,
         logo: null,
         button: {

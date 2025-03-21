@@ -8,6 +8,13 @@ import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
+import { useState } from "react";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
+
+import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
 import icuConditions from "@/features/symptoms/model/icu_condition.json";
 
@@ -30,6 +37,22 @@ export default function GeneralMap({
     loading,
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
+
+  const [selectedTreatment, setSelectedTreatment] =
+    useState<TreatmentsGeneralResponseItem | null>(null);
+  const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
+    useState<TreatmentsTimelineResponse | null>(null);
+
+  const {
+    data: filteredLocationData,
+    error: _locationError,
+    isLoading: _locationLoading,
+  } = useTreatmentsLocation(
+    selectedTreatment?.trip_info?.trip_id ?? "",
+    selectedTreatment?.symptom_info?.name ?? "",
+    selectedTreatmentIndex?.start ?? "",
+    selectedTreatmentIndex?.end ?? "",
+  );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value
   const averagePosition = positions?.reduce(
@@ -54,7 +77,7 @@ export default function GeneralMap({
       <div
         className={`mx-5 mb-5 relative flex flex-col gap-10 ${
           ["3", "4"].includes(
-            treatmentData?.symptom_info.icu_code?.toString() ?? "",
+            treatmentData?.symptom_info?.icu_code?.toString() ?? "",
           )
             ? "animate-shadow-toggle"
             : ""
@@ -78,8 +101,8 @@ export default function GeneralMap({
                 src={
                   titles[
                     treatmentData?.symptom_info
-                      .icu_code as unknown as keyof typeof titles
-                  ].icon
+                      ?.icu_code as unknown as keyof typeof titles
+                  ]?.icon
                 }
                 alt="Síntomas"
                 width={50}
@@ -123,6 +146,8 @@ export default function GeneralMap({
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />
           {/* Map */}
         </div>
@@ -132,6 +157,7 @@ export default function GeneralMap({
             error={error}
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
+            filteredLocationData={filteredLocationData ?? null}
           />
         </div>
       </div>

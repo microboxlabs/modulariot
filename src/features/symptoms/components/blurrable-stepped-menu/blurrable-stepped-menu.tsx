@@ -47,25 +47,28 @@ export default function BlurrableSteppedMenu({
   const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
     treatments_templates?.message?.replace(
       "[nombre conductor]",
-      treatmentData?.trip_info.driver ?? "",
+      treatmentData?.trip_info?.driver ?? "",
     ) ?? "",
   );
 
   const [driverResponse, setDriverResponse] = useState<string>("");
 
   const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
-    asset_id: treatmentData?.trip_info.asset_id ?? "",
+    asset_id: treatmentData?.trip_info?.asset_id ?? "",
     assigned_to: userEmail,
     client_id: null,
     status: "active",
-    symptom_id: treatmentData?.symptom_info.id.toString() ?? "",
+    symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
     treatment_type: "llamar al conductor",
-    trip_id: treatmentData?.trip_info.trip_id ?? "",
+    trip_id: treatmentData?.trip_info?.trip_id ?? "",
     message: messageToCommunicate ?? "",
     driver_response: driverResponse ?? "",
     description: undefined,
     treatment_id: undefined,
   });
+
+  const [isTeamsNotificationOn, setIsTeamsNotificationOn] =
+    useState<boolean>(false);
 
   const base_sections = [
     {
@@ -82,7 +85,7 @@ export default function BlurrableSteppedMenu({
                 ("" +
                   treatmentData?.symptom_info
                     ?.icu_code) as unknown as keyof typeof icuConditions
-              ].toLowerCase() as string
+              ]?.toLowerCase() as string
             ] as string
           ).trim()}`,
           description: (dict.symptoms as I18nRecord)
@@ -94,6 +97,8 @@ export default function BlurrableSteppedMenu({
               treatmentData={treatmentData}
               loading={false}
               error={null}
+              setSelectedTreatment={() => {}}
+              setSelectedTreatmentIndex={() => {}}
               withBorder={true}
               withBottomPadding={false}
             />
@@ -133,14 +138,30 @@ export default function BlurrableSteppedMenu({
           setDriverResponse,
           treatmentRequest,
           setTreatmentRequest,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
         ),
       ];
       break;
     case "derive_to_specialist":
-      side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getDeriveToSpecialist(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     case "ignore_condition":
-      side_sections = [...base_sections, ...getIgnoreCondition(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getIgnoreCondition(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     default:
       side_sections = base_sections;
@@ -333,6 +354,7 @@ export default function BlurrableSteppedMenu({
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
                       ]?.button?.action;
+
                     const buttonActionFunction =
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]

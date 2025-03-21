@@ -13,6 +13,7 @@ import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
+import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -113,6 +114,7 @@ type MapVisualizationProps = {
     latitude: number;
     longitude: number;
   };
+  filteredLocationData: TreatmentsLocationResponseItemFeature[] | null;
 };
 
 type GeometryFeature = {
@@ -168,6 +170,7 @@ export default function MapVisualizationTrip({
   positions,
   error,
   averagePosition,
+  filteredLocationData,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
@@ -297,7 +300,11 @@ export default function MapVisualizationTrip({
     if (positions?.length != 0) {
       baseLayers.push(
         new PinLayer({
-          data: positions ? [positions[positions.length - 1]] : [],
+          data: filteredLocationData
+            ? filteredLocationData
+            : positions && !filteredLocationData
+              ? [positions[positions.length - 1]]
+              : [],
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(
@@ -316,7 +323,14 @@ export default function MapVisualizationTrip({
     }
 
     return baseLayers;
-  }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
+  }, [
+    geoJson,
+    positions,
+    processedGeofence,
+    rotation,
+    viewState.zoom,
+    filteredLocationData,
+  ]);
 
   // Memoize the tooltip function
   const getTooltip = React.useCallback(

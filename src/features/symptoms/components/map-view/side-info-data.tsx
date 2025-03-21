@@ -66,6 +66,8 @@ export default function SideInfoData({
   error,
   setSelectedTreatment,
   setSelectedTreatmentIndex,
+  withBorder = false,
+  withBottomPadding = true,
 }: {
   dict: I18nRecord;
   lang: string;
@@ -76,6 +78,8 @@ export default function SideInfoData({
   setSelectedTreatmentIndex: (
     treatmentIndex: TreatmentsTimelineResponse,
   ) => void;
+  withBorder?: boolean;
+  withBottomPadding?: boolean;
 }) {
   if (loading) {
     return (
@@ -125,8 +129,13 @@ export default function SideInfoData({
   const timelineData = Object.values(groupedTimeline);
 
   return (
-    <div className="flex flex-col gap-2 w-full pb-20 overflow-y-auto">
+    <div
+      className={`flex flex-col gap-2 w-full ${
+        withBottomPadding ? "pb-20" : ""
+      } overflow-y-auto`}
+    >
       <ExpandableButton
+        withBorder={withBorder}
         initial_state={true}
         icon={<FaTruck />}
         title={(dict.symptoms as I18nRecord).condition as string}
@@ -199,6 +208,7 @@ export default function SideInfoData({
         </div>
       </ExpandableButton>
       <ExpandableButton
+        withBorder={withBorder}
         initial_state={true}
         icon={<FaUser />}
         title={(dict.symptoms as I18nRecord).service as string}
@@ -272,6 +282,7 @@ export default function SideInfoData({
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
+          withBorder={withBorder}
           icon={<FaClock />}
           title={(dict.symptoms as I18nRecord).timeline as string}
           description={

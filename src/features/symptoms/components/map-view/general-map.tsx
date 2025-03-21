@@ -4,7 +4,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Card } from "flowbite-react";
 import Image from "next/image";
-import alarmImage from "@assets/images/alarm.gif";
 import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
@@ -161,7 +160,17 @@ export default function GeneralMap({
                 ? "Estado critico"
                 : ((dict.symptoms as I18nRecord)?.[
                     treatmentData?.symptom_info?.name?.toUpperCase() as string
-                  ] as string)}{" "}
+                  ] as string)}
+              {" - "}
+              {(
+                (dict.symptoms as I18nRecord)[
+                  icuConditions[
+                    ("" +
+                      treatmentData?.symptom_info
+                        ?.icu_code) as unknown as keyof typeof icuConditions
+                  ].toLowerCase() as string
+                ] as string
+              ).trim()}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>

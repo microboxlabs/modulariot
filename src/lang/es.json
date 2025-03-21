@@ -480,7 +480,8 @@
     "MIN REST": "Descanso mínimo",
     "TRIP_START": "Inicio de viaje",
     "TRIP_END": "Fin de viaje",
-    "today": "Hoy"
+    "today": "Hoy",
+    "teams_call": "Llamar por Teams"
   },
   "release": {
     "other_versions": "Otras versiones"

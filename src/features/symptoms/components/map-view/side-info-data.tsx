@@ -272,6 +272,9 @@ export default function SideInfoData({
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
             {timelineData.reverse().map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
+
+              const isToday =
+                item.date === new Date().toISOString().split("T")[0];
               const duration = calculateDuration(
                 item.items[0].start,
                 dict,
@@ -291,9 +294,9 @@ export default function SideInfoData({
                         {date}
                       </div>
                       <div className="flex flex-row flex-grow justify-between">
-                        {index == 0 ? (
+                        {isToday ? (
                           <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
-                            {item.assigned_to}
+                            {(dict.symptoms as I18nRecord).today as string}
                           </p>
                         ) : (
                           <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center"></p>

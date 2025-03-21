@@ -479,7 +479,8 @@
     "RISK ZONE SLEEP": "Dormir en zona de riesgo",
     "MIN REST": "Descanso mínimo",
     "TRIP_START": "Inicio de viaje",
-    "TRIP_END": "Fin de viaje"
+    "TRIP_END": "Fin de viaje",
+    "today": "Hoy"
   },
   "release": {
     "other_versions": "Otras versiones"

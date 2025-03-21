@@ -47,7 +47,7 @@ export default function BlurrableSteppedMenu({
   const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
     treatments_templates?.message?.replace(
       "[nombre conductor]",
-      treatmentData?.trip_info.driver ?? "",
+      treatmentData?.trip_info?.driver ?? "",
     ) ?? "",
   );
 

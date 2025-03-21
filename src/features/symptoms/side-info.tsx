@@ -10,7 +10,10 @@ import { SelectedOption } from "./types/side-info";
 import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useTreatmentsTemplates } from "../common/providers/client-api.provider";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
 
 export default function SideInfo({
   dict,
@@ -18,12 +21,18 @@ export default function SideInfo({
   treatmentData,
   loading,
   error,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
 }: {
   dict: I18nRecord;
   lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
+  setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
+  setSelectedTreatmentIndex: (
+    treatmentIndex: TreatmentsTimelineResponse,
+  ) => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedOption, setSelectedOption] =
@@ -62,6 +71,8 @@ export default function SideInfo({
           treatmentData={treatmentData}
           loading={loading}
           error={error}
+          setSelectedTreatment={setSelectedTreatment}
+          setSelectedTreatmentIndex={setSelectedTreatmentIndex}
         />
       </div>
       <div className="absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5">

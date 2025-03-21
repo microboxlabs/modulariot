@@ -475,7 +475,8 @@
     "RISK ZONE SLEEP": "Risk zone sleep",
     "MIN REST": "Min rest",
     "TRIP_START": "Trip start",
-    "TRIP_END": "Trip end"
+    "TRIP_END": "Trip end",
+    "today": "Today"
   },
   "release": {
     "other_versions": "Other Versions"

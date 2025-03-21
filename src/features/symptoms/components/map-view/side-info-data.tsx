@@ -5,7 +5,10 @@ import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 import { Spinner } from "flowbite-react";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
 import { FaUser } from "react-icons/fa6";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -61,6 +64,8 @@ export default function SideInfoData({
   treatmentData,
   loading,
   error,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
   withBorder = false,
   withBottomPadding = true,
 }: {
@@ -69,6 +74,10 @@ export default function SideInfoData({
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
+  setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
+  setSelectedTreatmentIndex: (
+    treatmentIndex: TreatmentsTimelineResponse,
+  ) => void;
   withBorder?: boolean;
   withBottomPadding?: boolean;
 }) {
@@ -283,6 +292,9 @@ export default function SideInfoData({
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
             {timelineData.reverse().map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
+
+              const isToday =
+                item.date === new Date().toISOString().split("T")[0];
               const duration = calculateDuration(
                 item.items[0].start,
                 dict,
@@ -302,9 +314,9 @@ export default function SideInfoData({
                         {date}
                       </div>
                       <div className="flex flex-row flex-grow justify-between">
-                        {index == 0 ? (
+                        {isToday ? (
                           <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
-                            {item.assigned_to}
+                            {(dict.symptoms as I18nRecord).today as string}
                           </p>
                         ) : (
                           <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center"></p>
@@ -327,7 +339,14 @@ export default function SideInfoData({
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>
                         <div className="flex flex-col">
-                          <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
+                          <p
+                            className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTreatment(treatmentData);
+                              setSelectedTreatmentIndex(subItem);
+                            }}
+                          >
                             {new Date(subItem.start).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",

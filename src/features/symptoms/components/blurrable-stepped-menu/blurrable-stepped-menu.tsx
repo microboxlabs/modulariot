@@ -67,6 +67,9 @@ export default function BlurrableSteppedMenu({
     treatment_id: undefined,
   });
 
+  const [isTeamsNotificationOn, setIsTeamsNotificationOn] =
+    useState<boolean>(false);
+
   const base_sections = [
     {
       title: (dict.symptoms as I18nRecord).symptoms as string,
@@ -94,6 +97,8 @@ export default function BlurrableSteppedMenu({
               treatmentData={treatmentData}
               loading={false}
               error={null}
+              setSelectedTreatment={() => {}}
+              setSelectedTreatmentIndex={() => {}}
             />
           ),
           icon: null,
@@ -213,14 +218,30 @@ export default function BlurrableSteppedMenu({
           setDriverResponse,
           treatmentRequest,
           setTreatmentRequest,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
         ),
       ];
       break;
     case "derive_to_specialist":
-      side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getDeriveToSpecialist(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     case "ignore_condition":
-      side_sections = [...base_sections, ...getIgnoreCondition(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getIgnoreCondition(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     default:
       side_sections = base_sections;
@@ -413,6 +434,7 @@ export default function BlurrableSteppedMenu({
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
                       ]?.button?.action;
+
                     const buttonActionFunction =
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]

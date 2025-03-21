@@ -22,6 +22,7 @@ import {
 import { MapService } from "@/features/geographic-view/services/map.service";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -352,6 +353,27 @@ export function useReleases() {
 
   return {
     releases: data || [],
+    error,
+    isLoading,
+  };
+}
+
+export function useTreatmentsLocation(
+  tripId: string,
+  symptom_name: string,
+  first_date: string,
+  last_date: string,
+) {
+  const { data, error, isLoading } = useSWR<
+    TreatmentsLocationResponseItemFeature[],
+    FetcherError
+  >(
+    `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&first_date=${first_date}&last_date=${last_date}`,
+    fetcher,
+  );
+
+  return {
+    data,
     error,
     isLoading,
   };

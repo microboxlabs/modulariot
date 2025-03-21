@@ -10,7 +10,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
-const sendTeamsNotification = async (phoneNumber: string) => {
+const sendTeamsCall = async (phoneNumber: string) => {
   // Get the phone number from the treatment request
   if (!phoneNumber) return;
 
@@ -19,6 +19,17 @@ const sendTeamsNotification = async (phoneNumber: string) => {
     `https://teams.microsoft.com/l/call/0/0?users=4:${phoneNumber}`,
     "_blank",
   );
+};
+
+const sendTeamsNotification = async (phoneNumber: string) => {
+  // Get the phone number from the treatment request
+  if (!phoneNumber) return;
+
+  // TODO:Open Teams to generate a notification about the new treatement
+  /* window.open(
+    `https://teams.microsoft.com/l/message/0/0?users=4:${phoneNumber}`,
+    "_blank",
+  ); */
 };
 
 export const getCallDriver = (
@@ -35,6 +46,13 @@ export const getCallDriver = (
 ) => [
   {
     title: (dict.symptoms as I18nRecord).treatment,
+    preactions: async () => {
+      const response = await requestTreatment(treatmentRequest);
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_id: response.treatment_id,
+      });
+    },
     elements: [
       {
         element_name: (dict.symptoms as I18nRecord).call_driver,
@@ -49,17 +67,30 @@ export const getCallDriver = (
         ),
         icon: <FaPhoneAlt className="h-5 w-5" />,
         logo: null,
-        button: {
-          text: (dict.symptoms as I18nRecord).save_treatment,
-          action: "next",
-          function: async () => {
-            const response = await requestTreatment(treatmentRequest);
-            setTreatmentRequest({
-              ...treatmentRequest,
-              treatment_id: response.treatment_id,
-            });
+        buttons: [
+          {
+            color: "light",
+            text: (dict.symptoms as I18nRecord).teams_call,
+            action: "none",
+            function: async () => {
+              await sendTeamsCall(
+                treatmentData?.trip_info?.driver_contact ?? "",
+              );
+            },
           },
-        },
+          {
+            color: "blue",
+            text: (dict.symptoms as I18nRecord).save_treatment,
+            action: "next",
+            function: async () => {
+              const response = await requestTreatment(treatmentRequest);
+              setTreatmentRequest({
+                ...treatmentRequest,
+                treatment_id: response.treatment_id,
+              });
+            },
+          },
+        ],
       },
       {
         element_name: (dict.symptoms as I18nRecord).driver_response,

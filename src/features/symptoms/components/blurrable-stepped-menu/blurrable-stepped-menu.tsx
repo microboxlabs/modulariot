@@ -206,9 +206,20 @@ export default function BlurrableSteppedMenu({
   }, [selected_elements, selected_section]);
 
   useEffect(() => {
+    if (isMenuOpen) {
+      const preaction = side_sections[selected_section]?.preactions;
+      preaction && preaction();
+    }
     updateSelectedSection(1);
     updateSelectedElement(0);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    setTreatmentRequest({
+      ...treatmentRequest,
+      message: messageToCommunicate,
+    });
+  }, [messageToCommunicate]);
 
   return (
     <div
@@ -380,6 +391,55 @@ export default function BlurrableSteppedMenu({
                     selected_elements[selected_section]
                   ]?.button?.text ?? ""}
                 </Button>
+              ) : side_sections[selected_section].elements[
+                  selected_elements[selected_section]
+                ].buttons ? (
+                <div className="w-full flex flex-row gap-2">
+                  {side_sections[selected_section].elements[
+                    selected_elements[selected_section]
+                  ].buttons.map((button: any, inner_index: number) => (
+                    <Button
+                      className="flex-1"
+                      key={inner_index}
+                      color={button.color}
+                      onClick={() => {
+                        const new_selected_element =
+                          selected_elements[selected_section] + 1;
+
+                        const buttonAction =
+                          side_sections[selected_section]?.elements[
+                            selected_elements[selected_section]
+                          ]?.buttons[inner_index]?.action;
+
+                        const buttonActionFunction =
+                          side_sections[selected_section]?.elements[
+                            selected_elements[selected_section]
+                          ]?.buttons[inner_index]?.function;
+
+                        buttonActionFunction && buttonActionFunction();
+
+                        if (buttonAction === "next") {
+                          if (max_selected_element <= new_selected_element) {
+                            setMaxSelectedElement(new_selected_element);
+                          }
+                          updateSelectedElement(new_selected_element);
+                        } else if (buttonAction === "end") {
+                          setIsMenuOpen(false);
+                          router.push("/symptoms");
+                        } else if (buttonAction === "none") {
+                          //Ignore
+                        } else {
+                          setIsMenuOpen(false);
+                          setMaxSelectedElement(0);
+                        }
+                      }}
+                    >
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.text ?? ""}
+                    </Button>
+                  ))}
+                </div>
               ) : null}
             </div>
           </div>

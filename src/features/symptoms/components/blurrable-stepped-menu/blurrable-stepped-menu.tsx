@@ -54,13 +54,13 @@ export default function BlurrableSteppedMenu({
   const [driverResponse, setDriverResponse] = useState<string>("");
 
   const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
-    asset_id: treatmentData?.trip_info.asset_id ?? "",
+    asset_id: treatmentData?.trip_info?.asset_id ?? "",
     assigned_to: userEmail,
     client_id: null,
     status: "active",
-    symptom_id: treatmentData?.symptom_info.id.toString() ?? "",
+    symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
     treatment_type: "llamar al conductor",
-    trip_id: treatmentData?.trip_info.trip_id ?? "",
+    trip_id: treatmentData?.trip_info?.trip_id ?? "",
     message: messageToCommunicate ?? "",
     driver_response: driverResponse ?? "",
     description: undefined,
@@ -78,7 +78,7 @@ export default function BlurrableSteppedMenu({
                 ("" +
                   treatmentData?.symptom_info
                     ?.icu_code) as unknown as keyof typeof icuConditions
-              ].toLowerCase() as string
+              ]?.toLowerCase() as string
             ] as string
           }: ${
             (dict.symptoms as I18nRecord)[

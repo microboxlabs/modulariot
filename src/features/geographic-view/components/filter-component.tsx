@@ -1,14 +1,14 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import MapButton from "./map-button";
 import Image from "next/image";
-import { IoClose } from "react-icons/io5";
 import { IconType } from "react-icons";
+import { FaRegTrashAlt } from "react-icons/fa";
 
 // Export the Option type so it can be imported in other files
 export type Option = {
   text: string;
   filter_value: string;
-  icon: string;
+  icon: string | React.ReactElement;
   code: string;
   activated: boolean;
 };
@@ -61,6 +61,10 @@ export default function FilterComponent({
     }
   };
 
+  options.map((option) => {
+    console.log(option.icon);
+  });
+
   return (
     <div className="relative h-full flex flex-row gap-2">
       <div
@@ -90,22 +94,34 @@ export default function FilterComponent({
         </div>
       </div>
       <div
-        className={`h-10 overflow-hidden transition-all duration-300 ease-in-out !flex justify-center items-center flex-row gap-2 w-fit ${expanded ? "animate-show" : "animate-hide-width"}  `}
+        className={`h-10 transition-all duration-300 ease-in-out !flex justify-center items-center flex-row gap-2 w-fit ${expanded ? "animate-show" : "animate-hide-width"}  `}
       >
         {filter_options.map((option, index) => (
           <div
             onClick={() => handleOptionToggle(index)}
             key={index}
-            className={`w-8 h-8 bg-blue-500 ${option.activated ? "border-2 border-white" : ""}  rounded-full p-1 flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:brightness-75 hover:border-gray-300`}
+            className={`w-8 h-8 bg-blue-500 ${option.activated ? "outline outline-2 outline-white" : ""}  rounded-full ${
+              typeof option.icon === "string" ? "p-1" : ""
+            } flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:brightness-75 hover:border-gray-300`}
           >
-            <Image src={option.icon} alt="icono" className="w-6 h-6" />
+            {typeof option.icon === "string" ? (
+              <Image
+                src={option.icon}
+                alt="icono"
+                width={24}
+                height={24}
+                className="w-6 h-6"
+              />
+            ) : (
+              option.icon
+            )}
           </div>
         ))}
         <div
           onClick={handleClearOptions}
           className="w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300 text-white"
         >
-          <IoClose />
+          <FaRegTrashAlt />
         </div>
       </div>
     </div>

@@ -1,7 +1,30 @@
+"use client";
+
 import { Dropdown, Textarea } from "flowbite-react";
+import { useState } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import { HiCheck } from "react-icons/hi";
+
+const specialists = [
+  {
+    name: "CAT",
+    title: "Centro de atención y trafico",
+  },
+  {
+    name: "Jefe ETIS",
+    title: "Equipo de transporte y seguridad",
+  },
+  {
+    name: "Jefe Nacional de Transporte",
+    title: "Logística",
+  },
+];
+
 export default function DeriveToSpecialist({ dict }: { dict: any }) {
+  const [selectedSpecialist, setSelectedSpecialist] = useState<string | null>(
+    null,
+  );
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-5 flex-grow">
@@ -15,37 +38,38 @@ export default function DeriveToSpecialist({ dict }: { dict: any }) {
               label={dict.symptoms.specialist}
               renderTrigger={() => (
                 <div className="w-full flex flex-row items-center justify-between px-3 bg-gray-100 dark:bg-gray-700 rounded-md p-2 hover:cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {dict.symptoms.specialist}
-                  </p>
+                  {selectedSpecialist ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex flex-row items-center gap-2">
+                      <div className="w-8 h-8 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+                      {selectedSpecialist}
+                    </p>
+                  ) : (
+                    <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 h-8">
+                      {dict.symptoms.specialist}
+                    </p>
+                  )}
                   <FaChevronDown className="text-gray-500 dark:text-gray-400" />
                 </div>
               )}
             >
-              <Dropdown.Item>
-                <div className="w-full flex flex-row items-center gap-2">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    Juan Perez
-                  </p>
-                </div>
-              </Dropdown.Item>
-              <Dropdown.Item>
-                <div className="w-full flex flex-row items-center gap-2">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    Juan Perez
-                  </p>
-                </div>
-              </Dropdown.Item>
-              <Dropdown.Item>
-                <div className="w-full flex flex-row items-center gap-2">
-                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    Juan Perez
-                  </p>
-                </div>
-              </Dropdown.Item>
+              {specialists.map((specialist) => (
+                <Dropdown.Item
+                  key={specialist.name}
+                  onClick={() => setSelectedSpecialist(specialist.name)}
+                >
+                  <div className="w-full flex flex-row items-center gap-2">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+                    <div className="flex flex-col items-start">
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {specialist.name}
+                      </p>
+                      <p className="text-sm font-light text-gray-500 dark:text-gray-400">
+                        {specialist.title}
+                      </p>
+                    </div>
+                  </div>
+                </Dropdown.Item>
+              ))}
             </Dropdown>
           </div>
         </div>

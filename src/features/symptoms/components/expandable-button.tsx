@@ -6,6 +6,7 @@ interface ExpandableButtonProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  withBorder?: boolean;
 }
 
 export default function ExpandableButton({
@@ -14,13 +15,14 @@ export default function ExpandableButton({
   title,
   children,
   description,
+  withBorder = false,
 }: ExpandableButtonProps) {
   const [isExpanded, setIsExpanded] = useState(initial_state);
 
   return (
     <div
       onClick={() => setIsExpanded(!isExpanded)}
-      className={`hover:cursor-pointer rounded-md transition-all duration-200 flex flex-col ${isExpanded ? " p-4 dark:hover:bg-gray-700 hover:bg-gray-100" : "dark:hover:bg-gray-700 hover:bg-gray-100 p-2"}`}
+      className={`${withBorder ? "border border-gray-300 dark:border-gray-600" : ""} hover:cursor-pointer rounded-md transition-all duration-200 flex flex-col ${isExpanded ? " p-4 dark:hover:bg-gray-700 hover:bg-gray-100" : "dark:hover:bg-gray-700 hover:bg-gray-100 p-2"}`}
     >
       {/* Title */}
       <div className="flex flex-row items-center gap-2">

@@ -4,52 +4,12 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Card } from "flowbite-react";
 import Image from "next/image";
-import alarmImage from "@assets/images/alarm.gif";
 import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
-import maskImage from "@assets/images/mask.gif";
-import patchImage from "@assets/images/patch.gif";
-import hospitalImage from "@assets/images/hospital.svg";
-
-const titles = {
-  "0": {
-    base: "restablished_symptoms",
-    title: "stable",
-    icon: patchImage,
-  },
-  "1": {
-    base: "restablished_symptoms",
-    title: "in_observation",
-    icon: maskImage,
-  },
-  "2": {
-    base: "restablished_symptoms",
-    title: "compromised_condition",
-    icon: hospitalImage,
-  },
-  "3": {
-    base: "urgent_symptoms",
-    title: "critical_condition",
-    icon: hospitalImage,
-  },
-  "4": {
-    base: "urgent_symptoms",
-    title: "code_black",
-    icon: alarmImage,
-  },
-  "6": {
-    base: "symptoms_being_treated",
-    title: "in_treatment",
-    icon: maskImage,
-  },
-  "8": {
-    base: "symptoms_being_treated",
-    title: "in_remission",
-    icon: patchImage,
-  },
-};
+import { titles } from "../../types/symptom-titles";
+import icuConditions from "@/features/symptoms/model/icu_condition.json";
 
 export default function GeneralMap({
   dict,
@@ -138,7 +98,17 @@ export default function GeneralMap({
                 ? "Estado critico"
                 : ((dict.symptoms as I18nRecord)?.[
                     treatmentData?.symptom_info?.name?.toUpperCase() as string
-                  ] as string)}{" "}
+                  ] as string)}
+              {" - "}
+              {(
+                (dict.symptoms as I18nRecord)[
+                  icuConditions[
+                    ("" +
+                      treatmentData?.symptom_info
+                        ?.icu_code) as unknown as keyof typeof icuConditions
+                  ].toLowerCase() as string
+                ] as string
+              ).trim()}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>

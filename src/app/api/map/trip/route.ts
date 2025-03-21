@@ -11,7 +11,7 @@ import {
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 import { MapPosition } from "./route.type";
-import { parseWKBPoint } from "@/utils/map-convertions";
+import { parseWKBPoint } from "@/utils/map-conversion";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,

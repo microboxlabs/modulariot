@@ -8,9 +8,6 @@ import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
-import maskImage from "@assets/images/mask.gif";
-import patchImage from "@assets/images/patch.gif";
-import hospitalImage from "@assets/images/hospital.svg";
 import { useState } from "react";
 import {
   TreatmentsGeneralResponseItem,
@@ -18,44 +15,8 @@ import {
 } from "@/app/api/treatments/general/route.type";
 
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
-
-const titles = {
-  "0": {
-    base: "restablished_symptoms",
-    title: "stable",
-    icon: patchImage,
-  },
-  "1": {
-    base: "restablished_symptoms",
-    title: "in_observation",
-    icon: maskImage,
-  },
-  "2": {
-    base: "restablished_symptoms",
-    title: "compromised_condition",
-    icon: hospitalImage,
-  },
-  "3": {
-    base: "urgent_symptoms",
-    title: "critical_condition",
-    icon: hospitalImage,
-  },
-  "4": {
-    base: "urgent_symptoms",
-    title: "code_black",
-    icon: alarmImage,
-  },
-  "6": {
-    base: "symptoms_being_treated",
-    title: "in_treatment",
-    icon: maskImage,
-  },
-  "8": {
-    base: "symptoms_being_treated",
-    title: "in_remission",
-    icon: patchImage,
-  },
-};
+import { titles } from "../../types/symptom-titles";
+import icuConditions from "@/features/symptoms/model/icu_condition.json";
 
 export default function GeneralMap({
   dict,

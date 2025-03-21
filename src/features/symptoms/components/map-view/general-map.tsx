@@ -94,7 +94,7 @@ export default function GeneralMap({
       <div
         className={`mx-5 mb-5 relative flex flex-col gap-10 ${
           ["3", "4"].includes(
-            treatmentData?.symptom_info.icu_code?.toString() ?? "",
+            treatmentData?.symptom_info?.icu_code?.toString() ?? "",
           )
             ? "animate-shadow-toggle"
             : ""
@@ -118,7 +118,7 @@ export default function GeneralMap({
                 src={
                   titles[
                     treatmentData?.symptom_info
-                      .icu_code as unknown as keyof typeof titles
+                      ?.icu_code as unknown as keyof typeof titles
                   ].icon
                 }
                 alt="Síntomas"

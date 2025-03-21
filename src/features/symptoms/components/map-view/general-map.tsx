@@ -119,7 +119,7 @@ export default function GeneralMap({
                   titles[
                     treatmentData?.symptom_info
                       ?.icu_code as unknown as keyof typeof titles
-                  ].icon
+                  ]?.icon
                 }
                 alt="Síntomas"
                 width={50}

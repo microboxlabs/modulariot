@@ -1,4 +1,3 @@
-import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import SideInfoData from "../map-view/side-info-data";
@@ -17,6 +16,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 import icuConditions from "@/features/symptoms/model/icu_condition.json";
+import { titles } from "../../types/symptom-titles";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -72,7 +72,11 @@ export default function BlurrableSteppedMenu({
       title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
         {
-          element_name: `${
+          element_name: `${(dict.symptoms as I18nRecord).symptom as string}: ${(
+            (dict.symptoms as I18nRecord)[
+              treatmentData?.symptom_info?.name?.toUpperCase() as string
+            ] as string
+          ).trim()} - ${(
             (dict.symptoms as I18nRecord)[
               icuConditions[
                 ("" +
@@ -80,11 +84,7 @@ export default function BlurrableSteppedMenu({
                     ?.icu_code) as unknown as keyof typeof icuConditions
               ].toLowerCase() as string
             ] as string
-          }: ${
-            (dict.symptoms as I18nRecord)[
-              treatmentData?.symptom_info?.name?.toUpperCase() as string
-            ] as string
-          }`,
+          ).trim()}`,
           description: (dict.symptoms as I18nRecord)
             .symptom_information as string,
           component: (
@@ -94,109 +94,29 @@ export default function BlurrableSteppedMenu({
               treatmentData={treatmentData}
               loading={false}
               error={null}
+              withBorder={true}
+              withBottomPadding={false}
             />
           ),
           icon: null,
           logo: (
-            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
+            <Image
+              src={
+                titles[
+                  treatmentData?.symptom_info
+                    .icu_code as unknown as keyof typeof titles
+                ].icon
+              }
+              alt="Icon"
+              width={100}
+              height={100}
+            />
           ),
           button: null,
         },
       ],
     },
   ];
-
-  /* const side_sections = [
-    {
-      title: (dict.symptoms as I18nRecord).symptoms as string,
-      elements: [
-        {
-          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
-          description: (dict.symptoms as I18nRecord)
-            .symptom_information as string,
-          component: (
-            <SideInfoData
-              dict={dict}
-              lang={lang}
-              treatmentData={treatmentData}
-              loading={false}
-              error={null}
-            />
-          ),
-          icon: null,
-          logo: (
-            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
-          ),
-          button: null,
-        },
-      ],
-    },
-    {
-      title: (dict.symptoms as I18nRecord).treatment as string,
-      elements: [
-        {
-          element_name: (dict.symptoms as I18nRecord).call_driver as string,
-          description: (dict.symptoms as I18nRecord)
-            .call_driver_description as string,
-          component: (
-            <CallDriver
-              dict={dict}
-              treatmentData={treatmentData}
-              messageToCommunicate={messageToCommunicate}
-              setMessageToCommunicate={setMessageToCommunicate}
-            />
-          ),
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).save_treatment as string,
-            action: "next",
-            function: async () => {
-              const response = await requestTreatment(treatmentRequest);
-              setTreatmentRequest({
-                ...treatmentRequest,
-                treatment_id: response.treatment_id,
-              });
-            },
-          },
-        },
-        {
-          element_name: (dict.symptoms as I18nRecord).driver_response as string,
-          description: (dict.symptoms as I18nRecord)
-            .driver_response_description as string,
-          component: (
-            <DriverResponse
-              dict={dict}
-              driverResponse={driverResponse}
-              setDriverResponse={setDriverResponse}
-            />
-          ),
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).save_response as string,
-            action: "next",
-            function: async () => {
-              await requestTreatment(treatmentRequest);
-            },
-          },
-        },
-        {
-          element_name: (dict.symptoms as I18nRecord).end_treatment as string,
-          description: (dict.symptoms as I18nRecord)
-            .end_treatment_description as string,
-          component: <EndTreatment dict={dict} />,
-          icon: <FaCheck className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).finish_treatment as string,
-            action: "end",
-            function: () => {},
-          },
-        },
-      ],
-    },
-  ]; */
 
   let side_sections: any[] = [];
 

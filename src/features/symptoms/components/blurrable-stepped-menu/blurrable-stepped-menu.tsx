@@ -79,7 +79,7 @@ export default function BlurrableSteppedMenu({
             (dict.symptoms as I18nRecord)[
               treatmentData?.symptom_info?.name?.toUpperCase() as string
             ] as string
-          ).trim()} - ${(
+          )?.trim()} - ${(
             (dict.symptoms as I18nRecord)[
               icuConditions[
                 ("" +
@@ -87,7 +87,7 @@ export default function BlurrableSteppedMenu({
                     ?.icu_code) as unknown as keyof typeof icuConditions
               ]?.toLowerCase() as string
             ] as string
-          ).trim()}`,
+          )?.trim()}`,
           description: (dict.symptoms as I18nRecord)
             .symptom_information as string,
           component: (

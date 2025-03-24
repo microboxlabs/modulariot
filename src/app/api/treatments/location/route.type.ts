@@ -15,6 +15,7 @@ export type TreatmentsLocationResponseItemFeature = {
   longitude: number | null;
   latitude: number | null;
   properties: TreatmentsLocationResponseItemFeatureProperties;
+  status: string;
 };
 
 export type TreatmentsLocationResponseItemFeatureProperties = {

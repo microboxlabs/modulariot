@@ -72,6 +72,7 @@ export async function GET(request: Request) {
           ...feature,
           longitude,
           latitude,
+          symptom_name,
         };
       });
 

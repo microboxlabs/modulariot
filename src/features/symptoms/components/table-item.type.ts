@@ -17,6 +17,7 @@ export type TableItemType = {
   service: string;
   alertType: string;
   status: string | null;
+  last_assigned_to: string | null;
 };
 
 export type Condition = {

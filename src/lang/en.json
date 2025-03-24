@@ -478,7 +478,8 @@
     "TRIP_END": "Trip end",
     "today": "Today",
     "teams_call": "Call through ",
-    "teams_call2": " Teams"
+    "teams_call2": " Teams",
+    "process_treatment_auto": "Automatic"
   },
   "release": {
     "other_versions": "Other Versions"

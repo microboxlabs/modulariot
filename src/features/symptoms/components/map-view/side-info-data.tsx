@@ -307,6 +307,9 @@ export default function SideInfoData({
                   className={`flex flex-col gap-2 ${
                     index != timelineData.length - 1 ? "pb-2" : ""
                   }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
                   <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-1 text-xs">
                     <div className="w-full flex flex-row gap-5 items-center justify-between px-2">
@@ -329,7 +332,15 @@ export default function SideInfoData({
                   </div>
                   <div className="flex flex-col gap-3 bg">
                     {item.items.reverse().map((subItem: any, subIndex: any) => (
-                      <div key={subIndex} className="flex flex-row gap-2">
+                      <div
+                        key={subIndex}
+                        className="flex flex-row gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTreatment(treatmentData);
+                          setSelectedTreatmentIndex(subItem);
+                        }}
+                      >
                         <div className="flex flex-col">
                           <ConditionIcon
                             condition={subItem?.icu_condition}
@@ -339,14 +350,7 @@ export default function SideInfoData({
                           <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                         </div>
                         <div className="flex flex-col">
-                          <p
-                            className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTreatment(treatmentData);
-                              setSelectedTreatmentIndex(subItem);
-                            }}
-                          >
+                          <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
                             {new Date(subItem.start).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",

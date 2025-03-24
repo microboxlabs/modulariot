@@ -9,6 +9,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import { BiLogoMicrosoftTeams } from "react-icons/bi";
 
 const sendTeamsCall = async (phoneNumber: string) => {
   // Get the phone number from the treatment request
@@ -71,6 +72,8 @@ export const getCallDriver = (
           {
             color: "light",
             text: (dict.symptoms as I18nRecord).teams_call,
+            text2: (dict.symptoms as I18nRecord).teams_call2,
+            icon: <BiLogoMicrosoftTeams className="w-6 h-6 ml-2 mr-2" />,
             action: "none",
             function: async () => {
               await sendTeamsCall(

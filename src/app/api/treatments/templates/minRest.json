@@ -1,22 +1,22 @@
 {
   "0": {
     "name": "Stable",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado que está próximo a superar el máximo de horas continuas de conducción, por favor dirígase a un lugar seguro y autorizado para descansar"
   },
   "1": {
     "name": "Under observation",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado que ha superado el máximo de horas continuas de conducción, por favor dirígase a un lugar seguro y autorizado para descansar"
   },
   "2": {
     "name": "Compromised condition",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado que ha superado el máximo de horas continuas de conducción, por favor dirígase a un lugar seguro y autorizado para descansar"
   },
   "3": {
     "name": "Critical condition",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado que ha superado el máximo de horas continuas de conducción, por favor dirígase a un lugar seguro y autorizado para descansar"
   },
   "4": {
     "name": "Code black",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado que ha superado el máximo de horas continuas de conducción, por favor dirígase a un lugar seguro y autorizado para descansar"
   }
 }

@@ -215,6 +215,32 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
+  const geoFilteredJson = useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features:
+        filteredLocationData?.map(
+          (item: TreatmentsLocationResponseItemFeature) => ({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [item?.longitude, item?.latitude],
+            },
+            properties: {
+              color: stateToColor[item.status as keyof typeof stateToColor] || [
+                244, 63, 94,
+              ],
+              //rotation: item.heading * (180 / Math.PI),
+              //licensePlate: item.asset_id,
+              //driver: item.driver_id,
+              //trip: item.trip_id,
+            },
+          }),
+        ) || [],
+    }),
+    [filteredLocationData],
+  );
+
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
     if (!geofence_data?.data || geofence_data?.data.length === 0) return null;
@@ -300,11 +326,7 @@ export default function MapVisualizationTrip({
     if (positions?.length != 0) {
       baseLayers.push(
         new PinLayer({
-          data: filteredLocationData
-            ? filteredLocationData
-            : positions && !filteredLocationData
-              ? [positions[positions.length - 1]]
-              : [],
+          data: positions ? [positions[positions.length - 1]] : [],
           zoom: viewState.zoom,
           onClick: ({ object }: { object: any }) => {
             zoom_on_pin(
@@ -317,6 +339,19 @@ export default function MapVisualizationTrip({
           },
           updateTriggers: {
             data: positions,
+          },
+        }),
+      );
+    }
+
+    if (filteredLocationData && filteredLocationData.length > 0) {
+      baseLayers.push(
+        new PulsePinLayer({
+          data: geoFilteredJson,
+          //color: [244, 63, 94], // RED
+          zoom: viewState.zoom,
+          updateTriggers: {
+            data: filteredLocationData,
           },
         }),
       );

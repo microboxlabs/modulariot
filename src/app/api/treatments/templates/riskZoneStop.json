@@ -5,18 +5,18 @@
   },
   "1": {
     "name": "Under observation",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado una parada prolongada en una zona de alto riesgo"
   },
   "2": {
     "name": "Compromised condition",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado una parada prolongada en una zona de alto riesgo"
   },
   "3": {
     "name": "Critical condition",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado una parada prolongada en una zona de alto riesgo"
   },
   "4": {
     "name": "Code black",
-    "message": ""
+    "message": "Estimado [nombre conductor] hemos detectado una parada prolongada en una zona de alto riesgo"
   }
 }

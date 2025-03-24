@@ -107,8 +107,8 @@ export default function TableItem({
 
   return (
     <TableRow
-      className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-    ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
+      className={` text-gray-900 dark:text-white hover:!bg-gray-300 dark:hover:!bg-gray-600 
+    ${Conditions[data.condition as keyof typeof Conditions].bgColor} ${Conditions[data.condition as keyof typeof Conditions].hoverColor}  !border-0`}
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex items-center gap-2">

@@ -23,6 +23,7 @@ export type Condition = {
   dict_name: string;
   color: string;
   bgColor?: string;
+  hoverColor?: string;
   innerColor?: string;
   textColor: string;
   icon: string;
@@ -33,6 +34,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "code_black",
     color: "border-black",
     bgColor: "!bg-black",
+    hoverColor: "hover:!bg-gray-900 dark:hover:!bg-gray-900",
     innerColor: "bg-gray-200",
     textColor: "text-white",
     icon: blackCode,
@@ -41,6 +43,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
     icon: criticalAlert,
@@ -49,6 +52,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
     icon: criticalAlert,
@@ -59,6 +63,7 @@ export const Conditions: Record<string, Condition> = {
     innerColor: "bg-amber-100",
     textColor: "text-black dark:text-white",
     bgColor: "",
+    hoverColor: "",
     icon: treatment,
   },
   stable: {
@@ -67,6 +72,7 @@ export const Conditions: Record<string, Condition> = {
     innerColor: "bg-blue-100",
     textColor: "text-black dark:text-white",
     bgColor: "",
+    hoverColor: "",
     icon: stable,
   },
   compromised: {
@@ -75,6 +81,7 @@ export const Conditions: Record<string, Condition> = {
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
     bgColor: "",
+    hoverColor: "",
     icon: compromised,
   },
   "compromised condition": {
@@ -83,6 +90,7 @@ export const Conditions: Record<string, Condition> = {
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
     bgColor: "",
+    hoverColor: "",
     icon: compromised,
   },
   "under observation": {
@@ -91,6 +99,7 @@ export const Conditions: Record<string, Condition> = {
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
     bgColor: "",
+    hoverColor: "",
     icon: observation,
   },
   observation: {
@@ -99,6 +108,7 @@ export const Conditions: Record<string, Condition> = {
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
     bgColor: "",
+    hoverColor: "",
     icon: observation,
   },
   remission: {
@@ -107,6 +117,7 @@ export const Conditions: Record<string, Condition> = {
     innerColor: "bg-teal-50",
     textColor: "text-black dark:text-white",
     bgColor: "",
+    hoverColor: "",
     icon: recovery,
   },
 };

@@ -75,6 +75,7 @@ export default function SymptomsTable({
       <div className="h-10 p- bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
         <Table
           striped
+          hoverable={compact}
           theme={{
             body: {
               cell: {

@@ -477,7 +477,8 @@
     "TRIP_START": "Trip start",
     "TRIP_END": "Trip end",
     "today": "Today",
-    "teams_call": "Call through Teams"
+    "teams_call": "Call through ",
+    "teams_call2": " Teams"
   },
   "release": {
     "other_versions": "Other Versions"

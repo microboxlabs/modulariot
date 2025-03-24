@@ -79,7 +79,7 @@ export default function TableItem({
                   color="blue"
                 >
                   <div className="flex items-center gap-2">
-                    <p>{data.status}</p>
+                    <p>{(dict.symptoms as I18nRecord).diagnose as string}</p>
                     <HiArrowRight className="w-4 h-4" />
                   </div>
                 </Button>

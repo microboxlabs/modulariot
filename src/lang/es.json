@@ -482,7 +482,8 @@
     "TRIP_END": "Fin de viaje",
     "today": "Hoy",
     "teams_call": "Llamar por ",
-    "teams_call2": " Teams"
+    "teams_call2": " Teams",
+    "process_treatment_auto": "Automático"
   },
   "release": {
     "other_versions": "Otras versiones"

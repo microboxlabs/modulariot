@@ -70,7 +70,7 @@ export default function TableItem({
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           <div className="flex items-center gap-2">
-            {data.status ? (
+            {data.last_assigned_to ? (
               <Link
                 href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
               >
@@ -79,7 +79,11 @@ export default function TableItem({
                   color="blue"
                 >
                   <div className="flex items-center gap-2">
-                    <p>{(dict.symptoms as I18nRecord).diagnose as string}</p>
+                    <p>
+                      {((dict.symptoms as I18nRecord)[
+                        data.last_assigned_to as keyof typeof dict.symptoms
+                      ] as string) || data.last_assigned_to}
+                    </p>
                     <HiArrowRight className="w-4 h-4" />
                   </div>
                 </Button>

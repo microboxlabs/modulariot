@@ -75,6 +75,7 @@ export default function SymptomsTable({
       <div className="h-10 p- bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
         <Table
           striped
+          hoverable={compact}
           theme={{
             body: {
               cell: {
@@ -103,9 +104,9 @@ export default function SymptomsTable({
               <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).departure_date as string}
               </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
+              {/* <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).state as string}
-              </TableHeadCell>
+              </TableHeadCell> */}
             </TableHead>
           ) : (
             <TableHead>

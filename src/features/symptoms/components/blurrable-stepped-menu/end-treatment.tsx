@@ -1,9 +1,29 @@
+import React, { useEffect } from "react";
 import { CiCircleCheck } from "react-icons/ci";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Checkbox, Label } from "flowbite-react";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 
-export default function EndTreatment({ dict }: { dict: I18nRecord }) {
+export default function EndTreatment({
+  dict,
+  isTeamsNotificationOn,
+  setIsTeamsNotificationOn,
+}: {
+  dict: I18nRecord;
+  isTeamsNotificationOn: boolean;
+  setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void;
+}) {
+  useEffect(() => {
+    console.log("isTeamsNotificationOn changed to:", isTeamsNotificationOn);
+  }, [isTeamsNotificationOn]);
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    console.log("Checkbox clicked, new value:", newValue);
+    setIsTeamsNotificationOn(newValue);
+    console.log("isTeamsNotificationOn:", isTeamsNotificationOn);
+  };
+
   return (
     <div className="h-full w-full flex flex-col">
       {/* Main centered content */}
@@ -16,8 +36,16 @@ export default function EndTreatment({ dict }: { dict: I18nRecord }) {
 
       {/* Bottom checkbox */}
       <div className="flex justify-center items-center gap-2 mt-auto mb-2">
-        <Checkbox id="remember" />
-        <Label htmlFor="remember" className="flex flex-row items-center gap-1">
+        <Checkbox
+          id="teams-notification"
+          value={isTeamsNotificationOn.toString()}
+          onChange={handleCheckboxChange}
+          className="h-4 w-4"
+        />
+        <Label
+          htmlFor="teams-notification"
+          className="flex flex-row items-center gap-1 cursor-pointer"
+        >
           {(dict.symptoms as I18nRecord).end_treatment_notification as string}{" "}
           <BiLogoMicrosoftTeams className="w-6 h-6" />
           Teams

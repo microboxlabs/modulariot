@@ -6,7 +6,7 @@ import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 
 export default function NavbarSignIn() {
   return (
-    <div className="min-h-8 mb-8">
+    <div className="w-full h-fit">
       <Navbar fluid className="dark:bg-transparent">
         <NavbarBrand data-testid="login-navbar" href="https://www.mintral.cl/">
           <Image

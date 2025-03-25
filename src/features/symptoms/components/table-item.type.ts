@@ -17,14 +17,21 @@ export type TableItemType = {
   service: string;
   alertType: string;
   status: string | null;
+  last_assigned_to: string | null;
 };
 
 export type Condition = {
   dict_name: string;
   color: string;
   bgColor?: string;
+  hoverColor?: string;
   innerColor?: string;
   textColor: string;
+  tagColor: string;
+  tagTextColor: string;
+  secundaryInteraction?: string;
+  secundaryInteractionIcon?: string;
+  separatorColor?: string;
   icon: string;
 };
 
@@ -33,24 +40,41 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "code_black",
     color: "border-black",
     bgColor: "!bg-black",
+    hoverColor: "hover:!bg-gray-900 dark:hover:!bg-gray-900",
     innerColor: "bg-gray-200",
     textColor: "text-white",
+    tagColor: "bg-gray-700 border-gray-600",
+    tagTextColor: "text-gray-200",
+    secundaryInteraction: "border-gray-700 bg-gray-800 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-200",
+    separatorColor: "border-gray-700",
     icon: blackCode,
   },
   critic: {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
+    tagColor: "bg-red-200 border-red-700",
+    tagTextColor: "text-red-200 dark:text-red-800",
+    secundaryInteraction: "border-gray-700 bg-gray-800 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-200",
     icon: criticalAlert,
   },
   "critical condition": {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
+    tagColor: "bg-red-200 border-red-400",
+    tagTextColor: "text-red-700 dark:text-red-700",
+    secundaryInteraction: "border-gray-300 bg-gray-100 dark:bg-gray-100",
+    secundaryInteractionIcon: "text-gray-700",
+    separatorColor: "border-gray-100",
     icon: criticalAlert,
   },
   treatment: {
@@ -58,7 +82,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-amber-500",
     innerColor: "bg-amber-100",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: treatment,
   },
   stable: {
@@ -66,7 +97,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-blue-600",
     innerColor: "bg-blue-100",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: stable,
   },
   compromised: {
@@ -74,7 +112,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: compromised,
   },
   "compromised condition": {
@@ -82,7 +127,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: compromised,
   },
   "under observation": {
@@ -90,7 +142,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: observation,
   },
   observation: {
@@ -98,7 +157,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: observation,
   },
   remission: {
@@ -106,7 +172,14 @@ export const Conditions: Record<string, Condition> = {
     color: "border-teal-700",
     innerColor: "bg-teal-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: recovery,
   },
 };

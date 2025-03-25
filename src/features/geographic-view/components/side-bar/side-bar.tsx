@@ -18,7 +18,7 @@ export default function SideBar({
     () => [
       {
         button_text: (dict.symptoms as I18nRecord).monitoring as string,
-        component: (
+        component: mapPositionsResume && (
           <Monitoring dict={dict} mapPositionsResume={mapPositionsResume} />
         ),
       },

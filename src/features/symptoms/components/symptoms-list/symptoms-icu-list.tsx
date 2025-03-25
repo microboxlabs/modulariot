@@ -63,6 +63,8 @@ export default function SymptomsIcuList({
 }: SymptomsIcuListProps) {
   const { icuData, isLoading, error } = useSymptomsIcu(condition);
 
+  console.log(icuData);
+
   if (isLoading) {
     return <SymptomsListSkeleton />;
   }

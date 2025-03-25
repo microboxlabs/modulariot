@@ -1,4 +1,3 @@
-import noAlarmImage from "@assets/images/no_alarm.gif";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import SideInfoData from "../map-view/side-info-data";
@@ -16,6 +15,9 @@ import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
+import icuConditions from "@/features/symptoms/model/icu_condition.json";
+import { titles } from "../../types/symptom-titles";
+
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
@@ -45,32 +47,47 @@ export default function BlurrableSteppedMenu({
   const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
     treatments_templates?.message?.replace(
       "[nombre conductor]",
-      treatmentData?.trip_info.driver ?? "",
+      treatmentData?.trip_info?.driver ?? "",
     ) ?? "",
   );
 
   const [driverResponse, setDriverResponse] = useState<string>("");
 
   const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
-    asset_id: treatmentData?.trip_info.asset_id ?? "",
+    asset_id: treatmentData?.trip_info?.asset_id ?? "",
     assigned_to: userEmail,
     client_id: null,
     status: "active",
-    symptom_id: treatmentData?.symptom_info.id.toString() ?? "",
+    symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
     treatment_type: "llamar al conductor",
-    trip_id: treatmentData?.trip_info.trip_id ?? "",
+    trip_id: treatmentData?.trip_info?.trip_id ?? "",
     message: messageToCommunicate ?? "",
     driver_response: driverResponse ?? "",
     description: undefined,
     treatment_id: undefined,
   });
 
+  const [isTeamsNotificationOn, setIsTeamsNotificationOn] =
+    useState<boolean>(false);
+
   const base_sections = [
     {
       title: (dict.symptoms as I18nRecord).symptoms as string,
       elements: [
         {
-          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
+          element_name: `${(dict.symptoms as I18nRecord).symptom as string}: ${(
+            (dict.symptoms as I18nRecord)[
+              treatmentData?.symptom_info?.name?.toUpperCase() as string
+            ] as string
+          )?.trim()} - ${(
+            (dict.symptoms as I18nRecord)[
+              icuConditions[
+                ("" +
+                  treatmentData?.symptom_info
+                    ?.icu_code) as unknown as keyof typeof icuConditions
+              ]?.toLowerCase() as string
+            ] as string
+          )?.trim()}`,
           description: (dict.symptoms as I18nRecord)
             .symptom_information as string,
           component: (
@@ -80,109 +97,31 @@ export default function BlurrableSteppedMenu({
               treatmentData={treatmentData}
               loading={false}
               error={null}
+              setSelectedTreatment={() => {}}
+              setSelectedTreatmentIndex={() => {}}
+              withBorder={true}
+              withBottomPadding={false}
             />
           ),
           icon: null,
           logo: (
-            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
+            <Image
+              src={
+                titles[
+                  treatmentData?.symptom_info
+                    .icu_code as unknown as keyof typeof titles
+                ].icon
+              }
+              alt="Icon"
+              width={100}
+              height={100}
+            />
           ),
           button: null,
         },
       ],
     },
   ];
-
-  /* const side_sections = [
-    {
-      title: (dict.symptoms as I18nRecord).symptoms as string,
-      elements: [
-        {
-          element_name: `${(dict.symptoms as I18nRecord).code_black as string}: ${(dict.symptoms as I18nRecord).continuous_driving_state as string}`,
-          description: (dict.symptoms as I18nRecord)
-            .symptom_information as string,
-          component: (
-            <SideInfoData
-              dict={dict}
-              lang={lang}
-              treatmentData={treatmentData}
-              loading={false}
-              error={null}
-            />
-          ),
-          icon: null,
-          logo: (
-            <Image src={noAlarmImage} alt="Icon" width={100} height={100} />
-          ),
-          button: null,
-        },
-      ],
-    },
-    {
-      title: (dict.symptoms as I18nRecord).treatment as string,
-      elements: [
-        {
-          element_name: (dict.symptoms as I18nRecord).call_driver as string,
-          description: (dict.symptoms as I18nRecord)
-            .call_driver_description as string,
-          component: (
-            <CallDriver
-              dict={dict}
-              treatmentData={treatmentData}
-              messageToCommunicate={messageToCommunicate}
-              setMessageToCommunicate={setMessageToCommunicate}
-            />
-          ),
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).save_treatment as string,
-            action: "next",
-            function: async () => {
-              const response = await requestTreatment(treatmentRequest);
-              setTreatmentRequest({
-                ...treatmentRequest,
-                treatment_id: response.treatment_id,
-              });
-            },
-          },
-        },
-        {
-          element_name: (dict.symptoms as I18nRecord).driver_response as string,
-          description: (dict.symptoms as I18nRecord)
-            .driver_response_description as string,
-          component: (
-            <DriverResponse
-              dict={dict}
-              driverResponse={driverResponse}
-              setDriverResponse={setDriverResponse}
-            />
-          ),
-          icon: <FaPhoneAlt className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).save_response as string,
-            action: "next",
-            function: async () => {
-              await requestTreatment(treatmentRequest);
-            },
-          },
-        },
-        {
-          element_name: (dict.symptoms as I18nRecord).end_treatment as string,
-          description: (dict.symptoms as I18nRecord)
-            .end_treatment_description as string,
-          component: <EndTreatment dict={dict} />,
-          icon: <FaCheck className="h-5 w-5" />,
-          logo: null,
-          button: {
-            text: (dict.symptoms as I18nRecord).finish_treatment as string,
-            action: "end",
-            function: () => {},
-          },
-        },
-      ],
-    },
-  ]; */
 
   let side_sections: any[] = [];
 
@@ -199,14 +138,30 @@ export default function BlurrableSteppedMenu({
           setDriverResponse,
           treatmentRequest,
           setTreatmentRequest,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
         ),
       ];
       break;
     case "derive_to_specialist":
-      side_sections = [...base_sections, ...getDeriveToSpecialist(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getDeriveToSpecialist(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     case "ignore_condition":
-      side_sections = [...base_sections, ...getIgnoreCondition(dict)];
+      side_sections = [
+        ...base_sections,
+        ...getIgnoreCondition(
+          dict,
+          isTeamsNotificationOn,
+          setIsTeamsNotificationOn,
+        ),
+      ];
       break;
     default:
       side_sections = base_sections;
@@ -251,9 +206,20 @@ export default function BlurrableSteppedMenu({
   }, [selected_elements, selected_section]);
 
   useEffect(() => {
+    if (isMenuOpen) {
+      const preaction = side_sections[selected_section]?.preactions;
+      preaction && preaction();
+    }
     updateSelectedSection(1);
     updateSelectedElement(0);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    setTreatmentRequest({
+      ...treatmentRequest,
+      message: messageToCommunicate,
+    });
+  }, [messageToCommunicate]);
 
   return (
     <div
@@ -399,6 +365,7 @@ export default function BlurrableSteppedMenu({
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
                       ]?.button?.action;
+
                     const buttonActionFunction =
                       side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
@@ -424,6 +391,63 @@ export default function BlurrableSteppedMenu({
                     selected_elements[selected_section]
                   ]?.button?.text ?? ""}
                 </Button>
+              ) : side_sections[selected_section].elements[
+                  selected_elements[selected_section]
+                ].buttons ? (
+                <div className="w-full flex flex-row gap-2">
+                  {side_sections[selected_section].elements[
+                    selected_elements[selected_section]
+                  ].buttons.map((button: any, inner_index: number) => (
+                    <Button
+                      className="flex-1"
+                      key={inner_index}
+                      color={button.color}
+                      onClick={() => {
+                        const new_selected_element =
+                          selected_elements[selected_section] + 1;
+
+                        const buttonAction =
+                          side_sections[selected_section]?.elements[
+                            selected_elements[selected_section]
+                          ]?.buttons[inner_index]?.action;
+
+                        const buttonActionFunction =
+                          side_sections[selected_section]?.elements[
+                            selected_elements[selected_section]
+                          ]?.buttons[inner_index]?.function;
+
+                        buttonActionFunction && buttonActionFunction();
+
+                        if (buttonAction === "next") {
+                          if (max_selected_element <= new_selected_element) {
+                            setMaxSelectedElement(new_selected_element);
+                          }
+                          updateSelectedElement(new_selected_element);
+                        } else if (buttonAction === "end") {
+                          setIsMenuOpen(false);
+                          router.push("/symptoms");
+                        } else if (buttonAction === "none") {
+                          //Ignore
+                        } else {
+                          setIsMenuOpen(false);
+                          setMaxSelectedElement(0);
+                        }
+                      }}
+                    >
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.text ?? ""}
+
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.icon ?? null}
+
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.text2 ?? ""}
+                    </Button>
+                  ))}
+                </div>
               ) : null}
             </div>
           </div>

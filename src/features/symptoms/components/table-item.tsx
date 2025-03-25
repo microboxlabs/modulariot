@@ -60,26 +60,30 @@ export default function TableItem({
         >
           {new Date(data.date).toLocaleString()}
         </TableCell>
-        <TableCell
+        {/* <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
+          
           {data.status}
-        </TableCell>
+        </TableCell> */}
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           <div className="flex items-center gap-2">
-            {data.status ? (
+            {data.last_assigned_to ? (
               <Link
                 href={`/symptoms/map-view/${data.id}?tripId=${data.trip}&assetId=${data.licensePlate}`}
               >
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
-                  color="blue"
+                  color="light"
                 >
                   <div className="flex items-center gap-2">
-                    <p>{data.status}</p>
+                    <p>
+                      {((dict.symptoms as I18nRecord)[
+                        data.last_assigned_to as keyof typeof dict.symptoms
+                      ] as string) || data.last_assigned_to}
+                    </p>
                     <HiArrowRight className="w-4 h-4" />
                   </div>
                 </Button>
@@ -107,8 +111,8 @@ export default function TableItem({
 
   return (
     <TableRow
-      className={`dark:border-gray-700 dark:bg-gray-800 text-gray-900 dark:text-white 
-    ${Conditions[data.condition as keyof typeof Conditions].bgColor} !border-0`}
+      className={` text-gray-900 dark:text-white hover:!bg-gray-300 dark:hover:!bg-gray-600 
+    ${Conditions[data.condition as keyof typeof Conditions].bgColor} ${Conditions[data.condition as keyof typeof Conditions].hoverColor}  !border-0`}
     >
       <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex items-center gap-2">

@@ -43,7 +43,7 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).derive_to_specialist as string,
       icon: HiArrowRight,
       option: "derive_to_specialist" as SelectedOption,
-      disabled: false,
+      disabled: true,
     },
     {
       id: 1,
@@ -71,7 +71,7 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).ignore_condition as string,
       icon: MdCancel,
       option: "ignore_condition" as SelectedOption,
-      disabled: false,
+      disabled: true,
     },
   ];
 

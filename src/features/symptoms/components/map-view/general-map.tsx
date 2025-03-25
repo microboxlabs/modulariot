@@ -121,7 +121,7 @@ export default function GeneralMap({
                 ? "Estado critico"
                 : ((dict.symptoms as I18nRecord)?.[
                     treatmentData?.symptom_info?.name?.toUpperCase() as string
-                  ] as string)}
+                  ] as string) || treatmentData?.symptom_info?.name}
               {" - "}
               {(
                 (dict.symptoms as I18nRecord)[
@@ -131,7 +131,7 @@ export default function GeneralMap({
                         ?.icu_code) as unknown as keyof typeof icuConditions
                   ]?.toLowerCase() as string
                 ] as string
-              )?.trim()}
+              )?.trim() || treatmentData?.symptom_info?.icu_code}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>

@@ -56,8 +56,25 @@ export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
   const [year, month, day] = date_part.split("-").map(Number);
   const setted_date = new Date(year, month - 1, day);
 
+  // Group data by time blocks
+  const groupedData = data.reduce(
+    (acc, item) => {
+      const startTime = item.start_time.split("T")[1].slice(0, 5);
+      const [hours, minutes] = startTime.split(":").map(Number);
+      const isSecondHalf = minutes >= 30;
+      const timeBlock = `${String(hours).padStart(2, "0")}:${isSecondHalf ? "30" : "00"}`;
+
+      if (!acc[timeBlock]) {
+        acc[timeBlock] = [];
+      }
+      acc[timeBlock].push(item);
+      return acc;
+    },
+    {} as Record<string, SymptomsICUItemResponse[]>,
+  );
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700">
       {/* Time data */}
       <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-3">
         <div className="w-full flex flex-row gap-5 text-sm">
@@ -68,31 +85,43 @@ export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
             <p className="text-gray-500 dark:text-gray-400">
               {getRelativeDayText(setted_date, lang)}
             </p>
-            <p className="text-gray-500 dark:text-gray-400">
-              {(dict.symptoms as I18nRecord).total_treatment as string}:
-              {data.reduce((acc, item) => acc + item.treatment_count, 0)}
-            </p>
           </div>
         </div>
       </div>
       {/* Symptoms data */}
-      {/* {test_data.map((item, index) => ( */}
-      {data.map((item) => (
-        <div className="pl-3 flex flex-row  text-sm gap-10" key={item.id}>
-          <div className="py-2">
-            <div className="flex flex-row items-center justify-center gap-2 ">
-              <FaClock color="gray" />
-              <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-                {item.start_time.split("T")[1].slice(0, 5)}
+      {Object.entries(groupedData).map(([timeBlock, items]) => {
+        const [hours] = timeBlock.split(":").map(Number);
+        const isSecondHalf = timeBlock.endsWith("30");
+        const endHours = isSecondHalf ? hours + 1 : hours;
+        const endMinutes = isSecondHalf ? "00" : "30";
+
+        return (
+          <div
+            className="pl-3 flex flex-row text-sm gap-10 mb-1"
+            key={timeBlock}
+          >
+            <div className="py-2">
+              <div className="flex flex-row items-center justify-center gap-2">
+                <FaClock color="gray" />
+                <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
+                  {`${timeBlock} - ${String(endHours).padStart(2, "0")}:${endMinutes}`}
+                </div>
               </div>
             </div>
+            <div className="flex flex-col flex-grow gap-2">
+              {items.map((item, index) => (
+                <TimedSymptoms
+                  key={item.id}
+                  data={item}
+                  dict={dict}
+                  initial_state={true}
+                  with_top={index === 0}
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex flex-grow flex-column gap-2" key={item.id}>
-            <TimedSymptoms data={item} dict={dict} initial_state={true} />
-          </div>
-        </div>
-      ))}
-      {/* ))} */}
+        );
+      })}
     </div>
   );
 }

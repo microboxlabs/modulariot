@@ -27,6 +27,11 @@ export type Condition = {
   hoverColor?: string;
   innerColor?: string;
   textColor: string;
+  tagColor: string;
+  tagTextColor: string;
+  secundaryInteraction?: string;
+  secundaryInteractionIcon?: string;
+  separatorColor?: string;
   icon: string;
 };
 
@@ -38,6 +43,11 @@ export const Conditions: Record<string, Condition> = {
     hoverColor: "hover:!bg-gray-900 dark:hover:!bg-gray-900",
     innerColor: "bg-gray-200",
     textColor: "text-white",
+    tagColor: "bg-gray-700 border-gray-600",
+    tagTextColor: "text-gray-200",
+    secundaryInteraction: "border-gray-700 bg-gray-800 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-200",
+    separatorColor: "border-gray-700",
     icon: blackCode,
   },
   critic: {
@@ -47,6 +57,10 @@ export const Conditions: Record<string, Condition> = {
     hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
+    tagColor: "bg-red-200 border-red-700",
+    tagTextColor: "text-red-200 dark:text-red-800",
+    secundaryInteraction: "border-gray-700 bg-gray-800 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-200",
     icon: criticalAlert,
   },
   "critical condition": {
@@ -56,6 +70,11 @@ export const Conditions: Record<string, Condition> = {
     hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
+    tagColor: "bg-red-200 border-red-400",
+    tagTextColor: "text-red-700 dark:text-red-700",
+    secundaryInteraction: "border-gray-300 bg-gray-100 dark:bg-gray-100",
+    secundaryInteractionIcon: "text-gray-700",
+    separatorColor: "border-gray-100",
     icon: criticalAlert,
   },
   treatment: {
@@ -63,7 +82,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-amber-500",
     innerColor: "bg-amber-100",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: treatment,
   },
@@ -72,7 +97,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-blue-600",
     innerColor: "bg-blue-100",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: stable,
   },
@@ -81,7 +112,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: compromised,
   },
@@ -90,7 +127,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     innerColor: "bg-rose-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: compromised,
   },
@@ -99,7 +142,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: observation,
   },
@@ -108,7 +157,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-rose-700",
     textColor: "text-black dark:text-white",
     innerColor: "bg-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: observation,
   },
@@ -117,7 +172,13 @@ export const Conditions: Record<string, Condition> = {
     color: "border-teal-700",
     innerColor: "bg-teal-50",
     textColor: "text-black dark:text-white",
-    bgColor: "",
+    tagColor: "bg-gray-200 dark:bg-gray-700 border-gray-500",
+    tagTextColor: "text-gray-800 dark:text-gray-200",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: recovery,
   },

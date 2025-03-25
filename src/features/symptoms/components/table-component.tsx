@@ -104,9 +104,9 @@ export default function SymptomsTable({
               <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).departure_date as string}
               </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
+              {/* <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).state as string}
-              </TableHeadCell>
+              </TableHeadCell> */}
             </TableHead>
           ) : (
             <TableHead>

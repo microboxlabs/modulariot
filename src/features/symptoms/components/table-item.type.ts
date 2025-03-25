@@ -17,12 +17,14 @@ export type TableItemType = {
   service: string;
   alertType: string;
   status: string | null;
+  last_assigned_to: string | null;
 };
 
 export type Condition = {
   dict_name: string;
   color: string;
   bgColor?: string;
+  hoverColor?: string;
   innerColor?: string;
   textColor: string;
   tagColor: string;
@@ -38,6 +40,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "code_black",
     color: "border-black",
     bgColor: "!bg-black",
+    hoverColor: "hover:!bg-gray-900 dark:hover:!bg-gray-900",
     innerColor: "bg-gray-200",
     textColor: "text-white",
     tagColor: "bg-gray-700 border-gray-600",
@@ -51,6 +54,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
     tagColor: "bg-red-200 border-red-700",
@@ -63,6 +67,7 @@ export const Conditions: Record<string, Condition> = {
     dict_name: "critical_condition",
     color: "border-red-500",
     bgColor: "!bg-rose-500",
+    hoverColor: "hover:!bg-rose-400 dark:hover:!bg-rose-400",
     innerColor: "bg-rose-200",
     textColor: "text-white",
     tagColor: "bg-red-200 border-red-400",
@@ -84,6 +89,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: treatment,
   },
   stable: {
@@ -98,6 +104,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: stable,
   },
   compromised: {
@@ -112,6 +119,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: compromised,
   },
   "compromised condition": {
@@ -126,6 +134,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: compromised,
   },
   "under observation": {
@@ -140,6 +149,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: observation,
   },
   observation: {
@@ -154,6 +164,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: observation,
   },
   remission: {
@@ -168,6 +179,7 @@ export const Conditions: Record<string, Condition> = {
       "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
     icon: recovery,
   },
 };

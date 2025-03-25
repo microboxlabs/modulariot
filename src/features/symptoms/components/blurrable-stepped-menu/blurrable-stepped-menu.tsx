@@ -437,6 +437,14 @@ export default function BlurrableSteppedMenu({
                       {side_sections[selected_section]?.elements[
                         selected_elements[selected_section]
                       ]?.buttons[inner_index]?.text ?? ""}
+
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.icon ?? null}
+
+                      {side_sections[selected_section]?.elements[
+                        selected_elements[selected_section]
+                      ]?.buttons[inner_index]?.text2 ?? ""}
                     </Button>
                   ))}
                 </div>

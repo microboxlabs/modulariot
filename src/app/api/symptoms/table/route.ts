@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
         service: item?.asset_id,
         alertType: item?.type_of_incidence,
         status: item?.treatment_count === 0 ? "" : "Tratado",
+        last_assigned_to: item?.last_assigned_to,
       })),
       total: data.data.length,
       page: 1,

@@ -24,31 +24,31 @@ export default function CallDriver({
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).driver_name as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info.driver}
+                {treatmentData?.trip_info?.driver}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).vehicle_plate as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info.asset_id}
+                {treatmentData?.trip_info?.asset_id}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).phone as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {/* treatmentData.phone */}
+                {treatmentData?.trip_info?.driver_contact}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).service as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.symptom_info.name}
+                {treatmentData?.symptom_info?.name}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
               {(dict.symptoms as I18nRecord).load_type as string}:{" "}
               <span className="font-light text-gray-500 dark:text-gray-400">
-                {/* treatmentData?.symptom_info.type */}
+                {treatmentData?.trip_info?.type_load}
               </span>
             </p>
             <p className="text-xs font-light text-gray-900 dark:text-gray-200">

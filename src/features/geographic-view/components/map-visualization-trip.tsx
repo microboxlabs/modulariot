@@ -13,6 +13,7 @@ import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
+import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -113,6 +114,7 @@ type MapVisualizationProps = {
     latitude: number;
     longitude: number;
   };
+  filteredLocationData: TreatmentsLocationResponseItemFeature[] | null;
 };
 
 type GeometryFeature = {
@@ -168,6 +170,7 @@ export default function MapVisualizationTrip({
   positions,
   error,
   averagePosition,
+  filteredLocationData,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
@@ -210,6 +213,32 @@ export default function MapVisualizationTrip({
         })) || [],
     }),
     [positions],
+  );
+
+  const geoFilteredJson = useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features:
+        filteredLocationData?.map(
+          (item: TreatmentsLocationResponseItemFeature) => ({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [item?.longitude, item?.latitude],
+            },
+            properties: {
+              color: stateToColor[item.status as keyof typeof stateToColor] || [
+                244, 63, 94,
+              ],
+              //rotation: item.heading * (180 / Math.PI),
+              //licensePlate: item.asset_id,
+              //driver: item.driver_id,
+              //trip: item.trip_id,
+            },
+          }),
+        ) || [],
+    }),
+    [filteredLocationData],
   );
 
   // Memoize the geofence processing
@@ -315,8 +344,28 @@ export default function MapVisualizationTrip({
       );
     }
 
+    if (filteredLocationData && filteredLocationData.length > 0) {
+      baseLayers.push(
+        new PulsePinLayer({
+          data: geoFilteredJson,
+          //color: [244, 63, 94], // RED
+          zoom: viewState.zoom,
+          updateTriggers: {
+            data: filteredLocationData,
+          },
+        }),
+      );
+    }
+
     return baseLayers;
-  }, [geoJson, positions, processedGeofence, rotation, viewState.zoom]);
+  }, [
+    geoJson,
+    positions,
+    processedGeofence,
+    rotation,
+    viewState.zoom,
+    filteredLocationData,
+  ]);
 
   // Memoize the tooltip function
   const getTooltip = React.useCallback(

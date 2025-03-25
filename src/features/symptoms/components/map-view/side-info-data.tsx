@@ -5,7 +5,10 @@ import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 import { Spinner } from "flowbite-react";
-import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
 import { FaUser } from "react-icons/fa6";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -14,6 +17,7 @@ function formatDate(date: Date, lang: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   };
 
   return new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-US", options)
@@ -22,7 +26,11 @@ function formatDate(date: Date, lang: string): string {
     .replace(".", "");
 }
 
-function calculateDuration(startTime: string): string {
+function calculateDuration(
+  startTime: string,
+  dict: I18nRecord,
+  lang: string,
+): string {
   const start = new Date(startTime);
   const now = new Date();
   const diffInMs = now.getTime() - start.getTime();
@@ -31,13 +39,23 @@ function calculateDuration(startTime: string): string {
   const diffInHours = Math.floor(diffInMinutes / 60);
   const diffInDays = Math.floor(diffInHours / 24);
 
+  let duration = "";
+
   if (diffInMinutes < 60) {
-    return `${diffInMinutes} min`;
+    duration = `${diffInMinutes} ${(dict.symptoms as I18nRecord).minutes as string}`;
   } else if (diffInHours < 24) {
-    return `${diffInHours} hr${diffInHours > 1 ? "s" : ""}`;
+    duration = `${diffInHours} ${(dict.symptoms as I18nRecord).hours as string}`;
   } else {
-    return `${diffInDays} day${diffInDays > 1 ? "s" : ""}`;
+    duration = `${diffInDays} ${(dict.symptoms as I18nRecord).days as string}`;
   }
+
+  if (lang === "es") {
+    duration = (dict.symptoms as I18nRecord).ago + " " + duration;
+  } else if (lang === "en") {
+    duration = duration + " " + (dict.symptoms as I18nRecord).ago;
+  }
+
+  return duration;
 }
 
 export default function SideInfoData({
@@ -46,12 +64,22 @@ export default function SideInfoData({
   treatmentData,
   loading,
   error,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
+  withBorder = false,
+  withBottomPadding = true,
 }: {
   dict: I18nRecord;
   lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
+  setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
+  setSelectedTreatmentIndex: (
+    treatmentIndex: TreatmentsTimelineResponse,
+  ) => void;
+  withBorder?: boolean;
+  withBottomPadding?: boolean;
 }) {
   if (loading) {
     return (
@@ -89,7 +117,7 @@ export default function SideInfoData({
               end: event.end,
               icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
-              type: event.type,
+              type: event.type.toUpperCase(),
             });
 
             return acc;
@@ -101,8 +129,13 @@ export default function SideInfoData({
   const timelineData = Object.values(groupedTimeline);
 
   return (
-    <div className="flex flex-col gap-2 w-full pb-20 overflow-y-auto">
+    <div
+      className={`flex flex-col gap-2 w-full ${
+        withBottomPadding ? "pb-20" : ""
+      } overflow-y-auto`}
+    >
       <ExpandableButton
+        withBorder={withBorder}
         initial_state={true}
         icon={<FaTruck />}
         title={(dict.symptoms as I18nRecord).condition as string}
@@ -175,6 +208,7 @@ export default function SideInfoData({
         </div>
       </ExpandableButton>
       <ExpandableButton
+        withBorder={withBorder}
         initial_state={true}
         icon={<FaUser />}
         title={(dict.symptoms as I18nRecord).service as string}
@@ -248,6 +282,7 @@ export default function SideInfoData({
       {/* Timeline section - show only if we have timeline data */}
       {timelineData.length > 0 && (
         <ExpandableButton
+          withBorder={withBorder}
           icon={<FaClock />}
           title={(dict.symptoms as I18nRecord).timeline as string}
           description={
@@ -257,8 +292,13 @@ export default function SideInfoData({
           <div className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
             {timelineData.reverse().map((item, index) => {
               const date = formatDate(new Date(item.date), lang);
+
+              const isToday =
+                item.date === new Date().toISOString().split("T")[0];
               const duration = calculateDuration(
-                item.items[item.items.length - 1].start,
+                item.items[0].start,
+                dict,
+                lang,
               );
 
               return (
@@ -267,6 +307,9 @@ export default function SideInfoData({
                   className={`flex flex-col gap-2 ${
                     index != timelineData.length - 1 ? "pb-2" : ""
                   }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
                   <div className="flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg p-1 text-xs">
                     <div className="w-full flex flex-row gap-5 items-center justify-between px-2">
@@ -274,9 +317,13 @@ export default function SideInfoData({
                         {date}
                       </div>
                       <div className="flex flex-row flex-grow justify-between">
-                        <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
-                          {item.assigned_to}
-                        </p>
+                        {isToday ? (
+                          <p className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center">
+                            {(dict.symptoms as I18nRecord).today as string}
+                          </p>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center"></p>
+                        )}
                         <p className="text-gray-500 dark:text-gray-400 flex align-middle items-center">
                           {duration}
                         </p>
@@ -284,8 +331,16 @@ export default function SideInfoData({
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 bg">
-                    {item.items.map((subItem: any, subIndex: any) => (
-                      <div key={subIndex} className="flex flex-row gap-2">
+                    {item.items.reverse().map((subItem: any, subIndex: any) => (
+                      <div
+                        key={subIndex}
+                        className="flex flex-row gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTreatment(treatmentData);
+                          setSelectedTreatmentIndex(subItem);
+                        }}
+                      >
                         <div className="flex flex-col">
                           <ConditionIcon
                             condition={subItem?.icu_condition}
@@ -308,7 +363,9 @@ export default function SideInfoData({
                           </p>
                           <div className="flex flex-col">
                             <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                              {subItem.type}
+                              {((dict.symptoms as I18nRecord)[
+                                subItem.type
+                              ] as string) ?? subItem.type}
                             </p>
                             <p className="text-xs font-light text-gray-900 dark:text-gray-200">
                               {subItem.description}

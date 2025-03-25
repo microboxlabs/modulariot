@@ -4,52 +4,19 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Card } from "flowbite-react";
 import Image from "next/image";
-import alarmImage from "@assets/images/alarm.gif";
 import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
-import maskImage from "@assets/images/mask.gif";
-import patchImage from "@assets/images/patch.gif";
-import hospitalImage from "@assets/images/hospital.svg";
+import { useState } from "react";
+import {
+  TreatmentsGeneralResponseItem,
+  TreatmentsTimelineResponse,
+} from "@/app/api/treatments/general/route.type";
 
-const titles = {
-  "0": {
-    base: "restablished_symptoms",
-    title: "stable",
-    icon: patchImage,
-  },
-  "1": {
-    base: "restablished_symptoms",
-    title: "in_observation",
-    icon: maskImage,
-  },
-  "2": {
-    base: "restablished_symptoms",
-    title: "compromised_condition",
-    icon: hospitalImage,
-  },
-  "3": {
-    base: "urgent_symptoms",
-    title: "critical_condition",
-    icon: hospitalImage,
-  },
-  "4": {
-    base: "urgent_symptoms",
-    title: "code_black",
-    icon: alarmImage,
-  },
-  "6": {
-    base: "symptoms_being_treated",
-    title: "in_treatment",
-    icon: maskImage,
-  },
-  "8": {
-    base: "symptoms_being_treated",
-    title: "in_remission",
-    icon: patchImage,
-  },
-};
+import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
+import { titles } from "../../types/symptom-titles";
+import icuConditions from "@/features/symptoms/model/icu_condition.json";
 
 export default function GeneralMap({
   dict,
@@ -70,6 +37,22 @@ export default function GeneralMap({
     loading,
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
+
+  const [selectedTreatment, setSelectedTreatment] =
+    useState<TreatmentsGeneralResponseItem | null>(null);
+  const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
+    useState<TreatmentsTimelineResponse | null>(null);
+
+  const {
+    data: filteredLocationData,
+    error: _locationError,
+    isLoading: _locationLoading,
+  } = useTreatmentsLocation(
+    selectedTreatment?.trip_info?.trip_id ?? "",
+    selectedTreatment?.symptom_info?.name ?? "",
+    selectedTreatmentIndex?.start ?? "",
+    selectedTreatmentIndex?.end ?? "",
+  );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value
   const averagePosition = positions?.reduce(
@@ -94,7 +77,7 @@ export default function GeneralMap({
       <div
         className={`mx-5 mb-5 relative flex flex-col gap-10 ${
           ["3", "4"].includes(
-            treatmentData?.symptom_info.icu_code?.toString() ?? "",
+            treatmentData?.symptom_info?.icu_code?.toString() ?? "",
           )
             ? "animate-shadow-toggle"
             : ""
@@ -118,8 +101,8 @@ export default function GeneralMap({
                 src={
                   titles[
                     treatmentData?.symptom_info
-                      .icu_code as unknown as keyof typeof titles
-                  ].icon
+                      ?.icu_code as unknown as keyof typeof titles
+                  ]?.icon
                 }
                 alt="Síntomas"
                 width={50}
@@ -137,11 +120,18 @@ export default function GeneralMap({
               {loading
                 ? "Estado critico"
                 : ((dict.symptoms as I18nRecord)?.[
-                    titles[
+                    treatmentData?.symptom_info?.name?.toUpperCase() as string
+                  ] as string) || treatmentData?.symptom_info?.name}
+              {" - "}
+              {(
+                (dict.symptoms as I18nRecord)[
+                  icuConditions[
+                    ("" +
                       treatmentData?.symptom_info
-                        .icu_code as unknown as keyof typeof titles
-                    ].title as string
-                  ] as string)}{" "}
+                        ?.icu_code) as unknown as keyof typeof icuConditions
+                  ]?.toLowerCase() as string
+                ] as string
+              )?.trim() || treatmentData?.symptom_info?.icu_code}
               {/* {(dict.symptoms as I18nRecord).active as string} */}
             </h1>
           </div>
@@ -156,6 +146,8 @@ export default function GeneralMap({
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />
           {/* Map */}
         </div>
@@ -165,6 +157,7 @@ export default function GeneralMap({
             error={error}
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
+            filteredLocationData={filteredLocationData ?? null}
           />
         </div>
       </div>

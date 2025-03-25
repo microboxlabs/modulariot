@@ -54,7 +54,7 @@ export default function IgnoreCondition({ dict }: { dict: I18nRecord }) {
             <TiDelete size={25} />
             {(dict.symptoms as I18nRecord).confirmation_required as string}
           </div>
-          <p className="text-sm font-light text-orange-800 dark:text-gray-200">
+          <p className="text-sm font-light text-orange-800 dark:text-orange-800">
             {(dict.symptoms as I18nRecord).ignore_alert as string}
           </p>
         </div>

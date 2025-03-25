@@ -11,6 +11,7 @@ import {
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 import { MapPosition } from "./route.type";
+import { parseWKBPoint } from "@/utils/map-conversion";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -20,96 +21,6 @@ const config: AuthTokenConfig = {
 };
 
 const authToken = new AuthToken(config);
-
-/*
-export async function GETa(req: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.next({
-      status: 401,
-    });
-  }
-  const tripId = req.nextUrl.searchParams.get("tripId");
-  if (!tripId) return NextResponse.error();
-
-  try {
-    const token = await authToken.getToken();
-    console.log(token);
-    const _offset = parseInt(req.nextUrl.searchParams.get("offset") || "0");
-    const _chunkSize = 100;
-
-    if (!tripId) {
-      return NextResponse.json({ error: "Missing tripId" }, { status: 400 });
-    }
-
-    const params = new URLSearchParams();
-    params.set("tripId", tripId);
-    const response = await fetch(FLEET_TRIP_API_URL + "?" + params.toString(), {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // Get CSV data from response
-    const csvString = await response.text();
-    console.log(csvString);
-    const csvStream = Readable.from(csvString);
-
-    const parser = parse({
-      columns: (headers) => headers.map((h: string) => h.toLowerCase()),
-      skip_empty_lines: true,
-      delimiter: ";",
-      trim: true,
-      relax_quotes: true,
-      encoding: "utf-8",
-    });
-
-    const positions: any[] = [];
-    let currentIndex = 0;
-
-    for await (const record of csvStream.pipe(parser)) {
-      // Skip records before offset
-      if (currentIndex++ < offset) continue;
-
-      const lowercaseRecord = Object.entries(record).reduce(
-        (acc, [key, value]) => ({
-          ...acc,
-          [key]: typeof value === "string" ? value.toLowerCase() : value,
-        }),
-        {},
-      );
-      positions.push(lowercaseRecord);
-
-      // Return when we have enough records for this chunk
-      if (positions.length >= chunkSize) {
-        return NextResponse.json({
-          data: positions,
-          hasMore: true,
-        });
-      }
-    }
-
-    // Return remaining records
-    return NextResponse.json({
-      data: positions,
-      hasMore: false,
-    }); 
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to fetch trip positions",
-        errorMessage: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    );
-  }
-}
-*/
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -199,35 +110,4 @@ async function streamPositions(
   } finally {
     await writer.close();
   }
-}
-
-function parseWKBPoint(wkbPoint: string): [number, number] {
-  try {
-    // Skip first 8 bytes (endian + type + srid) by starting from position 18
-    const lonHex = wkbPoint.substring(18, 34);
-    const latHex = wkbPoint.substring(34, 50);
-
-    // Convert hex to float64
-    const longitude = hexToDouble(lonHex);
-    const latitude = hexToDouble(latHex);
-
-    return [longitude, latitude];
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error("Error parsing WKB point:", error);
-    return [-70.668505, -33.439764]; // Santiago, Chile
-  }
-}
-
-function hexToDouble(hex: string): number {
-  // Reverse byte order for little-endian
-  const bytes = hex.match(/../g)?.reverse().join("") || "";
-  const buffer = new ArrayBuffer(8);
-  const view = new DataView(buffer);
-
-  for (let i = 0; i < 8; i++) {
-    view.setUint8(i, parseInt(bytes.substring(i * 2, i * 2 + 2), 16));
-  }
-
-  return view.getFloat64(0, false); // false for big-endian
 }

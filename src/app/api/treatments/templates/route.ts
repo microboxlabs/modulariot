@@ -34,7 +34,8 @@ export async function GET(request: Request) {
 
   const templates = {
     "Bad Sign": badSign,
-    "Speed Limit": speedLimit,
+    "Speed Limit Custom": speedLimit,
+    "Speed Limit Standard": speedLimit,
     "Outside Schedule": outsideSchedule,
     "Panic Button": panicButton,
     "Risk Zone Sleep": riskZoneSleep,

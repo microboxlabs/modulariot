@@ -97,7 +97,10 @@ export default function TagManager({
           content={
             <div className="flex flex-col gap-1">
               {tags.slice(visibleTags.length).map((tag, index) => (
-                <div key={index} className={`flex items-center gap-2 whitespace-nowrap border-2 rounded-lg px-2 py-0.5 text-sm font-light ${tag_style}`}>
+                <div
+                  key={index}
+                  className={`flex items-center gap-2 whitespace-nowrap border-2 rounded-lg px-2 py-0.5 text-sm font-light ${tag_style}`}
+                >
                   {tag.icon}
                   <span className="font-light">{tag.text}</span>
                 </div>
@@ -105,7 +108,9 @@ export default function TagManager({
             </div>
           }
         >
-          <div className={`shrink-0 inline-flex items-center gap-2 ${tag_style} border-2 rounded-lg px-1 py-0.5 text-sm gap-1 cursor-pointer relative`}>
+          <div
+            className={`shrink-0 inline-flex items-center gap-2 ${tag_style} border-2 rounded-lg px-1 py-0.5 text-sm gap-1 cursor-pointer relative`}
+          >
             +{hiddenCount}
           </div>
         </Tooltip>

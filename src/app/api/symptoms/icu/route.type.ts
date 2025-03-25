@@ -5,6 +5,7 @@ export interface SymptomsICUResponse {
 }
 
 export interface SymptomsICUItemResponse {
+  icu_code: any;
   id: number;
   client: string;
   driver: string;

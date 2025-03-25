@@ -477,7 +477,9 @@
     "TRIP_START": "Trip start",
     "TRIP_END": "Trip end",
     "today": "Today",
-    "teams_call": "Call through Teams"
+    "teams_call": "Call through Teams",
+    "license_plate": "License plate",
+    "conditions_found": "Conditions found"
   },
   "release": {
     "other_versions": "Other Versions"

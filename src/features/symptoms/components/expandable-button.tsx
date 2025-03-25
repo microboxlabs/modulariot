@@ -24,7 +24,7 @@ export default function ExpandableButton({
       className={`${withBorder ? "border border-gray-300 dark:border-gray-600" : ""} hover:cursor-pointer rounded-md transition-all duration-200 flex flex-col ${isExpanded ? " p-4 dark:hover:bg-gray-700 hover:bg-gray-100" : "dark:hover:bg-gray-700 hover:bg-gray-100 p-2"}`}
     >
       {/* Title */}
-      <div 
+      <div
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex flex-row items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md transition-all duration-200"
       >

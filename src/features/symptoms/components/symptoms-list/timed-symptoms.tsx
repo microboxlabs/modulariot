@@ -79,10 +79,11 @@ export default function TimedSymptoms({
                 tags={[
                   {
                     text: item.icu_code
-                      ? (dict.symptoms as I18nRecord)[
-                          titles[item.icu_code.toString() as keyof typeof titles]
-                            .title
-                        ] as string
+                      ? ((dict.symptoms as I18nRecord)[
+                          titles[
+                            item.icu_code.toString() as keyof typeof titles
+                          ].title
+                        ] as string)
                       : "Unknown Symptom",
                   },
                   {

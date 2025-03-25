@@ -60,12 +60,12 @@ export default function TableItem({
         >
           {new Date(data.date).toLocaleString()}
         </TableCell>
-        <TableCell
+        {/* <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {/* {dict.symptoms[data.alertType as keyof typeof dict.symptoms]} */}
+          
           {data.status}
-        </TableCell>
+        </TableCell> */}
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
@@ -76,7 +76,7 @@ export default function TableItem({
               >
                 <Button
                   className="h-8 flex justify-center items-center !text-xs"
-                  color="blue"
+                  color="light"
                 >
                   <div className="flex items-center gap-2">
                     <p>

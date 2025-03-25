@@ -5,7 +5,6 @@ export interface SymptomsICUResponse {
 }
 
 export interface SymptomsICUItemResponse {
-  icu_code: any;
   id: number;
   client: string;
   driver: string;
@@ -16,6 +15,7 @@ export interface SymptomsICUItemResponse {
   duration_sec: number;
   symptom_name: string;
   icu_condition: string;
+  icu_code: string;
   treatment_count: number;
   type_of_incidence: string;
   geographical_reference_point: string;

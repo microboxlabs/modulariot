@@ -20,6 +20,7 @@ const test_data = [
     duration_sec: 1800,
     symptom_name: "Test Symptom",
     icu_condition: "CODE_BLACK",
+    icu_code: "123",
     treatment_count: 0,
     type_of_incidence: "Test Incidence",
     geographical_reference_point: "Test Location",

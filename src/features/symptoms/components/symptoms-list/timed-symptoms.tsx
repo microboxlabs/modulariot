@@ -78,10 +78,12 @@ export default function TimedSymptoms({
                 tag_style={`${Conditions[item.icu_condition.toLowerCase()].tagColor} ${Conditions[item.icu_condition.toLowerCase()].tagTextColor}`}
                 tags={[
                   {
-                    text: (dict.symptoms as I18nRecord)[
-                      titles[item.icu_code.toString() as keyof typeof titles]
-                        .title
-                    ] as string,
+                    text: item.icu_code
+                      ? (dict.symptoms as I18nRecord)[
+                          titles[item.icu_code.toString() as keyof typeof titles]
+                            .title
+                        ] as string
+                      : "Unknown Symptom",
                   },
                   {
                     text:

@@ -37,6 +37,16 @@ export async function GET(request: Request) {
   const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
   const last_date = searchParams.get("last_date")?.replaceAll(" ", "+");
 
+  if (!trip_id || !symptom_name || !first_date || !last_date) {
+    return NextResponse.json(
+      {
+        data: [],
+        status: 400,
+        message: "Missing required parameters",
+      },
+      { status: 400 },
+    );
+  }
   try {
     const token = await authToken.getToken();
     const response = await fetch(

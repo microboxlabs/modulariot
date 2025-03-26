@@ -6,13 +6,15 @@ import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { MapPositionResume } from "@/features/geographic-view/types/map";
+import { MapPositionResume, MapPosition } from "@/features/geographic-view/types/map";
 export default function SideBar({
   dict,
   mapPositionsResume,
+  mapPositions,
 }: {
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
+  mapPositions: MapPosition[];
 }) {
   const inner_menu = React.useMemo(
     () => [
@@ -28,7 +30,7 @@ export default function SideBar({
       },
       {
         button_text: (dict.symptoms as I18nRecord).download as string,
-        component: <Download dict={dict} />,
+        component: <Download dict={dict} mapPositions={mapPositions} />,
       },
     ],
     [dict, mapPositionsResume],

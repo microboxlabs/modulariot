@@ -61,10 +61,6 @@ export default function FilterComponent({
     }
   };
 
-  options.map((option) => {
-    console.log(option.icon);
-  });
-
   return (
     <div className="relative h-full flex flex-row gap-2">
       <div

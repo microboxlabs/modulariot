@@ -46,8 +46,6 @@ export default function ClientThemeDetector({
   };
 
   useEffect(() => {
-    console.log("something");
-
     const init = async () => {
       try {
         await applyOrCreateSavedTheme();

@@ -6,7 +6,10 @@ import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { MapPositionResume, MapPosition } from "@/features/geographic-view/types/map";
+import {
+  MapPositionResume,
+  MapPosition,
+} from "@/features/geographic-view/types/map";
 export default function SideBar({
   dict,
   mapPositionsResume,

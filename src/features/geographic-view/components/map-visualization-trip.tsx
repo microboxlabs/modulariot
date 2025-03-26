@@ -188,7 +188,17 @@ export default function MapVisualizationTrip({
     if (positions && positions.length > 0) {
       move_to_pin(averagePosition, setViewState, viewState);
     }
-  }, [positions]);
+    if (filteredLocationData && filteredLocationData.length > 0) {
+      move_to_pin(
+        {
+          latitude: filteredLocationData[0].latitude ?? 0,
+          longitude: filteredLocationData[0].longitude ?? 0,
+        },
+        setViewState,
+        viewState,
+      );
+    }
+  }, [positions, filteredLocationData]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(

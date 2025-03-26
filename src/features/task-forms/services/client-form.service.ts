@@ -29,6 +29,13 @@ async function fetcherClient<T>(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         (fetcherError?.info?.error?.details?.involvedObject
           ?.respuesta as string) ?? "Error al realizar la acción";
+    } else if (
+      fetcherError?.info?.error?.code === "DUPLICATE_LICENSE_PLATE_ERROR"
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      errorMessage =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        fetcherError?.info?.error?.message ?? "Error al realizar la acción";
     }
     ShowNotification({
       message: errorMessage,

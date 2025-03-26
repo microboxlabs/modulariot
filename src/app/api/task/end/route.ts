@@ -72,7 +72,7 @@ function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
       };
     }
 
-    regex = /com\.mintral\.errors\.RequiredDataMissingError: (.*)/;
+    regex = /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/;
     match = errorMessage.match(regex);
 
     if (match) {
@@ -94,6 +94,19 @@ function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
         code: "ALERCE_LOGIN_ERROR",
         message,
         exceptionType: "AlerceLoginError",
+        details: {},
+      };
+    }
+
+    regex =
+      /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/;
+    match = errorMessage.match(regex);
+    if (match) {
+      let [, message] = match;
+      return {
+        code: "DUPLICATE_LICENSE_PLATE_ERROR",
+        message,
+        exceptionType: "DuplicateLicensePlateError",
         details: {},
       };
     }

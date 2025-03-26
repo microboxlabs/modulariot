@@ -249,7 +249,11 @@ export default function MapVisualization({
         />
         <div className="absolute right-0 top-0 bottom-0">
           {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
-            <SideBar dict={dict} mapPositionsResume={mapPositionsResume} mapPositions={mapPositions || []} />
+            <SideBar
+              dict={dict}
+              mapPositionsResume={mapPositionsResume}
+              mapPositions={mapPositions || []}
+            />
           )}
         </div>
       </DeckGL>

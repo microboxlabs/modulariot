@@ -1,16 +1,19 @@
 import { Button, Label, Modal } from "flowbite-react";
 import { FaCamera } from "react-icons/fa6";
 import { FaDownload, FaShare } from "react-icons/fa";
-/* import { FaRegFile } from "react-icons/fa";
-*/
-import { RiFileChartLine } from "react-icons/ri";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import { captureAndDownloadMap } from "../../../utils/map-screenshot";
 import DownloadCSV from "./components/download_csv";
 import { MapPosition } from "@/features/geographic-view/types/map";
 
-export default function Download({ dict, mapPositions }: { dict: I18nRecord, mapPositions: MapPosition[] }) {
+export default function Download({
+  dict,
+  mapPositions,
+}: {
+  dict: I18nRecord;
+  mapPositions: MapPosition[];
+}) {
   const [status, setStatus] = useState<string>("");
   const [isCapturing, setIsCapturing] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);

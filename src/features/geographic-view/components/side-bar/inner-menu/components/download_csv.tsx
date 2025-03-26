@@ -18,8 +18,20 @@ function convertJSONToCSV(jsonData: any, columnHeaders: any) {
   // Map JSON data to CSV rows
   const rows = jsonData
     .map((row: any) => {
-      // Map each row to CSV format
-      return columnHeaders.map((field: any) => row[field] || '').join(',');
+      const rowData = [...columnHeaders];
+      // Replace latitude,longitude with Google Maps link
+      if (row.latitude && row.longitude) {
+        const mapsLink = `https://www.google.com/maps?q=${row.latitude},${row.longitude}`;
+        // Remove latitude and longitude from array and replace with maps link
+        rowData.splice(rowData.indexOf('latitude'), 2, 'location');
+        return rowData.map((field: any) => {
+          if (field === 'location') {
+            return mapsLink;
+          }
+          return row[field] || '';
+        }).join(',');
+      }
+      return rowData.map((field: any) => row[field] || '').join(',');
     })
     .join('\n');
 
@@ -27,7 +39,7 @@ function convertJSONToCSV(jsonData: any, columnHeaders: any) {
   return headers + rows;
 }
 
-const headers = ["trip_id", "asset_id", "route", "speed", "heading", "latitude", "longitude", "timestamp"];
+const headers = ["trip_id", "asset_id", "route", "speed", "heading", "timestamp", "location"];
 
 export default function DownloadCSV({ dict, mapPositions }: { dict: I18nRecord, mapPositions: MapPosition[] }) {
 
@@ -48,7 +60,7 @@ export default function DownloadCSV({ dict, mapPositions }: { dict: I18nRecord, 
       }}
     >
       <RiFileChartLine className="h-4 w-4 mr-2" />
-      {((dict.symptoms as I18nRecord).svg_document as string)}
+      {((dict.symptoms as I18nRecord).csv_document as string)}
     </Button>
   );
 }

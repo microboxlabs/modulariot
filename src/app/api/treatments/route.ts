@@ -1,8 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL =
-  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/process_treatment_manual_notifi_audit";
+const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/process_treatment_manual_notifi_audit`;
 
 import {
   AuthToken,
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
 
     const responseData = (await response.json()) as TreatmentsResponse;
 
-    console.log(responseData);
+    //console.log(responseData);
 
     if (responseData.status === 200) {
       return NextResponse.json(responseData.data, {

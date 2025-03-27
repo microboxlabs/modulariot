@@ -1,8 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 
-const SYMPTOMS_API_URL =
-  "https://pgrest.streamhub.cl:443/api/v1/pgrest/rpc/api_modular_treatments_geofences_service";
+const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_treatments_geofences_service`;
 
 import {
   AuthToken,

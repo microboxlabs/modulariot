@@ -199,6 +199,7 @@ export default function MapVisualization({
           },
           updateTriggers: {
             data: positions,
+            icon: positions,
           },
         }),
       ]

@@ -80,7 +80,6 @@ const stateToColor = {
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;
-  specific_view?: boolean;
   mapPositionsResume: MapPositionResume;
 };
 
@@ -108,7 +107,6 @@ export default function MapVisualization({
   mapPositions,
   mapPositionsResume,
   dict,
-  specific_view = false,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [positions, setPositions] = useState<MapPosition[]>([]);
@@ -138,85 +136,18 @@ export default function MapVisualization({
 
   const [viewState, setViewState] = useState(NEW_INITIAL_VIEW_STATE);
 
-  // Set initial view state when data is first received
-  /* React.useEffect(() => {
-    if (mapPositions && mapPositions.length > 0) {
-      const firstPosition = mapPositions[0];
-      const newViewState = {
-        ...INITIAL_VIEW_STATE,
-        longitude: firstPosition.longitude,
-        latitude: firstPosition.latitude,
-        zoom: 6.5, // Slightly closer zoom to see the vehicle better
-        transitionDuration: 2000,
-      };
-      console.log("View state updated:", newViewState);
-      setViewState(newViewState);
-    }
-  }, [mapPositions]); */
-
-  // Transform API data to GeoJSON format
-  const geoJson = React.useMemo(
-    () => ({
-      type: "FeatureCollection",
-      features:
-        positions?.map((item: MapPosition) => ({
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [item.longitude, item.latitude],
-          },
-          properties: {
-            color: stateToColor[item.status as keyof typeof stateToColor] || [
-              0, 0, 0,
-            ],
-            rotation: item.heading * (180 / Math.PI),
-            licensePlate: item.asset_id,
-            driver: item.driver_id,
-            trip: item.trip_id,
-          },
-        })) || [],
+  const layers = [
+    new PinLayer({
+      data: positions || [],
+      zoom: viewState.zoom,
+      onClick: ({ object }: { object: any }) => {
+        zoom_on_pin(object, setViewState, viewState);
+      },
+      updateTriggers: {
+        data: positions,
+      },
     }),
-    [positions],
-  );
-
-  /*
-  // here we make a check for duplicated elements in map mapPositions
-  const asset_id_counter = mapPositions?.reduce((acc: any, item) => {
-    acc[item.asset_id] = (acc[item.asset_id] || 0) + 1;
-    return acc;
-  }, {});
-
-  console.log(asset_id_counter);
-  */
-
-  const layers = !specific_view
-    ? [
-        new PinLayer({
-          data: positions || [],
-          zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
-          },
-          updateTriggers: {
-            data: positions,
-          },
-        }),
-      ]
-    : [
-        new PulsePinLayer({
-          data: geoJson,
-          rotation,
-          zoom: viewState.zoom,
-        }),
-        new PinLayer({
-          data: positions ? [positions[0]] : [],
-          zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
-            zoom_on_pin(object, setViewState, viewState);
-          },
-          getElevation: 1,
-        }),
-      ];
+  ];
 
   return (
     <div className="h-full w-full relative overflow-hidden">
@@ -230,8 +161,35 @@ export default function MapVisualization({
             if (object.properties.cluster) {
               return null;
             }
+
             return {
-              text: `Patente: ${object.properties.asset_id}\n Servicio: ${object.properties.trip_id}\n Fecha y Hora: ${new Date(object.properties.timestamp).toLocaleString()}`,
+              html: `
+                <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    ${(dict.symptoms as I18nRecord).license_plate}: ${object.properties.asset_id}
+                  </div>
+                  <div class="text-sm text-gray-600 dark:text-gray-300">
+                    ${(dict.geographic_view as I18nRecord).trip}: ${object.properties.trip_id}
+                  </div>
+                  <div class="text-sm text-gray-600 dark:text-gray-300">
+                    ${(dict.geographic_view as I18nRecord).date_and_time}: ${new Date(object.properties.timestamp).toLocaleString()}
+                  </div>
+                  <hr class="my-2 border-gray-200 dark:border-gray-700">
+                  <div class="text-sm text-gray-600 dark:text-gray-300">
+                    ${(dict.geographic_view as I18nRecord).speed}: <span class="font-bold ${object.properties.speed_limit && object.properties.speed > object.properties.speed_limit ? "text-red-500" : "text-green-500"}">${object.properties.speed}<span class="font-light"> km/h</span></span> ${object.properties.speed_limit && object.properties.speed > object.properties.speed_limit ? "<span class='text-red-500'> - " + (object.properties.speed - object.properties.speed_limit) + "km/h" + (dict.geographic_view as I18nRecord).over_limit + "</span>" : ""}
+                  </div>
+                  <div class="text-sm text-gray-600 dark:text-gray-300 ${object.properties.speed_limit ? "block" : "hidden"}">
+                    ${(dict.geographic_view as I18nRecord).speed_limit}: <span class='text-green-500'>${object.properties.speed_limit}Km/h</span>
+                  </div>
+                </div>
+              `,
+              style: {
+                backgroundColor: 'transparent',
+                border: 'none',
+                boxShadow: 'none',
+                padding: '0',
+                margin: '0'
+              }
             };
           }
           return null;

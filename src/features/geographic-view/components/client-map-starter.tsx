@@ -9,6 +9,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { MapPositionResume } from "../types/map";
 export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
   const { positions: mapPositions, isLoading, error } = useMapPositions();
+
   const { data: mapPositionsResume } = useMapPositionsResume();
 
   if (isLoading) {

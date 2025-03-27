@@ -6,7 +6,6 @@ import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
-import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
 import {
   MapPosition,
@@ -66,17 +65,6 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
-const stateToColor = {
-  "code black": [0, 0, 0], // Black
-  critical: [244, 63, 94], // Red
-  treatment: [245, 158, 11], // Yellow
-  stable: [37, 99, 235], // Blue
-  compromised: [190, 18, 60], // Rose 100
-  observation: [190, 18, 60], // Rose 100
-  remission: [13, 148, 136], // Green
-  none: [180, 180, 180], // Gray for null state
-};
-
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;
@@ -108,7 +96,6 @@ export default function MapVisualization({
   mapPositionsResume,
   dict,
 }: MapVisualizationProps) {
-  const [rotation, _] = useState(0);
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
 
@@ -184,12 +171,12 @@ export default function MapVisualization({
                 </div>
               `,
               style: {
-                backgroundColor: 'transparent',
-                border: 'none',
-                boxShadow: 'none',
-                padding: '0',
-                margin: '0'
-              }
+                backgroundColor: "transparent",
+                border: "none",
+                boxShadow: "none",
+                padding: "0",
+                margin: "0",
+              },
             };
           }
           return null;

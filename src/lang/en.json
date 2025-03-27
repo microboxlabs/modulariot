@@ -492,6 +492,13 @@
     "teams_call2": " Teams",
     "process_treatment_auto": "Automatic"
   },
+  "geographic_view": {
+    "speed": "Speed",
+    "speed_limit": "Speed limit",
+    "date_and_time": "Date and time",
+    "trip": "Trip",
+    "over_limit": " over the limit"
+  },
   "release": {
     "other_versions": "Other Versions"
   }

@@ -1,6 +1,4 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
-import pinbg from "@assets/testing/PinBg.svg";
-import face from "@assets/testing/Face.svg";
 import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
 import { createSVGIcon } from "./prototype/svg-generation";
@@ -34,13 +32,17 @@ export class PinLayer extends CompositeLayer<any> {
       extent: 512,
       nodeSize: 64,
       reduce: (accumulated: any, props: any) => {
-        
-        const currentSpeedLimit = props.cluster ? props.highest_speed_limit : props.speed_limit_condition;
-        const accumulatedSpeedLimit = accumulated.cluster ? accumulated.highest_speed_limit : accumulated.speed_limit_condition;
-        
+        const currentSpeedLimit = props.cluster
+          ? props.highest_speed_limit
+          : props.speed_limit_condition;
+        const accumulatedSpeedLimit = accumulated.cluster
+          ? accumulated.highest_speed_limit
+          : accumulated.speed_limit_condition;
         // Always take the maximum value
-        const maxSpeedLimit = Math.max(currentSpeedLimit || 0, accumulatedSpeedLimit || 0);
-        
+        const maxSpeedLimit = Math.max(
+          currentSpeedLimit || 0,
+          accumulatedSpeedLimit || 0,
+        );
         return {
           ...accumulated,
           highest_speed_limit: maxSpeedLimit,
@@ -88,19 +90,21 @@ export class PinLayer extends CompositeLayer<any> {
       ) as ClusterFeature[];
 
       // Debug: Print children of each cluster and update highest speed limit
-      clusters.forEach((cluster, index) => {
+      clusters.forEach((cluster) => {
         if (cluster.properties.cluster) {
           // Get all leaves (points) in this cluster
           const leaves = this.supercluster.getLeaves(
             cluster.properties.cluster_id,
-            Infinity
+            Infinity,
           );
-          
+
           // Find the highest speed limit among children
           const highestSpeedLimit = Math.max(
-            ...leaves.map((leaf: any) => leaf.properties.speed_limit_condition || 0)
+            ...leaves.map(
+              (leaf: any) => leaf.properties.speed_limit_condition || 0,
+            ),
           );
-          
+
           // Update the cluster's highest speed limit
           cluster.properties.highest_speed_limit = highestSpeedLimit;
           cluster.properties.speed_limit_condition = highestSpeedLimit;
@@ -128,7 +132,11 @@ export class PinLayer extends CompositeLayer<any> {
         id: "IconLayer-base",
         data: clusters,
         getIcon: (d: any) => ({
-          url: createSVGIcon(d.properties.cluster ? d.properties.highest_speed_limit : d.properties.speed_limit_condition),
+          url: createSVGIcon(
+            d.properties.cluster
+              ? d.properties.highest_speed_limit
+              : d.properties.speed_limit_condition,
+          ),
           width: 300,
           height: 500,
           anchorX: 150,

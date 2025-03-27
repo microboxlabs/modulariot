@@ -116,12 +116,12 @@ export async function POST(request: NextRequest) {
       file_mime: "application/pdf",
       return_file: 1,
     };
-    console.log("createContentRequest", {
+    /* console.log("createContentRequest", {
       ...createContentRequest,
       file: "<...binary data...>",
-    });
+    }); */
     const response = await createContentSign(createContentRequest);
-    console.log({ ...response.result, file: "<...binary data...>" });
+    //console.log({ ...response.result, file: "<...binary data...>" });
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -144,10 +144,10 @@ export async function POST(request: NextRequest) {
     const signedFile = new File([blob], uploadFileName, {
       type: "application/pdf",
     });
-    console.log("uploadNodeContent", {
+    /* console.log("uploadNodeContent", {
       filename: uploadFileName,
       destination: json.bpmPackage,
-    });
+    }); */
     const uploadResposne = await uploadNodeContent(session.user.ticket, {
       filename: uploadFileName,
       filedata: signedFile,

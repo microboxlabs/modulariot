@@ -49,7 +49,11 @@ export default function GeneralMap({
     isLoading: _locationLoading,
   } = useTreatmentsLocation(
     selectedTreatment?.trip_info?.trip_id ?? "",
-    selectedTreatment?.symptom_info?.name ?? "",
+    //format the first letter of each word in uppercase
+    selectedTreatmentIndex?.type
+      ?.toString()
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
     selectedTreatmentIndex?.start ?? "",
     selectedTreatmentIndex?.end ?? "",
   );

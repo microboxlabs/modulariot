@@ -76,7 +76,7 @@ export interface MapPositionProperties {
     licensePlate?: string;
     driver?: string;
     trip?: string; */
-
+    speed_limit: number;
     id: string;
     type: string;
     owner: string | null;

@@ -15,6 +15,13 @@ const BACKGROUND_PATHS = {
     `<path d="M17.0183 5.50805C19.0142 8.80935 21.8789 13.7421 24.243 18.5737C25.4252 20.9898 26.4782 23.3723 27.2345 25.5078C27.9948 27.6542 28.4394 29.5076 28.4394 30.8804C28.4394 38.588 22.4064 44.8066 15.0001 44.8066C7.59374 44.8066 1.56069 38.588 1.56069 30.8804C1.56069 29.5076 2.00528 27.6542 2.76557 25.5078C3.52195 23.3723 4.5749 20.9898 5.75709 18.5737C8.12119 13.7421 10.9859 8.80935 12.9818 5.50805C13.915 3.9646 16.0851 3.9646 17.0183 5.50805Z" stroke="${color}"/>`,
 };
 
+const disconnected_pin = {
+  face: `<ellipse cx="15" cy="34.4185" rx="1.47385" ry="1.92163" fill="white"/>
+<path d="M8.6131 29.8068L8.8476 30.0487C10.0134 31.2516 11.9386 31.2667 13.1231 30.0821L13.3985 29.8068" stroke="white" stroke-linecap="round"/>
+<path d="M16.6015 29.8068L16.8359 30.0487C18.0018 31.2516 19.9269 31.2667 21.1115 30.0821L21.3869 29.8068" stroke="white" stroke-linecap="round"/>`,
+  main_color: "#6B7280",
+};
+
 // Cache the face paths
 const PinState: Record<string, PinFace> = {
   Happy: {
@@ -42,27 +49,40 @@ const STATE_MAP: Record<number, string> = {
 // Module-level cache for memoization
 const svgCache: Record<string, string> = {};
 
-function get_face(state: string) {
-  return PinState[state].face;
+function get_face(state: string, lost_signal: boolean = false) {
+  return lost_signal ? disconnected_pin.face : PinState[state].face;
 }
 
-function get_background(background_color: string, outer_line_color: string) {
-  return `${BACKGROUND_PATHS.background}${BACKGROUND_PATHS.innerColor(background_color)}${BACKGROUND_PATHS.outerLine(outer_line_color)}`;
+function get_background(
+  background_color: string,
+  outer_line_color: string,
+  lost_signal: boolean,
+) {
+  return `${BACKGROUND_PATHS.background}${BACKGROUND_PATHS.innerColor(
+    lost_signal ? disconnected_pin.main_color : background_color,
+  )}${BACKGROUND_PATHS.outerLine(outer_line_color)}`;
 }
 
-export function createSVGIcon(speed_limit_condition: number) {
+export function createSVGIcon(
+  speed_limit_condition: number,
+  lost_signal: boolean,
+) {
   const state = STATE_MAP[speed_limit_condition] || "Happy";
 
+  // Modify cache key to include lost_signal status
+  const cacheKey = `${state}-${lost_signal}`;
+
   // Check cache first
-  if (svgCache[state]) {
-    return svgCache[state];
+  if (svgCache[cacheKey]) {
+    return svgCache[cacheKey];
   }
 
   const color = PinState[state].main_color;
-  const svg = `${SVG_TEMPLATE}${get_background(color, color)}${get_face(state)}</svg>`;
 
-  // Cache the result
-  svgCache[state] = `data:image/svg+xml;base64,${btoa(svg)}`;
+  const svg = `${SVG_TEMPLATE}${get_background(color, color, lost_signal)}${get_face(state, lost_signal)}</svg>`;
 
-  return svgCache[state];
+  // Cache the result with the new cache key
+  svgCache[cacheKey] = `data:image/svg+xml;base64,${btoa(svg)}`;
+
+  return svgCache[cacheKey];
 }

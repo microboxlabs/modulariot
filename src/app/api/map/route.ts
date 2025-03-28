@@ -43,6 +43,7 @@ export async function GET() {
     }
 
     const data = await response.json();
+
     return NextResponse.json(data.data); //TODO: ask to standardize the response
   } catch (error) {
     return NextResponse.json(

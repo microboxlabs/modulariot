@@ -1,37 +1,14 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
-import pinbg from "@assets/testing/PinBg.svg";
-import face from "@assets/testing/Face.svg";
 import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
-
-const icon_definition = {
-  pin: {
-    url: "@assets/testing/PinBg.svg",
-    x: 0,
-    y: 0,
-    width: 300,
-    height: 460,
-    anchorX: 150,
-    anchorY: 310,
-    mask: false,
-  },
-  face: {
-    url: "@assets/testing/Face.svg",
-    x: 0,
-    y: 0,
-    width: 140,
-    height: 110,
-    anchorX: 140 / 2,
-    anchorY: 110 / 2,
-    mask: false,
-  },
-};
+import { createSVGIcon } from "./prototype/svg-generation";
 
 interface ClusterFeature {
   type: "Feature";
   properties: {
     cluster?: boolean;
     point_count?: number;
+    highest_speed_limit?: number;
     [key: string]: any;
   };
   geometry: {
@@ -54,6 +31,30 @@ export class PinLayer extends CompositeLayer<any> {
       minPoints: 2,
       extent: 512,
       nodeSize: 64,
+      reduce: (accumulated: any, props: any) => {
+        const currentSpeedLimit = props.cluster
+          ? props.highest_speed_limit
+          : props.speed_limit_condition;
+        const accumulatedSpeedLimit = accumulated.cluster
+          ? accumulated.highest_speed_limit
+          : accumulated.speed_limit_condition;
+        // Always take the maximum value
+        const maxSpeedLimit = Math.max(
+          currentSpeedLimit || 0,
+          accumulatedSpeedLimit || 0,
+        );
+        return {
+          ...accumulated,
+          highest_speed_limit: maxSpeedLimit,
+          speed_limit_condition: maxSpeedLimit,
+        };
+      },
+      map: (props: any) => {
+        return {
+          highest_speed_limit: props.speed_limit_condition || 0,
+          speed_limit_condition: props.speed_limit_condition || 0,
+        };
+      },
     });
   }
 
@@ -88,6 +89,28 @@ export class PinLayer extends CompositeLayer<any> {
         zoom,
       ) as ClusterFeature[];
 
+      // Debug: Print children of each cluster and update highest speed limit
+      clusters.forEach((cluster) => {
+        if (cluster.properties.cluster) {
+          // Get all leaves (points) in this cluster
+          const leaves = this.supercluster.getLeaves(
+            cluster.properties.cluster_id,
+            Infinity,
+          );
+
+          // Find the highest speed limit among children
+          const highestSpeedLimit = Math.max(
+            ...leaves.map(
+              (leaf: any) => leaf.properties.speed_limit_condition || 0,
+            ),
+          );
+
+          // Update the cluster's highest speed limit
+          cluster.properties.highest_speed_limit = highestSpeedLimit;
+          cluster.properties.speed_limit_condition = highestSpeedLimit;
+        }
+      });
+
       this.setState({ clusters });
     }
   }
@@ -108,12 +131,21 @@ export class PinLayer extends CompositeLayer<any> {
       new IconLayer({
         id: "IconLayer-base",
         data: clusters,
-        getIcon: () => "pin",
+        getIcon: (d: any) => ({
+          url: createSVGIcon(
+            d.properties.cluster
+              ? d.properties.highest_speed_limit
+              : d.properties.speed_limit_condition,
+          ),
+          width: 300,
+          height: 500,
+          anchorX: 150,
+          anchorY: 310,
+          mask: false,
+        }),
         getPosition: (d: ClusterFeature) => d.geometry.coordinates,
         getAngle: (d: ClusterFeature) =>
           !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
-        iconAtlas: pinbg.src,
-        iconMapping: icon_definition,
         getSize: (d: ClusterFeature) =>
           getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
         updateTriggers: this.props.updateTriggers,
@@ -121,24 +153,6 @@ export class PinLayer extends CompositeLayer<any> {
         parameters: {
           depthTest: false,
         },
-      }) as Layer,
-      new IconLayer({
-        id: "IconLayer-head",
-        data: clusters,
-        getIcon: () => "face",
-        getPosition: (d: ClusterFeature) => d.geometry.coordinates,
-        iconAtlas: face.src,
-        iconMapping: icon_definition,
-        getSize: (d: ClusterFeature) =>
-          getIconSize(
-            d.properties.cluster ? d.properties.point_count || 1 : 1,
-          ) * 0.26,
-        updateTriggers: this.props.updateTriggers,
-        parameters: {
-          depthTest: false,
-        },
-        getAngle: (d: any) =>
-          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
       }) as Layer,
       new PinCountLayer({
         id: "pin-counter",

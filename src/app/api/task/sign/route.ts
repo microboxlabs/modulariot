@@ -12,6 +12,8 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import { tryCatch, retry } from "@/utils/tryCatch";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -144,17 +146,44 @@ export async function POST(request: NextRequest) {
     const signedFile = new File([blob], uploadFileName, {
       type: "application/pdf",
     });
-    /* console.log("uploadNodeContent", {
-      filename: uploadFileName,
-      destination: json.bpmPackage,
-    }); */
-    const uploadResposne = await uploadNodeContent(session.user.ticket, {
-      filename: uploadFileName,
-      filedata: signedFile,
-      destination: json.bpmPackage,
-    });
 
-    console.log(uploadResposne);
+    // save file to file system
+    const filePath = `./public/storage/${uploadFileName}`;
+    const fileBuffer = await signedFile.arrayBuffer();
+    const fileBufferUint8Array = new Uint8Array(fileBuffer);
+    //save file as a promise
+    const saveFileResult = await tryCatch(
+      new Promise((resolve, reject) => {
+        fs.writeFile(filePath, fileBufferUint8Array, (err) => {
+          if (err) reject(err);
+          resolve(true);
+        });
+      }),
+    );
+
+    const uploadResposne = await retry(
+      uploadNodeContent(session.user.ticket, {
+        filename: uploadFileName,
+        filedata: signedFile,
+        destination: json.bpmPackage,
+      }),
+      3, // max attempts
+      2000, // 2 second delay between attempts
+    );
+
+    if (uploadResposne.error) {
+      throw new Error(
+        `Failed to upload file after multiple attempts: ${uploadResposne.error.message}`,
+      );
+    } else if (uploadResposne.data && saveFileResult.data) {
+      //remove file from file system in a promise
+      await new Promise((resolve, reject) => {
+        fs.unlink(filePath, (err) => {
+          if (err) reject(err);
+          resolve(true);
+        });
+      });
+    }
 
     const endTaskResult = await endTask(
       session.user.ticket,

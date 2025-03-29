@@ -501,7 +501,9 @@
     "speed_limit": "Límite de velocidad",
     "date_and_time": "Fecha y hora",
     "trip": "Viaje",
-    "over_limit": " por encima del límite"
+    "over_limit": " por encima del límite",
+    "signal_status": "Estado de señal",
+    "lost_signal": "Señal perdida"
   },
   "release": {
     "other_versions": "Otras versiones"

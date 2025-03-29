@@ -14,6 +14,7 @@ import {
 } from "../types/map";
 import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import MapTooltip from "./map-tooltip";
 
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
@@ -96,6 +97,8 @@ export default function MapVisualization({
   mapPositionsResume,
   dict,
 }: MapVisualizationProps) {
+  const [hoverInfo, setHoverInfo] =
+    useState<PickingInfo<MapPositionProperties>>();
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
 
@@ -133,6 +136,7 @@ export default function MapVisualization({
       updateTriggers: {
         data: positions,
       },
+      onHover: (info: PickingInfo<MapPositionProperties>) => setHoverInfo(info),
     }),
   ];
 
@@ -143,45 +147,15 @@ export default function MapVisualization({
         controller={true}
         layers={layers}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
-        getTooltip={({ object }: PickingInfo<MapPositionProperties>) => {
-          if (object) {
-            if (object.properties.cluster) {
-              return null;
-            }
-
-            return {
-              html: `
-                <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">
-                    ${(dict.symptoms as I18nRecord).license_plate}: ${object.properties.asset_id}
-                  </div>
-                  <div class="text-sm text-gray-600 dark:text-gray-300">
-                    ${(dict.geographic_view as I18nRecord).trip}: ${object.properties.trip_id}
-                  </div>
-                  <div class="text-sm text-gray-600 dark:text-gray-300">
-                    ${(dict.geographic_view as I18nRecord).date_and_time}: ${new Date(object.properties.timestamp).toLocaleString()}
-                  </div>
-                  <hr class="my-2 border-gray-200 dark:border-gray-700">
-                  <div class="text-sm text-gray-600 dark:text-gray-300">
-                    ${(dict.geographic_view as I18nRecord).speed}: <span class="font-bold ${object.properties.speed_limit && object.properties.speed > object.properties.speed_limit ? "text-red-500" : "text-green-500"}">${object.properties.speed}<span class="font-light"> km/h</span></span> ${object.properties.speed_limit && object.properties.speed > object.properties.speed_limit ? "<span class='text-red-500'> - " + (object.properties.speed - object.properties.speed_limit) + "km/h" + (dict.geographic_view as I18nRecord).over_limit + "</span>" : ""}
-                  </div>
-                  <div class="text-sm text-gray-600 dark:text-gray-300 ${object.properties.speed_limit ? "block" : "hidden"}">
-                    ${(dict.geographic_view as I18nRecord).speed_limit}: <span class='text-green-500'>${object.properties.speed_limit}Km/h</span>
-                  </div>
-                </div>
-              `,
-              style: {
-                backgroundColor: "transparent",
-                border: "none",
-                boxShadow: "none",
-                padding: "0",
-                margin: "0",
-              },
-            };
-          }
-          return null;
-        }}
       >
+        {hoverInfo && (
+          <MapTooltip
+            object={hoverInfo.object}
+            dict={dict}
+            left={hoverInfo.x}
+            top={hoverInfo.y}
+          />
+        )}
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles["satellite-streets-v11"]}

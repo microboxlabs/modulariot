@@ -382,3 +382,21 @@ export function useTreatmentsLocation(
     isLoading: shouldFetch ? isLoading : false,
   };
 }
+
+export function useUserStatus() {
+  const { data, error, isLoading } = useSWR<string, FetcherError>(
+    "/app/api/user/status",
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+//same as useUserStatus but without using useSWR
+export function getUserStatus() {
+  return fetcher("/app/api/user/status");
+}

@@ -10,6 +10,10 @@ import FingerprintIcon from "@/features/icons/figerprint";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
 import { ShowNotification } from "@/features/notifications/notification";
+import {
+  getUserStatus,
+  useUserStatus,
+} from "@/features/common/providers/client-api.provider";
 export default function SovosStartVerificationCard({
   // lang,
   task,
@@ -21,8 +25,11 @@ export default function SovosStartVerificationCard({
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
+  const { data: userStatus } = useUserStatus();
+  console.log(userStatus);
 
-  function startVerification() {
+  async function startVerification() {
+    await getUserStatus();
     const currentStep = stepperController.currentStep();
 
     if (!pluginReady) return;

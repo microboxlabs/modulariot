@@ -13,7 +13,7 @@ import {
 
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
-import { tryCatch, retry } from "@/utils/tryCatch";
+import { tryCatch } from "@/utils/tryCatch";
 
 export async function POST(request: NextRequest) {
   const session = await auth();

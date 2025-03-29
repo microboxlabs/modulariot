@@ -69,6 +69,9 @@ export interface MapPosition {
 
 export interface MapPositionProperties {
   properties: {
+    lost_signal: React.JSX.Element;
+    associate_symptoms: any;
+    symptoms_condition: boolean;
     longitude: number;
     latitude: number;
     /* rotation: number;

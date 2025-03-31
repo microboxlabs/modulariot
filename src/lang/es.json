@@ -494,7 +494,8 @@
     "conditions_found": "Condiciones encontradas",
     "teams_call": "Llamar por ",
     "teams_call2": " Teams",
-    "process_treatment_auto": "Automático"
+    "process_treatment_auto": "Automático",
+    "go_to_treatment": "Ir al tratamiento"
   },
   "geographic_view": {
     "speed": "Velocidad",

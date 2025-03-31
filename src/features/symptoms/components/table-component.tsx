@@ -70,6 +70,18 @@ export default function SymptomsTable({
       )
     : 0;
 
+  if (true) {
+    return (
+      <div className="relative flex flex-col flex-grow justify-center items-center">
+        <div className="absolute h-20 w-20 bg-red-500 rounded-full flex justify-center items-center">
+          center
+        </div>
+        <div className="absolute orbiting-icon orbit-1 h-10 w-10 bg-blue-500 rounded-full" />
+        <div className="absolute orbiting-icon orbit-2 h-10 w-10 bg-green-500 rounded-full" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-grow">
       <div className="h-10 p- bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">

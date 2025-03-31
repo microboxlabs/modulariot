@@ -11,4 +11,5 @@ export interface TimelineItem {
   description: string;
   type: string;
   assigned_to: string;
+  icu_code: string | null;
 }

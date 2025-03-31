@@ -490,7 +490,8 @@
     "conditions_found": "Conditions found",
     "teams_call": "Call through ",
     "teams_call2": " Teams",
-    "process_treatment_auto": "Automatic"
+    "process_treatment_auto": "Automatic",
+    "go_to_treatment": "Go to treatment"
   },
   "geographic_view": {
     "speed": "Speed",

@@ -57,11 +57,18 @@ export async function authenticateAction(
       };
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       redirect: false,
     });
+    if (result?.error) {
+      return {
+        success: false,
+        message: result.error,
+        status: 403,
+      };
+    }
     redirectWithLang("/shipping");
   } catch (error) {
     if (error instanceof AuthError) {

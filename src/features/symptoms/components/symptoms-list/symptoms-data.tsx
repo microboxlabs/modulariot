@@ -96,28 +96,28 @@ export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
         const endMinutes = isSecondHalf ? "00" : "30";
 
         return (
-          <div
-            className="pl-3 flex flex-row text-sm gap-10 mb-1"
-            key={timeBlock}
-          >
-            <div className="py-2">
-              <div className="flex flex-row items-center justify-center gap-2">
-                <FaClock color="gray" />
-                <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
-                  {`${timeBlock} - ${String(endHours).padStart(2, "0")}:${endMinutes}`}
+          <div key={timeBlock} className="flex flex-col w-full">
+            <hr className="my-2 border-gray-200 dark:border-gray-800" />
+            <div className="pl-3 flex flex-row text-sm gap-10 mb-1">
+              <div className="py-2 w-32">
+                <div className="flex flex-row items-center justify-center gap-2">
+                  <FaClock color="gray" />
+                  <div className="flex flex-col gap-3 text-gray-500 dark:text-gray-400">
+                    {`${timeBlock} - ${String(endHours).padStart(2, "0")}:${endMinutes}`}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col flex-grow gap-2">
-              {items.map((item, index) => (
-                <TimedSymptoms
-                  key={item.id}
-                  data={item}
-                  dict={dict}
-                  initial_state={true}
-                  with_top={index === 0}
-                />
-              ))}
+              <div className="flex flex-col flex-grow gap-2">
+                {items.map((item, index) => (
+                  <TimedSymptoms
+                    key={item.id}
+                    data={item}
+                    dict={dict}
+                    initial_state={true}
+                    _with_top={index === 0}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         );

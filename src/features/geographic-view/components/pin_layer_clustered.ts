@@ -2,6 +2,83 @@ import { CompositeLayer, IconLayer, Layer } from "deck.gl";
 import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
 import { createSVGIcon } from "./prototype/svg-generation";
+import conditions_atlas from "@assets/icons/map/conditions-atlas.png";
+
+// remision
+// observation
+// compromissed
+// stable
+// treatment
+// critical_condition
+// code_black
+
+// This is for defining what is more important and what should be shown when clustered
+// The highest the index, the more important the condition is
+const icon_definition = {
+  remission: {
+    x: 0,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  observation: {
+    x: 500,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  compromissed: {
+    x: 1000,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  stable: {
+    x: 1500,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  treatment: {
+    x: 2000,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  critical_condition: {
+    x: 2500,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+  code_black: {
+    x: 3000,
+    y: 0,
+    width: 25 * 20,
+    height: 25 * 20,
+    anchorX: (25 * 20) / 2,
+    anchorY: (50 * 20) / 2,
+    mask: false,
+  },
+};
 
 interface ClusterFeature {
   type: "Feature";
@@ -9,6 +86,9 @@ interface ClusterFeature {
     cluster?: boolean;
     point_count?: number;
     highest_speed_limit?: number;
+    highest_symptoms_condition?: number;
+    speed_limit_condition?: number;
+    symptoms_condition?: number;
     [key: string]: any;
   };
   geometry: {
@@ -43,16 +123,33 @@ export class PinLayer extends CompositeLayer<any> {
           currentSpeedLimit || 0,
           accumulatedSpeedLimit || 0,
         );
+
+        const currentMaxSymptoms = props.cluster
+          ? props.highest_symptoms_condition
+          : props.symptoms_condition;
+        const accumulatedMaxSymptoms = accumulated.cluster
+          ? accumulated.highest_symptoms_condition
+          : accumulated.symptoms_condition;
+        // Always take the maximum value
+        const maxSymptoms = Math.max(
+          currentMaxSymptoms || 0,
+          accumulatedMaxSymptoms || 0,
+        );
+
         return {
           ...accumulated,
           highest_speed_limit: maxSpeedLimit,
           speed_limit_condition: maxSpeedLimit,
+          highest_symptoms_condition: maxSymptoms,
+          symptoms_condition: maxSymptoms,
         };
       },
       map: (props: any) => {
         return {
           highest_speed_limit: props.speed_limit_condition || 0,
           speed_limit_condition: props.speed_limit_condition || 0,
+          highest_symptoms_condition: props.symptoms_condition || 0,
+          symptoms_condition: props.symptoms_condition || 0,
         };
       },
     });
@@ -108,6 +205,16 @@ export class PinLayer extends CompositeLayer<any> {
           // Update the cluster's highest speed limit
           cluster.properties.highest_speed_limit = highestSpeedLimit;
           cluster.properties.speed_limit_condition = highestSpeedLimit;
+
+          const highestSymptoms = Math.max(
+            ...leaves.map(
+              (leaf: any) => leaf.properties.symptoms_condition || 0,
+            ),
+          );
+
+          // Update the cluster's highest symptoms condition
+          cluster.properties.highest_symptoms_condition = highestSymptoms;
+          cluster.properties.symptoms_condition = highestSymptoms;
         }
       });
 
@@ -136,6 +243,7 @@ export class PinLayer extends CompositeLayer<any> {
             d.properties.cluster
               ? d.properties.highest_speed_limit
               : d.properties.speed_limit_condition,
+            d.properties.lost_signal,
           ),
           width: 300,
           height: 500,
@@ -150,14 +258,57 @@ export class PinLayer extends CompositeLayer<any> {
           getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
         updateTriggers: this.props.updateTriggers,
         pickable: true,
-        parameters: {
-          depthTest: false,
-        },
       }) as Layer,
       new PinCountLayer({
         id: "pin-counter",
         data: clusters.filter((d) => d.properties.cluster),
       }) as Layer,
+      new IconLayer({
+        id: "IconLayer-pin",
+        data: clusters,
+        getIcon: (d: ClusterFeature) => {
+          switch (d.properties.symptoms_condition) {
+            case 1:
+              return "observation";
+            case 2:
+              return "compromissed";
+            case 3:
+              return "critical_condition";
+            case 4:
+              return "code_black";
+            default:
+              return "";
+          }
+        },
+        getPosition: (d: ClusterFeature) => d.geometry.coordinates,
+        getPixelOffset: (d: ClusterFeature) => {
+          const size = getIconSize(
+            d.properties.cluster ? d.properties.point_count || 1 : 1,
+          );
+          const heading = d.properties.heading || 0;
+          // Convert heading to radians and calculate offset
+          const angleRad = (heading * Math.PI) / 180;
+          const offsetY = -size * 0.5;
+          return [Math.sin(angleRad) * offsetY, Math.cos(angleRad) * offsetY];
+        },
+        iconAtlas: conditions_atlas.src,
+        iconMapping: icon_definition,
+        getSize: (d: ClusterFeature) => {
+          const baseSize = getIconSize(
+            d.properties.cluster ? d.properties.point_count || 1 : 1,
+          );
+          const scaleFactor = d.properties.cluster ? 0.7 : 1; // Smaller scale for clusters
+          return (
+            (35 / Math.pow(1.0, this.props.zoom)) *
+            (baseSize / 50) *
+            scaleFactor
+          );
+        },
+        sizeScale: 1,
+        getAngle: (d: ClusterFeature) =>
+          !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
+        pickable: true,
+      }),
     ];
   }
 }

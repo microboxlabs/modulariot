@@ -90,6 +90,7 @@ export default function TimelineComponent({
               icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
               type: event.type.toUpperCase(),
+              assigned_to: event.assigned_to,
             });
 
             return acc;
@@ -140,9 +141,22 @@ export default function TimelineComponent({
                 .map((subItem: TimelineItem, subIndex: number) => (
                   <div
                     key={subIndex}
-                    className="flex flex-row gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md rounded-md transition-all duration-200 cursor-pointer"
+                    className={`flex flex-row gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md rounded-md transition-all duration-200 cursor-pointer ${
+                      subItem.icu_condition == "-1" ||
+                      subItem.type == "EVENTS END" ||
+                      subItem.type == "TRIP_START"
+                        ? "bg-gray-200 dark:bg-gray-700 rounded-md"
+                        : ""
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (
+                        subItem.icu_condition == "-1" ||
+                        subItem.type == "EVENTS END" ||
+                        subItem.type == "TRIP_START"
+                      ) {
+                        return;
+                      }
                       if (treatmentData) {
                         setSelectedTreatment(treatmentData);
                         setSelectedTreatmentIndex(subItem);
@@ -157,18 +171,29 @@ export default function TimelineComponent({
                       />
                       <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
                     </div>
-                    <div className="flex flex-col">
-                      <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
-                        {new Date(subItem.start).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        |{" "}
-                        {new Date(subItem.end).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
+                    <div className="flex flex-col w-full">
+                      <div className="flex flex-row justify-between">
+                        <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
+                          {new Date(subItem.start).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          |{" "}
+                          {new Date(subItem.end).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {subItem.assigned_to && (
+                          <p className="flex flex-row flex-grow justify-end">
+                            <small className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center text-xs">
+                              {((dict.symptoms as I18nRecord)[
+                                subItem.assigned_to
+                              ] as string) ?? subItem.assigned_to}
+                            </small>
+                          </p>
+                        )}
+                      </div>
                       <div className="flex flex-col">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
                           {((dict.symptoms as I18nRecord)[

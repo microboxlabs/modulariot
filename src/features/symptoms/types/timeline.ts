@@ -10,4 +10,6 @@ export interface TimelineItem {
   icu_condition: string;
   description: string;
   type: string;
+  assigned_to: string;
+  icu_code: string | null;
 }

@@ -3,7 +3,6 @@
 import { HiArrowRight } from "react-icons/hi";
 import { Button } from "flowbite-react";
 import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
-import SideInfoData from "./components/map-view/side-info-data";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
@@ -14,6 +13,8 @@ import {
   TreatmentsGeneralResponseItem,
   TreatmentsTimelineResponse,
 } from "@/app/api/treatments/general/route.type";
+import TimelineComponent from "./components/map-view/timeline";
+import { FaClock } from "react-icons/fa";
 
 export default function SideInfo({
   dict,
@@ -50,6 +51,16 @@ export default function SideInfo({
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col gap-5 p-5 h-full">
+        <div className="text-red-500 text-center p-4">
+          {error?.message || "No treatment data available"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex flex-col p-1 h-full">
       {treatments_templates && (
@@ -64,13 +75,23 @@ export default function SideInfo({
           className={`${isMenuOpen ? "animate-show" : "animate-hide"}`}
         />
       )}
-      <div className="flex flex-col h-full overflow-y-auto">
-        <SideInfoData
-          dict={dict}
+      <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
+        <div className="px-2 py-1 border border-gray-300 dark:border-gray-700 flex flex-row items-center gap-2 rounded-md transition-all duration-200">
+          <div
+            className={` text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md  w-5 h-5 border-transparent bg-transparent"}`}
+          >
+            <FaClock />
+          </div>
+          <div className="flex flex-col w-full justify-center align-middle">
+            <h1 className="text-md font-bold text-gray-900 dark:text-white">
+              {(dict.symptoms as I18nRecord).timeline as string}
+            </h1>
+          </div>
+        </div>
+        <TimelineComponent
           lang={lang}
+          dict={dict}
           treatmentData={treatmentData}
-          loading={loading}
-          error={error}
           setSelectedTreatment={setSelectedTreatment}
           setSelectedTreatmentIndex={setSelectedTreatmentIndex}
         />

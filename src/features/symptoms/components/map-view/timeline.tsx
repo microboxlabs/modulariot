@@ -91,6 +91,7 @@ export default function TimelineComponent({
               description: event.description,
               type: event.type.toUpperCase(),
               assigned_to: event.assigned_to,
+              icu_code: event.icu_code,
             });
 
             return acc;

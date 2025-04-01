@@ -20,6 +20,8 @@ const config: Config = {
         "show": "show 0.2s ease-in-out forwards",
         "show-flex": "show-flex 0.2s ease-in-out forwards",
         "hide-width": "hide-width 0.2s ease-in-out forwards",
+        "orbit": "orbit 5s linear infinite",
+        "orbit-2": "orbit-2 6s linear infinite",
       },
       keyframes: {
         "hide": {
@@ -43,6 +45,14 @@ const config: Config = {
         "shadow-toggle": {
           "0%": { boxShadow: "0 0 0 rgba(0,0,0,0)" },
           "100%": { boxShadow: "0px 0px 10px rgba(225, 29, 72, 0.6)" }, // add this as a rgba #E11D48
+        },
+        "orbit": {
+          "0%": { transform: "rotate(0deg) translate(100px, 0px)" },
+          "100%": { transform: "rotate(360deg) translate(100px, 0px)" },
+        },
+        "orbit-2": {
+          "0%": { transform: "rotate(0deg) translate(150px, 0px)" },
+          "100%": { transform: "rotate(360deg) translate(150px, 0px)" },
         },
       },
       backgroundImage: {

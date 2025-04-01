@@ -493,6 +493,9 @@
     "teams_call": "Call through ",
     "teams_call2": " Teams",
     "process_treatment_auto": "Automatic",
+    "no_active_conditions": "No active conditions at this time",
+    "normal_operation": "The fleet is operating normally.",
+    "check_later": "Check this section later to detect and treat any new condition.",
     "automatic notification": "Automatic notification",
     "go_to_treatment": "Go to treatment"
   },

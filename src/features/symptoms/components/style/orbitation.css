@@ -1,0 +1,86 @@
+:root {
+  --base-duration: 6s;
+}
+
+@keyframes orbit-base {
+  from {
+    transform: rotate(0deg) translateX(0) translateY(0);
+  }
+  to {
+    transform: rotate(360deg) translateX(0) translateY(0);
+  }
+}
+
+/* Generate orbits with different durations and paths */
+.orbit-1 {
+  animation: orbit-1 calc(var(--base-duration)) linear infinite;
+}
+.orbit-2 {
+  animation: orbit-2 calc(var(--base-duration)) linear infinite;
+}
+.orbit-3 {
+  animation: orbit-3 calc(var(--base-duration) + 1s) linear infinite;
+}
+.orbit-4 {
+  animation: orbit-4 calc(var(--base-duration) + 1s) linear infinite;
+}
+.orbit-5 {
+  animation: orbit-5 calc(var(--base-duration) + 2s) linear infinite;
+}
+.orbit-6 {
+  animation: orbit-6 calc(var(--base-duration) + 2s) linear infinite;
+}
+
+@keyframes orbit-1 {
+  from {
+    transform: rotate(0deg) translateX(50px) translateY(50px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(50px) translateY(50px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-2 {
+  from {
+    transform: rotate(0deg) translateX(-50px) translateY(-50px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(-50px) translateY(-50px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-3 {
+  from {
+    transform: rotate(0deg) translateX(-80px) translateY(-80px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(-80px) translateY(-80px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-4 {
+  from {
+    transform: rotate(0deg) translateX(80px) translateY(80px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(80px) translateY(80px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-5 {
+  from {
+    transform: rotate(0deg) translateX(110px) translateY(110px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(110px) translateY(110px) rotate(-360deg);
+  }
+}
+
+@keyframes orbit-6 {
+  from {
+    transform: rotate(0deg) translateX(-110px) translateY(-110px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(-110px) translateY(-110px) rotate(-360deg);
+  }
+}

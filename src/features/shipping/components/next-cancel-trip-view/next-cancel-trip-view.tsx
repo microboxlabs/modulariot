@@ -55,6 +55,7 @@ export async function NextCancelTripView({
       varName: "driver2",
     };
   }
+
   return (
     <div className="px-4 pt-6">
       <Breadcrumb

@@ -1,13 +1,10 @@
-import {
-  fromString,
-  humanizeFrom,
-} from "@/features/common/services/days.service";
+import { humanizeFrom } from "@/features/common/services/days.service";
 import { DepartureDateShipProps } from "./departure-date-ship.types";
 import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
-import CalendarMonthIcon from "@/features/icons/calendar-month";
+import { FaCalendarAlt } from "react-icons/fa";
 
-function shipBgColor(date: Dayjs) {
+function _shipBgColor(date: Dayjs) {
   const difference = date.diff(dayjs());
   const days = dayjs.duration(difference).asDays();
   if (days < 0.25) return "bg-red-100 dark:bg-red-200 text-red-800";
@@ -15,23 +12,42 @@ function shipBgColor(date: Dayjs) {
   return "bg-purple-100 dark:bg-purple-200 text-purple-800";
 }
 
+const color_mapping = {
+  departure: {
+    bg: "bg-purple-100 dark:bg-indigo-800",
+    text: "text-purple-800 dark:text-indigo-200",
+  },
+  arrival: {
+    bg: "bg-orange-100 dark:bg-orange-800",
+    text: "text-orange-800 dark:text-orange-200",
+  },
+  default: {
+    bg: "bg-pink-100 dark:bg-pink-800",
+    text: "text-pink-800 dark:text-pink-200",
+  },
+};
 export default function DepartureDateShip({
+  category,
   date,
-  table_name,
 }: DepartureDateShipProps) {
-  const dateObj = fromString(date);
   const humanizeDate = humanizeFrom(date);
-  const classes = twMerge(
-    "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
-    table_name == "tripInitiated"
-      ? "bg-cyan-100 dark:bg-cyan-200 text-cyan-800"
-      : shipBgColor(dateObj),
-  );
+
   return (
-    <div className={classes}>
-      <CalendarMonthIcon
-        className="mr-1 h-4 w-4"
-        color={table_name == "tripInitiated" ? "#155E75" : ""}
+    <div
+      className={twMerge(
+        "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
+        category && color_mapping[category]
+          ? color_mapping[category].bg + " " + color_mapping[category].text
+          : color_mapping.default.bg + " " + color_mapping.default.text,
+      )}
+    >
+      <FaCalendarAlt
+        className={
+          "mr-1 h-3 w-3 " +
+          (category && color_mapping[category]
+            ? color_mapping[category].text
+            : color_mapping.default.text)
+        }
       />{" "}
       <p className="whitespace-nowrap">{humanizeDate}</p>
     </div>

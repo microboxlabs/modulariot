@@ -6,6 +6,7 @@ import {
   DownloadDocumentResponse,
   ServiceValidationResponse,
   TaskCountResponse,
+  TaskResponse,
   VerifyDocumentResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
@@ -63,6 +64,7 @@ export function useMyTasksCount() {
     `/app/api/task/mytasks/count`,
     fetcher,
   );
+
   return {
     data,
     error,
@@ -386,6 +388,19 @@ export function useTreatmentsLocation(
 export function useUserStatus() {
   const { data, error, isLoading } = useSWR<string, FetcherError>(
     "/app/api/user/status",
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useGetTasksById(taskId: string) {
+  const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
+    `/app/api/task/mytasks/details?taskId=${taskId}`,
     fetcher,
   );
 

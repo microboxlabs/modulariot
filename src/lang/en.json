@@ -480,11 +480,13 @@
     "SPEED LIMIT CUSTOM": "Speed limit",
     "SPEED LIMIT STANDARD": "Speed limit",
     "OUTSIDE SCHEDULE": "Outside schedule",
+    "OFF HOURS DRIVING": "Off hours driving",
     "PANIC BUTTON": "Panic button",
     "RISK ZONE SLEEP": "Risk zone sleep",
     "MIN REST": "Min rest",
     "TRIP_START": "Trip start",
     "TRIP_END": "Trip end",
+    "EVENTS END": "Trip end",
     "today": "Today",
     "license_plate": "License plate",
     "conditions_found": "Conditions found",
@@ -493,7 +495,9 @@
     "process_treatment_auto": "Automatic",
     "no_active_conditions": "No active conditions at this time",
     "normal_operation": "The fleet is operating normally.",
-    "check_later": "Check this section later to detect and treat any new condition."
+    "check_later": "Check this section later to detect and treat any new condition.",
+    "automatic notification": "Automatic notification",
+    "go_to_treatment": "Go to treatment"
   },
   "geographic_view": {
     "speed": "Speed",

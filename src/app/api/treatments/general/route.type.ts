@@ -18,6 +18,7 @@ export type TreatmentsTimelineResponse = {
   icu_condition: string;
   assigned_to: string;
   icu_code: string | null;
+  is_symptom: number | null;
 };
 
 export type TreatmentsTripInfoResponse = {

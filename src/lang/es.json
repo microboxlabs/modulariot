@@ -494,7 +494,10 @@
     "conditions_found": "Condiciones encontradas",
     "teams_call": "Llamar por ",
     "teams_call2": " Teams",
-    "process_treatment_auto": "Automático"
+    "process_treatment_auto": "Automático",
+    "no_active_conditions": "Sin condiciones activas por este momento",
+    "normal_operation": "La flota se encuentra operando con normalidad.",
+    "check_later": "Revisa esta seccion mas adelante para detectar y tratar cualquier nueva condición."
   },
   "geographic_view": {
     "speed": "Velocidad",

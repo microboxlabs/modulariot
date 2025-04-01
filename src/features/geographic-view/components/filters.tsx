@@ -38,11 +38,7 @@ export default function Filters({
 
     const filtered_positions = originalPositions.filter((position) => {
       return active_codes.some((option) => {
-        return (
-          position.symptoms &&
-          position.symptoms.length > 0 &&
-          position.symptoms[0].icu_code === Number(option.code)
-        );
+        return position.symptoms_condition === Number(option.code);
       });
     });
 

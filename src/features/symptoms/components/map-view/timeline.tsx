@@ -147,7 +147,7 @@ export default function TimelineComponent({
                       subItem.is_symptom == 0 ||
                       subItem.type == "EVENTS END" ||
                       subItem.type == "TRIP_START"
-                        ? "bg-gray-200 dark:bg-gray-700 rounded-md"
+                        ? "opacity-50 rounded-md"
                         : ""
                     }`}
                     onClick={(e) => {

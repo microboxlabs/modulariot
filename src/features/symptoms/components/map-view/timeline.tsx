@@ -92,6 +92,7 @@ export default function TimelineComponent({
               type: event.type.toUpperCase(),
               assigned_to: event.assigned_to,
               icu_code: event.icu_code,
+              is_symptom: event.is_symptom,
             });
 
             return acc;
@@ -143,7 +144,7 @@ export default function TimelineComponent({
                   <div
                     key={subIndex}
                     className={`flex flex-row gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md rounded-md transition-all duration-200 cursor-pointer ${
-                      subItem.icu_condition == "-1" ||
+                      subItem.is_symptom == 0 ||
                       subItem.type == "EVENTS END" ||
                       subItem.type == "TRIP_START"
                         ? "bg-gray-200 dark:bg-gray-700 rounded-md"
@@ -152,7 +153,7 @@ export default function TimelineComponent({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (
-                        subItem.icu_condition == "-1" ||
+                        subItem.is_symptom == 0 ||
                         subItem.type == "EVENTS END" ||
                         subItem.type == "TRIP_START"
                       ) {

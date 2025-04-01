@@ -28,10 +28,12 @@ export interface MapPosition {
   request_id: string;
   route: string;
   speed: number;
+  symptoms_condition: number;
   start_time: string;
   timestamp: string;
   trip_id: string;
   symptoms: Symptom[];
+  associate_symptoms: Symptom[];
 
   type: string;
   owner: string | null;

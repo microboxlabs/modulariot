@@ -44,6 +44,7 @@ export async function GET(request: Request) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
+    //console.log(JSON.stringify(await response.json()));
     const apiData = (await response.json()) as TreatmentsGeneralResponse;
     // Transform API data into our desired structure
     const formattedResponse: TreatmentsGeneralResponseItem = apiData.data;

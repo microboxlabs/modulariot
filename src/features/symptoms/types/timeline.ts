@@ -12,4 +12,5 @@ export interface TimelineItem {
   type: string;
   assigned_to: string;
   icu_code: string | null;
+  is_symptom: number | null;
 }

@@ -202,7 +202,9 @@ export default function TimelineComponent({
                           ] as string) ?? subItem.type}
                         </p>
                         <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-                          {subItem.description}
+                          {((dict.symptoms as I18nRecord)[
+                            subItem.description
+                          ] as string) ?? subItem.description}
                         </p>
                       </div>
                     </div>

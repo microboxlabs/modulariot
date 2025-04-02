@@ -3,6 +3,7 @@ import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
 import { FaCalendarAlt } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const color_mapping = {
   departure: {
@@ -47,6 +48,7 @@ function shipBgColor(date: Dayjs, table_name: string) {
 }
 
 export default function DepartureDateShip({
+  dict,
   date,
   table_name,
 }: DepartureDateShipProps) {
@@ -65,10 +67,10 @@ export default function DepartureDateShip({
       <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />{" "}
       <p className="whitespace-nowrap">
         {board?.state === "pending"
-          ? "Salida estimada: " + fixed_date
+          ? (dict.kanban as I18nRecord).estimatedDeparture + " " + fixed_date
           : board?.state === "started"
-            ? "Salida: " + fixed_date
-            : "Llegada: " + fixed_date}
+            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
       </p>
     </div>
   );

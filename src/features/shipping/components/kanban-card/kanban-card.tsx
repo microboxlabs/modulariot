@@ -90,6 +90,7 @@ export default function KanbanCard({
             ))}
           </div>
           <DepartureDateShip
+            dict={dict}
             table_name={table_name}
             date={task.departureDate ?? task.expectedDepartureDate ?? ""}
           />

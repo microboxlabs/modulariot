@@ -49,8 +49,8 @@ export function TableView({ data, dict }: TableViewProps) {
                   <Table.Cell>
                     <div className="w-fit">
                       <DepartureDateShip
+                        dict={dict}
                         table_name={task.title ?? ""}
-                        category="arrival"
                         date={
                           (task?.arrivalDate as string) ??
                           (task?.estimatedArrivalDate as string) ??

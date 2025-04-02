@@ -16,7 +16,7 @@ export default function CardSkeleton({ dict }: { dict: I18nRecord }) {
               {(dict.symptoms as I18nRecord).urgent_symptoms as string}
             </h5>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 w-full">
             <StatusCardSkeleton />
           </div>
         </CustomCard>

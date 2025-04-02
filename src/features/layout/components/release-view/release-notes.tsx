@@ -16,7 +16,7 @@ export default function ReleaseNotes({ version }: { version: string }) {
           error,
         );
         // Fallback to v1.1 if the requested version doesn't exist
-        const fallbackModule = await import(`@/releases/v1.1.mdx`);
+        const fallbackModule = await import(`@/releases/v1.1.0.mdx`);
         setReleaseNotes(() => fallbackModule.default);
       }
     };

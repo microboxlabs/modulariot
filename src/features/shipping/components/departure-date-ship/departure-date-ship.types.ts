@@ -1,5 +1,7 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
 export type DepartureDateShipProps = {
-  category?: "departure" | "arrival";
+  dict: I18nRecord;
   date: string;
-  table_name?: string | undefined;
+  table_name: string;
 };

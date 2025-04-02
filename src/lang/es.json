@@ -49,7 +49,10 @@
         "monitoringFinalization": "Monitoreo Finalizado",
         "tripInitiated": "Viaje Iniciado",
         "tripNullified": "Viaje Anulado",
-        "tripCancelled": "Viaje Cancelado"
+        "tripCancelled": "Viaje Cancelado",
+        "estimatedDeparture": "Salida estimada: ",
+        "departure": "Salida: ",
+        "arrival": "Llegada: "
       },
       "card": {
         "origin": "Origen",
@@ -59,7 +62,8 @@
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
         "serviceKind": "Tipo de servicio",
-        "executionType": "Tipo de ejecución"
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje"
       },
       "views": {
         "table": "Tabla",

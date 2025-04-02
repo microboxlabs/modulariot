@@ -49,7 +49,10 @@
         "monitoringFinalization": "Monitoring Finalized",
         "tripInitiated": "Trip Initiated",
         "tripNullified": "Trip Nullified",
-        "tripCancelled": "Trip Cancelled"
+        "tripCancelled": "Trip Cancelled",
+        "estimatedDeparture": "Estimated departure: ",
+        "departure": "Departure: ",
+        "arrival": "Arrival: "
       },
       "card": {
         "origin": "Origin",

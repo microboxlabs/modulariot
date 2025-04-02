@@ -90,12 +90,8 @@ export default function KanbanCard({
             ))}
           </div>
           <DepartureDateShip
-            category={"departure"}
-            date={
-              (table_name == "tripInitiated"
-                ? task.departureDate
-                : task.expectedDepartureDate) ?? ""
-            }
+            table_name={table_name}
+            date={task.departureDate ?? task.expectedDepartureDate ?? ""}
           />
         </div>
       </div>

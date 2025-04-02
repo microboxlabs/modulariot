@@ -161,16 +161,11 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const uploadResponse =
-      /* await retry( */
-      uploadNodeContent(session.user.ticket, {
-        filename: uploadFileName,
-        filedata: signedFile,
-        destination: json.bpmPackage,
-      });
-    /* 3, // max attempts
-      2000, // 2 second delay between attempts
-    ); */
+    const uploadResponse = await uploadNodeContent(session.user.ticket, {
+      filename: uploadFileName,
+      filedata: signedFile,
+      destination: json.bpmPackage,
+    });
 
     if (uploadResponse !== null && saveFileResult.data) {
       //remove file from file system in a promise

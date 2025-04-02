@@ -71,6 +71,7 @@ export default function DriverVerifiedCard({
       varName: "driver2",
     };
   }
+
   return (
     <Card className="gap-6 w-fit items-center justify-center">
       <div className="flex items-center justify-center">

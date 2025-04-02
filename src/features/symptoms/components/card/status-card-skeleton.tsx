@@ -16,6 +16,7 @@ export default function StatusCardSkeleton() {
         "active:bg-gray-200",
         "cursor-pointer",
         "transition-all",
+        "w-full",
       )}
     >
       <div className="flex flex-row justify-between gap-4">

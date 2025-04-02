@@ -139,7 +139,7 @@ export default function TimedSymptoms({
                 }}
                 style="auto"
                 content={
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
                     <p>
                       {(dict.symptoms as I18nRecord).geographic_view as string}
                     </p>
@@ -172,7 +172,7 @@ export default function TimedSymptoms({
                 }}
                 style="auto"
                 content={
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
                     <p>
                       {(dict.symptoms as I18nRecord).go_to_treatment as string}
                     </p>

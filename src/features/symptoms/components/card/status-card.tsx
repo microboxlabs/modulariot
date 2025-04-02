@@ -51,6 +51,7 @@ export default function StatusCard({
         "active:bg-gray-200",
         "cursor-pointer",
         "transition-all",
+        "w-full",
       )}
     >
       <Link href={`/symptoms/symptoms-list/${icu_condition}`}>

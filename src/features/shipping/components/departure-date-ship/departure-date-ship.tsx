@@ -1,7 +1,7 @@
 import { DepartureDateShipProps } from "./departure-date-ship.types";
 import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
-import { FaCalendarAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -42,7 +42,7 @@ function shipBgColor(date: Dayjs, table_name: string) {
     return color_mapping.departure.already_departed;
   } else if (board?.state === "started") {
     return color_mapping.departure.already_departed;
-  } else if (board?.state === "done") {
+  } else if (board?.state === "done" || board?.state === "doneNotFinished") {
     return color_mapping.arrival;
   }
 }
@@ -53,8 +53,9 @@ export default function DepartureDateShip({
   table_name,
 }: DepartureDateShipProps) {
   // const humanizeDate = humanizeFrom(date);
-  const color = shipBgColor(dayjs(date), table_name);
+
   const board = kanbanBoards.find((board) => board.title === table_name);
+  const color = shipBgColor(dayjs(date), table_name);
   const fixed_date = dayjs(date).format("DD/MM/YYYY");
 
   return (
@@ -64,13 +65,15 @@ export default function DepartureDateShip({
         color?.bg + " " + color?.text,
       )}
     >
-      <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />{" "}
+      {board?.state === "done" || board?.state === "started" ? (
+        <FaCalendarCheck className={"mr-1 h-3 w-3 " + color?.text} />
+      ) : (
+        <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />
+      )}
       <p className="whitespace-nowrap">
-        {board?.state === "pending"
-          ? (dict.kanban as I18nRecord).estimatedDeparture + " " + fixed_date
-          : board?.state === "started"
-            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
-            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+        {board?.state === "pending" || board?.state === "started"
+          ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+          : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
       </p>
     </div>
   );

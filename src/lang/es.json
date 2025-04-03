@@ -49,7 +49,10 @@
         "monitoringFinalization": "Monitoreo Finalizado",
         "tripInitiated": "Viaje Iniciado",
         "tripNullified": "Viaje Anulado",
-        "tripCancelled": "Viaje Cancelado"
+        "tripCancelled": "Viaje Cancelado",
+        "estimatedDeparture": "Salida estimada: ",
+        "departure": "Salida: ",
+        "arrival": "Llegada: "
       },
       "card": {
         "origin": "Origen",
@@ -59,7 +62,8 @@
         "clientName": "Cliente",
         "departureDate": "Fecha de salida",
         "serviceKind": "Tipo de servicio",
-        "executionType": "Tipo de ejecución"
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje"
       },
       "views": {
         "table": "Tabla",
@@ -500,6 +504,9 @@
     "teams_call": "Llamar por ",
     "teams_call2": " Teams",
     "process_treatment_auto": "Automático",
+    "no_active_conditions": "Sin condiciones activas por este momento",
+    "normal_operation": "La flota se encuentra operando con normalidad.",
+    "check_later": "Revisa esta seccion mas adelante para detectar y tratar cualquier nueva condición.",
     "automatic notification": "Notificación automática",
     "go_to_treatment": "Ir al tratamiento"
   },

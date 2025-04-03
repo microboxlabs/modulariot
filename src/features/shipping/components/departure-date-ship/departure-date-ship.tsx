@@ -1,39 +1,77 @@
-import {
-  fromString,
-  humanizeFrom,
-} from "@/features/common/services/days.service";
 import { DepartureDateShipProps } from "./departure-date-ship.types";
 import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
-import CalendarMonthIcon from "@/features/icons/calendar-month";
+import { FaCalendarAlt } from "react-icons/fa";
+import kanbanBoards from "../../model/kanban.json";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-function shipBgColor(date: Dayjs) {
+const color_mapping = {
+  departure: {
+    two_day: {
+      bg: "bg-yellow-100 dark:bg-yellow-800 ",
+      text: "text-yellow-800 dark:text-yellow-200",
+    },
+    less_than_one_day: {
+      bg: "bg-red-100 dark:bg-red-800",
+      text: "text-red-800 dark:text-red-200",
+    },
+    default: {
+      bg: "bg-green-100 dark:bg-green-800",
+      text: "text-green-800 dark:text-green-200",
+    },
+    already_departed: {
+      bg: "bg-purple-100 dark:bg-indigo-800",
+      text: "text-purple-800 dark:text-indigo-200",
+    },
+  },
+  arrival: {
+    bg: "bg-orange-100 dark:bg-orange-800",
+    text: "text-orange-800 dark:text-orange-200",
+  },
+};
+
+function shipBgColor(date: Dayjs, table_name: string) {
   const difference = date.diff(dayjs());
   const days = dayjs.duration(difference).asDays();
-  if (days < 0.25) return "bg-red-100 dark:bg-red-200 text-red-800";
-  if (days < 2) return "bg-yellow-100 dark:bg-yellow-200 text-yellow-800";
-  return "bg-purple-100 dark:bg-purple-200 text-purple-800";
+
+  const board = kanbanBoards.find((board) => board.title === table_name);
+
+  if (board?.state === "pending") {
+    if (days < 0.25) return color_mapping.departure.less_than_one_day;
+    if (days < 2) return color_mapping.departure.two_day;
+    return color_mapping.departure.already_departed;
+  } else if (board?.state === "started") {
+    return color_mapping.departure.already_departed;
+  } else if (board?.state === "done") {
+    return color_mapping.arrival;
+  }
 }
 
 export default function DepartureDateShip({
+  dict,
   date,
   table_name,
 }: DepartureDateShipProps) {
-  const dateObj = fromString(date);
-  const humanizeDate = humanizeFrom(date);
-  const classes = twMerge(
-    "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
-    table_name == "tripInitiated"
-      ? "bg-cyan-100 dark:bg-cyan-200 text-cyan-800"
-      : shipBgColor(dateObj),
-  );
+  // const humanizeDate = humanizeFrom(date);
+  const color = shipBgColor(dayjs(date), table_name);
+  const board = kanbanBoards.find((board) => board.title === table_name);
+  const fixed_date = dayjs(date).format("DD/MM/YYYY");
+
   return (
-    <div className={classes}>
-      <CalendarMonthIcon
-        className="mr-1 h-4 w-4"
-        color={table_name == "tripInitiated" ? "#155E75" : ""}
-      />{" "}
-      <p className="whitespace-nowrap">{humanizeDate}</p>
+    <div
+      className={twMerge(
+        "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
+        color?.bg + " " + color?.text,
+      )}
+    >
+      <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />{" "}
+      <p className="whitespace-nowrap">
+        {board?.state === "pending"
+          ? (dict.kanban as I18nRecord).estimatedDeparture + " " + fixed_date
+          : board?.state === "started"
+            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+      </p>
     </div>
   );
 }

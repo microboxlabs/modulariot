@@ -32,6 +32,8 @@ export type KanbanBoardTask = {
   hoReference: string;
   title?: string;
   departureDate?: string;
+  arrivalDate?: string;
+  estimatedArrivalDate?: string;
 };
 
 export type KanbanBoardTaskMember = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Label, Modal, Textarea } from "flowbite-react";
+import { Button, Label, Modal, Select, Textarea } from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
@@ -71,79 +71,80 @@ export default function TaskConfirmModal({
             <p className="text-sm text-gray-500 mt-1">
               {(dict.modal as I18nRecord).subtitle as string}
             </p>
-            {taskType === "wfship:sovosDigitalSignature" && (
-              <>
-                <h2 className="text-base font-semibold mt-4">
-                  {(dict.modal as I18nRecord).title2 as string}
-                </h2>
-                <select
-                  className="w-full bg-white dark:bg-gray-800 rounded-md"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  <option value={(dict.modal as I18nRecord).reason1 as string}>
-                    {(dict.modal as I18nRecord).reason1 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason2 as string}>
-                    {(dict.modal as I18nRecord).reason2 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason3 as string}>
-                    {(dict.modal as I18nRecord).reason3 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason4 as string}>
-                    {(dict.modal as I18nRecord).reason4 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason5 as string}>
-                    {(dict.modal as I18nRecord).reason5 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason6 as string}>
-                    {(dict.modal as I18nRecord).reason6 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason7 as string}>
-                    {(dict.modal as I18nRecord).reason7 as string}
-                  </option>
-                </select>
-              </>
-            )}
-            {taskType === "wfship:missionControlTripInitTask" && (
-              <>
-                <h2 className="text-base font-semibold mt-4">
-                  {(dict.modal as I18nRecord).title2 as string}
-                </h2>
-                <select
-                  className="w-full bg-white dark:bg-gray-800 rounded-md"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  <option value={(dict.modal as I18nRecord).reason1 as string}>
-                    {(dict.modal as I18nRecord).reason1 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason2 as string}>
-                    {(dict.modal as I18nRecord).reason2 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason3 as string}>
-                    {(dict.modal as I18nRecord).reason3 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason4 as string}>
-                    {(dict.modal as I18nRecord).reason4 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason5 as string}>
-                    {(dict.modal as I18nRecord).reason5 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason6 as string}>
-                    {(dict.modal as I18nRecord).reason6 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason7 as string}>
-                    {(dict.modal as I18nRecord).reason7 as string}
-                  </option>
-                </select>
-              </>
-            )}
           </div>
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
-            <div className="flex items-center justify-center">
+            {taskType === "wfship:sovosDigitalSignature" && (
+              <>
+                <Label className="mt-4">
+                  {(dict.modal as I18nRecord).title2 as string}
+                </Label>
+                <Select
+                  /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  <option value={(dict.modal as I18nRecord).reason1 as string}>
+                    {(dict.modal as I18nRecord).reason1 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason2 as string}>
+                    {(dict.modal as I18nRecord).reason2 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason3 as string}>
+                    {(dict.modal as I18nRecord).reason3 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason4 as string}>
+                    {(dict.modal as I18nRecord).reason4 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason5 as string}>
+                    {(dict.modal as I18nRecord).reason5 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason6 as string}>
+                    {(dict.modal as I18nRecord).reason6 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason7 as string}>
+                    {(dict.modal as I18nRecord).reason7 as string}
+                  </option>
+                </Select>
+              </>
+            )}
+            {taskType === "wfship:missionControlTripInitTask" && (
+              <>
+                <Label className="mt-4">
+                  {(dict.modal as I18nRecord).title2 as string}
+                </Label>
+                <Select
+                  /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  <option value={(dict.modal as I18nRecord).reason1 as string}>
+                    {(dict.modal as I18nRecord).reason1 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason2 as string}>
+                    {(dict.modal as I18nRecord).reason2 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason3 as string}>
+                    {(dict.modal as I18nRecord).reason3 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason4 as string}>
+                    {(dict.modal as I18nRecord).reason4 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason5 as string}>
+                    {(dict.modal as I18nRecord).reason5 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason6 as string}>
+                    {(dict.modal as I18nRecord).reason6 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason7 as string}>
+                    {(dict.modal as I18nRecord).reason7 as string}
+                  </option>
+                </Select>
+              </>
+            )}
+
+            <div className="flex items-center justify-center mt-4">
               {!commentsFieldEnabled && <KanbanMove />}
             </div>
             {commentsFieldEnabled && (

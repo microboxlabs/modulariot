@@ -31,8 +31,6 @@ export default function TripInformation({
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task?.mintral_serviceCode as string);
 
-  console.log(task);
-
   const isError = (value?: {
     v_01eval?: number;
     v_02eval?: number;

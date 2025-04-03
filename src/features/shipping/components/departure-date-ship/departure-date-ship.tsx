@@ -42,7 +42,7 @@ function shipBgColor(date: Dayjs, table_name: string) {
     return color_mapping.departure.already_departed;
   } else if (board?.state === "started") {
     return color_mapping.departure.already_departed;
-  } else if (board?.state === "done") {
+  } else if (board?.state === "done" || board?.state === "doneNotFinished") {
     return color_mapping.arrival;
   }
 }
@@ -53,8 +53,9 @@ export default function DepartureDateShip({
   table_name,
 }: DepartureDateShipProps) {
   // const humanizeDate = humanizeFrom(date);
-  const color = shipBgColor(dayjs(date), table_name);
+
   const board = kanbanBoards.find((board) => board.title === table_name);
+  const color = shipBgColor(dayjs(date), table_name);
   const fixed_date = dayjs(date).format("DD/MM/YYYY");
 
   return (

@@ -212,6 +212,14 @@
       "modal": {
         "title": "You are trying to move the task to another process state",
         "subtitle": "If you move the task to a different state, you won't be able to undo the action late.",
+        "title2": "Possible reasons:",
+        "reason1": "Technical problems with the fingerprint reader.",
+        "reason2": "Technical problems with the computer.",
+        "reason3": "Fingerprint not recognized.",
+        "reason4": "Dispatcher not enrolled.",
+        "reason5": "Dispatcher fingerprint not recognized.",
+        "reason6": "Authorized by Overlord of transport.",
+        "reason7": "Other.",
         "confirm": "Confirm move to Overlord",
         "reason": "Reason"
       }
@@ -252,6 +260,14 @@
       "modal": {
         "title": "You are trying to move the task to another process state",
         "subtitle": "If you move the task to a different state, you won't be able to undo the action late.",
+        "title2": "Possible reasons:",
+        "reason1": "Technical problems with the fingerprint reader.",
+        "reason2": "Technical problems with the computer.",
+        "reason3": "Fingerprint not recognized.",
+        "reason4": "Dispatcher not enrolled.",
+        "reason5": "Dispatcher fingerprint not recognized.",
+        "reason6": "Authorized by Overlord of transport.",
+        "reason7": "Other.",
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}"
       }

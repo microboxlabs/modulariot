@@ -194,6 +194,7 @@
         "normalInitiation": "Init trip with Sovos signatures",
         "initiationWithObjections": "Init trip with objections",
         "initiatedWithoutSovosSignature": "Init trip without Sovos signature",
+        "returnToTransportValidation": "Return to Transport Validation",
         "requiresOverlord": "Requires overlord",
         "canceled": "To Canceled",
         "annulled": "To Annulled",
@@ -220,6 +221,10 @@
         "reason5": "Dispatcher fingerprint not recognized.",
         "reason6": "Authorized by Overlord of transport.",
         "reason7": "Other.",
+        "missionControlTripInitTaskReason1": "No GPS validation.",
+        "missionControlTripInitTaskReason2": "No consolidation documentation.",
+        "missionControlTripInitTaskReason3": "No client system validation.",
+        "missionControlTripInitTaskReason4": "Other.",
         "confirm": "Confirm move to Overlord",
         "reason": "Reason"
       }

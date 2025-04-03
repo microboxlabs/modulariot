@@ -8,6 +8,7 @@ export type TaskConfirmModalProps = {
   commentsFieldEnabled: boolean;
   outcome?: TaskOutcome;
   outcomeLabel?: string;
+  taskType?: string;
 };
 
 export type ErrorWithAlfrescoError = Error & {

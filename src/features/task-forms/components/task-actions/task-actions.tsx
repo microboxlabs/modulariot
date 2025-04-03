@@ -91,6 +91,7 @@ export default function TaskActions({
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}
             taskId={taskId}
+            taskType={taskType}
             outcome={outcome!}
             outcomeLabel={outcomeLabel!}
             openModal={openModal}

@@ -21,6 +21,7 @@ export default function TaskConfirmModal({
   outcome,
   outcomeLabel,
   taskId,
+  taskType,
   dict,
   commentsFieldEnabled = false,
 }: PropsWithI18nDict<TaskConfirmModalProps>) {
@@ -28,6 +29,7 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
   const [comments, setComments] = useState("");
+  const [reason, setReason] = useState("");
   async function handleConfirm() {
     try {
       setIsProcessing(true);
@@ -35,6 +37,7 @@ export default function TaskConfirmModal({
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
       formData.append("comments", comments);
+      formData.append("reason", reason);
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
@@ -55,6 +58,8 @@ export default function TaskConfirmModal({
     setOpenModal(false);
   }
 
+  console.log(taskType);
+
   return (
     <Modal dismissible show={openModal} onClose={onClose} size="4xl">
       <form onSubmit={handleConfirm}>
@@ -66,18 +71,74 @@ export default function TaskConfirmModal({
             <p className="text-sm text-gray-500 mt-1">
               {(dict.modal as I18nRecord).subtitle as string}
             </p>
-            <h2 className="text-base font-semibold">
-              {(dict.modal as I18nRecord).title2 as string}
-            </h2>
-            <ul className="list-disc list-inside text-sm text-gray-500 mt-1">
-              <li>{(dict.modal as I18nRecord).reason1 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason2 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason3 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason4 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason5 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason6 as string}</li>
-              <li>{(dict.modal as I18nRecord).reason7 as string}</li>
-            </ul>
+            {taskType === "wfship:sovosDigitalSignature" && (
+              <>
+                <h2 className="text-base font-semibold mt-4">
+                  {(dict.modal as I18nRecord).title2 as string}
+                </h2>
+                <select
+                  className="w-full bg-white dark:bg-gray-800 rounded-md"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  <option value={(dict.modal as I18nRecord).reason1 as string}>
+                    {(dict.modal as I18nRecord).reason1 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason2 as string}>
+                    {(dict.modal as I18nRecord).reason2 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason3 as string}>
+                    {(dict.modal as I18nRecord).reason3 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason4 as string}>
+                    {(dict.modal as I18nRecord).reason4 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason5 as string}>
+                    {(dict.modal as I18nRecord).reason5 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason6 as string}>
+                    {(dict.modal as I18nRecord).reason6 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason7 as string}>
+                    {(dict.modal as I18nRecord).reason7 as string}
+                  </option>
+                </select>
+              </>
+            )}
+            {taskType === "wfship:missionControlTripInitTask" && (
+              <>
+                <h2 className="text-base font-semibold mt-4">
+                  {(dict.modal as I18nRecord).title2 as string}
+                </h2>
+                <select
+                  className="w-full bg-white dark:bg-gray-800 rounded-md"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  <option value={(dict.modal as I18nRecord).reason1 as string}>
+                    {(dict.modal as I18nRecord).reason1 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason2 as string}>
+                    {(dict.modal as I18nRecord).reason2 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason3 as string}>
+                    {(dict.modal as I18nRecord).reason3 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason4 as string}>
+                    {(dict.modal as I18nRecord).reason4 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason5 as string}>
+                    {(dict.modal as I18nRecord).reason5 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason6 as string}>
+                    {(dict.modal as I18nRecord).reason6 as string}
+                  </option>
+                  <option value={(dict.modal as I18nRecord).reason7 as string}>
+                    {(dict.modal as I18nRecord).reason7 as string}
+                  </option>
+                </select>
+              </>
+            )}
           </div>
         </Modal.Header>
         <Modal.Body>

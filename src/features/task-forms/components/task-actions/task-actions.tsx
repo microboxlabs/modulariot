@@ -113,9 +113,9 @@ export default function TaskActions({
                   icon: HiOutlineArrowRight,
                 },
                 {
-                  id: OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+                  id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
                   label: (dict.outcome as I18nRecord)
-                    .authorizedWithRepairs as string,
+                    .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
                   icon: HiCheck,
                 },
                 {
@@ -134,11 +134,11 @@ export default function TaskActions({
               fluid={fluid}
               label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
-              transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS}
+              transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS}
               onClick={() =>
                 handleSelection(
-                  OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS,
-                  (dict.outcome as I18nRecord).authorizedWithoutGPS as string,
+                  OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+                  (dict.outcome as I18nRecord).authorizedWithRepairs as string,
                 )
               }
             />

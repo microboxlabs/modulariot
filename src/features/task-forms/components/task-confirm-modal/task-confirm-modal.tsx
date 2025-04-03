@@ -66,6 +66,18 @@ export default function TaskConfirmModal({
             <p className="text-sm text-gray-500 mt-1">
               {(dict.modal as I18nRecord).subtitle as string}
             </p>
+            <h2 className="text-base font-semibold">
+              {(dict.modal as I18nRecord).title2 as string}
+            </h2>
+            <ul className="list-disc list-inside text-sm text-gray-500 mt-1">
+              <li>{(dict.modal as I18nRecord).reason1 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason2 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason3 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason4 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason5 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason6 as string}</li>
+              <li>{(dict.modal as I18nRecord).reason7 as string}</li>
+            </ul>
           </div>
         </Modal.Header>
         <Modal.Body>

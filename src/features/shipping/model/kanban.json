@@ -73,14 +73,14 @@
     "id": 12,
     "title": "tripNullified",
     "finished": true,
-    "state": "done",
+    "state": "doneNotFinished",
     "tasks": []
   },
   {
     "id": 13,
     "title": "tripCancelled",
     "finished": true,
-    "state": "done",
+    "state": "doneNotFinished",
     "tasks": []
   }
 ]

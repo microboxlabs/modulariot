@@ -1,7 +1,7 @@
 import { DepartureDateShipProps } from "./departure-date-ship.types";
 import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
-import { FaCalendarAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -64,13 +64,15 @@ export default function DepartureDateShip({
         color?.bg + " " + color?.text,
       )}
     >
-      <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />{" "}
+      {board?.state === "done" || board?.state === "started" ? (
+        <FaCalendarCheck className={"mr-1 h-3 w-3 " + color?.text} />
+      ) : (
+        <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />
+      )}
       <p className="whitespace-nowrap">
-        {board?.state === "pending"
-          ? (dict.kanban as I18nRecord).estimatedDeparture + " " + fixed_date
-          : board?.state === "started"
-            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
-            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+        {board?.state === "pending" || board?.state === "started"
+          ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+          : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
       </p>
     </div>
   );

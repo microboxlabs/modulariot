@@ -56,6 +56,8 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     members: [],
     hoReference: task.mintral_hoReference as string,
     departureDate,
+    arrivalDate: task.mintral_arrivalDate as string,
+    estimatedArrivalDate: task.mintral_estimatedArrivalDate as string,
   };
 }
 

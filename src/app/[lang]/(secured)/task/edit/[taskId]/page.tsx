@@ -22,6 +22,7 @@ export default async function TaskEditPage({
 
     const [, _dictionary] = await getDictionary(lang);
     const taskResult = await getTaskById(session.user.ticket, taskId);
+
     let task = taskResult;
     if ((typeof task == "string" && task == "null") || task == null) {
       const finishedWorkflows = await getFinishedWorkflows(

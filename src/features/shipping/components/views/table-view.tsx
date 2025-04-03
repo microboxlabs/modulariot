@@ -30,35 +30,38 @@ export function TableView({ data, dict }: TableViewProps) {
             <Table.HeadCell>{tr("table.status", dict)}</Table.HeadCell>
           </Table.Head>
           <Table.Body>
-            {data.map((task) => (
-              <Table.Row
-                key={task.id}
-                className="bg-white dark:border-gray-700 dark:bg-gray-800"
-              >
-                <Table.Cell className="font-medium text-gray-900 dark:text-white cursor-pointer">
-                  <Link href={`/task/edit/${task.id}`}>{task.name}</Link>
-                </Table.Cell>
-                <Table.Cell>
-                  {task.expectedDepartureDate
-                    ? new Date(task.expectedDepartureDate).toLocaleString()
-                    : "-"}
-                </Table.Cell>
-                <Table.Cell>{task.serviceKind}</Table.Cell>
-                <Table.Cell>{tr(`kanban.${task.title}`, dict)}</Table.Cell>
-                <Table.Cell>
-                  <div className="w-fit">
-                    <DepartureDateShip
-                      table_name={task.title}
-                      date={
-                        (task.title == "tripInitiated"
-                          ? task.departureDate
-                          : task.expectedDepartureDate) ?? ""
-                      }
-                    />
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+            {data.map((task) => {
+              return (
+                <Table.Row
+                  key={task.id}
+                  className="bg-white dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <Table.Cell className="font-medium text-gray-900 dark:text-white cursor-pointer">
+                    <Link href={`/task/edit/${task.id}`}>{task.name}</Link>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {task.expectedDepartureDate
+                      ? new Date(task.expectedDepartureDate).toLocaleString()
+                      : "-"}
+                  </Table.Cell>
+                  <Table.Cell>{task.serviceKind}</Table.Cell>
+                  <Table.Cell>{tr(`kanban.${task.title}`, dict)}</Table.Cell>
+                  <Table.Cell>
+                    <div className="w-fit">
+                      <DepartureDateShip
+                        dict={dict}
+                        table_name={task.title ?? ""}
+                        date={
+                          (task?.arrivalDate as string) ??
+                          (task?.estimatedArrivalDate as string) ??
+                          ""
+                        }
+                      />
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table>
       </div>

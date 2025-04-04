@@ -98,25 +98,25 @@ export default function TaskConfirmModal({
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   >
-                    <option value="Problemas técnicos con el huellero">
+                    <option value="FINGERPRINT_DEVICES_TECH_ISSUES">
                       {(dict.modal as I18nRecord).reason1 as string}
                     </option>
-                    <option value="Problemas técnicos con el computador">
+                    <option value="COMPUTER_TECH_ISSUES">
                       {(dict.modal as I18nRecord).reason2 as string}
                     </option>
-                    <option value="No se reconoce la huella del conductor">
+                    <option value="DRIVER_FINGERPRINT_NOT_RECOGNIZED">
                       {(dict.modal as I18nRecord).reason3 as string}
                     </option>
-                    <option value="Despachador no enrolado">
+                    <option value="DISPATCHER_NOT_ENROLLED">
                       {(dict.modal as I18nRecord).reason4 as string}
                     </option>
-                    <option value="No se reconoce la huella del despachador">
+                    <option value="DISPATCHER_FINGERPRINT_NOT_RECOGNIZED">
                       {(dict.modal as I18nRecord).reason5 as string}
                     </option>
-                    <option value="Autorizada por Overlord de transporte">
+                    <option value="AUTHORIZED_BY_TRANSPORT_OVERLORD">
                       {(dict.modal as I18nRecord).reason6 as string}
                     </option>
-                    <option value="Otro">
+                    <option value="OTHER">
                       {(dict.modal as I18nRecord).reason7 as string}
                     </option>
                   </Select>
@@ -133,25 +133,25 @@ export default function TaskConfirmModal({
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   >
-                    <option value="No tiene validación GPS">
+                    <option value="NO_GPS_VALIDATION">
                       {
                         (dict.modal as I18nRecord)
                           .missionControlTripInitTaskReason1 as string
                       }
                     </option>
-                    <option value="No tiene consolidación documental">
+                    <option value="NO_DOCUMENT_CONSOLIDATION">
                       {
                         (dict.modal as I18nRecord)
                           .missionControlTripInitTaskReason2 as string
                       }
                     </option>
-                    <option value="No tiene validación sistema cliente">
+                    <option value="NO_CLIENT_SYSTEM_VALIDATION">
                       {
                         (dict.modal as I18nRecord)
                           .missionControlTripInitTaskReason3 as string
                       }
                     </option>
-                    <option value="Otro">
+                    <option value="OTHER">
                       {
                         (dict.modal as I18nRecord)
                           .missionControlTripInitTaskReason4 as string

@@ -33,9 +33,17 @@ export async function POST(request: NextRequest) {
     }
     if (reason && reasonId) {
       try {
-        await updateTask(session.user.ticket, "activiti$" + taskId, {
-          reasonId: reason,
-        });
+        const propName =
+          reasonId == "wfship:sovosDigitalSignature"
+            ? "prop_wfship_sovosDigitalSignatureOutputReasonType"
+            : reasonId == "wfship:missionControlTripInitTask"
+              ? "prop_wfship_transportValidationOutputReasonType"
+              : "";
+        if (propName) {
+          await updateTask(session.user.ticket, "activiti$" + taskId, {
+            [propName]: reason,
+          });
+        }
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error
       }

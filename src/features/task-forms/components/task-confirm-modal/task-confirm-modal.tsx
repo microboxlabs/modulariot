@@ -11,7 +11,6 @@ import {
 } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskNextAction } from "../../services/client-form.service";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
@@ -19,6 +18,7 @@ import {
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
 } from "../../services/form.service";
+import { useState } from "react";
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,

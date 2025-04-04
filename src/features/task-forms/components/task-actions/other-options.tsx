@@ -15,6 +15,7 @@ import {
   OUTCOME_CANCELED,
   OUTCOME_ANNULLED,
   OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
+  OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
@@ -49,6 +50,11 @@ export default function OtherOptions({
       icon: HiCheck,
     },
     */
+    {
+      id: OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
+      label: (dict.outcome as I18nRecord).returnToTransportValidation as string,
+      icon: HiOutlineArrowLeft,
+    },
     {
       id: OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE,
       label: (dict.outcome as I18nRecord)

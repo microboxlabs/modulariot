@@ -91,7 +91,6 @@ export default function TaskActions({
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}
             taskId={taskId}
-            taskType={taskType}
             outcome={outcome!}
             outcomeLabel={outcomeLabel!}
             openModal={openModal}
@@ -114,9 +113,9 @@ export default function TaskActions({
                   icon: HiOutlineArrowRight,
                 },
                 {
-                  id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+                  id: OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
                   label: (dict.outcome as I18nRecord)
-                    .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
+                    .authorizedWithRepairs as string,
                   icon: HiCheck,
                 },
                 {
@@ -135,11 +134,11 @@ export default function TaskActions({
               fluid={fluid}
               label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
-              transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS}
+              transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS}
               onClick={() =>
                 handleSelection(
-                  OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                  (dict.outcome as I18nRecord).authorizedWithRepairs as string,
+                  OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS,
+                  (dict.outcome as I18nRecord).authorizedWithoutGPS as string,
                 )
               }
             />

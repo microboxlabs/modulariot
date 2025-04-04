@@ -170,6 +170,7 @@ export default function SovosVerificationResultCard({
           commentsFieldEnabled={true}
           dict={msg as I18nRecord}
           taskId={task.id}
+          taskType={task.taskFormKey}
           outcome={outcome!}
           outcomeLabel={outcomeLabel!}
           openModal={openModal}

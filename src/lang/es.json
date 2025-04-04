@@ -237,6 +237,7 @@
         "normalInitiation": "Iniciar viaje con Firma Sovos",
         "initiationWithObjections": "Iniciar viaje con reparos",
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
+        "returnToTransportValidation": "Devolver a Validación de Transporte",
         "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelar",
         "annulled": "Anular",
@@ -255,6 +256,19 @@
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
         "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "title2": "Posibles motivos:",
+        "reason1": "Problemas técnicos con el huellero.",
+        "reason2": "Problemas técnicos con el computador.",
+        "reason3": "No se reconoce la huella del conductor.",
+        "reason4": "Despachador no enrolado.",
+        "reason5": "No se reconoce la huella del despachador.",
+        "reason6": "Autorizada por Overlord de transporte.",
+        "reason7": "Otro.",
+        "missionControlTripInitTaskReason1": "No tiene validación GPS.",
+        "missionControlTripInitTaskReason2": "No tiene consolidación documental.",
+        "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
+        "missionControlTripInitTaskReason4": "Otro.",
+        
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
@@ -295,6 +309,14 @@
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
         "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "title2": "Posibles motivos:",
+        "reason1": "Problemas técnicos con el huellero.",
+        "reason2": "Problemas técnicos con el computador.",
+        "reason3": "No se reconoce la huella del conductor.",
+        "reason4": "Despachador no enrolado.",
+        "reason5": "No se reconoce la huella del despachador.",
+        "reason6": "Autorizada por Overlord de transporte.",
+        "reason7": "Otro.",
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
@@ -537,7 +559,9 @@
     "TRIP_START": "Inicio de viaje",
     "TRIP_END": "Último evento",
     "EVENTS END": "Último evento",
+    "Fin de Eventos": "Último evento",
     "CONTINUOUS DRIVE CHECK": "Conducción máxima continua",
+    "CONTINUOUS RESTING CHECK": "Mínimo descanso requerido",
     "-MENSAJE KAUSANA": "Mensaje Kausana",
     "CORREO ELECTRONICO": "Correo electrónico",
     "today": "Hoy",

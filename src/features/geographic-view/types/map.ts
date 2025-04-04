@@ -17,7 +17,7 @@ export interface MapPosition {
    licensePlate?: string;
    driver?: string;
    trip?: string; */
-  asset_id: string;
+  assetid: string;
   carrier_name: string;
   driver_name: string;
   engine_status: string;

@@ -37,7 +37,6 @@ export default function DriverVerifiedCard({
   lang,
   task,
   msg,
-  dict,
   entityInfo,
   serviceValidation,
   enableActions = false,
@@ -46,7 +45,6 @@ export default function DriverVerifiedCard({
     taskNextAction,
     {},
   );
-  console.log(dict);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -160,13 +158,13 @@ export default function DriverVerifiedCard({
             <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
               <Button.Group className="w-full">
                 <CanceledAnnulledAndOptions
-                  dict={dict ?? {}}
+                  dict={msg ?? {}}
                   handleSelection={handleSelection}
                   otherOptions={[
                     {
                       id: OUTCOME_OVERLORD_REQUIRED,
                       label:
-                        ((dict?.outcome as I18nRecord)
+                        ((msg?.outcome as I18nRecord)
                           ?.requiresOverlord as string) ?? "",
                       icon: HiOutlineHand,
                     },
@@ -185,7 +183,7 @@ export default function DriverVerifiedCard({
 
               <TaskConfirmModal
                 commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-                dict={dict ?? {}}
+                dict={msg ?? {}}
                 taskId={task.id}
                 outcome={outcome!}
                 outcomeLabel={outcomeLabel!}

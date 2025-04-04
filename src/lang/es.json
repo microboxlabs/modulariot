@@ -150,6 +150,48 @@
         "avg_signals_per_minute_det": "Cantidad de señales por minuto en detenciones",
         "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
         "write_here_your_observations": "Escribe aquí tus observaciones"
+      },
+      "outcome": {
+        "moreOptions": "Más opciones",
+        "normalInitiation": "Iniciar viaje con Firma Sovos",
+        "initiationWithObjections": "Iniciar viaje con reparos",
+        "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
+        "returnToTransportValidation": "Devolver a Validación de Transporte",
+        "requiresOverlord": "Escalar a superior",
+        "canceled": "Cancelar",
+        "annulled": "Anular",
+        "continue": "Continuar",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
+        "confirmDelivery": "Confirmar Entrega",
+        "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "monitoringFinalization": "Finalizar Monitoreo",
+        "tripInitiated": "Viaje Iniciado",
+        "tripNullified": "Viaje Anulado",
+        "tripCancelled": "Viaje Cancelado",
+        "authorizedWithoutGPS": "Autorizado sin GPS",
+        "authorizedWithRepairs": "Autorizado con reparos",
+        "canceledByOverlord": "Cancelado por Overlord",
+        "annulledByOverlord": "Anulado por Overlord"
+      },
+      "modal": {
+        "title": "Estás intentando mover la tarea a otro estado del proceso",
+        "subtitle": "Si mueves la tarea de estado ya no podrás deshacer la accion luego.",
+        "title2": "Posibles motivos:",
+        "reason1": "Problemas técnicos con el huellero.",
+        "reason2": "Problemas técnicos con el computador.",
+        "reason3": "No se reconoce la huella del conductor.",
+        "reason4": "Despachador no enrolado.",
+        "reason5": "No se reconoce la huella del despachador.",
+        "reason6": "Autorizada por Overlord de transporte.",
+        "reason7": "Otro.",
+        "missionControlTripInitTaskReason1": "No tiene validación GPS.",
+        "missionControlTripInitTaskReason2": "No tiene consolidación documental.",
+        "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
+        "missionControlTripInitTaskReason4": "Otro.",
+        
+        "reason": "Motivo",
+        "confirm": "Confirmar mover a {outcome}"
       }
     },
     "shippingDetailsTaskForm": {

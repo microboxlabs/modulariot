@@ -19,11 +19,22 @@ export async function POST(request: NextRequest) {
     const taskId = json.taskId;
     const transitionId = json.transitionId;
     const comments = json.comments;
+    const reason = json.reason;
+    const reasonId = json.reasonId;
 
     if (comments) {
       try {
         await updateTask(session.user.ticket, "activiti$" + taskId, {
           prop_bpm_comment: comments,
+        });
+      } catch (error) {
+        // ignore for now, TODO: we need to do something if we got an error
+      }
+    }
+    if (reason && reasonId) {
+      try {
+        await updateTask(session.user.ticket, "activiti$" + taskId, {
+          reasonId: reason,
         });
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error

@@ -38,6 +38,7 @@ export default function TaskConfirmModal({
       formData.append("transitionId", outcome!);
       formData.append("comments", comments);
       formData.append("reason", reason);
+      formData.append("reasonId", taskType ?? "");
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
@@ -119,26 +120,49 @@ export default function TaskConfirmModal({
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                 >
-                  <option value={(dict.modal as I18nRecord).reason1 as string}>
-                    {(dict.modal as I18nRecord).reason1 as string}
+                  <option
+                    value={
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason1 as string
+                    }
+                  >
+                    {
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason1 as string
+                    }
                   </option>
-                  <option value={(dict.modal as I18nRecord).reason2 as string}>
-                    {(dict.modal as I18nRecord).reason2 as string}
+                  <option
+                    value={
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason2 as string
+                    }
+                  >
+                    {
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason2 as string
+                    }
                   </option>
-                  <option value={(dict.modal as I18nRecord).reason3 as string}>
-                    {(dict.modal as I18nRecord).reason3 as string}
+                  <option
+                    value={
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason3 as string
+                    }
+                  >
+                    {
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason3 as string
+                    }
                   </option>
-                  <option value={(dict.modal as I18nRecord).reason4 as string}>
-                    {(dict.modal as I18nRecord).reason4 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason5 as string}>
-                    {(dict.modal as I18nRecord).reason5 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason6 as string}>
-                    {(dict.modal as I18nRecord).reason6 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason7 as string}>
-                    {(dict.modal as I18nRecord).reason7 as string}
+                  <option
+                    value={
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason4 as string
+                    }
+                  >
+                    {
+                      (dict.modal as I18nRecord)
+                        .missionControlTripInitTaskReason4 as string
+                    }
                   </option>
                 </Select>
               </>

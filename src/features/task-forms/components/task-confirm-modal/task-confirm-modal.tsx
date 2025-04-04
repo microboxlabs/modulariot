@@ -11,10 +11,14 @@ import {
 } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskNextAction } from "../../services/client-form.service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
+import {
+  OUTCOME_REDIRECT_TO_MISSION_CONTROL,
+  OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
+} from "../../services/form.service";
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
@@ -29,7 +33,16 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
   const [comments, setComments] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(
+    taskType === "wfship:sovosDigitalSignature" &&
+      outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
+      ? "Problemas técnicos con el huellero"
+      : taskType === "wfship:missionControlTripInitTask" &&
+          outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
+        ? "No tiene validación GPS"
+        : "",
+  );
+
   async function handleConfirm() {
     try {
       setIsProcessing(true);
@@ -59,8 +72,6 @@ export default function TaskConfirmModal({
     setOpenModal(false);
   }
 
-  console.log(taskType);
-
   return (
     <Modal dismissible show={openModal} onClose={onClose} size="4xl">
       <form onSubmit={handleConfirm}>
@@ -76,97 +87,79 @@ export default function TaskConfirmModal({
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
-            {taskType === "wfship:sovosDigitalSignature" && (
-              <>
-                <Label className="mt-4">
-                  {(dict.modal as I18nRecord).title2 as string}
-                </Label>
-                <Select
-                  /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  <option value={(dict.modal as I18nRecord).reason1 as string}>
-                    {(dict.modal as I18nRecord).reason1 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason2 as string}>
-                    {(dict.modal as I18nRecord).reason2 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason3 as string}>
-                    {(dict.modal as I18nRecord).reason3 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason4 as string}>
-                    {(dict.modal as I18nRecord).reason4 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason5 as string}>
-                    {(dict.modal as I18nRecord).reason5 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason6 as string}>
-                    {(dict.modal as I18nRecord).reason6 as string}
-                  </option>
-                  <option value={(dict.modal as I18nRecord).reason7 as string}>
-                    {(dict.modal as I18nRecord).reason7 as string}
-                  </option>
-                </Select>
-              </>
-            )}
-            {taskType === "wfship:missionControlTripInitTask" && (
-              <>
-                <Label className="mt-4">
-                  {(dict.modal as I18nRecord).title2 as string}
-                </Label>
-                <Select
-                  /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  <option
-                    value={
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason1 as string
-                    }
+            {taskType === "wfship:sovosDigitalSignature" &&
+              outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL && (
+                <>
+                  <Label className="mt-4">
+                    {(dict.modal as I18nRecord).title2 as string}
+                  </Label>
+                  <Select
+                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
                   >
-                    {
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason1 as string
-                    }
-                  </option>
-                  <option
-                    value={
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason2 as string
-                    }
+                    <option value="Problemas técnicos con el huellero">
+                      {(dict.modal as I18nRecord).reason1 as string}
+                    </option>
+                    <option value="Problemas técnicos con el computador">
+                      {(dict.modal as I18nRecord).reason2 as string}
+                    </option>
+                    <option value="No se reconoce la huella del conductor">
+                      {(dict.modal as I18nRecord).reason3 as string}
+                    </option>
+                    <option value="Despachador no enrolado">
+                      {(dict.modal as I18nRecord).reason4 as string}
+                    </option>
+                    <option value="No se reconoce la huella del despachador">
+                      {(dict.modal as I18nRecord).reason5 as string}
+                    </option>
+                    <option value="Autorizada por Overlord de transporte">
+                      {(dict.modal as I18nRecord).reason6 as string}
+                    </option>
+                    <option value="Otro">
+                      {(dict.modal as I18nRecord).reason7 as string}
+                    </option>
+                  </Select>
+                </>
+              )}
+            {taskType === "wfship:missionControlTripInitTask" &&
+              outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION && (
+                <>
+                  <Label className="mt-4">
+                    {(dict.modal as I18nRecord).title2 as string}
+                  </Label>
+                  <Select
+                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
                   >
-                    {
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason2 as string
-                    }
-                  </option>
-                  <option
-                    value={
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason3 as string
-                    }
-                  >
-                    {
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason3 as string
-                    }
-                  </option>
-                  <option
-                    value={
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason4 as string
-                    }
-                  >
-                    {
-                      (dict.modal as I18nRecord)
-                        .missionControlTripInitTaskReason4 as string
-                    }
-                  </option>
-                </Select>
-              </>
-            )}
+                    <option value="No tiene validación GPS">
+                      {
+                        (dict.modal as I18nRecord)
+                          .missionControlTripInitTaskReason1 as string
+                      }
+                    </option>
+                    <option value="No tiene consolidación documental">
+                      {
+                        (dict.modal as I18nRecord)
+                          .missionControlTripInitTaskReason2 as string
+                      }
+                    </option>
+                    <option value="No tiene validación sistema cliente">
+                      {
+                        (dict.modal as I18nRecord)
+                          .missionControlTripInitTaskReason3 as string
+                      }
+                    </option>
+                    <option value="Otro">
+                      {
+                        (dict.modal as I18nRecord)
+                          .missionControlTripInitTaskReason4 as string
+                      }
+                    </option>
+                  </Select>
+                </>
+              )}
 
             <div className="flex items-center justify-center mt-4">
               {!commentsFieldEnabled && <KanbanMove />}

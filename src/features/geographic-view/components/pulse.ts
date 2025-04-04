@@ -7,7 +7,7 @@ import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
   4 code black
 */
 
-function getColor(icu_code: number, opacity: number) {
+function getColor(icu_code: number, opacity: number): [number, number, number, number] {
   switch (icu_code) {
     case 0:
       return [150, 150, 150, opacity];
@@ -19,6 +19,8 @@ function getColor(icu_code: number, opacity: number) {
       return [244, 63, 94, opacity];
     case 4:
       return [0, 0, 0, opacity];
+    default:
+      return [255, 255, 255, opacity];
   }
 }
 

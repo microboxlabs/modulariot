@@ -19,12 +19,31 @@ export async function POST(request: NextRequest) {
     const taskId = json.taskId;
     const transitionId = json.transitionId;
     const comments = json.comments;
+    const reason = json.reason;
+    const reasonId = json.reasonId;
 
     if (comments) {
       try {
         await updateTask(session.user.ticket, "activiti$" + taskId, {
           prop_bpm_comment: comments,
         });
+      } catch (error) {
+        // ignore for now, TODO: we need to do something if we got an error
+      }
+    }
+    if (reason && reasonId) {
+      try {
+        const propName =
+          reasonId == "wfship:sovosDigitalSignature"
+            ? "prop_wfship_sovosDigitalSignatureOutputReasonType"
+            : reasonId == "wfship:missionControlTripInitTask"
+              ? "prop_wfship_transportValidationOutputReasonType"
+              : "";
+        if (propName) {
+          await updateTask(session.user.ticket, "activiti$" + taskId, {
+            [propName]: reason,
+          });
+        }
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error
       }

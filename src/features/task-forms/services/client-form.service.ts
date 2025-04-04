@@ -55,6 +55,8 @@ export async function taskNextAction(
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
   const comments = formData.get("comments");
+  const reasonId = formData.get("reasonId");
+  const reason = formData.get("reason");
   return fetcherClient<TaskNextActionState>("/app/api/task/end", {
     method: "POST",
     headers: {
@@ -64,6 +66,8 @@ export async function taskNextAction(
       taskId,
       transitionId,
       comments,
+      reasonId,
+      reason,
     }),
   });
 }

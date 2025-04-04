@@ -32,10 +32,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const templates: Record<
-    string,
-    Record<string, { name: string; message: string }>
-  > = {
+  const templates = {
     "Bad Sign": badSign,
     "Speed Limit Custom": speedLimit,
     "Speed Limit Standard": speedLimit,
@@ -65,25 +62,15 @@ export async function GET(request: Request) {
     //const apiData = (await  .json()) as TreatmentsGeneralResponse;
     // Transform API data into our desired structure
     //const formattedResponse: TreatmentsGeneralResponseItem = apiData.data;
-    const template =
-      name &&
-      id &&
-      (templates[name as keyof typeof templates]?.[
+
+    return NextResponse.json(
+      templates[name as keyof typeof templates][
         id as keyof (typeof templates)[keyof typeof templates]
-      ] as { name: string; message: string } | undefined);
-
-    if (!template) {
-      return NextResponse.json(
-        { name: "Not found", message: "" },
-        {
-          status: 200,
-        },
-      );
-    }
-
-    return NextResponse.json(template, {
-      status: 200,
-    });
+      ],
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     return NextResponse.json(
       {

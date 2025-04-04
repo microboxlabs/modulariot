@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Label, Modal, Select, Textarea } from "flowbite-react";
+import { Button, Label, Modal, Textarea } from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
@@ -11,21 +11,16 @@ import {
 } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskNextAction } from "../../services/client-form.service";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
-import {
-  OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-  OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
-} from "../../services/form.service";
-import { useState } from "react";
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
   outcome,
   outcomeLabel,
   taskId,
-  taskType,
   dict,
   commentsFieldEnabled = false,
 }: PropsWithI18nDict<TaskConfirmModalProps>) {
@@ -33,16 +28,6 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
   const [comments, setComments] = useState("");
-  const [reason, setReason] = useState(
-    taskType === "wfship:sovosDigitalSignature" &&
-      outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-      ? "Problemas técnicos con el huellero"
-      : taskType === "wfship:missionControlTripInitTask" &&
-          outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-        ? "No tiene validación GPS"
-        : "",
-  );
-
   async function handleConfirm() {
     try {
       setIsProcessing(true);
@@ -50,8 +35,6 @@ export default function TaskConfirmModal({
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
       formData.append("comments", comments);
-      formData.append("reason", reason);
-      formData.append("reasonId", taskType ?? "");
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
@@ -87,81 +70,7 @@ export default function TaskConfirmModal({
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
-            {taskType === "wfship:sovosDigitalSignature" &&
-              outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL && (
-                <>
-                  <Label className="mt-4">
-                    {(dict.modal as I18nRecord).title2 as string}
-                  </Label>
-                  <Select
-                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
-                    <option value="FINGERPRINT_DEVICES_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason1 as string}
-                    </option>
-                    <option value="COMPUTER_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason2 as string}
-                    </option>
-                    <option value="DRIVER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason3 as string}
-                    </option>
-                    <option value="DISPATCHER_NOT_ENROLLED">
-                      {(dict.modal as I18nRecord).reason4 as string}
-                    </option>
-                    <option value="DISPATCHER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason5 as string}
-                    </option>
-                    <option value="AUTHORIZED_BY_TRANSPORT_OVERLORD">
-                      {(dict.modal as I18nRecord).reason6 as string}
-                    </option>
-                    <option value="OTHER">
-                      {(dict.modal as I18nRecord).reason7 as string}
-                    </option>
-                  </Select>
-                </>
-              )}
-            {taskType === "wfship:missionControlTripInitTask" &&
-              outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION && (
-                <>
-                  <Label className="mt-4">
-                    {(dict.modal as I18nRecord).title2 as string}
-                  </Label>
-                  <Select
-                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
-                    <option value="NO_GPS_VALIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason1 as string
-                      }
-                    </option>
-                    <option value="NO_DOCUMENT_CONSOLIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason2 as string
-                      }
-                    </option>
-                    <option value="NO_CLIENT_SYSTEM_VALIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason3 as string
-                      }
-                    </option>
-                    <option value="OTHER">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason4 as string
-                      }
-                    </option>
-                  </Select>
-                </>
-              )}
-
-            <div className="flex items-center justify-center mt-4">
+            <div className="flex items-center justify-center">
               {!commentsFieldEnabled && <KanbanMove />}
             </div>
             {commentsFieldEnabled && (

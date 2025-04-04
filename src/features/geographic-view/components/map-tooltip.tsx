@@ -19,7 +19,6 @@ export default function MapTooltip({
   isOpen = false,
   onExitAction,
 }: MapTooltipProps) {
-
   const [position, setPosition] = useState({
     left: initialLeft,
     top: initialTop,
@@ -95,14 +94,14 @@ export default function MapTooltip({
     <div
       className="absolute inset-0 z-10"
       onClick={handleBackdropClick}
-      style={{ pointerEvents: 'none' }}
+      style={{ pointerEvents: "none" }}
     >
       <div
         className="absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700"
-        style={{ 
-          left: position.left, 
+        style={{
+          left: position.left,
           top: position.top,
-          pointerEvents: 'auto'
+          pointerEvents: "auto",
         }}
       >
         <div className="flex items-center justify-between p-2 text-gray-800 dark:text-gray-100 gap-1">
@@ -114,7 +113,6 @@ export default function MapTooltip({
           </div>
           <div
             className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
-            
             onClick={() => {
               setHoverInfo(null);
               onExitAction?.();

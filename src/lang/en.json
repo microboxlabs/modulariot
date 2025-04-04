@@ -50,7 +50,7 @@
         "tripInitiated": "Trip Initiated",
         "tripNullified": "Trip Nullified",
         "tripCancelled": "Trip Cancelled",
-        "estimatedDeparture": "Estimated departure: ",
+        "estimatedDeparture": "ETA: ",
         "departure": "Departure: ",
         "arrival": "Arrival: "
       },
@@ -474,7 +474,7 @@
     "in_destination": "In destination",
     "document_preview": "Document preview",
     "minutes": "minutes",
-    "days": "days",    
+    "days": "days",
     "ago": "ago",
     "LLAMAR AL CONDUCTOR": "Call driver",
     "RISK ZONE STOP": "Risk zone stop",

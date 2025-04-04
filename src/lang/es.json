@@ -50,7 +50,7 @@
         "tripInitiated": "Viaje Iniciado",
         "tripNullified": "Viaje Anulado",
         "tripCancelled": "Viaje Cancelado",
-        "estimatedDeparture": "Salida estimada: ",
+        "estimatedDeparture": "ETA: ",
         "departure": "Salida: ",
         "arrival": "Llegada: "
       },

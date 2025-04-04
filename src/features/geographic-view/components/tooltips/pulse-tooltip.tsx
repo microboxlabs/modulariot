@@ -30,9 +30,11 @@ export default function PulseTooltip({
         {object?.asset_id}
       </div>
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
-      {object?.icu_code && object?.icu_code != 0 && pin_conditions[
-                  object?.icu_code as unknown as keyof typeof pin_conditions
-                ] != undefined ? (
+      {object?.icu_code &&
+      object?.icu_code != 0 &&
+      pin_conditions[
+        object?.icu_code as unknown as keyof typeof pin_conditions
+      ] != undefined ? (
         <div>
           <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
             <ConditionIcon
@@ -68,9 +70,7 @@ export default function PulseTooltip({
 
           <hr className="my-2 border-gray-200 dark:border-gray-700" />
         </div>
-      ) : (
-        null
-      )}
+      ) : null}
       <div className="text-sm text-gray-600 dark:text-gray-300">
         {(dict.geographic_view as I18nRecord).date_and_time as string}:{" "}
         {object?.timestamp ? new Date(object?.timestamp).toLocaleString() : ""}

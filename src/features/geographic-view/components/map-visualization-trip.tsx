@@ -319,14 +319,14 @@ export default function MapVisualizationTrip({
           zoom: viewState.zoom,
           updateTriggers: {
             data: positions,
-            selectedPulse: selectedPulse,
+            selectedPulse,
           },
           pickable: true,
           onClick: (info: PickingInfo<MapPositionProperties>) => {
             setHoverInfo(info);
             setSelectedPulse(info.object?.properties.id ?? null);
           },
-          selectedPulse: selectedPulse,
+          selectedPulse,
         }),
       );
     }

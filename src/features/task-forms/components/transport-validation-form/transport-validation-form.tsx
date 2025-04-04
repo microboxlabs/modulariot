@@ -17,6 +17,7 @@ const steps = ["step1", "step2", "step3"];
 
 export default function TransportValidationForm({
   task,
+  dict,
   lang,
   msg,
 }: TaskFormProps) {
@@ -39,7 +40,7 @@ export default function TransportValidationForm({
       )}
       {
         currentStep === "step2" && (
-          <DriverVerifiedCard lang={lang} msg={msg} task={task} />
+          <DriverVerifiedCard lang={lang} msg={msg} task={task} dict={dict} />
         )
         // this elements where taken off the Driver verified card (from step 2), because they where generating a error on the build
         // entityInfo={entityInfo}

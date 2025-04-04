@@ -60,6 +60,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
           }
+          dict={dictionary}
         />
       );
 

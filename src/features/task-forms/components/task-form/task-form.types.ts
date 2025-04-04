@@ -10,6 +10,7 @@ export type TaskFormProps = {
   msg?: I18nRecord;
   ticket?: string;
   user?: string;
+  dict?: I18nRecord;
 };
 
 export interface ExtendedTaskResponse

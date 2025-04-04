@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Card, Textarea, TextInput } from "flowbite-react";
+import { HiOutlineHand } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
 import { Driver } from "../driver-contact-info/driver-contact-info.type";
@@ -14,14 +15,29 @@ import { useRouter } from "next/navigation";
 import {
   ShippingCoordinatorProcessForms,
   TaskNextActionState,
+  TaskOutcome,
 } from "../../services/form.service.types";
 import { DriverVerifiedCardProps } from "./driver-verified-card.types";
 import TaskActions from "../task-actions/task-actions";
+import CanceledAnnulledAndOptions from "../task-actions/canceled-annulled-and-options";
+import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
+import {
+  OUTCOME_MONITORING_FINALIZATION,
+  OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+  OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+  OUTCOME_OVERLORD_REQUIRED,
+  OUTCOME_REDIRECT_TO_MISSION_CONTROL,
+  OUTCOME_CONFIRM_DELIVERY,
+  OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
+  OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
+  OUTCOME_NORMAL_INITIATION,
+} from "../../services/form.service";
 
 export default function DriverVerifiedCard({
   lang,
   task,
   msg,
+  dict,
   entityInfo,
   serviceValidation,
   enableActions = false,
@@ -30,8 +46,32 @@ export default function DriverVerifiedCard({
     taskNextAction,
     {},
   );
+  console.log(dict);
 
   const [isLoading, setIsLoading] = useState(false);
+
+  const [openModal, setOpenModal] = useState(false);
+  const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
+  const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
+
+  const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
+    setOutcome(outcome);
+    setOutcomeLabel(outcomeLabel);
+    setOpenModal(true);
+  };
+
+  const isCommentsFieldEnabled = (outcome: TaskOutcome) => {
+    return (
+      outcome !== OUTCOME_NORMAL_INITIATION &&
+      outcome !== OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION &&
+      outcome !== OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION &&
+      outcome !== OUTCOME_CONFIRM_DELIVERY &&
+      outcome !== OUTCOME_MONITORING_FINALIZATION &&
+      outcome !== OUTCOME_CONFIRM_MONITORING_FINALIZATION &&
+      outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
+      outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS
+    );
+  };
 
   const router = useRouter();
 
@@ -117,15 +157,42 @@ export default function DriverVerifiedCard({
             disabled={true}
           />
           {!enableActions && (
-            <Button
-              color="blue"
-              type="submit"
-              theme={{ inner: { base: "px-5 py-3" } }}
-              isProcessing={isLoading}
-              className="w-full px-0 py-px"
-            >
-              {(msg!.buttons as I18nRecord).submit as string}
-            </Button>
+            <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+              <Button.Group className="w-full">
+                <CanceledAnnulledAndOptions
+                  dict={dict ?? {}}
+                  handleSelection={handleSelection}
+                  otherOptions={[
+                    {
+                      id: OUTCOME_OVERLORD_REQUIRED,
+                      label:
+                        ((dict?.outcome as I18nRecord)
+                          ?.requiresOverlord as string) ?? "",
+                      icon: HiOutlineHand,
+                    },
+                  ]}
+                />
+                <Button
+                  color="blue"
+                  type="submit"
+                  theme={{ inner: { base: "px-5 py-3" } }}
+                  isProcessing={isLoading}
+                  className="w-full px-0 py-px"
+                >
+                  {(msg!.buttons as I18nRecord).submit as string}
+                </Button>
+              </Button.Group>
+
+              <TaskConfirmModal
+                commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+                dict={dict ?? {}}
+                taskId={task.id}
+                outcome={outcome!}
+                outcomeLabel={outcomeLabel!}
+                openModal={openModal}
+                setOpenModal={setOpenModal}
+              />
+            </div>
           )}
           {enableActions && (
             <TaskActions
@@ -140,4 +207,8 @@ export default function DriverVerifiedCard({
       </form>
     </Card>
   );
+}
+
+{
+  /*  */
 }

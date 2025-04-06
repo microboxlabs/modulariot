@@ -36,10 +36,10 @@ export default function TaskConfirmModal({
   const [reason, setReason] = useState(
     taskType === "wfship:sovosDigitalSignature" &&
       outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-      ? "Problemas técnicos con el huellero"
+      ? "FINGERPRINT_DEVICES_TECH_ISSUES"
       : taskType === "wfship:missionControlTripInitTask" &&
           outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-        ? "No tiene validación GPS"
+        ? "NO_GPS_VALIDATION"
         : "",
   );
 

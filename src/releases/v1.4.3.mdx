@@ -1,0 +1,79 @@
+# Release Notes v1.4.3 – BUG FIXES
+
+### Fecha de lanzamiento: 2025-04-06
+
+## 1. Corrección de errores en la duplicidad de los síntomas.
+- Se corrigió el error de la duplicidad de los síntomas en la tabla de síntomas.
+
+---
+
+# Release Notes v1.4.2 – ModularIoT
+
+### Fecha de lanzamiento: 2025-04-04
+
+## 1. Parametrización del Grupo de usuario en la confirmación de entregas.
+- Se agrega regla de negocio para asignar dinámicamente el grupo de usuario en la confirmación de entregas:
+   - Si el tipo de viaje es Troncal, entonces la tarea queda asignada al grupo `GROUP_MINTRAL_RECEPTOR_VIAJES`.
+
+---
+
+# Release Notes v1.4.1 – ModularIoT
+
+### Fecha de lanzamiento: 2025-04-02
+
+## 1. Correcciones de Errores
+
+- Se corrigió el error de envio de documento firmado y se espera por la respuesta del servidor.
+
+---
+
+# Release Notes v1.4.0 – ModularIoT
+
+### Fecha de lanzamiento: 2025-04-01
+
+## 1. Correcciones Visuales en Componentes Existentes
+
+- Actualización del orden y jerarquía visual de los botones en la vista de detalles de síntomas.
+
+- Corrección de fechas en los badges de salida y llegada: ahora se muestra la fecha de salida
+  en color purple en la card y la de llegada en color orange en la tabla.
+
+## 2. Exportación de Datos desde la Vista Geográfica
+
+- Se completó la integración del botón de exportar a Excel.
+
+- Se agregó la funcionalidad para exportar datos en formato CSV.
+
+- Los archivos exportados incluyen links clicables en el mapa y etiquetas localizadas.
+
+## 3. Mejoras en el timeline y mapas
+
+- Rediseño del timeline en la vista de viaje individual para mejorar la organización del
+  espacio y claridad informativa.
+
+- Se incorporó el historial de condiciones con hora exacta y estado correspondiente.
+
+- Se incorpora al responsable de los tratamientos en el timeline.
+
+- Las rutas ahora se colorean dinámicamente al hacer click en el estado de la condición del
+  viajera que el mapa y el timeline se encuentran sincronizado entre si.
+
+## 4. Indicadores Visuales en el Mapa
+
+- Se integró un nuevo ícono de pin que representa la pérdida de conexión en el mapa.
+
+- Se implementaron pines de clasificación de velocidad: normal, exceso grave y exceso
+  gravísimo.
+
+## 5. Estado Vacío para Tabla de Condiciones
+
+- Se diseñó y desarrolló un nuevo estado vacío para la tabla de condiciones.
+
+- El mensaje de estado vacío se adapta visualmente a la interfaz general de la plataforma.
+
+## 6. Notificaciones vía Teams desde Formulario de Tratamiento
+
+- Se habilito la funcionalidad de notificación por Teams cuando se marca la opción en los
+  formularios al finalizar el tratamiento.
+
+- Los mensajes son predeterminados y varían según el tipo de tratamiento (llamada al conductor, derivación a especialista, etc.)

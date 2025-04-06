@@ -210,6 +210,7 @@ export default function GeneralMap({
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
+            dict={dict}
           />
         </div>
       </div>

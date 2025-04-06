@@ -583,7 +583,9 @@
     "trip": "Viaje",
     "over_limit": " por encima del límite",
     "signal_status": "Estado de señal",
-    "lost_signal": "Señal perdida"
+    "lost_signal": "Señal perdida",
+    "latitude": "Latitud",
+    "longitude": "Longitud"
   },
   "release": {
     "other_versions": "Otras versiones"

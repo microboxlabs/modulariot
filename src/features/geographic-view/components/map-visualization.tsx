@@ -15,7 +15,7 @@ import {
 import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import MapTooltip from "./map-tooltip";
-
+import PinTooltip from "./tooltips/pin-tooltip";
 const mapboxStyles = {
   "streets-v9": "mapbox://styles/mapbox/streets-v9",
   "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
@@ -85,7 +85,7 @@ function zoom_on_pin(
       ...viewState,
       longitude,
       latitude,
-      zoom: object.properties.cluster ? viewState.zoom + 2.0 : 15.0,
+      zoom: object.properties.cluster ? viewState.zoom + 5.0 : 20.0,
       transitionDuration: 1000,
       transitionInterpolator: new FlyToInterpolator(),
     });
@@ -130,13 +130,21 @@ export default function MapVisualization({
     new PinLayer({
       data: positions || [],
       zoom: viewState.zoom,
-      onClick: ({ object }: { object: any }) => {
+      onClick: ({ object, viewport }: { object: any; viewport: any }) => {
+        // Only show tooltip for non-clustered pins
+        if (!object.properties.cluster) {
+          setHoverInfo({
+            object,
+            x: viewport.width / 2, // Center horizontally
+            y: viewport.height / 2, // Center vertically + offset down by 100px
+          } as PickingInfo<MapPositionProperties>);
+        }
         zoom_on_pin(object, setViewState, viewState);
       },
       updateTriggers: {
         data: positions,
       },
-      onHover: (info: PickingInfo<MapPositionProperties>) => setHoverInfo(info),
+      pickable: true,
     }),
   ];
 
@@ -147,20 +155,18 @@ export default function MapVisualization({
         controller={true}
         layers={layers}
         onViewStateChange={(e: any) => setViewState(e.viewState)}
+        getCursor={({ isDragging, isHovering }) => {
+          if (isDragging) return "grabbing";
+          if (isHovering) return "pointer";
+          return "grab";
+        }}
       >
-        {hoverInfo && (
-          <MapTooltip
-            object={hoverInfo.object}
-            dict={dict}
-            left={hoverInfo.x}
-            top={hoverInfo.y}
-          />
-        )}
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles["satellite-streets-v11"]}
           preserveDrawingBuffer={true}
         />
+
         <Filters
           dict={dict}
           originalPositions={originalPositions}
@@ -176,6 +182,15 @@ export default function MapVisualization({
           )}
         </div>
       </DeckGL>
+      {hoverInfo && (
+        <MapTooltip
+          left={hoverInfo.x}
+          top={hoverInfo.y}
+          setHoverInfo={setHoverInfo}
+        >
+          <PinTooltip object={hoverInfo.object} dict={dict} />
+        </MapTooltip>
+      )}
     </div>
   );
 }

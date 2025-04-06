@@ -1,129 +1,127 @@
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { MapPositionProperties, Symptom } from "../types/map";
-import ConditionIcon from "../../symptoms/components/condition-icon";
-import { pin_conditions } from "../types/pin_conditions";
+import { IoClose } from "react-icons/io5";
+import React, { useState, MouseEvent, useEffect } from "react";
+import { MdDragHandle } from "react-icons/md";
 
 type MapTooltipProps = {
-  dict: I18nRecord;
-  object: MapPositionProperties | undefined;
   left: number;
   top: number;
+  children: React.ReactNode;
+  setHoverInfo: (hoverInfo: any) => void;
+  isOpen?: boolean;
+  onExitAction?: () => void;
 };
 
 export default function MapTooltip({
-  dict,
-  object,
-  left,
-  top,
+  left: initialLeft,
+  top: initialTop,
+  children,
+  setHoverInfo,
+  isOpen = false,
+  onExitAction,
 }: MapTooltipProps) {
-  if (!object) {
+  const [position, setPosition] = useState({
+    left: initialLeft,
+    top: initialTop,
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  const handleMouseDown = (e: MouseEvent) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - position.left,
+      y: e.clientY - position.top,
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      const newPosition = {
+        left: e.clientX - dragOffset.x,
+        top: e.clientY - dragOffset.y,
+      };
+      setPosition(newPosition);
+
+      setHoverInfo((prev: any) => ({
+        ...prev,
+        x: newPosition.left,
+        y: newPosition.top,
+      }));
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove as any);
+      window.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove as any);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (isDragging && !wasOpen) {
+      setPosition({
+        left: initialLeft,
+        top: initialTop,
+      });
+      setWasOpen(true);
+    }
+  }, [initialLeft, initialTop, isDragging]);
+
+  if (!children) {
     return null;
   }
 
-  if (object.properties.cluster) {
-    return null;
-  }
+  const handleBackdropClick = (e: MouseEvent) => {
+    // Only close if clicking outside the tooltip
+    if (e.target === e.currentTarget) {
+      setHoverInfo(null);
+      onExitAction?.();
+    }
+  };
 
   return (
     <div
-      className="absolute z-10 bg-transparent border-none m-0 p-0"
-      style={{ left, top }}
+      className="absolute inset-0 z-10"
+      onClick={handleBackdropClick}
+      style={{ pointerEvents: "none" }}
     >
-      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-        <div className="text-sm font-medium text-gray-900 dark:text-white">
-          {(dict.symptoms as I18nRecord).license_plate as string}:{" "}
-          {object?.properties.asset_id}
-        </div>
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          {(dict.geographic_view as I18nRecord).trip as string}:{" "}
-          {object?.properties.trip_id}
-        </div>
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          {(dict.geographic_view as I18nRecord).date_and_time as string}:{" "}
-          {object?.properties.timestamp
-            ? new Date(object?.properties.timestamp).toLocaleString()
-            : ""}
-        </div>
-        <hr className="my-2 border-gray-200 dark:border-gray-700" />
-        {object?.properties.lost_signal && (
-          <div>
-            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg font-light text-sm">
-              <span className="text-gray-600 dark:text-gray-300 font-normal">
-                {(dict.geographic_view as I18nRecord).signal_status as string}:
-              </span>{" "}
-              <span className="font-light text-red-500 dark:text-red-400">
-                {(dict.geographic_view as I18nRecord).lost_signal as string}
-              </span>
-            </div>
-            <hr className="my-2 border-gray-200 dark:border-gray-700" />
-          </div>
-        )}
-
-        {/* Conditions and symptoms */}
-        {object?.properties.symptoms_condition && (
-          <div>
-            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
-              <ConditionIcon
-                condition={
-                  pin_conditions[
-                    object?.properties
-                      .symptoms_condition as unknown as keyof typeof pin_conditions
-                  ].icon
-                }
-                dict={dict}
-                size="w-6 h-6"
-              />
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {
-                  (dict.symptoms as I18nRecord)[
-                    pin_conditions[
-                      object?.properties
-                        .symptoms_condition as unknown as keyof typeof pin_conditions
-                    ].label as string
-                  ] as string
-                }
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1 text-red-500 dark:text-red-400">
-              {object?.properties.associate_symptoms.map((symptom: Symptom) => (
-                <div key={symptom.symptom_id} className="text-sm indent-2">
-                  {symptom.symptom_name}
-                </div>
-              ))}
-            </div>
-            <hr className="my-2 border-gray-200 dark:border-gray-700" />
-          </div>
-        )}
-        {/* Speed */}
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          {(dict.geographic_view as I18nRecord).speed as string}:{" "}
-          <span
-            className={`font-bold ${object?.properties.speed_limit && object?.properties.speed > object?.properties.speed_limit ? "text-red-500 dark:text-red-400" : "text-green-500 dark:text-green-400"}`}
-          >
-            {object?.properties.speed} <span className="font-light">km/h</span>
-          </span>
-          {object?.properties.speed_limit &&
-          object?.properties.speed > object?.properties.speed_limit ? (
-            <span className="text-red-500 dark:text-red-400">
-              {" - "}
-              {object?.properties.speed -
-                object?.properties.speed_limit}km/h{" "}
-              {(dict.geographic_view as I18nRecord).over_limit as string}
-            </span>
-          ) : (
-            ""
-          )}
-        </div>
-        {object?.properties.speed_limit && (
+      <div
+        className="absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700"
+        style={{
+          left: position.left,
+          top: position.top,
+          pointerEvents: "auto",
+        }}
+      >
+        <div className="flex items-center justify-between p-2 text-gray-800 dark:text-gray-100 gap-1">
           <div
-            className={`text-sm text-gray-600 dark:text-gray-300 ${object?.properties.speed_limit ? "block" : "hidden"}`}
+            className="cursor-move flex items-center justify-center flex-grow hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+            onMouseDown={handleMouseDown}
           >
-            {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
-            <span className="text-green-500 dark:text-green-400">
-              {object?.properties.speed_limit}Km/h
-            </span>
+            <MdDragHandle size={20} />
           </div>
-        )}
+          <div
+            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+            onClick={() => {
+              setHoverInfo(null);
+              onExitAction?.();
+            }}
+          >
+            <IoClose size={20} />
+          </div>
+        </div>
+        {children}
       </div>
     </div>
   );

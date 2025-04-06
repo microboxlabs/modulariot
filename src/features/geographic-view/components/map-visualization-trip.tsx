@@ -7,13 +7,16 @@ import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { MapPosition } from "../types/map";
+import { MapPosition, MapPositionProperties } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
 import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
+import MapTooltip from "./map-tooltip";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import PulseTooltip, { PulseType } from "./tooltips/pulse-tooltip";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -115,6 +118,7 @@ type MapVisualizationProps = {
     longitude: number;
   };
   filteredLocationData: TreatmentsLocationResponseItemFeature[] | null;
+  dict: I18nRecord;
 };
 
 type GeometryFeature = {
@@ -171,11 +175,15 @@ export default function MapVisualizationTrip({
   error,
   averagePosition,
   filteredLocationData,
+  dict,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+  const [hoverInfo, setHoverInfo] =
+    useState<PickingInfo<MapPositionProperties>>();
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
+  const [selectedPulse, setSelectedPulse] = useState<string | null>(null);
 
   const handleViewStateChange = useCallback((e: any) => {
     if (e.viewState) {
@@ -205,22 +213,25 @@ export default function MapVisualizationTrip({
     () => ({
       type: "FeatureCollection",
       features:
-        positions?.map((item: MapPosition) => ({
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [item?.longitude, item?.latitude],
-          },
-          properties: {
-            color: stateToColor[item.status as keyof typeof stateToColor] || [
-              0, 0, 0,
-            ],
-            rotation: item.heading * (180 / Math.PI),
-            licensePlate: item.asset_id,
-            driver: item.driver_id,
-            trip: item.trip_id,
-          },
-        })) || [],
+        positions?.map((item: MapPosition, index: number) => {
+          return {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [item?.longitude, item?.latitude],
+            },
+            properties: {
+              id: index,
+              icu_code: 0,
+              asset_id: item.assetid,
+              rotation: item.heading * (180 / Math.PI),
+              latitude: item.latitude,
+              longitude: item.longitude,
+              speed: item.speed,
+              timestamp: item.timestamp,
+            },
+          };
+        }) || [],
     }),
     [positions],
   );
@@ -308,7 +319,14 @@ export default function MapVisualizationTrip({
           zoom: viewState.zoom,
           updateTriggers: {
             data: positions,
+            selectedPulse,
           },
+          pickable: true,
+          onClick: (info: PickingInfo<MapPositionProperties>) => {
+            setHoverInfo(info);
+            setSelectedPulse(info.object?.properties.id ?? null);
+          },
+          selectedPulse,
         }),
       );
     }
@@ -375,6 +393,7 @@ export default function MapVisualizationTrip({
     rotation,
     viewState.zoom,
     filteredLocationData,
+    selectedPulse,
   ]);
 
   // Memoize the tooltip function
@@ -437,7 +456,19 @@ export default function MapVisualizationTrip({
           mapStyle={mapboxStyles["satellite-streets-v11"]}
         />
       </DeckGL>
-
+      {hoverInfo && (
+        <MapTooltip
+          left={hoverInfo.x}
+          top={hoverInfo.y}
+          setHoverInfo={setHoverInfo}
+          onExitAction={() => setSelectedPulse(null)}
+        >
+          <PulseTooltip
+            object={hoverInfo.object?.properties as unknown as PulseType}
+            dict={dict}
+          />
+        </MapTooltip>
+      )}
       <div className="absolute right-5 top-5 bottom-0">
         {/*
         <MapButton

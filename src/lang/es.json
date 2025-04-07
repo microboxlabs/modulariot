@@ -149,7 +149,9 @@
         "ultimo_last_timestamp": "Fecha y hora del último evento",
         "avg_signals_per_minute_det": "Cantidad de señales por minuto en detenciones",
         "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
-        "write_here_your_observations": "Escribe aquí tus observaciones"
+        "write_here_your_observations": "Escribe aquí tus observaciones",
+        "tripManifestParams": "Generación de la Carta de Porte",
+        "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador"
       },
       "outcome": {
         "moreOptions": "Más opciones",

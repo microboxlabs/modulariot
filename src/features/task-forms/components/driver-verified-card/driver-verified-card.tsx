@@ -19,6 +19,7 @@ import {
 } from "../../services/form.service.types";
 import { DriverVerifiedCardProps } from "./driver-verified-card.types";
 import TaskActions from "../task-actions/task-actions";
+import { TripManifestParams } from "../trip-manifest-params/trip-manifest-params";
 import CanceledAnnulledAndOptions from "../task-actions/canceled-annulled-and-options";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -31,6 +32,7 @@ import {
   OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_NORMAL_INITIATION,
+  TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK,
 } from "../../services/form.service";
 
 export default function DriverVerifiedCard({
@@ -51,11 +53,23 @@ export default function DriverVerifiedCard({
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
+  const [nativeGenerationEnabled, onNativeGenerationChange] = useState(
+    task.mintral_nativeGenerationEnabled as boolean,
+  );
 
   const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
     setOpenModal(true);
+  };
+
+  const buildExtraData = () => {
+    if (task.taskFormKey === TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK) {
+      return {
+        nativeGenerationEnabled,
+      };
+    }
+    return {};
   };
 
   const isCommentsFieldEnabled = (outcome: TaskOutcome) => {
@@ -134,12 +148,23 @@ export default function DriverVerifiedCard({
         entityInfo={entityInfo}
         serviceValidation={serviceValidation}
       />
+      <form action={formActionWrapper} className="flex flex-col gap-2">
+        <TripManifestParams
+          msg={msg}
+          task={task}
+          lang={lang}
+          entityInfo={entityInfo}
+          serviceValidation={serviceValidation}
+          nativeGenerationEnabled={nativeGenerationEnabled}
+          onNativeGenerationChange={onNativeGenerationChange}
+        />
 
-      <div className="h-px bg-gray-300 w-full"></div>
-      <form action={formActionWrapper}>
+        <div className="h-px bg-gray-300 w-full mt-4"></div>
+
         <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
           {(msg!.cards as I18nRecord).comments as string}
         </h5>
+
         <div className="flex flex-col gap-6">
           <TextInput
             id="taskId"
@@ -152,7 +177,6 @@ export default function DriverVerifiedCard({
               (msg!.cards as I18nRecord).write_here_your_observations as string
             }
             defaultValue={task.mintral_driverObservations as string}
-            disabled={true}
           />
           {!enableActions && (
             <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
@@ -199,6 +223,7 @@ export default function DriverVerifiedCard({
               lang={lang}
               dict={msg!}
               fluid={true}
+              extraData={buildExtraData()}
             />
           )}
         </div>

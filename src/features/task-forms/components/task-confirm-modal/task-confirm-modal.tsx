@@ -28,6 +28,7 @@ export default function TaskConfirmModal({
   taskType,
   dict,
   commentsFieldEnabled = false,
+  extraData,
 }: PropsWithI18nDict<TaskConfirmModalProps>) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
@@ -52,6 +53,11 @@ export default function TaskConfirmModal({
       formData.append("comments", comments);
       formData.append("reason", reason);
       formData.append("reasonId", taskType ?? "");
+      if (extraData) {
+        Object.entries(extraData).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+      }
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);

@@ -71,7 +71,9 @@ export default function KanbanCard({
               <DownloadSignedDocument documentId={task.hoReference} />
             )}
           </div>
-          <div className={`flex items-center justify-start ${task.members.length <= 0 ? "hidden" : ""}`}>
+          <div
+            className={`flex items-center justify-start ${task.members.length <= 0 ? "hidden" : ""}`}
+          >
             {task.members.map((member) => (
               <Fragment key={member.id}>
                 <Link href="#" className="-mr-3">

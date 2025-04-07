@@ -22,7 +22,7 @@ export default function KanbanCard({
   return (
     <div
       key={task.id}
-      className="mb-4 w-64 rounded-lg bg-white p-5 shadow dark:bg-gray-800 hover:shadow-lg"
+      className="mb-4 w-full rounded-lg bg-white p-5 shadow dark:bg-gray-800 hover:shadow-lg"
     >
       <div className="flex items-center justify-between pb-4 cursor-pointer">
         <Link href={`/task/edit/${task.id}`}>
@@ -65,13 +65,13 @@ export default function KanbanCard({
           {tr("card.executionType", dict)}:{" "}
           <strong>{executionType || "-"}</strong>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-1">
           <div className="flex justify-start">
             {task.hoReference && (
               <DownloadSignedDocument documentId={task.hoReference} />
             )}
           </div>
-          <div className="flex items-center justify-start">
+          <div className={`flex items-center justify-start ${task.members.length <= 0 ? "hidden" : ""}`}>
             {task.members.map((member) => (
               <Fragment key={member.id}>
                 <Link href="#" className="-mr-3">

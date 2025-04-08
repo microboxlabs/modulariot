@@ -104,9 +104,8 @@ export async function NextCancelTripView({
 
               <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
                 {
-                  (task.mintral_comments &&
-                  (task.mintral_comments as Array<string>)?.length > 0
-                    ? (task.mintral_comments as Array<string>).join("\n")
+                  (task.mintral_comments
+                    ? task.mintral_comments
                     : task.mintral_driverObservations
                       ? task.mintral_driverObservations
                       : task.bpm_comment

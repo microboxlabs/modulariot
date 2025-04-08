@@ -51,6 +51,7 @@ export default function DepartureDateShip({
   dict,
   date,
   table_name,
+  compact,
 }: DepartureDateShipProps) {
   // const humanizeDate = humanizeFrom(date);
 
@@ -70,11 +71,15 @@ export default function DepartureDateShip({
       ) : (
         <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />
       )}
-      <p className="whitespace-nowrap">
-        {board?.state === "pending" || board?.state === "started"
-          ? (dict.kanban as I18nRecord).departure + " " + fixed_date
-          : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
-      </p>
+      {!compact ? (
+        <p className="whitespace-nowrap">
+          {board?.state === "pending" || board?.state === "started"
+            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+        </p>
+      ) : (
+        <></>
+      )}
     </div>
   );
 }

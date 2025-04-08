@@ -38,7 +38,7 @@ export default function PulseTooltip({
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
         <div className="text-sm text-gray-600 dark:text-gray-300">
           <span className="font-light">
-            {(dict.geographic_view as I18nRecord).pulses_selected as string}:{" "}
+            {(dict.symptoms as I18nRecord).pulses_selected as string}:{" "}
             {object.elements.length}
           </span>
         </div>

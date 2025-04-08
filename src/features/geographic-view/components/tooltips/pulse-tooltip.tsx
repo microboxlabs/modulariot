@@ -47,8 +47,6 @@ export default function PulseTooltip({
     );
   }
 
-  console.log(object);
-
   if ("asset_id" in object.properties) {
     return (
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">

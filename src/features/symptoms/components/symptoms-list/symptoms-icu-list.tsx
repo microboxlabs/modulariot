@@ -11,6 +11,7 @@ import noAlarmImage from "@assets/images/no_alarm.gif";
 import maskImage from "@assets/images/mask.gif";
 import patchImage from "@assets/images/patch.gif";
 import hospitalImage from "@assets/images/hospital.svg";
+import EmptyTable from "../empty-table";
 
 interface SymptomsIcuListProps {
   condition: string;
@@ -76,11 +77,7 @@ export default function SymptomsIcuList({
   }
 
   if (icuData.length === 0) {
-    return (
-      <div className="text-center my-8 text-gray-500">
-        No ICU data available for this condition
-      </div>
-    );
+    return <EmptyTable dict={dict} />;
   }
 
   // Group data by date (extracting date from start_time)
@@ -166,9 +163,8 @@ export default function SymptomsIcuList({
           </div>
         </>
       ) : (
-        <div className="text-center my-8 text-gray-500">
-          {/* @TODO: Add a message to the user in i18n */}
-          No ICU data available for this condition
+        <div className="flex justify-center items-center h-full w-full relative">
+          <EmptyTable dict={dict} />
         </div>
       )}
     </>

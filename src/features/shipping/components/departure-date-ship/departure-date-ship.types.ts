@@ -4,4 +4,5 @@ export type DepartureDateShipProps = {
   dict: I18nRecord;
   date: string;
   table_name: string;
+  compact?: boolean;
 };

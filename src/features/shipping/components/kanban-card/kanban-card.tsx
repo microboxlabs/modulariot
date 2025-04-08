@@ -35,7 +35,7 @@ export default function KanbanCard({
     <div
       key={task.id}
       className={`mb-4 w-64 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
-        compactKanbanView ? "p-3" : "p-5"
+        compactKanbanView ? "p-3" : "p-5 w-full"
       }`}
     >
       <div className="flex items-center justify-between pb-4 cursor-pointer">
@@ -75,6 +75,7 @@ export default function KanbanCard({
             <Image alt="" fill src={task.attachment} className="rounded-lg" />
           </div>
         )}
+
         <div
           className={`text-sm font-normal text-gray-700 dark:text-gray-400 flex ${
             !compactKanbanView ? "pb-4" : ""

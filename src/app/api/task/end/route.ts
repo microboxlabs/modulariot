@@ -5,7 +5,7 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { NextRequest, NextResponse } from "next/server";
-import { EndTaskRequest } from "./route.types";
+import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,35 +19,39 @@ export async function POST(request: NextRequest) {
     const taskId = json.taskId;
     const transitionId = json.transitionId;
     const comments = json.comments;
+    const nativeGenerationEnabled = json.nativeGenerationEnabled;
     const reason = json.reason;
     const reasonId = json.reasonId;
 
+    let updateTaskPayload: UpdateTaskRequest = {};
     if (comments) {
       try {
-        await updateTask(session.user.ticket, "activiti$" + taskId, {
+        updateTaskPayload = {
           prop_bpm_comment: comments,
-        });
+        };
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error
       }
+    }
+    if (nativeGenerationEnabled) {
+      updateTaskPayload.prop_mintral_shouldBuildManifest =
+        nativeGenerationEnabled.toLowerCase() === "true" ? "true" : "false";
     }
     if (reason && reasonId) {
-      try {
-        const propName =
-          reasonId == "wfship:sovosDigitalSignature"
-            ? "prop_wfship_sovosDigitalSignatureOutputReasonType"
-            : reasonId == "wfship:missionControlTripInitTask"
-              ? "prop_wfship_transportValidationOutputReasonType"
-              : "";
-        if (propName) {
-          await updateTask(session.user.ticket, "activiti$" + taskId, {
-            [propName]: reason,
-          });
-        }
-      } catch (error) {
-        // ignore for now, TODO: we need to do something if we got an error
+      if (reasonId === "wfship:sovosDigitalSignature") {
+        updateTaskPayload.prop_wfship_sovosDigitalSignatureOutputReasonType =
+          reason;
+      } else if (reasonId === "wfship:missionControlTripInitTask") {
+        updateTaskPayload.prop_wfship_transportValidationOutputReasonType =
+          reason;
       }
     }
+    console.log("updateTaskPayload", updateTaskPayload);
+    await updateTask(
+      session.user.ticket,
+      "activiti$" + taskId,
+      updateTaskPayload,
+    );
 
     const response = await endTask(session.user.ticket, taskId, transitionId);
     return NextResponse.json({

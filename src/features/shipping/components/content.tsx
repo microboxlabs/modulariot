@@ -49,6 +49,7 @@ import { useViewPreference } from "../hooks/use-view-preference";
 import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
+import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
 
 export default function PageContent({
   showFinishedTasks,
@@ -62,6 +63,7 @@ export default function PageContent({
   const searchParams = useSearchParams();
 
   const [page, setPage] = useState(1);
+  const [compactKanbanView, setCompactKanbanView] = useState(false);
   const pageSize = 100;
 
   configureLocale(lang);
@@ -131,11 +133,17 @@ export default function PageContent({
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dict}
           />
-          <ViewSwitcher
-            activeView={activeView}
-            onViewChange={handleViewChange}
-            dict={dict}
-          />
+          <div className="flex items-center gap-2">
+            <ViewSwitcher
+              activeView={activeView}
+              onViewChange={handleViewChange}
+              dict={dict}
+            />
+            <CompactKanbanViewSwitcher
+              activeView={compactKanbanView}
+              onViewChange={setCompactKanbanView}
+            />
+          </div>
         </div>
       </div>
       <div className="h-screen w-full overflow-auto">
@@ -183,6 +191,7 @@ export default function PageContent({
                           task={task}
                           dict={dict}
                           table_name={board.title}
+                          compactKanbanView={compactKanbanView}
                         />
                       ))}
                     </ReactSortable>

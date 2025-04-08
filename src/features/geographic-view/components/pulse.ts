@@ -13,7 +13,7 @@ function getColor(
 ): [number, number, number, number] {
   switch (icu_code) {
     case 0:
-      return [150, 150, 150, opacity];
+      return [28, 100, 242, opacity];
     case 1:
       return [254, 205, 211, opacity];
     case 2:

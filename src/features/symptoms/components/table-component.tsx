@@ -92,14 +92,22 @@ export default function SymptomsTable({
                     alt="Orbitation"
                     width={50}
                     height={50}
-                    className="dark:invert"
+                    quality={100}
                   />
                 </div>
               </div>
             </div>
           </div>
           <div className="h-10 w-10 absolute orbiting-icon flex justify-center items-center orbit-1 rounded-full">
-            <Image src={black_code} alt="Orbitation" width={50} height={50} />
+            <Image
+              src={black_code}
+              alt="Orbitation"
+              width={50}
+              height={50}
+              unoptimized
+              quality={100}
+              className="dark:invert"
+            />
           </div>
           <div className="h-10 w-10 absolute orbiting-icon flex justify-center items-center orbit-2 rounded-full">
             <Image
@@ -107,6 +115,8 @@ export default function SymptomsTable({
               alt="Orbitation"
               width={50}
               height={50}
+              unoptimized
+              quality={100}
               className="dark:invert"
             />
           </div>
@@ -116,6 +126,8 @@ export default function SymptomsTable({
               alt="Orbitation"
               width={50}
               height={50}
+              unoptimized
+              quality={100}
               className="dark:invert"
             />
           </div>
@@ -125,6 +137,8 @@ export default function SymptomsTable({
               alt="Orbitation"
               width={50}
               height={50}
+              unoptimized
+              quality={100}
               className="dark:invert"
             />
           </div>
@@ -134,11 +148,20 @@ export default function SymptomsTable({
               alt="Orbitation"
               width={50}
               height={50}
+              unoptimized
+              quality={100}
               className="dark:invert"
             />
           </div>
           <div className="h-10 w-10 absolute orbiting-icon flex justify-center items-center orbit-6 rounded-full">
-            <Image src={stable_code} alt="Orbitation" width={50} height={50} />
+            <Image
+              src={stable_code}
+              alt="Orbitation"
+              width={50}
+              height={50}
+              quality={100}
+              className="dark:invert"
+            />
           </div>
         </div>
         <p className="text-lg text-gray-500 mt-10">

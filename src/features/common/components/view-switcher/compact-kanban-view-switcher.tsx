@@ -1,27 +1,26 @@
 import { ToggleSwitch } from "flowbite-react";
-import Image from "next/image";
+import KanbanViewSwitcherIcon from "../../../svg_components/kanban_view_switcher_icon";
+import KanbanViewSwitcherIconCompressed from "../../../svg_components/kanban_view_switcher_icon_compressed";
+
 interface CompactKanbanViewSwitcherProps {
   activeView: boolean;
   onViewChange: (view: boolean) => void;
+  kanbanView: boolean;
 }
 
 export function CompactKanbanViewSwitcher({
   activeView,
   onViewChange,
+  kanbanView,
 }: CompactKanbanViewSwitcherProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={`${kanbanView ? "flex" : "hidden"} gap-2`}>
       <span className="text-sm font-medium">
-        <Image
-          src={
-            activeView
-              ? "/app/icons/kanban/IconkanbanCom.png"
-              : "/app/icons/kanban/IconkanbanExp.png"
-          }
-          alt="Kanban"
-          width={20}
-          height={20}
-        />
+        {activeView ? (
+          <KanbanViewSwitcherIconCompressed />
+        ) : (
+          <KanbanViewSwitcherIcon />
+        )}
       </span>
       <ToggleSwitch
         checked={activeView}

@@ -7,7 +7,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import { PulsePinLayer } from "./pulse";
 import Map from "react-map-gl";
-import { MapPosition, MapPositionProperties } from "../types/map";
+import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
@@ -16,7 +16,10 @@ import { GeofencePinLayer } from "./geofence_pin";
 import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
 import MapTooltip from "./map-tooltip";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import PulseTooltip, { PulseType } from "./tooltips/pulse-tooltip";
+import PulseTooltip, {
+  PulseListType,
+  PulseType,
+} from "./tooltips/pulse-tooltip";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -81,32 +84,6 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   width: 100,
   height: 100,
 };
-
-const stateToColor = {
-  "code black": [0, 0, 0], // Black
-  critical: [244, 63, 94], // Red
-  treatment: [245, 158, 11], // Yellow
-  stable: [37, 99, 235], // Blue
-  compromised: [190, 18, 60], // Rose 100
-  observation: [190, 18, 60], // Rose 100
-  remission: [13, 148, 136], // Green
-  none: [180, 180, 180], // Gray for null state
-};
-
-// Convert the data to GeoJSON
-/* const geoJson = {
-  type: "FeatureCollection",
-  features: pulsar_position_test.map((item) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: item.geometry.coordinates,
-    },
-    properties: {
-      color: stateToColor[item.state as keyof typeof stateToColor] || [0, 0, 0], // Default to black if state is unknown
-    },
-  })),
-}; */
 
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
@@ -180,10 +157,10 @@ export default function MapVisualizationTrip({
   const [rotation, _] = useState(0);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [hoverInfo, setHoverInfo] =
-    useState<PickingInfo<MapPositionProperties>>();
+    useState<PickingInfo<PulseProps | PulseListType>>();
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
-  const [selectedPulse, setSelectedPulse] = useState<string | null>(null);
+  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
 
   const handleViewStateChange = useCallback((e: any) => {
     if (e.viewState) {
@@ -236,31 +213,33 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  const geoFilteredJson = useMemo(
-    () => ({
-      type: "FeatureCollection",
-      features:
-        filteredLocationData?.map(
-          (item: TreatmentsLocationResponseItemFeature) => ({
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [item?.longitude, item?.latitude],
-            },
-            properties: {
-              color: stateToColor[item.status as keyof typeof stateToColor] || [
-                244, 63, 94,
-              ],
-              //rotation: item.heading * (180 / Math.PI),
-              //licensePlate: item.asset_id,
-              //driver: item.driver_id,
-              //trip: item.trip_id,
-            },
-          }),
-        ) || [],
-    }),
-    [filteredLocationData],
-  );
+  useMemo(() => {
+    // Create a set of matching position indices
+    const matchingIndices = new Set<number>();
+    if (filteredLocationData && positions) {
+      filteredLocationData.forEach((filteredItem) => {
+        // Find matching position index
+        const matchingIndex = positions.findIndex(
+          (pos) =>
+            pos.longitude === filteredItem.longitude &&
+            pos.latitude === filteredItem.latitude,
+        );
+        if (matchingIndex !== -1) {
+          matchingIndices.add(matchingIndex);
+        }
+      });
+    }
+    setSelectedPulse(Array.from(matchingIndices));
+    if (matchingIndices.size > 0) {
+      setHoverInfo({
+        x: 0,
+        y: 0,
+        object: {
+          elements: Array.from(matchingIndices),
+        },
+      } as PickingInfo<PulseListType>);
+    }
+  }, [filteredLocationData, positions]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -322,9 +301,18 @@ export default function MapVisualizationTrip({
             selectedPulse,
           },
           pickable: true,
-          onClick: (info: PickingInfo<MapPositionProperties>) => {
+          onClick: (info: PickingInfo<PulseProps>) => {
             setHoverInfo(info);
-            setSelectedPulse(info.object?.properties.id ?? null);
+            setSelectedPulse(
+              info.object?.properties.id ? [info.object?.properties.id] : [],
+            );
+            zoom_on_pin(
+              info.object?.geometry.coordinates[0] ?? 0,
+              info.object?.geometry.coordinates[1] ?? 0,
+              false,
+              setViewState,
+              viewState,
+            );
           },
           selectedPulse,
         }),
@@ -372,19 +360,6 @@ export default function MapVisualizationTrip({
       );
     }
 
-    if (filteredLocationData && filteredLocationData.length > 0) {
-      baseLayers.push(
-        new PulsePinLayer({
-          data: geoFilteredJson,
-          //color: [244, 63, 94], // RED
-          zoom: viewState.zoom,
-          updateTriggers: {
-            data: filteredLocationData,
-          },
-        }),
-      );
-    }
-
     return baseLayers;
   }, [
     geoJson,
@@ -395,33 +370,6 @@ export default function MapVisualizationTrip({
     filteredLocationData,
     selectedPulse,
   ]);
-
-  // Memoize the tooltip function
-  const getTooltip = React.useCallback(
-    ({ object, layer }: PickingInfo<any>) => {
-      if (!object) return null;
-
-      // Handle PinLayer objects (which have properties.cluster)
-      if (layer?.id === "pin-layer" && "properties" in object) {
-        if (!object.properties.cluster) {
-          return {
-            text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
-              object.properties.timestamp,
-            ).toLocaleString()}`,
-          };
-        }
-        return null;
-      }
-
-      // Handle IconLayer objects (geofence pins)
-      if (layer?.id === "IconLayer-pin" && Array.isArray(object)) {
-        return null;
-      }
-
-      return null;
-    },
-    [],
-  );
 
   // Handle errors and loading states
   React.useEffect(() => {
@@ -449,7 +397,6 @@ export default function MapVisualizationTrip({
           if (isHovering) return "pointer";
           return "grab";
         }}
-        getTooltip={getTooltip}
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
@@ -461,10 +408,10 @@ export default function MapVisualizationTrip({
           left={hoverInfo.x}
           top={hoverInfo.y}
           setHoverInfo={setHoverInfo}
-          onExitAction={() => setSelectedPulse(null)}
+          onExitAction={() => setSelectedPulse([])}
         >
           <PulseTooltip
-            object={hoverInfo.object?.properties as unknown as PulseType}
+            object={hoverInfo.object as PulseListType | PulseType}
             dict={dict}
           />
         </MapTooltip>

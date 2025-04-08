@@ -8,6 +8,7 @@ import riskZoneSleep from "./riskZoneSleep.json";
 import riskZoneStop from "./riskZoneStop.json";
 import minRest from "./minRest.json";
 import continuousDriveCheck from "./continuousDriveCheck.json";
+import continuousRestingCheck from "./continuousRestingCheck.json";
 /* const SYMPTOMS_API_URL = "TODO:DEFINE";
 
 import {
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
     "Risk Zone Sleep": riskZoneSleep,
     "Risk Zone Stop": riskZoneStop,
     "Min Rest": minRest,
-    "Continuous drive check": continuousDriveCheck,
+    "Continuous Drive Check": continuousDriveCheck,
+    "Continuous Resting Check": continuousRestingCheck,
   };
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");

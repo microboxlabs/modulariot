@@ -62,10 +62,7 @@
         "clientName": "Client",
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
-        "executionType": "Execution Type",
-        "tripInformation": "Trip Information",
-        "tripManifestParams": "Trip Manifest Generation",
-        "nativeGenerationEnabled": "Generate the Trip Manifest natively in the Coordinator"
+        "executionType": "Execution Type"       
       },
       "views": {
         "table": "Table",
@@ -151,7 +148,8 @@
         "avg_signals_per_minute_det": "Number of signals per minute in stops",
         "avg_signals_per_minute_mov": "Number of signals per minute in motion",
         "write_here_your_observations": "Write here your observations",
-        "tripManifestParams": "Trip Manifest Generation"
+        "tripManifestParams": "Trip Manifest Generation",
+        "nativeGenerationEnabled": "Generate the Trip Manifest natively in the Coordinator"
       },
       "outcome": {
         "moreOptions": "More options",

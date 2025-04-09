@@ -11,10 +11,14 @@ import {
   MapPosition,
 } from "@/features/geographic-view/types/map";
 export default function SideBar({
+  mapStyle,
+  setMapStyle,
   dict,
   mapPositionsResume,
   mapPositions,
 }: {
+  mapStyle: string;
+  setMapStyle: (mapStyle: string) => void;
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
   mapPositions: MapPosition[];
@@ -24,7 +28,12 @@ export default function SideBar({
       {
         button_text: (dict.symptoms as I18nRecord).monitoring as string,
         component: mapPositionsResume && (
-          <Monitoring dict={dict} mapPositionsResume={mapPositionsResume} />
+          <Monitoring
+            dict={dict}
+            mapPositionsResume={mapPositionsResume}
+            mapStyle={mapStyle}
+            setMapStyle={setMapStyle}
+          />
         ),
       },
       {

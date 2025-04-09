@@ -16,14 +16,14 @@ import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
+
 const mapboxStyles = {
-  "streets-v9": "mapbox://styles/mapbox/streets-v9",
-  "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
-  "satellite-streets-v11": "mapbox://styles/mapbox/satellite-streets-v11",
-  "dark-v10": "mapbox://styles/mapbox/dark-v10",
-  "light-v10": "mapbox://styles/mapbox/light-v10",
-  "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
-  "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
+  "streets": "mapbox://styles/mapbox/streets-v9",
+  "satellite": "mapbox://styles/mapbox/satellite-streets-v11",
+  "dark": "mapbox://styles/mapbox/dark-v10",
+  "light": "mapbox://styles/mapbox/light-v10",
+  "outdoors": "mapbox://styles/mapbox/outdoors-v11",
+  "hybrid": "mapbox://styles/mapbox/hybrid-v10",
 };
 
 type ViewStateType = {
@@ -101,7 +101,7 @@ export default function MapVisualization({
     useState<PickingInfo<MapPositionProperties>>();
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
-
+  const [mapStyle, setMapStyle] = useState("satellite");
   useEffect(() => {
     if (mapPositions) {
       setPositions(mapPositions);
@@ -163,7 +163,7 @@ export default function MapVisualization({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          mapStyle={mapboxStyles["satellite-streets-v11"]}
+          mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           preserveDrawingBuffer={true}
         />
 
@@ -172,16 +172,18 @@ export default function MapVisualization({
           originalPositions={originalPositions}
           setPositions={setPositions}
         />
-        <div className="absolute right-0 top-0 bottom-0 ">
-          {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
-            <SideBar
-              dict={dict}
-              mapPositionsResume={mapPositionsResume}
-              mapPositions={mapPositions || []}
-            />
-          )}
-        </div>
       </DeckGL>
+      <div className="absolute right-0 top-0 bottom-0 ">
+        {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
+          <SideBar
+            mapStyle={mapStyle}
+            setMapStyle={setMapStyle}
+            dict={dict}
+            mapPositionsResume={mapPositionsResume}
+            mapPositions={mapPositions || []}
+          />
+        )}
+      </div>
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}

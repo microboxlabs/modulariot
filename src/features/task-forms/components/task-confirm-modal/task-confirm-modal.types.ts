@@ -9,6 +9,7 @@ export type TaskConfirmModalProps = {
   outcome?: TaskOutcome;
   outcomeLabel?: string;
   taskType?: string;
+  extraData?: Record<string, any>;
 };
 
 export type ErrorWithAlfrescoError = Error & {

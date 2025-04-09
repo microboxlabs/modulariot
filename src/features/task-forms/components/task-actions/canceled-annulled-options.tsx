@@ -4,8 +4,8 @@ import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import { HiOutlineArrowLeft, HiTrash, HiChevronUp } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
-  OUTCOME_CANCELED,
-  OUTCOME_ANNULLED,
+  OUTCOME_TRIP_ANNULLED,
+  OUTCOME_TRIP_CANCELED,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
@@ -33,12 +33,12 @@ export default function CanceledAnnulledOptions({
 
   const otherOptions = [
     {
-      id: OUTCOME_CANCELED,
+      id: OUTCOME_TRIP_CANCELED,
       label: (dict.outcome as I18nRecord).canceled as string,
       icon: HiOutlineArrowLeft,
     },
     {
-      id: OUTCOME_ANNULLED,
+      id: OUTCOME_TRIP_ANNULLED,
       label: (dict.outcome as I18nRecord).annulled as string,
       icon: HiTrash,
     },

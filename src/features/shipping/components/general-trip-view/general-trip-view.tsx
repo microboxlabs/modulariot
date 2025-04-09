@@ -91,13 +91,23 @@ export async function GeneralTripView({
             <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
               {/*  {(msg!.cards as I18nRecord).comments as string} */}
             </h5>
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
               <p className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
                 {/* {task.id} */}
                 {dict("pages.shippingDetailsTaskForm.comments")}
               </p>
 
-              <p>{task.mintral_driverObservations as string}</p>
+              <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
+                {
+                  (task.mintral_comments
+                    ? task.mintral_comments
+                    : task.mintral_driverObservations
+                      ? task.mintral_driverObservations
+                      : task.bpm_comment
+                        ? task.bpm_comment
+                        : "") as string
+                }
+              </p>
             </div>
           </form>
         </Card>

@@ -5,4 +5,5 @@ export type TaskActionsProps = {
   taskType: ShippingCoordinatorProcessForms;
   lang: string;
   fluid?: boolean;
+  extraData?: Record<string, any>;
 };

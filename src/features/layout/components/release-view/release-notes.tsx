@@ -36,7 +36,7 @@ export default function ReleaseNotes({ version }: { version: string }) {
           font-size: 1rem;
           line-height: 1.75;
         }
-        
+
         .mdx-content p {
           margin-bottom: 1.25rem;
         }
@@ -110,15 +110,15 @@ export default function ReleaseNotes({ version }: { version: string }) {
           .mdx-content code {
             background-color: #374151;
           }
-          
+
           .mdx-content pre {
             background-color: #374151;
           }
-          
+
           .mdx-content a {
             color: #60a5fa;
           }
-          
+
           .mdx-content blockquote {
             border-left-color: #4b5563;
           }

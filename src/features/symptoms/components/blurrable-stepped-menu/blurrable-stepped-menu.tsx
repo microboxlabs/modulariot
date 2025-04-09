@@ -14,9 +14,9 @@ import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 import icuConditions from "@/features/symptoms/model/icu_condition.json";
 import { titles } from "../../types/symptom-titles";
+import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -38,17 +38,14 @@ export default function BlurrableSteppedMenu({
   lang: string;
   selectedOption: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
-  treatments_templates: TreatmentsTemplatesResponse | null;
+  treatments_templates: SympthomTemplateResponse | null;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? "";
 
   const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
-    treatments_templates?.message?.replace(
-      "[nombre conductor]",
-      treatmentData?.trip_info?.driver ?? "",
-    ) ?? "",
+    treatments_templates?.data?.message ?? "",
   );
 
   const [driverResponse, setDriverResponse] = useState<string>("");

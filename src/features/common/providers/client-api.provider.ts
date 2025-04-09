@@ -5,6 +5,7 @@ import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types"
 import {
   DownloadDocumentResponse,
   ServiceValidationResponse,
+  SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
   VerifyDocumentResponse,
@@ -21,7 +22,6 @@ import {
   MapPositionResume,
 } from "@/features/geographic-view/types/map";
 import { MapService } from "@/features/geographic-view/services/map.service";
-import { TreatmentsTemplatesResponse } from "@/app/api/treatments/templates/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
 
@@ -316,11 +316,18 @@ export function useGeofences(tripId: string) {
   };
 }
 
-export function useTreatmentsTemplates(id: string, name: string) {
+export function useTreatmentsTemplates(
+  serviceCode: string,
+  conditionName: string,
+  icuCode: string,
+) {
   const { data, error, isLoading } = useSWR<
-    TreatmentsTemplatesResponse,
+    SympthomTemplateResponse,
     FetcherError
-  >(`/app/api/treatments/templates?id=${id}&name=${name}`, fetcher);
+  >(
+    `/app/api/treatments/templates?serviceCode=${serviceCode}&conditionName=${conditionName}&icuCode=${icuCode}`,
+    fetcher,
+  );
 
   return {
     treatments_templates: data,

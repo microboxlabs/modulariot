@@ -43,6 +43,7 @@ export type TaskResponse = {
   _startTaskCompleted: string;
   bpm_description: string;
   bpm_status: string;
+  mintral_comments?: string | string[];
   [key: string]: unknown;
 };
 

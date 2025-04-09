@@ -62,24 +62,20 @@ export default function DepartureDateShip({
   return (
     <div
       className={twMerge(
-        "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7",
+        "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7 gap-1",
         color?.bg + " " + color?.text,
       )}
     >
       {board?.state === "done" || board?.state === "started" ? (
-        <FaCalendarCheck className={"mr-1 h-3 w-3 " + color?.text} />
+        <FaCalendarCheck className={"h-3 w-3 " + color?.text} />
       ) : (
-        <FaCalendarAlt className={"mr-1 h-3 w-3 " + color?.text} />
+        <FaCalendarAlt className={"h-3 w-3 " + color?.text} />
       )}
-      {!compact ? (
-        <p className="whitespace-nowrap">
-          {board?.state === "pending" || board?.state === "started"
-            ? (dict.kanban as I18nRecord).departure + " " + fixed_date
-            : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
-        </p>
-      ) : (
-        <></>
-      )}
+      <p className={`whitespace-nowrap ${compact ? "hidden" : ""}`}>
+        {board?.state === "pending" || board?.state === "started"
+          ? (dict.kanban as I18nRecord).departure + " " + fixed_date
+          : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+      </p>
     </div>
   );
 }

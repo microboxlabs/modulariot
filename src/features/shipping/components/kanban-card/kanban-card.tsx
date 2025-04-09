@@ -42,7 +42,7 @@ export default function KanbanCard({
         <Link href={`/task/edit/${task.id}`} className="w-full">
           <div className="text-base text-gray-900 dark:text-gray-200">
             {compactKanbanView ? (
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <div className="basis-2/1 ">
                   <strong>{task.name}</strong>
                 </div>
@@ -82,16 +82,16 @@ export default function KanbanCard({
           }`}
         >
           {compactKanbanView ? (
-            <>
-              <div className="basis-1/2">
+            <div className=" w-full flex justify-between">
+              <div className="">
                 <span>{task.origin}</span> - <span>{task.destination}</span>
               </div>
-              <div className="basis-1/2 text-right">
+              <div className="text-right">
                 {formatDate(
                   task.departureDate ?? task.expectedDepartureDate ?? "",
                 )}
               </div>
-            </>
+            </div>
           ) : (
             <>
               <div className="basis-1/2">

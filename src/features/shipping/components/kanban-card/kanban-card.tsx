@@ -34,7 +34,7 @@ export default function KanbanCard({
   return (
     <div
       key={task.id}
-      className={`mb-4 w-64 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
+      className={`mb-4 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
         compactKanbanView ? "p-3" : "p-5 w-full"
       }`}
     >
@@ -43,7 +43,7 @@ export default function KanbanCard({
           <div className="text-base text-gray-900 dark:text-gray-200">
             {compactKanbanView ? (
               <div className="flex justify-between gap-2">
-                <div className="basis-2/1 ">
+                <div className="whitespace-nowrap">
                   <strong>{task.name}</strong>
                 </div>
                 <div className="flex justify-end gap-2">

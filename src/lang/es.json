@@ -52,7 +52,9 @@
         "tripCancelled": "Viaje Cancelado",
         "estimatedDeparture": "ETA: ",
         "departure": "Salida: ",
-        "arrival": "Llegada: "
+        "arrival": "Llegada: ",
+        "compact": "Compactar",
+        "expand": "Expandir"
       },
       "card": {
         "origin": "Origen",

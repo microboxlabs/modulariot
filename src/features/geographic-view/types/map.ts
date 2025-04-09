@@ -69,6 +69,19 @@ export interface MapPosition {
   speed_limit_condition: string | null;
 }
 
+export interface PulseProps {
+  properties: {
+    id: number;
+    coordinates: [number, number];
+    status: string;
+    color: string;
+  };
+  geometry: {
+    type: string;
+    coordinates: [number, number];
+  };
+}
+
 export interface MapPositionProperties {
   properties: {
     lost_signal: React.JSX.Element;

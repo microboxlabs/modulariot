@@ -55,6 +55,8 @@ export async function taskNextAction(
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
   const comments = formData.get("comments");
+  const nativeGenerationEnabled = formData.get("nativeGenerationEnabled");
+
   const reasonId = formData.get("reasonId");
   const reason = formData.get("reason");
   return fetcherClient<TaskNextActionState>("/app/api/task/end", {
@@ -66,6 +68,7 @@ export async function taskNextAction(
       taskId,
       transitionId,
       comments,
+      nativeGenerationEnabled,
       reasonId,
       reason,
     }),

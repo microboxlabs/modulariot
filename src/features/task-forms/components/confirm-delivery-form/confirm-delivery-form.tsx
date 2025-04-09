@@ -26,8 +26,13 @@ export default function ConfirmDeliveryForm({
   const [loading, setLoading] = useState(false);
   const [audits, setAudits] = useState<AutentiaParamsGet[]>([]);
   const router = useRouter();
+  //global environment variable to save the current step, client side
+
   const [stepper, setStepper] = useState({
-    currentStep: "step1",
+    currentStep:
+      process.env.NEXT_PUBLIC_SKIP_DRIVER_VERIFICATION === "true"
+        ? "step5"
+        : "step1",
     isError: false,
   });
 

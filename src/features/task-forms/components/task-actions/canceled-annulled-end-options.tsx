@@ -9,9 +9,9 @@ import {
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
-  OUTCOME_CANCELED,
-  OUTCOME_ANNULLED,
   OUTCOME_CONFIRM_MONITORING_FINALIZATION,
+  OUTCOME_TRIP_CANCELED,
+  OUTCOME_TRIP_ANNULLED,
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
@@ -39,12 +39,12 @@ export default function CanceledAnnulledEndOptions({
 
   const other_options = [
     {
-      id: OUTCOME_CANCELED,
+      id: OUTCOME_TRIP_CANCELED,
       label: (dict.outcome as I18nRecord).canceled as string,
       icon: HiOutlineArrowLeft,
     },
     {
-      id: OUTCOME_ANNULLED,
+      id: OUTCOME_TRIP_ANNULLED,
       label: (dict.outcome as I18nRecord).annulled as string,
       icon: HiTrash,
     },

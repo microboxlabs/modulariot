@@ -43,6 +43,7 @@ export default function TaskActions({
   taskType,
   dict,
   fluid = false,
+  extraData,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
@@ -86,7 +87,6 @@ export default function TaskActions({
               }
             />
           </Button.Group>
-
           <TaskConfirmModal
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}
@@ -96,6 +96,7 @@ export default function TaskActions({
             outcomeLabel={outcomeLabel!}
             openModal={openModal}
             setOpenModal={setOpenModal}
+            extraData={extraData}
           />
         </div>
       );
@@ -144,7 +145,6 @@ export default function TaskActions({
               }
             />
           </Button.Group>
-
           <TaskConfirmModal
             commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
             dict={dict}

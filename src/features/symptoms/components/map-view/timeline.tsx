@@ -55,6 +55,15 @@ function calculateDuration(
   return duration;
 }
 
+function formatLongEmails(emails: string) {
+  const emailSize = 15;
+  if (emails.length < emailSize) {
+    return emails;
+  }
+
+  return emails.slice(0, emailSize) + "...";
+}
+
 export default function TimelineComponent({
   lang,
   dict,
@@ -189,9 +198,11 @@ export default function TimelineComponent({
                         {subItem.assigned_to && (
                           <p className="flex flex-row flex-grow justify-end">
                             <small className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center text-xs">
-                              {((dict.symptoms as I18nRecord)[
-                                subItem.assigned_to
-                              ] as string) ?? subItem.assigned_to}
+                              {formatLongEmails(
+                                ((dict.symptoms as I18nRecord)[
+                                  subItem.assigned_to
+                                ] as string) ?? subItem.assigned_to,
+                              )}
                             </small>
                           </p>
                         )}

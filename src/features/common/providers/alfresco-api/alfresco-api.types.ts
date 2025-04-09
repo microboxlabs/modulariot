@@ -213,3 +213,15 @@ export type DownloadDocumentResponse = {
 export type VerifyDocumentResponse = {
   exists: boolean;
 };
+
+export type SympthomTemplateResponse = {
+  data: SympthomTemplate;
+  success: boolean;
+};
+
+export type SympthomTemplate = {
+  icuCode: string;
+  name: string;
+  conditionName: string;
+  message: string;
+};

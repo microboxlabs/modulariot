@@ -10,7 +10,7 @@ import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
 function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
     case 0:
-      return [150, 150, 150, 255];
+      return [28, 100, 242, 255];
     case 1:
       return [254, 205, 211, 255];
     case 2:

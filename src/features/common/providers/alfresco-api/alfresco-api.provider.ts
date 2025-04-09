@@ -11,6 +11,7 @@ import type {
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
   ServiceValidationResponse,
+  SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
@@ -322,4 +323,20 @@ export async function getUserStatus(ticket: string): Promise<string> {
     `api/activities/feed/user?format=json`,
   );
   return result as string;
+}
+
+export async function getSympthomTemplate(
+  ticket: string,
+  serviceCode: string,
+  conditionName: string,
+  icuCode: string,
+): Promise<SympthomTemplateResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/service/message-template?serviceCode=${serviceCode}&conditionName=${conditionName}&icuCode=${icuCode}`,
+  );
+  return result as SympthomTemplateResponse;
 }

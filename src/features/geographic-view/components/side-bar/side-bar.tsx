@@ -50,7 +50,7 @@ export default function SideBar({
   }, [openned_menu]);
 
   return (
-    <div className=" h-full gap-[14px] flex flex-col">
+    <div className=" h-full gap-[14px] flex flex-col z-50">
       <div className="h-full flex justify-end">
         <MapButton
           main_color="m-5 bg-white dark:bg-gray-800"
@@ -62,7 +62,7 @@ export default function SideBar({
           activated={open}
         />
         <div
-          className={` bg-white dark:bg-gray-800 flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
+          className={`z-50 bg-white dark:bg-gray-800 flex flex-column overflow-hidden justify-center transition-all duration-500 ease-in-out ${open ? "w-[400px]" : "w-0"} h-100%`}
         >
           <div
             className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}

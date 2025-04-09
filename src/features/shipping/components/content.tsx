@@ -138,6 +138,7 @@ export default function PageContent({
               kanbanView={activeView === "kanban"}
               activeView={compactKanbanView}
               onViewChange={setCompactKanbanView}
+              dict={dict}
             />
             <ViewSwitcher
               activeView={activeView}
@@ -163,7 +164,7 @@ export default function PageContent({
               return (
                 <div key={board.id}>
                   <div
-                    className={`my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] ${compactKanbanView ? "" : "w-64"} text-center flex flex-col`}
+                    className={`my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] ${compactKanbanView ? "min-w-36" : "w-64"} text-center flex flex-col`}
                     style={{
                       width: compactKanbanView ? "auto" : "16rem",
                     }}

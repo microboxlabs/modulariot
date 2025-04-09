@@ -449,7 +449,6 @@ export default function MapVisualizationTrip({
           if (isHovering) return "pointer";
           return "grab";
         }}
-        getTooltip={getTooltip}
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}

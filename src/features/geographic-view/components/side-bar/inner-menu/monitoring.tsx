@@ -6,13 +6,33 @@ import { GiAtom } from "react-icons/gi";
 import ExpandableButton from "../../../../symptoms/components/expandable-button";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { MapPositionResume } from "@/features/geographic-view/types/map";
+import Image from "next/image";
+import street from "@assets/map_selection/street.png";
+import satellite from "@assets/map_selection/satelital.png";
+
+const style_buttons = [
+  {
+    img: street,
+    text: "Calles",
+    value: "streets",
+  },
+  {
+    img: satellite,
+    text: "Satelital",
+    value: "satellite",
+  },
+];
 
 export default function Monitoring({
   dict,
   mapPositionsResume,
+  mapStyle,
+  setMapStyle,
 }: {
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
+  mapStyle: string;
+  setMapStyle: (mapStyle: string) => void;
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -164,6 +184,24 @@ export default function Monitoring({
 
   return (
     <div className="w-full flex flex-col gap-4">
+      <Label className="w-full flex text-left text-lg text-gray-900 dark:text-white">
+        Vista Mapa
+      </Label>
+      <div>
+        <div className="w-full flex flex-row gap-2">
+          {
+            style_buttons.map((button) => (
+              <div
+                className={`flex flex-col gap-2 text-gray-900 dark:text-white justify-center items-center border rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${mapStyle === button.value ? "border-gray-900 dark:border-white" : "border-gray-300 dark:border-gray-700"}`}
+                onClick={() => setMapStyle(button.value)}
+              >
+                <Image src={button.img} alt="Map View" width={100} height={100} />
+              <p>{button.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <Label className="w-full flex text-left text-lg text-gray-900 dark:text-white">
         {(dict.symptoms as I18nRecord).general as string}
       </Label>

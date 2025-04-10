@@ -28,5 +28,38 @@ export default function ReleaseNotes({ version }: { version: string }) {
     return <div>Loading...</div>;
   }
 
-  return <ReleaseNotes />;
+  return (
+    <div className="mdx-content">
+      <ReleaseNotes />
+      <style jsx global>{`
+        .mdx-content hr {
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .mdx-content h1 {
+          margin-bottom: 1rem;
+        }
+
+        .mdx-content h2 {
+          margin-bottom: 0.5rem;
+        }
+
+        .mdx-content h3 {
+          margin-bottom: 0.5rem;
+        }
+
+        .mdx-content ul {
+          list-style-type: disc;
+          margin-left: 1.5rem;
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .mdx-content li {
+          margin-bottom: 0.5rem;
+        }
+      `}</style>
+    </div>
+  );
 }

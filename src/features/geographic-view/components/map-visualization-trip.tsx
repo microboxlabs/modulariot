@@ -396,33 +396,6 @@ export default function MapVisualizationTrip({
     selectedPulse,
   ]);
 
-  // Memoize the tooltip function
-  const getTooltip = React.useCallback(
-    ({ object, layer }: PickingInfo<any>) => {
-      if (!object) return null;
-
-      // Handle PinLayer objects (which have properties.cluster)
-      if (layer?.id === "pin-layer" && "properties" in object) {
-        if (!object.properties.cluster) {
-          return {
-            text: `Patente: ${object.properties.assetid}\n  Fecha y Hora: ${new Date(
-              object.properties.timestamp,
-            ).toLocaleString()}`,
-          };
-        }
-        return null;
-      }
-
-      // Handle IconLayer objects (geofence pins)
-      if (layer?.id === "IconLayer-pin" && Array.isArray(object)) {
-        return null;
-      }
-
-      return null;
-    },
-    [],
-  );
-
   // Handle errors and loading states
   React.useEffect(() => {
     if (geofence_error) {

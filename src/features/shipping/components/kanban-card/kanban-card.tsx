@@ -34,16 +34,16 @@ export default function KanbanCard({
   return (
     <div
       key={task.id}
-      className={`mb-4 w-64 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
-        compactKanbanView ? "p-3" : "p-5"
+      className={`mb-4 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
+        compactKanbanView ? "p-3" : "p-5 w-full"
       }`}
     >
       <div className="flex items-center justify-between pb-4 cursor-pointer">
         <Link href={`/task/edit/${task.id}`} className="w-full">
           <div className="text-base text-gray-900 dark:text-gray-200">
             {compactKanbanView ? (
-              <div className="flex justify-between">
-                <div className="basis-2/1 ">
+              <div className="flex justify-between gap-2">
+                <div className="whitespace-nowrap">
                   <strong>{task.name}</strong>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -75,22 +75,23 @@ export default function KanbanCard({
             <Image alt="" fill src={task.attachment} className="rounded-lg" />
           </div>
         )}
+
         <div
           className={`text-sm font-normal text-gray-700 dark:text-gray-400 flex ${
             !compactKanbanView ? "pb-4" : ""
           }`}
         >
           {compactKanbanView ? (
-            <>
-              <div className="basis-1/2">
+            <div className=" w-full flex justify-between">
+              <div className="">
                 <span>{task.origin}</span> - <span>{task.destination}</span>
               </div>
-              <div className="basis-1/2 text-right">
+              <div className="text-right">
                 {formatDate(
                   task.departureDate ?? task.expectedDepartureDate ?? "",
                 )}
               </div>
-            </>
+            </div>
           ) : (
             <>
               <div className="basis-1/2">

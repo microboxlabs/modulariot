@@ -133,15 +133,17 @@ export default function PageContent({
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dict}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <CompactKanbanViewSwitcher
+              kanbanView={activeView === "kanban"}
+              activeView={compactKanbanView}
+              onViewChange={setCompactKanbanView}
+              dict={dict}
+            />
             <ViewSwitcher
               activeView={activeView}
               onViewChange={handleViewChange}
               dict={dict}
-            />
-            <CompactKanbanViewSwitcher
-              activeView={compactKanbanView}
-              onViewChange={setCompactKanbanView}
             />
           </div>
         </div>
@@ -161,7 +163,12 @@ export default function PageContent({
               }
               return (
                 <div key={board.id}>
-                  <div className="my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] w-64 text-center flex flex-col">
+                  <div
+                    className={`my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] ${compactKanbanView ? "min-w-36" : "w-64"} text-center flex flex-col`}
+                    style={{
+                      width: compactKanbanView ? "auto" : "16rem",
+                    }}
+                  >
                     <div className="flex-1">
                       {tr(`kanban.${board.title}`, dict)}
                     </div>

@@ -172,12 +172,10 @@ export default function MapVisualization({
           setPositions={setPositions}
         />
       </DeckGL>
-      {/* Mapstyle selector */}
       <MapStyleSelector
         selectedStyle={mapStyle}
         setSelectedStyle={setMapStyle}
       />
-
       <div className="absolute right-0 top-0 bottom-0 ">
         {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
           <SideBar

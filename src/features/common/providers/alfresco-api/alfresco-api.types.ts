@@ -43,6 +43,7 @@ export type TaskResponse = {
   _startTaskCompleted: string;
   bpm_description: string;
   bpm_status: string;
+  mintral_comments?: string | string[];
   [key: string]: unknown;
 };
 
@@ -212,4 +213,16 @@ export type DownloadDocumentResponse = {
 
 export type VerifyDocumentResponse = {
   exists: boolean;
+};
+
+export type SympthomTemplateResponse = {
+  data: SympthomTemplate;
+  success: boolean;
+};
+
+export type SympthomTemplate = {
+  icuCode: string;
+  name: string;
+  conditionName: string;
+  message: string;
 };

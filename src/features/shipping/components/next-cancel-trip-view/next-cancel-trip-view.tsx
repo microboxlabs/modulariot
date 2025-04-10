@@ -17,6 +17,7 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TaskActions from "@/features/task-forms/components/task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
+import { getComments } from "@/utils/comments";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -103,15 +104,7 @@ export async function NextCancelTripView({
               </p>
 
               <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
-                {
-                  (task.mintral_comments
-                    ? task.mintral_comments
-                    : task.mintral_driverObservations
-                      ? task.mintral_driverObservations
-                      : task.bpm_comment
-                        ? task.bpm_comment
-                        : "") as string
-                }
+                {getComments(task)}
               </p>
             </div>
           </form>

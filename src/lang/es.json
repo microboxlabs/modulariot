@@ -52,7 +52,9 @@
         "tripCancelled": "Viaje Cancelado",
         "estimatedDeparture": "ETA: ",
         "departure": "Salida: ",
-        "arrival": "Llegada: "
+        "arrival": "Llegada: ",
+        "compact": "Compactar",
+        "expand": "Expandir"
       },
       "card": {
         "origin": "Origen",
@@ -576,7 +578,8 @@
     "normal_operation": "La flota se encuentra operando con normalidad.",
     "check_later": "Revisa esta seccion mas adelante para detectar y tratar cualquier nueva condición.",
     "automatic notification": "Notificación automática",
-    "go_to_treatment": "Ir al tratamiento"
+    "go_to_treatment": "Ir al tratamiento",
+    "pulses_selected": "Pulsos seleccionados"
   },
   "geographic_view": {
     "speed": "Velocidad",

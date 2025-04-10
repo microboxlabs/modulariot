@@ -52,7 +52,9 @@
         "tripCancelled": "Trip Cancelled",
         "estimatedDeparture": "ETA: ",
         "departure": "Departure: ",
-        "arrival": "Arrival: "
+        "arrival": "Arrival: ",
+        "compact": "Compact",
+        "expand": "Expand"
       },
       "card": {
         "origin": "Origin",
@@ -565,7 +567,8 @@
     "normal_operation": "The fleet is operating normally.",
     "check_later": "Check this section later to detect and treat any new condition.",
     "automatic notification": "Automatic notification",
-    "go_to_treatment": "Go to treatment"
+    "go_to_treatment": "Go to treatment",
+    "pulses_selected": "Pulses selected"
   },
   "geographic_view": {
     "speed": "Speed",

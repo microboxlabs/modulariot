@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Textarea, TextInput } from "flowbite-react";
+import { Button, Card, TextInput } from "flowbite-react";
 import { HiOutlineHand } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
@@ -34,6 +34,8 @@ import {
   OUTCOME_NORMAL_INITIATION,
   TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK,
 } from "../../services/form.service";
+import { getComments } from "@/utils/comments";
+import { ExtendedTaskResponse } from "../task-form/task-form.types";
 
 export default function DriverVerifiedCard({
   lang,
@@ -172,12 +174,13 @@ export default function DriverVerifiedCard({
             type="hidden"
             defaultValue={task.id}
           />
-          <Textarea
+          {/* <Textarea
             placeholder={
               (msg!.cards as I18nRecord).write_here_your_observations as string
             }
             defaultValue={task.mintral_driverObservations as string}
-          />
+          /> */}
+          {getComments(task as ExtendedTaskResponse)}
           {!enableActions && (
             <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
               <Button.Group className="w-full">

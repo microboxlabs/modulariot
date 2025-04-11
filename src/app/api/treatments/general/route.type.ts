@@ -26,6 +26,7 @@ export type TreatmentsTripInfoResponse = {
   carrier: string;
   destination: string;
   driver: string;
+  driver2?: string;
   trip_id: string;
   origin: string;
   type_load: string;

@@ -174,9 +174,6 @@ export default function GeneralMap({
                       ),
                     },
                     {
-                      text: "ID: " + treatmentData?.trip_info?.trip_id,
-                    },
-                    {
                       text: treatmentData?.trip_info?.driver,
                       icon: (
                         <FaUser className="text-gray-900 dark:text-white" />
@@ -187,6 +184,9 @@ export default function GeneralMap({
                       icon: (
                         <FaUser className="text-gray-900 dark:text-white" />
                       ),
+                    },
+                    {
+                      text: "ID: " + treatmentData?.trip_info?.trip_id,
                     },
                     {
                       text:

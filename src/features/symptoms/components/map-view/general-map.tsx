@@ -18,7 +18,7 @@ import { useTreatmentsLocation } from "@/features/common/providers/client-api.pr
 import { titles } from "../../types/symptom-titles";
 import icuConditions from "@/features/symptoms/model/icu_condition.json";
 import TagManager from "../tag-manager";
-import { FaTruck, FaMapPin } from "react-icons/fa";
+import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";
 export default function GeneralMap({
   dict,
@@ -175,6 +175,18 @@ export default function GeneralMap({
                     },
                     {
                       text: "ID: " + treatmentData?.trip_info?.trip_id,
+                    },
+                    {
+                      text: treatmentData?.trip_info?.driver,
+                      icon: (
+                        <FaUser className="text-gray-900 dark:text-white" />
+                      ),
+                    },
+                    {
+                      text: treatmentData?.trip_info?.driver2,
+                      icon: (
+                        <FaUser className="text-gray-900 dark:text-white" />
+                      ),
                     },
                     {
                       text:

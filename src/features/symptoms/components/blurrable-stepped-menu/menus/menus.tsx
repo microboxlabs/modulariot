@@ -191,6 +191,11 @@ export const getDeriveToSpecialist = (
 
 export const getIgnoreCondition = (
   dict: I18nRecord,
+  treatmentData: TreatmentsGeneralResponseItem | null,
+  duration: number,
+  setDuration: (duration: number) => void,
+  treatmentRequest: TreatmentsRequest,
+  setTreatmentRequest: (request: TreatmentsRequest) => void,
   isTeamsNotificationOn: boolean,
   setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void,
 ) => [
@@ -200,12 +205,31 @@ export const getIgnoreCondition = (
       {
         element_name: (dict.symptoms as I18nRecord).ignore_condition,
         description: (dict.symptoms as I18nRecord).ignore_condition_description,
-        component: <IgnoreCondition dict={dict as I18nRecord} />,
+        component: (
+          <IgnoreCondition
+            dict={dict as I18nRecord}
+            treatmentData={treatmentData}
+            setDuration={setDuration}
+            duration={duration}
+          />
+        ),
         icon: <TiDelete className="h-8 w-8" />,
         logo: null,
         button: {
           text: (dict.symptoms as I18nRecord).save_and_confirm,
           action: "next",
+          function: async () => {
+            setTreatmentRequest({
+              ...treatmentRequest,
+              treatment_type: "ignorar condición",
+              duration,
+            });
+            console.log("duration", duration);
+            console.log("treatmentRequest", treatmentRequest);
+            /* await requestTreatment({
+              ...treatmentRequest,
+            }); */
+          },
         },
       },
       {

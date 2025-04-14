@@ -188,12 +188,13 @@ export default function TimelineComponent({
                           {new Date(subItem.start).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
-                          })}{" "}
+                          })}
+                          {/* {" "}
                           |{" "}
                           {new Date(subItem.end).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
-                          })}
+                          })} */}
                         </p>
                         {subItem.assigned_to && (
                           <p className="flex flex-row flex-grow justify-end">

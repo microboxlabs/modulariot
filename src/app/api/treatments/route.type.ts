@@ -7,11 +7,13 @@ export type TreatmentsRequest = {
   treatment_type: string;
   trip_id: string;
 
-  message: string | null | undefined;
-  driver_response: string | null | undefined;
-  description: string | null | undefined;
+  message?: string | null | undefined;
+  driver_response?: string | null | undefined;
+  description?: string | null | undefined;
 
   treatment_id: number | null | undefined;
+
+  duration?: number | null | undefined;
 };
 
 export type TreatmentsResponse = {

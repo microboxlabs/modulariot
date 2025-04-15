@@ -1,6 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ExtendedTaskViewProps } from "@/features/task-forms/components/task-form/task-form.types";
-import { Card } from "flowbite-react";
 import { HiClipboardList } from "react-icons/hi";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -18,6 +17,7 @@ import {
 import TaskActions from "@/features/task-forms/components/task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
 import { getComments } from "@/utils/comments";
+import { GeographicHistoric } from "../geographic-historic";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -35,6 +35,8 @@ export async function NextCancelTripView({
   msg,
   lang,
 }: ExtendedTaskViewProps) {
+  console.log("funciona?");
+
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const driver1: Driver = {
     name: (task.mintral_driver1Name as string) ?? "-",
@@ -57,71 +59,100 @@ export async function NextCancelTripView({
     };
   }
 
+  const form_keys = [
+    "wfship:monitoringInCourseTrip",
+    "wfship:confirmTripDestinationArrival",
+    "wfship:confirmMonitoringFinalization",
+  ];
+
   return (
-    <div className="px-4 pt-6">
-      <Breadcrumb
-        path={["tasks", "shipping", "details"]}
-        lang={lang}
-        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-        dict={dictionary.pages as I18nRecord}
-      />
-      <div className="flex-1 flex flex-col items-center gap-6">
-        <Card className="gap-6 w-fit items-center justify-center">
-          <div className="flex items-center justify-center">
-            <DriverUserIcon />
-          </div>
-          <div className="h-px bg-gray-300 w-full"></div>
-          {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
-          {driver2 && (
-            <>
+    <div className="h-full w-full flex flex-col">
+      <div className="p-5">
+        <Breadcrumb
+          path={["tasks", "shipping", "details"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dictionary.pages as I18nRecord}
+        />
+      </div>
+      <div className="w-full flex-1 flex h-full overflow-hidden px-2 pb-2 gap-2">
+        <div className="h-full">
+          <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
+            <div className="flex flex-col gap-6 p-6">
+              <div className="flex items-center justify-center">
+                <DriverUserIcon />
+              </div>
               <div className="h-px bg-gray-300 w-full"></div>
-              <DriverContactInfo msg={msg!} driver={driver2} />
-            </>
-          )}
-          <div className="h-px bg-gray-300 w-full"></div>
-          <DriverValidation msg={msg!} driver1={driver1} driver2={driver2} />
+              {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
+              {driver2 && (
+                <>
+                  <div className="h-px bg-gray-300 w-full"></div>
+                  <DriverContactInfo msg={msg!} driver={driver2} />
+                </>
+              )}
+              <div className="h-px bg-gray-300 w-full"></div>
+              <DriverValidation
+                msg={msg!}
+                driver1={driver1}
+                driver2={driver2}
+              />
 
-          <div className="h-px bg-gray-300 w-full"></div>
-          <TripInformation
-            msg={msg}
-            task={task as TaskResponse}
-            lang={lang}
-            entityInfo={undefined /* task as GetEntityInfoResponse */}
-            serviceValidation={
-              undefined /* task as ServiceValidationResponse */
-            }
-          />
+              <div className="h-px bg-gray-300 w-full"></div>
+              <TripInformation
+                msg={msg}
+                task={task as TaskResponse}
+                lang={lang}
+                entityInfo={undefined}
+                serviceValidation={undefined}
+              />
 
-          <div className="h-px bg-gray-300 w-full"></div>
-          <form>
-            <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-              {/*  {(msg!.cards as I18nRecord).comments as string} */}
-            </h5>
-            <div className="flex flex-col gap-4">
-              <p className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-                {/* {task.id} */}
-                {dict("pages.shippingDetailsTaskForm.comments")}
-              </p>
+              <div className="h-px bg-gray-300 w-full"></div>
+              <form>
+                <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+                  {}
+                </h5>
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+                    {dict("pages.shippingDetailsTaskForm.comments")}
+                  </p>
 
-              <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
-                {getComments(task)}
-              </p>
+                  <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
+                    {getComments(task)}
+                  </p>
+                </div>
+              </form>
+              <div className="h-px bg-gray-300 w-full"></div>
+
+              <div className="flex items-center justify-center">
+                <TaskActions
+                  taskId={task.id ?? ""}
+                  taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                  lang={lang}
+                  dict={
+                    (dictionary.pages as I18nRecord)
+                      .shippingDetailsTaskForm as I18nRecord
+                  }
+                />
+              </div>
             </div>
-          </form>
-          <div className="h-px bg-gray-300 w-full"></div>
-
-          <div className="flex items-center justify-center">
-            <TaskActions
-              taskId={task.id ?? ""}
-              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
-              lang={lang}
-              dict={
-                (dictionary.pages as I18nRecord)
-                  .shippingDetailsTaskForm as I18nRecord
-              }
-            />
           </div>
-        </Card>
+        </div>
+        <div
+          className={`flex-1 flex h-full ${
+            form_keys.includes(task.taskFormKey as string)
+              ? "flex-row"
+              : "flex-col"
+          }`}
+        >
+          {form_keys.includes(task.taskFormKey as string) && (
+            <div className="flex-1 h-full w-full">
+              <GeographicHistoric
+                task={task as TaskResponse}
+                dictionary={dictionary as unknown as Record<string, string>}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

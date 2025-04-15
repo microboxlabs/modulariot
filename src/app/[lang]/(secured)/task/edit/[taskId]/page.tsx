@@ -40,7 +40,7 @@ export default async function TaskEditPage({
       const taskResponse = finishedWorkflows.tasks.find((t) => t.id === taskId);
       if (taskResponse) {
         return (
-          <div className="overflow-y-auto h-full pb-4">
+          <div className="overflow-y-auto h-full">
             <TaskForm
               task={taskResponse as ExtendedTaskResponse}
               lang={lang}
@@ -55,7 +55,7 @@ export default async function TaskEditPage({
     }
 
     return (
-      <div className="h-full pb-4 overflow-y-auto">
+      <div className="h-full overflow-y-auto">
         <TaskForm
           task={task as ExtendedTaskResponse}
           lang={lang}

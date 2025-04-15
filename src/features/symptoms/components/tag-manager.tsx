@@ -84,17 +84,20 @@ export default function TagManager({
 
   return (
     <div ref={containerRef} className="flex flex-row flex-wrap w-full gap-2">
-      {visibleTags.map((tag, index) => (
-        <div
-          key={index}
-          className={`shrink-0 inline-flex items-center gap-2 ${tag_style} border-2 rounded-lg px-1 py-0.5 text-sm gap-1`}
-        >
-          {tag.icon}
-          <span className="whitespace-nowrap">
-            {typeof tag.text === "string" ? tag.text : tag.text}
-          </span>
-        </div>
-      ))}
+      {visibleTags.map(
+        (tag, index) =>
+          tag.text && (
+            <div
+              key={index}
+              className={`shrink-0 inline-flex items-center gap-2 ${tag_style} border-2 rounded-lg px-1 py-0.5 text-sm gap-1`}
+            >
+              {tag.icon}
+              <span className="whitespace-nowrap">
+                {typeof tag.text === "string" ? tag.text : tag.text}
+              </span>
+            </div>
+          ),
+      )}
       {hiddenCount > 0 && (
         <Tooltip
           theme={{
@@ -112,17 +115,20 @@ export default function TagManager({
           style="auto"
           content={
             <div className="flex flex-col gap-1">
-              {tags.slice(visibleTags.length).map((tag, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 whitespace-nowrap border-2 border-gray-300 dark:border-gray-600 rounded-lg px-2 py-0.5 text-sm font-light !bg-gray-100 text-gray-900 dark:!bg-gray-800 dark:text-white"
-                >
-                  {tag.icon}
-                  <span className="font-light">
-                    {typeof tag.text === "string" ? tag.text : tag.text}
-                  </span>
-                </div>
-              ))}
+              {tags.slice(visibleTags.length).map(
+                (tag, index) =>
+                  tag.text && (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 whitespace-nowrap border-2 border-gray-300 dark:border-gray-600 rounded-lg px-2 py-0.5 text-sm font-light !bg-gray-100 text-gray-900 dark:!bg-gray-800 dark:text-white"
+                    >
+                      {tag.icon}
+                      <span className="font-light">
+                        {typeof tag.text === "string" ? tag.text : tag.text}
+                      </span>
+                    </div>
+                  ),
+              )}
             </div>
           }
         >

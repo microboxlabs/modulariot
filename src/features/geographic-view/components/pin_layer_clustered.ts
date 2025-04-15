@@ -258,6 +258,9 @@ export class PinLayer extends CompositeLayer<any> {
           getIconSize(d.properties.cluster ? d.properties.point_count || 1 : 1),
         updateTriggers: this.props.updateTriggers,
         pickable: true,
+        parameters: {
+          depthTest: false,
+        },
       }) as Layer,
       new PinCountLayer({
         id: "pin-counter",

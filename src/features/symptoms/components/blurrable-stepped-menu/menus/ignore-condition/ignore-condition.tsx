@@ -1,33 +1,25 @@
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Checkbox, Select } from "flowbite-react";
+import { Select } from "flowbite-react";
+import { useState } from "react";
 import { TiDelete } from "react-icons/ti";
-import React, { memo, useState } from "react";
-
-const MemoizedCheckbox = memo(
-  ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <Checkbox
-      name="ignore-indefinitely"
-      checked={checked}
-      onChange={onChange}
-    />
-  ),
-);
-MemoizedCheckbox.displayName = "MemoizedCheckbox";
 
 export default function IgnoreCondition({
   dict,
   treatmentData,
   duration,
   setDuration,
+  scope,
+  setScope,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   duration: number;
   setDuration: (duration: number) => void;
+  scope: string;
+  setScope: (scope: string) => void;
 }) {
   const [durationLocal, setDurationLocal] = useState(duration);
-  const [scope, setScope] = useState("synthom");
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-3 flex-grow">

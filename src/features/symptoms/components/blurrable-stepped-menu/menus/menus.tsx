@@ -194,6 +194,8 @@ export const getIgnoreCondition = (
   treatmentData: TreatmentsGeneralResponseItem | null,
   duration: number,
   setDuration: (duration: number) => void,
+  scope: string,
+  setScope: (scope: string) => void,
   treatmentRequest: TreatmentsRequest,
   setTreatmentRequest: (request: TreatmentsRequest) => void,
   isTeamsNotificationOn: boolean,
@@ -211,6 +213,8 @@ export const getIgnoreCondition = (
             treatmentData={treatmentData}
             setDuration={setDuration}
             duration={duration}
+            scope={scope}
+            setScope={setScope}
           />
         ),
         icon: <TiDelete className="h-8 w-8" />,
@@ -226,6 +230,7 @@ export const getIgnoreCondition = (
             });
             console.log("duration", duration);
             console.log("treatmentRequest", treatmentRequest);
+            console.log("scope", scope);
             /* await requestTreatment({
               ...treatmentRequest,
             }); */

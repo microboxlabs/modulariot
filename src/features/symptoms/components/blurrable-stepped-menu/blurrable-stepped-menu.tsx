@@ -51,7 +51,7 @@ export default function BlurrableSteppedMenu({
   const [driverResponse, setDriverResponse] = useState<string>("");
 
   const [duration, setDuration] = useState<number>(30);
-
+  const [scope, setScope] = useState<string>("synthom");
   const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
     asset_id: treatmentData?.trip_info?.asset_id ?? "",
     assigned_to: userEmail,
@@ -160,6 +160,8 @@ export default function BlurrableSteppedMenu({
           treatmentData,
           duration,
           setDuration,
+          scope,
+          setScope,
           treatmentRequest,
           setTreatmentRequest,
           isTeamsNotificationOn,

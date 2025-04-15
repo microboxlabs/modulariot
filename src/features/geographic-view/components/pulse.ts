@@ -29,8 +29,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
     const zoomLevel = this.props.zoom;
     const selectedPulse = this.props.selectedPulse;
 
-    console.log(selectedPulse);
-
     return [
       new ScatterplotLayer({
         id: "ScatterPlotLayer-pulse-outer",

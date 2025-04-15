@@ -76,6 +76,9 @@ export default function GeneralMap({
     return <div>Error: {error.message}</div>;
   }
 
+  console.log(tripId);
+  console.log(assetId);
+
   return (
     <>
       {loading ? (

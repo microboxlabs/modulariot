@@ -204,8 +204,7 @@ export default function TimelineComponent({
                               )}
                             </>
                           )}{" "}
-                          {((dict.symptoms as I18nRecord).minutes as string) ??
-                            "minutes"}
+                          min
                         </p>
                         {subItem.assigned_to && (
                           <p className="flex flex-row flex-grow justify-end">

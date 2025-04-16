@@ -1,3 +1,5 @@
+"use client";
+
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";

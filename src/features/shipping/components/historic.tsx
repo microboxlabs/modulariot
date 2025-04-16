@@ -14,7 +14,7 @@ export default function Historic({
   return (
     <div className="h-full w-full overflow-hidden flex flex-col">
       <div className="border-b border-gray-200 dark:border-gray-600 font-light bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-300 flex justify-center align-middle py-1">
-        {dict.pages.shipping.kanban.history}
+        {(dict.kanban as I18nRecord).history as string}
       </div>
       <div className="flex-1 w-0 min-w-full overflow-x-auto">
         <Table
@@ -49,19 +49,19 @@ export default function Historic({
         >
           <Table.Head>
             <Table.HeadCell className="whitespace-nowrap">
-              {dict.pages.shipping.kanban.finalizationDate}
+              {(dict.kanban as I18nRecord).finalizationDate as string}
             </Table.HeadCell>
             <Table.HeadCell className="whitespace-nowrap">
-              {dict.pages.shipping.kanban.duration}
+              {(dict.kanban as I18nRecord).duration as string}
             </Table.HeadCell>
             <Table.HeadCell className="whitespace-nowrap">
-              {dict.pages.shipping.kanban.event}
+              {(dict.kanban as I18nRecord).event as string}
             </Table.HeadCell>
             <Table.HeadCell className="whitespace-nowrap">
-              {dict.pages.shipping.kanban.completedBy}
+              {(dict.kanban as I18nRecord).completedBy as string}
             </Table.HeadCell>
             <Table.HeadCell className="whitespace-nowrap">
-              {dict.pages.shipping.kanban.action}
+              {(dict.kanban as I18nRecord).action as string}
             </Table.HeadCell>
           </Table.Head>
           <Table.Body>
@@ -108,13 +108,21 @@ export default function Historic({
                       })()}
                     </Table.Cell>
                     <Table.Cell className="whitespace-nowrap">
-                      {dict.pages.shipping.kanban[item.activityId]}
+                      {
+                        (dict.kanban as I18nRecord)[
+                          item.activityId as string
+                        ] as string
+                      }
                     </Table.Cell>
                     <Table.Cell className="whitespace-nowrap flex justify-center items-center">
                       {item.assignee ? item.assignee : "-"}
                     </Table.Cell>
                     <Table.Cell className="whitespace-nowrap">
-                      {dict.pages.shipping.kanban[item.taskResult]}
+                      {
+                        (dict.kanban as I18nRecord)[
+                          item.taskResult as string
+                        ] as string
+                      }
                     </Table.Cell>
                   </Table.Row>
                 );

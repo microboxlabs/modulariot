@@ -35,8 +35,6 @@ export async function NextCancelTripView({
   msg,
   lang,
 }: ExtendedTaskViewProps) {
-  console.log("funciona?");
-
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const driver1: Driver = {
     name: (task.mintral_driver1Name as string) ?? "-",
@@ -63,6 +61,8 @@ export async function NextCancelTripView({
     "wfship:monitoringInCourseTrip",
     "wfship:confirmTripDestinationArrival",
     "wfship:confirmMonitoringFinalization",
+    "wfship:confirmTripDestinationDeparture",
+    "wfship:confirmDelivery",
   ];
 
   return (
@@ -138,14 +138,14 @@ export async function NextCancelTripView({
           </div>
         </div>
         <div
-          className={`flex-1 flex h-full ${
+          className={`flex-1 flex h-full w-full ${
             form_keys.includes(task.taskFormKey as string)
               ? "flex-row"
               : "flex-col"
           }`}
         >
           {form_keys.includes(task.taskFormKey as string) && (
-            <div className="flex-1 h-full w-full">
+            <div className="flex h-full w-full">
               <GeographicHistoric
                 task={task as TaskResponse}
                 dictionary={dictionary as unknown as Record<string, string>}

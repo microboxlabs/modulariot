@@ -54,9 +54,6 @@ export async function GeneralTripView({
     };
   }
 
-  // console.log("task", task);
-  console.log("endStateName", task.persistentState?.endStateName);
-
   return (
     <div className="h-full flex flex-col">
       <div className="p-5">
@@ -123,7 +120,7 @@ export async function GeneralTripView({
           </div>
         </div>
         {task.persistentState?.endStateName === "monitoringFinalization" && (
-          <div className="flex-1 h-full w-full">
+          <div className="flex h-full w-full">
             <GeographicHistoric
               task={task as TaskResponse}
               dictionary={dictionary as unknown as Record<string, string>}

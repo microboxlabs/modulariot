@@ -9,17 +9,13 @@ export default function Geographic({
   task: TaskResponse;
   dictionary: Record<string, string>;
 }) {
-  console.log("task", task);
-
-  const task_id = task.id;
+  const task_id = task.mintral_serviceCode;
   const assetId = task.mintral_truckLicensePlate;
 
-
-  // 2593023
-  // 1450222
-  // LWVC21
-
-  const { positions, error } = useTripPositions(task_id as string, assetId as string);
+  const { positions, error } = useTripPositions(
+    task_id as string,
+    assetId as string,
+  );
 
   if (error) {
     return <div>Error: {error.message}</div>;

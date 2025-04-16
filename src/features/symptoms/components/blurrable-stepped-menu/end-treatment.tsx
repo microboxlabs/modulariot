@@ -19,9 +19,7 @@ export default function EndTreatment({
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked;
-    console.log("Checkbox clicked, new value:", newValue);
     setIsTeamsNotificationOn(newValue);
-    console.log("isTeamsNotificationOn:", isTeamsNotificationOn);
   };
 
   return (

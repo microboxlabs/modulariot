@@ -37,7 +37,7 @@ export default function SymptomsCards({
     treatment = 0,
     observation = 0,
     stable = 0,
-    remission = 0,
+    //remission = 0,
     compromised = 0,
   } = symptoms || {};
 
@@ -159,19 +159,6 @@ export default function SymptomsCards({
               dict={dict}
               icon={
                 <ConditionIcon
-                  condition="treatment"
-                  size="h-7 w-7"
-                  dict={dict}
-                />
-              }
-              title={(dict.symptoms as I18nRecord).in_treatment as string}
-              icu_condition={icuConditions.under_treatment}
-              count={treatment.toString().padStart(2, "0")}
-            />
-            <StatusCard
-              dict={dict}
-              icon={
-                <ConditionIcon
                   condition="observation"
                   size="h-7 w-7"
                   dict={dict}
@@ -180,6 +167,19 @@ export default function SymptomsCards({
               title={(dict.symptoms as I18nRecord).in_observation as string}
               icu_condition={icuConditions.under_observation}
               count={observation.toString().padStart(2, "0")}
+            />
+            <StatusCard
+              dict={dict}
+              icon={
+                <ConditionIcon
+                  condition="treatment"
+                  size="h-7 w-7"
+                  dict={dict}
+                />
+              }
+              title={(dict.symptoms as I18nRecord).in_treatment as string}
+              icu_condition={icuConditions.under_treatment}
+              count={treatment.toString().padStart(2, "0")}
             />
           </div>
         </CustomCard>
@@ -199,19 +199,21 @@ export default function SymptomsCards({
             </h5>
           </div>
           <div className="flex gap-3">
-            <StatusCard
-              dict={dict}
-              icon={
-                <ConditionIcon
-                  condition="remission"
-                  size="h-7 w-7"
-                  dict={dict}
-                />
-              }
-              title={(dict.symptoms as I18nRecord).in_remission as string}
-              icu_condition={icuConditions.remission_state}
-              count={remission.toString().padStart(2, "0")}
-            />
+            {/*
+              <StatusCard
+                dict={dict}
+                icon={
+                  <ConditionIcon
+                    condition="remission"
+                    size="h-7 w-7"
+                    dict={dict}
+                  />
+                }
+                title={(dict.symptoms as I18nRecord).in_remission as string}
+                icu_condition={icuConditions.remission_state}
+                count={remission.toString().padStart(2, "0")}
+              />  
+              */}
             <StatusCard
               dict={dict}
               icon={

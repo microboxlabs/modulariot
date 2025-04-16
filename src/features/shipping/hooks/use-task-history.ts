@@ -8,6 +8,7 @@ export type TaskHistory = {
   activityType: string;
   assignee: string;
   startTime: string;
+  taskResult: string;
 };
 
 export function useTaskHistory(taskId: string) {

@@ -19,21 +19,13 @@ export async function GET(req: NextRequest) {
       throw new Error("Task ID is required");
     }
 
-    console.log("--------------------------------");
-
-    console.log("taskId", taskId);
-
     const session = await auth();
 
     if (!session) {
       throw new Error("Unauthorized");
     }
 
-    console.log("authorized: true");
-
     const taskHistory = await getTaskHistory(session.user.ticket, taskId);
-
-    console.log("taskHistory", taskHistory);
 
     return NextResponse.json(taskHistory);
   } catch (error: any) {

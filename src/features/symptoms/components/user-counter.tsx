@@ -191,11 +191,12 @@ export default function UserStateCounter() {
             </div>)
         }
       )}
-      {users.length > 3 && (
+      {
+      /*users.length > 3 && (
         <div className="border-2 border-white flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100 h-10 w-10">
           +{users.length - 3}
         </div>
-      )}
+      )*/}
     </div>
   );
 }

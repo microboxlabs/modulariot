@@ -232,8 +232,8 @@ export default function MapVisualizationTrip({
     setSelectedPulse(Array.from(matchingIndices));
     if (matchingIndices.size > 0) {
       setHoverInfo({
-        x: 0,
-        y: 0,
+        x: 10,
+        y: 10,
         object: {
           elements: Array.from(matchingIndices),
         },
@@ -302,6 +302,11 @@ export default function MapVisualizationTrip({
           },
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
+            console.log("informatione pulso", info);
+            if (info.viewport) {
+              info.x = info.viewport.width / 2;
+              info.y = info.viewport.height / 2;
+            }
             setHoverInfo(info);
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : [],
@@ -344,10 +349,32 @@ export default function MapVisualizationTrip({
         new PinLayer({
           data: positions ? [positions[positions.length - 1]] : [],
           zoom: viewState.zoom,
-          onClick: ({ object }: { object: any }) => {
+          onClick: (info: PickingInfo<any>) => {
+            if (info.viewport) {
+              info.x = info.viewport.width / 2;
+              info.y = info.viewport.height / 2;
+            }
+
+            // Create a properly typed formatted info object
+            const formattedInfo: PickingInfo<PulseType> = {
+              ...info,
+              object: {
+                properties: {
+                  icu_code: info.object?.properties.icu_code ?? 0,
+                  asset_id: info.object?.properties.assetid,
+                  rotation: info.object?.properties.heading * (180 / Math.PI),
+                  latitude: info.object?.properties.latitude,
+                  longitude: info.object?.properties.longitude,
+                  speed: info.object?.properties.speed,
+                  timestamp: info.object?.properties.timestamp,
+                },
+              },
+            };
+
+            setHoverInfo(formattedInfo as any);
             zoom_on_pin(
-              object.geometry.coordinates[0],
-              object.geometry.coordinates[1],
+              info.object?.properties.longitude,
+              info.object?.properties.latitude,
               false,
               setViewState,
               viewState,

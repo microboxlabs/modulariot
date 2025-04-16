@@ -126,6 +126,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           />
         );
       }
+
       return (
         <NextCancelTripView
           lang={lang ?? defaultLocale}

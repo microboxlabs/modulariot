@@ -93,7 +93,8 @@
         "departureDate": "Fecha de salida",
         "serviceKind": "Tipo de servicio",
         "executionType": "Tipo de ejecución",
-        "tripInformation": "Información del viaje"
+        "tripInformation": "Información del viaje",
+        "patente": "Patente"
       },
       "views": {
         "table": "Tabla",
@@ -152,6 +153,7 @@
         "drugTest": "Test de drogas",
         "sleepinessTest": "Test de somnolencia",
         "tripInformation": "Información del viaje",
+        "patente": "Patente",
         "clientCode": "Código cliente",
         "serviceCode": "Código servicio",
         "origin": "Origen",

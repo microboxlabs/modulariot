@@ -1,10 +1,10 @@
 export const pin_conditions = {
   "1": {
-    icon: "observation",
+    icon: "under observation",
     label: "in_observation",
   },
   "2": {
-    icon: "compromised",
+    icon: "compromised condition",
     label: "compromised_condition",
   },
   "3": {

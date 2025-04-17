@@ -13,7 +13,7 @@ export type TreatmentsRequest = {
 
   treatment_id: number | null | undefined;
 
-  duration?: number | null | undefined;
+  v_symptom_treatment_time?: number | null | undefined;
 };
 
 export type TreatmentsResponse = {

@@ -250,7 +250,7 @@ export const getIgnoreCondition = (
           function: async () => {
             setTreatmentRequest({
               ...treatmentRequest,
-              duration,
+              v_symptom_treatment_time: duration,
               status: "active",
             });
             /* console.log("duration", duration);
@@ -260,7 +260,7 @@ export const getIgnoreCondition = (
               ...treatmentRequest,
               status: "active",
               treatment_type: "ignorar condicion",
-              duration,
+              v_symptom_treatment_time: duration,
             });
           },
         },

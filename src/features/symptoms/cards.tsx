@@ -159,7 +159,7 @@ export default function SymptomsCards({
               dict={dict}
               icon={
                 <ConditionIcon
-                  condition="observation"
+                  condition="under observation"
                   size="h-7 w-7"
                   dict={dict}
                 />

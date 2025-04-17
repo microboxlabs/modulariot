@@ -99,7 +99,6 @@ export async function GeneralTripView({
                 lang={lang}
                 entityInfo={undefined /* task as GetEntityInfoResponse */}
               />
-
               <div className="h-px bg-gray-300 w-full"></div>
               <form>
                 <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">

@@ -110,7 +110,7 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
       })}
       {user_states.userStates.length > 3 && (
         <div
-          className={`${!open ? "ml-[-2.0em]" : "ml-[-2.5rem] scale-0 h-0 w-0" } z-10 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 h-10 w-10 bg-blue-500 text-white`}
+          className={`${!open ? "ml-[-2.0em]" : "ml-[-2.5rem] scale-0 h-0 w-0"} z-10 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 h-10 w-10 bg-blue-500 text-white`}
         >
           +{user_states.userStates.length - 3}
         </div>

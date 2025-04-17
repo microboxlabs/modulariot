@@ -422,3 +422,16 @@ export function useGetTasksById(taskId: string) {
 export function getUserStatus() {
   return fetcher("/app/api/user/status");
 }
+
+export function useGetUserStates() {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/user/states`,
+    fetcher,
+  );
+
+  return {
+    user_states: data,
+    user_states_error: error,
+    user_states_isLoading: isLoading,
+  };
+}

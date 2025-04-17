@@ -108,7 +108,7 @@ export default function SymptomsTable({
           </Button>
         </div>
         <div className="flex gap-2">
-          <UserStateCounter />
+          <UserStateCounter dict={dict} />
           <Button
             onClick={() => setShowCards(!showCards)}
             className="justify-self-end flex justify-center items-center h-10 w-10"

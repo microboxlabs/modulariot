@@ -151,19 +151,6 @@ export const Conditions: Record<string, Condition> = {
     hoverColor: "",
     icon: observation,
   },
-  "in observation": {
-    dict_name: "in_observation",
-    color: "border-rose-700",
-    textColor: "text-black dark:text-white",
-    innerColor: "bg-white",
-    bgColor: "border border-gray-300 dark:border-gray-700",
-    secundaryInteraction:
-      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
-    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
-    separatorColor: "border-gray-300 dark:border-gray-700",
-    hoverColor: "",
-    icon: observation,
-  },
   observation: {
     dict_name: "in_observation",
     color: "border-rose-700",

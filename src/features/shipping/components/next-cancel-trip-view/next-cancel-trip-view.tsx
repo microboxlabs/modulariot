@@ -96,7 +96,6 @@ export async function NextCancelTripView({
                 driver1={driver1}
                 driver2={driver2}
               />
-
               <div className="h-px bg-gray-300 w-full"></div>
               <TripInformation
                 msg={msg}
@@ -105,7 +104,6 @@ export async function NextCancelTripView({
                 entityInfo={undefined}
                 serviceValidation={undefined}
               />
-
               <div className="h-px bg-gray-300 w-full"></div>
               <form>
                 <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
@@ -122,7 +120,6 @@ export async function NextCancelTripView({
                 </div>
               </form>
               <div className="h-px bg-gray-300 w-full"></div>
-
               <div className="flex items-center justify-center">
                 <TaskActions
                   taskId={task.id ?? ""}

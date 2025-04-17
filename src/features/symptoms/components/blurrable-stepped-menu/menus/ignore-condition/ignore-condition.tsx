@@ -81,17 +81,18 @@ export default function IgnoreCondition({
               }}
               defaultValue={durationLocal}
             >
-              <option value="5">
+              {/* values in seconds */}
+              <option value="300">
                 5 {(dict.symptoms as I18nRecord).minutes as string}
               </option>
-              <option value="30">
+              <option value="1800">
                 30 {(dict.symptoms as I18nRecord).minutes as string}
               </option>
-              <option value="60">
+              <option value="3600">
                 1 {(dict.symptoms as I18nRecord).hour as string}
               </option>
-              <option value="240">
-                4 {(dict.symptoms as I18nRecord).hours as string}
+              <option value="7200">
+                2 {(dict.symptoms as I18nRecord).hours as string}
               </option>
               <option value="-1">
                 {(dict.symptoms as I18nRecord).ignore_indefinitely as string}

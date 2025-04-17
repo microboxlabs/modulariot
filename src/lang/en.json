@@ -92,7 +92,9 @@
         "clientName": "Client",
         "departureDate": "Departure Date",
         "serviceKind": "Service Type",
-        "executionType": "Execution Type"       
+        "executionType": "Execution Type",
+        "tripInformation": "Trip Information",
+        "patente": "License Plate"
       },
       "views": {
         "table": "Table",
@@ -138,6 +140,8 @@
         "submit": "Continue"
       },
       "cards": {
+        "tripInformation": "Trip Information",
+        "patente": "License Plate",
         "driverContactInfo": "Contact information",
         "email": "Email",
         "status": "Status",

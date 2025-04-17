@@ -58,7 +58,7 @@ export default function BlurrableSteppedMenu({
     client_id: null,
     status: "active",
     symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
-    treatment_type: "llamar al conductor",
+    treatment_type: "",
     trip_id: treatmentData?.trip_info?.trip_id ?? "",
     message: messageToCommunicate ?? "",
     driver_response: driverResponse ?? "",

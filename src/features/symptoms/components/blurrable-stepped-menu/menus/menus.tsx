@@ -48,7 +48,16 @@ export const getCallDriver = (
   {
     title: (dict.symptoms as I18nRecord).treatment,
     preactions: async () => {
-      const response = await requestTreatment(treatmentRequest);
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_type: "llamar al conductor",
+        status: "pending",
+      });
+      const response = await requestTreatment({
+        ...treatmentRequest,
+        treatment_type: "llamar al conductor",
+        status: "pending",
+      });
       setTreatmentRequest({
         ...treatmentRequest,
         treatment_id: response.treatment_id,
@@ -203,6 +212,22 @@ export const getIgnoreCondition = (
 ) => [
   {
     title: (dict.symptoms as I18nRecord).treatment,
+    preactions: async () => {
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_type: "ignorar condicion",
+        status: "pending",
+      });
+      const response = await requestTreatment({
+        ...treatmentRequest,
+        treatment_type: "ignorar condicion",
+        status: "pending",
+      });
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_id: response.treatment_id,
+      });
+    },
     elements: [
       {
         element_name: (dict.symptoms as I18nRecord).ignore_condition,
@@ -225,15 +250,18 @@ export const getIgnoreCondition = (
           function: async () => {
             setTreatmentRequest({
               ...treatmentRequest,
-              treatment_type: "ignorar condición",
+              duration,
+              status: "active",
+            });
+            /* console.log("duration", duration);
+            console.log("treatmentRequest", treatmentRequest);
+            console.log("scope", scope); */
+            await requestTreatment({
+              ...treatmentRequest,
+              status: "active",
+              treatment_type: "ignorar condicion",
               duration,
             });
-            console.log("duration", duration);
-            console.log("treatmentRequest", treatmentRequest);
-            console.log("scope", scope);
-            /* await requestTreatment({
-              ...treatmentRequest,
-            }); */
           },
         },
       },

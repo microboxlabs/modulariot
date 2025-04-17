@@ -112,12 +112,12 @@ export default function SymptomsTable({
           <Button
             onClick={() => setShowCards(!showCards)}
             className="justify-self-end flex justify-center items-center h-10 w-10"
-          color="gray"
-        >
-          {showCards ? (
-            <FiMaximize className="h-5 w-5" />
-          ) : (
-            <FiMinimize className="h-5 w-5" />
+            color="gray"
+          >
+            {showCards ? (
+              <FiMaximize className="h-5 w-5" />
+            ) : (
+              <FiMinimize className="h-5 w-5" />
             )}
           </Button>
         </div>

@@ -22,7 +22,8 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
     if (user_states?.userStates) {
       const colors: Record<number, string> = {};
       user_states.userStates.forEach((_: any, index: number) => {
-        colors[index] = color_selector[Math.floor(Math.random() * color_selector.length)];
+        colors[index] =
+          color_selector[Math.floor(Math.random() * color_selector.length)];
       });
       setUserColors(colors);
     }

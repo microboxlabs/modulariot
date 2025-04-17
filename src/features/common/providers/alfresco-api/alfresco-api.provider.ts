@@ -15,6 +15,7 @@ import type {
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
+  UserState,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 
@@ -341,7 +342,7 @@ export async function getSympthomTemplate(
   return result as SympthomTemplateResponse;
 }
 
-export async function getUserStates(ticket: string): Promise<any> {
+export async function getUserStates(ticket: string): Promise<UserState[]> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -349,5 +350,5 @@ export async function getUserStates(ticket: string): Promise<any> {
     "GET",
     `mintral/tasks/operator-status`,
   );
-  return result as any;
+  return result as UserState[];
 }

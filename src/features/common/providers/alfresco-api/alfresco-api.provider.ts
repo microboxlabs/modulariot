@@ -340,3 +340,14 @@ export async function getSympthomTemplate(
   );
   return result as SympthomTemplateResponse;
 }
+
+export async function getUserStates(ticket: string): Promise<any> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/tasks/operator-status`,
+  );
+  return result as any;
+}

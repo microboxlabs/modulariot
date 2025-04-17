@@ -97,7 +97,6 @@ export async function GeneralTripView({
                 {/* {task.id} */}
                 {dict("pages.shippingDetailsTaskForm.comments")}
               </p>
-
               <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
                 {getComments(task)}
               </p>

@@ -1,5 +1,8 @@
 "use client";
-import { Badge, Sidebar } from "flowbite-react";
+import {
+  SidebarCollapse,
+  SidebarItem as FlowbiteSidebarItem,
+} from "flowbite-react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
@@ -21,47 +24,42 @@ export default function SidebarItem({
     // const isOpen = items.some((item) => pathname.startsWith(item.href ?? ""));
     const isOpen = true;
     return (
-      <Sidebar.Collapse
+      <SidebarCollapse
         icon={icon}
         label={label}
         open={isOpen}
         theme={{ list: "space-y-2 py-2  [&>li>div]:w-full" }}
       >
         {items.map((item) => (
-          <Sidebar.Item
+          //
+          <FlowbiteSidebarItem
             key={item.label}
-            as={Link}
             href={item.href}
             target={item.target}
+            as={Link}
+            icon={item.icon}
             className={twMerge(
               "justify-center [&>*]:font-normal",
               pathname === item.href && "bg-gray-100 dark:bg-gray-700",
             )}
+            label={getTotalCountBagaes(totals[item.label])}
+            labelColor={
+              getTotalCountBagaes(totals[item.label]) <= 0
+                ? "success"
+                : getTotalCountBagaes(totals[item.label]) >= 100
+                  ? "warning"
+                  : "info"
+            }
           >
-            <div className="">
-              <div className="float-left">{tr(item.label, dict)}</div>
-              <Badge
-                className="float-right"
-                color={
-                  getTotalCountBagaes(totals[item.label]) <= 0
-                    ? "success"
-                    : getTotalCountBagaes(totals[item.label]) >= 100
-                      ? "warning"
-                      : "info"
-                }
-                size="sm"
-              >
-                {getTotalCountBagaes(totals[item.label])}
-              </Badge>
-            </div>
-          </Sidebar.Item>
+            {tr(item.label, dict)}
+          </FlowbiteSidebarItem>
         ))}
-      </Sidebar.Collapse>
+      </SidebarCollapse>
     );
   }
 
   return (
-    <Sidebar.Item
+    <FlowbiteSidebarItem
       as={Link}
       href={href}
       target={target}
@@ -70,7 +68,7 @@ export default function SidebarItem({
       className={twMerge(pathname === href && "bg-gray-100 dark:bg-gray-700")}
     >
       {label}
-    </Sidebar.Item>
+    </FlowbiteSidebarItem>
   );
 }
 

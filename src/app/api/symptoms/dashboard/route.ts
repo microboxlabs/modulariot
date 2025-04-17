@@ -47,7 +47,7 @@ export async function GET() {
       stable: apiData.data["Stable"] || 0,
       codeBlack: apiData.data["Code Black"] || 0,
       remission: apiData.data["Remission"] || 0,
-      treatment: apiData.data["Treatment"] || 0,
+      treatment: apiData.data["Under Treatment"] || 0,
       compromised: apiData.data["Compromised condition"] || 0,
       observation: apiData.data["Under Observation"] || 0,
     };

@@ -1,7 +1,6 @@
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 
 export function getComments(task: ExtendedTaskResponse) {
-  console.log(task);
   return (
     task.mintral_comments
       ? typeof task.mintral_comments === "string"

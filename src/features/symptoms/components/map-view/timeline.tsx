@@ -189,11 +189,22 @@ export default function TimelineComponent({
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}
-                          |{" "}
-                          {new Date(subItem.end).toLocaleTimeString([], {
+                          {/* {new Date(subItem.end).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
-                          })}
+                          })} */}
+                          |{" "}
+                          {subItem.start && subItem.end && (
+                            <>
+                              {/* difference between start and end in minutes */}
+                              {Math.floor(
+                                (new Date(subItem.end).getTime() -
+                                  new Date(subItem.start).getTime()) /
+                                  60000,
+                              )}
+                            </>
+                          )}{" "}
+                          min
                         </p>
                         {subItem.assigned_to && (
                           <p className="flex flex-row flex-grow justify-end">

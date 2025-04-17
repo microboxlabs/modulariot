@@ -108,6 +108,7 @@ export default function IgnoreCondition({
                 setScope(e.target.value);
               }}
               defaultValue={scope}
+              disabled={true}
             >
               <option value="synthom">
                 {(dict.symptoms as I18nRecord).this_symptom as string}

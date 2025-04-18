@@ -20,6 +20,7 @@ export default function ConfirmDeliveryForm({
   task,
   user,
   msg,
+  userGroups,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -155,6 +156,7 @@ export default function ConfirmDeliveryForm({
           msg={msg}
           task={task}
           user={user}
+          userGroups={userGroups}
           pluginReady={pluginReady}
           stepperController={stepperController}
           isSovosVerification={false}
@@ -169,6 +171,7 @@ export default function ConfirmDeliveryForm({
           lang={lang}
           msg={msg}
           task={task}
+          userGroups={userGroups}
           pluginReady={pluginReady}
           stepperController={stepperController}
           success={!stepper.isError}

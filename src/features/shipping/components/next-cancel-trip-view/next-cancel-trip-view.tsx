@@ -18,6 +18,7 @@ import TaskActions from "@/features/task-forms/components/task-actions/task-acti
 import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
 import { getComments } from "@/utils/comments";
 import { GeographicHistoric } from "../geographic-historic";
+import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -34,6 +35,7 @@ export async function NextCancelTripView({
   task,
   msg,
   lang,
+  userGroups,
 }: ExtendedTaskViewProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const driver1: Driver = {
@@ -103,6 +105,7 @@ export async function NextCancelTripView({
                 lang={lang}
                 entityInfo={undefined}
                 serviceValidation={undefined}
+                userGroups={userGroups}
               />
               <div className="h-px bg-gray-300 w-full"></div>
               <form>
@@ -120,17 +123,24 @@ export async function NextCancelTripView({
                 </div>
               </form>
               <div className="h-px bg-gray-300 w-full"></div>
-              <div className="flex items-center justify-center">
-                <TaskActions
-                  taskId={task.id ?? ""}
-                  taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
-                  lang={lang}
-                  dict={
-                    (dictionary.pages as I18nRecord)
-                      .shippingDetailsTaskForm as I18nRecord
-                  }
-                />
-              </div>
+              <GroupAllowed
+                allowedTo={["GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"]}
+                userGroups={userGroups}
+              >
+                <div className="flex items-center justify-center">
+                  <TaskActions
+                    taskId={task.id ?? ""}
+                    taskType={
+                      task.taskFormKey as ShippingCoordinatorProcessForms
+                    }
+                    lang={lang}
+                    dict={
+                      (dictionary.pages as I18nRecord)
+                        .shippingDetailsTaskForm as I18nRecord
+                    }
+                  />
+                </div>
+              </GroupAllowed>
             </div>
           </div>
         </div>

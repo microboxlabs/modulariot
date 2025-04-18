@@ -26,7 +26,12 @@ import { GeneralTripView } from "@/features/shipping/components/general-trip-vie
 import { NextCancelTripView } from "@/features/shipping/components/next-cancel-trip-view/next-cancel-trip-view";
 import ConfirmDeliveryForm from "../confirm-delivery-form/confirm-delivery-form";
 
-export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
+export async function TaskForm({
+  task,
+  lang,
+  ticket,
+  userGroups,
+}: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
@@ -40,6 +45,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
             lang={lang ?? defaultLocale}
             task={task}
             user={user}
+            userGroups={userGroups}
             msg={
               (dictionary.pages as I18nRecord)
                 .transportValidationForm as I18nRecord
@@ -56,6 +62,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang}
           task={task as TaskResponse}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
@@ -69,6 +76,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang}
           task={task as TaskResponse}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord).sovosVerificationForm as I18nRecord
           }
@@ -80,6 +88,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang}
           task={task as TaskResponse}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
@@ -92,6 +101,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang}
           task={task as TaskResponse}
           user={user}
+          userGroups={userGroups}
         />
       );
 
@@ -105,6 +115,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang ?? defaultLocale}
           task={task}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
@@ -119,6 +130,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
             lang={lang ?? defaultLocale}
             task={task as TaskResponse}
             user={user}
+            userGroups={userGroups}
             msg={
               (dictionary.pages as I18nRecord)
                 .sovosVerificationForm as I18nRecord
@@ -132,6 +144,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang ?? defaultLocale}
           task={task}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord
@@ -144,6 +157,7 @@ export async function TaskForm({ task, lang, ticket }: ExtendedTaskViewProps) {
           lang={lang ?? defaultLocale}
           task={task}
           user={user}
+          userGroups={userGroups}
           msg={
             (dictionary.pages as I18nRecord)
               .transportValidationForm as I18nRecord

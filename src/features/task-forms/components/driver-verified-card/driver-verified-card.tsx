@@ -44,6 +44,7 @@ export default function DriverVerifiedCard({
   entityInfo,
   serviceValidation,
   enableActions = false,
+  userGroups,
 }: DriverVerifiedCardProps) {
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
@@ -149,6 +150,7 @@ export default function DriverVerifiedCard({
         lang={lang}
         entityInfo={entityInfo}
         serviceValidation={serviceValidation}
+        userGroups={userGroups}
       />
       <form action={formActionWrapper} className="flex flex-col gap-2">
         <TripManifestParams
@@ -159,6 +161,7 @@ export default function DriverVerifiedCard({
           serviceValidation={serviceValidation}
           nativeGenerationEnabled={nativeGenerationEnabled}
           onNativeGenerationChange={onNativeGenerationChange}
+          userGroups={userGroups}
         />
 
         <div className="h-px bg-gray-300 w-full mt-4"></div>

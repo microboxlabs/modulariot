@@ -4,6 +4,7 @@ import {
   WebscriptApi,
   NodesApi,
   PersonEntry,
+  GroupsApi,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -365,4 +366,11 @@ export async function getTaskHistory(
     `mintral/tasks/history?taskId=${taskId}`,
   );
   return result as TaskResponse;
+}
+
+export async function getGroupsForPerson(ticket: string): Promise<string[]> {
+  alfrescoApi.setTicket(ticket, "");
+  const groupsApi = new GroupsApi(alfrescoApi.contentClient);
+  const groups = await groupsApi.listGroupMembershipsForPerson("-me-");
+  return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
 }

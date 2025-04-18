@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         updateTaskPayload.prop_wfship_sovosDigitalSignatureOutputReasonType =
           reason;
       } else if (reasonId === "wfship:missionControlTripInitTask") {
-        updateTaskPayload.prop_wfship_transportValidationOutputReasonType =
+        updateTaskPayload.prop_wfship_missionControlValidationOutputReasonType =
           reason;
       }
     }

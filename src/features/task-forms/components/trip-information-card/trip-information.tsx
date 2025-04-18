@@ -13,6 +13,7 @@ export default function TripInformation({
   lang,
   task,
   msg,
+  userGroups,
 }: DriverVerifiedCardProps) {
   const eta = fromString(
     task.mintral_arrivalDate
@@ -99,7 +100,12 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
-          <GpsValidationItem msg={msg} lang={lang} task={task} />
+          <GpsValidationItem
+            msg={msg}
+            lang={lang}
+            task={task}
+            userGroups={userGroups}
+          />
         </div>
       </div>
     </div>

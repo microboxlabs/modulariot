@@ -15,6 +15,7 @@ export default async function MissionControlTripInitForm({
   task,
   lang,
   msg,
+  userGroups,
 }: TaskFormProps) {
   // const session = await auth();
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -49,6 +50,7 @@ export default async function MissionControlTripInitForm({
               .shippingDetailsTaskForm as I18nRecord),
           }}
           task={task}
+          userGroups={userGroups}
           // entityInfo={entityInfo}
           // serviceValidation={serviceValidation}
           enableActions={true}

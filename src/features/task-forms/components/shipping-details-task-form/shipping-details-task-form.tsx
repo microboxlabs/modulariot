@@ -25,6 +25,7 @@ import Validations from "../validations/validations";
 export default async function ShippingDetailsTaskForm({
   task,
   lang,
+  userGroups,
 }: TaskFormProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
 
@@ -83,6 +84,7 @@ export default async function ShippingDetailsTaskForm({
               <Validations
                 task={task}
                 lang={lang}
+                userGroups={userGroups}
                 msg={{
                   check1Subtitle,
                   check2Subtitle,

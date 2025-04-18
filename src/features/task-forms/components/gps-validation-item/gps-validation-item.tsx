@@ -13,7 +13,12 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 import { Spinner } from "flowbite-react";
 
-export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
+export default function GpsValidationItem({
+  task,
+  msg,
+  lang,
+  userGroups,
+}: TaskFormProps) {
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -83,6 +88,7 @@ export default function GpsValidationItem({ task, msg, lang }: TaskFormProps) {
             entityInfo={entityInfo}
             lang={lang}
             task={task}
+            userGroups={userGroups}
           />
         </>
       )}

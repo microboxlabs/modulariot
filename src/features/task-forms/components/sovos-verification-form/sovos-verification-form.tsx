@@ -20,6 +20,7 @@ export default function SovosVerificationForm({
   task,
   lang,
   user,
+  userGroups,
 }: TaskFormProps) {
   // const { data: session } = useSession();
   const [pluginReady, setPluginReady] = useState(false);
@@ -146,15 +147,16 @@ export default function SovosVerificationForm({
         stepper.currentStep === "step3" ||
         stepper.currentStep === "step5") && (
           <SovosStartVerificationCard
-            lang={lang}
-            msg={msg}
-            task={task}
-            user={user}
-            pluginReady={pluginReady}
-            stepperController={stepperController}
-            isSovosVerification={true}
-            validationError={validationError}
-            setValidationError={setValidationError}
+          lang={lang}
+          msg={msg}
+          task={task}
+          user={user}
+          userGroups={userGroups}
+          pluginReady={pluginReady}
+          stepperController={stepperController}
+          isSovosVerification={true}
+          validationError={validationError}
+          setValidationError={setValidationError}
           />
         )}
       {(stepper.currentStep === "step2" ||
@@ -169,6 +171,7 @@ export default function SovosVerificationForm({
             success={!stepper.isError}
             isSovosVerification={true}
             user={user}
+            userGroups={userGroups}
             validationError={validationError}
             setValidationError={setValidationError}
           />

@@ -34,28 +34,41 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
   const [comments, setComments] = useState("");
-  const [reason, setReason] = useState(
-    taskType === "wfship:sovosDigitalSignature" &&
+  const [reason, setReason] = useState(getInitialReason());
+
+  function getInitialReason() {
+    if (
+      taskType === "wfship:sovosDigitalSignature" &&
       outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-      ? "FINGERPRINT_DEVICES_TECH_ISSUES"
-      : taskType === "wfship:missionControlTripInitTask" &&
-          outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-        ? "NO_GPS_VALIDATION"
-        : "",
-  );
+    ) {
+      return "FINGERPRINT_DEVICES_TECH_ISSUES";
+    }
+    if (
+      taskType === "wfship:missionControlTripInitTask" &&
+      (outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL ||
+        outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION)
+    ) {
+      return "NO_GPS_VALIDATION";
+    }
+    return "";
+  }
 
   async function handleConfirm() {
     try {
+      let calculatedReason = reason;
+      if (calculatedReason === "") {
+        calculatedReason = getInitialReason();
+      }
       setIsProcessing(true);
       const formData = new FormData();
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
       formData.append("comments", comments);
-      formData.append("reason", reason);
+      formData.append("reason", calculatedReason);
       formData.append("reasonId", taskType ?? "");
       if (extraData) {
         Object.entries(extraData).forEach(([key, value]) => {
-          formData.append(key, value);
+          formData.append(key, value as string);
         });
       }
       const response = await taskNextAction({}, formData);
@@ -136,6 +149,7 @@ export default function TaskConfirmModal({
                   </Label>
                   <Select
                     /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                    defaultValue="NO_GPS_VALIDATION"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   >

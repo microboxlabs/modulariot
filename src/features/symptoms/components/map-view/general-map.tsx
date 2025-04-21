@@ -57,8 +57,9 @@ export default function GeneralMap({
       ?.toString()
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
-    selectedTreatmentIndex?.start ?? "",
-    selectedTreatmentIndex?.end ?? "",
+    /* selectedTreatmentIndex?.start ?? "",
+    selectedTreatmentIndex?.end ?? "", */
+    selectedTreatment?.symptom_info?.id.toString() ?? "",
   );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value

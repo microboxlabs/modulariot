@@ -370,17 +370,18 @@ export function useReleases() {
 export function useTreatmentsLocation(
   tripId: string,
   symptom_name: string,
-  first_date: string,
-  last_date: string,
+  /* first_date: string,
+  last_date: string, */
+  symptom_id: string,
 ) {
-  const shouldFetch = tripId && symptom_name && first_date && last_date;
-
+  const shouldFetch = tripId && symptom_name; //&& first_date && last_date;
+  //&first_date=${first_date}&last_date=${last_date}
   const { data, error, isLoading } = useSWR<
     TreatmentsLocationResponseItemFeature[],
     FetcherError
   >(
     shouldFetch
-      ? `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&first_date=${first_date}&last_date=${last_date}`
+      ? `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&symptom_id=${symptom_id}`
       : null,
     fetcher,
   );

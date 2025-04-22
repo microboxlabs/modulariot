@@ -33,7 +33,10 @@ export default function GeneralMap({
   tripId?: string;
   assetId?: string;
 }) {
-  const { positions, error } = useTripPositions(tripId ?? "", assetId ?? "");
+  const { positions, error, isLoading } = useTripPositions(
+    tripId ?? "",
+    assetId ?? "",
+  );
 
   const {
     treatmentData,
@@ -219,6 +222,7 @@ export default function GeneralMap({
           <MapVisualizationTrip
             positions={positions}
             error={error}
+            isLoading={isLoading}
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}

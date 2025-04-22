@@ -627,8 +627,14 @@
     "over_limit": " por encima del límite",
     "signal_status": "Estado de señal",
     "lost_signal": "Señal perdida",
+    "streets": "Calles",
+    "satelital": "Satelital",
+    "outdoors": "Outdoors",
+    "dark": "Oscuro",
+    "light": "Claro",
     "latitude": "Latitud",
-    "longitude": "Longitud"
+    "longitude": "Longitud",
+    "no_data_found": "No se encontraron datos"
   },
   "release": {
     "other_versions": "Otras versiones"

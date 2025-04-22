@@ -618,8 +618,14 @@
     "over_limit": " over the limit",
     "signal_status": "Signal status",
     "lost_signal": "Lost signal",
+    "streets": "streets",
+    "satelital": "satelital",
+    "outdoors": "outdoors",
+    "dark": "dark",
+    "light": "light",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "no_data_found": "No data found"
   },
   "release": {
     "other_versions": "Other Versions"

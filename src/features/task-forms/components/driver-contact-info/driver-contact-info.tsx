@@ -11,8 +11,7 @@ export default function DriverContactInfo({
     <div className="flex flex-col gap-1">
       <div className="flex-1 flex flex-row items-end gap-1">
         <span className="text-gray-900 dark:text-white">
-          {(msg.cards as I18nRecord)[driver.varName] as string}
-        :{" "}
+          {(msg.cards as I18nRecord)[driver.varName] as string}:{" "}
           <span className="text-sm font-light text-gray-900 dark:text-white">
             {driver.name}
           </span>

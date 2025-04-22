@@ -31,6 +31,7 @@ export async function GeneralTripView({
   task,
   msg,
   lang,
+  userGroups,
 }: ExtendedTaskViewProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const driver1: Driver = {
@@ -97,9 +98,9 @@ export async function GeneralTripView({
                 msg={msg}
                 task={task as TaskResponse}
                 lang={lang}
+                userGroups={userGroups}
                 entityInfo={undefined /* task as GetEntityInfoResponse */}
               />
-
               <div className="h-px bg-gray-300 w-full"></div>
               <form>
                 <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">

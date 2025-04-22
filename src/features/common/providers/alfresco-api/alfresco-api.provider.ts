@@ -4,6 +4,7 @@ import {
   WebscriptApi,
   NodesApi,
   PersonEntry,
+  GroupsApi,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -15,6 +16,7 @@ import type {
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
+  UserState,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 
@@ -341,6 +343,17 @@ export async function getSympthomTemplate(
   return result as SympthomTemplateResponse;
 }
 
+export async function getUserStates(ticket: string): Promise<UserState[]> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/tasks/operator-status`,
+  );
+  return result as UserState[];
+}
+
 export async function getTaskHistory(
   ticket: string,
   taskId: string,
@@ -353,4 +366,11 @@ export async function getTaskHistory(
     `mintral/tasks/history?taskId=${taskId}`,
   );
   return result as TaskResponse;
+}
+
+export async function getGroupsForPerson(ticket: string): Promise<string[]> {
+  alfrescoApi.setTicket(ticket, "");
+  const groupsApi = new GroupsApi(alfrescoApi.contentClient);
+  const groups = await groupsApi.listGroupMembershipsForPerson("-me-");
+  return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
 }

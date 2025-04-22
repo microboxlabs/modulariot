@@ -1,0 +1,64 @@
+# Release Notes v1.6.1 – ModularIoT / Coordinador de viajes
+
+### Fecha de lanzamiento: 2025-05-18
+
+---
+## 1. Correcciónes
+- Corrección del campo de rechazo en el flujo kanban Torre de Control Iniciar Viaje. En lugar de usar el campo `prop_wfship_missionControlValidationOutputReasonType`, se usa `prop_wfship_transportValidationOutputReasonType`. Esto permite que las notificaciones de rechazo lleguen correctamente al canal de Teams.
+
+# Release Notes v1.6.0 – ModularIoT
+
+### Fecha de lanzamiento: 2025-05-15
+
+---
+
+## 1. Visualizaciones Dinámicas y Mejoras de Interfaz
+- Navbar minimizada: Se implementó la versión minimizada de la barra de 
+navegación lateral, permitiendo ganar espacio en pantalla.
+- Ajuste visual en el timeline: Ahora se muestra sólo la hora exacta del 
+evento (ej. "00:00") y tiempo que lleva activo el síntoma.
+- Tag con nombre(s) del conductor: En la cabecera del viaje individual se 
+añaden tags con el nombre del conductor de ambos si aplica. Se usa un 
+ícono de usuario en lugar del texto "Conductor", en la pantalla de 
+tratamiento con el viaje en solitario. o
+
+## 2. Nuevas Funciones para Tratamiento de Condiciones
+  - (Preview) - Ignorar una condición específica por tiempo definido o 
+indefinidamente.
+  - Ignorar el síntoma, ignorar todos los síntomas del mismo tipo o ignorar 
+todos los síntomas asociados al viaje.
+- Al aplicar ignorar el síntoma, se marcará con la condición "En 
+tratamiento”, provocando que éste se posicione al final de la tabla.
+
+## 3. Condición "En tratamiento" agregada al flujo.
+- Funcionamiento condición "En tratamiento":
+  - Los síntomas al ser tratados pasan a lo que son condición "en 
+tratamiento", durante 5 min la condición del síntoma permanecerá en 
+tratamiento, luego de esos 5 min si el tratamiento no fue efectivo se renueva
+el monitoreo de condiciones.
+
+## 4. Cambios en Kanban al iniciar el viaje.
+·Cambios en los formularios del  Kanban de Despachos. Aplica para las 
+etapas Monitorear Viaje Iniciado hacia adelante:
+  - Se muestra el formulario comprimido a la izquierda.
+  - A la derecha, mapa con la ruta completa.
+  - Debajo del mapa, tabla de etapas previas al inicio del viaje, con:
+    - Fecha.
+    - Etapa.
+    - Responsable.
+    - Acción tomada.
+
+## 5. Mejoras de Lógica y Datos Backend
+- Exclusión de síntomas para viajes con doble conductor en síntomas como:
+  - Conducción máxima continua.
+  - Conducción fuera de horario.
+  - Descanso mínimo.
+  
+  **no se activan si el viaje es de dos conductores.** `(double_driver=true)`
+
+## ✅ Estado General
+- Todas las funcionalidades se probaron con datos reales y cumplen con los 
+criterios de aceptación.
+- Se mantuvo consistencia visual en modo claro y oscuro.
+- Se definieron nuevas reglas de tratamiento para futuras extensiones de la 
+plataforma.

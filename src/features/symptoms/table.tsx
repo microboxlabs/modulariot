@@ -8,6 +8,7 @@ import { FaFilter, FaArrowsRotate } from "react-icons/fa6";
 import TableComponent from "./components/table-component";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icu_code from "./model/icu_condition.json";
+import UserStateCounter from "./components/user-counter";
 export default function SymptomsTable({
   setShowCards,
   showCards,
@@ -106,17 +107,20 @@ export default function SymptomsTable({
             <FaArrowsRotate />
           </Button>
         </div>
-        <Button
-          onClick={() => setShowCards(!showCards)}
-          className="justify-self-end flex justify-center items-center h-10 w-10"
-          color="gray"
-        >
-          {showCards ? (
-            <FiMaximize className="h-5 w-5" />
-          ) : (
-            <FiMinimize className="h-5 w-5" />
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <UserStateCounter dict={dict} />
+          <Button
+            onClick={() => setShowCards(!showCards)}
+            className="justify-self-end flex justify-center items-center h-10 w-10"
+            color="gray"
+          >
+            {showCards ? (
+              <FiMaximize className="h-5 w-5" />
+            ) : (
+              <FiMinimize className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
       <TableComponent
         dict={dict}

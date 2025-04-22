@@ -10,6 +10,7 @@ export type TaskFormProps = {
   msg?: I18nRecord;
   ticket?: string;
   user?: string;
+  userGroups: string[];
 };
 
 export interface ExtendedTaskResponse
@@ -37,4 +38,5 @@ export interface ExtendedTaskViewProps {
   msg: I18nRecord;
   lang: string;
   ticket?: string;
+  userGroups: string[];
 }

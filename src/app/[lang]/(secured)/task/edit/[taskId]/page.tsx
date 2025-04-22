@@ -3,6 +3,7 @@ import { TaskEditPageParams } from "./page.types";
 import { auth } from "@/auth";
 import {
   getFinishedWorkflows,
+  getGroupsForPerson,
   getTaskById,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -22,6 +23,8 @@ export default async function TaskEditPage({
 
     const [, _dictionary] = await getDictionary(lang);
     const taskResult = await getTaskById(session.user.ticket, taskId);
+
+    const userGroups = await getGroupsForPerson(session.user.ticket);
 
     let task = taskResult;
     if ((typeof task == "string" && task == "null") || task == null) {
@@ -47,6 +50,7 @@ export default async function TaskEditPage({
               msg={_dictionary}
               ticket={session.user.ticket}
               user={session.user.name ?? ""}
+              userGroups={userGroups}
             />
           </div>
         );
@@ -62,6 +66,7 @@ export default async function TaskEditPage({
           msg={_dictionary}
           ticket={session.user.ticket}
           user={session.user.name ?? ""}
+          userGroups={userGroups}
         />
       </div>
     );

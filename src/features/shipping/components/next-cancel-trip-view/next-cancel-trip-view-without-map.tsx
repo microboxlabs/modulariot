@@ -17,7 +17,6 @@ import {
 import TaskActions from "@/features/task-forms/components/task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
 import { getComments } from "@/utils/comments";
-import { GeographicHistoric } from "../geographic-historic";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -30,7 +29,7 @@ import { GeographicHistoric } from "../geographic-historic";
   </Card>
 ); */
 
-export async function NextCancelTripView({
+export async function NextCancelTripViewWithoutMap({
   task,
   msg,
   lang,
@@ -67,71 +66,57 @@ export async function NextCancelTripView({
           dict={dictionary.pages as I18nRecord}
         />
       </div>
-      <div className="w-full flex-1 flex h-full overflow-hidden px-2 pb-2 gap-2">
-        <div className="h-full w-1/3">
-          <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
-            <div className="flex flex-col gap-4 p-3">
-              <div className="flex items-center justify-center">
-                <DriverUserIcon />
-              </div>
-              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
-              {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
-              {driver2 && (
-                <>
-                  <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
-                  <DriverContactInfo msg={msg!} driver={driver2} />
-                </>
-              )}
-              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
-              <DriverValidation
-                msg={msg!}
-                driver1={driver1}
-                driver2={driver2}
-              />
-              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
-              <TripInformation
-                msg={msg}
-                task={task as TaskResponse}
-                lang={lang}
-                entityInfo={undefined}
-                serviceValidation={undefined}
-              />
-              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
-              <form>
-                <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-                  {}
-                </h5>
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-                    {dict("pages.shippingDetailsTaskForm.comments")}
-                  </p>
-
-                  <p className="text-xs font-medium whitespace-normal text-gray-700 dark:text-white">
-                    {getComments(task)}
-                  </p>
-                </div>
-              </form>
-              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
-              <div className="flex items-center justify-center">
-                <TaskActions
-                  taskId={task.id ?? ""}
-                  taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
-                  lang={lang}
-                  dict={
-                    (dictionary.pages as I18nRecord)
-                      .shippingDetailsTaskForm as I18nRecord
-                  }
-                />
-              </div>
+      <div className="w-full flex-1 flex justify-center h-full overflow-hidden px-2 pb-2 gap-2">
+        <div className="h-full  overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
+          <div className="flex flex-col gap-6 p-6">
+            <div className="flex items-center justify-center">
+              <DriverUserIcon />
             </div>
-          </div>
-        </div>
-        <div className={`flex-1 flex h-full w-full flex-row`}>
-          <div className="flex h-full w-full">
-            <GeographicHistoric
+            <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+            {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
+            {driver2 && (
+              <>
+                <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
+                <DriverContactInfo msg={msg!} driver={driver2} />
+              </>
+            )}
+            <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+            <DriverValidation msg={msg!} driver1={driver1} driver2={driver2} />
+            <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+            <TripInformation
+              msg={msg}
               task={task as TaskResponse}
-              dictionary={dictionary as unknown as Record<string, string>}
+              lang={lang}
+              entityInfo={undefined}
+              serviceValidation={undefined}
             />
+            <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+            <form>
+              <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+                {}
+              </h5>
+              <div className="flex flex-col gap-4">
+                <p className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+                  {dict("pages.shippingDetailsTaskForm.comments")}
+                </p>
+
+                <p className="text-xs font-medium whitespace-normal text-gray-700 dark:text-white">
+                  {getComments(task)}
+                </p>
+              </div>
+            </form>
+            <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+            <div className="flex items-center justify-center">
+              <TaskActions
+                taskId={task.id ?? ""}
+                taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                lang={lang}
+                dict={
+                  (dictionary.pages as I18nRecord)
+                    .shippingDetailsTaskForm as I18nRecord
+                }
+              />
+            </div>
           </div>
         </div>
       </div>

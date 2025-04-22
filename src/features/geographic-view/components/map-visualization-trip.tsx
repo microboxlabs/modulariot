@@ -20,16 +20,16 @@ import PulseTooltip, {
   PulseListType,
   PulseType,
 } from "./tooltips/pulse-tooltip";
+import MapStyleSelector from "./map-style-selector";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
-  "streets-v9": "mapbox://styles/mapbox/streets-v9",
-  "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
-  "satellite-streets-v11": "mapbox://styles/mapbox/satellite-streets-v11",
-  "dark-v10": "mapbox://styles/mapbox/dark-v10",
-  "light-v10": "mapbox://styles/mapbox/light-v10",
-  "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
-  "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
+  streets: "mapbox://styles/mapbox/streets-v9",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v11",
+  dark: "mapbox://styles/mapbox/dark-v10",
+  light: "mapbox://styles/mapbox/light-v10",
+  outdoors: "mapbox://styles/mapbox/outdoors-v11",
+  hybrid: "mapbox://styles/mapbox/hybrid-v10",
 };
 
 type Zone = {
@@ -89,6 +89,7 @@ const INITIAL_VIEW_STATE: ViewStateType = {
 type MapVisualizationProps = {
   tripId: string;
   positions: MapPosition[] | null;
+  isLoading: boolean;
   error: Error | null;
   averagePosition: {
     latitude: number;
@@ -149,12 +150,13 @@ function move_to_pin(
 export default function MapVisualizationTrip({
   tripId,
   positions,
-  error,
+  isLoading,
   averagePosition,
   filteredLocationData,
   dict,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
+  const [mapStyle, setMapStyle] = useState("satellite");
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<PulseProps | PulseListType>>();
@@ -409,10 +411,6 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_error, geofence_isLoading]);
 
-  if (error) {
-    console.error("Map error:", error);
-  }
-
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
@@ -427,9 +425,14 @@ export default function MapVisualizationTrip({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          mapStyle={mapboxStyles["satellite-streets-v11"]}
+          mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
         />
       </DeckGL>
+      <MapStyleSelector
+        dict={dict}
+        selectedStyle={mapStyle}
+        setSelectedStyle={setMapStyle}
+      />
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}
@@ -454,8 +457,21 @@ export default function MapVisualizationTrip({
         />
         */}
       </div>
-      <div className="absolute left-5 bottom-5">
-        {positions?.length === 0 ? <Spinner /> : null}
+      <div className="absolute left-0 top-5 bg-white dark:bg-gray-800 rounded-r-full border-r border-y border-gray-400 dark:border-gray-700">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full p-2">
+            <Spinner />
+          </div>
+        ) : !isLoading && positions?.length === 0 ? (
+          <div className="flex items-center justify-center h-full p-2">
+            <p className="text-gray-500 dark:text-gray-400 font-light">
+              {
+                ((dict as I18nRecord).geographic_view as I18nRecord)
+                  .no_data_found as string
+              }
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

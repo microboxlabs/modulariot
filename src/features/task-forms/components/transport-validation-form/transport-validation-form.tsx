@@ -19,6 +19,7 @@ export default function TransportValidationForm({
   task,
   lang,
   msg,
+  userGroups,
 }: TaskFormProps) {
   const searchParams = useSearchParams();
   const currentStep = searchParams.get("step") ?? steps[0];
@@ -35,11 +36,21 @@ export default function TransportValidationForm({
         routePaths={["step1", "step2", "step3"]}
       />
       {currentStep === "step1" && (
-        <DriverVerificationCard lang={lang} msg={msg} task={task} />
+        <DriverVerificationCard
+          lang={lang}
+          msg={msg}
+          task={task}
+          userGroups={userGroups}
+        />
       )}
       {
         currentStep === "step2" && (
-          <DriverVerifiedCard lang={lang} msg={msg} task={task} />
+          <DriverVerifiedCard
+            lang={lang}
+            msg={msg}
+            task={task}
+            userGroups={userGroups}
+          />
         )
         // this elements where taken off the Driver verified card (from step 2), because they where generating a error on the build
         // entityInfo={entityInfo}

@@ -8,7 +8,12 @@ import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import EllipseIcon from "@/features/icons/ellipse";
 
-export default function Validations({ task, lang, msg }: TaskFormProps) {
+export default function Validations({
+  task,
+  lang,
+  msg,
+  userGroups,
+}: TaskFormProps) {
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task.mintral_serviceCode as string);
   return (
@@ -43,6 +48,7 @@ export default function Validations({ task, lang, msg }: TaskFormProps) {
       <GpsValidationItem
         task={task}
         lang={lang}
+        userGroups={userGroups}
         msg={{
           check4Subtitle: msg?.check4Subtitle as string,
           cards: msg?.cards as I18nRecord,

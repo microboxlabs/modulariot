@@ -8,6 +8,20 @@ export type FastTasksResponse = {
   total: number;
 };
 
+export type UserState = {
+  firstName: string;
+  lastName: string;
+  status: string;
+  isTreating: boolean;
+  icu_code: string;
+  email: string;
+  start_timestamp: string;
+  end_timestamp: string;
+  trip_id: string;
+  symptom_name: string;
+  username: string;
+};
+
 export type PersistentState = {
   processDefinitionId: string;
   durationInMillis: number;
@@ -44,6 +58,7 @@ export type TaskResponse = {
   bpm_description: string;
   bpm_status: string;
   mintral_comments?: string | string[];
+  mintral_hoReference?: string;
   [key: string]: unknown;
 };
 

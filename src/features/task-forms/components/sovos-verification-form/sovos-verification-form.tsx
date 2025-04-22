@@ -121,7 +121,7 @@ export default function SovosVerificationForm({
   if (task.mintral_driver2Rut) {
     steps.push("step3", "step4");
   }
-  steps.push("step5", "step6");
+  /*steps.push("step5", "step6"); */ //remove despachador verification
 
   return (
     <div className="flex-1 flex flex-col items-center gap-6">

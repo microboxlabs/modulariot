@@ -58,6 +58,7 @@ export type TaskResponse = {
   bpm_description: string;
   bpm_status: string;
   mintral_comments?: string | string[];
+  mintral_hoReference?: string;
   [key: string]: unknown;
 };
 

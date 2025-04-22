@@ -1,17 +1,15 @@
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import KanbanViewSwitcherIcon from "@/features/svg_components/kanban_view_switcher_icon";
+import KanbanViewSwitcherIconCompressed from "@/features/svg_components/kanban_view_switcher_icon_compressed";
 interface CompactKanbanViewSwitcherProps {
   activeView: boolean;
   onViewChange: (view: boolean) => void;
   kanbanView: boolean;
-  dict: I18nRecord;
 }
 
 export function CompactKanbanViewSwitcher({
   activeView,
   onViewChange,
   kanbanView,
-  dict,
 }: CompactKanbanViewSwitcherProps) {
   return (
     <div className={`${kanbanView ? "flex" : "hidden"} gap-2 h-full`}>
@@ -20,9 +18,9 @@ export function CompactKanbanViewSwitcher({
         onClick={() => onViewChange(!activeView)}
       >
         {activeView ? (
-          <p>{(dict.kanban as I18nRecord).expand as string}</p>
+          <KanbanViewSwitcherIconCompressed />
         ) : (
-          <p>{(dict.kanban as I18nRecord).compact as string}</p>
+          <KanbanViewSwitcherIcon />
         )}
       </div>
     </div>

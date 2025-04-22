@@ -102,6 +102,7 @@ export default function TimelineComponent({
               assigned_to: event.assigned_to,
               icu_code: event.icu_code,
               is_symptom: event.is_symptom,
+              symptom_id: event.symptom_id,
             });
 
             return acc;

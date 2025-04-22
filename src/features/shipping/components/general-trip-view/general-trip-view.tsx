@@ -78,22 +78,21 @@ export async function GeneralTripView({
               <div className="flex items-center justify-center">
                 <DriverUserIcon />
               </div>
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
               {driver2 && (
                 <>
-                  <div className="h-px bg-gray-300 w-full"></div>
+                  <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
                   <DriverContactInfo msg={msg!} driver={driver2} />
                 </>
               )}
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <DriverValidation
                 msg={msg!}
                 driver1={driver1}
                 driver2={driver2}
               />
-
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <TripInformation
                 msg={msg}
                 task={task as TaskResponse}
@@ -101,7 +100,7 @@ export async function GeneralTripView({
                 userGroups={userGroups}
                 entityInfo={undefined /* task as GetEntityInfoResponse */}
               />
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <form>
                 <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
                   {/*  {(msg!.cards as I18nRecord).comments as string} */}

@@ -206,7 +206,7 @@ export default function GeneralMap({
       )}
       <div className="flex flex-row gap-6 w-full h-full px-5 pb-5 overflow-hidden">
         {/* Side information */}
-        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
+        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo
             dict={dict}
             lang={lang}

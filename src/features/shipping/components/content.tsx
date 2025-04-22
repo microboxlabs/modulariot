@@ -138,7 +138,6 @@ export default function PageContent({
               kanbanView={activeView === "kanban"}
               activeView={compactKanbanView}
               onViewChange={setCompactKanbanView}
-              dict={dict}
             />
             <ViewSwitcher
               activeView={activeView}

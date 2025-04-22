@@ -8,6 +8,7 @@ import ErrorCircleIcon from "@/features/icons/error-circle";
 import ExclamationIcon from "@/features/icons/exclamation";
 import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 import { useGetServiceValidation } from "@/features/common/providers/client-api.provider";
+import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 
 export default function TripInformation({
   lang,
@@ -69,6 +70,15 @@ export default function TripInformation({
         <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).scheduling as string}:{" "}
           {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
+        </span>
+        <span className="text-gray-400 text-xs">
+          {task.mintral_hoReference && (
+            <DownloadSignedDocument
+              documentId={task.mintral_hoReference}
+              asLink
+              name="Carta Porte"
+            />
+          )}
         </span>
       </div>
       <div className="flex-1 flex flex-col gap-2 mt-6">

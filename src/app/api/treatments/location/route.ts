@@ -34,8 +34,8 @@ export async function GET(request: Request) {
   const symptom_id = searchParams.get("symptom_id");
   const trip_id = searchParams.get("trip_id");
   const symptom_name = searchParams.get("symptom_name");
-  /*const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
-  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+"); */
+  const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
+  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+");
 
   //!symptom_name || !first_date || !last_date ||
 
@@ -57,12 +57,12 @@ export async function GET(request: Request) {
         config.clientId +
         "&p_trip_id=" +
         trip_id +
-        /* "&p_symptom_name=" +
+        "&p_symptom_name=" +
         symptom_name +
         "&p_first_date=" +
         encodeURIComponent(first_date ?? "") +
         "&p_last_date=" +
-        encodeURIComponent(last_date ?? "") + */
+        encodeURIComponent(last_date ?? "") +
         "&p_symptom_id=" +
         symptom_id,
       {

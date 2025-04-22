@@ -1,0 +1,85 @@
+# 🔔 Release Notes v1.7.0 – ModularIoT
+## Fecha estimada de lanzamiento: 2025-04-22
+
+---
+
+## 1. Mejoras de monitoreo y visualización
+-Estado de operadores en tiempo real:
+  - 🟢 Conectado y libre
+  - 🟢 Conectado y gestionando
+  - 🟢 Inactivo +1h
+  - Desconectado ⚪️
+  - Incluye tooltip informativo y uso de iniciales según el sistema de colores de condiciones UCI.
+
+
+- Tooltip con datos de límites y excesos:
+  - Se incorpora en:
+    - Vista geográfica (al hacer clic en un pin).
+    - Vista de viaje individual (al hacer clic en un pulso).
+  - Datos mostrados:
+    - Valor permitido.
+    - Valor registrado.
+    - Diferencia/exceso (cuando aplique).
+
+---
+
+## 2. Nuevas funcionalidades en formularios
+- Tratamiento 'Ignorar Condición':
+  - Disponible en pantalla de viaje individual:
+    - Opción para ignorar condición específica por tiempo definido.
+    - Checkbox para ignorar todas las condiciones activas del viaje indefinidamente.
+    - Los síntomas ignorados pasan a estado 'En tratamiento' durante el periodo definido por el usuario.
+
+- Nuevo sistema de tags en formularios:
+  - En el paso 2 del formulario 'Llamar al conductor' se pueden ingresar tags (actualmente solo implementado a nivel visual).
+  - Se incorpora sistema de tags usados frecuentemente y agregados manualmente.
+
+---
+
+## 3. Ajustes de lógica y rendimiento
+- Ajuste a la timeline:
+  - Ya no se muestran rangos de horario.
+  - Solo se muestra hora de aparición y hora de tratamiento (ej. 00:00).
+  - Se establece que los tratamientos tienen efecto durante 5 minutos. Si el síntoma persiste, la condición se presentará según sus valores actuales.
+
+- Acumulación de eventos en origen, destino y salida de destino:
+  - Se acumulan eventos al entrar o salir de geocercas clave.
+  - Transiciones correctamente identificadas y sin duplicidad.
+
+- Exclusión de síntomas por geocercas seguras:
+  - No se activan condiciones cuando el vehículo está en:
+    - Terminal
+    - Patio de transporte
+    - Origen
+    - Destino
+
+- Actualización de parámetro obligatorio `symptom_id` en API:
+  - Mejora de performance y consistencia en `api_modular_treatment_symptoms_signals_map`.
+  - `symptom_id` ahora es obligatorio y reemplaza uso de `symptom_name`, `first_date`, `last_date`.
+  - Se actualizan llamados e integraciones relacionadas.
+
+---
+
+## 4. Flujo alternativo para despacho
+- Timbre Mintral (v1.0):
+  - Se omite verificación de identidad del despachador.
+  - Se activa uso del nuevo timbre Mintral para validar despachos.
+  - Se incorpora diseño final para el timbre de Mintral.
+
+---
+
+## 5. Formularios con vista mejorada
+- Visualización extendida para viajes finalizados:
+  - Al abrir la card de un viaje finalizado:
+    - A la izquierda se ve el formulario de etapa actual en formato compacto.
+    - A la derecha, el recorrido del viaje en el mapa.
+    - Debajo del mapa, una tabla con etapas previas: fecha, etapa, responsable y acción tomada.
+  - Descarga de carta de porte desde formulario del conductor:
+    - Las cards que tenían descarga desde el kanban ahora también muestran un botón de descarga dentro del formulario.
+
+---
+
+## Estado General✅
+- Las tareas están en etapa de desarrollo activo.
+- El diseño de nuevas funciones está validado y en Figma.
+- Este release se enfoca en escalabilidad de tratamiento, trazabilidad de condiciones y mejoras a la usabilidad general.

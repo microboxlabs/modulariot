@@ -1,9 +1,10 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { pin_conditions } from "@/features/geographic-view/types/pin_conditions";
-
+import { DescriptionProps } from "@/app/api/treatments/location/route.type";
 export type PulseListType = {
   elements: number[];
+  description: DescriptionProps;
 };
 
 export type PulseType = {
@@ -36,13 +37,166 @@ export default function PulseTooltip({
   if ("elements" in object) {
     return (
       <div className="bg-white dark:bg-gray-800 px-3 pb-3 rounded-lg">
+        {object.description.symptom_name != undefined && (
+          <div className="text-m text-gray-600 dark:text-gray-300 font-light">
+            {
+              (dict.symptoms as I18nRecord)[
+                object.description.symptom_name.toUpperCase() as keyof typeof dict.symptoms
+              ] as string
+            }
+          </div>
+        )}
+        {object.description.zone_names != undefined && (
+          <div className="text-sm font-light text-gray-500 dark:text-gray-400">
+            {object.description.zone_names}
+          </div>
+        )}
+        {(object.description.first_signal_timestamp ||
+          object.description.last_signal_timestamp ||
+          object.description.signal_lag ||
+          object.description.accumulated_drive_time ||
+          object.description.accumulated_detention_time ||
+          object.description.accumulated_resting_time) && (
+          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+        )}
+        {object.description.first_signal_timestamp != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .first_signal_timestamp as string
+            }
+            :{" "}
+            <span className="font-light">
+              {new Date(
+                object.description.first_signal_timestamp,
+              ).toLocaleString()}
+            </span>
+          </div>
+        )}
+        {object.description.last_signal_timestamp != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .last_signal_timestamp as string
+            }
+            :{" "}
+            <span className="font-light">
+              {new Date(
+                object.description.last_signal_timestamp,
+              ).toLocaleString()}
+            </span>
+          </div>
+        )}
+        {object.description.signal_lag != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).signal_lag as string}:{" "}
+            <span className="font-light">
+              {object.description.signal_lag} km/h
+            </span>
+          </div>
+        )}
+        {object.description.accumulated_drive_time != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .accumulated_drive_time as string
+            }
+            :{" "}
+            <span className="font-light">
+              {object.description.accumulated_drive_time} km/h
+            </span>
+          </div>
+        )}
+        {object.description.accumulated_detention_time != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .accumulated_detention_time as string
+            }
+            :{" "}
+            <span className="font-light">
+              {object.description.accumulated_detention_time} km/h
+            </span>
+          </div>
+        )}
+        {object.description.accumulated_resting_time != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .accumulated_resting_time as string
+            }
+            :{" "}
+            <span className="font-light">
+              {object.description.accumulated_resting_time} km/h
+            </span>
+          </div>
+        )}
+        {(object.description.speed_limit ||
+          object.description.speed ||
+          object.description.signal_lag ||
+          object.description.last_reported_speed ||
+          object.description.last_reported_engine_status) && (
+          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+        )}
+        {object.description.speed != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).speed as string}:{" "}
+            <span className="font-light">{object.description.speed} km/h</span>
+            {object.description.speed_limit &&
+              object.description.speed > object.description.speed_limit && (
+                <span className="text-red-500 dark:text-red-400">
+                  {" - "}
+                  {object.description.speed - object.description.speed_limit}
+                  km/h{" "}
+                  {(dict.geographic_view as I18nRecord).over_limit as string}
+                </span>
+              )}
+          </div>
+        )}
+        {object.description.speed_limit != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
+            <span className="font-light">
+              {object.description.speed_limit} km/h
+            </span>
+          </div>
+        )}
+        {object.description.last_reported_speed != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).last_reported_speed as string}
+            :{" "}
+            <span className="font-light text-gray-600 dark:text-gray-300">
+              {object.description.last_reported_speed} km/h
+            </span>
+          </div>
+        )}
+        {object.description.last_reported_engine_status != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .last_reported_engine_status as string
+            }
+            :{" "}
+            <span className="font-light">
+              {object.description.last_reported_engine_status ? (
+                <span className="text-green-500 dark:text-green-400">
+                  {(dict.geographic_view as I18nRecord).on as string}
+                </span>
+              ) : (
+                <span className="text-red-500 dark:text-red-400">
+                  {(dict.geographic_view as I18nRecord).off as string}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+        <hr className="my-2 border-gray-200 dark:border-gray-700" />
         <div className="text-sm text-gray-600 dark:text-gray-300">
           <span className="font-light">
             {(dict.symptoms as I18nRecord).pulses_selected as string}:{" "}
             {object.elements.length}
           </span>
         </div>
-        <hr className="my-2 border-gray-200 dark:border-gray-700" />
       </div>
     );
   }

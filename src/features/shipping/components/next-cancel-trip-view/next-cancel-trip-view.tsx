@@ -72,7 +72,7 @@ export async function NextCancelTripView({
       <div className="w-full flex-1 flex h-full overflow-hidden px-2 pb-2 gap-2">
         <div className="h-full w-1/3">
           <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
-            <div className="flex flex-col gap-4 p-3">
+            <div className="flex flex-col gap-4 p-5">
               <div className="flex items-center justify-center">
                 <DriverUserIcon />
               </div>

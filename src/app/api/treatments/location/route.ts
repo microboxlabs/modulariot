@@ -10,7 +10,7 @@ import {
 
 import {
   TreatmentsLocationResponse,
-  TreatmentsLocationResponseItemFeature,
+  TreatmentsLocationResponseItem,
 } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 
@@ -42,7 +42,11 @@ export async function GET(request: Request) {
   if (!trip_id || !symptom_id) {
     return NextResponse.json(
       {
-        data: [],
+        data: {
+          type: "FeatureCollection",
+          features: [],
+          description: {},
+        },
         status: 400,
         message: "Missing required parameters",
       },
@@ -79,8 +83,9 @@ export async function GET(request: Request) {
 
     const apiData = (await response.json()) as TreatmentsLocationResponse;
     // Transform API data into our desired structure
-    const formattedResponse: TreatmentsLocationResponseItemFeature[] =
-      apiData?.data?.features?.map((feature) => {
+    const formattedResponse: TreatmentsLocationResponseItem = {
+      type: "FeatureCollection",
+      features: apiData.data.features.map((feature) => {
         const [longitude, latitude] = parseWKBPoint(feature.geometry);
         return {
           ...feature,
@@ -88,13 +93,19 @@ export async function GET(request: Request) {
           latitude,
           symptom_name,
         };
-      }) ?? [];
+      }),
+      description: apiData.data.description,
+    };
 
     return NextResponse.json(formattedResponse);
   } catch (error: any) {
     return NextResponse.json(
       {
-        data: [],
+        data: {
+          type: "FeatureCollection",
+          features: [],
+          description: {},
+        },
         status: 500,
         message: error.message,
       },

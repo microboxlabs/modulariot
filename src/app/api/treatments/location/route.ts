@@ -31,12 +31,15 @@ export async function GET(request: Request) {
     });
   }
   const { searchParams } = new URL(request.url);
+  const symptom_id = searchParams.get("symptom_id");
   const trip_id = searchParams.get("trip_id");
   const symptom_name = searchParams.get("symptom_name");
-  const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
-  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+");
+  /* const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
+  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+"); */
 
-  if (!trip_id || !symptom_name || !first_date || !last_date) {
+  //!symptom_name || !first_date || !last_date ||
+
+  if (!trip_id || !symptom_id) {
     return NextResponse.json(
       {
         data: {
@@ -60,10 +63,12 @@ export async function GET(request: Request) {
         trip_id +
         "&p_symptom_name=" +
         symptom_name +
-        "&p_first_date=" +
+        /*  "&p_first_date=" +
         encodeURIComponent(first_date ?? "") +
         "&p_last_date=" +
-        encodeURIComponent(last_date ?? ""),
+        encodeURIComponent(last_date ?? "") + */
+        "&p_symptom_id=" +
+        symptom_id,
       {
         headers: {
           accept: "application/json",

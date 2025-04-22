@@ -25,7 +25,6 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import { GeneralTripView } from "@/features/shipping/components/general-trip-view/general-trip-view";
 import { NextCancelTripView } from "@/features/shipping/components/next-cancel-trip-view/next-cancel-trip-view";
 import ConfirmDeliveryForm from "../confirm-delivery-form/confirm-delivery-form";
-import { NextCancelTripViewWithoutMap } from "@/features/shipping/components/next-cancel-trip-view/next-cancel-trip-view-without-map";
 
 export async function TaskForm({
   task,
@@ -109,18 +108,6 @@ export async function TaskForm({
       );
 
     case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
-      return (
-        <NextCancelTripViewWithoutMap
-          lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
-        />
-      );
-
     case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:

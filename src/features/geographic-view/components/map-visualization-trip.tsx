@@ -13,7 +13,7 @@ import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
-import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
+import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import MapTooltip from "./map-tooltip";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import PulseTooltip, {
@@ -95,7 +95,7 @@ type MapVisualizationProps = {
     latitude: number;
     longitude: number;
   };
-  filteredLocationData: TreatmentsLocationResponseItemFeature[] | null;
+  filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
 };
 
@@ -175,11 +175,11 @@ export default function MapVisualizationTrip({
     if (positions && positions.length > 0) {
       move_to_pin(averagePosition, setViewState, viewState);
     }
-    if (filteredLocationData && filteredLocationData.length > 0) {
+    if (filteredLocationData && filteredLocationData.features.length > 0) {
       move_to_pin(
         {
-          latitude: filteredLocationData[0].latitude ?? 0,
-          longitude: filteredLocationData[0].longitude ?? 0,
+          latitude: filteredLocationData.features[0].latitude ?? 0,
+          longitude: filteredLocationData.features[0].longitude ?? 0,
         },
         setViewState,
         viewState,
@@ -219,7 +219,7 @@ export default function MapVisualizationTrip({
     // Create a set of matching position indices
     const matchingIndices = new Set<number>();
     if (filteredLocationData && positions) {
-      filteredLocationData.forEach((filteredItem) => {
+      filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
         const matchingIndex = positions.findIndex(
           (pos) =>
@@ -238,6 +238,7 @@ export default function MapVisualizationTrip({
         y: 10,
         object: {
           elements: Array.from(matchingIndices),
+          description: filteredLocationData?.description,
         },
       } as PickingInfo<PulseListType>);
     }
@@ -304,7 +305,6 @@ export default function MapVisualizationTrip({
           },
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
-            console.log("informatione pulso", info);
             if (info.viewport) {
               info.x = info.viewport.width / 2;
               info.y = info.viewport.height / 2;

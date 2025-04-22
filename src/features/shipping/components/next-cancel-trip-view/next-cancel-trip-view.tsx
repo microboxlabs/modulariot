@@ -122,7 +122,9 @@ export async function NextCancelTripView({
                 <div className="flex items-center justify-center">
                   <TaskActions
                     taskId={task.id ?? ""}
-                    taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                    taskType={
+                      task.taskFormKey as ShippingCoordinatorProcessForms
+                    }
                     lang={lang}
                     dict={
                       (dictionary.pages as I18nRecord)

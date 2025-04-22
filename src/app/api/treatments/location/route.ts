@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     const apiData = (await response.json()) as TreatmentsLocationResponse;
     // Transform API data into our desired structure
     const formattedResponse: TreatmentsLocationResponseItemFeature[] =
-      apiData.data.features.map((feature) => {
+      apiData?.data?.features?.map((feature) => {
         const [longitude, latitude] = parseWKBPoint(feature.geometry);
         return {
           ...feature,
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
           latitude,
           symptom_name,
         };
-      });
+      }) ?? [];
 
     return NextResponse.json(formattedResponse);
   } catch (error: any) {

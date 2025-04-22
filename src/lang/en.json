@@ -625,7 +625,18 @@
     "light": "light",
     "latitude": "Latitude",
     "longitude": "Longitude",
-    "no_data_found": "No data found"
+    "no_data_found": "No data found",
+    "last_reported_speed": "Last reported speed",
+    "last_reported_engine_status": "Last reported engine status",
+    "on": "On",
+    "off": "Off",
+    "first_signal_timestamp": "First signal timestamp",
+    "last_signal_timestamp": "Last signal timestamp",
+    "signal_lag": "Signal lag",
+    "accumulated_drive_time": "Accumulated drive time",
+    "accumulated_detention_time": "Accumulated detention time",
+    "accumulated_resting_time": "Accumulated resting time",
+    "zone_names": "Zone names"
   },
   "release": {
     "other_versions": "Other Versions"

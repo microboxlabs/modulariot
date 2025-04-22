@@ -1,4 +1,4 @@
-import { ArrowRight, Download, FilePdf } from "flowbite-react-icons/outline";
+import { Download, FilePdf } from "flowbite-react-icons/outline";
 import { Button } from "flowbite-react";
 import Link from "next/link";
 import { useVerifyDocument } from "@/features/common/providers/client-api.provider";

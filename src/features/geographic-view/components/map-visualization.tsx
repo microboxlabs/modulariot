@@ -17,6 +17,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
 import MapStyleSelector from "./map-style-selector";
+
 const mapboxStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
   satellite: "mapbox://styles/mapbox/satellite-streets-v11",
@@ -173,6 +174,7 @@ export default function MapVisualization({
         />
       </DeckGL>
       <MapStyleSelector
+        dict={dict}
         selectedStyle={mapStyle}
         setSelectedStyle={setMapStyle}
       />

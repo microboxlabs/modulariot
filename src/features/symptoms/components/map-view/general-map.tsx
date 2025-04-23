@@ -33,7 +33,10 @@ export default function GeneralMap({
   tripId?: string;
   assetId?: string;
 }) {
-  const { positions, error } = useTripPositions(tripId ?? "", assetId ?? "");
+  const { positions, error, isLoading } = useTripPositions(
+    tripId ?? "",
+    assetId ?? "",
+  );
 
   const {
     treatmentData,
@@ -57,8 +60,9 @@ export default function GeneralMap({
       ?.toString()
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
-    selectedTreatmentIndex?.start ?? "",
-    selectedTreatmentIndex?.end ?? "",
+    /* selectedTreatmentIndex?.start ?? "",
+    selectedTreatmentIndex?.end ?? "", */
+    selectedTreatmentIndex?.symptom_id?.toString() ?? "",
   );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value
@@ -203,7 +207,7 @@ export default function GeneralMap({
       )}
       <div className="flex flex-row gap-6 w-full h-full px-5 pb-5 overflow-hidden">
         {/* Side information */}
-        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
+        <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo
             dict={dict}
             lang={lang}
@@ -219,6 +223,7 @@ export default function GeneralMap({
           <MapVisualizationTrip
             positions={positions}
             error={error}
+            isLoading={isLoading}
             tripId={tripId ?? ""}
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}

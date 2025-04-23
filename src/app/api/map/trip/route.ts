@@ -24,6 +24,7 @@ const authToken = new AuthToken(config);
 
 export async function GET(req: NextRequest) {
   const session = await auth();
+
   if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -79,7 +80,7 @@ async function streamPositions(
 
     // Read the entire response as text first, then create a readable stream
     const responseText = await response.text();
-    //console.log("responseText:", responseText);
+    // console.log("responseText:", responseText);
 
     //console.log("responseText:", responseText.split("\n").length);
     const csvStream = Readable.from([responseText]);

@@ -37,8 +37,6 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
     return <div>Error: {user_states_error.message}</div>;
   }
 
-  console.log(user_states.userStates);
-
   return (
     <div
       className={`flex flex-row align-middle justify-center items-center transition-all duration-300 cursor-pointer ${!open ? "" : ""} hover:cursor-pointer `}

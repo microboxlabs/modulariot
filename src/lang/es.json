@@ -627,8 +627,25 @@
     "over_limit": " por encima del límite",
     "signal_status": "Estado de señal",
     "lost_signal": "Señal perdida",
+    "streets": "Calles",
+    "satelital": "Satelital",
+    "outdoors": "Outdoors",
+    "dark": "Oscuro",
+    "light": "Claro",
     "latitude": "Latitud",
-    "longitude": "Longitud"
+    "longitude": "Longitud",
+    "no_data_found": "No se encontraron datos",
+    "last_reported_speed": "Velocidad reportada",
+    "last_reported_engine_status": "Estado del motor reportado",
+    "on": "Encendido",
+    "off": "Apagado",
+    "first_signal_timestamp": "Hora de la primera señal",
+    "last_signal_timestamp": "Hora de la última señal",
+    "signal_lag": "Retraso de señal",
+    "accumulated_drive_time": "Tiempo de conducción acumulado",
+    "accumulated_detention_time": "Tiempo de detención acumulado",
+    "accumulated_resting_time": "Tiempo de descanso acumulado",
+    "zone_names": "Zonas"
   },
   "release": {
     "other_versions": "Otras versiones"

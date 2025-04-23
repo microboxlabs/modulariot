@@ -59,14 +59,6 @@ export async function NextCancelTripView({
     };
   }
 
-  const form_keys = [
-    "wfship:monitoringInCourseTrip",
-    "wfship:confirmTripDestinationArrival",
-    "wfship:confirmMonitoringFinalization",
-    "wfship:confirmTripDestinationDeparture",
-    "wfship:confirmDelivery",
-  ];
-
   return (
     <div className="h-full w-full flex flex-col">
       <div className="p-5">
@@ -78,27 +70,27 @@ export async function NextCancelTripView({
         />
       </div>
       <div className="w-full flex-1 flex h-full overflow-hidden px-2 pb-2 gap-2">
-        <div className="h-full">
+        <div className="h-full w-1/3">
           <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
-            <div className="flex flex-col gap-6 p-6">
+            <div className="flex flex-col gap-4 p-5">
               <div className="flex items-center justify-center">
                 <DriverUserIcon />
               </div>
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               {driver1 && <DriverContactInfo msg={msg!} driver={driver1} />}
               {driver2 && (
                 <>
-                  <div className="h-px bg-gray-300 w-full"></div>
+                  <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
                   <DriverContactInfo msg={msg!} driver={driver2} />
                 </>
               )}
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <DriverValidation
                 msg={msg!}
                 driver1={driver1}
                 driver2={driver2}
               />
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <TripInformation
                 msg={msg}
                 task={task as TaskResponse}
@@ -107,7 +99,7 @@ export async function NextCancelTripView({
                 serviceValidation={undefined}
                 userGroups={userGroups}
               />
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <form>
                 <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
                   {}
@@ -117,12 +109,12 @@ export async function NextCancelTripView({
                     {dict("pages.shippingDetailsTaskForm.comments")}
                   </p>
 
-                  <p className="text-xs font-medium leading-loose text-gray-700 dark:text-white">
+                  <p className="text-xs font-medium whitespace-normal text-gray-700 dark:text-white">
                     {getComments(task)}
                   </p>
                 </div>
               </form>
-              <div className="h-px bg-gray-300 w-full"></div>
+              <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
               <GroupAllowed
                 allowedTo={["GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"]}
                 userGroups={userGroups}
@@ -144,21 +136,13 @@ export async function NextCancelTripView({
             </div>
           </div>
         </div>
-        <div
-          className={`flex-1 flex h-full w-full ${
-            form_keys.includes(task.taskFormKey as string)
-              ? "flex-row"
-              : "flex-col"
-          }`}
-        >
-          {form_keys.includes(task.taskFormKey as string) && (
-            <div className="flex h-full w-full">
-              <GeographicHistoric
-                task={task as TaskResponse}
-                dictionary={dictionary as unknown as Record<string, string>}
-              />
-            </div>
-          )}
+        <div className={`flex-1 flex h-full w-full flex-row`}>
+          <div className="flex h-full w-full">
+            <GeographicHistoric
+              task={task as TaskResponse}
+              dictionary={dictionary as unknown as Record<string, string>}
+            />
+          </div>
         </div>
       </div>
     </div>

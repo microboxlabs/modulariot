@@ -10,7 +10,7 @@ import {
 
 import {
   TreatmentsLocationResponse,
-  TreatmentsLocationResponseItemFeature,
+  TreatmentsLocationResponseItem,
 } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 
@@ -31,15 +31,22 @@ export async function GET(request: Request) {
     });
   }
   const { searchParams } = new URL(request.url);
+  const symptom_id = searchParams.get("symptom_id");
   const trip_id = searchParams.get("trip_id");
   const symptom_name = searchParams.get("symptom_name");
-  const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
-  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+");
+  /* const first_date = searchParams.get("first_date")?.replaceAll(" ", "+");
+  const last_date = searchParams.get("last_date")?.replaceAll(" ", "+"); */
 
-  if (!trip_id || !symptom_name || !first_date || !last_date) {
+  //!symptom_name || !first_date || !last_date ||
+
+  if (!trip_id || !symptom_id) {
     return NextResponse.json(
       {
-        data: [],
+        data: {
+          type: "FeatureCollection",
+          features: [],
+          description: {},
+        },
         status: 400,
         message: "Missing required parameters",
       },
@@ -56,10 +63,12 @@ export async function GET(request: Request) {
         trip_id +
         "&p_symptom_name=" +
         symptom_name +
-        "&p_first_date=" +
+        /*  "&p_first_date=" +
         encodeURIComponent(first_date ?? "") +
         "&p_last_date=" +
-        encodeURIComponent(last_date ?? ""),
+        encodeURIComponent(last_date ?? "") + */
+        "&p_symptom_id=" +
+        symptom_id,
       {
         headers: {
           accept: "application/json",
@@ -74,8 +83,9 @@ export async function GET(request: Request) {
 
     const apiData = (await response.json()) as TreatmentsLocationResponse;
     // Transform API data into our desired structure
-    const formattedResponse: TreatmentsLocationResponseItemFeature[] =
-      apiData.data.features.map((feature) => {
+    const formattedResponse: TreatmentsLocationResponseItem = {
+      type: "FeatureCollection",
+      features: apiData.data.features.map((feature) => {
         const [longitude, latitude] = parseWKBPoint(feature.geometry);
         return {
           ...feature,
@@ -83,13 +93,19 @@ export async function GET(request: Request) {
           latitude,
           symptom_name,
         };
-      });
+      }),
+      description: apiData.data.description,
+    };
 
     return NextResponse.json(formattedResponse);
   } catch (error: any) {
     return NextResponse.json(
       {
-        data: [],
+        data: {
+          type: "FeatureCollection",
+          features: [],
+          description: {},
+        },
         status: 500,
         message: error.message,
       },

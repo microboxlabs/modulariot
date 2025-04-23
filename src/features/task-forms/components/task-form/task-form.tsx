@@ -36,6 +36,8 @@ export async function TaskForm({
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
 
+  console.log("task:", task.taskFormKey);
+
   // Handle historical tasks
   if (task?.persistentState?.endTime) {
     switch (task.taskFormKey) {
@@ -105,8 +107,8 @@ export async function TaskForm({
         />
       );
 
-    case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
     case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
+    case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
     case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:

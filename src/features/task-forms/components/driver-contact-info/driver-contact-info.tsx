@@ -1,40 +1,44 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { DriverContactInfoProps } from "./driver-contact-info.type";
+import { MdOutlineEmail } from "react-icons/md";
+import { FaPhone } from "react-icons/fa";
 
 export default function DriverContactInfo({
   msg,
   driver,
 }: DriverContactInfoProps) {
   return (
-    <div className="flex gap-5 sm:min-w-[400px] lg:min-w-[600px]">
-      <div className="flex-1 flex flex-col">
-        <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-          {driver.name}
-        </h5>
-        <span className="text-gray-400 text-sm">
-          {(msg.cards as I18nRecord)[driver.varName] as string}
+    <div className="flex flex-col gap-1">
+      <div className="flex-1 flex flex-row items-end gap-1">
+        <span className="text-gray-900 dark:text-white">
+          {(msg.cards as I18nRecord)[driver.varName] as string}:{" "}
+          <span className="text-sm font-light text-gray-900 dark:text-white">
+            {driver.name}
+          </span>
         </span>
       </div>
-      <div className="flex-1 flex flex-col gap-2.5">
-        <span className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+      <div className="flex-1 flex flex-col gap-1">
+        <span className="text-sm font-light leading-loose text-gray-900 dark:text-white">
           {(msg.cards as I18nRecord).driverContactInfo as string}
         </span>
-        <span className="text-gray-400 text-xs">
-          {(msg.cards as I18nRecord).email as string}: {driver.email}
-        </span>
-        <span className="text-gray-400 text-xs">
-          {(msg.cards as I18nRecord).status as string}:{" "}
-          {(msg.cards as I18nRecord)[driver.status] as string}
-        </span>
-        <span className="text-gray-400 text-xs">
-          {(msg.cards as I18nRecord).phone as string}:{" "}
-          <a href={`tel:${driver.phone}`} className="underline">
-            {driver.phone}
-          </a>
-        </span>
-        <span className="text-gray-400 text-xs tracking-tight">
-          {(msg.cards as I18nRecord).rut as string}: {driver.rut}
-        </span>
+        <div className="flex flex-row flex-wrap gap-1">
+          <span className="whitespace-nowrap flex items-center gap-1 flex-row border border-gray-400 w-fit rounded-md p-1 text-gray-400 text-xs">
+            <MdOutlineEmail /> {driver.email}
+          </span>
+          <span className="whitespace-nowrap flex items-center gap-1 flex-row border border-gray-400 w-fit rounded-md p-1 text-gray-400 text-xs">
+            {(msg.cards as I18nRecord).status as string}:{" "}
+            {(msg.cards as I18nRecord)[driver.status] as string}
+          </span>
+          <span className="whitespace-nowrap flex items-center gap-1 flex-row border border-gray-400 w-fit rounded-md p-1 text-gray-400 text-xs">
+            <FaPhone />
+            <a href={`tel:${driver.phone}`} className="underline">
+              {driver.phone}
+            </a>
+          </span>
+          <span className="whitespace-nowrap flex items-center gap-1 flex-row border border-gray-400 w-fit rounded-md p-1 text-gray-400 text-xs tracking-tight">
+            {(msg.cards as I18nRecord).rut as string}: {driver.rut}
+          </span>
+        </div>
       </div>
     </div>
   );

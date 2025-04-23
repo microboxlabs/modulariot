@@ -91,9 +91,11 @@ export async function POST(request: NextRequest) {
     });
 
     // last signer is the dispatcher
-    signersRoles[signersRoles.length - 1] = targetRole;
-    signersNotify[signersNotify.length - 1] = 1;
-    signersInstitutions[signersInstitutions.length - 1] = institutionId;
+    if (json.taskType === "confirmDelivery") {
+      signersRoles[signersRoles.length - 1] = targetRole;
+      signersNotify[signersNotify.length - 1] = 1;
+      signersInstitutions[signersInstitutions.length - 1] = institutionId;
+    }
 
     signersRoles.push("Admin");
     signersInstitutions.push(institutionId);

@@ -1,4 +1,4 @@
-import { Download, FilePdf } from "flowbite-react-icons/outline";
+import { Download } from "flowbite-react-icons/outline";
 import { Button } from "flowbite-react";
 import Link from "next/link";
 import { useVerifyDocument } from "@/features/common/providers/client-api.provider";
@@ -22,17 +22,21 @@ export default function DownloadSignedDocument({
   return (
     <>
       {asLink ? (
-        <Button
-          outline
-          as={Link}
-          color="blue"
-          size="sm"
-          href={href}
-          className="font-normal flex items-center gap-2"
-        >
-          <FilePdf className="h-4 w-4 text-blue-700 mt-0.5" />{" "}
-          <p className="text-blue-700">{name}</p>
-        </Button>
+        <div className="flex items-center w-full mt-1">
+          <Button
+            outline
+            as={Link}
+            color="none"
+            size="sm"
+            href={href}
+            className="font-normal flex items-center gap-2 w-[38%] :ring-cyan-700 border border-blue-500"
+          >
+            <Download className="h-4 w-4 text-blue-700 mt-0.5 dark:text-white" />{" "}
+            <p className="text-blue-700 dark:text-white hidden lg:block">
+              {name}
+            </p>
+          </Button>
+        </div>
       ) : (
         <div className="flex items-start rounded-lg text-sm font-medium h-7">
           {exists ? (

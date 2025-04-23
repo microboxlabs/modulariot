@@ -36,8 +36,6 @@ export async function TaskForm({
   const userInstance = await getUserProfile(ticket!);
   const user = JSON.stringify(userInstance);
 
-  console.log("task:", task.taskFormKey);
-
   // Handle historical tasks
   if (task?.persistentState?.endTime) {
     switch (task.taskFormKey) {
@@ -65,10 +63,7 @@ export async function TaskForm({
           task={task as TaskResponse}
           user={user}
           userGroups={userGroups}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          msg={dictionary as I18nRecord}
         />
       );
 
@@ -91,10 +86,7 @@ export async function TaskForm({
           task={task as TaskResponse}
           user={user}
           userGroups={userGroups}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          msg={dictionary as I18nRecord}
         />
       );
     case TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK:

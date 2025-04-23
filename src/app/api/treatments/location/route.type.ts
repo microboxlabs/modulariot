@@ -9,7 +9,7 @@ export type DescriptionProps = {
   speed_limit?: number;
   accumulated_drive_time?: string;
   accumulated_detention_time?: string;
-  accumulated_time1?: string;
+  accumulated_time?: string;
   accumulated_resting_time?: string;
   signal_lag?: string;
   median_report_interval?: string;

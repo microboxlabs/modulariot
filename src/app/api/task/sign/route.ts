@@ -52,15 +52,18 @@ export async function POST(request: NextRequest) {
     let documentName = "ho-sin-firma.pdf";
     let uploadFileName = "ho-firmado.pdf";
     let targetRole = dispatcherRole;
+    let requireInternalSign = true;
     if (json.taskType === "confirmDelivery") {
       documentName = "ho-firmado.pdf";
       uploadFileName = "ho-recepcionado.pdf";
       targetRole = receiverRole;
+      requireInternalSign = false;
     }
     const file = await getContentByTaskId(
       session.user.ticket,
       `activiti$${json.taskId}`,
       documentName,
+      requireInternalSign,
     );
 
     // const documentTypes = await getDocumentTypes(institutionId, sessionId);

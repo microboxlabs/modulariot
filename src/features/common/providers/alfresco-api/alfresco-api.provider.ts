@@ -213,13 +213,14 @@ export async function getContentByTaskId(
   ticket: string,
   taskId: string,
   fileName: string,
+  requireInternalSign: boolean = false,
 ): Promise<string> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = (await webscriptApi.executeWebScript(
     "GET",
-    `mintral/node/content?taskId=${taskId}&fileName=${fileName}`,
+    `mintral/node/content?taskId=${taskId}&fileName=${fileName}&signed=${requireInternalSign}`,
   )) as { node: { id: string } };
   const nodesApi = new NodesApi(alfrescoApi.contentClient);
   const blob = await nodesApi.getNodeContent(result.node.id);

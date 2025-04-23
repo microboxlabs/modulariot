@@ -136,13 +136,11 @@ export async function NextCancelTripView({
             </div>
           </div>
         </div>
-        <div className={`flex-1 flex h-full w-full flex-row`}>
-          <div className="flex h-full w-full">
-            <GeographicHistoric
-              task={task as TaskResponse}
-              dictionary={dictionary as unknown as Record<string, string>}
-            />
-          </div>
+        <div className="flex h-full w-full flex-1 flex-row">
+          <GeographicHistoric
+            task={task as TaskResponse}
+            dictionary={dictionary as unknown as Record<string, string>}
+          />
         </div>
       </div>
     </div>

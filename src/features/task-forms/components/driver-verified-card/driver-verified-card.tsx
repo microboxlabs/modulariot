@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, TextInput } from "flowbite-react";
+import { Button, TextInput } from "flowbite-react";
 import { HiOutlineHand } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
@@ -36,6 +36,8 @@ import {
 } from "../../services/form.service";
 import { getComments } from "@/utils/comments";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
+import { GeographicHistoric } from "@/features/shipping/components/geographic-historic";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 export default function DriverVerifiedCard({
   lang,
@@ -128,113 +130,159 @@ export default function DriverVerifiedCard({
   }
 
   return (
-    <Card className="gap-6 w-fit items-center justify-center">
-      <div className="flex items-center justify-center">
-        <DriverUserIcon />
-      </div>
-      <div className="h-px bg-gray-300 w-full"></div>
-      <DriverContactInfo msg={msg!} driver={driver1} />
-      {driver2 && (
-        <>
-          <div className="h-px bg-gray-300 w-full"></div>
-          <DriverContactInfo msg={msg!} driver={driver2} />
-        </>
-      )}
-      <div className="h-px bg-gray-300 w-full"></div>
-      <DriverValidation msg={msg!} driver1={driver1} driver2={driver2} />
-
-      <div className="h-px bg-gray-300 w-full"></div>
-      <TripInformation
-        msg={msg}
-        task={task}
-        lang={lang}
-        entityInfo={entityInfo}
-        serviceValidation={serviceValidation}
-        userGroups={userGroups}
-      />
-      <form action={formActionWrapper} className="flex flex-col gap-2">
-        <TripManifestParams
-          msg={msg}
+    <div className="w-full flex flex-row pb-2 px-2 gap-2 overflow-hidden">
+      <div className="w-1/3 flex flex-col h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg gap-6 p-5">
+        <div className="flex items-center justify-center">
+          <DriverUserIcon />
+        </div>
+        <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+        <DriverContactInfo
+          msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
+          driver={driver1}
+        />
+        {driver2 && (
+          <>
+            <div className="h-px bg-gray-300 w-full"></div>
+            <DriverContactInfo
+              msg={
+                (msg!.pages as I18nRecord).transportValidationForm as I18nRecord
+              }
+              driver={driver2}
+            />
+          </>
+        )}
+        <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+        <DriverValidation
+          msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
+          driver1={driver1}
+          driver2={driver2}
+        />
+        <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+        <TripInformation
+          msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
           task={task}
           lang={lang}
           entityInfo={entityInfo}
           serviceValidation={serviceValidation}
-          nativeGenerationEnabled={nativeGenerationEnabled}
-          onNativeGenerationChange={onNativeGenerationChange}
           userGroups={userGroups}
         />
-
-        <div className="h-px bg-gray-300 w-full mt-4"></div>
-
-        <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
-          {(msg!.cards as I18nRecord).comments as string}
-        </h5>
-
-        <div className="flex flex-col gap-6">
-          <TextInput
-            id="taskId"
-            name="taskId"
-            type="hidden"
-            defaultValue={task.id}
-          />
-          {/* <Textarea
-            placeholder={
-              (msg!.cards as I18nRecord).write_here_your_observations as string
+        <form action={formActionWrapper} className="flex flex-col gap-2">
+          <TripManifestParams
+            msg={
+              (msg!.pages as I18nRecord).transportValidationForm as I18nRecord
             }
-            defaultValue={task.mintral_driverObservations as string}
-          /> */}
-          {getComments(task as ExtendedTaskResponse)}
-          {!enableActions && (
-            <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-              <Button.Group className="w-full">
-                <CanceledAnnulledAndOptions
-                  dict={msg ?? {}}
-                  handleSelection={handleSelection}
-                  otherOptions={[
-                    {
-                      id: OUTCOME_OVERLORD_REQUIRED,
-                      label:
-                        ((msg?.outcome as I18nRecord)
-                          ?.requiresOverlord as string) ?? "",
-                      icon: HiOutlineHand,
-                    },
-                  ]}
-                />
-                <Button
-                  color="blue"
-                  type="submit"
-                  theme={{ inner: { base: "px-5 py-3" } }}
-                  isProcessing={isLoading}
-                  className="w-full px-0 py-px"
-                >
-                  {(msg!.buttons as I18nRecord).submit as string}
-                </Button>
-              </Button.Group>
+            task={task}
+            lang={lang}
+            entityInfo={entityInfo}
+            serviceValidation={serviceValidation}
+            nativeGenerationEnabled={nativeGenerationEnabled}
+            onNativeGenerationChange={onNativeGenerationChange}
+            userGroups={userGroups}
+          />
+          <hr className="w-full border-gray-400 dark:border-gray-600"></hr>
+          <h5 className="text-sm font-medium leading-loose text-gray-900 dark:text-white">
+            {
+              (
+                (
+                  (msg!.pages as I18nRecord)
+                    .transportValidationForm as I18nRecord
+                ).cards as I18nRecord
+              ).comments as string
+            }
+          </h5>
 
-              <TaskConfirmModal
-                commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-                dict={msg ?? {}}
-                taskId={task.id}
-                outcome={outcome!}
-                outcomeLabel={outcomeLabel!}
-                openModal={openModal}
-                setOpenModal={setOpenModal}
-              />
-            </div>
-          )}
-          {enableActions && (
-            <TaskActions
-              taskId={task.id}
-              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
-              lang={lang}
-              dict={msg!}
-              fluid={true}
-              extraData={buildExtraData()}
+          <div className="flex flex-col gap-6">
+            <TextInput
+              id="taskId"
+              name="taskId"
+              type="hidden"
+              defaultValue={task.id}
             />
-          )}
-        </div>
-      </form>
-    </Card>
+            {/* <Textarea
+              placeholder={
+                (msg!.cards as I18nRecord).write_here_your_observations as string
+              }
+              defaultValue={task.mintral_driverObservations as string}
+            /> */}
+            {getComments(task as ExtendedTaskResponse)}
+            {!enableActions && (
+              <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+                <Button.Group className="w-full">
+                  <CanceledAnnulledAndOptions
+                    dict={
+                      (msg!.pages as I18nRecord)
+                        .transportValidationForm as I18nRecord
+                    }
+                    handleSelection={handleSelection}
+                    otherOptions={[
+                      {
+                        id: OUTCOME_OVERLORD_REQUIRED,
+                        label:
+                          ((
+                            (
+                              (msg!.pages as I18nRecord)
+                                .transportValidationForm as I18nRecord
+                            )?.outcome as I18nRecord
+                          )?.requiresOverlord as string) ?? "",
+                        icon: HiOutlineHand,
+                      },
+                    ]}
+                  />
+                  <Button
+                    color="blue"
+                    type="submit"
+                    theme={{ inner: { base: "px-5 py-3" } }}
+                    isProcessing={isLoading}
+                    className="w-full px-0 py-px"
+                  >
+                    {
+                      (
+                        (
+                          (msg!.pages as I18nRecord)
+                            .transportValidationForm as I18nRecord
+                        ).buttons as I18nRecord
+                      ).submit as string
+                    }
+                  </Button>
+                </Button.Group>
+
+                <TaskConfirmModal
+                  commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+                  dict={
+                    (msg!.pages as I18nRecord)
+                      .transportValidationForm as I18nRecord
+                  }
+                  taskId={task.id}
+                  outcome={outcome!}
+                  outcomeLabel={outcomeLabel!}
+                  openModal={openModal}
+                  setOpenModal={setOpenModal}
+                />
+              </div>
+            )}
+            {enableActions && (
+              <TaskActions
+                taskId={task.id}
+                taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                lang={lang}
+                dict={
+                  (msg!.pages as I18nRecord)
+                    .transportValidationForm as I18nRecord
+                }
+                fluid={true}
+                extraData={buildExtraData()}
+              />
+            )}
+          </div>
+        </form>
+      </div>
+      <div className="flex h-full w-full flex-1 flex-row">
+        <GeographicHistoric
+          task={task as TaskResponse}
+          dictionary={msg as unknown as Record<string, string>}
+        />
+      </div>
+    </div>
   );
 }
 

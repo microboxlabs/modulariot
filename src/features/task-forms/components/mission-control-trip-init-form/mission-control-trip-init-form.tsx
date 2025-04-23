@@ -28,34 +28,30 @@ export default async function MissionControlTripInitForm({
   // );
 
   return (
-    <div className="px-4 pt-6">
-      <Breadcrumb
-        path={["tasks", "shipping", "details"]}
-        lang={lang}
-        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-        dict={{
-          ...(((dictionary.layout as I18nRecord).secured as I18nRecord)
-            .sidebar as I18nRecord),
-          details: dict("layout.secured.sidebar.details", {
-            serviceCode: task.mintral_serviceCode as string,
-          }),
-        }}
-      />
-      <div className="py-8 flex-1 flex flex-col items-center">
-        <DriverVerifiedCard
+    <div className="h-full w-full flex flex-col">
+      <div className="p-5">
+        <Breadcrumb
+          path={["tasks", "shipping", "details"]}
           lang={lang}
-          msg={{
-            ...msg,
-            ...((dictionary.pages as I18nRecord)
-              .shippingDetailsTaskForm as I18nRecord),
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={{
+            ...(((dictionary.layout as I18nRecord).secured as I18nRecord)
+              .sidebar as I18nRecord),
+            details: dict("layout.secured.sidebar.details", {
+              serviceCode: task.mintral_serviceCode as string,
+            }),
           }}
-          task={task}
-          userGroups={userGroups}
-          // entityInfo={entityInfo}
-          // serviceValidation={serviceValidation}
-          enableActions={true}
         />
       </div>
+      <DriverVerifiedCard
+        lang={lang}
+        msg={msg}
+        task={task}
+        userGroups={userGroups}
+        // entityInfo={entityInfo}
+        // serviceValidation={serviceValidation}
+        enableActions={true}
+      />
     </div>
   );
 }

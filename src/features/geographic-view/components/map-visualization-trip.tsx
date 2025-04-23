@@ -13,23 +13,23 @@ import wkx, { Geometry } from "wkx";
 import { GeofenceLayer } from "./geofence";
 import { Spinner } from "flowbite-react";
 import { GeofencePinLayer } from "./geofence_pin";
-import { TreatmentsLocationResponseItemFeature } from "@/app/api/treatments/location/route.type";
+import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
 import MapTooltip from "./map-tooltip";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import PulseTooltip, {
   PulseListType,
   PulseType,
 } from "./tooltips/pulse-tooltip";
+import MapStyleSelector from "./map-style-selector";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
-  "streets-v9": "mapbox://styles/mapbox/streets-v9",
-  "satellite-v9": "mapbox://styles/mapbox/satellite-v9",
-  "satellite-streets-v11": "mapbox://styles/mapbox/satellite-streets-v11",
-  "dark-v10": "mapbox://styles/mapbox/dark-v10",
-  "light-v10": "mapbox://styles/mapbox/light-v10",
-  "outdoors-v11": "mapbox://styles/mapbox/outdoors-v11",
-  "hybrid-v10": "mapbox://styles/mapbox/hybrid-v10",
+  streets: "mapbox://styles/mapbox/streets-v9",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v11",
+  dark: "mapbox://styles/mapbox/dark-v10",
+  light: "mapbox://styles/mapbox/light-v10",
+  outdoors: "mapbox://styles/mapbox/outdoors-v11",
+  hybrid: "mapbox://styles/mapbox/hybrid-v10",
 };
 
 type Zone = {
@@ -89,12 +89,13 @@ const INITIAL_VIEW_STATE: ViewStateType = {
 type MapVisualizationProps = {
   tripId: string;
   positions: MapPosition[] | null;
+  isLoading: boolean;
   error: Error | null;
   averagePosition: {
     latitude: number;
     longitude: number;
   };
-  filteredLocationData: TreatmentsLocationResponseItemFeature[] | null;
+  filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
 };
 
@@ -149,12 +150,13 @@ function move_to_pin(
 export default function MapVisualizationTrip({
   tripId,
   positions,
-  error,
+  isLoading,
   averagePosition,
   filteredLocationData,
   dict,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
+  const [mapStyle, setMapStyle] = useState("satellite");
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<PulseProps | PulseListType>>();
@@ -173,11 +175,11 @@ export default function MapVisualizationTrip({
     if (positions && positions.length > 0) {
       move_to_pin(averagePosition, setViewState, viewState);
     }
-    if (filteredLocationData && filteredLocationData.length > 0) {
+    if (filteredLocationData && filteredLocationData.features.length > 0) {
       move_to_pin(
         {
-          latitude: filteredLocationData[0].latitude ?? 0,
-          longitude: filteredLocationData[0].longitude ?? 0,
+          latitude: filteredLocationData.features[0].latitude ?? 0,
+          longitude: filteredLocationData.features[0].longitude ?? 0,
         },
         setViewState,
         viewState,
@@ -217,7 +219,7 @@ export default function MapVisualizationTrip({
     // Create a set of matching position indices
     const matchingIndices = new Set<number>();
     if (filteredLocationData && positions) {
-      filteredLocationData.forEach((filteredItem) => {
+      filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
         const matchingIndex = positions.findIndex(
           (pos) =>
@@ -236,6 +238,7 @@ export default function MapVisualizationTrip({
         y: 10,
         object: {
           elements: Array.from(matchingIndices),
+          description: filteredLocationData?.description,
         },
       } as PickingInfo<PulseListType>);
     }
@@ -302,7 +305,6 @@ export default function MapVisualizationTrip({
           },
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
-            console.log("informatione pulso", info);
             if (info.viewport) {
               info.x = info.viewport.width / 2;
               info.y = info.viewport.height / 2;
@@ -409,10 +411,6 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_error, geofence_isLoading]);
 
-  if (error) {
-    console.error("Map error:", error);
-  }
-
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
@@ -427,9 +425,14 @@ export default function MapVisualizationTrip({
       >
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          mapStyle={mapboxStyles["satellite-streets-v11"]}
+          mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
         />
       </DeckGL>
+      <MapStyleSelector
+        dict={dict}
+        selectedStyle={mapStyle}
+        setSelectedStyle={setMapStyle}
+      />
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}
@@ -454,8 +457,21 @@ export default function MapVisualizationTrip({
         />
         */}
       </div>
-      <div className="absolute left-5 bottom-5">
-        {positions?.length === 0 ? <Spinner /> : null}
+      <div className="absolute left-0 top-5 bg-white dark:bg-gray-800 rounded-r-full border-r border-y border-gray-400 dark:border-gray-700">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full p-2">
+            <Spinner />
+          </div>
+        ) : !isLoading && positions?.length === 0 ? (
+          <div className="flex items-center justify-center h-full p-2">
+            <p className="text-gray-500 dark:text-gray-400 font-light">
+              {
+                ((dict as I18nRecord).geographic_view as I18nRecord)
+                  .no_data_found as string
+              }
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

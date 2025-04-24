@@ -23,7 +23,13 @@ export default function DownloadSignedDocument({
     <>
       {asLink ? (
         <div className="flex items-center w-full mt-1">
-          <Button outline as={Link} href={href} color="blue">
+          <Button
+            outline
+            as={Link}
+            href={href}
+            color="gray"
+            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800  gap-2 w-fit"
+          >
             <Download className="h-5 w-5 dark:text-white mr-2" />{" "}
             {/* <p className="text-blue-700 dark:text-white hidden lg:block"> */}
             {name}
@@ -38,7 +44,7 @@ export default function DownloadSignedDocument({
             outline
             as={Link}
             color="blue"
-            size="xs"
+            size="md"
             href={href}
           >
             <Download className="h-4 w-4 text-blue-700" />

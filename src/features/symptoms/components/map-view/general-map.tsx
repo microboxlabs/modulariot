@@ -16,7 +16,7 @@ import {
 
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
-import icuConditions from "@/features/symptoms/model/icu_condition.json";
+/* import icuConditions from "@/features/symptoms/model/icu_condition.json"; */
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";

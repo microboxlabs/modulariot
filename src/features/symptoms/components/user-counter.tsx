@@ -3,31 +3,24 @@ import { useGetUserStates } from "@/features/common/providers/client-api.provide
 import ConditionIcon from "./condition-icon";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { pin_conditions } from "@/features/geographic-view/types/pin_conditions";
-import { useState, useEffect } from "react";
-
-const color_selector = [
-  "bg-rose-100 text-rose-600 border-rose-600",
-  "bg-amber-100 text-amber-600 border-amber-600",
-  "bg-blue-100 text-blue-600 border-blue-600",
-  "bg-gray-100 text-gray-600 border-gray-600",
-];
+import { useState } from "react";
 
 export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
   const [open, setOpen] = useState(false);
-  const [userColors, setUserColors] = useState<Record<number, string>>({});
   const { user_states, user_states_error, user_states_isLoading } =
     useGetUserStates();
 
-  useEffect(() => {
-    if (user_states?.userStates) {
-      const colors: Record<number, string> = {};
-      user_states.userStates.forEach((_: any, index: number) => {
-        colors[index] =
-          color_selector[Math.floor(Math.random() * color_selector.length)];
-      });
-      setUserColors(colors);
-    }
-  }, [user_states?.userStates]);
+  const sortedUserStates = user_states?.userStates
+    ? [...user_states.userStates].sort((a, b) => {
+        const statusOrder = {
+          connected_free: 0,
+          connected_treating: 1,
+          inactive: 2,
+          offline: 3,
+        };
+        return statusOrder[getUserState(a)] - statusOrder[getUserState(b)];
+      })
+    : [];
 
   if (user_states_isLoading) {
     return <div></div>;
@@ -42,7 +35,7 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
       className={`flex flex-row align-middle justify-center items-center transition-all duration-300 cursor-pointer ${!open ? "" : ""} hover:cursor-pointer `}
       onClick={() => setOpen(!open)}
     >
-      {user_states.userStates.map((user: any, index: number) => {
+      {sortedUserStates.map((user: any, index: number) => {
         const user_state = getUserState(user);
 
         return (
@@ -82,11 +75,8 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
               >
                 <div
                   key={index}
-                  className={`relative border-2 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 ${userColors[index]} h-10 w-10`}
+                  className={`relative border-2 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 ${statusColor(user)} h-10 w-10`}
                 >
-                  <div
-                    className={`h-3 w-3 rounded-full absolute top-0 right-0 ${statusColor(user)} border-2 border-white`}
-                  ></div>
                   {user.firstName[0]}
                   {user.lastName[0]}
                 </div>
@@ -94,11 +84,8 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
             ) : (
               <div
                 key={index}
-                className={`relative border-2 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 ${userColors[index]} h-10 w-10`}
+                className={`relative border-2 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 ${statusColor(user)} h-10 w-10`}
               >
-                <div
-                  className={`h-3 w-3 rounded-full absolute top-0 right-0 ${statusColor(user)} border-2 border-white`}
-                ></div>
                 {user.firstName[0]}
                 {user.lastName[0]}
               </div>
@@ -106,11 +93,11 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
           </div>
         );
       })}
-      {user_states.userStates.length > 3 && (
+      {sortedUserStates.length > 3 && (
         <div
           className={`${!open ? "ml-[-2.0em]" : "ml-[-2.5rem] scale-0 h-0 w-0"} z-10 flex justify-center items-center transition-all duration-300 rounded-full p-1 first:p-0 h-10 w-10 bg-blue-500 text-white`}
         >
-          +{user_states.userStates.length - 3}
+          +{sortedUserStates.length - 3}
         </div>
       )}
     </div>
@@ -137,15 +124,17 @@ function getUserState(
 function statusColor(user: any) {
   const user_state = getUserState(user);
 
+  console.log(user_state);
+
   switch (user_state) {
     case "offline":
-      return "bg-gray-500";
+      return "bg-gray-100 text-gray-500 border-gray-500";
     case "connected_treating":
-      return "bg-yellow-400";
+      return "bg-yellow-100 text-yellow-500 border-yellow-500";
     case "connected_free":
-      return "bg-green-500";
+      return "bg-green-100 text-green-500 border-green-500";
     default:
-      return "bg-red-500";
+      return "bg-red-100 text-red-500 border-red-500";
   }
 }
 
@@ -171,17 +160,31 @@ function tooltipContent(user: any, dict: I18nRecord) {
 
   switch (user_state) {
     case "offline":
-      return <div>Desconectado</div>;
+      return (
+        <div>
+          <div className="text-gray-900 dark:text-gray-100 flex flex-col items-center justify-center">
+            {user.firstName} {user.lastName}
+          </div>
+          <hr className="my-2 border-gray-200 dark:border-gray-600" />
+          <p className="text-gray-700 dark:text-gray-300 flex flex-col items-center justify-center">
+            Desconectado
+          </p>
+        </div>
+      );
     case "connected_treating":
       return (
         <div>
+          <div className="text-gray-900 dark:text-gray-100 flex flex-col items-center justify-center">
+            {user.firstName} {user.lastName}
+          </div>
+          <hr className="my-2 border-gray-200 dark:border-gray-600" />
           <div className="w-full align-middle text-center font-normal">
             Conectado y tratando
           </div>
           <div className="w-full align-middle text-center font-light text-gray-500 dark:text-gray-400">
             hace {formatTimeDifference(user.start_timestamp)}
           </div>
-          <hr className="my-2 border-gray-200 dark:border-gray-800" />
+          <hr className="my-2 border-gray-200 dark:border-gray-600" />
           <div className="w-full flex gap-2 justify-center items-center align-middle text-center font-light text-gray-500 dark:text-gray-400">
             <ConditionIcon
               condition={
@@ -200,6 +203,10 @@ function tooltipContent(user: any, dict: I18nRecord) {
     case "connected_free":
       return (
         <div className="w-full align-middle text-center font-normal">
+          <div className="text-gray-900 dark:text-gray-100 flex flex-col items-center justify-center">
+            {user.firstName} {user.lastName}
+          </div>
+          <hr className="my-2 border-gray-200 dark:border-gray-600" />
           <div>Conectado y libre</div>
           <div className="w-full align-middle text-center font-light text-gray-500 dark:text-gray-400">
             hace {formatTimeDifference(user.end_timestamp)}
@@ -209,7 +216,11 @@ function tooltipContent(user: any, dict: I18nRecord) {
     default:
       return (
         <div className="w-full align-middle text-center font-normal">
-          <div>Inactivo</div>
+          <div className="text-red-900 dark:text-red-200 flex flex-col items-center justify-center">
+            {user.firstName} {user.lastName}
+          </div>
+          <hr className="my-2 border-red-200 dark:border-red-800" />
+          <div className="text-red-800 dark:text-red-300">Inactivo</div>
           <div className="w-full align-middle text-center font-light text-red-800 dark:text-red-300">
             hace {formatTimeDifference(user.end_timestamp)}
           </div>

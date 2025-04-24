@@ -17,19 +17,19 @@ export function ViewSwitcher({
     <Button.Group>
       <Button
         color="gray"
-        onClick={() => onViewChange("table")}
-        size="sm"
-        disabled={activeView === "table"}
-      >
-        {tr("views.table", dict)}
-      </Button>
-      <Button
-        color="gray"
         onClick={() => onViewChange("kanban")}
         size="sm"
         disabled={activeView === "kanban"}
       >
         {tr("views.kanban", dict)}
+      </Button>
+      <Button
+        color="gray"
+        onClick={() => onViewChange("table")}
+        size="sm"
+        disabled={activeView === "table"}
+      >
+        {tr("views.table", dict)}
       </Button>
     </Button.Group>
   );

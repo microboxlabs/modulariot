@@ -66,13 +66,9 @@ export async function GeneralTripView({
         />
       </div>
       <div
-        className={`flex-1 flex px-2 pb-2 ${
-          task.persistentState?.endStateName === "monitoringFinalization"
-            ? "flex-row items-center gap-2 h-full overflow-hidden"
-            : "flex-col"
-        } items-center gap-2 h-full`}
+        className={`flex-1 flex px-2 pb-2 flex-row items-center gap-2 h-full overflow-hidden`}
       >
-        <div className="h-full">
+        <div className="h-full w-1/3">
           <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
             <div className="h-full flex flex-col gap-6 p-6">
               <div className="flex items-center justify-center">
@@ -119,14 +115,12 @@ export async function GeneralTripView({
             </div>
           </div>
         </div>
-        {task.persistentState?.endStateName === "monitoringFinalization" && (
-          <div className="flex h-full w-full">
-            <GeographicHistoric
-              task={task as TaskResponse}
-              dictionary={dictionary as unknown as Record<string, string>}
-            />
-          </div>
-        )}
+        <div className="flex h-full w-full flex-1 flex-row">
+          <GeographicHistoric
+            task={task as TaskResponse}
+            dictionary={dictionary as unknown as Record<string, string>}
+          />
+        </div>
       </div>
     </div>
   );

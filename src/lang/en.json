@@ -636,7 +636,9 @@
     "accumulated_drive_time": "Accumulated drive time",
     "accumulated_detention_time": "Accumulated detention time",
     "accumulated_resting_time": "Accumulated resting time",
-    "zone_names": "Zone names"
+    "zone_names": "Zone names",
+    "median_report_interval": "Median report interval",
+    "accumulated_time": "Driving time"
   },
   "release": {
     "other_versions": "Other Versions"

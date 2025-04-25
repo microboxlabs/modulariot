@@ -39,7 +39,10 @@ import {
   Task,
 } from "../types/common.types";
 import KanbanCard from "./kanban-card/kanban-card";
-import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
+import {
+  I18nRecord,
+  PropsWithI18nDict,
+} from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
@@ -133,11 +136,12 @@ export default function PageContent({
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dict}
           />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             <CompactKanbanViewSwitcher
               kanbanView={activeView === "kanban"}
               activeView={compactKanbanView}
               onViewChange={setCompactKanbanView}
+              dict={dict}
             />
             <ViewSwitcher
               activeView={activeView}
@@ -149,7 +153,9 @@ export default function PageContent({
       </div>
       <div className="h-screen w-full overflow-auto">
         {activeView === "kanban" ? (
-          <div className="flex items-start justify-start space-x-4 px-4">
+          <div
+            className={`flex items-start justify-start ${compactKanbanView ? "mx-2 gap-2" : "mx-4 gap-4"} `}
+          >
             {list.map((board) => {
               if (showFinishedTasks) {
                 if (!board.finished) {
@@ -163,13 +169,16 @@ export default function PageContent({
               return (
                 <div key={board.id}>
                   <div
-                    className={`my-4 text-base font-semibold text-gray-900 dark:text-gray-300 h-[4.5rem] ${compactKanbanView ? "min-w-36" : "w-64"} text-center flex flex-col`}
+                    className={`mb-4 text-gray-900 dark:text-gray-300 text-center flex flex-col ${compactKanbanView ? "text-base font-semibold gap-2" : "h-[4.5rem] text-base font-semibold"}`}
                     style={{
-                      width: compactKanbanView ? "auto" : "16rem",
+                      width: compactKanbanView ? "12rem" : "16rem",
                     }}
                   >
                     <div className="flex-1">
-                      {tr(`kanban.${board.title}`, dict)}
+                      {tr(
+                        `kanban.${board.title}${compactKanbanView && ((dict as I18nRecord).kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
+                        dict,
+                      )}
                     </div>
                     <TaskCounter count={countTasks(board.tasks)} dict={dict} />
                   </div>

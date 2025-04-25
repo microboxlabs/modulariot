@@ -37,14 +37,14 @@ export default function DownloadSignedDocument({
           </Button>
         </div>
       ) : (
-        <div className="flex items-start rounded-lg text-sm font-medium h-7">
+        <div className="flex items-start rounded-lg text-sm font-medium h-7 mr-2">
           {/* {exists ? ( */}
           <Button
             className="group"
             outline
             as={Link}
             color="blue"
-            size="md"
+            size="xs"
             href={href}
           >
             <Download className="h-4 w-4 text-blue-700" />

@@ -34,8 +34,8 @@ export default function KanbanCard({
   return (
     <div
       key={task.id}
-      className={`mb-4 rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
-        compactKanbanView ? "p-3" : "p-5 w-full"
+      className={`rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
+        compactKanbanView ? "p-3 mb-2" : "p-5 mb-4 w-full"
       }`}
     >
       <div className="flex items-center justify-between pb-4 cursor-pointer">

@@ -1,19 +1,56 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Sidebar, SidebarItem, TextInput } from "flowbite-react";
+import { Sidebar, TextInput } from "flowbite-react";
+import SidebarItem from "../sidebar-item/sidebar-item";
 import { usePathname } from "next/navigation";
 import { HiSearch } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { pages } from "../../models/pages";
-import { externalPages } from "../../models/externalPages";
+/* import { externalPages } from "../../models/externalPages"; */
 import BottomMenu from "../bottom-menu/bottom-menu";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
+import { tr } from "@/features/i18n/tr.service";
+import { useState, useEffect } from "react";
+import {
+  useSymptoms,
+  useMapPositions,
+  useMyTasksCount,
+  useMyTasks,
+} from "@/features/common/providers/client-api.provider";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
 export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   // remove first element of pathname which is the language
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isOpen, close } = useSidebarContext().mobile;
+
+  const { data, error, isLoading: _ } = useMyTasksCount();
+  const { data: finishedTasks } = useMyTasks(
+    SHIPPING_COORDINATOR_PROCESS_TASKS,
+    true,
+    1,
+    0,
+  );
+  const { count: mapCount } = useMapPositions();
+  const { count: symptomsCount } = useSymptoms();
+  const [totals, setTotals] = useState<{ [key: string]: number }>({});
+
+  if (!error) {
+    totals["shipping"] = Object.entries(data?.totals ?? {})
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
+  } /* else if (error.status === 403 || error.status === 401) {
+    router.push("/sign-in");
+  } */
+
+  useEffect(() => {
+    const newTotals = { ...totals };
+    newTotals["geographicView"] = mapCount;
+    newTotals["symptoms"] = symptomsCount;
+    newTotals["finished"] = finishedTasks?.total ?? 0;
+    setTotals(newTotals);
+  }, [mapCount, symptomsCount, finishedTasks]);
 
   if (!isOpen) return null;
 
@@ -27,7 +64,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
         )}
         id="sidebar"
       >
-        <div className="flex h-full flex-col justify-between">
+        <div className="flex h-full flex-col justify-between dark:border-gray-700">
           <div className="py-2">
             <form className="pb-3">
               <TextInput
@@ -41,14 +78,22 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
             <Sidebar.Items>
               <Sidebar.ItemGroup className="mt-0 border-t-0 pb-1 pt-0">
                 {pages.map((item) => (
-                  <SidebarItem key={item.label} {...item} pathname={pathname} />
+                  <SidebarItem
+                    key={item.label}
+                    {...item}
+                    pathname={pathname}
+                    label={tr(item.label, dict)}
+                    dict={dict}
+                    icon={item.icon}
+                    totals={totals}
+                  />
                 ))}
               </Sidebar.ItemGroup>
-              <Sidebar.ItemGroup className="mt-2 pt-2">
+              {/* <Sidebar.ItemGroup className="mt-2 pt-2">
                 {externalPages.map((item) => (
                   <SidebarItem key={item.label} {...item} pathname={pathname} />
                 ))}
-              </Sidebar.ItemGroup>
+              </Sidebar.ItemGroup> */}
             </Sidebar.Items>
           </div>
           <BottomMenu isCollapsed={false} dict={dict} pathname={pathname} />

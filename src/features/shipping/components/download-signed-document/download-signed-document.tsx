@@ -28,7 +28,7 @@ export default function DownloadSignedDocument({
             as={Link}
             href={href}
             color="gray"
-            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800  gap-2 w-fit"
+            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 gap-2 w-full"
           >
             <Download className="h-5 w-5 dark:text-white mr-2" />{" "}
             {/* <p className="text-blue-700 dark:text-white hidden lg:block"> */}

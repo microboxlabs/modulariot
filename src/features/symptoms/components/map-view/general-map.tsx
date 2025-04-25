@@ -86,7 +86,7 @@ export default function GeneralMap({
         <TitleCardSkeleton />
       ) : (
         <div
-          className={`mx-5 mb-5 relative flex flex-col gap-10 ${
+          className={`mx-2 mb-2 relative flex flex-col gap-10 ${
             ["3", "4"].includes(
               treatmentData?.symptom_info?.icu_code?.toString() ?? "",
             )
@@ -204,7 +204,7 @@ export default function GeneralMap({
           </Card>
         </div>
       )}
-      <div className="flex flex-row gap-6 w-full h-full px-5 pb-5 overflow-hidden">
+      <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
         {/* Side information */}
         <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo

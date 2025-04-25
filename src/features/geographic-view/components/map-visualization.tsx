@@ -86,7 +86,7 @@ function zoom_on_pin(
       ...viewState,
       longitude,
       latitude,
-      zoom: object.properties.cluster ? viewState.zoom + 5.0 : 20.0,
+      zoom: object.properties.cluster ? viewState.zoom + 5.0 : 15.0,
       transitionDuration: 1000,
       transitionInterpolator: new FlyToInterpolator(),
     });

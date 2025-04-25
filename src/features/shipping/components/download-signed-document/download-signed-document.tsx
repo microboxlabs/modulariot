@@ -28,23 +28,20 @@ export default function DownloadSignedDocument({
             as={Link}
             href={href}
             color="gray"
-            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800  gap-2 w-fit"
+            className="h-10 transition-all duration-100 z-1 bg-white dark:bg-gray-800 border-gray-300 gap-2 w-full dark:border-gray-700"
           >
-            <Download className="h-5 w-5 dark:text-white mr-2" />{" "}
-            {/* <p className="text-blue-700 dark:text-white hidden lg:block"> */}
-            {name}
-            {/* </p> */}
+            <Download className="h-5 w-5 dark:text-white mr-2" /> {name}
           </Button>
         </div>
       ) : (
-        <div className="flex items-start rounded-lg text-sm font-medium h-7">
+        <div className="flex items-start rounded-lg text-sm font-medium h-7 mr-2">
           {/* {exists ? ( */}
           <Button
             className="group"
             outline
             as={Link}
             color="blue"
-            size="md"
+            size="xs"
             href={href}
           >
             <Download className="h-4 w-4 text-blue-700" />

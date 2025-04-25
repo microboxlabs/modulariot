@@ -7,6 +7,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
 import Map from "react-map-gl";
+import { useSearchParams } from "next/navigation";
 import {
   MapPosition,
   MapPositionProperties,
@@ -103,12 +104,30 @@ export default function MapVisualization({
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
   const [mapStyle, setMapStyle] = useState("satellite");
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+
   useEffect(() => {
     if (mapPositions) {
       setPositions(mapPositions);
       setOriginalPositions(mapPositions); // Store original unfiltered positions
     }
   }, [mapPositions]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+  }, [searchParams.get("search")]);
+
+  useEffect(() => {
+    if (search && search != "") {
+      const filteredPositions = originalPositions?.filter((position: any) =>
+        position.asset_id.toLowerCase().includes(search.toLowerCase()),
+      );
+      setPositions(filteredPositions || []);
+    } else {
+      setPositions(originalPositions);
+    }
+  }, [search, originalPositions]);
 
   // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
   const NEW_INITIAL_VIEW_STATE = {

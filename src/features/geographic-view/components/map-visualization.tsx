@@ -94,6 +94,38 @@ function zoom_on_pin(
   }
 }
 
+function zoom_on_position(
+  positions: MapPosition[],
+  setViewState: (viewState: ViewStateType) => void,
+  viewState: ViewStateType,
+) {
+  if (positions && positions.length > 0) {
+    const validPositions = positions.filter(pos => 
+      typeof pos.longitude === 'number' && 
+      typeof pos.latitude === 'number' &&
+      !isNaN(pos.longitude) && 
+      !isNaN(pos.latitude)
+    );
+
+    if (validPositions.length > 0) {
+      const avgLongitude = validPositions.reduce((acc, pos) => acc + pos.longitude, 0) / validPositions.length;
+      const avgLatitude = validPositions.reduce((acc, pos) => acc + pos.latitude, 0) / validPositions.length;
+
+      const newViewState = {
+        ...viewState,
+        longitude: avgLongitude,
+        latitude: avgLatitude,
+        zoom: validPositions.length === 1 ? 12.0 : 4.0,
+        transitionDuration: 1000,
+        transitionInterpolator: new FlyToInterpolator(),
+        transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+      };
+
+      setViewState(newViewState);
+    }
+  }
+}
+
 export default function MapVisualization({
   mapPositions,
   mapPositionsResume,
@@ -109,6 +141,7 @@ export default function MapVisualization({
 
   useEffect(() => {
     if (mapPositions) {
+      console.log(mapPositions[0]);
       setPositions(mapPositions);
       setOriginalPositions(mapPositions); // Store original unfiltered positions
     }
@@ -124,8 +157,14 @@ export default function MapVisualization({
         position.asset_id.toLowerCase().includes(search.toLowerCase()),
       );
       setPositions(filteredPositions || []);
+      if (filteredPositions && filteredPositions.length > 0) {
+        zoom_on_position(filteredPositions, setViewState, viewState);
+      }
     } else {
       setPositions(originalPositions);
+      if (originalPositions && originalPositions.length > 0) {
+        zoom_on_position(originalPositions, setViewState, viewState);
+      }
     }
   }, [search, originalPositions]);
 

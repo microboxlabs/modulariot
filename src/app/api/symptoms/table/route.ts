@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   //params.set("page", url.searchParams.get("page") ?? "1");
   //params.set("limit", url.searchParams.get("limit") ?? "10");
   if (url.searchParams.get("search")) {
-    params.set("p_asset_id", url.searchParams.get("search") ?? "");
+    params.set("p_asset_id", `${url.searchParams.get("search") ?? ""}`);
   }
   if (url.searchParams.get("condition")) {
     params.set("p_icu_code", url.searchParams.get("condition") ?? "");

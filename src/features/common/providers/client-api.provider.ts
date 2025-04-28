@@ -197,6 +197,11 @@ export function useSymptomsTable({
   search?: string;
   condition?: string;
 }) {
+  console.log(
+    `/app/api/symptoms/table?page=${page}&limit=${pageSize}${
+      search ? "&search=" + search : ""
+    }${condition ? "&condition=" + condition : ""}`,
+  );
   const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
     `/app/api/symptoms/table?page=${page}&limit=${pageSize}${search ? "&search=" + search : ""}${condition ? "&condition=" + condition : ""}`,
     fetcher,

@@ -100,16 +100,21 @@ function zoom_on_position(
   viewState: ViewStateType,
 ) {
   if (positions && positions.length > 0) {
-    const validPositions = positions.filter(pos => 
-      typeof pos.longitude === 'number' && 
-      typeof pos.latitude === 'number' &&
-      !isNaN(pos.longitude) && 
-      !isNaN(pos.latitude)
+    const validPositions = positions.filter(
+      (pos: MapPosition) =>
+        typeof pos.longitude === "number" &&
+        typeof pos.latitude === "number" &&
+        !isNaN(pos.longitude) &&
+        !isNaN(pos.latitude),
     );
 
     if (validPositions.length > 0) {
-      const avgLongitude = validPositions.reduce((acc, pos) => acc + pos.longitude, 0) / validPositions.length;
-      const avgLatitude = validPositions.reduce((acc, pos) => acc + pos.latitude, 0) / validPositions.length;
+      const avgLongitude =
+        validPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
+        validPositions.length;
+      const avgLatitude =
+        validPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
+        validPositions.length;
 
       const newViewState = {
         ...viewState,
@@ -118,7 +123,8 @@ function zoom_on_position(
         zoom: validPositions.length === 1 ? 12.0 : 4.0,
         transitionDuration: 1000,
         transitionInterpolator: new FlyToInterpolator(),
-        transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+        transitionEasing: (t: number) =>
+          t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
       };
 
       setViewState(newViewState);

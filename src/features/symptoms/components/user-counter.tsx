@@ -46,7 +46,6 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
             {open ? (
               <Tooltip
                 theme={{
-                  target: "w-fit",
                   animation: "transition-opacity",
                   arrow: {
                     base: "absolute z-10 h-2 w-2 rotate-45",
@@ -123,8 +122,6 @@ function getUserState(
 
 function statusColor(user: any) {
   const user_state = getUserState(user);
-
-  console.log(user_state);
 
   switch (user_state) {
     case "offline":

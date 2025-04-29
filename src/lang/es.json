@@ -625,7 +625,13 @@
     "this_symptom": "Este síntoma",
     "same_symptoms": "Mismos síntomas",
     "all_symptoms": "Todos los síntomas",
-    "scope": "Alcance"
+    "scope": "Alcance",
+    "trip_states": "Estados de viaje",
+    "with_trip": "Con viaje",
+    "without_trip": "Sin viaje",
+    "normal_speed": "Velocidad normal",
+    "high_speed": "Velocidad grave",
+    "very_high_speed": "Velocidad gravísima"
   },
   "geographic_view": {
     "speed": "Velocidad",
@@ -653,7 +659,8 @@
     "accumulated_drive_time": "Tiempo de conducción acumulado",
     "accumulated_detention_time": "Tiempo de detención acumulado",
     "accumulated_resting_time": "Tiempo de descanso acumulado",
-    "zone_names": "Zonas"
+    "zone_names": "Zonas",
+    "gps_provider": "Proveedor de GPS"
   },
   "release": {
     "other_versions": "Otras versiones"

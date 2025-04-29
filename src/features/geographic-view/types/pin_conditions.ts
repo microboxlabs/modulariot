@@ -1,4 +1,8 @@
 export const pin_conditions = {
+  "0": {
+    icon: "stable",
+    label: "stable",
+  },
   "1": {
     icon: "under observation",
     label: "in_observation",

@@ -423,6 +423,7 @@
     "rights": " MicroboxLabs. All rights reserved."
   },
   "symptoms": {
+    "active_symptoms": "Active symptoms",
     "symptoms": "Symptoms",
     "symptom": "Symptom",
     "client": "Client",
@@ -651,7 +652,9 @@
     "accumulated_detention_time": "Accumulated detention time",
     "accumulated_resting_time": "Accumulated resting time",
     "zone_names": "Zone names",
-    "gps_provider": "GPS provider"
+    "gps_provider": "GPS provider",
+    "median_report_interval": "Median report interval",
+    "accumulated_time": "Driving time"
   },
   "release": {
     "other_versions": "Other Versions"

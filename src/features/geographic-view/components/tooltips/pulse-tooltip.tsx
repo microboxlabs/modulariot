@@ -90,9 +90,7 @@ export default function PulseTooltip({
         {object.description.signal_lag != undefined && (
           <div className="text-sm text-gray-600 dark:text-gray-300">
             {(dict.geographic_view as I18nRecord).signal_lag as string}:{" "}
-            <span className="font-light">
-              {object.description.signal_lag} km/h
-            </span>
+            <span className="font-light">{object.description.signal_lag}</span>
           </div>
         )}
         {object.description.accumulated_drive_time != undefined && (
@@ -103,7 +101,7 @@ export default function PulseTooltip({
             }
             :{" "}
             <span className="font-light">
-              {object.description.accumulated_drive_time} km/h
+              {object.description.accumulated_drive_time}
             </span>
           </div>
         )}
@@ -115,7 +113,7 @@ export default function PulseTooltip({
             }
             :{" "}
             <span className="font-light">
-              {object.description.accumulated_detention_time} km/h
+              {object.description.accumulated_detention_time}
             </span>
           </div>
         )}
@@ -127,7 +125,27 @@ export default function PulseTooltip({
             }
             :{" "}
             <span className="font-light">
-              {object.description.accumulated_resting_time} km/h
+              {object.description.accumulated_resting_time}
+            </span>
+          </div>
+        )}
+        {object.description.median_report_interval != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.geographic_view as I18nRecord)
+                .median_report_interval as string
+            }
+            :{" "}
+            <span className="font-light">
+              {object.description.median_report_interval}
+            </span>
+          </div>
+        )}
+        {object.description.accumulated_time != undefined && (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {(dict.geographic_view as I18nRecord).accumulated_time as string}:{" "}
+            <span className="font-light">
+              {object.description.accumulated_time}
             </span>
           </div>
         )}

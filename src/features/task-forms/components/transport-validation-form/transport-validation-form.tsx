@@ -28,17 +28,21 @@ export default function TransportValidationForm({
 
   // const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
   //   useGetServiceValidation(task.mintral_serviceCode as string);
+
   return (
-    <div className="flex-1 flex flex-col items-center gap-6">
+    <div className="flex-1 h-full flex flex-col items-center">
       <StepperNavigation
-        msg={msg!.stepper as I18nRecord}
+        msg={
+          ((msg!.pages as I18nRecord).transportValidationForm as I18nRecord)
+            .stepper as I18nRecord
+        }
         currentStep={currentStep}
         routePaths={["step1", "step2", "step3"]}
       />
       {currentStep === "step1" && (
         <DriverVerificationCard
           lang={lang}
-          msg={msg}
+          msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
           task={task}
           userGroups={userGroups}
         />
@@ -47,7 +51,7 @@ export default function TransportValidationForm({
         currentStep === "step2" && (
           <DriverVerifiedCard
             lang={lang}
-            msg={msg}
+            msg={msg as I18nRecord}
             task={task}
             userGroups={userGroups}
           />

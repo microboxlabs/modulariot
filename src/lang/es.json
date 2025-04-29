@@ -432,6 +432,7 @@
     "rights": " MicroboxLabs. Todos los derechos reservados."
   },
   "symptoms": {
+    "active_symptoms": "Síntomas activos",
     "symptoms": "Síntomas",
     "symptom": "Síntoma",
     "client": "Cliente",
@@ -656,11 +657,13 @@
     "first_signal_timestamp": "Hora de la primera señal",
     "last_signal_timestamp": "Hora de la última señal",
     "signal_lag": "Retraso de señal",
-    "accumulated_drive_time": "Tiempo de conducción acumulado",
+    "accumulated_drive_time": "Tiempo en movimiento acumulado",
     "accumulated_detention_time": "Tiempo de detención acumulado",
     "accumulated_resting_time": "Tiempo de descanso acumulado",
     "zone_names": "Zonas",
-    "gps_provider": "Proveedor de GPS"
+    "gps_provider": "Proveedor de GPS",
+    "median_report_interval": "Frecuencia de reportabilidad",
+    "accumulated_time": "Tiempo de conducción"
   },
   "release": {
     "other_versions": "Otras versiones"

@@ -16,7 +16,7 @@ import {
 
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
-import icuConditions from "@/features/symptoms/model/icu_condition.json";
+/* import icuConditions from "@/features/symptoms/model/icu_condition.json"; */
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";
@@ -133,8 +133,7 @@ export default function GeneralMap({
                   : ((dict.symptoms as I18nRecord)?.[
                       treatmentData?.symptom_info?.name?.toUpperCase() as string
                     ] as string) || treatmentData?.symptom_info?.name}
-                {" - "}
-                {(
+                {/* {" - "} {(
                   (dict.symptoms as I18nRecord)[
                     icuConditions[
                       ("" +
@@ -142,7 +141,7 @@ export default function GeneralMap({
                           ?.icu_code) as unknown as keyof typeof icuConditions
                     ]?.toLowerCase() as string
                   ] as string
-                )?.trim() || treatmentData?.symptom_info?.icu_code}
+                )?.trim() || treatmentData?.symptom_info?.icu_code} */}
               </h1>
               <div className="flex align-middle mx-2 gap-1 flex-grow">
                 <TagManager
@@ -190,7 +189,7 @@ export default function GeneralMap({
                       ),
                     },
                     {
-                      text: "ID: " + treatmentData?.trip_info?.trip_id,
+                      text: "Trip id: " + treatmentData?.trip_info?.trip_id,
                     },
                     {
                       text:

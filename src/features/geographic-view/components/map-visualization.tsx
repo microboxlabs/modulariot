@@ -7,6 +7,7 @@ import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
 import Map from "react-map-gl";
+import { useSearchParams } from "next/navigation";
 import {
   MapPosition,
   MapPositionProperties,
@@ -93,6 +94,44 @@ function zoom_on_pin(
   }
 }
 
+function zoom_on_position(
+  positions: MapPosition[],
+  setViewState: (viewState: ViewStateType) => void,
+  viewState: ViewStateType,
+) {
+  if (positions && positions.length > 0) {
+    const validPositions = positions.filter(
+      (pos: MapPosition) =>
+        typeof pos.longitude === "number" &&
+        typeof pos.latitude === "number" &&
+        !isNaN(pos.longitude) &&
+        !isNaN(pos.latitude),
+    );
+
+    if (validPositions.length > 0) {
+      const avgLongitude =
+        validPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
+        validPositions.length;
+      const avgLatitude =
+        validPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
+        validPositions.length;
+
+      const newViewState = {
+        ...viewState,
+        longitude: avgLongitude,
+        latitude: avgLatitude,
+        zoom: validPositions.length === 1 ? 12.0 : 4.0,
+        transitionDuration: 1000,
+        transitionInterpolator: new FlyToInterpolator(),
+        transitionEasing: (t: number) =>
+          t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+      };
+
+      setViewState(newViewState);
+    }
+  }
+}
+
 export default function MapVisualization({
   mapPositions,
   mapPositionsResume,
@@ -103,12 +142,37 @@ export default function MapVisualization({
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
   const [mapStyle, setMapStyle] = useState("satellite");
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+
   useEffect(() => {
     if (mapPositions) {
+      console.log(mapPositions[0]);
       setPositions(mapPositions);
       setOriginalPositions(mapPositions); // Store original unfiltered positions
     }
   }, [mapPositions]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+  }, [searchParams.get("search")]);
+
+  useEffect(() => {
+    if (search && search != "") {
+      const filteredPositions = originalPositions?.filter((position: any) =>
+        position.asset_id.toLowerCase().includes(search.toLowerCase()),
+      );
+      setPositions(filteredPositions || []);
+      if (filteredPositions && filteredPositions.length > 0) {
+        zoom_on_position(filteredPositions, setViewState, viewState);
+      }
+    } else {
+      setPositions(originalPositions);
+      if (originalPositions && originalPositions.length > 0) {
+        zoom_on_position(originalPositions, setViewState, viewState);
+      }
+    }
+  }, [search, originalPositions]);
 
   // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
   const NEW_INITIAL_VIEW_STATE = {

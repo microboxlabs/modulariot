@@ -34,10 +34,12 @@ export default function PinTooltip({
         {(dict.symptoms as I18nRecord).license_plate as string}:{" "}
         {object?.properties.asset_id}
       </div>
-      <div className="text-sm text-gray-600 dark:text-gray-300">
-        {(dict.geographic_view as I18nRecord).trip as string}:{" "}
-        {object?.properties.trip_id}
-      </div>
+      {object?.properties.trip_id && (
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          {(dict.geographic_view as I18nRecord).trip as string}:{" "}
+          {object?.properties.trip_id}
+        </div>
+      )}
       <div className="text-sm text-gray-600 dark:text-gray-300">
         {(dict.geographic_view as I18nRecord).date_and_time as string}:{" "}
         {object?.properties.timestamp
@@ -60,30 +62,30 @@ export default function PinTooltip({
       )}
 
       {/* Conditions and symptoms */}
-      {object?.properties.symptoms_condition && (
-        <div>
-          <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
-            <ConditionIcon
-              condition={
+      <div>
+        <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+          <ConditionIcon
+            condition={
+              pin_conditions[
+                object?.properties
+                  .symptoms_condition as unknown as keyof typeof pin_conditions
+              ].icon
+            }
+            dict={dict}
+            size="w-6 h-6"
+          />
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {
+              (dict.symptoms as I18nRecord)[
                 pin_conditions[
                   object?.properties
                     .symptoms_condition as unknown as keyof typeof pin_conditions
-                ].icon
-              }
-              dict={dict}
-              size="w-6 h-6"
-            />
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {
-                (dict.symptoms as I18nRecord)[
-                  pin_conditions[
-                    object?.properties
-                      .symptoms_condition as unknown as keyof typeof pin_conditions
-                  ].label as string
-                ] as string
-              }
-            </div>
+                ].label
+              ] as string
+            }
           </div>
+        </div>
+        {object?.properties.associate_symptoms && (
           <div className="flex flex-wrap flex-col pt-1 text-red-500 dark:text-red-400">
             {object?.properties.associate_symptoms.map((symptom: Symptom) => (
               <div key={symptom.symptom_id} className="text-sm indent-2">
@@ -91,9 +93,9 @@ export default function PinTooltip({
               </div>
             ))}
           </div>
-          <hr className="my-2 border-gray-200 dark:border-gray-700" />
-        </div>
-      )}
+        )}
+        <hr className="my-2 border-gray-200 dark:border-gray-700" />
+      </div>
       {/* Speed */}
       <div className="text-sm text-gray-600 dark:text-gray-300">
         {(dict.geographic_view as I18nRecord).speed as string}:{" "}
@@ -120,6 +122,16 @@ export default function PinTooltip({
           {(dict.geographic_view as I18nRecord).speed_limit as string}:{" "}
           <span className="text-green-500 dark:text-green-400">
             {object?.properties.speed_limit}Km/h
+          </span>
+        </div>
+      )}
+      {object?.properties.gps_provider && (
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          {(dict.geographic_view as I18nRecord).gps_provider as string}:{" "}
+          <span className="text-green-500 dark:text-green-400">
+            {object?.properties.gps_provider
+              .replace(/_/g, " ")
+              .replace(/-/g, " ")}
           </span>
         </div>
       )}

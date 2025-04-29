@@ -231,17 +231,19 @@ export default function MapVisualization({
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           preserveDrawingBuffer={true}
         />
-        <Filters
-          dict={dict}
-          originalPositions={originalPositions}
-          setPositions={setPositions}
-        />
       </DeckGL>
       <MapStyleSelector
         dict={dict}
         selectedStyle={mapStyle}
         setSelectedStyle={setMapStyle}
       />
+      <div className="absolute left-0 top-0 bottom-0 z-40">
+        <Filters
+          dict={dict}
+          originalPositions={originalPositions}
+          setPositions={setPositions}
+        />
+      </div>
       <div className="absolute right-0 top-0 bottom-0 ">
         {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
           <SideBar

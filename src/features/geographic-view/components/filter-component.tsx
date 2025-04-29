@@ -3,6 +3,7 @@ import MapButton from "./map-button";
 import Image from "next/image";
 import { IconType } from "react-icons";
 import { FaRegTrashAlt } from "react-icons/fa";
+import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
 
 // Export the Option type so it can be imported in other files
 export type Option = {
@@ -62,7 +63,7 @@ export default function FilterComponent({
   };
 
   return (
-    <div className="relative h-full flex flex-row gap-2">
+    <div className="relative h-full flex flex-row gap-2 z-0">
       <div
         className={`relative h-10 ${
           expanded ? "max-w-10" : "max-w-[1000px]"
@@ -71,7 +72,7 @@ export default function FilterComponent({
         <MapButton
           main_color="bg-white dark:bg-gray-800"
           button_color="bg-white dark:bg-gray-800"
-          icon={icon}
+          icon={icon as IconType}
           text={label}
           icon_size={icon_size}
           onClick={() => set_expanded(!expanded)}
@@ -79,7 +80,7 @@ export default function FilterComponent({
         />
         <div className="absolute h-10 w-10 top-0 left-0">
           <div
-            className={`flex flex-row items-center justify-center gap-2 absolute transition-all duration-300 right-[-6px] top-[-6px] border-2 border-white z-50 bg-amber-300 rounded-full w-5 h-5 ${
+            className={`flex flex-row items-center justify-center gap-2 absolute transition-all duration-300 right-[-6px] top-[-6px] border-2 border-white z-20 bg-amber-300 rounded-full w-5 h-5 ${
               activatedCount > 0 ? "opacity-100" : "opacity-0"
             }`}
           >
@@ -97,17 +98,28 @@ export default function FilterComponent({
             onClick={() => handleOptionToggle(index)}
             key={index}
             className={`w-8 h-8 bg-blue-500 ${option.activated ? "outline outline-2 outline-white" : ""}  rounded-full ${
-              typeof option.icon === "string" ? "p-1" : ""
-            } flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:brightness-75 hover:border-gray-300`}
+              typeof option.icon === "string" ? "" : ""
+            } flex items-center justify-center transition-all duration-100 hover:cursor-pointer hover:border-gray-300`}
           >
             {typeof option.icon === "string" ? (
-              <Image
-                src={option.icon}
-                alt="icono"
-                width={24}
-                height={24}
-                className="w-6 h-6"
-              />
+              <CustomTooltip
+                placement="bottom"
+                content={
+                  <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap">
+                    {option.text}
+                  </div>
+                }
+              >
+                <div className="flex justify-center items-center w-full h-full rounded-full hover:brightness-75 bg-blue-500">
+                  <Image
+                    src={option.icon}
+                    alt="icono"
+                    width={24}
+                    height={24}
+                    className="w-6 h-6"
+                  />
+                </div>
+              </CustomTooltip>
             ) : (
               option.icon
             )}

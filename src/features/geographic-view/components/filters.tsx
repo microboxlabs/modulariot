@@ -4,20 +4,15 @@ import yellow_pin from "@assets/pin/yellow_pin.svg";
 
 import FilterComponent, { Option } from "./filter-component";
 import alerta_critica from "@assets/conditions/alerta-critica.svg";
-import iniciado from "@assets/finished_state/iniciado.svg";
-import terminado from "@assets/finished_state/terminado.svg";
 
-import a_tiempo from "@assets/time_states/a_tiempo.svg";
-import con_retraso from "@assets/time_states/con_retraso.svg";
-import mucho_retraso from "@assets/time_states/mucho_retraso.svg";
-import time_icon from "@assets/time_states/time_icon.svg";
-
-import { AiOutlineInfo } from "react-icons/ai";
 import { IconType } from "react-icons";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icu_codes from "@/features/symptoms/model/icu_condition.json";
 import { MapPosition } from "@/features/geographic-view/types/map";
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
+import PinIcon from "@/features/icons/pin-icon";
+import { useState, useEffect } from "react";
+import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
 
 export default function Filters({
   dict,
@@ -28,26 +23,77 @@ export default function Filters({
   originalPositions: MapPosition[];
   setPositions: (positions: MapPosition[]) => void;
 }) {
-  const handle_filter_change = (updated_options: Option[]) => {
-    const active_codes = updated_options.filter((option) => option.activated);
+  // Maintain a state for all active filters
+  const [activeFilters, setActiveFilters] = useState<{
+    conditions: Option[];
+    speed: Option[];
+    tripStates: Option[];
+  }>({
+    conditions: [],
+    speed: [],
+    tripStates: [],
+  });
 
-    if (active_codes.length === 0) {
+  useEffect(() => {
+    if (
+      activeFilters.conditions.length === 0 &&
+      activeFilters.tripStates.length === 0 &&
+      activeFilters.speed.length === 0
+    ) {
       setPositions(originalPositions);
       return;
     }
 
     const filtered_positions = originalPositions.filter((position) => {
-      return active_codes.some((option) => {
-        return position.symptoms_condition === Number(option.code);
-      });
+      const matchesCondition =
+        activeFilters.conditions.length === 0 ||
+        activeFilters.conditions.some(
+          (filter) => position.symptoms_condition === Number(filter.code),
+        );
+
+      const matchesSpeed =
+        activeFilters.speed.length === 0 ||
+        activeFilters.speed.some((filter) => {
+          if (filter.code === "1") {
+            return (
+              position.speed_limit_condition === "1" ||
+              position.speed_limit_condition === null
+            );
+          } else if (filter.code === "2") {
+            return (
+              position.speed_limit_condition === "2" ||
+              position.speed_limit_condition === "3"
+            );
+          } else if (filter.code === "3") {
+            return position.speed_limit_condition === "4";
+          }
+        });
+
+      const matchesTripState =
+        activeFilters.tripStates.length === 0 ||
+        activeFilters.tripStates.some(
+          (filter) => position.in_trip === (filter.filter_value === "true"),
+        );
+
+      return matchesCondition && matchesTripState && matchesSpeed;
     });
 
     setPositions(filtered_positions);
+  }, [activeFilters, originalPositions, setPositions]);
+
+  const handle_filter_change = (
+    updated_options: Option[],
+    filterType: "conditions" | "tripStates" | "speed",
+  ) => {
+    setActiveFilters((prev) => ({
+      ...prev,
+      [filterType]: updated_options.filter((option) => option.activated),
+    }));
   };
 
   return (
-    <div className="absolute top-0 left-0 bottom-0">
-      <div className="flex flex-col gap-2 pl-5 pt-5">
+    <div className="flex flex-col gap-2 pl-5 pt-5">
+      <div className="z-[9999]">
         <FilterComponent
           label={(dict.symptoms as I18nRecord).conditions as string}
           icon={alerta_critica.src as string}
@@ -60,8 +106,9 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="code black"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
@@ -73,8 +120,9 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="critical condition"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
@@ -86,8 +134,9 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="under observation"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
@@ -99,8 +148,9 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="compromised condition"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
@@ -112,8 +162,9 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="treatment"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
@@ -125,91 +176,96 @@ export default function Filters({
               icon: (
                 <ConditionIcon
                   condition="stable"
-                  size="w-fit h-fit"
+                  size="w-fit h-fit hover:brightness-[0.75]"
                   dict={dict}
+                  placement="bottom"
                 />
               ),
               activated: false,
             },
           ]}
-          onChange={handle_filter_change}
+          onChange={(options) => handle_filter_change(options, "conditions")}
         />
+      </div>
+      <div className="z-[9998]">
         <FilterComponent
           label={(dict.symptoms as I18nRecord).markers as string}
           icon={blue_pin.src}
           icon_size="w-7 h-7"
           options={[
             {
-              text: "normal",
-              filter_value: "normal",
+              text: (dict.symptoms as I18nRecord).normal_speed as string,
+              filter_value: "1",
               code: "1",
               icon: blue_pin.src,
               activated: false,
             },
             {
-              text: "grave",
-              filter_value: "grave",
+              text: (dict.symptoms as I18nRecord).high_speed as string,
+              filter_value: "2",
               code: "2",
               icon: yellow_pin.src,
               activated: false,
             },
             {
-              text: "gravisimo",
-              filter_value: "gravisimo",
+              text: (dict.symptoms as I18nRecord).very_high_speed as string,
+              filter_value: "3",
               code: "3",
               icon: red_pin.src,
               activated: false,
             },
           ]}
+          onChange={(options) => handle_filter_change(options, "speed")}
         />
+      </div>
+      <div className="z-[9997]">
         <FilterComponent
-          label={(dict.symptoms as I18nRecord).started_trips as string}
-          icon={AiOutlineInfo as IconType}
-          icon_size="w-5 h-5"
-          options={[
-            {
-              text: "Iniciado",
-              filter_value: "iniciado",
-              code: "1",
-              icon: iniciado.src,
-              activated: false,
-            },
-            {
-              text: "Terminado",
-              filter_value: "terminado",
-              code: "2",
-              icon: terminado.src,
-              activated: false,
-            },
-          ]}
-        />
-        <FilterComponent
-          label={(dict.symptoms as I18nRecord).times as string}
-          icon={time_icon.src as string}
+          label={(dict.symptoms as I18nRecord).trip_states as string}
+          icon={PinIcon as unknown as IconType}
           icon_size="w-10 h-10"
           options={[
             {
-              text: "A tiempo",
-              filter_value: "a_tiempo",
+              text: "Con viaje",
+              filter_value: "true",
               code: "1",
-              icon: a_tiempo.src,
+              icon: (
+                <CustomTooltip
+                  content={
+                    <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap">
+                      {(dict.symptoms as I18nRecord).with_trip as string}
+                    </div>
+                  }
+                  placement="bottom"
+                >
+                  <div className="flex justify-center items-center w-full h-full bg-blue-600 rounded-full">
+                    <PinIcon disabled_style_change={true} />
+                  </div>
+                </CustomTooltip>
+              ),
               activated: false,
             },
             {
-              text: "Con retraso",
-              filter_value: "con_retraso",
+              text: "Sin viaje",
+              filter_value: "false",
               code: "2",
-              icon: con_retraso.src,
-              activated: false,
-            },
-            {
-              text: "Con mucho retraso",
-              filter_value: "con_mucho_retraso",
-              code: "3",
-              icon: mucho_retraso.src,
+              icon: (
+                <CustomTooltip
+                  content={
+                    <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap">
+                      {(dict.symptoms as I18nRecord).without_trip as string}
+                    </div>
+                  }
+                  placement="bottom"
+                >
+                  <div className="flex justify-center items-center w-full h-full bg-red-600 rounded-full">
+                    <PinIcon disabled_style_change={true} />
+                  </div>
+                </CustomTooltip>
+              ),
               activated: false,
             },
           ]}
+          onChange={(options) => handle_filter_change(options, "tripStates")}
         />
       </div>
     </div>

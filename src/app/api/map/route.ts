@@ -31,12 +31,15 @@ export async function GET() {
     //params.set("lastUpdatedSince", new Date().toISOString());
     params.set("limit", "100");
 
-    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
+    const response = await fetch(
+      SYMPTOMS_API_URL + "?" + params.toString() + "&p_is_dev=true",
+      {
+        headers: {
+          accept: "application/json",
+          Authorization: ` Bearer ${token}`,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

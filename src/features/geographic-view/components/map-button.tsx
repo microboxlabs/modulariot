@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { Button } from "flowbite-react";
 import { useState } from "react";
 import { IconType } from "react-icons";
@@ -63,6 +64,10 @@ export default function MapButton({
         {typeof Icon === "string" ? (
           <div className={`${icon_size} flex items-center justify-center`}>
             <Image src={Icon} alt="icono" width={100} height={100} />
+          </div>
+        ) : React.isValidElement(Icon) ? (
+          <div className={`${icon_size} flex items-center justify-center`}>
+            {Icon}
           </div>
         ) : (
           <Icon

@@ -34,7 +34,7 @@ export interface MapPosition {
   trip_id: string;
   symptoms: Symptom[];
   associate_symptoms: Symptom[];
-
+  in_trip: boolean;
   type: string;
   owner: string | null;
   year: string | null;
@@ -105,6 +105,7 @@ export interface MapPositionProperties {
     symptoms_condition: boolean;
     longitude: number;
     latitude: number;
+    gps_provider: string;
     /* rotation: number;
     state: string;
     licensePlate?: string;

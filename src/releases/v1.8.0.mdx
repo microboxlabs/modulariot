@@ -1,0 +1,51 @@
+# 🔔 Release Notes v1.8.0 – ModularIoT
+## Fecha de lanzamiento: 2025-04-29
+
+---
+
+### Objetivo:
+
+Este release potencia la operatividad del sistema mediante la incorporación de nuevas funcionalidades solicitadas por el cliente, mejoras visuales y estructurales, y ajustes necesarios para asegurar estabilidad.
+
+---
+## 1. Nuevas Funcionalidades
+
+- **Buscador Inteligente de Patentes:** Implementación de un buscador que permite encontrar vehículos por patente desde distintas secciones (síntomas y vista geográfica). El buscador detecta automáticamente el contexto de búsqueda y muestra resultados relevantes según la sección activa.
+
+- **Vista de Flota con Filtros:** Opción de visualizar rápidamente flotas con o sin viajes activos directamente en la vista geográfica.
+
+- **Nuevo Síntoma: Doble Conductor:** Control automático del cambio de conductor cada 5 horas mediante registro fotográfico. Alerta generada si no se cumple esta condición, desactivándose automáticamente tras el registro fotográfico del relevo.
+
+- **Notificación Automática por Correo (Inactividad de Síntomas):** Capacidad lógica preparada para enviar correos automáticos a operadores sobre viajes activos que no presenten síntomas durante períodos extensos, actualmente solo se ha conectado esta capacidad.
+
+- **Visualización del Proveedor GPS:** Inclusión de la marca del GPS utilizado en el tooltip informativo de cada vehículo en la vista geográfica.
+
+- **Dashboard Grafana en Coordinador:** Integración de tablero Grafana para monitoreo en tiempo real de métricas operativas, con filtros controlados desde Grafana.
+---
+## 2. Mejoras Visuales y Refactorización
+
+  - **Ajuste de Zoom Automático:** Al seleccionar elementos individuales no agrupados, el sistema realiza un zoom automático para mejorar la visualización.
+
+  - **Visualización Estado de Usuarios:** Cambio visual del indicador de estado de usuarios, aplicando el color correspondiente al borde del avatar para mejorar la legibilidad y percepción rápida del estado.
+
+  - **Orden de Usuarios por Estado:** Priorización visual según disponibilidad: usuarios libres (conectados pero no gestionando síntomas), gestionando (conectados y gestionando síntomas), inactivos (más de una hora conectados sin gestionar) y desconectados.
+
+  - **Visualización de Nombre en Tooltip de Operadores:** Inclusión del nombre de usuario directamente en los tooltips de operadores conectados, mejorando la identificación rápida.
+
+  - **Ajustes de Espaciado en Kanban:** Corrección visual de espaciados entre columnas y botones del tablero Kanban, incluyendo tooltips explicativos para el botón expandir/desplegar.
+
+  - **Correlación entre Usuarios y Síntomas:** Corrección en la correlación visual y funcional entre usuarios conectados y los síntomas desplegados en la tabla operativa.
+
+---
+## 3. Correcciones de Estabilidad
+  - **Mejoras generales en interactividad:** Ajuste de visibilidad y usabilidad general en elementos interactivos.
+  - **Correcciones visuales menores:** Limpieza y estandarización visual en monitoreo y vista de síntomas.
+  - **Estandarización de espaciados:** Aplicación uniforme de espaciados y márgenes en Kanban y Vista Geográfica para consistencia visual.
+---
+## 4. Soporte Backend
+
+  - **Optimización Backend (Filtro Activos):** Optimización de respuesta inicial del backend, entregando estados de activos (en viaje o sin viaje) en la primera llamada, permitiendo al frontend manejar filtrado local sin consultas adicionales.
+    
+---
+## Conclusión
+La ejecución de estas funcionalidades y ajustes mejora significativamente la experiencia operativa y visual del sistema, asegurando una gestión más eficiente, precisa y amigable del monitoreo de activos y viajes, preparando el camino para futuras integraciones y mejoras continuas.

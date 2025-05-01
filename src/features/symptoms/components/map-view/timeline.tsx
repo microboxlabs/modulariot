@@ -31,7 +31,7 @@ function formatDate(date: Date, lang: string): string {
     .replace(",", "");
 }
 
-function calculateDuration(
+/* function calculateDuration(
   startTime: string,
   dict: I18nRecord,
   lang: string,
@@ -61,7 +61,7 @@ function calculateDuration(
   }
 
   return duration;
-}
+} */
 
 function formatLongEmails(emails: string) {
   const emailSize = 15;

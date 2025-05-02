@@ -145,7 +145,7 @@ function TimelineGroup({
             {
               item.items.filter(
                 (subItem) =>
-                  subItem.type !== "LLAMAR AL CONDUCTOR" && subItem.assigned_to,
+                  subItem.type === "CORREO ELECTRONICO" && subItem.assigned_to,
               ).length
             }
           </span>
@@ -212,7 +212,7 @@ function TimelineGroup({
           {item.items.map((subItem, subIndex) => (
             <div
               key={subIndex}
-              className={`p-4 cursor-pointer flex flex-row gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md rounded-md transition-all duration-200 cursor-pointer ${
+              className={`p-2 cursor-pointer flex flex-row gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md rounded-md transition-all duration-200 cursor-pointer ${
                 subItem.is_symptom == 0 ||
                 subItem.type == "EVENTS END" ||
                 subItem.type == "TRIP_START"
@@ -252,7 +252,7 @@ function TimelineGroup({
               <div className="flex flex-col">
                 <ConditionIcon
                   condition={subItem?.icu_condition}
-                  size="h-7 w-7"
+                  size="h-5 w-5"
                   dict={dict}
                 />
                 <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />

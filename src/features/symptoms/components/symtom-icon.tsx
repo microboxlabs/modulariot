@@ -1,5 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Symptoms } from "./table-item.type";
+import { getSymptom } from "./table-item.type";
 import Image from "next/image";
 import { Tooltip } from "flowbite-react";
 export default function SymptomIcon({
@@ -34,7 +34,7 @@ export default function SymptomIcon({
         className={`${size} display-flex justify-center items-center rounded-full cursor-pointer`}
       >
         <Image
-          src={Symptoms[type as keyof typeof Symptoms]?.icon}
+          src={getSymptom(type).icon}
           alt={type}
           width={100}
           height={100}

@@ -11,6 +11,8 @@ import lostSignal from "@assets/timeline/lost-signal.svg";
 import speedLimitStandard from "@assets/timeline/speed-limit-standar.svg";
 import speedLimitCustom from "@assets/timeline/speed-limit-custom.svg";
 import maximumContinuousDriving from "@assets/timeline/continuos-drive-check.svg";
+import ofHoursDriving from "@assets/timeline/off-hour-driving.svg";
+
 export type TableItemType = {
   id: string;
   condition: string;
@@ -197,7 +199,7 @@ export const Conditions: Record<string, Condition> = {
   },
 };
 
-export const Symptoms: Record<string, any> = {
+export const Symptoms: Record<string, SymptomType> = {
   "CONTINUOUS RESTING CHECK": {
     dict_name: "code_black",
     color: "border-black",
@@ -262,7 +264,7 @@ export const Symptoms: Record<string, any> = {
     hoverColor: "",
     icon: maximumContinuousDriving,
   },
-  stable: {
+  "OFF HOURS DRIVING": {
     dict_name: "stable",
     color: "border-blue-600",
     innerColor: "bg-blue-100",
@@ -273,7 +275,7 @@ export const Symptoms: Record<string, any> = {
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
-    icon: stable,
+    icon: ofHoursDriving,
   },
   compromised: {
     dict_name: "compromised_condition",
@@ -354,3 +356,24 @@ export const Symptoms: Record<string, any> = {
     icon: recovery,
   },
 };
+
+export type SymptomType = {
+  dict_name: string;
+  color: string;
+  bgColor?: string;
+  hoverColor?: string;
+  innerColor?: string;
+  textColor: string;
+  secundaryInteraction?: string;
+  secundaryInteractionIcon?: string;
+  separatorColor?: string;
+  icon: string;
+  borderColor?: string;
+};
+
+export function getSymptom(symptom: string): SymptomType {
+  const symptomIcon: SymptomType =
+    Symptoms[symptom as keyof typeof Symptoms] ||
+    Symptoms["CONTINUOUS DRIVE CHECK"];
+  return symptomIcon;
+}

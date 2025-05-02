@@ -145,7 +145,9 @@ function TimelineGroup({
             {
               item.items.filter(
                 (subItem) =>
-                  subItem.type === "CORREO ELECTRONICO" && subItem.assigned_to,
+                  (subItem.type === "CORREO ELECTRONICO" ||
+                    subItem.type === "MENSAJE KAUSANA") &&
+                  subItem.assigned_to,
               ).length
             }
           </span>

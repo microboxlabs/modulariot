@@ -19,7 +19,7 @@ import type {
   UserState,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
-
+import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 export const alfrescoApi = new AlfrescoApi({
   hostEcm: process.env.ECM_API_URL,
   provider: process.env.AUTH_PROVIDER,
@@ -366,6 +366,7 @@ export async function getTaskHistory(
     "GET",
     `mintral/tasks/history?taskId=${taskId}`,
   );
+
   return result as TaskResponse;
 }
 
@@ -374,4 +375,10 @@ export async function getGroupsForPerson(ticket: string): Promise<string[]> {
   const groupsApi = new GroupsApi(alfrescoApi.contentClient);
   const groups = await groupsApi.listGroupMembershipsForPerson("-me-");
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
+}
+
+export async function getInfoEntity(licencePlate: string, ticket: string) {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?licencePlate=${licencePlate}&alf_ticket=${ticket}`;
+  const result = await fetcher(url);
+  return result as GetEntityInfoResponse;
 }

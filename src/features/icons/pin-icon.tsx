@@ -11,7 +11,7 @@ export default function PinIcon({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={
-        disabled_style_change ? "text-gray-800 dark:text-white" : "text-white"
+        disabled_style_change ? "text-white" : "dark:text-white text-gray-800"
       }
     >
       <path

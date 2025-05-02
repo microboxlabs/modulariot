@@ -191,7 +191,16 @@
         "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
         "write_here_your_observations": "Escribe aquí tus observaciones",
         "tripManifestParams": "Generación de la Carta de Porte",
-        "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador"
+        "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador",
+        "tipo_gps": "Tipo de GPS",
+        "estado": "Estado",
+        "is_active": "Activo",
+        "dispositivo_gps": "Dispositivo GPS",
+        "speed": "Velocidad",
+        "createdat": "Fecha de creación",
+        "nombre_oficial_gps": "Proovedor GPS",
+        "true": "Si",
+        "false": "No"
       },
       "outcome": {
         "moreOptions": "Más opciones",

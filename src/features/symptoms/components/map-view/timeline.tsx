@@ -117,24 +117,36 @@ function TimelineGroup({
         onClick={onToggle}
       >
         <div className="flex items-center gap-4">
-          <SymptomIcon type={item.items[0].type} size="h-8 w-8" dict={dict} />
+          <SymptomIcon type={item.items[0].type} size="h-6 w-6" dict={dict} />
           <div>
-            <p className="text-xs font-medium text-gray-500 leading-3">
+            <p className="text-sm font-medium text-gray-900 dark:text-white leading-none">
+              {((dict.symptoms as I18nRecord)[item.items[0].type] as string) ??
+                item.items[0].type}
+            </p>
+            <p className="text-xs font-light text-gray-500 leading-3">
               {/* {new Date(item.items[0].start).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })} */}
               {formatDate(new Date(date), lang)}
             </p>
-            <p className="text-xs font-medium text-gray-900 dark:text-white leading-none">
-              {((dict.symptoms as I18nRecord)[item.items[0].type] as string) ??
-                item.items[0].type}
-            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-2"></div>
-        <div className="flex items-center gap-4">
-          <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {!isExpanded && (
+            <div className="flex -space-x-2.5">
+              {Array.from(uniqueConditions).map((condition, index) => (
+                <ConditionIcon
+                  key={index}
+                  condition={condition}
+                  size="h-6 w-6"
+                  dict={dict}
+                />
+              ))}
+            </div>
+          )}
+          <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-1">
             <Image
               src={messageIcon}
               alt="Call driver"
@@ -151,7 +163,7 @@ function TimelineGroup({
               ).length
             }
           </span>
-          <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-2">
+          <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-1">
             <Image
               src={phoneIcon}
               alt="Call driver"
@@ -166,18 +178,6 @@ function TimelineGroup({
               ).length
             }
           </span>
-          {!isExpanded && (
-            <div className="flex -space-x-2.5">
-              {Array.from(uniqueConditions).map((condition, index) => (
-                <ConditionIcon
-                  key={index}
-                  condition={condition}
-                  size="h-6 w-6"
-                  dict={dict}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -194,16 +194,6 @@ function TimelineGroup({
               })}
             />
           </div>
-          {/*  <div className="flex flex-wrap gap-2 mt-2">
-            {Array.from(allTags).map((tag, index) => (
-              <span
-                key={index}
-                className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded"
-              >
-                {((dict.symptoms as I18nRecord)[tag] as string) ?? tag}
-              </span>
-            ))}
-          </div> */}
         </div>
       )}
 
@@ -350,13 +340,14 @@ export default function TimelineComponent({
           (acc: Record<string, TimelineElement>, event: TimelineItem) => {
             const date = new Date(event.start).toISOString().split("T")[0];
             const type = event.type.toUpperCase();
-            if (type === "EVENTS END" || type === "TRIP_START") {
+            /* if (type === "EVENTS END" || type === "TRIP_START") {
               return acc;
-            }
+            } */
 
             if (
               type != "LLAMAR AL CONDUCTOR" &&
               type != "CORREO ELECTRONICO" &&
+              type != "IGNORAR CONDICION" &&
               type != "MENSAJE KAUSANA"
             ) {
               key_grouped = date + "_" + type;
@@ -394,7 +385,7 @@ export default function TimelineComponent({
 
   return (
     <div className="flex flex-col gap-4 bg-gray-50 dark:bg-gray-800 rounded-md p-4">
-      {timelineData.map(([date_type, item]) => (
+      {timelineData.reverse().map(([date_type, item]) => (
         <div key={date_type} className="flex flex-col gap-2">
           {/* <div className="flex justify-between items-center">
             <h2 className="text-sm font-medium text-gray-900 dark:text-white">

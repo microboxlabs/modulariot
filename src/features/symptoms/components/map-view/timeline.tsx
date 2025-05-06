@@ -167,7 +167,6 @@ function TimelineGroup({
             }
           </span>
           {!isExpanded && (
-            /* animation to appear slowly */
             <div className="flex -space-x-2.5">
               {Array.from(uniqueConditions).map((condition, index) => (
                 <ConditionIcon
@@ -344,26 +343,39 @@ export default function TimelineComponent({
     });
   };
 
+  let key_grouped = "";
   const groupedTimeline: Record<string, TimelineElement> =
     treatmentData && treatmentData?.timeline?.length > 0
       ? treatmentData?.timeline.reduce(
           (acc: Record<string, TimelineElement>, event: TimelineItem) => {
             const date = new Date(event.start).toISOString().split("T")[0];
+            const type = event.type.toUpperCase();
+            if (type === "EVENTS END" || type === "TRIP_START") {
+              return acc;
+            }
 
-            if (!acc[date]) {
-              acc[date] = {
+            if (
+              type != "LLAMAR AL CONDUCTOR" &&
+              type != "CORREO ELECTRONICO" &&
+              type != "MENSAJE KAUSANA"
+            ) {
+              key_grouped = date + "_" + type;
+            }
+
+            if (!acc[key_grouped]) {
+              acc[key_grouped] = {
                 date,
                 assigned_to: "N/A",
                 items: [],
               };
             }
 
-            acc[date].items.push({
+            acc[key_grouped].items.push({
               start: event.start,
               end: event.end,
               icu_condition: event.icu_condition.toLowerCase(),
               description: event.description,
-              type: event.type.toUpperCase(),
+              type,
               assigned_to: event.assigned_to,
               icu_code: event.icu_code,
               is_symptom: event.is_symptom,
@@ -382,8 +394,8 @@ export default function TimelineComponent({
 
   return (
     <div className="flex flex-col gap-4 bg-gray-50 dark:bg-gray-800 rounded-md p-4">
-      {timelineData.map(([date, item]) => (
-        <div key={date} className="flex flex-col gap-2">
+      {timelineData.map(([date_type, item]) => (
+        <div key={date_type} className="flex flex-col gap-2">
           {/* <div className="flex justify-between items-center">
             <h2 className="text-sm font-medium text-gray-900 dark:text-white">
               {formatDate(new Date(date), lang)}
@@ -397,11 +409,11 @@ export default function TimelineComponent({
           {treatmentData && (
             <TimelineGroup
               item={item}
-              isExpanded={expandedGroups.has(date)}
-              onToggle={() => toggleGroup(date)}
+              isExpanded={expandedGroups.has(date_type)}
+              onToggle={() => toggleGroup(date_type)}
               dict={dict}
               lang={lang}
-              date={date}
+              date={date_type.split("_")[0]}
               treatmentData={treatmentData}
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}

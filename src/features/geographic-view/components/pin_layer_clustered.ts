@@ -311,7 +311,7 @@ export class PinLayer extends CompositeLayer<any> {
         getAngle: (d: ClusterFeature) =>
           !d.properties.cluster ? Math.round(360 + d.properties.heading) : 0,
         pickable: true,
-      }),
+      }) as Layer,
     ];
   }
 }

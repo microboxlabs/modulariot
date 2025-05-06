@@ -36,7 +36,7 @@ export default function Geographic({
   return (
     <div className="bg-gray-100 dark:bg-gray-800 h-full w-full flex-1 overflow-hidden ">
       <MapVisualizationTrip
-        tripId={task.id}
+        tripId={task.mintral_serviceCode as string}
         positions={positions}
         error={error}
         isLoading={isLoading}

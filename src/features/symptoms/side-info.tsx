@@ -6,7 +6,6 @@ import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
 import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
-import SideMenuSkeleton from "./components/map-view/side-menu-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useTreatmentsTemplates } from "../common/providers/client-api.provider";
 import {
@@ -44,13 +43,14 @@ export default function SideInfo({
     treatmentData?.symptom_info?.icu_code.toString() ?? "4",
   );
 
+  /*
   if (loading) {
     return (
       <div className="flex flex-col gap-5 p-5 h-full">
         <SideMenuSkeleton />
       </div>
     );
-  }
+  }*/
 
   if (error) {
     return (
@@ -64,7 +64,7 @@ export default function SideInfo({
 
   return (
     <div className="relative flex flex-col p-1 h-full">
-      {treatments_templates && (
+      {treatments_templates && !loading && (
         <BlurrableSteppedMenu
           selectedOption={selectedOption}
           lang={lang}
@@ -89,15 +89,21 @@ export default function SideInfo({
             </h1>
           </div>
         </div>
-        <TimelineComponent
-          lang={lang}
-          dict={dict}
-          treatmentData={treatmentData}
-          setSelectedTreatment={setSelectedTreatment}
-          setSelectedTreatmentIndex={setSelectedTreatmentIndex}
-        />
+        {loading ? (
+          <div className="h-20 w-full bg-gray-200 dark:bg-gray-700 animate-pulse rounded-md"></div>
+        ) : (
+          <TimelineComponent
+            lang={lang}
+            dict={dict}
+            treatmentData={treatmentData}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
+          />
+        )}
       </div>
-      <div className="absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5">
+      <div
+        className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
+      >
         <Button.Group className="w-full">
           <BlurrableDropdown
             dict={dict}

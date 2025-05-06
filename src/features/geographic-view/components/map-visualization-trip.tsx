@@ -162,6 +162,7 @@ export default function MapVisualizationTrip({
     useState<PickingInfo<PulseProps | PulseListType>>();
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
+
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
 
   const handleViewStateChange = useCallback((e: any) => {

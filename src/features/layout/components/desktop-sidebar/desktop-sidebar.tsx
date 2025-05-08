@@ -39,6 +39,8 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
+    totals["picking"] = 0;
+    totals["delivery"] = 0;
   } else if (error.status === 403 || error.status === 401) {
     router.push("/sign-in");
   }

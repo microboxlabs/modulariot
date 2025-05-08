@@ -42,11 +42,12 @@ export default function SidebarItem({
               "justify-center [&>*]:font-normal",
               pathname === item.href && "bg-gray-100 dark:bg-gray-700",
             )}
-            label={getTotalCountBagaes(totals[item.label])}
+            label={getTotalCountBagaes(totals[item.label]) + ""}
             labelColor={
-              getTotalCountBagaes(totals[item.label]) <= 0
+              getTotalCountBagaes(totals[item.label]) > 0 &&
+              getTotalCountBagaes(totals[item.label]) <= 100
                 ? "success"
-                : getTotalCountBagaes(totals[item.label]) >= 100
+                : getTotalCountBagaes(totals[item.label]) > 100
                   ? "warning"
                   : "info"
             }

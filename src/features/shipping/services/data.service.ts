@@ -1,6 +1,7 @@
 import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
 import kanbanPickingBoards from "../model/picking-kanban.json";
+import kanbanDeliveryBoards from "../model/delivery-kanban.json";
 import {
   FastTasksResponse,
   PersistentState,
@@ -67,6 +68,9 @@ export function getStaticData(): KanbanBoard[] {
 }
 export function getStaticPickingData(): KanbanBoard[] {
   return kanbanPickingBoards as unknown as KanbanBoard[];
+}
+export function getStaticDeliveryData(): KanbanBoard[] {
+  return kanbanDeliveryBoards as unknown as KanbanBoard[];
 }
 
 export function toShippingKanban(

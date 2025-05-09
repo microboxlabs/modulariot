@@ -129,6 +129,7 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "confirmPicking": "Confirmar Retiro",
         "transportValidation": "Validación de Conductor / transporte",
         "transportValidationCompact": "Validación transporte",
         "missionControlTripInit": "Torre de Control: Iniciar viaje",
@@ -146,6 +147,84 @@
         "confirmTripDestinationDepartureCompact": "Confirmar Salida",
         "confirmDelivery": "Confirmar Entrega",
         "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "confirmMonitoringFinalizationCompact": "Confirmar Cierre",
+        "monitoringFinalization": "Monitoreo Finalizado",
+        "tripInitiated": "Viaje Iniciado",
+        "tripNullified": "Viaje Anulado",
+        "tripCancelled": "Viaje Cancelado",
+        "estimatedDeparture": "ETA: ",
+        "departure": "Salida: ",
+        "arrival": "Llegada: ",
+        "history": "Historial",
+        "finalizationDate": "Fecha de finalización",
+        "duration": "Duración",
+        "event": "Evento",
+        "completedBy": "Completado por",
+        "action": "Acción de evento",
+        "Iniciado": "Iniciado",
+        "Iniciado Sin Coordinacion": "Iniciado Sin Coordinacion",
+        "Enviar a Torre de Control": "Enviar a Torre de Control",
+        "Viaje Cancelado": "Viaje Cancelado",
+        "Viaje Anulado": "Viaje Anulado",
+        "Iniciado sin Firma Sovos": "Iniciado sin Firma Sovos",
+        "Requiere Overlord": "Requiere Overlord",
+        "Iniciado Normal": "Iniciado Normal",
+        "Iniciado Con Reparos": "Iniciado Con Reparos",
+        "Anulado": "Anulado",
+        "Cancelado": "Cancelado",
+        "Devolver a Validacion de Transporte": "Devolver a Validacion de Transporte",
+        "Autorizado Sin GPS": "Autorizado Sin GPS",
+        "Autorizado Con Reparos": "Autorizado Con Reparos",
+        "Anulado por Overlord": "Anulado por Overlord",
+        "Cancelado por Overlord": "Cancelado por Overlord",
+        "Devolver a Torre de Control": "Devolver a Torre de Control",
+        "Viaje Iniciado": "Viaje Iniciado",
+        "Devolver a Overlord": "Devolver a Overlord",
+        "Confirmar Arribo a Destino": "Confirmar Arribo a Destino",
+        "Confirmar Entrega": "Confirmar Entrega",
+        "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
+        "compact": "Compactar",
+        "expand": "Expandir"
+      },
+      "card": {
+        "origin": "Origen",
+        "destination": "Destino",
+        "service": "Servicio Nº",
+        "clientCode": "Código cliente",
+        "clientName": "Cliente",
+        "departureDate": "Fecha de salida",
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje",
+        "patente": "Patente"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Servicio",
+        "departureDateTime": "Fecha y hora de salida",
+        "serviceKind": "Tipo de servicio",
+        "validations": "Validaciones",
+        "status": "Estado",
+        "stage": "Etapa",
+        "active": "Activo",
+        "completed": "Completado"
+      }
+    },
+    "delivery": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "title": "Entregas",
+        "confirmDelivery": "Confirmar entrega"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "confirmDelivery": "Confirmar Entrega",
+        "sovosSignature": "Firmar SOVOS",        
         "confirmMonitoringFinalizationCompact": "Confirmar Cierre",
         "monitoringFinalization": "Monitoreo Finalizado",
         "tripInitiated": "Viaje Iniciado",

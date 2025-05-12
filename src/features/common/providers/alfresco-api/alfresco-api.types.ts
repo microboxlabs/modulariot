@@ -60,6 +60,7 @@ export type TaskResponse = {
   mintral_comments?: string | string[];
   mintral_hoReference?: string;
   [key: string]: unknown;
+  mintral_serviceCode: string;
 };
 
 export type Task = {

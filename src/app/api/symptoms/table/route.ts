@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const token = await authToken.getToken();
+
     const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",

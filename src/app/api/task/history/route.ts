@@ -12,17 +12,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
+
     const url = new URL(req.url);
     const taskId = url.searchParams.get("taskId");
 
     if (!taskId) {
       throw new Error("Task ID is required");
-    }
-
-    const session = await auth();
-
-    if (!session) {
-      throw new Error("Unauthorized");
     }
 
     const taskHistory = await getTaskHistory(session.user.ticket, taskId);

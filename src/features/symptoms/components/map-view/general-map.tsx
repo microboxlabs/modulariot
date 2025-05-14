@@ -227,6 +227,8 @@ export default function GeneralMap({
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />
         </div>
       </div>

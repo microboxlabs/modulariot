@@ -21,6 +21,8 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import MapStyleSelector from "./map-style-selector";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { TreatmentsTimelineResponse } from "@/app/api/treatments/general/route.type";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -97,6 +99,12 @@ type MapVisualizationProps = {
   };
   filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
+  setSelectedTreatment?: (
+    treatment: TreatmentsGeneralResponseItem | null,
+  ) => void;
+  setSelectedTreatmentIndex?: (
+    treatmentIndex: TreatmentsTimelineResponse | null,
+  ) => void;
 };
 
 type GeometryFeature = {
@@ -154,6 +162,8 @@ export default function MapVisualizationTrip({
   averagePosition,
   filteredLocationData,
   dict,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -309,6 +319,7 @@ export default function MapVisualizationTrip({
               info.x = info.viewport.width / 2;
               info.y = info.viewport.height / 2;
             }
+            
             setHoverInfo(info);
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : [],
@@ -320,6 +331,11 @@ export default function MapVisualizationTrip({
               setViewState,
               viewState,
             );
+
+            if (setSelectedTreatment && setSelectedTreatmentIndex) {
+              setSelectedTreatment(null);
+              setSelectedTreatmentIndex(null);
+            }
           },
           selectedPulse,
         }),
@@ -438,7 +454,13 @@ export default function MapVisualizationTrip({
           left={hoverInfo.x}
           top={hoverInfo.y}
           setHoverInfo={setHoverInfo}
-          onExitAction={() => setSelectedPulse([])}
+          onExitAction={() => {
+            setSelectedPulse([]);
+            if (setSelectedTreatment && setSelectedTreatmentIndex) {
+              setSelectedTreatment(null);
+              setSelectedTreatmentIndex(null);
+            }
+          }}
         >
           <PulseTooltip
             object={hoverInfo.object as PulseListType | PulseType}

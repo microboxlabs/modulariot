@@ -102,8 +102,6 @@ type MapVisualizationProps = {
   };
   filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
-  selectedPulse: number[];
-  setSelectedPulse: (pulse: number[]) => void;
   setSelectedTreatment?: (
     treatment: TreatmentsGeneralResponseItem | null,
   ) => void;
@@ -167,8 +165,6 @@ export default function MapVisualizationTrip({
   averagePosition,
   filteredLocationData,
   dict,
-  selectedPulse,
-  setSelectedPulse,
   setSelectedTreatment,
   setSelectedTreatmentIndex,
 }: MapVisualizationProps) {
@@ -184,6 +180,7 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
+  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [showStops, setShowStops] = useState(true);
 
   // Handle initial zoom when positions are loaded

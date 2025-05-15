@@ -45,7 +45,6 @@ export default function GeneralMap({
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
 
-  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
@@ -229,8 +228,6 @@ export default function GeneralMap({
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
-            selectedPulse={selectedPulse}
-            setSelectedPulse={setSelectedPulse}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />

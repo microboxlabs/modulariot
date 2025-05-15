@@ -232,17 +232,21 @@ export default function MapVisualization({
           preserveDrawingBuffer={true}
         />
       </DeckGL>
-      <MapStyleSelector
-        dict={dict}
-        selectedStyle={mapStyle}
-        setSelectedStyle={setMapStyle}
-      />
-      <div className="absolute left-0 top-0 bottom-0 z-40">
-        <Filters
+      <div className="absolute bottom-10 left-5 z-40 flex flex-col gap-2">
+        <MapStyleSelector
           dict={dict}
-          originalPositions={originalPositions}
-          setPositions={setPositions}
+          selectedStyle={mapStyle}
+          setSelectedStyle={setMapStyle}
         />
+      </div>
+      <div className="absolute left-0 top-0 bottom-0 z-40 pointer-events-none">
+        <div className="pointer-events-auto">
+          <Filters
+            dict={dict}
+            originalPositions={originalPositions}
+            setPositions={setPositions}
+          />
+        </div>
       </div>
       <div className="absolute right-0 top-0 bottom-0 ">
         {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (

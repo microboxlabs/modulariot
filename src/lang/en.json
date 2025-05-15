@@ -663,7 +663,9 @@
     "zone_names": "Zone names",
     "gps_provider": "GPS provider",
     "median_report_interval": "Median report interval",
-    "accumulated_time": "Driving time"
+    "accumulated_time": "Driving time",
+    "show_stops": "Show stops",
+    "hide_stops": "Hide stops"
   },
   "release": {
     "other_versions": "Other Versions"

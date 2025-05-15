@@ -20,6 +20,7 @@ import { titles } from "../../types/symptom-titles";
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";
+
 export default function GeneralMap({
   dict,
   lang,
@@ -44,6 +45,7 @@ export default function GeneralMap({
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
 
+  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
@@ -227,6 +229,8 @@ export default function GeneralMap({
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
+            selectedPulse={selectedPulse}
+            setSelectedPulse={setSelectedPulse}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />

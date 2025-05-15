@@ -672,7 +672,9 @@
     "zone_names": "Zonas",
     "gps_provider": "Proveedor de GPS",
     "median_report_interval": "Frecuencia de reportabilidad",
-    "accumulated_time": "Tiempo de conducción"
+    "accumulated_time": "Tiempo de conducción",
+    "show_stops": "Mostrar paradas",
+    "hide_stops": "Ocultar paradas"
   },
   "release": {
     "other_versions": "Otras versiones"

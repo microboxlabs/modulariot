@@ -44,11 +44,6 @@ export async function GET(req: NextRequest) {
     //console.error("Error streaming positions:", _error);
   });
 
-  console.log("------------------------------------------------------------");
-  console.log("readable:", readable);
-  console.log("writable:", writable);
-  console.log("------------------------------------------------------------");
-  
   // Return streaming response
   return new Response(readable, {
     headers: {

@@ -97,6 +97,8 @@ function TimelineGroup({
     treatmentIndex: TreatmentsTimelineResponse,
   ) => void;
 }) {
+  console.log(treatmentData);
+
   // Get unique tags from all items
   const allTags = new Set(
     item.items.flatMap((subItem) => {

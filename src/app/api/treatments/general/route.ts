@@ -33,12 +33,15 @@ export async function GET(request: Request) {
 
   try {
     const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL + "?p_symptom_id=" + id, {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
+    const response = await fetch(
+      SYMPTOMS_API_URL + "?p_symptom_id=" + id + "&p_dev_env=1",
+      {
+        headers: {
+          accept: "application/json",
+          Authorization: ` Bearer ${token}`,
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

@@ -1,7 +1,23 @@
 export interface TimelineElement {
+  conditions_agg: ConditionsAgg[];
   date: string;
   assigned_to: string;
-  items: TimelineItem[];
+  start: string;
+  end: string;
+}
+
+export interface ConditionsAgg {
+  assigned_to: string;
+  start: string;
+  end: string;
+  icu_code: string | null;
+  is_symptom: number | null;
+  symptom_id: number | null;
+  icu_condition: string | null;
+  count: number;
+  symptom_description: string;
+  treatments: any[];
+  type: string;
 }
 
 export interface TimelineItem {

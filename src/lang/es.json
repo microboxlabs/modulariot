@@ -632,7 +632,13 @@
     "without_trip": "Sin viaje",
     "normal_speed": "Velocidad normal",
     "high_speed": "Velocidad grave",
-    "very_high_speed": "Velocidad gravísima"
+    "very_high_speed": "Velocidad gravísima",
+    "speed limit": "Límite de velocidad",
+    "Lost Signal": "Señal perdida",
+    "Speed Limit": "Límite de velocidad",
+    "Speed Limit Custom": "Límite de velocidad",
+    "Speed Limit Standard": "Límite de velocidad",
+    "Continuous Drive Check": "Conducción máxima continua"
   },
   "geographic_view": {
     "speed": "Velocidad",

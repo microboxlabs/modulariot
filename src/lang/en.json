@@ -623,7 +623,13 @@
     "without_trip": "Without trip",
     "normal_speed": "Normal speed",
     "high_speed": "High speed",
-    "very_high_speed": "Very high speed"
+    "very_high_speed": "Very high speed",
+    "speed_limit": "Speed limit",
+    "Lost Signal": "Lost signal",
+    "Speed Limit": "Speed limit",
+    "Speed Limit Custom": "Speed limit",
+    "Speed Limit Standard": "Speed limit",
+    "Continuous Drive Check": "Maximum continuous driving"
   },
   "geographic_view": {
     "speed": "Speed",

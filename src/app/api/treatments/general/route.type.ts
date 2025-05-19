@@ -1,3 +1,5 @@
+import { ConditionsAgg } from "@/features/symptoms/types/timeline";
+
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
   status: number;
@@ -5,21 +7,24 @@ export type TreatmentsGeneralResponse = {
 };
 
 export type TreatmentsGeneralResponseItem = {
+  conditions_agg: ConditionsAgg[];
   timeline: TreatmentsTimelineResponse[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
 };
 
 export type TreatmentsTimelineResponse = {
-  end: string;
-  start: string;
-  type: string;
-  description: string;
-  icu_condition: string;
   assigned_to: string;
+  start: string;
+  end: string;
   icu_code: string | null;
   is_symptom: number | null;
   symptom_id: number | null;
+  icu_condition: string | null;
+  count: number;
+  symptom_description: string;
+  treatments: any[];
+  type: string;
 };
 
 export type TreatmentsTripInfoResponse = {

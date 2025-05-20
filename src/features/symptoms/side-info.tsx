@@ -16,7 +16,6 @@ import { HiMiniArrowPathRoundedSquare } from "react-icons/hi2";
 import { ConditionsAgg } from "./types/timeline";
 export default function SideInfo({
   dict,
-  lang,
   treatmentData,
   loading,
   error,
@@ -24,7 +23,6 @@ export default function SideInfo({
   setSelectedTreatmentIndex,
 }: {
   dict: I18nRecord;
-  lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
@@ -64,7 +62,6 @@ export default function SideInfo({
       {treatments_templates && (
         <BlurrableSteppedMenu
           selectedOption={selectedOption}
-          lang={lang}
           dict={dict}
           isMenuOpen={isMenuOpen}
           setIsMenuOpen={setIsMenuOpen}

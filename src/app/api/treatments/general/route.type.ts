@@ -8,23 +8,9 @@ export type TreatmentsGeneralResponse = {
 
 export type TreatmentsGeneralResponseItem = {
   conditions_agg: ConditionsAgg[];
-  timeline: TreatmentsTimelineResponse[];
+  timeline: ConditionsAgg[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
-};
-
-export type TreatmentsTimelineResponse = {
-  assigned_to: string;
-  start: string;
-  end: string;
-  icu_code: string | null;
-  is_symptom: number | null;
-  symptom_id: number | null;
-  icu_condition: string | null;
-  count: number;
-  symptom_description: string;
-  treatments: any[];
-  type: string;
 };
 
 export type TreatmentsTripInfoResponse = {

@@ -12,7 +12,6 @@ import TimelineComponent from "./timeline";
 import { ConditionsAgg } from "../../types/timeline";
 export default function SideInfoData({
   dict,
-  lang,
   treatmentData,
   loading,
   error,
@@ -22,14 +21,11 @@ export default function SideInfoData({
   withBottomPadding = true,
 }: {
   dict: I18nRecord;
-  lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
   setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
-  setSelectedTreatmentIndex: (
-    treatmentIndex: ConditionsAgg,
-  ) => void;
+  setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
   withBorder?: boolean;
   withBottomPadding?: boolean;
 }) {

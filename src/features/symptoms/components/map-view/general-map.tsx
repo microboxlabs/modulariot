@@ -19,13 +19,11 @@ import TitleCardSkeleton from "./title-card-skeleton";
 import { ConditionsAgg } from "../../types/timeline";
 export default function GeneralMap({
   dict,
-  lang,
   id,
   tripId,
   assetId,
 }: {
   dict: I18nRecord;
-  lang: string;
   id: string;
   tripId?: string;
   assetId?: string;
@@ -206,7 +204,6 @@ export default function GeneralMap({
         <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo
             dict={dict}
-            lang={lang}
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}

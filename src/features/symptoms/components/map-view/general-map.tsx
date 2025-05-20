@@ -20,6 +20,8 @@ import { titles } from "../../types/symptom-titles";
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";
+import alarmImage from "@assets/images/alarm.gif";
+
 export default function GeneralMap({
   dict,
   lang,
@@ -113,7 +115,7 @@ export default function GeneralMap({
                     titles[
                       treatmentData?.symptom_info
                         ?.icu_code as unknown as keyof typeof titles
-                    ]?.icon
+                    ]?.icon ?? alarmImage
                   }
                   alt="Síntomas"
                   width={50}

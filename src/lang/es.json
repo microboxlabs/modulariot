@@ -638,7 +638,11 @@
     "Speed Limit": "Límite de velocidad",
     "Speed Limit Custom": "Límite de velocidad",
     "Speed Limit Standard": "Límite de velocidad",
-    "Continuous Drive Check": "Conducción máxima continua"
+    "Continuous Drive Check": "Conducción máxima continua",
+    "Continuous Resting Check": "Mínimo descanso requerido",
+    "ascending": "Ascendente",
+    "descending": "Descendente",
+    "treatments": "Tratamientos"
   },
   "geographic_view": {
     "speed": "Velocidad",

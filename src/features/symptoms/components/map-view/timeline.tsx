@@ -1,13 +1,9 @@
-import {
-  TreatmentsTimelineResponse,
-  TreatmentsGeneralResponseItem,
-} from "@/app/api/treatments/general/route.type";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
+  ConditionsAgg,
   TimelineElement,
-  TimelineItem,
 } from "@/features/symptoms/types/timeline";
-import { useState } from "react";
 import TimelineGroup from "./timeline-group";
 
 /* function calculateDuration(
@@ -43,22 +39,21 @@ import TimelineGroup from "./timeline-group";
 } */
 
 export default function TimelineComponent({
-  lang,
   dict,
   treatmentData,
   setSelectedTreatment,
   setSelectedTreatmentIndex,
+  order,
 }: {
-  lang: string;
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
-  setSelectedTreatmentIndex: (
-    treatmentIndex: TreatmentsTimelineResponse,
-  ) => void;
+  setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
+  order: "asc" | "desc";
 }) {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [order, setOrder] = useState<"asc" | "desc">("desc");
+  if (!treatmentData || !treatmentData?.timeline) {
+    return <p className="text-center dark:text-red-500">No data</p>;
+  }
 
   // Ordering of elements to be displayed
   const TimelineGroupedByDate = treatmentData?.timeline
@@ -69,7 +64,7 @@ export default function TimelineComponent({
         return new Date(b.start).getTime() - new Date(a.start).getTime();
       }
     })
-    .reduce((acc: Record<string, TreatmentsTimelineResponse[]>, item) => {
+    .reduce((acc: Record<string, ConditionsAgg[]>, item) => {
       const date = new Date(item.start).toISOString().split("T")[0];
       if (!acc[date]) {
         acc[date] = [];
@@ -95,10 +90,9 @@ export default function TimelineComponent({
                 if (treatmentData) {
                   return (
                     <TimelineGroup
-                      item={item}
+                      key={index}
+                      item={item as TimelineElement}
                       dict={dict}
-                      lang={lang}
-                      date={date}
                       treatmentData={treatmentData}
                       setSelectedTreatment={setSelectedTreatment}
                       setSelectedTreatmentIndex={setSelectedTreatmentIndex}

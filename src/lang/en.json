@@ -629,7 +629,11 @@
     "Speed Limit": "Speed limit",
     "Speed Limit Custom": "Speed limit",
     "Speed Limit Standard": "Speed limit",
-    "Continuous Drive Check": "Maximum continuous driving"
+    "Continuous Drive Check": "Maximum continuous driving",
+    "Continuous Resting Check": "Continuous resting check",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "treatments": "Treatments"
   },
   "geographic_view": {
     "speed": "Speed",

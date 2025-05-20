@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import icuConditions from "@/features/symptoms/model/icu_condition.json";
 import { titles } from "../../types/symptom-titles";
 import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import alarmImage from "@assets/images/alarm.gif";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -108,8 +109,8 @@ export default function BlurrableSteppedMenu({
               src={
                 titles[
                   treatmentData?.symptom_info
-                    .icu_code as unknown as keyof typeof titles
-                ].icon
+                    ?.icu_code as unknown as keyof typeof titles
+                ]?.icon ?? alarmImage
               }
               alt="Icon"
               width={100}

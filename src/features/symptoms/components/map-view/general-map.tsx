@@ -9,27 +9,21 @@ import MapVisualizationTrip from "@/features/geographic-view/components/map-visu
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
 import { useState } from "react";
-import {
-  TreatmentsGeneralResponseItem,
-  TreatmentsTimelineResponse,
-} from "@/app/api/treatments/general/route.type";
-
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
 /* import icuConditions from "@/features/symptoms/model/icu_condition.json"; */
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import TitleCardSkeleton from "./title-card-skeleton";
-
+import { ConditionsAgg } from "../../types/timeline";
 export default function GeneralMap({
   dict,
-  lang,
   id,
   tripId,
   assetId,
 }: {
   dict: I18nRecord;
-  lang: string;
   id: string;
   tripId?: string;
   assetId?: string;
@@ -48,7 +42,7 @@ export default function GeneralMap({
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
-    useState<TreatmentsTimelineResponse | null>(null);
+    useState<ConditionsAgg | null>(null);
 
   const {
     data: filteredLocationData,
@@ -210,7 +204,6 @@ export default function GeneralMap({
         <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo
             dict={dict}
-            lang={lang}
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}

@@ -21,12 +21,10 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import MapStyleSelector from "./map-style-selector";
-import {
-  TreatmentsGeneralResponseItem,
-  TreatmentsTimelineResponse,
-} from "@/app/api/treatments/general/route.type";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import MapButton from "./map-button";
 import { BsSignStop } from "react-icons/bs";
+import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -105,9 +103,7 @@ type MapVisualizationProps = {
   setSelectedTreatment?: (
     treatment: TreatmentsGeneralResponseItem | null,
   ) => void;
-  setSelectedTreatmentIndex?: (
-    treatmentIndex: TreatmentsTimelineResponse | null,
-  ) => void;
+  setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
 };
 
 type GeometryFeature = {

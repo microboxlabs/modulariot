@@ -20,7 +20,7 @@ import PulseTooltip, {
   PulseListType,
   PulseType,
 } from "./tooltips/pulse-tooltip";
-import MapStyleSelector from "./map-style-selector";
+import ToolBar from "./tool-bar/tool-bar";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -45,7 +45,7 @@ type GeofenceData = {
   trip_id: string;
 };
 
-type ViewStateType = {
+export type ViewStateType = {
   longitude: number;
   latitude: number;
   zoom: number;
@@ -116,13 +116,14 @@ function zoom_on_pin(
   clustered: boolean,
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
+  zoom?: number,
 ) {
   if (latitude && longitude) {
     setViewState({
       ...viewState,
       longitude,
       latitude,
-      zoom: 15.0,
+      zoom: zoom ?? 15.0,
       transitionDuration: 1000,
       transitionInterpolator: new FlyToInterpolator(),
     });
@@ -163,6 +164,17 @@ export default function MapVisualizationTrip({
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
+
+  console.log(positions?.length);
+
+  const [displayPosition, setDisplayPosition] = useState<number>(0);
+
+  // Add effect to update displayPosition when positions change
+  useEffect(() => {
+    if (positions?.length) {
+      setDisplayPosition(positions.length - 1);
+    }
+  }, [positions?.length]);
 
   const handleViewStateChange = useCallback((e: any) => {
     if (e.viewState) {
@@ -322,6 +334,7 @@ export default function MapVisualizationTrip({
             );
           },
           selectedPulse,
+          displayPosition,
         }),
       );
     }
@@ -349,7 +362,7 @@ export default function MapVisualizationTrip({
     if (positions?.length != 0) {
       baseLayers.push(
         new PinLayer({
-          data: positions ? [positions[positions.length - 1]] : [],
+          data: positions ? [positions[displayPosition]] : [],
           zoom: viewState.zoom,
           onClick: (info: PickingInfo<any>) => {
             if (info.viewport) {
@@ -398,6 +411,7 @@ export default function MapVisualizationTrip({
     viewState.zoom,
     filteredLocationData,
     selectedPulse,
+    displayPosition,
   ]);
 
   // Handle errors and loading states
@@ -426,13 +440,16 @@ export default function MapVisualizationTrip({
         <Map
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
-        />
+          attributionControl={true}
+          style={{ position: "relative" }}
+        >
+          <style jsx global>{`
+            .mapboxgl-ctrl-logo {
+              display: none !important;
+            }
+          `}</style>
+        </Map>
       </DeckGL>
-      <MapStyleSelector
-        dict={dict}
-        selectedStyle={mapStyle}
-        setSelectedStyle={setMapStyle}
-      />
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}
@@ -446,16 +463,18 @@ export default function MapVisualizationTrip({
           />
         </MapTooltip>
       )}
-      <div className="absolute right-5 top-5 bottom-0">
-        {/*
-        <MapButton
-          main_color="bg-white dark:bg-gray-800"
-          button_color="bg-white dark:bg-gray-800"
-          icon={BsStars}
-          text="Copilot"
-          open_to_left={true}
+      <div className="absolute w-full h-full flex flex-col justify-end items-start p-5 gap-2 pointer-events-none">
+        <ToolBar
+          positions={positions ?? []}
+          displayPosition={displayPosition}
+          setDisplayPosition={setDisplayPosition}
+          zoom_on_pin={zoom_on_pin}
+          setViewState={setViewState}
+          viewState={viewState}
+          mapBoxStyles={mapboxStyles}
+          selectedStyle={mapStyle}
+          setSelectedStyle={setMapStyle}
         />
-        */}
       </div>
       <div className="absolute left-0 top-5 bg-white dark:bg-gray-800 rounded-r-full border-r border-y border-gray-400 dark:border-gray-700">
         {isLoading ? (

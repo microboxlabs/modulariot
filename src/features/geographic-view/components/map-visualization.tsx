@@ -230,7 +230,14 @@ export default function MapVisualization({
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           preserveDrawingBuffer={true}
-        />
+        >
+
+          <style jsx global>{`
+            .mapboxgl-ctrl-logo {
+              display: none !important;
+              }
+          `}</style>
+        </Map>
       </DeckGL>
       <MapStyleSelector
         dict={dict}

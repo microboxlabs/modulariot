@@ -28,6 +28,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const zoomLevel = this.props.zoom;
     const selectedPulse = this.props.selectedPulse;
+    const displayPosition = this.props.displayPosition;
 
     return [
       new ScatterplotLayer({
@@ -52,7 +53,13 @@ export class PulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
-        getFillColor: (d: any) => getColor(d.properties.icu_code),
+        getFillColor: (d: any) => {
+          if (d.properties.id > displayPosition) {
+            return [0, 0, 0, 0];
+          } else {
+            return getColor(d.properties.icu_code);
+          }
+        },
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
         getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
@@ -60,7 +67,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
         pickable: true,
         updateTriggers: {
-          getFillColor: [selectedPulse],
+          getFillColor: [selectedPulse, displayPosition],
         },
       }) as Layer,
       new ScatterplotLayer({

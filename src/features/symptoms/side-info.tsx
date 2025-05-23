@@ -92,9 +92,7 @@ export default function SideInfo({
             }
           >
             <div
-              className={
-                "h-6 w-6 p-1 mr-1 hover:bg-gray-100 hover:cursor-pointer dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md"
-              }
+              className="h-6 w-6 p-1 mr-1 hover:bg-gray-100 hover:cursor-pointer dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md"
               onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
             >
               <HiMiniArrowPathRoundedSquare
@@ -107,11 +105,11 @@ export default function SideInfo({
           <div className="h-20 w-full bg-gray-200 dark:bg-gray-700 animate-pulse rounded-md"></div>
         ) : (
           <TimelineComponent
-            lang={lang}
             dict={dict}
             treatmentData={treatmentData}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
+            order={order}
           />
         )}
       </div>

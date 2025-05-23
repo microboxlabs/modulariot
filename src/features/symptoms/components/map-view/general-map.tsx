@@ -15,7 +15,6 @@ import { titles } from "../../types/symptom-titles";
 /* import icuConditions from "@/features/symptoms/model/icu_condition.json"; */
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
-import TitleCardSkeleton from "./title-card-skeleton";
 import { ConditionsAgg } from "../../types/timeline";
 export default function GeneralMap({
   dict,

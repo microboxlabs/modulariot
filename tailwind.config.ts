@@ -23,7 +23,9 @@ const config: Config = {
         "orbit": "orbit 5s linear infinite",
         "orbit-2": "orbit-2 6s linear infinite",
         "fade-in": "fade-in 5s ease-in-out forwards",
+        "fade-in-fast": "fade-in 0.2s ease-in-out forwards",
         "fade-out": "fade-out 5s ease-in-out forwards",
+        "fade-out-fast": "fade-out 0.2s ease-in-out forwards",
       },
       keyframes: {
         "hide-scale": {

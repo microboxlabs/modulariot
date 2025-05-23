@@ -26,7 +26,6 @@ export default function BlurrableSteppedMenu({
   isMenuOpen,
   className,
   dict,
-  lang,
   selectedOption,
   treatmentData,
   treatments_templates,
@@ -35,7 +34,6 @@ export default function BlurrableSteppedMenu({
   isMenuOpen: boolean;
   className: string;
   dict: I18nRecord;
-  lang: string;
   selectedOption: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   treatments_templates: SympthomTemplateResponse | null;
@@ -92,7 +90,6 @@ export default function BlurrableSteppedMenu({
           component: (
             <SideInfoData
               dict={dict}
-              lang={lang}
               treatmentData={treatmentData}
               loading={false}
               error={null}

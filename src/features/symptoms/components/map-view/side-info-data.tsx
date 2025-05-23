@@ -5,17 +5,13 @@ import ExpandableButton from "../expandable-button";
 import { Conditions } from "../table-item.type";
 import { FaClock, FaTruck } from "react-icons/fa";
 import { Spinner } from "flowbite-react";
-import {
-  TreatmentsGeneralResponseItem,
-  TreatmentsTimelineResponse,
-} from "@/app/api/treatments/general/route.type";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { FaUser } from "react-icons/fa6";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import TimelineComponent from "./timeline";
-
+import { ConditionsAgg } from "../../types/timeline";
 export default function SideInfoData({
   dict,
-  lang,
   treatmentData,
   loading,
   error,
@@ -25,14 +21,11 @@ export default function SideInfoData({
   withBottomPadding = true,
 }: {
   dict: I18nRecord;
-  lang: string;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
   error: Error | null;
   setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
-  setSelectedTreatmentIndex: (
-    treatmentIndex: TreatmentsTimelineResponse,
-  ) => void;
+  setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
   withBorder?: boolean;
   withBottomPadding?: boolean;
 }) {
@@ -214,11 +207,11 @@ export default function SideInfoData({
           }
         >
           <TimelineComponent
-            lang={lang}
             dict={dict}
             treatmentData={treatmentData}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
+            order={"asc"}
           />
         </ExpandableButton>
       )}

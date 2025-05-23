@@ -34,13 +34,7 @@ export default async function SymptomList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <GeneralMap
-        dict={dict}
-        lang={lang}
-        id={id}
-        tripId={tripId}
-        assetId={assetId}
-      />
+      <GeneralMap dict={dict} id={id} tripId={tripId} assetId={assetId} />
     </div>
   );
 }

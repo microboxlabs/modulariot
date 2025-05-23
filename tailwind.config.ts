@@ -24,6 +24,9 @@ const config: Config = {
         "orbit-2": "orbit-2 6s linear infinite",
         "fade-in": "fade-in 5s ease-in-out forwards",
         "fade-out": "fade-out 5s ease-in-out forwards",
+        "hide-flex": "hide-flex 0.2s ease-in-out forwards",
+        "show-flex-middle": "show-flex-middle 0.2s ease-in-out forwards",
+        "hide-flex-middle": "hide-flex-middle 0.2s ease-in-out forwards",
       },
       keyframes: {
         "hide-scale": {
@@ -41,8 +44,22 @@ const config: Config = {
           "50%": { opacity: "0", display: "none", maxHeight: "50%" },
           "100%": { opacity: "0", display: "none", maxHeight: "0" },
         },
+        "hide-flex": {
+          "0%": { opacity: "1", display: "flex", maxHeight: "100%" },
+          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+        },
+        "hide-flex-middle": {
+          "0%": { opacity: "1", display: "flex", maxHeight: "100%" },
+          "50%": { opacity: "0", display: "none", maxHeight: "50%" },
+          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+        },
         "show-flex": {
           "0%": { opacity: "0", display: "none", maxHeight: "0" },
+          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
+        },
+        "show-flex-middle": {
+          "0%": { opacity: "0", display: "none", maxHeight: "0" },
+          "50%": { opacity: "0", display: "none", maxHeight: "0" },
           "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
         },
         "show": {

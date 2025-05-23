@@ -370,6 +370,16 @@ export async function getTaskHistory(
   return result as TaskResponse;
 }
 
+export async function getTripLoads(
+  ticket: string,
+  tripId: string,
+): Promise<TaskResponse> {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/letter-port?tripId=${tripId}&alf_ticket=${ticket}`;
+  const result = await fetcher(url);
+
+  return result as any;
+}
+
 export async function getGroupsForPerson(ticket: string): Promise<string[]> {
   alfrescoApi.setTicket(ticket, "");
   const groupsApi = new GroupsApi(alfrescoApi.contentClient);

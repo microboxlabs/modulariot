@@ -90,7 +90,18 @@
         "Confirmar Entrega": "Confirmar Entrega",
         "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
         "compact": "Compactar",
-        "expand": "Expandir"
+        "expand": "Expandir",
+        "weight": "Peso",
+        "loads": "Bultos",
+        "volume": "Volumen",
+        "expeditionNumber": "N° de expedición",
+        "code": "Código",
+        "noLoads": "No hay cargas",
+        "kanban_movements": "Movimientos de Kanban",
+        "load_table": "Tabla de cargas",
+        "length": "Largo",
+        "width": "Ancho",
+        "height": "Alto"
       },
       "card": {
         "origin": "Origen",

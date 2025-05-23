@@ -102,7 +102,7 @@ export function useGetEntityInfo(entity: string) {
  * @returns Promise<GetEntityInfoResponse>
  */
 export function getEntityInfo(entity: string) {
-  return fetcher(`/app/api/microboxlabs/entity?entity=${entity}`);
+  return fetcher(`/app/api/entity?licencePlate=${entity}`);
 }
 
 export function useGetServiceValidation(serviceCode: string) {

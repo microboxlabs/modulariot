@@ -258,7 +258,12 @@ export default function MapVisualizationTrip({
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
-    if (!geofence_data?.data || geofence_data?.data.length === 0) return null;
+    if (
+      !geofence_data?.data ||
+      !geofence_data?.data.length ||
+      geofence_data?.data.length === 0
+    )
+      return null;
 
     try {
       // Process all geofences into features, filtering out null locations

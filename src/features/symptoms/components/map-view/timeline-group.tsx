@@ -72,11 +72,13 @@ export default function TimelineGroup({
   ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const longest_treatment = item.conditions_agg?.reduce((max, subItem) => {
-    return Math.max(max, Math.floor( 
+    return Math.max(
+      max,
+      Math.floor(
         (new Date(subItem?.end ?? "").getTime() -
           new Date(subItem?.start ?? "").getTime()) /
           60000,
-    )      
+      ),
     );
   }, 0);
   // Get the length in minutes
@@ -85,7 +87,7 @@ export default function TimelineGroup({
     (new Date(item.conditions_agg?.[0]?.end ?? "").getTime() -
       new Date(item.conditions_agg?.[0]?.start ?? "").getTime()) /
       60000,
-  ); */  
+  ); */
 
   // add to this the transformed value of length
   const length_text =

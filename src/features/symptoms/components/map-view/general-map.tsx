@@ -16,6 +16,8 @@ import { titles } from "../../types/symptom-titles";
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../types/timeline";
+import { useRouter } from "next/navigation";
+
 export default function GeneralMap({
   dict,
   id,
@@ -27,6 +29,7 @@ export default function GeneralMap({
   tripId?: string;
   assetId?: string;
 }) {
+  const router = useRouter();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
     assetId ?? "",
@@ -74,6 +77,15 @@ export default function GeneralMap({
     return <div>Error: {error.message}</div>;
   }
 
+  if (
+    !isLoading &&
+    !loading &&
+    !treatmentData?.timeline &&
+    positions?.length == 0
+  ) {
+    router.push("/not-found");
+    return null;
+  }
   return (
     <>
       <div

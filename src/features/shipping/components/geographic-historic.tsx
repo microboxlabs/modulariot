@@ -25,11 +25,13 @@ export function GeographicHistoric({
       <div className="h-1/2 w-full overflow-hidden flex flex-col">
         <div className="flex flex-row w-full">
           <div
-            className={`w-1/2 border-l border-t border-gray-200 dark:border-gray-600 font-light text-gray-100 flex gap-2 justify-center align-middle py-1 rounded-tl-lg transition-all duration-300 ${selected_table === 0 ? "bg-blue-600 opacity-100" : "bg-gray-200 dark:bg-gray-800 opacity-50 cursor-pointer text-gray-800 dark:text-gray-100"}`}
+            className={`w-1/2 border-l border-t border-gray-200 dark:border-gray-600 font-light text-gray-100 flex gap-2 justify-center align-middle py-1 rounded-tl-lg transition-all duration-300 ${selected_table === 0 ? "bg-blue-600 opacity-100 text-white" : "bg-gray-200 dark:bg-gray-800 opacity-50 cursor-pointer text-gray-800 dark:text-gray-100"}`}
             onClick={() => setSelectedTable(0)}
           >
             <div className="w-4 h-full flex items-center justify-center">
-              <KanbanViewSwitcherIcon className="w-4 h-4 flex items-center justify-center" />
+              <KanbanViewSwitcherIcon
+                className={`w-4 h-4 flex items-center justify-center ${selected_table === 0 ? "fill-gray-100" : ""}`}
+              />
             </div>
             {
               (

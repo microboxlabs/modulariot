@@ -291,7 +291,12 @@ export default function TimelineGroup({
                         {(dict.symptoms as I18nRecord).treatments as string}:
                       </p>
                       {subItem.treatments.map((treatment, index) => (
-                        <p key={index}> - {treatment.treatment_type}</p>
+                        <p key={index}>
+                          -{" "}
+                          {((dict.symptoms as I18nRecord)[
+                            treatment.treatment_type.toUpperCase()
+                          ] as string) ?? treatment.treatment_type}
+                        </p>
                       ))}
                     </div>
                   )}

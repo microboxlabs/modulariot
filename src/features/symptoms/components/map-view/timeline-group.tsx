@@ -71,16 +71,25 @@ export default function TimelineGroup({
     item.conditions_agg?.[0]?.start ?? "",
   ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+  const longest_treatment = item.conditions_agg?.reduce((max, subItem) => {
+    return Math.max(max, Math.floor( 
+        (new Date(subItem?.end ?? "").getTime() -
+          new Date(subItem?.start ?? "").getTime()) /
+          60000,
+    )      
+    );
+  }, 0);
   // Get the length in minutes
-  const length = Math.floor(
+  const length = longest_treatment ?? 0;
+  /* const length = Math.floor(
     (new Date(item.conditions_agg?.[0]?.end ?? "").getTime() -
       new Date(item.conditions_agg?.[0]?.start ?? "").getTime()) /
       60000,
-  );
+  ); */  
 
   // add to this the transformed value of length
   const length_text =
-    length > 60 ? (length > 1440 ? (length > 86400 ? "d" : "h") : "m") : "m";
+    length > 60 ? (length > 1440 ? (length > 86400 ? "d" : "h") : "h") : "m";
   const length_text_value =
     length > 60
       ? length > 1440

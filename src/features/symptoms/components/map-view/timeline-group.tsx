@@ -144,8 +144,16 @@ export default function TimelineGroup({
                 {
                   item.conditions_agg?.filter(
                     (subItem) =>
-                      (subItem.type === "CORREO ELECTRONICO" ||
-                        subItem.type === "MENSAJE KAUSANA") &&
+                      subItem.treatments.length > 0 &&
+                      subItem.treatments.some(
+                        (treatment) =>
+                          treatment.treatment_type.toUpperCase() ===
+                            "CORREO ELECTRONICO" ||
+                          treatment.treatment_type.toUpperCase() ===
+                            "MENSAJE KAUSANA",
+                      ) &&
+                      /* (subItem.type === "CORREO ELECTRONICO" ||
+                        subItem.type === "MENSAJE KAUSANA") && */
                       subItem.assigned_to,
                   ).length
                 }
@@ -161,8 +169,12 @@ export default function TimelineGroup({
                 {
                   item.conditions_agg?.filter(
                     (subItem) =>
-                      subItem.type === "LLAMAR AL CONDUCTOR" &&
-                      subItem.assigned_to,
+                      subItem.treatments.length > 0 &&
+                      subItem.treatments.some(
+                        (treatment) =>
+                          treatment.treatment_type.toUpperCase() ===
+                            "LLAMAR AL CONDUCTOR",
+                      ),
                   ).length
                 }
               </span>

@@ -173,7 +173,7 @@ export default function TimelineGroup({
                       subItem.treatments.some(
                         (treatment) =>
                           treatment.treatment_type.toUpperCase() ===
-                            "LLAMAR AL CONDUCTOR",
+                          "LLAMAR AL CONDUCTOR",
                       ),
                   ).length
                 }

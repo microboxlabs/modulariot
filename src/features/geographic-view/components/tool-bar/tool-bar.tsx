@@ -1,0 +1,127 @@
+import { useState, useEffect } from "react";
+import { MapPosition } from "../../types/map";
+import { ViewStateType } from "../map-visualization-trip";
+import { MdOutlineTimeline } from "react-icons/md";
+import { FaMap, FaMapPin } from "react-icons/fa";
+import SettingsIcon from "./settings-icon";
+import MapSelector from "./map-selector";
+import { mapstyles } from "../map-style-selector";
+import PulseRange from "./pulse-range";
+
+type ToolBarProps = {
+  positions: MapPosition[] | null;
+  displayPosition: number;
+  setDisplayPosition: (position: number) => void;
+  zoom_on_pin: (
+    longitude: number,
+    latitude: number,
+    clustered: boolean,
+    setViewState: (viewState: ViewStateType) => void,
+    viewState: ViewStateType,
+    zoom?: number,
+  ) => void;
+  setViewState: (viewState: ViewStateType) => void;
+  viewState: ViewStateType;
+  selectedStyle: string;
+  setSelectedStyle: (style: string) => void;
+};
+
+export default function ToolBar({
+  positions,
+  displayPosition,
+  setDisplayPosition,
+  zoom_on_pin,
+  setViewState,
+  viewState,
+  selectedStyle,
+  setSelectedStyle,
+}: ToolBarProps) {
+  const [open, setOpen] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<
+    "timeline" | "mapSelection" | null
+  >(null);
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedTool(null);
+    }
+  }, [open]);
+
+  return (
+    <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none">
+      <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none relative">
+        <div
+          className={`absolute bottom-0 left-0 p-2 rounded-lg shadow-lg pointer-events-auto flex flex-col items-center transition-all duration-300 ${selectedTool === "mapSelection" ? "animate-fade-in-fast" : "animate-fade-out-fast"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+        >
+          <MapSelector
+            selectedStyle={selectedStyle}
+            setSelectedStyle={setSelectedStyle}
+          />
+        </div>
+
+        <div
+          className={`absolute bottom-0 left-0 p-4 right-0 rounded-lg shadow-lg pointer-events-auto flex flex-col items-center transition-all duration-300 ${selectedTool === "timeline" ? "animate-fade-in-fast" : "animate-fade-out-fast"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+        >
+          <PulseRange
+            positions={positions ?? []}
+            displayPosition={displayPosition}
+            setDisplayPosition={setDisplayPosition}
+            zoom_on_pin={zoom_on_pin}
+            setViewState={setViewState}
+            viewState={viewState}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-row items-center gap-2">
+        <SettingsIcon
+          open={open}
+          setOpen={setOpen}
+          isDark={
+            mapstyles.find((style) => style.value === selectedStyle)?.isDark
+          }
+        />
+        <div
+          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-52 p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+        >
+          <div className="flex flex-row gap-1">
+            <div
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "mapSelection" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              onClick={() => {
+                setSelectedTool(
+                  selectedTool === "mapSelection" ? null : "mapSelection",
+                );
+              }}
+            >
+              <FaMap size={20} />
+            </div>
+            <div
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              onClick={() =>
+                setSelectedTool(selectedTool === "timeline" ? null : "timeline")
+              }
+            >
+              <MdOutlineTimeline size={20} />
+            </div>
+          </div>
+          <div className="flex flex-row gap-1">
+            <div className="border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto"></div>
+            <div
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+            >
+              <FaMapPin size={20} />
+            </div>
+            <div
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+            >
+              <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// TODO:
+// WHEN CLOSING THE TIMELINE SELECTOR IN THE MAP, SET TIMELINE SELECTOR BACK TO THE LAST PULSE

@@ -7,6 +7,10 @@ import SettingsIcon from "./settings-icon";
 import MapSelector from "./map-selector";
 import { mapstyles } from "../map-style-selector";
 import PulseRange from "./pulse-range";
+import {
+  BsFillCameraVideoFill,
+  BsFillCameraVideoOffFill,
+} from "react-icons/bs";
 
 type ToolBarProps = {
   positions: MapPosition[] | null;
@@ -18,12 +22,15 @@ type ToolBarProps = {
     clustered: boolean,
     setViewState: (viewState: ViewStateType) => void,
     viewState: ViewStateType,
+    camera_movement: boolean,
     zoom?: number,
   ) => void;
   setViewState: (viewState: ViewStateType) => void;
   viewState: ViewStateType;
   selectedStyle: string;
   setSelectedStyle: (style: string) => void;
+  camera_movement: boolean;
+  setCameraMovement: (camera_movement: boolean) => void;
 };
 
 export default function ToolBar({
@@ -35,6 +42,8 @@ export default function ToolBar({
   viewState,
   selectedStyle,
   setSelectedStyle,
+  camera_movement,
+  setCameraMovement,
 }: ToolBarProps) {
   const [open, setOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<
@@ -69,6 +78,7 @@ export default function ToolBar({
             zoom_on_pin={zoom_on_pin}
             setViewState={setViewState}
             viewState={viewState}
+            camera_movement={camera_movement}
           />
         </div>
       </div>
@@ -82,7 +92,7 @@ export default function ToolBar({
           }
         />
         <div
-          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-52 p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-96 p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
         >
           <div className="flex flex-row gap-1">
             <div
@@ -115,6 +125,20 @@ export default function ToolBar({
               className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
             >
               <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
+            </div>
+          </div>
+          <div className="flex flex-row gap-1">
+            <div
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              onClick={() => {
+                setCameraMovement(!camera_movement);
+              }}
+            >
+              {camera_movement ? (
+                <BsFillCameraVideoFill size={20} />
+              ) : (
+                <BsFillCameraVideoOffFill size={20} />
+              )}
             </div>
           </div>
         </div>

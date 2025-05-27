@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator } from "deck.gl";
+import DeckGL, { FlyToInterpolator, LinearInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./pin_layer_clustered";
 import { PulsePinLayer } from "./pulse";
@@ -116,17 +116,28 @@ function zoom_on_pin(
   clustered: boolean,
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
+  camera_movement: boolean,
   zoom?: number,
 ) {
   if (latitude && longitude) {
-    setViewState({
+    const newViewState = {
       ...viewState,
       longitude,
       latitude,
-      zoom: zoom ?? 15.0,
-      transitionDuration: 1000,
-      transitionInterpolator: new FlyToInterpolator(),
-    });
+      transitionDuration: 500,
+      transitionInterpolator: new FlyToInterpolator({
+        curve: 1,
+        speed: 1,
+      }),
+      transitionEasing: (t: number) => t,
+    };
+
+    // Only update zoom if camera_movement is true and a zoom value is provided
+    if (camera_movement && zoom !== undefined) {
+      newViewState.zoom = zoom;
+    }
+
+    setViewState(newViewState);
   }
 }
 
@@ -137,15 +148,18 @@ function move_to_pin(
   },
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
+  camera_movement: boolean,
 ) {
-  setViewState({
-    ...viewState,
-    longitude: averagePosition.longitude,
-    latitude: averagePosition.latitude,
-    zoom: 6.5,
-    transitionDuration: 500,
-    transitionInterpolator: new FlyToInterpolator(),
-  });
+  if (camera_movement) {
+    setViewState({
+      ...viewState,
+      longitude: averagePosition.longitude,
+      latitude: averagePosition.latitude,
+      zoom: 6.5,
+      transitionDuration: 500,
+      transitionInterpolator: new FlyToInterpolator(),
+    });
+  }
 }
 
 export default function MapVisualizationTrip({
@@ -164,9 +178,7 @@ export default function MapVisualizationTrip({
   const { geofence_data, geofence_error, geofence_isLoading } =
     useGeofences(tripId);
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
-
-  console.log(positions?.length);
-
+  const [camera_movement, setCameraMovement] = useState<boolean>(true);
   const [displayPosition, setDisplayPosition] = useState<number>(0);
 
   // Add effect to update displayPosition when positions change
@@ -185,7 +197,7 @@ export default function MapVisualizationTrip({
   // Handle initial zoom when positions are loaded
   useEffect(() => {
     if (positions && positions.length > 0) {
-      move_to_pin(averagePosition, setViewState, viewState);
+      move_to_pin(averagePosition, setViewState, viewState, true);
     }
     if (filteredLocationData && filteredLocationData.features.length > 0) {
       move_to_pin(
@@ -195,6 +207,7 @@ export default function MapVisualizationTrip({
         },
         setViewState,
         viewState,
+        true,
       );
     }
   }, [positions, filteredLocationData]);
@@ -331,6 +344,7 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
+              camera_movement,
             );
           },
           selectedPulse,
@@ -352,6 +366,7 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
+              camera_movement,
             );
             return true;
           },
@@ -393,6 +408,7 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
+              camera_movement,
             );
           },
           updateTriggers: {
@@ -412,6 +428,7 @@ export default function MapVisualizationTrip({
     filteredLocationData,
     selectedPulse,
     displayPosition,
+    camera_movement,
   ]);
 
   // Handle errors and loading states
@@ -471,9 +488,10 @@ export default function MapVisualizationTrip({
           zoom_on_pin={zoom_on_pin}
           setViewState={setViewState}
           viewState={viewState}
-          mapBoxStyles={mapboxStyles}
           selectedStyle={mapStyle}
           setSelectedStyle={setMapStyle}
+          camera_movement={camera_movement}
+          setCameraMovement={setCameraMovement}
         />
       </div>
       <div className="absolute left-0 top-5 bg-white dark:bg-gray-800 rounded-r-full border-r border-y border-gray-400 dark:border-gray-700">

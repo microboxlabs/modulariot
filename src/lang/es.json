@@ -663,7 +663,9 @@
     "Continuous Resting Check": "Mínimo descanso requerido",
     "ascending": "Ascendente",
     "descending": "Descendente",
-    "treatments": "Tratamientos"
+    "treatments": "Tratamientos",
+    "message": "Mensaje",
+    "response": "Respuesta"
   },
   "geographic_view": {
     "speed": "Velocidad",

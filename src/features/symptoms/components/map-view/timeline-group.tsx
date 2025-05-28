@@ -11,6 +11,7 @@ import phoneIcon from "@assets/timeline/phone.svg";
 import messageIcon from "@assets/timeline/message-dots.svg";
 import Image from "next/image";
 import { useState } from "react";
+import { Tooltip } from "flowbite-react";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -293,12 +294,44 @@ export default function TimelineGroup({
                         {(dict.symptoms as I18nRecord).treatments as string}:
                       </p>
                       {subItem.treatments.map((treatment, index) => (
-                        <p key={index}>
-                          -{" "}
-                          {((dict.symptoms as I18nRecord)[
-                            treatment.treatment_type.toUpperCase()
-                          ] as string) ?? treatment.treatment_type}
-                        </p>
+                        <Tooltip
+                          key={index}
+                          style="auto"
+                          content={
+                            <div className="text-xs">
+                              <p className="font-medium">
+                                {
+                                  (dict.symptoms as I18nRecord)
+                                    .message as string
+                                }
+                                :
+                              </p>
+                              {treatment.description.message}
+
+                              {treatment.description.driver_response && (
+                                <>
+                                  <hr className="my-2 border-gray-200 dark:border-gray-700" />
+                                  <p className="font-medium">
+                                    {
+                                      (dict.symptoms as I18nRecord)
+                                        .response as string
+                                    }
+                                    :
+                                  </p>
+                                  {treatment.description.driver_response}
+                                </>
+                              )}
+                            </div>
+                          }
+                          placement="top"
+                        >
+                          <p>
+                            -{" "}
+                            {((dict.symptoms as I18nRecord)[
+                              treatment.treatment_type.toUpperCase()
+                            ] as string) ?? treatment.treatment_type}
+                          </p>
+                        </Tooltip>
                       ))}
                     </div>
                   )}

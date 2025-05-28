@@ -18,8 +18,18 @@ export interface ConditionsAgg {
   icu_condition: string | null;
   count: number;
   symptom_description: string;
-  treatments: any[];
+  treatments: TreatmentTimelineElement[];
   type: string;
+}
+
+export interface TreatmentTimelineElement {
+  treatment_type: string;
+  description: DescriptionTimelineElement;
+}
+
+export interface DescriptionTimelineElement {
+  driver_response: string;
+  message: string;
 }
 
 export interface TimelineItem {

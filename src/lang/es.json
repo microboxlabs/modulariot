@@ -36,12 +36,14 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
-        "transportValidation": "Validación de Conductor / transporte",
-        "transportValidationCompact": "Validación transporte",
+        "planning": "Planificado",
+        "planningCompact": "Planificado",
+        "assigned": "Asignado",
+        "assignedCompact": "Asignado",
+        "inPreparation": "En Preparación",
+        "inPreparationCompact": "En Preparación",
         "missionControlTripInit": "Torre de Control: Iniciar viaje",
         "missionControlTripInitCompact": "TC: Iniciar viaje",
-        "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
-        "overlordTripInitCompact": "Overlord - Iniciar viaje",
         "sovosDigitalSignature": "Firma Digital de SOVOS",
         "tripInitiatedOutside": "Viajes iniciados sin coordinación",
         "tripInitiatedOutsideCompact": "Viajes iniciados",

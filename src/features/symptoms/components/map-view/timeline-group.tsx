@@ -153,22 +153,20 @@ export default function TimelineGroup({
                   height={10}
                   className="w-4 h-4"
                 />
-                {
-                  item.conditions_agg?.filter(
-                    (subItem) =>
-                      subItem.treatments.length > 0 &&
-                      subItem.treatments.some(
-                        (treatment) =>
-                          treatment.treatment_type.toUpperCase() ===
-                            "CORREO ELECTRONICO" ||
-                          treatment.treatment_type.toUpperCase() ===
-                            "MENSAJE KAUSANA",
-                      ) &&
-                      /* (subItem.type === "CORREO ELECTRONICO" ||
-                        subItem.type === "MENSAJE KAUSANA") && */
-                      subItem.assigned_to,
-                  ).length
-                }
+                {item.conditions_agg?.reduce(
+                  (acc, subItem) =>
+                    acc +
+                    (subItem.treatments.length > 0
+                      ? subItem.treatments.filter(
+                          (treatment) =>
+                            treatment.treatment_type.toUpperCase() ===
+                              "CORREO ELECTRONICO" ||
+                            treatment.treatment_type.toUpperCase() ===
+                              "MENSAJE KAUSANA",
+                        ).length
+                      : 0),
+                  0,
+                )}
               </span>
               <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-1">
                 <Image
@@ -178,17 +176,18 @@ export default function TimelineGroup({
                   height={10}
                   className="w-4 h-4"
                 />
-                {
-                  item.conditions_agg?.filter(
-                    (subItem) =>
-                      subItem.treatments.length > 0 &&
-                      subItem.treatments.some(
-                        (treatment) =>
-                          treatment.treatment_type.toUpperCase() ===
-                          "LLAMAR AL CONDUCTOR",
-                      ),
-                  ).length
-                }
+                {item.conditions_agg?.reduce(
+                  (acc, subItem) =>
+                    acc +
+                    (subItem.treatments.length > 0
+                      ? subItem.treatments.filter(
+                          (treatment) =>
+                            treatment.treatment_type.toUpperCase() ===
+                            "LLAMAR AL CONDUCTOR",
+                        ).length
+                      : 0),
+                  0,
+                )}
               </span>
             </div>
           </div>

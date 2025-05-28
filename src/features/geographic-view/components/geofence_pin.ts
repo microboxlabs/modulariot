@@ -73,7 +73,7 @@ export class GeofencePinLayer extends CompositeLayer<any> {
 
     return [
       new IconLayer({
-        id: "IconLayer-pin",
+        id: "IconLayer-pin-flag",
         data: processedData,
         getIcon: (d: GeofencePinData) =>
           d.location_type === 1

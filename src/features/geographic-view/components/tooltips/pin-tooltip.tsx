@@ -87,11 +87,13 @@ export default function PinTooltip({
         </div>
         {object?.properties.associate_symptoms && (
           <div className="flex flex-wrap flex-col pt-1 text-red-500 dark:text-red-400">
-            {object?.properties.associate_symptoms.map((symptom: Symptom) => (
-              <div key={symptom.symptom_id} className="text-sm indent-2">
-                - {symptom.symptom_name}
-              </div>
-            ))}
+            {object?.properties.associate_symptoms.map(
+              (symptom: Symptom, index: number) => (
+                <div key={index} className="text-sm indent-2">
+                  - {symptom.symptom_name}
+                </div>
+              ),
+            )}
           </div>
         )}
         <hr className="my-2 border-gray-200 dark:border-gray-700" />

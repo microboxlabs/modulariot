@@ -1,21 +1,19 @@
 export type GetEntityInfoResponse = {
-  entity: string;
+  tipo_gps: string;
+  estado: string;
+  servicio: string;
+  is_active: boolean;
+  lng: number;
+  dispositivo_gps: string;
   source: string;
-  ultimo_name: string | null;
-  ultimo_fclass: string;
-  ultimo_velavg: number;
-  ultimo_clasreg: string;
-  ultimo_trip_id: string;
-  ultimo_duration_seg: string;
-  ultimo_last_ptofinal: {
-    type: string;
-    coordinates: [number, number];
-  };
-  avg_delay_gps_mbl_det: string;
-  avg_delay_gps_mbl_mov: string;
-  avg_every_signals_det: string;
-  avg_every_signals_mov: string;
+  speed: number;
+  nombre_oficial_gps: string;
+  avg_signals_per_minute_mov: number | null;
+  createdat: string;
+  avg_signals_per_minute_det: number | null;
   ultimo_last_timestamp: string;
-  avg_signals_per_minute_det: number;
-  avg_signals_per_minute_mov: number;
+  codigo_servicio: string | null;
+  tipo_servicio: string | null;
+  entity: string;
+  lat: number;
 };

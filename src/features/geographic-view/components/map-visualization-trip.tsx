@@ -60,7 +60,7 @@ export type ViewStateType = {
   width: number;
   height: number;
   transitionDuration?: number;
-  transitionInterpolator?: FlyToInterpolator;
+  transitionInterpolator?: FlyToInterpolator | LinearInterpolator;
   transitionEasing?: (t: number) => number;
 };
 
@@ -125,10 +125,12 @@ function zoom_on_pin(
       longitude,
       latitude,
       transitionDuration: 500,
-      transitionInterpolator: new FlyToInterpolator({
-        curve: 1,
-        speed: 1,
-      }),
+      transitionInterpolator: camera_movement
+        ? new FlyToInterpolator({
+            curve: 1,
+            speed: 1,
+          })
+        : new LinearInterpolator(),
       transitionEasing: (t: number) => t,
     };
 

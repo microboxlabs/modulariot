@@ -1,8 +1,8 @@
-import { useState, memo, useRef, useEffect } from "react";
+// import { useState, memo, useRef, useEffect } from "react";
 import { MapPosition } from "../../types/map";
 import { ViewStateType } from "../map-visualization-trip";
-import { HiChevronUp } from "react-icons/hi";
-import ReactEcharts from "echarts-for-react";
+// import { HiChevronUp } from "react-icons/hi";
+// import ReactEcharts from "echarts-for-react";
 
 type PulseRangeProps = {
   positions: MapPosition[];
@@ -199,9 +199,7 @@ function PulseRangeComponent({
 
   return (
     <div className="w-full h-full flex flex-col">
-      {
-        /*
-       
+      {/*       
         <div
           className={`w-full h-56 flex flex-row justify-center items-center gap-2 ${showChart ? "max-h-56" : "max-h-0"} transition-all duration-300 overflow-hidden`}
         >
@@ -213,8 +211,7 @@ function PulseRangeComponent({
             showLoading={positions.length === 0}
           />
         </div>
- */
-      }
+      */}
       <div className="w-full h-full flex flex-row justify-center items-center gap-2">
         <input
           type="range"
@@ -237,9 +234,8 @@ function PulseRangeComponent({
           }}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
         />
-        {
-          /*
-           <div
+        {/*
+          <div
             className="flex justify-center items-center cursor-pointer"
             onClick={() => setShowChart(!showChart)}
           >
@@ -247,16 +243,13 @@ function PulseRangeComponent({
               className={`text-gray-900 dark:text-gray-500 w-5 h-5 transition-transform ease-in-out duration-300 ${showChart ? "rotate-180" : ""}`}
             />
           </div>
-          */
-        }
-         
+        */}
       </div>
     </div>
   );
 }
 
 /*
-
 // Custom comparison function to only re-render when positions change
 const areEqual = (prevProps: PulseRangeProps, nextProps: PulseRangeProps) => {
   // Only re-render if positions array length or content changes

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { MapPosition } from "../../types/map";
 import { ViewStateType } from "../map-visualization-trip";
 import { MdGpsFixed, MdGpsNotFixed, MdOutlineTimeline } from "react-icons/md";
-import { FaMap, FaMapPin } from "react-icons/fa";
+import { FaMap } from "react-icons/fa";
 import SettingsIcon from "./settings-icon";
 import MapSelector from "./map-selector";
 import { mapstyles } from "../map-style-selector";
@@ -52,13 +52,11 @@ export default function ToolBar({
     }
   }, [open]);
 
-   
   useEffect(() => {
     if (selectedTool !== "timeline" && positions) {
       setDisplayPosition(positions.length - 1);
     }
   }, [selectedTool]);
-
 
   return (
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none">
@@ -100,7 +98,7 @@ export default function ToolBar({
         >
           <div className="flex flex-row gap-1">
             <div
-              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "mapSelection" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "mapSelection" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
               onClick={() => {
                 setSelectedTool(
                   selectedTool === "mapSelection" ? null : "mapSelection",
@@ -110,7 +108,7 @@ export default function ToolBar({
               <FaMap size={20} />
             </div>
             <div
-              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
               onClick={() =>
                 setSelectedTool(selectedTool === "timeline" ? null : "timeline")
               }
@@ -118,7 +116,7 @@ export default function ToolBar({
               <MdOutlineTimeline size={20} />
             </div>
           </div>
-          { /* Map toggles */ }
+          {/* Map toggles */}
           {/*
             <div className="flex flex-row gap-1">
               <div className="border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto"></div>
@@ -134,12 +132,12 @@ export default function ToolBar({
               </div>
             </div>
           */}
-          { /* Map toggles */ }
+          {/* Map toggles */}
 
-          { /* Action toggles */ }
+          {/* Action toggles */}
           <div className="flex flex-row gap-1">
             <div
-              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
               onClick={() => {
                 setCameraMovement(!camera_movement);
               }}
@@ -151,12 +149,9 @@ export default function ToolBar({
               )}
             </div>
           </div>
-          { /* Action toggles */ }
+          {/* Action toggles */}
         </div>
       </div>
     </div>
   );
 }
-
-// TODO:
-// WHEN CLOSING THE TIMELINE SELECTOR IN THE MAP, SET TIMELINE SELECTOR BACK TO THE LAST PULSE

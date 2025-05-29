@@ -231,11 +231,10 @@ export default function MapVisualization({
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           preserveDrawingBuffer={true}
         >
-
           <style jsx global>{`
             .mapboxgl-ctrl-logo {
               display: none !important;
-              }
+            }
           `}</style>
         </Map>
       </DeckGL>

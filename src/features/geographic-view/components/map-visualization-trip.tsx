@@ -21,12 +21,12 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
-import MapStyleSelector from "./map-style-selector";
+// import MapStyleSelector from "./map-style-selector";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import MapButton from "./map-button";
-import { BsSignStop } from "react-icons/bs";
+// import MapButton from "./map-button";
+// import { BsSignStop } from "react-icons/bs";
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
-  
+
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -206,7 +206,7 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
-  const [showStops, setShowStops] = useState(true);
+  const [showStops, _setShowStops] = useState(true);
 
   // Handle initial zoom when positions are loaded
   useEffect(() => {

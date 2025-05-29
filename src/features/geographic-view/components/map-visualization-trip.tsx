@@ -206,7 +206,6 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
-  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [showStops, setShowStops] = useState(true);
 
   // Handle initial zoom when positions are loaded

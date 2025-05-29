@@ -66,7 +66,7 @@ export interface MapPosition {
   signal_quality_status: string | null;
   movement_status: string | null;
   symptom_condition: string | null;
-  speed_limit_condition: string | null;
+  speed_limit_condition: number | null;
 }
 
 export interface PulsePropsInfo {

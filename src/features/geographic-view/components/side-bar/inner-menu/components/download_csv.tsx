@@ -20,7 +20,7 @@ function convertJSONToCSV(
 
   // Map JSON data to CSV rows
   const rows = jsonData
-    .map((row: MapPosition) => {
+    .map((row: any) => {
       const rowData = [...columnHeaders];
 
       if (row.symptom_condition) {

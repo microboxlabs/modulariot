@@ -1,7 +1,6 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "flowbite-react";
-import { useState } from "react";
 import { IconType } from "react-icons";
 import Image from "next/image";
 
@@ -15,6 +14,8 @@ type MapButtonType = {
   onClick?: () => void;
   activated?: boolean;
   hover_disabled?: boolean;
+  border?: string;
+  disable_label_after_click?: boolean;
 };
 
 export default function MapButton({
@@ -27,6 +28,8 @@ export default function MapButton({
   onClick,
   activated = false,
   hover_disabled = false,
+  disable_label_after_click = false,
+  border = "",
 }: MapButtonType) {
   const [expanded, set_expanded] = useState(false);
 
@@ -36,7 +39,7 @@ export default function MapButton({
     >
       <Button
         onClick={() => {
-          if (!hover_disabled) {
+          if (!hover_disabled && !disable_label_after_click) {
             set_expanded(false);
           }
           onClick?.();
@@ -50,11 +53,11 @@ export default function MapButton({
           set_expanded(false);
         }}
         color="gray"
-        className={`flex align-middle justify-center h-10 w-10 transition-transform duration-100 z-20 ${button_color} rounded-full`}
+        className={`flex items-center justify-center h-10 w-10 transition-transform duration-100 z-20 ${button_color} rounded-full ${border}`}
         theme={{
           base: "group relative flex items-stretch justify-center p-0 text-center font-medium transition-[color,background-color,border-color,text-decoration-color,fill,stroke,box-shadow] focus:z-10 focus:outline-none",
           color: {
-            gray: ":ring-cyan-700 border-gray-200 bg-white text-gray-900 focus:text-cyan-700 focus:ring-4 enabled:hover:bg-gray-100 enabled:hover:text-cyan-700 dark:border-gray-600 dark:bg-transparent dark:text-gray-400 dark:enabled:hover:bg-gray-700 dark:enabled:hover:text-white",
+            gray: ":ring-cyan-700 bg-white text-gray-900 focus:text-cyan-700 focus:ring-4 enabled:hover:bg-gray-100 enabled:hover:text-cyan-700 dark:bg-transparent dark:text-gray-400 dark:enabled:hover:bg-gray-700 dark:enabled:hover:text-white",
           },
           size: {
             md: "px-0 py-0 w-10 h-10 flex items-center justify-center",

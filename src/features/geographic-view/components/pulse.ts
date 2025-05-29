@@ -1,12 +1,5 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
 
-/*
-  1 observation
-  2 compromised
-  3 critical
-  4 code black
-*/
-
 function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
     case 0:
@@ -61,13 +54,34 @@ export class PulsePinLayer extends CompositeLayer<any> {
           }
         },
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) => d.geometry.coordinates,
+        getPosition: (d: any) =>
+          d.properties.speed > 0 ? d.geometry.coordinates : null,
+        parameters: {
+          depthTest: false,
+        },
+        pickable: true,
+        updateTriggers: {
+          getFillColor: [selectedPulse],
+          getPosition: [this.props.showStops],
+        },
+        getZIndex: 1000,
+      }) as Layer,
+      new ScatterplotLayer({
+        id: "ScatterPlotLayer-pulse-inner",
+        data: this.props.data.features,
+        getFillColor: () => [240, 50, 50, 255],
+        getRadius: 200000 / Math.pow(1.85, zoomLevel),
+        getPosition: (d: any) =>
+          d.properties.speed <= 0 && this.props.showStops
+            ? d.geometry.coordinates
+            : null,
         parameters: {
           depthTest: false,
         },
         pickable: true,
         updateTriggers: {
           getFillColor: [selectedPulse, displayPosition],
+          getPosition: [this.props.showStops],
         },
       }) as Layer,
       new ScatterplotLayer({
@@ -87,12 +101,16 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
         updateTriggers: {
           getFillColor: [selectedPulse],
+          getPosition: [this.props.showStops],
         },
       }) as Layer,
       new ScatterplotLayer({
         id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
-        getFillColor: (d: any) => getColor(d.properties.icu_code),
+        getFillColor: (d: any) =>
+          d.properties.speed > 0 || !this.props.showStops
+            ? getColor(d.properties.icu_code)
+            : [240, 50, 50, 255],
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
         getPosition: (d: any) => {
           if (selectedPulse.includes(d.properties.id)) {
@@ -105,7 +123,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
           depthTest: false,
         },
         updateTriggers: {
-          getFillColor: [selectedPulse],
+          getFillColor: [selectedPulse, this.props.showStops],
         },
       }) as Layer,
     ];

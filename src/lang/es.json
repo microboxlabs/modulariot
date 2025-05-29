@@ -90,7 +90,18 @@
         "Confirmar Entrega": "Confirmar Entrega",
         "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
         "compact": "Compactar",
-        "expand": "Expandir"
+        "expand": "Expandir",
+        "weight": "Peso",
+        "loads": "Bultos",
+        "volume": "Volumen",
+        "expeditionNumber": "N° de expedición",
+        "code": "Código",
+        "noLoads": "No hay cargas",
+        "kanban_movements": "Movimientos de Kanban",
+        "load_table": "Tabla de cargas",
+        "length": "Largo",
+        "width": "Ancho",
+        "height": "Alto"
       },
       "card": {
         "origin": "Origen",
@@ -191,7 +202,16 @@
         "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
         "write_here_your_observations": "Escribe aquí tus observaciones",
         "tripManifestParams": "Generación de la Carta de Porte",
-        "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador"
+        "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador",
+        "tipo_gps": "Tipo de GPS",
+        "estado": "Estado",
+        "is_active": "Activo",
+        "dispositivo_gps": "Dispositivo GPS",
+        "speed": "Velocidad",
+        "createdat": "Fecha de creación",
+        "nombre_oficial_gps": "Proovedor GPS",
+        "true": "Si",
+        "false": "No"
       },
       "outcome": {
         "moreOptions": "Más opciones",
@@ -589,6 +609,7 @@
     "days": "días",
     "ago": "Hace",
     "LLAMAR AL CONDUCTOR": "Llamar al conductor",
+    "IGNORAR CONDICION": "Ignorar condición",
     "RISK ZONE STOP": "Parada en zona de riesgo",
     "BAD SIGN": "Mala señal",
     "LOST SIGNAL": "Perdida de señal",
@@ -632,7 +653,17 @@
     "without_trip": "Sin viaje",
     "normal_speed": "Velocidad normal",
     "high_speed": "Velocidad grave",
-    "very_high_speed": "Velocidad gravísima"
+    "very_high_speed": "Velocidad gravísima",
+    "speed limit": "Límite de velocidad",
+    "Lost Signal": "Señal perdida",
+    "Speed Limit": "Límite de velocidad",
+    "Speed Limit Custom": "Límite de velocidad",
+    "Speed Limit Standard": "Límite de velocidad",
+    "Continuous Drive Check": "Conducción máxima continua",
+    "Continuous Resting Check": "Mínimo descanso requerido",
+    "ascending": "Ascendente",
+    "descending": "Descendente",
+    "treatments": "Tratamientos"
   },
   "geographic_view": {
     "speed": "Velocidad",
@@ -663,7 +694,9 @@
     "zone_names": "Zonas",
     "gps_provider": "Proveedor de GPS",
     "median_report_interval": "Frecuencia de reportabilidad",
-    "accumulated_time": "Tiempo de conducción"
+    "accumulated_time": "Tiempo de conducción",
+    "show_stops": "Mostrar paradas",
+    "hide_stops": "Ocultar paradas"
   },
   "release": {
     "other_versions": "Otras versiones"

@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
 import { MapPosition } from "../../types/map";
 import { ViewStateType } from "../map-visualization-trip";
-import { MdOutlineTimeline } from "react-icons/md";
+import { MdGpsFixed, MdGpsNotFixed, MdOutlineTimeline } from "react-icons/md";
 import { FaMap, FaMapPin } from "react-icons/fa";
 import SettingsIcon from "./settings-icon";
 import MapSelector from "./map-selector";
 import { mapstyles } from "../map-style-selector";
 import PulseRange from "./pulse-range";
-import {
-  BsFillCameraVideoFill,
-  BsFillCameraVideoOffFill,
-} from "react-icons/bs";
 
 type ToolBarProps = {
   positions: MapPosition[] | null;
@@ -55,6 +51,14 @@ export default function ToolBar({
       setSelectedTool(null);
     }
   }, [open]);
+
+   
+  useEffect(() => {
+    if (selectedTool !== "timeline" && positions) {
+      setDisplayPosition(positions.length - 1);
+    }
+  }, [selectedTool]);
+
 
   return (
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none">
@@ -114,19 +118,25 @@ export default function ToolBar({
               <MdOutlineTimeline size={20} />
             </div>
           </div>
-          <div className="flex flex-row gap-1">
-            <div className="border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto"></div>
-            <div
-              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-            >
-              <FaMapPin size={20} />
+          { /* Map toggles */ }
+          {/*
+            <div className="flex flex-row gap-1">
+              <div className="border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto"></div>
+              <div
+                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              >
+                <FaMapPin size={20} />
+              </div>
+              <div
+                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+              >
+                <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
+              </div>
             </div>
-            <div
-              className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-            >
-              <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
-            </div>
-          </div>
+          */}
+          { /* Map toggles */ }
+
+          { /* Action toggles */ }
           <div className="flex flex-row gap-1">
             <div
               className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
@@ -135,12 +145,13 @@ export default function ToolBar({
               }}
             >
               {camera_movement ? (
-                <BsFillCameraVideoFill size={20} />
+                <MdGpsFixed size={20} />
               ) : (
-                <BsFillCameraVideoOffFill size={20} />
+                <MdGpsNotFixed size={20} />
               )}
             </div>
           </div>
+          { /* Action toggles */ }
         </div>
       </div>
     </div>

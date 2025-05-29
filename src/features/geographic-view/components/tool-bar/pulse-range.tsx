@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useRef, useEffect } from "react";
 import { MapPosition } from "../../types/map";
 import { ViewStateType } from "../map-visualization-trip";
 import { HiChevronUp } from "react-icons/hi";
@@ -31,7 +31,9 @@ function PulseRangeComponent({
   viewState,
   camera_movement,
 }: PulseRangeProps) {
+  /*
   const [showChart, setShowChart] = useState<boolean>(false);
+  const chartRef = useRef<any>();
 
   const data = positions.map((position) => {
     return {
@@ -94,11 +96,11 @@ function PulseRangeComponent({
     dataZoom: [
       {
         type: "inside",
-        start: 0,
+        start: 95,
         end: 100,
       },
       {
-        start: 0,
+        start: 95,
         end: 100,
       },
     ],
@@ -106,65 +108,113 @@ function PulseRangeComponent({
       {
         name: "Speed",
         type: "line",
-        smooth: true,
-        symbol: "circle",
-        symbolSize: 4,
-        sampling: "average",
-        areaStyle: {
-          opacity: 0.1,
+        showSymbol: false,
+        encode: {
+          x: "Year",
+          y: "Income",
+          itemName: "Year",
+          tooltip: ["Income"],
         },
+        smooth: true,
         data: data.map((item, index) => ({
           value: [item.hour, item.speed],
           itemStyle: {
             color: index === displayPosition ? "#ff0000" : undefined,
           },
         })),
-        emphasis: {
-          scale: true,
-          focus: "series",
-          itemStyle: {
-            color: "#ff0000",
-          },
-        },
       },
     ],
   };
 
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    const echartsInstance = chartRef.current.getEchartsInstance();
+    const zr = echartsInstance.getZr();
+
+    zr.on("click", function (params: any) {
+      const mouseX = params.offsetX;
+      const mouseY = params.offsetY;
+
+      // Get the chart's coordinate system
+      const chartWidth = echartsInstance.getWidth();
+      const chartHeight = echartsInstance.getHeight();
+
+      // Convert all data points to pixel coordinates
+      let closestIndex = -1;
+      let minPixelDistance = Infinity;
+
+      data.forEach((item, index) => {
+        // Convert data point to pixel coordinates
+        const pixelCoords = echartsInstance.convertToPixel({ seriesIndex: 0 }, [
+          new Date(item.hour).getTime(),
+          item.speed,
+        ]);
+
+        if (pixelCoords) {
+          // Calculate pixel distance from mouse to this point
+          const dx = mouseX - pixelCoords[0];
+          const dy = mouseY - pixelCoords[1];
+          const pixelDistance = Math.sqrt(dx * dx + dy * dy);
+
+          if (pixelDistance < minPixelDistance) {
+            minPixelDistance = pixelDistance;
+            closestIndex = index;
+          }
+        }
+      });
+
+      // Only update if we found a point within a reasonable pixel distance
+      if (closestIndex !== -1 && minPixelDistance < 50) {
+        // 50 pixel threshold
+        setDisplayPosition(closestIndex);
+        zoom_on_pin(
+          positions[closestIndex]?.longitude ?? 0,
+          positions[closestIndex]?.latitude ?? 0,
+          false,
+          setViewState,
+          viewState,
+          camera_movement,
+          10,
+        );
+      }
+    });
+
+    // Cleanup
+    return () => {
+      if (zr) {
+        zr.off("click");
+      }
+    };
+  }, [
+    data,
+    positions,
+    setDisplayPosition,
+    zoom_on_pin,
+    setViewState,
+    viewState,
+    camera_movement,
+  ]);
+  */
+
   return (
     <div className="w-full h-full flex flex-col">
-      <div
-        className={`w-full h-56 flex flex-row justify-center items-center gap-2 ${showChart ? "max-h-56" : "max-h-0"} transition-all duration-300 overflow-hidden`}
-      >
-        <ReactEcharts
-          option={options}
-          style={{ height: "100%", width: "100%" }}
-          opts={{ renderer: "canvas" }}
-          onEvents={{
-            click: (params: any) => {
-              if (params.componentType === "series") {
-                const clickedIndex = data.findIndex(
-                  (item) =>
-                    item.hour === params.value[0] &&
-                    item.speed === params.value[1],
-                );
-
-                if (clickedIndex !== -1) {
-                  setDisplayPosition(clickedIndex);
-                  zoom_on_pin(
-                    positions[clickedIndex]?.longitude ?? 0,
-                    positions[clickedIndex]?.latitude ?? 0,
-                    false,
-                    setViewState,
-                    viewState,
-                    camera_movement,
-                    10,
-                  );
-                }
-              }
-            },
-          }}
-        />
-      </div>
+      {
+        /*
+       
+        <div
+          className={`w-full h-56 flex flex-row justify-center items-center gap-2 ${showChart ? "max-h-56" : "max-h-0"} transition-all duration-300 overflow-hidden`}
+        >
+          <ReactEcharts
+            ref={chartRef}
+            option={options}
+            style={{ height: "100%", width: "100%" }}
+            opts={{ renderer: "canvas" }}
+            showLoading={positions.length === 0}
+          />
+        </div>
+ */
+      }
       <div className="w-full h-full flex flex-row justify-center items-center gap-2">
         <input
           type="range"
@@ -187,18 +237,25 @@ function PulseRangeComponent({
           }}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
         />
-        <div
-          className="flex justify-center items-center cursor-pointer"
-          onClick={() => setShowChart(!showChart)}
-        >
-          <HiChevronUp
-            className={`text-gray-900 dark:text-gray-500 w-5 h-5 transition-transform ease-in-out duration-300 ${showChart ? "rotate-180" : ""}`}
-          />
-        </div>
+        {
+          /*
+           <div
+            className="flex justify-center items-center cursor-pointer"
+            onClick={() => setShowChart(!showChart)}
+          >
+            <HiChevronUp
+              className={`text-gray-900 dark:text-gray-500 w-5 h-5 transition-transform ease-in-out duration-300 ${showChart ? "rotate-180" : ""}`}
+            />
+          </div>
+          */
+        }
+         
       </div>
     </div>
   );
 }
+
+/*
 
 // Custom comparison function to only re-render when positions change
 const areEqual = (prevProps: PulseRangeProps, nextProps: PulseRangeProps) => {
@@ -221,3 +278,6 @@ const areEqual = (prevProps: PulseRangeProps, nextProps: PulseRangeProps) => {
 
 // Export the memoized component
 export default memo(PulseRangeComponent, areEqual);
+*/
+
+export default PulseRangeComponent;

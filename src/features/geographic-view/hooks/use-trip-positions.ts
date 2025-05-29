@@ -17,6 +17,8 @@ export function useTripPositions(tripId: string, assetId: string) {
             `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
           );
 
+          console.log("eventSource:", eventSource);
+
           eventSource.onopen = () => {
             setIsLoading(true);
           };

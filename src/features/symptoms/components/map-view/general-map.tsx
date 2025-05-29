@@ -9,30 +9,27 @@ import MapVisualizationTrip from "@/features/geographic-view/components/map-visu
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
 import { useState } from "react";
-import {
-  TreatmentsGeneralResponseItem,
-  TreatmentsTimelineResponse,
-} from "@/app/api/treatments/general/route.type";
-
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
 /* import icuConditions from "@/features/symptoms/model/icu_condition.json"; */
 import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
-import TitleCardSkeleton from "./title-card-skeleton";
+import { ConditionsAgg } from "../../types/timeline";
+import { useRouter } from "next/navigation";
+
 export default function GeneralMap({
   dict,
-  lang,
   id,
   tripId,
   assetId,
 }: {
   dict: I18nRecord;
-  lang: string;
   id: string;
   tripId?: string;
   assetId?: string;
 }) {
+  const router = useRouter();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
     assetId ?? "",
@@ -47,7 +44,7 @@ export default function GeneralMap({
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
-    useState<TreatmentsTimelineResponse | null>(null);
+    useState<ConditionsAgg | null>(null);
 
   const {
     data: filteredLocationData,
@@ -80,136 +77,160 @@ export default function GeneralMap({
     return <div>Error: {error.message}</div>;
   }
 
+  if (
+    !isLoading &&
+    !loading &&
+    !treatmentData?.timeline &&
+    positions?.length == 0
+  ) {
+    router.push("/not-found");
+    return null;
+  }
   return (
     <>
-      {loading ? (
-        <TitleCardSkeleton />
-      ) : (
-        <div
-          className={`mx-2 mb-2 relative flex flex-col gap-10 ${
-            ["3", "4"].includes(
-              treatmentData?.symptom_info?.icu_code?.toString() ?? "",
-            )
-              ? "animate-shadow-toggle"
-              : ""
-          } rounded-lg`}
+      <div
+        className={`mx-2 mb-2 relative flex flex-col gap-10 ${
+          ["3", "4"].includes(
+            treatmentData?.symptom_info?.icu_code?.toString() ?? "",
+          )
+            ? "animate-shadow-toggle"
+            : ""
+        } rounded-lg`}
+      >
+        <Card
+          className="flex flex-row"
+          color="white"
+          theme={{
+            root: {
+              children: "p-2 w-full",
+            },
+          }}
         >
-          <Card
-            className="flex flex-row"
-            color="white"
-            theme={{
-              root: {
-                children: "p-2 w-full",
-              },
-            }}
-          >
-            <div className="flex flex-row gap-2 items-center justify-center w-full">
+          <div className="flex flex-row gap-2 items-center justify-center w-full">
+            {loading ? (
+              <div className="w-8 h-8 bg-gray-400 dark:bg-gray-600 animate-pulse rounded-full" />
+            ) : (
+              <Image
+                className="w-8 h-8"
+                src={
+                  titles[
+                    treatmentData?.symptom_info
+                      ?.icu_code as unknown as keyof typeof titles
+                  ]?.icon
+                }
+                alt="Síntomas"
+                width={50}
+                height={50}
+              />
+            )}
+            <h1
+              className={`flex flex-row gap-1 text-lg font-bold tracking-tight whitespace-nowrap ${"text-gray-900 dark:text-white"}`}
+            >
+              {(dict.symptoms as I18nRecord).symptom as string}:{" "}
               {loading ? (
-                <div className="w-8 h-8 bg-gray-400 dark:bg-gray-600 animate-pulse rounded-md" />
+                <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                  loading example text
+                </div>
               ) : (
-                <Image
-                  className="w-8 h-8"
-                  src={
-                    titles[
-                      treatmentData?.symptom_info
-                        ?.icu_code as unknown as keyof typeof titles
-                    ]?.icon
-                  }
-                  alt="Síntomas"
-                  width={50}
-                  height={50}
-                />
+                ((dict.symptoms as I18nRecord)?.[
+                  treatmentData?.symptom_info?.name?.toUpperCase() as string
+                ] as string) || treatmentData?.symptom_info?.name
               )}
-              <h1
-                className={`text-lg font-bold tracking-tight whitespace-nowrap ${
-                  loading
-                    ? "bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md"
-                    : "text-gray-900 dark:text-white"
-                }`}
-              >
-                {(dict.symptoms as I18nRecord).symptom as string}:{" "}
-                {loading
-                  ? "Estado critico"
-                  : ((dict.symptoms as I18nRecord)?.[
-                      treatmentData?.symptom_info?.name?.toUpperCase() as string
-                    ] as string) || treatmentData?.symptom_info?.name}
-                {/* {" - "} {(
-                  (dict.symptoms as I18nRecord)[
-                    icuConditions[
-                      ("" +
-                        treatmentData?.symptom_info
-                          ?.icu_code) as unknown as keyof typeof icuConditions
-                    ]?.toLowerCase() as string
-                  ] as string
-                )?.trim() || treatmentData?.symptom_info?.icu_code} */}
-              </h1>
-              <div className="flex align-middle mx-2 gap-1 flex-grow">
-                <TagManager
-                  tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
-                  tags={[
-                    {
-                      text: treatmentData?.symptom_info?.icu_code
-                        ? ((dict.symptoms as I18nRecord)[
-                            titles[
-                              treatmentData?.symptom_info?.icu_code.toString() as keyof typeof titles
-                            ].title
-                          ] as string)
-                        : "Unknown Symptom",
-                    },
-                    {
-                      text:
-                        (dict.symptoms as I18nRecord).license_plate +
-                        ": " +
-                        treatmentData?.trip_info?.asset_id,
-                      icon: (
-                        <FaTruck className="text-gray-900 dark:text-white" />
-                      ),
-                    },
-                    {
-                      text:
-                        (dict.symptoms as I18nRecord).route +
+            </h1>
+            <div className="flex align-middle mx-2 gap-1 flex-grow">
+              <TagManager
+                tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
+                tags={[
+                  {
+                    text: treatmentData?.symptom_info?.icu_code ? (
+                      ((dict.symptoms as I18nRecord)[
+                        titles[
+                          treatmentData?.symptom_info?.icu_code.toString() as keyof typeof titles
+                        ].title
+                      ] as string)
+                    ) : (
+                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                        ejemplo
+                      </div>
+                    ),
+                  },
+                  {
+                    text: treatmentData?.trip_info?.asset_id ? (
+                      ((dict.symptoms as I18nRecord).license_plate as string) +
+                      ": " +
+                      treatmentData?.trip_info?.asset_id
+                    ) : (
+                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                        ejemplo
+                      </div>
+                    ),
+                    icon: <FaTruck className="text-gray-900 dark:text-white" />,
+                  },
+                  {
+                    text:
+                      treatmentData?.trip_info?.origin &&
+                      treatmentData?.trip_info?.destination ? (
+                        ((dict.symptoms as I18nRecord).route as string) +
                         ": " +
                         treatmentData?.trip_info?.origin +
                         " - " +
-                        treatmentData?.trip_info?.destination,
-                      icon: (
-                        <FaMapPin className="text-gray-900 dark:text-white" />
+                        treatmentData?.trip_info?.destination
+                      ) : (
+                        <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                          ejemplo
+                        </div>
                       ),
-                    },
-                    {
-                      text: treatmentData?.trip_info?.driver,
-                      icon: (
-                        <FaUser className="text-gray-900 dark:text-white" />
-                      ),
-                    },
-                    {
-                      text: treatmentData?.trip_info?.driver2,
-                      icon: (
-                        <FaUser className="text-gray-900 dark:text-white" />
-                      ),
-                    },
-                    {
-                      text: "Trip id: " + treatmentData?.trip_info?.trip_id,
-                    },
-                    {
-                      text:
-                        ((dict.symptoms as I18nRecord).transporter as string) +
-                        ": " +
-                        treatmentData?.trip_info?.carrier,
-                    },
-                  ]}
-                />
-              </div>
+                    icon: (
+                      <FaMapPin className="text-gray-900 dark:text-white" />
+                    ),
+                  },
+                  {
+                    text: treatmentData?.trip_info?.driver ? (
+                      treatmentData?.trip_info?.driver
+                    ) : (
+                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                        ejemplo
+                      </div>
+                    ),
+                    icon: <FaUser className="text-gray-900 dark:text-white" />,
+                  },
+                  {
+                    text:
+                      treatmentData?.trip_info?.driver2 ??
+                      treatmentData?.trip_info?.driver2,
+                    icon: <FaUser className="text-gray-900 dark:text-white" />,
+                  },
+                  {
+                    text: treatmentData?.trip_info?.trip_id ? (
+                      "Trip id: " + treatmentData?.trip_info?.trip_id
+                    ) : (
+                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                        ejemplo
+                      </div>
+                    ),
+                  },
+                  {
+                    text: treatmentData?.trip_info?.carrier ? (
+                      ((dict.symptoms as I18nRecord).transporter as string) +
+                      ": " +
+                      treatmentData?.trip_info?.carrier
+                    ) : (
+                      <div className="bg-gray-400 dark:bg-gray-600 text-gray-400 dark:text-gray-600 animate-pulse rounded-md">
+                        ejemplo
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             </div>
-          </Card>
-        </div>
-      )}
+          </div>
+        </Card>
+      </div>
       <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
         {/* Side information */}
         <div className="w-[35%] h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
           <SideInfo
             dict={dict}
-            lang={lang}
             treatmentData={treatmentData}
             loading={loading}
             error={errorTreatments}
@@ -227,6 +248,8 @@ export default function GeneralMap({
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
+            setSelectedTreatment={setSelectedTreatment}
+            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />
         </div>
       </div>

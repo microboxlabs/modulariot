@@ -51,7 +51,7 @@ export default function MapStyleSelector({
   const [open, setOpen] = useState(false);
   return (
     <div
-      className="absolute bottom-5 left-5 flex flex-row space-x-[-2.5rem] hover:space-x-2 transition-all duration-300 cursor-pointer"
+      className="flex flex-row space-x-[-2.5rem] hover:space-x-2 transition-all duration-300 cursor-pointer"
       onClick={() => {
         if (!open) {
           setOpen(!open);

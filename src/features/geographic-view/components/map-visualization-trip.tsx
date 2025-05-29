@@ -21,7 +21,12 @@ import PulseTooltip, {
   PulseType,
 } from "./tooltips/pulse-tooltip";
 import ToolBar from "./tool-bar/tool-bar";
-
+import MapStyleSelector from "./map-style-selector";
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import MapButton from "./map-button";
+import { BsSignStop } from "react-icons/bs";
+import { ConditionsAgg } from "@/features/symptoms/types/timeline";
+  
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -97,6 +102,10 @@ type MapVisualizationProps = {
   };
   filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
+  setSelectedTreatment?: (
+    treatment: TreatmentsGeneralResponseItem | null,
+  ) => void;
+  setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
 };
 
 type GeometryFeature = {
@@ -171,6 +180,8 @@ export default function MapVisualizationTrip({
   averagePosition,
   filteredLocationData,
   dict,
+  setSelectedTreatment,
+  setSelectedTreatmentIndex,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -195,6 +206,8 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
+  const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
+  const [showStops, setShowStops] = useState(true);
 
   // Handle initial zoom when positions are loaded
   useEffect(() => {
@@ -242,7 +255,9 @@ export default function MapVisualizationTrip({
     [positions],
   );
 
-  useMemo(() => {
+  useEffect(() => {
+    if (!filteredLocationData || !positions) return;
+
     // Create a set of matching position indices
     const matchingIndices = new Set<number>();
     if (filteredLocationData && positions) {
@@ -273,7 +288,12 @@ export default function MapVisualizationTrip({
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
-    if (!geofence_data?.data || geofence_data?.data.length === 0) return null;
+    if (
+      !geofence_data?.data ||
+      !geofence_data?.data.length ||
+      geofence_data?.data.length === 0
+    )
+      return null;
 
     try {
       // Process all geofences into features, filtering out null locations
@@ -326,16 +346,13 @@ export default function MapVisualizationTrip({
           data: geoJson,
           rotation,
           zoom: viewState.zoom,
-          updateTriggers: {
-            data: positions,
-            selectedPulse,
-          },
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
             if (info.viewport) {
               info.x = info.viewport.width / 2;
               info.y = info.viewport.height / 2;
             }
+
             setHoverInfo(info);
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : [],
@@ -348,9 +365,19 @@ export default function MapVisualizationTrip({
               viewState,
               camera_movement,
             );
+            if (setSelectedTreatment && setSelectedTreatmentIndex) {
+              setSelectedTreatment(null);
+              setSelectedTreatmentIndex(null);
+            }
           },
           selectedPulse,
           displayPosition,
+          showStops,
+          updateTriggers: {
+            data: positions,
+            selectedPulse,
+            showStops,
+          },
         }),
       );
     }
@@ -431,6 +458,7 @@ export default function MapVisualizationTrip({
     selectedPulse,
     displayPosition,
     camera_movement,
+    showStops,
   ]);
 
   // Handle errors and loading states
@@ -469,12 +497,47 @@ export default function MapVisualizationTrip({
           `}</style>
         </Map>
       </DeckGL>
+      {/*
+      <div className="absolute bottom-10 left-5 z-40 flex flex-col gap-2">
+        <MapButton
+          main_color="bg-white dark:bg-gray-800"
+          button_color="bg-white dark:bg-gray-800"
+          border={
+            showStops ? "border-2 border-gray-700 dark:border-gray-300" : ""
+          }
+          icon={BsSignStop}
+          text={
+            showStops
+              ? (((dict as I18nRecord).geographic_view as I18nRecord)
+                  .hide_stops as string)
+              : (((dict as I18nRecord).geographic_view as I18nRecord)
+                  .show_stops as string)
+          }
+          open_to_left={false}
+          onClick={() => {
+            setShowStops(!showStops);
+          }}
+          disable_label_after_click={true}
+        />
+        <MapStyleSelector
+          dict={dict}
+          selectedStyle={mapStyle}
+          setSelectedStyle={setMapStyle}
+        />
+      </div>
+      */}
       {hoverInfo && (
         <MapTooltip
           left={hoverInfo.x}
           top={hoverInfo.y}
           setHoverInfo={setHoverInfo}
-          onExitAction={() => setSelectedPulse([])}
+          onExitAction={() => {
+            setSelectedPulse([]);
+            if (setSelectedTreatment && setSelectedTreatmentIndex) {
+              setSelectedTreatment(null);
+              setSelectedTreatmentIndex(null);
+            }
+          }}
         >
           <PulseTooltip
             object={hoverInfo.object as PulseListType | PulseType}

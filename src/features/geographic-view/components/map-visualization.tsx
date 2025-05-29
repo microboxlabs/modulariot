@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
@@ -147,7 +147,6 @@ export default function MapVisualization({
 
   useEffect(() => {
     if (mapPositions) {
-      console.log(mapPositions[0]);
       setPositions(mapPositions);
       setOriginalPositions(mapPositions); // Store original unfiltered positions
     }
@@ -213,13 +212,17 @@ export default function MapVisualization({
     }),
   ];
 
+  const handleViewStateChange = useCallback((e: any) => {
+    setViewState(e.viewState);
+  }, []);
+
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
         initialViewState={viewState}
         controller={true}
         layers={layers}
-        onViewStateChange={(e: any) => setViewState(e.viewState)}
+        onViewStateChange={handleViewStateChange}
         getCursor={({ isDragging, isHovering }) => {
           if (isDragging) return "grabbing";
           if (isHovering) return "pointer";
@@ -238,17 +241,21 @@ export default function MapVisualization({
           `}</style>
         </Map>
       </DeckGL>
-      <MapStyleSelector
-        dict={dict}
-        selectedStyle={mapStyle}
-        setSelectedStyle={setMapStyle}
-      />
-      <div className="absolute left-0 top-0 bottom-0 z-40">
-        <Filters
+      <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
+        <MapStyleSelector
           dict={dict}
-          originalPositions={originalPositions}
-          setPositions={setPositions}
+          selectedStyle={mapStyle}
+          setSelectedStyle={setMapStyle}
         />
+      </div>
+      <div className="absolute left-0 top-0 bottom-0 z-40 pointer-events-none">
+        <div className="pointer-events-auto">
+          <Filters
+            dict={dict}
+            originalPositions={originalPositions}
+            setPositions={setPositions}
+          />
+        </div>
       </div>
       <div className="absolute right-0 top-0 bottom-0 ">
         {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (

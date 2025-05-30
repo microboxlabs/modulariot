@@ -86,12 +86,23 @@ export default function PageContent({
     data: searchTasksData,
     error: searchTasksError,
     isLoading: _2,
-  } = useSearchTasks(searchParams.get("search"));
+  } = useSearchTasks(showFinishedTasks ? null : searchParams.get("search"));
 
   const { data: _3, error: taskCountError } = useMyTasksCount();
 
   useEffect(() => {
-    if (searchTasksData) {
+    if (showFinishedTasks && searchParams.get("search") && myTasksData) {
+      const newBoards = list.map((board) => ({
+        ...board,
+        tasks:
+          myTasksData.data[board.title]?.tasks.filter((task) =>
+            task.name
+              .toLowerCase()
+              .includes(searchParams.get("search")?.toLowerCase() ?? ""),
+          ) ?? [],
+      }));
+      setList(newBoards);
+    } else if (searchTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
         tasks: searchTasksData.data[board.title]?.tasks ?? [],
@@ -105,7 +116,7 @@ export default function PageContent({
 
       setList(newBoards);
     }
-  }, [searchTasksData, myTasksData, page]);
+  }, [searchTasksData, myTasksData, page, searchParams.get("search")]);
 
   if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
     router.replace(`/${lang}/sign-in`);

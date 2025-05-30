@@ -4,7 +4,13 @@ import HomeIcon from "@/features/icons/home";
 import { SidebarItem } from "../types/common.types";
 
 export const pages: SidebarItem[] = [
-  { href: "/", icon: HomeIcon, label: "home", totals: {} },
+  {
+    href: "/",
+    icon: HomeIcon,
+    label: "home",
+    totals: {},
+    requiredGroups: [], // Public route
+  },
   {
     icon: ClipboardIcon,
     label: "tasks",
@@ -23,11 +29,13 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
+        requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
       },
       {
         href: "/finished",
         label: "finished",
         totals: {},
+        requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
       },
       // {
       //   href: "/others",
@@ -36,6 +44,7 @@ export const pages: SidebarItem[] = [
       // },
     ],
     totals: {},
+    requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
   },
   {
     href: "/reports",
@@ -49,11 +58,13 @@ export const pages: SidebarItem[] = [
             href: "/geographic-view",
             label: "geographicView",
             totals: {},
+            requiredGroups: ["GEOGRAPHIC_VIEW_ADMIN", "GEOGRAPHIC_VIEW_USER"]
           },
           {
             href: "/symptoms",
             label: "symptoms",
             totals: {},
+            requiredGroups: ["SYMPTOMS_ADMIN", "SYMPTOMS_USER"]
           },
         ]
         : []),
@@ -61,5 +72,6 @@ export const pages: SidebarItem[] = [
     /* eslint-enable */
 
     totals: {},
+    requiredGroups: ["REPORTS_ADMIN", "REPORTS_USER"],
   },
 ];

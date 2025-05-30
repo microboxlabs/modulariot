@@ -303,9 +303,11 @@ export default function TimelineGroup({
                                   (dict.symptoms as I18nRecord)
                                     .message as string
                                 }
-                                :
+                                :{" "}
+                                <span className="font-light">
+                                  {treatment.description.message}
+                                </span>
                               </p>
-                              {treatment.description.message}
 
                               {treatment.description.driver_response && (
                                 <>
@@ -315,16 +317,18 @@ export default function TimelineGroup({
                                       (dict.symptoms as I18nRecord)
                                         .response as string
                                     }
-                                    :
+                                    :{" "}
+                                    <span className="font-light">
+                                      {treatment.description.driver_response}
+                                    </span>
                                   </p>
-                                  {treatment.description.driver_response}
                                 </>
                               )}
                             </div>
                           }
                           placement="top"
                         >
-                          <p>
+                          <p className="hover:underline">
                             -{" "}
                             {((dict.symptoms as I18nRecord)[
                               treatment.treatment_type.toUpperCase()

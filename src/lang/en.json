@@ -654,7 +654,9 @@
     "Continuous Resting Check": "Continuous resting check",
     "ascending": "Ascending",
     "descending": "Descending",
-    "treatments": "Treatments"
+    "treatments": "Treatments",
+    "message": "Message",
+    "response": "Response"
   },
   "geographic_view": {
     "speed": "Speed",

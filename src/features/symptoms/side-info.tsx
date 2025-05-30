@@ -11,7 +11,8 @@ import { useTreatmentsTemplates } from "../common/providers/client-api.provider"
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import TimelineComponent from "./components/map-view/timeline";
 import { FaClock } from "react-icons/fa";
-import { HiMiniArrowPathRoundedSquare } from "react-icons/hi2";
+//import { HiMiniArrowPathRoundedSquare } from "react-icons/hi2";
+import { TbSortAscendingShapes, TbSortDescendingShapes } from "react-icons/tb";
 import { ConditionsAgg } from "./types/timeline";
 export default function SideInfo({
   dict,
@@ -95,9 +96,18 @@ export default function SideInfo({
               className="h-6 w-6 p-1 mr-1 hover:bg-gray-100 hover:cursor-pointer dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md"
               onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
             >
-              <HiMiniArrowPathRoundedSquare
+              {order === "asc" ? (
+                <TbSortAscendingShapes
+                  className={`h-5 w-5 transition-all duration-200 ${order === "asc" ? "rotate-180" : ""}`}
+                />
+              ) : (
+                <TbSortDescendingShapes
+                  className={`h-5 w-5 transition-all duration-200 ${order === "desc" ? "rotate-180" : ""}`}
+                />
+              )}
+              {/*<HiMiniArrowPathRoundedSquare
                 className={`h-5 w-5 transition-all duration-200 ${order === "asc" ? "rotate-180" : ""}`}
-              />
+              /> */}
             </div>
           </Tooltip>
         </div>

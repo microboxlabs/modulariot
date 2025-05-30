@@ -11,6 +11,7 @@ import phoneIcon from "@assets/timeline/phone.svg";
 import messageIcon from "@assets/timeline/message-dots.svg";
 import Image from "next/image";
 import { useState } from "react";
+import { Tooltip } from "flowbite-react";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -152,22 +153,20 @@ export default function TimelineGroup({
                   height={10}
                   className="w-4 h-4"
                 />
-                {
-                  item.conditions_agg?.filter(
-                    (subItem) =>
-                      subItem.treatments.length > 0 &&
-                      subItem.treatments.some(
-                        (treatment) =>
-                          treatment.treatment_type.toUpperCase() ===
-                            "CORREO ELECTRONICO" ||
-                          treatment.treatment_type.toUpperCase() ===
-                            "MENSAJE KAUSANA",
-                      ) &&
-                      /* (subItem.type === "CORREO ELECTRONICO" ||
-                        subItem.type === "MENSAJE KAUSANA") && */
-                      subItem.assigned_to,
-                  ).length
-                }
+                {item.conditions_agg?.reduce(
+                  (acc, subItem) =>
+                    acc +
+                    (subItem.treatments.length > 0
+                      ? subItem.treatments.filter(
+                          (treatment) =>
+                            treatment.treatment_type.toUpperCase() ===
+                              "CORREO ELECTRONICO" ||
+                            treatment.treatment_type.toUpperCase() ===
+                              "MENSAJE KAUSANA",
+                        ).length
+                      : 0),
+                  0,
+                )}
               </span>
               <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-1">
                 <Image
@@ -177,17 +176,18 @@ export default function TimelineGroup({
                   height={10}
                   className="w-4 h-4"
                 />
-                {
-                  item.conditions_agg?.filter(
-                    (subItem) =>
-                      subItem.treatments.length > 0 &&
-                      subItem.treatments.some(
-                        (treatment) =>
-                          treatment.treatment_type.toUpperCase() ===
-                          "LLAMAR AL CONDUCTOR",
-                      ),
-                  ).length
-                }
+                {item.conditions_agg?.reduce(
+                  (acc, subItem) =>
+                    acc +
+                    (subItem.treatments.length > 0
+                      ? subItem.treatments.filter(
+                          (treatment) =>
+                            treatment.treatment_type.toUpperCase() ===
+                            "LLAMAR AL CONDUCTOR",
+                        ).length
+                      : 0),
+                  0,
+                )}
               </span>
             </div>
           </div>
@@ -293,12 +293,48 @@ export default function TimelineGroup({
                         {(dict.symptoms as I18nRecord).treatments as string}:
                       </p>
                       {subItem.treatments.map((treatment, index) => (
-                        <p key={index}>
-                          -{" "}
-                          {((dict.symptoms as I18nRecord)[
-                            treatment.treatment_type.toUpperCase()
-                          ] as string) ?? treatment.treatment_type}
-                        </p>
+                        <Tooltip
+                          key={index}
+                          style="auto"
+                          content={
+                            <div className="text-xs">
+                              <p className="font-medium">
+                                {
+                                  (dict.symptoms as I18nRecord)
+                                    .message as string
+                                }
+                                :{" "}
+                                <span className="font-light">
+                                  {treatment.description.message}
+                                </span>
+                              </p>
+
+                              {treatment.description.driver_response && (
+                                <>
+                                  <hr className="my-2 border-gray-200 dark:border-gray-700" />
+                                  <p className="font-medium">
+                                    {
+                                      (dict.symptoms as I18nRecord)
+                                        .response as string
+                                    }
+                                    :{" "}
+                                    <span className="font-light">
+                                      {treatment.description.driver_response}
+                                    </span>
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          }
+                          placement="top"
+                        >
+                          <p className="hover:underline">
+                            -{" "}
+                            {((dict.symptoms as I18nRecord)[
+                              treatment.treatment_type.toUpperCase()
+                            ] as string) ?? treatment.treatment_type}
+                          </p>
+                        </Tooltip>
                       ))}
                     </div>
                   )}

@@ -1,24 +1,31 @@
+const FULL_ACCESS_ROLES = [
+  "MINTRAL_EJECUTIVO_TORRE_CONTROL",
+  "MINTRAL_OPERADORES",
+  "MINTRAL_OVERLORD_VIAJES",
+  "MINTRAL_RECEPTOR_VIAJES",
+  "MINTRAL_REGULARIZADORES_VIAJES",
+  "MINTRAL_VALIDADOR_TRANSPORTE",
+];
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
-  "/shipping": ["SHIPPING_ADMIN", "SHIPPING_USER"],
-  "/finished": ["SHIPPING_ADMIN", "SHIPPING_USER"],
-  "/reports": ["REPORTS_ADMIN", "REPORTS_USER"],
-  "/geographic-view": ["GEOGRAPHIC_VIEW_ADMIN", "GEOGRAPHIC_VIEW_USER"],
-  "/symptoms": ["SYMPTOMS_ADMIN", "SYMPTOMS_USER"],
+  "/shipping": FULL_ACCESS_ROLES,
+  "/finished": FULL_ACCESS_ROLES,
+  "/reports": FULL_ACCESS_ROLES,
+  "/geographic-view": FULL_ACCESS_ROLES,
+  "/symptoms": FULL_ACCESS_ROLES,
 
   // Task routes
-  "/task/edit": ["SHIPPING_ADMIN", "SHIPPING_USER"],
-  "/task/view": ["SHIPPING_ADMIN", "SHIPPING_USER"],
+  "/task/edit": FULL_ACCESS_ROLES,
+  "/task/view": FULL_ACCESS_ROLES,
 
   // Settings routes
-  "/users/settings": ["ADMIN", "SETTINGS_ADMIN"],
+  "/users/settings": FULL_ACCESS_ROLES,
 
   // API routes
-  "/api/task": ["SHIPPING_ADMIN", "SHIPPING_USER"],
-  "/api/reports": ["REPORTS_ADMIN", "REPORTS_USER"],
-  "/api/geographic": ["GEOGRAPHIC_VIEW_ADMIN", "GEOGRAPHIC_VIEW_USER"],
-  "/api/symptoms": ["SYMPTOMS_ADMIN", "SYMPTOMS_USER"],
+  "/api/task": FULL_ACCESS_ROLES,
+  "/api/geographic": FULL_ACCESS_ROLES,
+  "/api/symptoms": FULL_ACCESS_ROLES,
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_PERMISSIONS;

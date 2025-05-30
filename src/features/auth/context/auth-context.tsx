@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import React, { createContext, useContext, useEffect } from "react";
+import { useUserGroups } from "@/features/common/providers/client-api.provider";
 
 interface AuthContextType {
   userGroups: string[];
@@ -13,27 +12,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
-  const [userGroups, setUserGroups] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: userGroups, isLoading } = useUserGroups();
 
   useEffect(() => {
-    async function loadUserGroups() {
-      if (session?.user?.ticket) {
-        try {
-          const groups = await getGroupsForPerson(session.user.ticket);
-          console.log("groups", groups);
-          setUserGroups(groups);
-        } catch (error) {
-          console.error("Failed to load user groups:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadUserGroups();
-  }, [session?.user?.ticket]);
+    console.log("groups", userGroups);
+  }, [userGroups]);
 
   const hasPermission = (
     requiredGroups: string[],
@@ -42,12 +25,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!requiredGroups.length) return true;
 
     return operator === "OR"
-      ? requiredGroups.some((group) => userGroups.includes(group))
-      : requiredGroups.every((group) => userGroups.includes(group));
+      ? requiredGroups.some((group) => userGroups?.includes(group))
+      : requiredGroups.every((group) => userGroups?.includes(group));
   };
 
   return (
-    <AuthContext.Provider value={{ userGroups, isLoading, hasPermission }}>
+    <AuthContext.Provider
+      value={{
+        userGroups: Array.isArray(userGroups) ? userGroups : [],
+        isLoading,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

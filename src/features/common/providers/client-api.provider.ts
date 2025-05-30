@@ -406,6 +406,19 @@ export function useUserStatus() {
   };
 }
 
+export function useUserGroups() {
+  const { data, error, isLoading } = useSWR<string, FetcherError>(
+    "/app/api/user/groups",
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
 export function useGetTasksById(taskId: string) {
   const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
     `/app/api/task/mytasks/details?taskId=${taskId}`,

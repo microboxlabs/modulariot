@@ -29,13 +29,13 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
-        requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
+        requiredGroups: [],
       },
       {
         href: "/finished",
         label: "finished",
         totals: {},
-        requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
+        requiredGroups: [],
       },
       // {
       //   href: "/others",
@@ -44,7 +44,7 @@ export const pages: SidebarItem[] = [
       // },
     ],
     totals: {},
-    requiredGroups: ["SHIPPING_ADMIN", "SHIPPING_USER"],
+    requiredGroups: [],
   },
   {
     href: "/reports",
@@ -58,13 +58,13 @@ export const pages: SidebarItem[] = [
             href: "/geographic-view",
             label: "geographicView",
             totals: {},
-            requiredGroups: ["GEOGRAPHIC_VIEW_ADMIN", "GEOGRAPHIC_VIEW_USER"]
+            requiredGroups: ["MINTRAL_EJECUTIVO_TORRE_CONTROL"],
           },
           {
             href: "/symptoms",
             label: "symptoms",
             totals: {},
-            requiredGroups: ["SYMPTOMS_ADMIN", "SYMPTOMS_USER"]
+            requiredGroups: []
           },
         ]
         : []),
@@ -72,6 +72,6 @@ export const pages: SidebarItem[] = [
     /* eslint-enable */
 
     totals: {},
-    requiredGroups: ["REPORTS_ADMIN", "REPORTS_USER"],
+    requiredGroups: [],
   },
 ];

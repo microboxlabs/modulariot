@@ -34,7 +34,7 @@ export function RouteGuard({
   ]);
 
   if (isLoading) {
-    return <div>Loading...</div>; // You can replace this with a proper loading component
+    return <div>Loading...</div>; // Replace this, ask Rodrigo
   }
 
   return hasPermission(requiredGroups, operator) ? <>{children}</> : null;

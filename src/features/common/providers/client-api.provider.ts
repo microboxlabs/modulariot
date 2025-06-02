@@ -8,6 +8,7 @@ import {
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
+  UserGroupsResponse,
   VerifyDocumentResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
@@ -407,7 +408,7 @@ export function useUserStatus() {
 }
 
 export function useUserGroups() {
-  const { data, error, isLoading } = useSWR<string, FetcherError>(
+  const { data, error, isLoading } = useSWR<UserGroupsResponse, FetcherError>(
     "/app/api/user/groups",
     fetcher,
   );

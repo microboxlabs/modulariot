@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
 import { SidebarItemProps } from "./sidebar-item.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
-import { useAuth } from "@/features/auth/context/auth-context";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 export default function SidebarItem({
   href,
@@ -22,7 +22,7 @@ export default function SidebarItem({
   totals,
   requiredGroups = [],
 }: PropsWithI18nDict<SidebarItemProps>) {
-  const { hasPermission } = useAuth();
+  const { hasPermission } = usePermissions();
 
   // If user doesn't have required permissions, don't render the item
   if (!hasPermission(requiredGroups)) {

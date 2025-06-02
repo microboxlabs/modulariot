@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useAuth } from "../context/auth-context";
+import React from "react";
 import { useRouter } from "next/navigation";
+import { usePermissions } from "../hooks/use-permissions";
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -17,10 +17,10 @@ export function RouteGuard({
   operator = "OR",
   fallbackPath = "/",
 }: RouteGuardProps) {
-  const { hasPermission, isLoading } = useAuth();
+  const { hasPermission, isLoading } = usePermissions();
   const router = useRouter();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isLoading && !hasPermission(requiredGroups, operator)) {
       router.push(fallbackPath);
     }
@@ -34,7 +34,7 @@ export function RouteGuard({
   ]);
 
   if (isLoading) {
-    return <div>Loading...</div>; // Replace this, ask Rodrigo
+    return <div>Loading...</div>;
   }
 
   return hasPermission(requiredGroups, operator) ? <>{children}</> : null;

@@ -58,7 +58,7 @@ export const pages: SidebarItem[] = [
             href: "/geographic-view",
             label: "geographicView",
             totals: {},
-            requiredGroups: ["MINTRAL_EJECUTIVO_TORRE_CONTROL"],
+            requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
           },
           {
             href: "/symptoms",

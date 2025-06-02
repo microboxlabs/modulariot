@@ -113,7 +113,8 @@
         "serviceKind": "Tipo de servicio",
         "executionType": "Tipo de ejecución",
         "tripInformation": "Información del viaje",
-        "patente": "Patente"
+        "patente": "Patente",
+        "transportNumberCode": "N° de transporte"
       },
       "views": {
         "table": "Tabla",
@@ -172,6 +173,7 @@
         "drugTest": "Test de drogas",
         "sleepinessTest": "Test de somnolencia",
         "tripInformation": "Información del viaje",
+        "transportNumberCode": "N° de transporte",
         "patente": "Patente",
         "clientCode": "Código cliente",
         "serviceCode": "Código servicio",

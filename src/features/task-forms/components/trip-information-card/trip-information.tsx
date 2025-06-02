@@ -58,6 +58,10 @@ export default function TripInformation({
           {(task.mintral_serviceCode as string) ?? "-"}
         </span>
         <span className="text-gray-400 text-xs">
+          {(msg!.cards as I18nRecord).transportNumberCode as string}:{" "}
+          {(task.mintral_transportNumberCode as string) ?? "-"}
+        </span>
+        <span className="text-gray-400 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}
           {(task.mintral_clientCode as string) ?? "-"}
         </span>

@@ -4,17 +4,29 @@ export function GroupAllowed({
   children,
   userGroups,
   allowedTo,
+  notAllowedTo,
   joinOperator = "OR",
 }: {
   children: React.ReactNode;
   userGroups: string[];
-  allowedTo: string[];
+  allowedTo?: string[];
+  notAllowedTo?: string[];
   joinOperator?: "OR" | "AND";
 }) {
-  const isAllowed =
-    joinOperator === "OR"
-      ? allowedTo.some((group) => userGroups.includes(group))
-      : allowedTo.every((group) => userGroups.includes(group));
+  let isAllowed = false;
 
+  if (notAllowedTo) {
+    isAllowed =
+      joinOperator === "OR"
+        ? !notAllowedTo.some((group) => userGroups.includes(group))
+        : !notAllowedTo.every((group) => userGroups.includes(group));
+  }
+
+  if (allowedTo) {
+    isAllowed =
+      joinOperator === "OR"
+        ? allowedTo.some((group) => userGroups.includes(group))
+        : allowedTo.every((group) => userGroups.includes(group));
+  }
   return <>{isAllowed ? children : null}</>;
 }

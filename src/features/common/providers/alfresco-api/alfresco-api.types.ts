@@ -242,3 +242,7 @@ export type SympthomTemplate = {
   conditionName: string;
   message: string;
 };
+
+export type UserGroupsResponse = {
+  data: string[];
+};

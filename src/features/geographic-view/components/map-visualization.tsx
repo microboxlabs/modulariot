@@ -158,7 +158,7 @@ export default function MapVisualization({
 
   useEffect(() => {
     if (search && search != "") {
-      const filteredPositions = originalPositions?.filter((position: any) =>
+      const filteredPositions = originalPositions.filter((position: any) =>
         position.asset_id.toLowerCase().includes(search.toLowerCase()),
       );
       setPositions(filteredPositions || []);

@@ -169,6 +169,7 @@ export type FinishedWorkflowsRequest = {
   from: number;
   size: number;
   definitionKey: string;
+  serviceCode?: string;
 };
 
 export type HistoricalWorkflow = {

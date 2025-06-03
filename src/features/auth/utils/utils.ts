@@ -1,5 +1,6 @@
 import { MessagesType } from "@/features/i18n/i18n.service.types";
 import type { FormSignInMessages } from "../components/form-sign-in/form-sign-in.types";
+import groups from "../model/groups.json";
 
 export function buildSignInFormMessages({
   messages: dict,
@@ -14,4 +15,18 @@ export function buildSignInFormMessages({
     invalidCredentials: dict("pages.login.errors.invalidCredentials"),
     invalidFromData: dict("pages.login.errors.invalidFromData"),
   };
+}
+
+export function getMinifiedUserGroups(userGroups: string[]) {
+  return userGroups.map((group) => groups[group as keyof typeof groups]);
+}
+
+export function getUserGroupLabel(group: string) {
+  return Object.keys(groups).find(
+    (key) => groups[key as keyof typeof groups] === group,
+  );
+}
+
+export function getUserGroupsLabels(userGroups: string[]) {
+  return userGroups.map((group) => getUserGroupLabel(group));
 }

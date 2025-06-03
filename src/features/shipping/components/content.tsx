@@ -80,13 +80,14 @@ export default function PageContent({
     showFinishedTasks,
     page,
     pageSize,
+    searchParams.get("search") ?? undefined,
   );
 
   const {
     data: searchTasksData,
     error: searchTasksError,
     isLoading: _2,
-  } = useSearchTasks(searchParams.get("search"));
+  } = useSearchTasks(showFinishedTasks ? null : searchParams.get("search"));
 
   const { data: _3, error: taskCountError } = useMyTasksCount();
 
@@ -105,7 +106,7 @@ export default function PageContent({
 
       setList(newBoards);
     }
-  }, [searchTasksData, myTasksData, page]);
+  }, [searchTasksData, myTasksData, page, searchParams.get("search")]);
 
   if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
     router.replace(`/${lang}/sign-in`);

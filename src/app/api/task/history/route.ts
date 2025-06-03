@@ -20,12 +20,17 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const taskId = url.searchParams.get("taskId");
+    const active = url.searchParams.get("active");
 
     if (!taskId) {
       throw new Error("Task ID is required");
     }
 
-    const taskHistory = await getTaskHistory(session.user.ticket, taskId);
+    const taskHistory = await getTaskHistory(
+      session.user.ticket,
+      taskId,
+      active === "true",
+    );
 
     return NextResponse.json(taskHistory);
   } catch (error: any) {

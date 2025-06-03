@@ -12,8 +12,9 @@ import { PersonEntry } from "@alfresco/js-api";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   getUserStatus,
-  useUserStatus,
+  useUserGroups,
 } from "@/features/common/providers/client-api.provider";
+import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 export default function SovosStartVerificationCard({
   // lang,
   task,
@@ -25,8 +26,7 @@ export default function SovosStartVerificationCard({
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
-  const { data: userStatus } = useUserStatus();
-  console.log(userStatus);
+  const { data: userGroups } = useUserGroups();
 
   async function startVerification() {
     await getUserStatus();
@@ -100,17 +100,22 @@ export default function SovosStartVerificationCard({
           {msg!.description as string}
         </div>
         {!isVerificationInProgress && (
-          <Button
-            color={pluginReady ? "blue" : "gray"}
-            theme={{ inner: { base: "px-5 py-3" } }}
-            className="w-full px-0 py-px"
-            isProcessing={!pluginReady}
-            onClick={startVerification}
+          <GroupAllowed
+            userGroups={userGroups}
+            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
           >
-            {pluginReady
-              ? (msg?.startVerification as string)
-              : (msg?.initiatingAutentia as string)}
-          </Button>
+            <Button
+              color={pluginReady ? "blue" : "gray"}
+              theme={{ inner: { base: "px-5 py-3" } }}
+              className="w-full px-0 py-px"
+              isProcessing={!pluginReady}
+              onClick={startVerification}
+            >
+              {pluginReady
+                ? (msg?.startVerification as string)
+                : (msg?.initiatingAutentia as string)}
+            </Button>
+          </GroupAllowed>
         )}
       </div>
     </Card>

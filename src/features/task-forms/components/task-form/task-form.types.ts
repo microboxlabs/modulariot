@@ -39,4 +39,5 @@ export interface ExtendedTaskViewProps {
   lang: string;
   ticket?: string;
   userGroups: string[];
+  active?: boolean;
 }

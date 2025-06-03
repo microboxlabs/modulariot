@@ -6,31 +6,36 @@ import dark from "@assets/map_selection/dark.png";
 import light from "@assets/map_selection/light.png";
 import Image from "next/image";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-const mapstyles = [
+export const mapstyles = [
   {
     img: street,
     text: "streets",
     value: "streets",
+    isDark: false,
   },
   {
     img: satellite,
     text: "satelital",
     value: "satellite",
+    isDark: true,
   },
   {
     img: outdoors,
     text: "outdoors",
     value: "outdoors",
+    isDark: false,
   },
   {
     img: dark,
     text: "dark",
     value: "dark",
+    isDark: true,
   },
   {
     img: light,
     text: "light",
     value: "light",
+    isDark: false,
   },
 ];
 

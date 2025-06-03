@@ -4,8 +4,6 @@ import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import credentials from "next-auth/providers/credentials";
-import { getGroupsForPerson } from "./features/common/providers/alfresco-api/alfresco-api.provider";
-import { getMinifiedUserGroups } from "./features/auth/utils/utils";
 
 export const authConfig = {
   pages: {
@@ -27,17 +25,14 @@ export const authConfig = {
     },
     async jwt({ token, user }) {
       if (user) {
-        token.ticket = user.ticket;
-        const userGroups = await getGroupsForPerson(token.ticket as string);
-        token.groups = userGroups;//getMinifiedUserGroups
+        token.ticket = user.ticket;        
       }
       return token;
     },
     session({ session, token }) {
       if (token) {
         session.user.ticket = token.ticket as string;
-        session.user.id = token.sub as string;
-        session.user.groups = token.groups as string[];
+        session.user.id = token.sub as string;        
       }
       return session;
     },

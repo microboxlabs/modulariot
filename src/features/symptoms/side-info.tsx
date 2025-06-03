@@ -3,7 +3,7 @@
 import { HiArrowRight } from "react-icons/hi";
 import { Button, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -15,6 +15,7 @@ import { HiMiniArrowPathRoundedSquare } from "react-icons/hi2";
 import { ConditionsAgg } from "./types/timeline";
 import { GroupAllowed } from "../common/components/group-allowed/group-allowed";
 import { useSession } from "next-auth/react";
+import { getGroupsForPerson } from "../common/providers/alfresco-api/alfresco-api.provider";
 //import { getUserGroupsLabels } from "../auth/utils/utils";
 export default function SideInfo({
   dict,
@@ -40,19 +41,14 @@ export default function SideInfo({
     treatmentData?.symptom_info?.name ?? "Bad Sign",
     treatmentData?.symptom_info?.icu_code.toString() ?? "4",
   );
-
   const { data: session } = useSession();
+  const [userGroups, setUserGroups] = useState<string[]>([]);
 
-  const userGroups = session?.user.groups ?? []; //(getUserGroupsLabels(session?.user.groups as string[]) ??[]) as string[];
-
-  /*
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-5 p-5 h-full">
-        <SideMenuSkeleton />
-      </div>
-    );
-  }*/
+  useEffect(() => {
+    if (session?.user.ticket) {
+      getGroupsForPerson(session.user.ticket).then(setUserGroups);
+    }
+  }, [session?.user.ticket]);
 
   if (error) {
     return (

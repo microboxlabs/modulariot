@@ -193,6 +193,7 @@ export default function MapVisualizationTrip({
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [camera_movement, setCameraMovement] = useState<boolean>(true);
   const [displayPosition, setDisplayPosition] = useState<number>(0);
+  const [pictures_list, setPicturesList] = useState<any[]>([0,1,2,3]);
 
   // Add effect to update displayPosition when positions change
   useEffect(() => {

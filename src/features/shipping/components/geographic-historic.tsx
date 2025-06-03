@@ -11,9 +11,11 @@ import { HiTruck } from "react-icons/hi";
 export function GeographicHistoric({
   task,
   dictionary,
+  active = true,
 }: {
   task: TaskResponse;
   dictionary: Record<string, string>;
+  active?: boolean;
 }) {
   const [selected_table, setSelectedTable] = useState<number>(0);
 
@@ -68,6 +70,7 @@ export function GeographicHistoric({
                 (dictionary.pages as unknown as I18nRecord)
                   .shipping as unknown as I18nRecord
               }
+              active={active}
             />
           ) : (
             <Loads

@@ -39,13 +39,14 @@ export function useMyTasks(
   showFinished: boolean,
   page?: number,
   limit?: number,
+  search?: string,
 ) {
   const columnQuery = columns.map((column) => `columns=${column}`).join("&");
 
   const from = page ? (page - 1) * (limit ?? 10) : 0;
 
   const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
-  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}`;
+  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}${search ? `&search=${search}` : ""}`;
 
   const { data, error, isLoading } = useSWR<
     KanbanBoardTaskResponse,

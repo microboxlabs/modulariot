@@ -358,13 +358,14 @@ export async function getUserStates(ticket: string): Promise<UserState[]> {
 export async function getTaskHistory(
   ticket: string,
   taskId: string,
+  active: boolean = true,
 ): Promise<TaskResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "GET",
-    `mintral/tasks/history?taskId=${taskId}`,
+    `mintral/tasks/history?taskId=${taskId}&active=${active}`,
   );
 
   return result as TaskResponse;

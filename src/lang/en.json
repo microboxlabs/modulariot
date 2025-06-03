@@ -113,7 +113,8 @@
         "serviceKind": "Service Type",
         "executionType": "Execution Type",
         "tripInformation": "Trip Information",
-        "patente": "License Plate"
+        "patente": "License Plate",
+        "transportNumberCode": "Transport Number"
       },
       "views": {
         "table": "Table",
@@ -160,6 +161,7 @@
       },
       "cards": {
         "tripInformation": "Trip Information",
+        "transportNumberCode": "Transport Number",
         "patente": "License Plate",
         "driverContactInfo": "Contact information",
         "email": "Email",

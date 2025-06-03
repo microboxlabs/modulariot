@@ -60,6 +60,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     estimatedArrivalDate: task.mintral_estimatedArrivalDate as string,
     mintral_truckLicensePlate: task.mintral_truckLicensePlate as string,
     mintral_supplierName: task.mintral_supplierName as string,
+    mintral_priorityCode: task.mintral_priorityCode as string,
   };
 }
 

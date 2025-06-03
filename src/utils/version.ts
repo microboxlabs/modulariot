@@ -19,7 +19,6 @@ export function getCurrentVersion(): string {
 
     return "unknown";
   } catch (error) {
-    console.error("Error getting version:", error);
     return "unknown";
   }
 }

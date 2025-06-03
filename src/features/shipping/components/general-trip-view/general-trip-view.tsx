@@ -32,6 +32,7 @@ export async function GeneralTripView({
   msg,
   lang,
   userGroups,
+  active = true,
 }: ExtendedTaskViewProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const driver1: Driver = {
@@ -65,9 +66,7 @@ export async function GeneralTripView({
           dict={dictionary.pages as I18nRecord}
         />
       </div>
-      <div
-        className={`flex-1 flex px-2 pb-2 flex-row items-center gap-2 h-full overflow-hidden`}
-      >
+      <div className="flex-1 flex px-2 pb-2 flex-row items-center gap-2 h-full overflow-hidden">
         <div className="h-full w-1/3">
           <div className="h-full overflow-auto dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
             <div className="h-full flex flex-col gap-6 p-6">
@@ -119,6 +118,7 @@ export async function GeneralTripView({
           <GeographicHistoric
             task={task as TaskResponse}
             dictionary={dictionary as unknown as Record<string, string>}
+            active={active}
           />
         </div>
       </div>

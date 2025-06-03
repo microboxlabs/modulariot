@@ -42,6 +42,19 @@ export default function TripInformation({
     value?.v_01eval == -1 ||
     value?.v_02eval == -1 ||
     value?.v_03eval == -1;
+  const executionType =
+    task.mintral_executionType === "T"
+      ? "Troncal"
+      : task.mintral_executionType === "F"
+        ? "Faena"
+        : task.mintral_executionType;
+  const priority =
+    task.mintral_priorityCode === "UR"
+      ? "URGENTE"
+      : task.mintral_priorityCode === "RG"
+        ? "REGULARIZACIÓN"
+        : task.mintral_priorityCode;
+
   return (
     <div>
       <h5 className="text-sm font-medium leading-loose dark:text-white text-gray-900">
@@ -49,29 +62,45 @@ export default function TripInformation({
       </h5>
 
       <div className="flex flex-col gap-2.5 mt-3">
-        <span className="text-gray-400 text-xs">
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
           {(msg!.cards as I18nRecord).patente as string}:{" "}
           {(task.mintral_truckLicensePlate as string) ?? "-"}
         </span>
-        <span className="text-gray-400 text-xs">
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
           {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
           {(task.mintral_serviceCode as string) ?? "-"}
         </span>
-        <span className="text-gray-400 text-xs">
-          {(msg!.cards as I18nRecord).transportNumberCode as string}:{" "}
-          {(task.mintral_transportNumberCode as string) ?? "-"}
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
+          {(msg!.cards as I18nRecord).executionType as string}:{" "}
+          {`${executionType}`}
         </span>
-        <span className="text-gray-400 text-xs">
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
+          {(msg!.cards as I18nRecord).serviceKind as string}:{" "}
+          {`${task.mintral_serviceKind ? (task.mintral_serviceKind as string).toUpperCase() : "-"}`}
+        </span>
+        {typeof task.mintral_priorityCode === "string" &&
+          task.mintral_priorityCode && (
+            <span className="text-gray-700 dark:text-gray-200 text-xs">
+              {(msg!.cards as I18nRecord).priorityCode as string}:{" "}
+              {`${priority}`}
+            </span>
+          )}
+
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
+          {(msg!.cards as I18nRecord).transportNumberCode as string}:{" "}
+          {(task.mintral_servicePrincipalNumber as string) ?? "-"}
+        </span>
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
           {(msg!.cards as I18nRecord).clientCode as string}:{" "}
           {(task.mintral_clientCode as string) ?? "-"}
         </span>
-        <span className="text-gray-400 text-xs">
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
           {(msg!.cards as I18nRecord).origin as string}-
           {(msg!.cards as I18nRecord).destination as string}:{" "}
           {task.mintral_originDelegateCode as string}-
           {task.mintral_destinationDelegateCode as string}
         </span>
-        <span className="text-gray-400 text-xs">
+        <span className="text-gray-700 dark:text-gray-200 text-xs">
           {(msg!.cards as I18nRecord).scheduling as string}:{" "}
           {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
         </span>

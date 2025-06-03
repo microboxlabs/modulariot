@@ -114,7 +114,8 @@
         "executionType": "Tipo de ejecución",
         "tripInformation": "Información del viaje",
         "patente": "Patente",
-        "transportNumberCode": "N° de transporte"
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente"        
       },
       "views": {
         "table": "Tabla",
@@ -213,7 +214,10 @@
         "createdat": "Fecha de creación",
         "nombre_oficial_gps": "Proovedor GPS",
         "true": "Si",
-        "false": "No"
+        "false": "No",
+        "executionType": "Tipo de ejecución",
+        "priorityCode": "Prioridad",
+        "serviceKind": "Tipo de servicio"
       },
       "outcome": {
         "moreOptions": "Más opciones",

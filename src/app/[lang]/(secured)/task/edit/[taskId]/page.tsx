@@ -51,6 +51,7 @@ export default async function TaskEditPage({
               ticket={session.user.ticket}
               user={session.user.name ?? ""}
               userGroups={userGroups}
+              active={false}
             />
           </div>
         );

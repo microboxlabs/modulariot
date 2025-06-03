@@ -77,6 +77,7 @@ export interface PulsePropsInfo {
     longitude: number;
     speed: number;
     timestamp: string;
+    speed_limit: number;
   };
   geometry: {
     type: string;

@@ -5,11 +5,13 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function Historic({
   task_id,
   dict,
+  active,
 }: {
   task_id: string;
   dict: I18nRecord;
+  active: boolean;
 }) {
-  const { data: taskHistory } = useTaskHistory(task_id);
+  const { data: taskHistory } = useTaskHistory(task_id, active);
 
   return (
     <div className="flex-1 w-0 min-w-full h-full overflow-x-auto">

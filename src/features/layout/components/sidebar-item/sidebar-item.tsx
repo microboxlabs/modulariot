@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
 import { SidebarItemProps } from "./sidebar-item.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 export default function SidebarItem({
   href,
@@ -19,9 +20,16 @@ export default function SidebarItem({
   pathname,
   dict,
   totals,
+  requiredGroups = [],
 }: PropsWithI18nDict<SidebarItemProps>) {
+  const { hasPermission } = usePermissions();
+
+  // If user doesn't have required permissions, don't render the item
+  if (!hasPermission(requiredGroups)) {
+    return null;
+  }
+
   if (items) {
-    // const isOpen = items.some((item) => pathname.startsWith(item.href ?? ""));
     const isOpen = true;
     return (
       <SidebarCollapse
@@ -30,31 +38,36 @@ export default function SidebarItem({
         open={isOpen}
         theme={{ list: "space-y-2 py-2  [&>li>div]:w-full" }}
       >
-        {items.map((item) => (
-          //
-          <FlowbiteSidebarItem
-            key={item.label}
-            href={item.href}
-            target={item.target}
-            as={Link}
-            icon={item.icon}
-            className={twMerge(
-              "justify-center [&>*]:font-normal",
-              pathname === item.href && "bg-gray-100 dark:bg-gray-700",
-            )}
-            label={getTotalCountBagaes(totals[item.label]) + ""}
-            labelColor={
-              getTotalCountBagaes(totals[item.label]) > 0 &&
-              getTotalCountBagaes(totals[item.label]) <= 100
-                ? "success"
-                : getTotalCountBagaes(totals[item.label]) > 100
-                  ? "warning"
-                  : "info"
-            }
-          >
-            {tr(item.label, dict)}
-          </FlowbiteSidebarItem>
-        ))}
+        {items.map((item) => {
+          // Check permissions for each sub-item
+          if (!hasPermission(item.requiredGroups ?? [])) {
+            return null;
+          }
+
+          return (
+            <FlowbiteSidebarItem
+              key={item.label}
+              href={item.href}
+              target={item.target}
+              as={Link}
+              icon={item.icon}
+              className={twMerge(
+                "justify-center [&>*]:font-normal",
+                pathname === item.href && "bg-gray-100 dark:bg-gray-700",
+              )}
+              label={getTotalCountBagaes(totals[item.label])}
+              labelColor={
+                getTotalCountBagaes(totals[item.label]) <= 0
+                  ? "success"
+                  : getTotalCountBagaes(totals[item.label]) >= 100
+                    ? "warning"
+                    : "info"
+              }
+            >
+              {tr(item.label, dict)}
+            </FlowbiteSidebarItem>
+          );
+        })}
       </SidebarCollapse>
     );
   }

@@ -30,6 +30,7 @@ export async function signInWithCredentials(
       id: person.entry.id,
       name: person.entry.displayName,
       email: person.entry.email,
+      groups: [],
       ticket,
     };
   } catch (error) {

@@ -4,7 +4,13 @@ import HomeIcon from "@/features/icons/home";
 import { SidebarItem } from "../types/common.types";
 
 export const pages: SidebarItem[] = [
-  { href: "/", icon: HomeIcon, label: "home", totals: {} },
+  {
+    href: "/",
+    icon: HomeIcon,
+    label: "home",
+    totals: {},
+    requiredGroups: [], // Public route
+  },
   {
     icon: ClipboardIcon,
     label: "tasks",
@@ -28,6 +34,7 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
+        requiredGroups: [],
       },
       /* {
         href: "/delivery",
@@ -38,6 +45,7 @@ export const pages: SidebarItem[] = [
         href: "/finished",
         label: "finished",
         totals: {},
+        requiredGroups: [],
       },
       // {
       //   href: "/others",
@@ -46,6 +54,7 @@ export const pages: SidebarItem[] = [
       // },
     ],
     totals: {},
+    requiredGroups: [],
   },
   {
     href: "/reports",
@@ -59,11 +68,13 @@ export const pages: SidebarItem[] = [
             href: "/geographic-view",
             label: "geographicView",
             totals: {},
+            requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
           },
           {
             href: "/symptoms",
             label: "symptoms",
             totals: {},
+            requiredGroups: []
           },
         ]
         : []),
@@ -71,5 +82,6 @@ export const pages: SidebarItem[] = [
     /* eslint-enable */
 
     totals: {},
+    requiredGroups: [],
   },
 ];

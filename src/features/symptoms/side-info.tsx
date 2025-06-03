@@ -7,13 +7,18 @@ import { useState } from "react";
 import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useTreatmentsTemplates } from "../common/providers/client-api.provider";
+import {
+  useTreatmentsTemplates,
+  useUserGroups,
+} from "../common/providers/client-api.provider";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import TimelineComponent from "./components/map-view/timeline";
 import { FaClock } from "react-icons/fa";
 //import { HiMiniArrowPathRoundedSquare } from "react-icons/hi2";
 import { TbSortAscendingShapes, TbSortDescendingShapes } from "react-icons/tb";
 import { ConditionsAgg } from "./types/timeline";
+import { GroupAllowed } from "../common/components/group-allowed/group-allowed";
+
 export default function SideInfo({
   dict,
   treatmentData,
@@ -39,14 +44,7 @@ export default function SideInfo({
     treatmentData?.symptom_info?.icu_code.toString() ?? "4",
   );
 
-  /*
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-5 p-5 h-full">
-        <SideMenuSkeleton />
-      </div>
-    );
-  }*/
+  const { data: userGroups } = useUserGroups();
 
   if (error) {
     return (
@@ -126,26 +124,31 @@ export default function SideInfo({
       <div
         className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
       >
-        <Button.Group className="w-full">
-          <BlurrableDropdown
-            dict={dict}
-            isMenuOpen={isMenuOpen}
-            setIsMenuOpen={setIsMenuOpen}
-            setSelectedOption={setSelectedOption}
-          />
-          <Button
-            size="md"
-            color="blue"
-            className="h-10 rounded-l-none w-full whitespace-nowrap"
-            onClick={() => {
-              setIsMenuOpen(!isMenuOpen);
-              setSelectedOption("call_driver");
-            }}
-          >
-            {(dict.symptoms as I18nRecord).call_driver as string}
-            <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
-          </Button>
-        </Button.Group>
+        <GroupAllowed
+          notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+          userGroups={userGroups}
+        >
+          <Button.Group className="w-full">
+            <BlurrableDropdown
+              dict={dict}
+              isMenuOpen={isMenuOpen}
+              setIsMenuOpen={setIsMenuOpen}
+              setSelectedOption={setSelectedOption}
+            />
+            <Button
+              size="md"
+              color="blue"
+              className="h-10 rounded-l-none w-full whitespace-nowrap"
+              onClick={() => {
+                setIsMenuOpen(!isMenuOpen);
+                setSelectedOption("call_driver");
+              }}
+            >
+              {(dict.symptoms as I18nRecord).call_driver as string}
+              <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
+            </Button>
+          </Button.Group>
+        </GroupAllowed>
       </div>
     </div>
   );

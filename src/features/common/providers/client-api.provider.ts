@@ -414,7 +414,7 @@ export function useUserGroups() {
   );
 
   return {
-    data,
+    data: data?.data ?? [],
     error,
     isLoading,
   };

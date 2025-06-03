@@ -214,7 +214,10 @@
         "createdat": "Creation date",
         "nombre_oficial_gps": "GPS provider",
         "true": "Yes",
-        "false": "No"
+        "false": "No",
+        "executionType": "Execution Type",
+        "priorityCode": "Priority",
+        "serviceKind": "Service Kind"
       },
       "outcome": {
         "moreOptions": "More options",

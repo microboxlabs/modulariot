@@ -14,10 +14,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: userGroups, isLoading } = useUserGroups();
 
-  useEffect(() => {
-    console.log("groups", userGroups);
-  }, [userGroups]);
-
   const hasPermission = (
     requiredGroups: string[],
     operator: "OR" | "AND" = "OR",

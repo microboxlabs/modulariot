@@ -15,18 +15,18 @@ export function GroupAllowed({
 }) {
   let isAllowed = false;
 
-  if (notAllowedTo) {
-    isAllowed =
-      joinOperator === "OR"
-        ? !notAllowedTo.some((group) => userGroups.includes(group))
-        : !notAllowedTo.every((group) => userGroups.includes(group));
-  }
-
   if (allowedTo) {
     isAllowed =
       joinOperator === "OR"
         ? allowedTo.some((group) => userGroups.includes(group))
         : allowedTo.every((group) => userGroups.includes(group));
+  }
+
+  if (notAllowedTo) {
+    isAllowed =
+      joinOperator === "OR"
+        ? !notAllowedTo.some((group) => userGroups.includes(group))
+        : !notAllowedTo.every((group) => userGroups.includes(group));
   }
   return <>{isAllowed ? children : null}</>;
 }

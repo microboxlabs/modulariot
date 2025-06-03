@@ -39,7 +39,7 @@ import CanceledAnnulledOptions from "./canceled-annulled-options";
 import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
 import CanceledAnnulledAndOptions from "./canceled-annulled-and-options";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
-import { useSession } from "next-auth/react";
+import { useUserGroups } from "@/features/common/providers/client-api.provider";
 export default function TaskActions({
   taskId,
   taskType,
@@ -50,8 +50,7 @@ export default function TaskActions({
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
-  const { data: session } = useSession();
-  const userGroups = session?.user.groups ?? [];
+  const { data: userGroups } = useUserGroups();
 
   const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
     setOutcome(outcome);

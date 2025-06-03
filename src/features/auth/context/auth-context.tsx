@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext } from "react";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 
 interface AuthContextType {
@@ -21,8 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!requiredGroups.length) return true;
 
     return operator === "OR"
-      ? requiredGroups.some((group) => userGroups?.data?.includes(group))
-      : requiredGroups.every((group) => userGroups?.data?.includes(group));
+      ? requiredGroups.some((group) => userGroups?.includes(group))
+      : requiredGroups.every((group) => userGroups?.includes(group));
   };
 
   return (

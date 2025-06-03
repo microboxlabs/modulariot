@@ -10,7 +10,6 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     let token = url.searchParams.get("token");
-    console.log("token", token);
 
     if (!token) {
       const session = await auth();
@@ -24,12 +23,17 @@ export async function GET(request: Request) {
     const response = await tryCatch(getGroupsForPerson(token));
 
     if (response?.error) {
-      return NextResponse.json({ error: "Failed to fetch groups" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Failed to fetch groups" },
+        { status: 401 },
+      );
     }
 
     return NextResponse.json({ data: response.data });
   } catch (error) {
-    console.error("Error in groups endpoint:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

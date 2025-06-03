@@ -105,7 +105,7 @@
       },
       "card": {
         "origin": "Origin",
-        "destination": "Destination",
+        "destination": "Dest",
         "service": "Service #",
         "clientCode": "Client Code",
         "clientName": "Client",
@@ -114,7 +114,8 @@
         "executionType": "Execution Type",
         "tripInformation": "Trip Information",
         "patente": "License Plate",
-        "transportNumberCode": "Transport Number"
+        "transportNumberCode": "Transport Number",
+        "truckLicensePlate": "License"
       },
       "views": {
         "table": "Table",

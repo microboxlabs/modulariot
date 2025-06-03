@@ -114,7 +114,8 @@
         "executionType": "Tipo de ejecución",
         "tripInformation": "Información del viaje",
         "patente": "Patente",
-        "transportNumberCode": "N° de transporte"
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente"        
       },
       "views": {
         "table": "Tabla",

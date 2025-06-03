@@ -80,6 +80,7 @@ export default function PageContent({
     showFinishedTasks,
     page,
     pageSize,
+    searchParams.get("search") ?? undefined,
   );
 
   const {
@@ -91,18 +92,7 @@ export default function PageContent({
   const { data: _3, error: taskCountError } = useMyTasksCount();
 
   useEffect(() => {
-    if (showFinishedTasks && searchParams.get("search") && myTasksData) {
-      const newBoards = list.map((board) => ({
-        ...board,
-        tasks:
-          myTasksData.data[board.title]?.tasks.filter((task) =>
-            task.name
-              .toLowerCase()
-              .includes(searchParams.get("search")?.toLowerCase() ?? ""),
-          ) ?? [],
-      }));
-      setList(newBoards);
-    } else if (searchTasksData) {
+    if (searchTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
         tasks: searchTasksData.data[board.title]?.tasks ?? [],

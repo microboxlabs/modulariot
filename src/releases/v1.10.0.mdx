@@ -1,0 +1,52 @@
+# Release Notes – ModularIoT v1.10.0
+## Fecha de publicación: 2025-06-04
+
+---
+
+Este release está enfocado en mejorar significativamente la autonomía del monitoreo,
+la eficiencia visual, y la trazabilidad del viaje a lo largo del sistema. Incorpora
+evolutivos funcionales, refactorizaciones críticas y correcciones destinadas a
+optimizar la experiencia del usuario y el rendimiento del sistema.
+
+---
+
+1. Evolutivos
+  1.1 Automatización de estados por señales (eventos_miot)
+    Se implementó la lógica de cambio de estados para viajes en curso con base en los
+    siguientes tipos de transacción:
+      - "Arrival by Signals": cambia estado a *Confirm Trip Destination Arrival*.
+      - "Destination Departure by Signals": cambia estado a *Confirm Trip Destination Departure*.
+    Priorización aplicada cuando ya existe "Arrival by 3rd Rule Eta".
+  1.2 Barra de acción en mapa para intervalos de viaje
+    Se incorporó la barra inferior izquierda que permite visualizar el recorrido.
+      -   Barra de acción que muestra el recorrido del vehículo.
+      - Función de bloqueo que permite seguir el recorrido del vehículo o bloquear el
+    seguimiento y solo visualizar el recorrido.
+  1.3 Tooltip en tratamientos de síntomas
+    Al pasar el cursor sobre tratamientos en el timeline, se muestra el mensaje escrito por
+    el conductor. Mejora la claridad de intervenciones registradas.
+  1.4 Perfil de acceso sólo lectura
+    Nuevo perfil que permite navegar el sistema sin ejecutar acciones que alteren
+    estados. Acceso a datos, sin permisos de edición ni cierre de tareas.
+  1.5 Ajustes visuales en tarjetas del Kanban
+    -   Eliminado: código de cliente, tipo de rampla
+    -   Agregado: patente, nombre de transportista
+    - Indicadores visuales para urgencias y servicios con destino faena
+  1.6 Ajustes visuales en el formulario del Kanban.
+    - Se agregaron los números de transporte, Tipo de rampla y n° de transportista
+2. Correctivos
+  2.1 Corrección de hora en timbre Mintral
+    El sistema ahora registra la hora exacta del despacho considerando uso horario de Chile y formato normalizado.
+  2.2 Mejora en vista de viajes finalizados
+    - Se habilitó el buscador en la vista de viajes finalizados
+    - Corrección de los eventos de movimientos de la kanban, ahora se visualizan correctamente los movimientos que ha tenido la kanban.
+    - Se eliminaron duplicaciones y se ajustó lógica de cierre de eventos
+  2.3 Cambios de asignación de patente
+    - Se ajustó la lógica de integración entre coordinador y modular, para actualizar correctamente las patentes antes de iniciar el monitoreo.
+
+---
+
+**Estado del release**: Todas las funcionalidades han sido implementadas, validadas en
+QA y listas en el despliegue de producción. Esta versión refuerza la autonomía de
+monitoreo, mejora la exploración visual de viajes y asegura una experiencia más
+robusta para los operadores del sistema ModularIoT.

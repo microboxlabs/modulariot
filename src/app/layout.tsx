@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={theme}>
       <body className="dark:bg-gray-900">
-        <SessionProvider>
+        <SessionProvider basePath="/app/api/auth">
           <AuthProvider>
             <ThemeDetector>{children}</ThemeDetector>
           </AuthProvider>

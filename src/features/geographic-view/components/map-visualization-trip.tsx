@@ -376,6 +376,7 @@ export default function MapVisualizationTrip({
             data: positions,
             selectedPulse,
             showStops,
+            displayPosition,
           },
         }),
       );

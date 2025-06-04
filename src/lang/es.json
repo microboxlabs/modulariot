@@ -700,5 +700,38 @@
   },
   "release": {
     "other_versions": "Otras versiones"
+  },
+  "totem": {
+    "welcome": "Sean bienvenidos",
+    "subtitle": "Al totem de verificación",
+    "start": "Comenzar",
+    "rut_ingress": "Ingreso Rut",
+    "fingerprint_scan": "Escaneo Huella",
+    "assigned_trip": "Viaje Asignado",
+    "tests": "Test",
+    "write_your_rut": "Ingrese su N° de RUT",
+    "continue": "Continuar",
+    "loading": "Cargando...",
+    "fingerprint_scan_success": "Escaneo de huella exitoso.",
+    "fingerprint_scan_error": "Error al escanear huella.",
+    "fingerprint_scan_idle": "Ingrese su dedo indice de la mano derecha en el lector.",
+    "trip_information": "Información del viaje",
+    "trip_information_client": "Información del cliente",
+    "driver": "Conductor",
+    "contact_information": "Información de contacto",
+    "email": "Correo electrónico",
+    "state": "Estado",
+    "rut": "RUT",
+    "phone": "Teléfono",
+    "trip_information_origin_destination": "Origen - Destino",
+    "trip_information_schedule": "Horario",
+    "congratulations": "Felicidades, has completado el proceso de registro.",
+    "remember_to_tell_your_companion": "Recuerda decirle a tu compañero conductor que realice el proceso de registro.",
+    "now_go_to_the_module": "Ahora diríjase al modulo:",
+    "take_your_test": "Para tomar su test:",
+    "drug_test": "Test de drogas",
+    "sleepiness_test": "Test de somnolencia",
+    "alcohol_test": "Test de alcohol",
+    "finish": "Finalizar"
   }
 }

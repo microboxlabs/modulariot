@@ -5,28 +5,29 @@ import { FaBell, FaFingerprint, FaIdCard } from "react-icons/fa";
 import TripInformation from "./stepped-elements/trip-information";
 import { RxCheck } from "react-icons/rx";
 import Tests from "./stepped-elements/tests";
+import { I18nRecord } from "../i18n/i18n.service.types";
 
-export default function Stepped({ setCurrentStep, currentStep }: { setCurrentStep: (step: number) => void, currentStep: number }) {
+export default function Stepped({ setCurrentStep, currentStep, dict }: { setCurrentStep: (step: number) => void, currentStep: number, dict: I18nRecord }) {
 
   const steps = [
     {
-      interface: <Rut setCurrentStep={setCurrentStep} currentStep={currentStep} />,
-      title: "Ingreso Rut",
+      interface: <Rut setCurrentStep={setCurrentStep} currentStep={currentStep} dict={dict} />,
+      title: (dict.totem as I18nRecord).rut_ingress as string,
       icon: <FaIdCard className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />,
     },
     {
-      interface: <Huella setCurrentStep={setCurrentStep} currentStep={currentStep} />,
-      title: "Escaneo Huella",
+      interface: <Huella setCurrentStep={setCurrentStep} currentStep={currentStep} dict={dict} />,
+      title: (dict.totem as I18nRecord).fingerprint_scan as string,
       icon: <FaFingerprint className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />,
     },
     {
-      interface: <TripInformation setCurrentStep={setCurrentStep} currentStep={currentStep} />,
-      title: "Viaje Asignado",
+      interface: <TripInformation setCurrentStep={setCurrentStep} currentStep={currentStep} dict={dict} />,
+      title: (dict.totem as I18nRecord).assigned_trip as string,
       icon: <IoMdPin className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />,
     },
     {
-      interface: <Tests setCurrentStep={setCurrentStep} currentStep={currentStep} />,
-      title: "Test",
+      interface: <Tests setCurrentStep={setCurrentStep} currentStep={currentStep} dict={dict} />,
+      title: (dict.totem as I18nRecord).tests as string,
       icon: <FaBell className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />,
     },
   ]

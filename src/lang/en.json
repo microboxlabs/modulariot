@@ -691,5 +691,38 @@
   },
   "release": {
     "other_versions": "Other Versions"
+  },
+  "totem": {
+    "welcome": "Welcome",
+    "subtitle": "To the verification totem",
+    "start": "Start",
+    "rut_ingress": "Rut ingress",
+    "fingerprint_scan": "Fingerprint scan",
+    "assigned_trip": "Assigned trip",
+    "tests": "Tests",
+    "write_your_rut": "Write your RUT",
+    "continue": "Continue",
+    "loading": "Loading...",
+    "fingerprint_scan_success": "Fingerprint scan successful.",
+    "fingerprint_scan_error": "Fingerprint scan error.",
+    "fingerprint_scan_idle": "Place your index finger on the scanner.",
+    "trip_information": "Trip information",
+    "trip_information_client": "Client information",
+    "driver": "Driver",
+    "contact_information": "Contact information",
+    "email": "Email",
+    "state": "State",
+    "rut": "RUT",
+    "phone": "Phone",
+    "trip_information_origin_destination": "Origin - Destination",
+    "trip_information_schedule": "Schedule",
+    "congratulations": "Congratulations, you have completed the registration process.",
+    "remember_to_tell_your_companion": "Remember to tell your companion driver to complete the registration process.",
+    "now_go_to_the_module": "Now go to the module:",
+    "take_your_test": "To take your test:",
+    "drug_test": "Drug test",
+    "sleepiness_test": "Sleepiness test",
+    "alcohol_test": "Alcohol test",
+    "finish": "Finish"
   }
 }

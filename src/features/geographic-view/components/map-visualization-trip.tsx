@@ -26,6 +26,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 // import MapButton from "./map-button";
 // import { BsSignStop } from "react-icons/bs";
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
+import ImageSelector from "./image-selector";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -377,6 +378,7 @@ export default function MapVisualizationTrip({
             data: positions,
             selectedPulse,
             showStops,
+            displayPosition,
           },
         }),
       );
@@ -545,7 +547,8 @@ export default function MapVisualizationTrip({
           />
         </MapTooltip>
       )}
-      <div className="absolute w-full h-full flex flex-col justify-end items-start p-5 gap-2 pointer-events-none">
+      <div className="absolute w-full h-full flex flex-row justify-end items-start gap-2 pointer-events-none">
+        <ImageSelector images={pictures_list} />
         <ToolBar
           positions={positions ?? []}
           displayPosition={displayPosition}

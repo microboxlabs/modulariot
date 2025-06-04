@@ -28,7 +28,7 @@ export default function Stepped({
       ),
       title: (dict.totem as I18nRecord).rut_ingress as string,
       icon: (
-        <FaIdCard className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />
+        <FaIdCard className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
       ),
     },
     {
@@ -41,7 +41,7 @@ export default function Stepped({
       ),
       title: (dict.totem as I18nRecord).fingerprint_scan as string,
       icon: (
-        <FaFingerprint className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />
+        <FaFingerprint className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
       ),
     },
     {
@@ -54,14 +54,14 @@ export default function Stepped({
       ),
       title: (dict.totem as I18nRecord).assigned_trip as string,
       icon: (
-        <IoMdPin className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />
+        <IoMdPin className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
       ),
     },
     {
       interface: <Tests dict={dict} />,
       title: (dict.totem as I18nRecord).tests as string,
       icon: (
-        <FaBell className="w-[5vh] h-[5vh] portrait:w-[5vw] portrait:h-[5vw]" />
+        <FaBell className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
       ),
     },
   ];
@@ -121,14 +121,14 @@ function StepperMarker({
 }) {
   return (
     <div
-      className={`flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-gray-300" : selected ? "text-blue-500" : "text-gray-500"}`}
+      className={`flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-blue-300" : selected ? "text-blue-500" : "text-gray-500"}`}
     >
       <div
-        className={`relative w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] rounded-full border-4 flex items-center justify-center ${current_step > id ? "border-gray-300" : selected ? "border-blue-500" : "border-gray-500"}`}
+        className={`relative w-[8vh] portrait:w-[10vw] h-[8vh] portrait:h-[10vw] rounded-full border-4 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
       >
         {icon}
         <div
-          className={`absolute top-[-1.5vh] portrait:top-[-1.5vw] right-[-1.5vh] portrait:right-[-1.5vw] w-[5vh] portrait:w-[5vw] h-[5vh] portrait:h-[5vw] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
+          className={`absolute top-[-1vh] portrait:top-[-1.5vw] right-[-1vh] portrait:right-[-1.5vw] w-[3vh] portrait:w-[5vw] h-[3vh] portrait:h-[5vw] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
         >
           <RxCheck className="w-full h-full text-blue-900" />
         </div>

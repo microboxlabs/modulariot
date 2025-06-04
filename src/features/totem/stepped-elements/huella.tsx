@@ -35,7 +35,7 @@ export default function Huella({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-white dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full">
+    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full">
       <div className="flex flex-col items-center justify-center gap-4">
         <h1 className="text-[4vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).fingerprint_scan as string}

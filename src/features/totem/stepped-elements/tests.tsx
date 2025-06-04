@@ -30,7 +30,7 @@ function Congratulation({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-2xl p-10 gap-10 bg-white dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
+      className={`flex flex-col items-center justify-center rounded-2xl p-10 gap-10 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
       <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
         {(dict.totem as I18nRecord).congratulations as string}
@@ -66,7 +66,7 @@ function GotoBox({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-2xl p-10 gap-10 bg-white dark:bg-gray-800 ${testState ? "animate-show-flex-middle" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
+      className={`flex flex-col items-center justify-center rounded-2xl p-10 gap-10 bg-gray-100 dark:bg-gray-800 ${testState ? "animate-show-flex-middle" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
       <div className="flex flex-col items-center justify-center gap-2">
         <h1 className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center font-light whitespace-nowrap">

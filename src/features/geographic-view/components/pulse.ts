@@ -61,7 +61,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
         pickable: true,
         updateTriggers: {
-          getFillColor: [selectedPulse],
+          getFillColor: [selectedPulse, displayPosition],
           getPosition: [this.props.showStops],
         },
         getZIndex: 1000,

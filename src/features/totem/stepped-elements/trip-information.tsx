@@ -10,8 +10,8 @@ export default function TripInformation({
   dict: I18nRecord;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-white dark:bg-gray-800">
-      <h1 className="text-[4vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
+      <h1 className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
         {(dict.totem as I18nRecord).trip_information as string}
       </h1>
       <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
@@ -38,23 +38,23 @@ export default function TripInformation({
       <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
       <div className="flex flex-row items-stretch justify-center gap-3 w-full my-[2vh]">
         <div className="flex flex-col justify-center gap-[1vh] w-full">
-          <h1 className="text-[3vh] portrait:text-[3vw] font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-[2vh] portrait:text-[3vw] font-light text-gray-900 dark:text-gray-100">
             {(dict.totem as I18nRecord).trip_information as string}
           </h1>
           <div className="flex flex-col justify-center gap-1 w-full">
-            <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+            <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
               {(dict.totem as I18nRecord).trip_information_client as string}:{" "}
               <span className="font-light">
                 Lorem ipsum dolor sit amet consectetur adipisicing elit
                 Quisquam, quos.
               </span>
             </h1>
-            <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+            <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
               {((dict.totem as I18nRecord)
                 .trip_information_origin_destination as string) + ": "}
               <span className="font-light">xxx - xxx</span>
             </h1>
-            <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+            <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
               {(dict.totem as I18nRecord).trip_information_schedule as string}:{" "}
               <span className="font-light">8:00 am - 16:00 pm</span>
             </h1>
@@ -91,33 +91,33 @@ function DriverInfo({
   dict: I18nRecord;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-7 w-full">
+    <div className="flex flex-col items-center justify-center gap-2 portrait:gap-7 w-full">
       <div className="flex flex-col justify-center w-full">
         <h1 className="text-[3vh] portrait:text-[3vw] font-bold text-gray-900 dark:text-gray-100">
           {name}
         </h1>
-        <h1 className="text-[2vh] portrait:text-[2vw] font-light text-gray-900 dark:text-gray-400">
+        <h1 className="text-[1.5vh] portrait:text-[2vw] font-light text-gray-900 dark:text-gray-400">
           {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>
       <div className="flex flex-col justify-center gap-3 w-full">
-        <h1 className="text-[2.5vh] portrait:text-[2.5vw] font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-[2vh] portrait:text-[2.5vw] font-bold text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).contact_information as string}
         </h1>
         <div className="flex flex-col justify-center gap-[1vh] w-full">
-          <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).email as string}:{" "}
             <span className="font-light">{email}</span>
           </h1>
-          <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).state as string}:{" "}
             <span className="font-light">{state}</span>
           </h1>
-          <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).phone as string}:{" "}
             <span className="font-light">{phone}</span>
           </h1>
-          <h1 className="text-[2vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).rut as string}:{" "}
             <span className="font-light">{rut}</span>
           </h1>

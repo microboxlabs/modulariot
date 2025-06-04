@@ -11,11 +11,11 @@ export default function Rut({
   dict: I18nRecord;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-white dark:bg-gray-800 rounded-2xl p-10 landscape:p-10 shadow-md">
-      <h1 className="text-[5vh] portrait:text-[5vw] text-gray-700 font-light dark:text-gray-300">
+    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 landscape:p-10 shadow-md">
+      <h1 className="text-[3vh] portrait:text-[5vw] text-gray-700 font-light dark:text-gray-300">
         {(dict.totem as I18nRecord).write_your_rut as string}
       </h1>
-      <div className="relative w-[50vh] portrait:w-[50vw] h-14 portrait:h-20">
+      <div className="relative w-[40vh] portrait:w-[50vw] h-14 portrait:h-20">
         <span className="absolute left-[1vh] portrait:left-[2vw] top-1/2 -translate-y-1/2 text-gray-400">
           <FaIdCard className="w-[3vh] h-[3vh] portrait:w-[3vw] portrait:h-[3vw]" />
         </span>

@@ -25,9 +25,9 @@ export default function ReleaseView() {
 
   // all the files in release have a name like "v1.1.mdx", get the newest version and add it in version
   const compareVersions = (a: string, b: string) => {
-    const aParts = a.replace('v', '').split('.').map(Number);
-    const bParts = b.replace('v', '').split('.').map(Number);
-    
+    const aParts = a.replace("v", "").split(".").map(Number);
+    const bParts = b.replace("v", "").split(".").map(Number);
+
     for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
       const aPart = aParts[i] || 0;
       const bPart = bParts[i] || 0;

@@ -2,13 +2,13 @@ import fs from "fs";
 import path from "path";
 
 function compareVersions(a: string, b: string): number {
-  const versionA = a.replace('v', '').split('.').map(Number);
-  const versionB = b.replace('v', '').split('.').map(Number);
-  
+  const versionA = a.replace("v", "").split(".").map(Number);
+  const versionB = b.replace("v", "").split(".").map(Number);
+
   for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
     const numA = versionA[i] || 0;
     const numB = versionB[i] || 0;
-    
+
     if (numA !== numB) {
       return numA - numB;
     }

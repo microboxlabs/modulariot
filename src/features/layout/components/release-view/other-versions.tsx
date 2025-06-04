@@ -31,9 +31,9 @@ export default function OtherVersions({ version }: { version: string }) {
         .filter((release) => release.replace(".mdx", "") !== version)
         .map((release) => release.replace(".mdx", ""))
         .sort((a, b) => {
-          const aParts = a.replace('v', '').split('.').map(Number);
-          const bParts = b.replace('v', '').split('.').map(Number);
-          
+          const aParts = a.replace("v", "").split(".").map(Number);
+          const bParts = b.replace("v", "").split(".").map(Number);
+
           for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
             const aPart = aParts[i] || 0;
             const bPart = bParts[i] || 0;

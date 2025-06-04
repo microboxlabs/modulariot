@@ -1,13 +1,13 @@
 import Totem from "@/features/totem/totem";
-import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import { headers } from "next/headers";
+import { getDictionary } from "@/features/i18n/i18n.service";
 import { defaultLocale } from "@/features/i18n/tr.service";
 
-export default async function TotemPage({ params: { lang } }: { params: { lang: string } }) {
-  const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
+export default async function TotemPage({
+  params: { lang },
+}: {
+  params: { lang: string };
+}) {
+  const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
 
-  return (
-    <Totem dict={dictionary} />
-  );
+  return <Totem dict={dictionary} />;
 }

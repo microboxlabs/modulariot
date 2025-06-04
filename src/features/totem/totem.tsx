@@ -11,18 +11,28 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
 
   const options = [
     {
-      interface: <Welcome setCurrentOption={setCurrentOption} currentOption={currentOption} dict={dict} />,
+      interface: (
+        <Welcome
+          setCurrentOption={setCurrentOption}
+          currentOption={currentOption}
+          dict={dict}
+        />
+      ),
     },
     {
-      interface: <Stepped setCurrentStep={setCurrentStep} currentStep={currentStep} dict={dict} />,
-    }
+      interface: (
+        <Stepped
+          setCurrentStep={setCurrentStep}
+          currentStep={currentStep}
+          dict={dict}
+        />
+      ),
+    },
   ];
 
   return (
     <div className="flex flex-col items-center justify-center w-screen h-screen gap-10">
-      {
-        currentOption < options.length && options[currentOption].interface
-      }
+      {currentOption < options.length && options[currentOption].interface}
     </div>
   );
 }

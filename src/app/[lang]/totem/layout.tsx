@@ -10,7 +10,12 @@ export default async function Layout({
   children,
 }: PropsWithChildren<ParamsWithLang>) {
   return (
-    <main className={twMerge(inter.className, " dark:bg-gray-900 h-full flex flex-col items-center justify-center")}>
+    <main
+      className={twMerge(
+        inter.className,
+        "dark:bg-gray-900 h-full flex flex-col items-center justify-center",
+      )}
+    >
       {children}
     </main>
   );

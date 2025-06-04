@@ -1,4 +1,10 @@
-export default function ExclamationIcon({ width, height }: { width?: number, height?: number }) {
+export default function ExclamationIcon({
+  width,
+  height,
+}: {
+  width?: number;
+  height?: number;
+}) {
   return (
     <svg
       width={width || "20"}

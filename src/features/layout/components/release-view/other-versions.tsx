@@ -29,13 +29,27 @@ export default function OtherVersions({ version }: { version: string }) {
     <div className="flex flex-col gap-1">
       {(releases as unknown as Release).files
         .filter((release) => release.replace(".mdx", "") !== version)
-        .map((release) => (
+        .map((release) => release.replace(".mdx", ""))
+        .sort((a, b) => {
+          const aParts = a.replace('v', '').split('.').map(Number);
+          const bParts = b.replace('v', '').split('.').map(Number);
+          
+          for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+            const aPart = aParts[i] || 0;
+            const bPart = bParts[i] || 0;
+            if (aPart !== bPart) {
+              return bPart - aPart; // descending order
+            }
+          }
+          return 0;
+        })
+        .map((version) => (
           <Link
-            key={release}
+            key={version}
             className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
-            href={`/release/${release.replace(".mdx", "")}`}
+            href={`/release/${version}`}
           >
-            {release.replace(".mdx", "")}
+            {version}
           </Link>
         ))}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -11,14 +11,20 @@ export function SessionCheck({
   children: React.ReactNode;
   lang: string;
 }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (session) {
+    if (status === "authenticated" && session && !isRedirecting) {
+      setIsRedirecting(true);
       router.push(`/${lang}/shipping`);
     }
-  }, [session, lang, router]);
+  }, [session, status, lang, router, isRedirecting]);
+
+  if (status === "loading") {
+    return null;
+  }
 
   return <>{children}</>;
 }

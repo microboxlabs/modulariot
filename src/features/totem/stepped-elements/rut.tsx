@@ -1,15 +1,33 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FaIdCard } from "react-icons/fa";
+import { useState } from "react";
 
 export default function Rut({
   setCurrentStep,
   currentStep,
   dict,
+  onRutValidated,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
+  onRutValidated: (data: { rut: string; name?: string }) => void;
 }) {
+  const [rut, setRut] = useState("");
+  const [error, setError] = useState("");
+
+  const handleValidateRut = async () => {
+    if (!rut.trim()) {
+      setError((dict.totem as I18nRecord).rut_required as string);
+      return;
+    }
+
+    //add validation here
+
+    onRutValidated({ rut });
+    setCurrentStep(currentStep + 1);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 landscape:p-10 shadow-md">
       <h1 className="text-[3vh] portrait:text-[5vw] text-gray-700 font-light dark:text-gray-300">
@@ -22,12 +40,15 @@ export default function Rut({
         <input
           type="text"
           placeholder="RUT"
+          value={rut}
+          onChange={(e) => setRut(e.target.value)}
           className="pl-[5vh] portrait:pl-[6vw] w-full h-full caret-gray-800 dark:caret-gray-200 p-2 text-3xl font-light rounded-md border-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200"
         />
       </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
       <button
-        onClick={() => setCurrentStep(currentStep + 1)}
-        className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2"
+        onClick={handleValidateRut}
+        className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2 disabled:opacity-50"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).continue as string}

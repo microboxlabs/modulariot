@@ -1,19 +1,58 @@
 import { useState } from "react";
 import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import {
+  fakeValidateRut,
+  validateRut,
+} from "@/features/sovos-fingerprint/services/autentia";
 
 export default function Huella({
   setCurrentStep,
   currentStep,
   dict,
+  rutData,
+  pluginReady,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
+  rutData: { rut: string } | null;
+  pluginReady: boolean;
 }) {
-  const [status, _setStatus] = useState<
+  const [status, setStatus] = useState<
     "idle" | "scanning" | "success" | "error"
-  >("success");
+  >("idle");
+
+  if (!pluginReady) return null;
+
+  const validator =
+    process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
+      ? fakeValidateRut
+      : validateRut;
+
+  const handleScanFingerprint = async () => {
+    if (status === "success") {
+      setCurrentStep(currentStep + 1);
+      return;
+    }
+
+    if (!rutData?.rut.trim()) {
+      setStatus("error");
+      return;
+    }
+
+    setStatus("scanning");
+
+    try {
+      const result = await validator(rutData?.rut);
+      if (result) {
+        console.log("result", result);
+        setStatus("success");
+      }
+    } catch (err: any) {
+      setStatus("error");
+    }
+  };
 
   const status_icon = {
     idle: {
@@ -44,9 +83,7 @@ export default function Huella({
       <div
         className={`p-[1vh] portrait:p-[1vw] rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
       >
-        <IoIosFingerPrint
-          className={`w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] transition-colors duration-300`}
-        />
+        <IoIosFingerPrint className="w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] transition-colors duration-300" />
       </div>
       <div className="flex flex-col items-center justify-center">
         <p className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400">
@@ -55,12 +92,12 @@ export default function Huella({
         <p
           className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >
-          John Doe
+          John Doe {rutData?.rut}
         </p>
       </div>
       <button
-        onClick={() => setCurrentStep(currentStep + 1)}
-        disabled={status !== "success"}
+        onClick={handleScanFingerprint}
+        disabled={status !== "idle" && status !== "success"}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">

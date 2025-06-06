@@ -6,7 +6,8 @@ import TripInformation from "./stepped-elements/trip-information";
 import { RxCheck } from "react-icons/rx";
 import Tests from "./stepped-elements/tests";
 import { I18nRecord } from "../i18n/i18n.service.types";
-import React from "react";
+import React, { useState } from "react";
+import SovosDeps from "../task-forms/components/sovos-deps/sovos-deps";
 
 export default function Stepped({
   setCurrentStep,
@@ -17,6 +18,9 @@ export default function Stepped({
   currentStep: number;
   dict: I18nRecord;
 }) {
+  const [pluginReady, setPluginReady] = useState(false);
+  const [rutData, setRutData] = useState<{ rut: string } | null>(null);
+
   const steps = [
     {
       interface: (
@@ -24,6 +28,7 @@ export default function Stepped({
           setCurrentStep={setCurrentStep}
           currentStep={currentStep}
           dict={dict}
+          onRutValidated={setRutData}
         />
       ),
       title: (dict.totem as I18nRecord).rut_ingress as string,
@@ -37,6 +42,8 @@ export default function Stepped({
           setCurrentStep={setCurrentStep}
           currentStep={currentStep}
           dict={dict}
+          rutData={rutData}
+          pluginReady={pluginReady}
         />
       ),
       title: (dict.totem as I18nRecord).fingerprint_scan as string,
@@ -102,6 +109,7 @@ export default function Stepped({
       <div className="flex items-center justify-center w-full h-full">
         {steps[currentStep].interface}
       </div>
+      <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );
 }
@@ -133,11 +141,7 @@ function StepperMarker({
           <RxCheck className="w-full h-full text-blue-900" />
         </div>
       </div>
-      <p
-        className={
-          "text-[2vh] portrait:text-[2vw] font-light whitespace-nowrap"
-        }
-      >
+      <p className="text-[2vh] portrait:text-[2vw] font-light whitespace-nowrap">
         {text}
       </p>
     </div>

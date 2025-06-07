@@ -13,4 +13,5 @@ export type UpdateTaskRequest = {
   prop_wfship_sovosDigitalSignatureOutputReasonType?: string;
   prop_wfship_transportValidationOutputReasonType?: string;
   prop_wfship_missionControlValidationOutputReasonType?: string;
+  prop_cm_owner?: string;
 };

@@ -12,7 +12,7 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const nextUrl = new URL(request.nextUrl);
-      if (nextUrl.pathname.endsWith("/sign-in")) {
+      if (nextUrl.pathname.endsWith("/sign-in") || nextUrl.pathname.endsWith("/totem")) {
         return;
       }
 

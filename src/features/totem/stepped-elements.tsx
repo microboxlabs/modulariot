@@ -92,6 +92,7 @@ export default function Stepped({
           text={steps[0].title}
           icon={steps[0].icon}
           current_step={currentStep}
+          onClick={() => currentStep > 0 && setCurrentStep(0)}
         />
         <StepperMarker
           id={1}
@@ -99,6 +100,7 @@ export default function Stepped({
           text={steps[1].title}
           icon={steps[1].icon}
           current_step={currentStep}
+          onClick={() => currentStep > 1 && setCurrentStep(1)}
         />
         <StepperMarker
           id={2}
@@ -106,6 +108,7 @@ export default function Stepped({
           text={steps[2].title}
           icon={steps[2].icon}
           current_step={currentStep}
+          onClick={() => currentStep > 2 && setCurrentStep(2)}
         />
         <StepperMarker
           id={3}
@@ -113,6 +116,7 @@ export default function Stepped({
           text={steps[3].title}
           icon={steps[3].icon}
           current_step={currentStep}
+          onClick={() => currentStep > 3 && setCurrentStep(3)}
         />
       </div>
       <div className="flex items-center justify-center w-full h-full">
@@ -129,16 +133,20 @@ function StepperMarker({
   text,
   icon,
   current_step,
+  onClick,
 }: {
   id: number;
   selected: boolean;
   text: string;
   icon: React.ReactNode;
   current_step: number;
+  onClick: () => void;
 }) {
   return (
     <div
       className={`flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-blue-300" : selected ? "text-blue-500" : "text-gray-500"}`}
+      style={{ cursor: current_step > id ? "pointer" : "default" }}
+      onClick={onClick}
     >
       <div
         className={`relative w-[8vh] portrait:w-[10vw] h-[8vh] portrait:h-[10vw] rounded-full border-4 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}

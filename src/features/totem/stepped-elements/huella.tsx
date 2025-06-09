@@ -44,7 +44,7 @@ export default function Huella({
     setStatus("scanning");
 
     try {
-      const result = await validator(rutData?.rut);
+      const result = await validator(rutData.rut);
       if (result) {
         console.log("result", result);
         setStatus("success");

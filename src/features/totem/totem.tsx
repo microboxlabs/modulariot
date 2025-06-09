@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Stepped from "./stepped-elements";
 import Welcome from "./welcome";
 import { I18nRecord } from "../i18n/i18n.service.types";
+import { useSearchParams } from "next/navigation";
 
 export default function Totem({ dict }: { dict: I18nRecord }) {
   const [currentOption, setCurrentOption] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const searchParams = useSearchParams();
+  const deviceId = searchParams.get("deviceId");
+  const deviceLocation = searchParams.get("deviceLocation");
+
+  useEffect(() => {
+    if (deviceId && deviceLocation) {
+      console.log("Device ID:", deviceId);
+      console.log("Device Location:", deviceLocation);
+    }
+  }, [deviceId, deviceLocation]);
 
   const options = [
     {
@@ -25,6 +36,8 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
           setCurrentStep={setCurrentStep}
           currentStep={currentStep}
           dict={dict}
+          deviceId={deviceId}
+          deviceLocation={deviceLocation}
         />
       ),
     },

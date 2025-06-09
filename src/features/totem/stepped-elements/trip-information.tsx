@@ -1,14 +1,76 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useEffect, useState } from "react";
 
 export default function TripInformation({
   setCurrentStep,
   currentStep,
   dict,
+  deviceId,
+  deviceLocation,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
+  deviceId: string | null;
+  deviceLocation: string | null;
 }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const verifyBiometric = async () => {
+      if (!deviceId || !deviceLocation) return;
+
+      try {
+        const response = await fetch("/app/api/biometric/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            driverId: "required", // Replace with actual driver ID
+            deviceId,
+            deviceLocation,
+            fingerprintData: "", // Add if available
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to verify biometric data");
+        }
+
+        const data = await response.json();
+        console.log("Biometric verification result:", data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifyBiometric();
+  }, [deviceId, deviceLocation]);
+
+  if (!deviceId || !deviceLocation) return null;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
+        <p className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+          {(dict.totem as I18nRecord).loading as string}
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
+        <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
       <h1 className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">

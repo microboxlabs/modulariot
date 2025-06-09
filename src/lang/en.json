@@ -723,6 +723,7 @@
     "drug_test": "Drug test",
     "sleepiness_test": "Sleepiness test",
     "alcohol_test": "Alcohol test",
-    "finish": "Finish"
+    "finish": "Finish",
+    "rut_invalid": "Invalid RUT"
   }
 }

@@ -732,6 +732,7 @@
     "drug_test": "Test de drogas",
     "sleepiness_test": "Test de somnolencia",
     "alcohol_test": "Test de alcohol",
-    "finish": "Finalizar"
+    "finish": "Finalizar",
+    "rut_invalid": "RUT inválido"
   }
 }

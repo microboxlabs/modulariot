@@ -1,6 +1,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FaIdCard } from "react-icons/fa";
 import { useState } from "react";
+import { isRutValid } from "@/utils/rut";
 
 export default function Rut({
   setCurrentStep,
@@ -21,7 +22,14 @@ export default function Rut({
       setError((dict.totem as I18nRecord).rut_required as string);
       return;
     }
-    //add validation here
+
+    if (!isRutValid(rut)) {
+      console.log("rut", rut);
+      console.log("isRutValid", isRutValid(rut));
+      console.log("error", (dict.totem as I18nRecord).rut_invalid as string);
+      setError((dict.totem as I18nRecord).rut_invalid as string);
+      return;
+    }
 
     onRutValidated({ rut });
     setCurrentStep(currentStep + 1);

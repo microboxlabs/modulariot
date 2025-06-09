@@ -7,15 +7,22 @@ export default function TripInformation({
   dict,
   deviceId,
   deviceLocation,
+  biometricResult,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
   deviceId: string | null;
   deviceLocation: string | null;
+  biometricResult: any;
 }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Use biometricResult for debugging or further logic
+  if (biometricResult) {
+    console.log("biometricResult in TripInformation:", biometricResult);
+  }
 
   useEffect(() => {
     const verifyBiometric = async () => {
@@ -31,7 +38,7 @@ export default function TripInformation({
             driverId: "required", // Replace with actual driver ID
             deviceId,
             deviceLocation,
-            fingerprintData: "", // Add if available
+            fingerprintData: biometricResult, // Add if available
           }),
         });
 

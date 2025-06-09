@@ -24,6 +24,7 @@ export default function Stepped({
 }) {
   const [pluginReady, setPluginReady] = useState(false);
   const [rutData, setRutData] = useState<{ rut: string } | null>(null);
+  const [biometricResult, setBiometricResult] = useState<any>(null);
 
   const steps = [
     {
@@ -48,6 +49,7 @@ export default function Stepped({
           dict={dict}
           rutData={rutData}
           pluginReady={pluginReady}
+          onBiometricResult={setBiometricResult}
         />
       ),
       title: (dict.totem as I18nRecord).fingerprint_scan as string,
@@ -63,6 +65,7 @@ export default function Stepped({
           dict={dict}
           deviceId={deviceId}
           deviceLocation={deviceLocation}
+          biometricResult={biometricResult}
         />
       ),
       title: (dict.totem as I18nRecord).assigned_trip as string,

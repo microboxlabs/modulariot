@@ -12,12 +12,14 @@ export default function Huella({
   dict,
   rutData,
   pluginReady,
+  onBiometricResult,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
   rutData: { rut: string } | null;
   pluginReady: boolean;
+  onBiometricResult: (result: any) => void;
 }) {
   const [status, setStatus] = useState<
     "idle" | "scanning" | "success" | "error"
@@ -46,8 +48,8 @@ export default function Huella({
     try {
       const result = await validator(rutData.rut);
       if (result) {
-        console.log("result", result);
         setStatus("success");
+        onBiometricResult(result);
       }
     } catch (err: any) {
       setStatus("error");

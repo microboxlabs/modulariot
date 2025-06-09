@@ -13,10 +13,14 @@ export default function Stepped({
   setCurrentStep,
   currentStep,
   dict,
+  deviceId,
+  deviceLocation,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
+  deviceId: string | null;
+  deviceLocation: string | null;
 }) {
   const [pluginReady, setPluginReady] = useState(false);
   const [rutData, setRutData] = useState<{ rut: string } | null>(null);
@@ -57,6 +61,8 @@ export default function Stepped({
           setCurrentStep={setCurrentStep}
           currentStep={currentStep}
           dict={dict}
+          deviceId={deviceId}
+          deviceLocation={deviceLocation}
         />
       ),
       title: (dict.totem as I18nRecord).assigned_trip as string,

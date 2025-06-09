@@ -21,7 +21,6 @@ export default function Rut({
       setError((dict.totem as I18nRecord).rut_required as string);
       return;
     }
-
     //add validation here
 
     onRutValidated({ rut });

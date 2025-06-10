@@ -297,10 +297,7 @@ export default function TimelineGroup({
                           size={15}
                         />
                         <p className="text-gray-800 dark:text-gray-200">
-                          {
-                            JSON.parse(subItem.evidences as unknown as string)
-                              .length
-                          }
+                          {subItem.evidences?.length}
                         </p>
                       </small>
                     )}

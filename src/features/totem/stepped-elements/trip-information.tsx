@@ -17,7 +17,7 @@ export default function TripInformation({
   biometricResult: any;
 }) {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, _setError] = useState<string | null>(null);
 
   // Use biometricResult for debugging or further logic
   if (biometricResult) {
@@ -25,7 +25,7 @@ export default function TripInformation({
   }
 
   useEffect(() => {
-    const verifyBiometric = async () => {
+    /* const verifyBiometric = async () => {
       if (!deviceId || !deviceLocation) return;
 
       try {
@@ -56,7 +56,8 @@ export default function TripInformation({
       }
     };
 
-    verifyBiometric();
+    verifyBiometric(); */
+    setIsLoading(false);
   }, [deviceId, deviceLocation]);
 
   if (!deviceId || !deviceLocation) return null;

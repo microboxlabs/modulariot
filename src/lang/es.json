@@ -113,7 +113,9 @@
         "serviceKind": "Tipo de servicio",
         "executionType": "Tipo de ejecución",
         "tripInformation": "Información del viaje",
-        "patente": "Patente"
+        "patente": "Patente",
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente"        
       },
       "views": {
         "table": "Tabla",
@@ -172,6 +174,7 @@
         "drugTest": "Test de drogas",
         "sleepinessTest": "Test de somnolencia",
         "tripInformation": "Información del viaje",
+        "transportNumberCode": "N° de transporte",
         "patente": "Patente",
         "clientCode": "Código cliente",
         "serviceCode": "Código servicio",
@@ -211,7 +214,10 @@
         "createdat": "Fecha de creación",
         "nombre_oficial_gps": "Proovedor GPS",
         "true": "Si",
-        "false": "No"
+        "false": "No",
+        "executionType": "Tipo de ejecución",
+        "priorityCode": "Prioridad",
+        "serviceKind": "Tipo de servicio"
       },
       "outcome": {
         "moreOptions": "Más opciones",
@@ -663,7 +669,9 @@
     "Continuous Resting Check": "Mínimo descanso requerido",
     "ascending": "Ascendente",
     "descending": "Descendente",
-    "treatments": "Tratamientos"
+    "treatments": "Tratamientos",
+    "message": "Mensaje",
+    "response": "Respuesta"
   },
   "geographic_view": {
     "speed": "Velocidad",

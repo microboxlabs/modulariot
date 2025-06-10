@@ -8,4 +8,5 @@ export type SidebarItem = {
   items?: SidebarItem[];
   badge?: string;
   totals: Record<string, number>;
+  requiredGroups?: string[];
 };

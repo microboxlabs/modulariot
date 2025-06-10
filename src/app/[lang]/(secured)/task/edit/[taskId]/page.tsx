@@ -2,7 +2,7 @@ import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { TaskEditPageParams } from "./page.types";
 import { auth } from "@/auth";
 import {
-  getFinishedWorkflows,
+  getFinishedWorkflowByInstanceId,
   getGroupsForPerson,
   getTaskById,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -28,19 +28,11 @@ export default async function TaskEditPage({
 
     let task = taskResult;
     if ((typeof task == "string" && task == "null") || task == null) {
-      const finishedWorkflows = await getFinishedWorkflows(
+      const taskResponse = await getFinishedWorkflowByInstanceId(
         session.user.ticket,
-        {
-          from: 0,
-          size: 100,
-          definitionKey: "shippingCoordinatorProcess",
-        },
-      ).then((res) => ({
-        tasks: res.workflows,
-        total: res.total,
-      }));
+        taskId,
+      );
 
-      const taskResponse = finishedWorkflows.tasks.find((t) => t.id === taskId);
       if (taskResponse) {
         return (
           <div className="overflow-y-auto h-full">
@@ -51,6 +43,7 @@ export default async function TaskEditPage({
               ticket={session.user.ticket}
               user={session.user.name ?? ""}
               userGroups={userGroups}
+              active={false}
             />
           </div>
         );

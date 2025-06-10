@@ -65,10 +65,10 @@ export default function ImageSelector({ images }: { images: string[] }) {
   return (
     <div
       ref={scrollRef}
-      className="h-full bg-white pointer-events-auto transition-all duration-300 relative"
+      className="h-full bg-white dark:bg-gray-800 pointer-events-auto transition-all duration-300 relative"
     >
       <div
-        className={`overflow-y-auto overflow-x-hidden h-full transition-all duration-300 ${open ? "max-w-80 border-r-2 border-gray-300" : "max-w-0 overflow-hidden"}`}
+        className={`overflow-y-auto overflow-x-hidden h-full transition-all duration-300 ${open ? "max-w-80 border-r-2 border-gray-300 dark:border-gray-700" : "max-w-0 overflow-hidden"}`}
       >
         {images.map((image, index) => (
           <ImageComponent

@@ -169,6 +169,7 @@ export type FinishedWorkflowsRequest = {
   from: number;
   size: number;
   definitionKey: string;
+  serviceCode?: string;
 };
 
 export type HistoricalWorkflow = {
@@ -241,4 +242,8 @@ export type SympthomTemplate = {
   name: string;
   conditionName: string;
   message: string;
+};
+
+export type UserGroupsResponse = {
+  data: string[];
 };

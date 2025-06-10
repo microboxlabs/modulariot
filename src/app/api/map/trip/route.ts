@@ -95,11 +95,13 @@ async function streamPositions(
       const [longitude, latitude] = parseWKBPoint(
         (record as MapPosition).location,
       );
+
       const newRecord: MapPosition = {
         ...record,
         longitude,
         latitude,
       } as MapPosition;
+
       // Format data according to SSE protocol
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }

@@ -24,9 +24,6 @@ export default function Rut({
     }
 
     if (!isRutValid(rut)) {
-      console.log("rut", rut);
-      console.log("isRutValid", isRutValid(rut));
-      console.log("error", (dict.totem as I18nRecord).rut_invalid as string);
       setError((dict.totem as I18nRecord).rut_invalid as string);
       return;
     }

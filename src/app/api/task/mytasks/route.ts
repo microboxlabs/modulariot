@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   const from = url.searchParams.get("from");
   const size = url.searchParams.get("size");
   const show_finished = url.searchParams.get("showFinished") === "true";
+  const search = url.searchParams.get("search");
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
           from: from ? parseInt(from) : 0,
           size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
+          serviceCode: search ? `v${search}` : undefined,
         }).then((res) => ({
           tasks: res.workflows,
           total: res.total,

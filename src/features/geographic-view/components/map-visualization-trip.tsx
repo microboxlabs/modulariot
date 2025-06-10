@@ -200,11 +200,7 @@ export default function MapVisualizationTrip({
 
   useEffect(() => {
     if (selectedTreatmentIndex && selectedTreatmentIndex.evidences) {
-      const imagesArray =
-        typeof selectedTreatmentIndex.evidences === "string"
-          ? (JSON.parse(selectedTreatmentIndex.evidences) as string[])
-          : (selectedTreatmentIndex.evidences as string[]);
-      setPicturesList(imagesArray);
+      setPicturesList(selectedTreatmentIndex.evidences as string[]);
     }
   }, [selectedTreatmentIndex]);
 

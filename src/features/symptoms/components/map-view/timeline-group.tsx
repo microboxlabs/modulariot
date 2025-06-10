@@ -10,8 +10,9 @@ import TagManager from "../tag-manager";
 import phoneIcon from "@assets/timeline/phone.svg";
 import messageIcon from "@assets/timeline/message-dots.svg";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "flowbite-react";
+import { FaImages } from "react-icons/fa";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -53,6 +54,7 @@ export default function TimelineGroup({
   setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
 
   // Get unique tags from all items
   const allTags = new Set(
@@ -62,6 +64,25 @@ export default function TimelineGroup({
       return tags;
     }) ?? [],
   );
+
+  useEffect(() => {
+    if (
+      item.conditions_agg?.some(
+        (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id,
+      )
+    ) {
+      setIsExpanded(true);
+    }
+  }, [item]);
+
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      selectedItemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [selectedItemRef.current]);
 
   // Get unique conditions
   const uniqueConditions = new Set(
@@ -218,10 +239,13 @@ export default function TimelineGroup({
         }`}
       >
         {item.conditions_agg?.map((subItem, subIndex) => {
+          const isSelected =
+            subItem.symptom_id == treatmentData.symptom_info?.id;
           return (
             <div
               key={subIndex}
-              className={`p-2 cursor-pointer flex flex-row gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md last:rounded-b-md transition-all duration-200 ${
+              ref={isSelected ? selectedItemRef : null}
+              className={`p-2 cursor-pointer flex flex-row gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md last:rounded-b-md transition-all duration-200  ${isSelected ? "border rounded-md border-amber-300" : ""} ${
                 subItem.is_symptom == 0 ||
                 subItem.type == "EVENTS END" ||
                 subItem.type == "TRIP_START"
@@ -265,17 +289,31 @@ export default function TimelineGroup({
                     )}{" "}
                     min
                   </p>
-                  {subItem.assigned_to && (
-                    <p className="flex flex-row flex-grow justify-end">
-                      <small className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center text-xs">
+                  <div className="flex flex-row flex-grow justify-end gap-1">
+                    {subItem.evidences && subItem.evidences?.length > 0 && (
+                      <small className="bg-gray-100 dark:bg-gray-800 rounded-md px-2 flex items-center text-xs gap-1">
+                        <FaImages
+                          className="text-gray-600 dark:text-gray-400"
+                          size={15}
+                        />
+                        <p className="text-gray-800 dark:text-gray-200">
+                          {
+                            JSON.parse(subItem.evidences as unknown as string)
+                              .length
+                          }
+                        </p>
+                      </small>
+                    )}
+                    {subItem.assigned_to && (
+                      <small className="bg-blue-200 rounded-md px-2 flex items-center text-xs">
                         {formatLongEmails(
                           ((dict.symptoms as I18nRecord)[
                             subItem.assigned_to
                           ] as string) ?? subItem.assigned_to,
                         )}
                       </small>
-                    </p>
-                  )}
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-200">

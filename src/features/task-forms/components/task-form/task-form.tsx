@@ -31,6 +31,7 @@ export async function TaskForm({
   lang,
   ticket,
   userGroups,
+  active = true,
 }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
   const userInstance = await getUserProfile(ticket!);
@@ -50,6 +51,7 @@ export async function TaskForm({
               (dictionary.pages as I18nRecord)
                 .transportValidationForm as I18nRecord
             }
+            active={active}
           />
         );
     }

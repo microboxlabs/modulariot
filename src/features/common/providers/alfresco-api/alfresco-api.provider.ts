@@ -11,6 +11,7 @@ import type {
   FastTasksResponse,
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
+  HistoricalWorkflow,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
@@ -300,6 +301,21 @@ export async function getFinishedWorkflows(
   return result as FinishedWorkflowsResponse;
 }
 
+export async function getFinishedWorkflowByInstanceId(
+  ticket: string,
+  data: string,
+): Promise<HistoricalWorkflow> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/finished/workflow/details?instanceId=${data}`,
+  );
+
+  return result as HistoricalWorkflow;
+}
+
 export async function checkDocumentExists(
   ticket: string,
   nodeId: string,
@@ -358,13 +374,14 @@ export async function getUserStates(ticket: string): Promise<UserState[]> {
 export async function getTaskHistory(
   ticket: string,
   taskId: string,
+  active: boolean = true,
 ): Promise<TaskResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await webscriptApi.executeWebScript(
     "GET",
-    `mintral/tasks/history?taskId=${taskId}`,
+    `mintral/tasks/history?taskId=${taskId}&active=${active}`,
   );
 
   return result as TaskResponse;

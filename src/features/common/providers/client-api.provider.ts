@@ -8,6 +8,7 @@ import {
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
+  UserGroupsResponse,
   VerifyDocumentResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
@@ -39,13 +40,14 @@ export function useMyTasks(
   showFinished: boolean,
   page?: number,
   limit?: number,
+  search?: string,
 ) {
   const columnQuery = columns.map((column) => `columns=${column}`).join("&");
 
   const from = page ? (page - 1) * (limit ?? 10) : 0;
 
   const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
-  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}`;
+  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}${search ? `&search=${search}` : ""}`;
 
   const { data, error, isLoading } = useSWR<
     KanbanBoardTaskResponse,
@@ -401,6 +403,19 @@ export function useUserStatus() {
 
   return {
     data,
+    error,
+    isLoading,
+  };
+}
+
+export function useUserGroups() {
+  const { data, error, isLoading } = useSWR<UserGroupsResponse, FetcherError>(
+    "/app/api/user/groups",
+    fetcher,
+  );
+
+  return {
+    data: data?.data ?? [],
     error,
     isLoading,
   };

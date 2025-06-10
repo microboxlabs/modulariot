@@ -6,6 +6,7 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
+import { Tooltip } from "flowbite-react";
 
 function formatDate(date: string) {
   if (!date) return "";
@@ -24,20 +25,29 @@ export default function KanbanCard({
   compactKanbanView,
   dict,
 }: PropsWithI18nDict<KanBanCardProps>) {
-  const executionType =
+  /*  const executionType =
     task.executionType === "T"
       ? "Troncal"
       : task.executionType === "F"
         ? "Faena"
-        : task.executionType;
+        : task.executionType; */
 
   return (
     <div
       key={task.id}
-      className={`rounded-lg bg-white shadow dark:bg-gray-800 hover:shadow-lg ${
+      className={`rounded-lg hover:shadow-lg ${
         compactKanbanView ? "p-3 mb-2" : "p-5 mb-4 w-full"
-      }`}
+      }
+      ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
+      `}
     >
+      {task.executionType === "F" && !compactKanbanView && (
+        <div className="relative cursor-pointer">
+          <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-white rounded-full -top-2 -end-2 dark:border-gray-900">
+            F
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between pb-4 cursor-pointer">
         <Link href={`/task/edit/${task.id}`} className="w-full">
           <div className="text-base text-gray-900 dark:text-gray-200">
@@ -45,6 +55,11 @@ export default function KanbanCard({
               <div className="flex justify-between gap-2">
                 <div className="whitespace-nowrap">
                   <strong>{task.name}</strong>
+                  {task.executionType === "F" && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 ms-2 text-xs font-semibold text-white bg-red-500 rounded-full">
+                      F
+                    </span>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2">
                   <DepartureDateShip
@@ -106,23 +121,44 @@ export default function KanbanCard({
         </div>
         {!compactKanbanView ? (
           <>
-            <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+            {/*  <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
               {tr("card.clientCode", dict)}:{" "}
               <strong>{task.clientCode || "-"}</strong>
-            </div>
+            </div> */}
             <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
               {tr("card.clientName", dict)}:{" "}
               <strong>{task.client || "-"}</strong>
               {/* {task.description} */}
             </div>
-            <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+            {/* <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
               {tr("card.serviceKind", dict)}:{" "}
               <strong>{task.serviceKind || "-"}</strong>
+            </div> */}
+            <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+              {tr("card.truckLicensePlate", dict)}:{" "}
+              <strong>{task.mintral_truckLicensePlate || "-"}</strong>
             </div>
             <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-              {tr("card.executionType", dict)}:{" "}
-              <strong>{executionType || "-"}</strong>
+              <Tooltip style="auto" content={task.mintral_supplierName || "-"}>
+                <strong>
+                  {task?.mintral_supplierName?.substring(0, 22) +
+                    (task?.mintral_supplierName?.length &&
+                    task?.mintral_supplierName?.length > 22
+                      ? "..."
+                      : "") || "-"}
+                </strong>
+              </Tooltip>
             </div>
+            {/* <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+              {tr("card.serviceKind", dict)}:{" "}
+              <strong>{task.serviceKind || "-"}</strong>
+            </div> */}
+            {/* {task.executionType !== "F" && (
+              <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
+                {tr("card.executionType", dict)}:{" "}
+                <strong>{executionType || "-"}</strong>
+              </div>
+            )} */}
             <div className="flex justify-between">
               <div className="flex justify-start">
                 {task.hoReference && (

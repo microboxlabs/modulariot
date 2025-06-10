@@ -105,7 +105,7 @@
       },
       "card": {
         "origin": "Origin",
-        "destination": "Destination",
+        "destination": "Dest",
         "service": "Service #",
         "clientCode": "Client Code",
         "clientName": "Client",
@@ -113,7 +113,9 @@
         "serviceKind": "Service Type",
         "executionType": "Execution Type",
         "tripInformation": "Trip Information",
-        "patente": "License Plate"
+        "patente": "License Plate",
+        "transportNumberCode": "Transport Number",
+        "truckLicensePlate": "License"
       },
       "views": {
         "table": "Table",
@@ -160,6 +162,7 @@
       },
       "cards": {
         "tripInformation": "Trip Information",
+        "transportNumberCode": "Transport Number",
         "patente": "License Plate",
         "driverContactInfo": "Contact information",
         "email": "Email",
@@ -211,7 +214,10 @@
         "createdat": "Creation date",
         "nombre_oficial_gps": "GPS provider",
         "true": "Yes",
-        "false": "No"
+        "false": "No",
+        "executionType": "Execution Type",
+        "priorityCode": "Priority",
+        "serviceKind": "Service Kind"
       },
       "outcome": {
         "moreOptions": "More options",
@@ -654,7 +660,9 @@
     "Continuous Resting Check": "Continuous resting check",
     "ascending": "Ascending",
     "descending": "Descending",
-    "treatments": "Treatments"
+    "treatments": "Treatments",
+    "message": "Message",
+    "response": "Response"
   },
   "geographic_view": {
     "speed": "Speed",

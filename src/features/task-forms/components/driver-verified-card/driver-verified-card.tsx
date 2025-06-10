@@ -38,6 +38,7 @@ import { getComments } from "@/utils/comments";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import { GeographicHistoric } from "@/features/shipping/components/geographic-historic";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 
 export default function DriverVerifiedCard({
   lang,
@@ -206,59 +207,64 @@ export default function DriverVerifiedCard({
             /> */}
             {getComments(task as ExtendedTaskResponse)}
             {!enableActions && (
-              <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-                <Button.Group className="w-full">
-                  <CanceledAnnulledAndOptions
+              <GroupAllowed
+                userGroups={userGroups}
+                notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+              >
+                <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+                  <Button.Group className="w-full">
+                    <CanceledAnnulledAndOptions
+                      dict={
+                        (msg!.pages as I18nRecord)
+                          .transportValidationForm as I18nRecord
+                      }
+                      handleSelection={handleSelection}
+                      otherOptions={[
+                        {
+                          id: OUTCOME_OVERLORD_REQUIRED,
+                          label:
+                            ((
+                              (
+                                (msg!.pages as I18nRecord)
+                                  .transportValidationForm as I18nRecord
+                              )?.outcome as I18nRecord
+                            )?.requiresOverlord as string) ?? "",
+                          icon: HiOutlineHand,
+                        },
+                      ]}
+                    />
+                    <Button
+                      color="blue"
+                      type="submit"
+                      theme={{ inner: { base: "px-5 py-3" } }}
+                      isProcessing={isLoading}
+                      className="w-full px-0 py-px"
+                    >
+                      {
+                        (
+                          (
+                            (msg!.pages as I18nRecord)
+                              .transportValidationForm as I18nRecord
+                          ).buttons as I18nRecord
+                        ).submit as string
+                      }
+                    </Button>
+                  </Button.Group>
+
+                  <TaskConfirmModal
+                    commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
                     dict={
                       (msg!.pages as I18nRecord)
                         .transportValidationForm as I18nRecord
                     }
-                    handleSelection={handleSelection}
-                    otherOptions={[
-                      {
-                        id: OUTCOME_OVERLORD_REQUIRED,
-                        label:
-                          ((
-                            (
-                              (msg!.pages as I18nRecord)
-                                .transportValidationForm as I18nRecord
-                            )?.outcome as I18nRecord
-                          )?.requiresOverlord as string) ?? "",
-                        icon: HiOutlineHand,
-                      },
-                    ]}
+                    taskId={task.id}
+                    outcome={outcome!}
+                    outcomeLabel={outcomeLabel!}
+                    openModal={openModal}
+                    setOpenModal={setOpenModal}
                   />
-                  <Button
-                    color="blue"
-                    type="submit"
-                    theme={{ inner: { base: "px-5 py-3" } }}
-                    isProcessing={isLoading}
-                    className="w-full px-0 py-px"
-                  >
-                    {
-                      (
-                        (
-                          (msg!.pages as I18nRecord)
-                            .transportValidationForm as I18nRecord
-                        ).buttons as I18nRecord
-                      ).submit as string
-                    }
-                  </Button>
-                </Button.Group>
-
-                <TaskConfirmModal
-                  commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-                  dict={
-                    (msg!.pages as I18nRecord)
-                      .transportValidationForm as I18nRecord
-                  }
-                  taskId={task.id}
-                  outcome={outcome!}
-                  outcomeLabel={outcomeLabel!}
-                  openModal={openModal}
-                  setOpenModal={setOpenModal}
-                />
-              </div>
+                </div>
+              </GroupAllowed>
             )}
             {enableActions && (
               <TaskActions

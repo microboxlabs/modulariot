@@ -1,4 +1,7 @@
-import { ConditionsAgg } from "@/features/symptoms/types/timeline";
+import {
+  ConditionsAgg,
+  TimelineElement,
+} from "@/features/symptoms/types/timeline";
 
 export type TreatmentsGeneralResponse = {
   data: TreatmentsGeneralResponseItem;
@@ -8,7 +11,7 @@ export type TreatmentsGeneralResponse = {
 
 export type TreatmentsGeneralResponseItem = {
   conditions_agg: ConditionsAgg[];
-  timeline: ConditionsAgg[];
+  timeline: TimelineElement[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
 };

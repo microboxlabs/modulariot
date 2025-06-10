@@ -64,7 +64,7 @@ export default function TimelineComponent({
         return new Date(b.start).getTime() - new Date(a.start).getTime();
       }
     })
-    .reduce((acc: Record<string, ConditionsAgg[]>, item) => {
+    .reduce((acc: Record<string, TimelineElement[]>, item) => {
       const date = new Date(item.start).toISOString().split("T")[0];
       if (!acc[date]) {
         acc[date] = [];

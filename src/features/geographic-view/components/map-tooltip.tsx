@@ -9,6 +9,7 @@ type MapTooltipProps = {
   setHoverInfo: (hoverInfo: any) => void;
   isOpen?: boolean;
   onExitAction?: () => void;
+  start_right?: boolean;
 };
 
 export default function MapTooltip({
@@ -18,6 +19,7 @@ export default function MapTooltip({
   setHoverInfo,
   isOpen = false,
   onExitAction,
+  start_right,
 }: MapTooltipProps) {
   const [position, setPosition] = useState({
     left: initialLeft,
@@ -99,7 +101,8 @@ export default function MapTooltip({
       <div
         className="absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700"
         style={{
-          left: position.left,
+          left: start_right ? undefined : position.left,
+          right: start_right ? position.left : undefined,
           top: position.top,
           pointerEvents: "auto",
         }}

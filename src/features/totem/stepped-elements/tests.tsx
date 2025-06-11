@@ -135,13 +135,13 @@ function GotoBox({
         <h1 className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center font-light whitespace-nowrap">
           {(dict.totem as I18nRecord).now_go_to_the_module as string}
         </h1>
-        <h1 className="text-[5vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
+        {/* <h1 className="text-[5vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
           03
-        </h1>
-        <div className="flex flex-col items-center justify-center w-full gap-5">
-          <h1 className="text-[3vh] portrait:text-[4vw] text-gray-800 dark:text-gray-200 text-center">
+        </h1> */}
+        <div className="flex flex-col items-center justify-center w-full gap-5 mt-8">
+          {/* <h1 className="text-[3vh] portrait:text-[4vw] text-gray-800 dark:text-gray-200 text-center">
             {(dict.totem as I18nRecord).take_your_test as string}
-          </h1>
+          </h1> */}
           <div className="flex flex-col items-start justify-center gap-2">
             <h1 className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 whitespace-nowrap font-light flex flex-row justify-center items-center gap-2">
               <ExclamationIcon height={40} width={40} />{" "}

@@ -7,6 +7,9 @@ const nextConfig = {
   pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
   output: "standalone",
   basePath: "/app",
+  images: {
+    domains: ['mintcargaimagenesprbfc3.blob.core.windows.net'],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback.fs = false;

@@ -1,7 +1,7 @@
 export interface TimelineElement {
   conditions_agg?: ConditionsAgg[];
-  start?: string;
-  end?: string;
+  start: string;
+  end: string;
   icu_codes?: number[];
   icu_conditions?: string[];
   symptom_id?: number;
@@ -20,6 +20,7 @@ export interface ConditionsAgg {
   symptom_description: string;
   treatments: TreatmentTimelineElement[];
   type: string;
+  evidences: string[] | null;
 }
 
 export interface TreatmentTimelineElement {
@@ -42,4 +43,5 @@ export interface TimelineItem {
   icu_code: string | null;
   is_symptom: number | null;
   symptom_id: number | null;
+  evidences: string[] | null;
 }

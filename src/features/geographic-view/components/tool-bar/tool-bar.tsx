@@ -59,7 +59,7 @@ export default function ToolBar({
   }, [selectedTool]);
 
   return (
-    <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none">
+    <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none p-5">
       <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none relative">
         <div
           className={`absolute bottom-0 left-0 p-2 rounded-lg shadow-lg pointer-events-auto flex flex-col items-center transition-all duration-300 ${selectedTool === "mapSelection" ? "animate-fade-in-fast" : "animate-fade-out-fast"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}

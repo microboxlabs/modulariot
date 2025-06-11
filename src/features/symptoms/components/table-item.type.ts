@@ -264,6 +264,19 @@ export const Symptoms: Record<string, SymptomType> = {
     hoverColor: "",
     icon: maximumContinuousDriving,
   },
+  "DOUBLE DRIVER ROTATION CHECK": {
+    dict_name: "in_treatment",
+    color: "border-amber-500",
+    innerColor: "bg-amber-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: maximumContinuousDriving, //define new icon with Miel
+  },
   "OFF HOURS DRIVING": {
     dict_name: "stable",
     color: "border-blue-600",

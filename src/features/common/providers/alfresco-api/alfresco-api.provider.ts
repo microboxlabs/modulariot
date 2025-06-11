@@ -409,3 +409,22 @@ export async function getInfoEntity(licencePlate: string, ticket: string) {
   const result = await fetcher(url);
   return result as GetEntityInfoResponse;
 }
+
+export async function getBiometricVerification(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification?alf_ticket=${ticket}`;
+
+  // print the curl command
+  console.log(
+    `curl -X POST ${url} -H "Content-Type: application/json" -d '${JSON.stringify(data)}'`,
+  );
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
+}

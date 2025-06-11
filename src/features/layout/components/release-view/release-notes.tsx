@@ -56,6 +56,13 @@ export default function ReleaseNotes({ version }: { version: string }) {
           margin-bottom: 1rem;
         }
 
+        .mdx-content ol {
+          list-style-type: decimal;
+          margin-left: 1.5rem;
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
         .mdx-content li {
           margin-bottom: 0.5rem;
         }

@@ -1,0 +1,52 @@
+# 🔔 Release Notes – Version 1.11.0
+## Release Date: 11/06
+---
+# 🚀 Objetivo del Release
+
+Esta versión se enfoca en ampliar la autonomía operativa del sistema, 
+mejorar la trazabilidad de eventos críticos y ofrecer una experiencia de 
+usuario más intuitiva. Se incorporan funcionalidades clave como la 
+verificación biométrica en tótems, la visualización dinámica de evidencia 
+multimedia en el timeline, y la mejora estructural del formulario de 
+tratamiento. Además, se fortalecen las reglas de negocio vinculadas al 
+monitoreo de conducción y carga, junto con refactorizaciones visuales 
+importantes.
+
+---
+# 🧩 Evolutivos – Nuevas funcionalidades
+  1. Interfaz de Verificación Biométrica en Tótem
+    - Validación autónoma de huella dactilar.
+    - Mensajes dinámicos según el resultado del escaneo.
+    - Flujos de reintento y escalamiento hacia la Torre de Control.
+    - Registro de auditoría con RUT, timestamp, resultado y conductor secundario.
+    - Interfaz adaptativa, multilingüe y resistente a condiciones de terreno.
+    - QA y pruebas completas en staging antes de despliegue.
+  2. Visor lateral de imágenes y videos en la línea de tiempo
+    - Aparece una flecha indicadora en el timeline si hay media.
+    - Al hacer clic, se despliega un panel sobre el mapa con scroll vertical.
+    - Al hacer hover en la imagen, se muestran botones para abrir o descargar.
+    - Al abrir la media se visualiza en un modal con navegación por flechas.
+  3. Rediseño del Formulario de Tratamiento en Kanban
+    - Nuevo formato tipo expediente para visualizar la información en un solo paso.
+    - Diseño limpio, ordenado, responsivo y consistente con la línea visual de la plataforma.
+---
+# 🧪 Refactorización y mejoras visuales
+  1. Rediseño visual del formulario de tratamiento
+    - Reformulación de la estructura del formulario reutilizando componentes existentes.
+  2. Animaciones y componentes ligeros en interfaz de tótem
+    - Se utilizaron componentes reutilizables y animaciones suaves para mayor claridad en la interacción.
+  3. Mejora de lógica para síntoma de conducción continua
+    - Por cada 24 minutos de descanso se descuentan proporcionalmente horas de conducción.
+    - Mejora la detección precisa y evita falsos positivos.
+  4. Asignación de propietario en tareas finalizadas
+    - Ahora, al completar una tarea, se registra automáticamente el correo del usuario responsable en el backend.
+---
+# 🛠️ Correcciones y ajustes de estabilidad
+  1. Ajustes en síntomas de conducción continua
+    - Se validaron casos de prueba adicionales para asegurar compatibilidad con reglas anteriores.
+  2. Registro de propietario en tareas
+    - Se corrigió la lógica para asegurar que siempre se incluya el campo de responsable.
+---
+# 🚀 Observaciones Generales
+  - Este release mejora significativamente la autonomía del conductor, la trazabilidad operativa y la visualización de información crítica.
+  - Todas las nuevas funciones y mejoras fueron validadas en QA previo a su despliegue.

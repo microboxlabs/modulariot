@@ -126,6 +126,31 @@ export class PulsePinLayer extends CompositeLayer<any> {
           getFillColor: [selectedPulse, this.props.showStops],
         },
       }) as Layer,
+      new ScatterplotLayer({
+        id: "ScatterPlotLayer-pulse-inner",
+        data: this.props.data.features,
+        getFillColor: (_d: any) => {
+          return [240, 50, 50, 255];
+        },
+        getRadius: 200000 / Math.pow(1.85, zoomLevel),
+        getPosition: (d: any) => {
+          if (
+            selectedPulse.includes(d.properties.id) &&
+            d.properties.speed <= 0 &&
+            this.props.showStops
+          ) {
+            return d.geometry.coordinates;
+          } else {
+            return null;
+          }
+        },
+        parameters: {
+          depthTest: false,
+        },
+        updateTriggers: {
+          getFillColor: [selectedPulse, this.props.showStops],
+        },
+      }) as Layer,
     ];
   }
 }

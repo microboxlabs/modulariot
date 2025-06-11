@@ -1,8 +1,8 @@
 import ExclamationIcon from "@/features/icons/exclamation";
 import okImage from "@assets/icons/totem/ok.gif";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useState } from "react";
 
 export default function Tests({
   dict,
@@ -47,28 +47,19 @@ function Congratulation({
   setCurrentStep: (step: number) => void;
   setRutData: ({ rut }: { rut: string }) => void;
 }) {
-/* 
-  useEffect(() => {
-    if (!tripData?.trip?.info) {
-      setTimeout(() => {
-        window.location.reload()
-      }, 3000);
-    }
-  }, [tripData]); */
-
   return (
     <div
       className={`flex flex-col items-center justify-center w-[50%] rounded-2xl p-8 gap-8 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
       {tripData?.trip?.info && (
         <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
-        {(dict.totem as I18nRecord).congratulations as string}
-      </h1>
+          {(dict.totem as I18nRecord).congratulations as string}
+        </h1>
       )}
       {!tripData?.trip?.info && (
         <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
-        {(dict.totem as I18nRecord).notify_control_center as string}
-      </h1>
+          {(dict.totem as I18nRecord).notify_control_center as string}
+        </h1>
       )}
       <Image
         className="w-[10vh] h-[10vh] animate-scale-in"
@@ -77,43 +68,54 @@ function Congratulation({
         width={100}
         height={100}
       />
-      {tripData?.trip?.info && tripData?.trip?.rut2 && tripData?.trip?.state2 === "No verificado" && (
-        <h1 className="text-[2vh] portrait:text-[2.5vw] text-red-600 dark:text-red-500 w-[90%] text-center">
-          *{" "}
-          {(dict.totem as I18nRecord).remember_to_tell_your_companion as string}
-        </h1>
-      )}
-      {tripData?.trip?.info && <button
-        onClick={() => setTestState(true)}
-        className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
-      >
-        <p className="text-[4vh] portrait:text-[4vw] font-light">
-          {(dict.totem as I18nRecord).continue as string}
-        </p>
-      </button>}
-      {!tripData?.trip?.info && <button
-        onClick={() => window.location.reload()}
-        className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
-      >
-        <p className="text-[4vh] portrait:text-[4vw] font-light">
-          {(dict.totem as I18nRecord).finish as string}
-        </p>
-      </button>}
-      {tripData?.trip?.info && tripData?.trip?.rut2 && tripData?.trip?.state2 === "No verificado" && (
+      {tripData?.trip?.info &&
+        tripData?.trip?.rut2 &&
+        tripData?.trip?.state2 === "No verificado" && (
+          <h1 className="text-[2vh] portrait:text-[2.5vw] text-red-600 dark:text-red-500 w-[90%] text-center">
+            *{" "}
+            {
+              (dict.totem as I18nRecord)
+                .remember_to_tell_your_companion as string
+            }
+          </h1>
+        )}
+      {tripData?.trip?.info && (
         <button
-          onClick={() => {
-            console.log("tripData", tripData);
-            console.log("tripData?.trip?.rut2", tripData?.trip?.rut2);
-            setRutData({ rut: tripData?.trip?.rut2 });
-            setCurrentStep(1);
-          }}
-          className="bg-white text-gray-900 p-3 rounded-2xl w-full flex items-center justify-center gap-2"
+          onClick={() => setTestState(true)}
+          className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
-            {(dict.totem as I18nRecord).verify_secondary_driver as string}
+            {(dict.totem as I18nRecord).continue as string}
           </p>
         </button>
       )}
+      {!tripData?.trip?.info && (
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
+        >
+          <p className="text-[4vh] portrait:text-[4vw] font-light">
+            {(dict.totem as I18nRecord).finish as string}
+          </p>
+        </button>
+      )}
+      {tripData?.trip?.info &&
+        tripData?.trip?.rut2 &&
+        tripData?.trip?.state2 === "No verificado" && (
+          <button
+            onClick={() => {
+              console.log("tripData", tripData);
+              console.log("tripData?.trip?.rut2", tripData?.trip?.rut2);
+              setRutData({ rut: tripData?.trip?.rut2 });
+              setCurrentStep(1);
+            }}
+            className="bg-white text-gray-900 p-3 rounded-2xl w-full flex items-center justify-center gap-2"
+          >
+            <p className="text-[4vh] portrait:text-[4vw] font-light">
+              {(dict.totem as I18nRecord).verify_secondary_driver as string}
+            </p>
+          </button>
+        )}
     </div>
   );
 }

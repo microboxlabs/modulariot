@@ -2,7 +2,6 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 
-
 export default function TripInformation({
   setCurrentStep,
   currentStep,
@@ -73,7 +72,10 @@ export default function TripInformation({
           rut,
           email: "jhon@gmail.com",
           phone: "+569 1234 5678",
-          state: biometricResult && biometricResult.Erc === 0  ? "Verificado" : "No verificado",//&& biometricResult.Rut === rut
+          state:
+            biometricResult && biometricResult.Erc === 0
+              ? "Verificado"
+              : "No verificado", //&& biometricResult.Rut === rut
           rut2: "12312312-3",
           email2: "jane@gmail.com",
           phone2: "+569 1234 5678",
@@ -89,8 +91,11 @@ export default function TripInformation({
     } else {
       setTripData({
         trip: {
-          ...tripData.trip,          
-          state2: biometricResult && biometricResult.Erc === 0  ? "Verificado" : "No verificado",//&& biometricResult.Rut === rut
+          ...tripData.trip,
+          state2:
+            biometricResult && biometricResult.Erc === 0
+              ? "Verificado"
+              : "No verificado", //&& biometricResult.Rut === rut
         },
       });
     }
@@ -215,7 +220,7 @@ function DriverInfo({
           )}
         </h1>
         <h1 className="text-[1.5vh] portrait:text-[2vw] font-light text-gray-900 dark:text-gray-400">
-          {(dict.totem as I18nRecord).driver as string} {number}         
+          {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>
       <div className="flex flex-col justify-center gap-3 w-full">

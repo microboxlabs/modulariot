@@ -37,14 +37,14 @@ export default function Huella({
 
   const validator =
     process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
-      ?  /* async ()=> {        
+      ? /* async ()=> {        
         return new Promise((resolve,reject) => {
           setTimeout(() => {
             reject("Error");
           }, 1000);
         });
       } */
-     fakeValidateRut
+        fakeValidateRut
       : validateRut;
 
   const handleScanFingerprint = async () => {
@@ -105,7 +105,9 @@ export default function Huella({
         <IoIosFingerPrint className="w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] transition-colors duration-300" />
       </div>
       <div className="flex flex-col items-center justify-center">
-        <p className={`text-[3vh] portrait:text-[3vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}>
+        <p
+          className={`text-[3vh] portrait:text-[3vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
+        >
           {status_icon[status].text}
         </p>
         <p
@@ -116,7 +118,9 @@ export default function Huella({
       </div>
       <button
         onClick={handleScanFingerprint}
-        disabled={status !== "idle" && status !== "success" && status !== "error"}
+        disabled={
+          status !== "idle" && status !== "success" && status !== "error"
+        }
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">

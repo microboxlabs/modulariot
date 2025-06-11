@@ -114,7 +114,9 @@ export default function Stepped({
           text={steps[1].title}
           icon={steps[1].icon}
           current_step={currentStep}
-          onClick={() => currentStep > 1 && biometricResult && setCurrentStep(1)}
+          onClick={() =>
+            currentStep > 1 && biometricResult && setCurrentStep(1)
+          }
         />
         <StepperMarker
           id={2}
@@ -122,7 +124,12 @@ export default function Stepped({
           text={steps[2].title}
           icon={steps[2].icon}
           current_step={currentStep}
-          onClick={() => currentStep > 2 && biometricResult && tripData?.trip && setCurrentStep(2)}
+          onClick={() =>
+            currentStep > 2 &&
+            biometricResult &&
+            tripData?.trip &&
+            setCurrentStep(2)
+          }
         />
         <StepperMarker
           id={3}

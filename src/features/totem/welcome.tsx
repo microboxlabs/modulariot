@@ -26,7 +26,7 @@ export default function Welcome({
         <div className="flex flex-col items-center justify-center w-full">
           <button
             onClick={() => setCurrentOption(currentOption + 1)}
-            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2"
+            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
           >
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).start as string}

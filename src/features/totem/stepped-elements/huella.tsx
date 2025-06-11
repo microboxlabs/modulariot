@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
@@ -25,11 +25,26 @@ export default function Huella({
     "idle" | "scanning" | "success" | "error"
   >("idle");
 
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (count >= 3) {
+      setCurrentStep(3);
+    }
+  }, [count]);
+
   if (!pluginReady) return null;
 
   const validator =
     process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
-      ? fakeValidateRut
+      ?  /* async ()=> {        
+        return new Promise((resolve,reject) => {
+          setTimeout(() => {
+            reject("Error");
+          }, 1000);
+        });
+      } */
+     fakeValidateRut
       : validateRut;
 
   const handleScanFingerprint = async () => {
@@ -40,6 +55,7 @@ export default function Huella({
 
     if (!rutData?.rut.trim()) {
       setStatus("error");
+      setCount(count + 1);
       return;
     }
 
@@ -53,6 +69,7 @@ export default function Huella({
       }
     } catch (err: any) {
       setStatus("error");
+      setCount(count + 1);
     }
   };
 
@@ -76,7 +93,7 @@ export default function Huella({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full">
+    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
       <div className="flex flex-col items-center justify-center gap-4">
         <h1 className="text-[4vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).fingerprint_scan as string}
@@ -88,18 +105,18 @@ export default function Huella({
         <IoIosFingerPrint className="w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] transition-colors duration-300" />
       </div>
       <div className="flex flex-col items-center justify-center">
-        <p className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400">
+        <p className={`text-[3vh] portrait:text-[3vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}>
           {status_icon[status].text}
         </p>
         <p
           className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >
-          John Doe {rutData?.rut}
+          {rutData?.rut}
         </p>
       </div>
       <button
         onClick={handleScanFingerprint}
-        disabled={status !== "idle" && status !== "success"}
+        disabled={status !== "idle" && status !== "success" && status !== "error"}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">

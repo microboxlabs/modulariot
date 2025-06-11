@@ -25,6 +25,8 @@ export default function Stepped({
   const [pluginReady, setPluginReady] = useState(false);
   const [rutData, setRutData] = useState<{ rut: string } | null>(null);
   const [biometricResult, setBiometricResult] = useState<any>(null);
+  const [rut, setRut] = useState("");
+  const [tripData, setTripData] = useState<{ trip: any } | null>(null);
 
   const steps = [
     {
@@ -34,6 +36,8 @@ export default function Stepped({
           currentStep={currentStep}
           dict={dict}
           onRutValidated={setRutData}
+          rut={rut}
+          setRut={setRut}
         />
       ),
       title: (dict.totem as I18nRecord).rut_ingress as string,
@@ -65,7 +69,10 @@ export default function Stepped({
           dict={dict}
           deviceId={deviceId}
           deviceLocation={deviceLocation}
+          rut={rut}
           biometricResult={biometricResult}
+          tripData={tripData}
+          setTripData={setTripData}
         />
       ),
       title: (dict.totem as I18nRecord).assigned_trip as string,
@@ -74,7 +81,14 @@ export default function Stepped({
       ),
     },
     {
-      interface: <Tests dict={dict} />,
+      interface: (
+        <Tests
+          dict={dict}
+          tripData={tripData}
+          setRutData={setRutData}
+          setCurrentStep={setCurrentStep}
+        />
+      ),
       title: (dict.totem as I18nRecord).tests as string,
       icon: (
         <FaBell className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
@@ -100,7 +114,7 @@ export default function Stepped({
           text={steps[1].title}
           icon={steps[1].icon}
           current_step={currentStep}
-          onClick={() => currentStep > 1 && setCurrentStep(1)}
+          onClick={() => currentStep > 1 && biometricResult && setCurrentStep(1)}
         />
         <StepperMarker
           id={2}
@@ -108,7 +122,7 @@ export default function Stepped({
           text={steps[2].title}
           icon={steps[2].icon}
           current_step={currentStep}
-          onClick={() => currentStep > 2 && setCurrentStep(2)}
+          onClick={() => currentStep > 2 && biometricResult && tripData?.trip && setCurrentStep(2)}
         />
         <StepperMarker
           id={3}

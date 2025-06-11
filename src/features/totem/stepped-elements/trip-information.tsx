@@ -24,15 +24,16 @@ export default function TripInformation({
   setTripData: (tripData: any) => void;
 }) {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, _setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Use biometricResult for debugging or further logic
-  if (biometricResult) {
+  /* if (biometricResult) {
     console.log("biometricResult in TripInformation:", biometricResult);
-  }
+  } */
 
   useEffect(() => {
-    /* const verifyBiometric = async () => {
+    setIsLoading(true);
+    const verifyBiometric = async () => {
       if (!deviceId || !deviceLocation) return;
 
       try {
@@ -56,55 +57,53 @@ export default function TripInformation({
 
         const data = await response.json();
         console.log("Biometric verification result:", data);
+
+        setTripData({
+          ...data,
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error occurred");
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    verifyBiometric(); */
-    console.log("tripData", tripData);
     if (!tripData) {
-      //add 2 drivers to the tripData
-      setTripData({
-        trip: {
-          rut,
-          email: "jhon@gmail.com",
-          phone: "+569 1234 5678",
-          state:
-            biometricResult && biometricResult.Erc === 0
-              ? "Verificado"
-              : "No verificado", //&& biometricResult.Rut === rut
-          rut2: "12312312-3",
-          email2: "jane@gmail.com",
-          phone2: "+569 1234 5678",
-          state2: "No verificado",
-          client: "Jhon Doe",
+      verifyBiometric();
+      /*
+        setTripData({
+          trip {
+            rut,
+            email: "jhon@gmail.com",
+            phone: "+569 1234 5678",
+            state:
+              biometricResult && biometricResult.Erc === 0
+                ? "Verificado"
+                : "No verificado", //&& biometricResult.Rut === rut
+            rut2: "12312312-3",
+            email2: "jane@gmail.com",
+            phone2: "+569 1234 5678",
+            state2: "No verificado",
+            client: "Jhon Doe",
 
-          info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
-          origin: "Santiago",
-          destination: "Valparaiso",
-          schedule: "8:00 am - 16:00 pm",
-        },
-      });
+            info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+            origin: "Santiago",
+            destination: "Valparaiso",
+            schedule: "8:00 am - 16:00 pm",
+          });
+          } */
     } else {
       setTripData({
-        trip: {
-          ...tripData.trip,
-          state2:
-            biometricResult && biometricResult.Erc === 0
-              ? "Verificado"
-              : "No verificado", //&& biometricResult.Rut === rut
+        tripInfo: {
+          ...tripData.tripInfo,
+          status2:
+            biometricResult && biometricResult.Erc === 0 ? "SUCCESS" : "ERROR", //&& biometricResult.Rut === rut
         },
       });
     }
     setIsLoading(false);
-    console.log("tripData", tripData);
-  }, [deviceId, deviceLocation]);
+  }, []);
 
   if (!deviceId || !deviceLocation) return null;
-  if (isLoading) {
+  if (!tripData || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
         <p className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
@@ -131,23 +130,25 @@ export default function TripInformation({
       <div className="flex flex-row items-stretch justify-between w-full my-[2vh]">
         <DriverInfo
           number={1}
-          name={tripData?.trip?.rut}
-          email={tripData?.trip?.email}
-          phone={tripData?.trip?.phone}
-          state={tripData?.trip?.state}
+          name={tripData?.tripInfo?.driverId}
+          /* email={tripData?.tripInfo?.email}
+          phone={tripData?.tripInfo?.phone} */
+          state={tripData?.tripInfo?.status}
           dict={dict}
         />
-        <DriverInfo
-          number={2}
-          name={tripData?.trip?.rut2}
-          email={tripData?.trip?.email2}
-          phone={tripData?.trip?.phone2}
-          state={tripData?.trip?.state2}
-          dict={dict}
-        />
+        {tripData?.isDoubleDriver && (
+          <DriverInfo
+            number={2}
+            name={tripData?.tripInfo?.driverId2}
+            /*  email={tripData?.trip?.email2}
+            phone={tripData?.trip?.phone2} */
+            state={tripData?.tripInfo?.status2}
+            dict={dict}
+          />
+        )}
       </div>
       <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
-      {tripData?.trip?.info && (
+      {tripData?.tripInfo?.tripInfo?.tripId && (
         <div className="flex flex-row items-stretch justify-center gap-3 w-full my-[2vh]">
           <div className="flex flex-col justify-center gap-[1vh] w-full">
             <h1 className="text-[2vh] portrait:text-[3vw] font-light text-gray-900 dark:text-gray-100">
@@ -156,24 +157,31 @@ export default function TripInformation({
             <div className="flex flex-col justify-center gap-1 w-full">
               <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
                 {(dict.totem as I18nRecord).trip_information_client as string}:{" "}
-                <span className="font-light">{tripData?.trip?.info}</span>
+                <span className="font-light">
+                  {tripData?.tripInfo?.tripInfo?.tripId}
+                </span>
               </h1>
               <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
                 {((dict.totem as I18nRecord)
                   .trip_information_origin_destination as string) + ": "}
                 <span className="font-light">
-                  {tripData?.trip?.origin} - {tripData?.trip?.destination}
+                  {tripData?.tripInfo?.tripInfo?.origin} -{" "}
+                  {tripData?.tripInfo?.tripInfo?.destination}
                 </span>
               </h1>
               <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
                 {(dict.totem as I18nRecord).trip_information_schedule as string}
-                : <span className="font-light">{tripData?.trip?.schedule}</span>
+                :{" "}
+                <span className="font-light">
+                  {tripData?.tripInfo?.tripInfo?.startTime?.split("T")[1]} -{" "}
+                  {tripData?.tripInfo?.tripInfo?.endTime?.split("T")[1]}
+                </span>
               </h1>
             </div>
           </div>
         </div>
       )}
-      {!tripData?.trip?.info && (
+      {!tripData?.tripInfo?.tripInfo?.tripId && (
         <div className="flex flex-col justify-center gap-2 portrait:gap-7 w-full my-[2vh]">
           <h1 className="text-[2vh] portrait:text-[3vw] font-light text-red-500 dark:text-red-500">
             {(dict.totem as I18nRecord).no_trip_information as string}
@@ -195,15 +203,15 @@ export default function TripInformation({
 function DriverInfo({
   number,
   name,
-  email,
-  phone,
+  /* email,
+  phone, */
   state,
   dict,
 }: {
   number: number;
   name: string;
-  email: string;
-  phone: string;
+  /*  email: string;
+  phone: string; */
   state: string;
   dict: I18nRecord;
 }) {
@@ -212,10 +220,10 @@ function DriverInfo({
       <div className="flex flex-col justify-center w-full">
         <h1 className="text-[3vh] portrait:text-[3vw] font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2">
           {name}
-          {state === "Verificado" && (
+          {state === "SUCCESS" && (
             <FaCheckCircle className="w-6 h-6 text-green-500" />
           )}
-          {state === "No verificado" && (
+          {state !== "SUCCESS" && (
             <FaExclamationCircle className="w-6 h-6 text-yellow-300" />
           )}
         </h1>
@@ -224,22 +232,22 @@ function DriverInfo({
         </h1>
       </div>
       <div className="flex flex-col justify-center gap-3 w-full">
-        <h1 className="text-[2vh] portrait:text-[2.5vw] font-bold text-gray-900 dark:text-gray-100">
+        {/* <h1 className="text-[2vh] portrait:text-[2.5vw] font-bold text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).contact_information as string}
-        </h1>
+        </h1> */}
         <div className="flex flex-col justify-center gap-[1vh] w-full">
-          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          {/*  <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).email as string}:{" "}
             <span className="font-light">{email}</span>
-          </h1>
+          </h1> */}
           <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).state as string}:{" "}
             <span className="font-light">{state}</span>
           </h1>
-          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+          {/*  <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).phone as string}:{" "}
             <span className="font-light">{phone}</span>
-          </h1>
+          </h1> */}
           {/* <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).rut as string}:{" "}
             <span className="font-light">{rut}</span>

@@ -34,7 +34,10 @@ export default function TripInformation({
   useEffect(() => {
     setIsLoading(true);
     const verifyBiometric = async () => {
-      if (!deviceId || !deviceLocation) return;
+      if (!deviceId || !deviceLocation) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const response = await fetch("/app/api/biometric/verify", {
@@ -61,8 +64,10 @@ export default function TripInformation({
         setTripData({
           ...data,
         });
+        setIsLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error occurred");
+        setIsLoading(false);
       }
     };
 
@@ -99,11 +104,11 @@ export default function TripInformation({
         },
       });
     }
-    setIsLoading(false);
   }, []);
 
   if (!deviceId || !deviceLocation) return null;
-  if (!tripData || isLoading) {
+
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
         <p className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
@@ -117,6 +122,25 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!tripData && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
+        <p className="text-center font-light text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+          El conductor con rut <span className="font-bold">{rut}</span> no posee
+          un viaje asignado.
+        </p>
+        <button
+          onClick={() => setCurrentStep(currentStep + 1)}
+          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+        >
+          <p className="text-[4vh] portrait:text-[4vw] font-light">
+            {(dict.totem as I18nRecord).continue as string}
+          </p>
+        </button>
       </div>
     );
   }

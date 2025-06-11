@@ -742,7 +742,7 @@
     "alcohol_test": "Test de alcohol",
     "finish": "Finalizar",
     "rut_invalid": "RUT inválido",
-    "no_trip_information": "Sin información de viaje",
+    "no_trip_information": "Sin viaje asignado",
     "verify_secondary_driver": "Verificar al segundo conductor",
     "notify_control_center": "Hemos informado a la torre de control."
   }

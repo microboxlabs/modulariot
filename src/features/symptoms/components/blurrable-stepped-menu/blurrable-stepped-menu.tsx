@@ -1,3 +1,5 @@
+/*
+
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import SideInfoData from "../map-view/side-info-data";
@@ -235,7 +237,7 @@ export default function BlurrableSteppedMenu({
       <div
         className={`w-[1000px] h-[500px] bg-white dark:bg-gray-800 rounded-lg p-4 gap-2 !flex flex-row ${className}`}
       >
-        {/*Left data*/}
+        
         <div className="w-3/6 h-full !flex flex-col gap-2 p-2">
           {side_sections.map((section, section_index) => (
             <div
@@ -293,10 +295,10 @@ export default function BlurrableSteppedMenu({
             </div>
           ))}
         </div>
-        {/*Right data*/}
+     
         <div className="w-5/6 p-2 flex flex-grow justify-center items-center overflow-y-hidden">
           <div className="w-full h-full overflow-y-auto flex flex-col items-center">
-            {/*stepper*/}
+          
             <div className="w-full flex flex-col">
               <div className="flex flex-row items-center justify-between">
                 <div className="w-full flex items-center gap-2 text-gray-500">
@@ -352,7 +354,7 @@ export default function BlurrableSteppedMenu({
                 )}
               </div>
             </div>
-            {/*page data*/}
+          
             <div className="flex flex-grow w-full flex-col gap-2 overflow-y-auto">
               {displayed_element}
               {side_sections[selected_section].elements[
@@ -460,3 +462,4 @@ export default function BlurrableSteppedMenu({
     </div>
   );
 }
+*/

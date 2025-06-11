@@ -37,13 +37,14 @@ export default function Huella({
 
   const validator =
     process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
-      ? /* async ()=> {        
-        return new Promise((resolve,reject) => {
-          setTimeout(() => {
-            reject("Error");
-          }, 1000);
-        });
-      } */
+      ? /* async () => {
+          return new Promise((resolve, reject) => {
+            setTimeout(() => {
+              reject("Error");
+            }, 1000);
+          });
+        }
+      : // */
         fakeValidateRut
       : validateRut;
 

@@ -42,7 +42,7 @@ export default function TripInformation({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            driverId: "required", // Replace with actual driver ID
+            driverId: rut, // Replace with actual driver ID
             deviceId,
             deviceLocation,
             fingerprintData: biometricResult, // Add if available

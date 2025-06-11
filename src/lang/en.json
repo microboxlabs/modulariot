@@ -732,6 +732,9 @@
     "sleepiness_test": "Sleepiness test",
     "alcohol_test": "Alcohol test",
     "finish": "Finish",
-    "rut_invalid": "Invalid RUT"
+    "rut_invalid": "Invalid RUT",
+    "no_trip_information": "No trip information",
+    "verify_secondary_driver": "Verify secondary driver",
+    "notify_control_center": "We have notified the control center."
   }
 }

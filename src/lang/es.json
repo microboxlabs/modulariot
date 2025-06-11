@@ -710,7 +710,7 @@
     "other_versions": "Otras versiones"
   },
   "totem": {
-    "welcome": "Sean bienvenidos",
+    "welcome": "Les damos la bienvenida",
     "subtitle": "Al totem de verificación",
     "start": "Comenzar",
     "rut_ingress": "Ingreso Rut",
@@ -741,6 +741,9 @@
     "sleepiness_test": "Test de somnolencia",
     "alcohol_test": "Test de alcohol",
     "finish": "Finalizar",
-    "rut_invalid": "RUT inválido"
+    "rut_invalid": "RUT inválido",
+    "no_trip_information": "Sin información de viaje",
+    "verify_secondary_driver": "Verificar al segundo conductor",
+    "notify_control_center": "Hemos informado a la torre de control."
   }
 }

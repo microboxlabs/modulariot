@@ -1,10 +1,20 @@
 import ExclamationIcon from "@/features/icons/exclamation";
 import okImage from "@assets/icons/totem/ok.gif";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function Tests({ dict }: { dict: I18nRecord }) {
+export default function Tests({
+  dict,
+  tripData,
+  setCurrentStep,
+  setRutData,
+}: {
+  dict: I18nRecord;
+  tripData: any;
+  setCurrentStep: (step: number) => void;
+  setRutData: ({ rut }: { rut: string }) => void;
+}) {
   const [testState, setTestState] = useState(false);
 
   return (
@@ -13,6 +23,9 @@ export default function Tests({ dict }: { dict: I18nRecord }) {
         testState={testState}
         setTestState={setTestState}
         dict={dict}
+        tripData={tripData}
+        setCurrentStep={setCurrentStep}
+        setRutData={setRutData}
       />
       <GotoBox testState={testState} dict={dict} />
     </div>
@@ -23,36 +36,84 @@ function Congratulation({
   testState,
   setTestState,
   dict,
+  tripData,
+  setCurrentStep,
+  setRutData,
 }: {
   testState: boolean;
   setTestState: (state: boolean) => void;
   dict: I18nRecord;
+  tripData: any;
+  setCurrentStep: (step: number) => void;
+  setRutData: ({ rut }: { rut: string }) => void;
 }) {
+/* 
+  useEffect(() => {
+    if (!tripData?.trip?.info) {
+      setTimeout(() => {
+        window.location.reload()
+      }, 3000);
+    }
+  }, [tripData]); */
+
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-2xl p-10 gap-10 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
+      className={`flex flex-col items-center justify-center w-[50%] rounded-2xl p-8 gap-8 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
-      <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
+      {tripData?.trip?.info && (
+        <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
         {(dict.totem as I18nRecord).congratulations as string}
       </h1>
+      )}
+      {!tripData?.trip?.info && (
+        <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
+        {(dict.totem as I18nRecord).notify_control_center as string}
+      </h1>
+      )}
       <Image
-        className="w-[15vh] h-[15vh] animate-scale-in"
+        className="w-[10vh] h-[10vh] animate-scale-in"
         src={okImage}
         alt="Ok"
         width={100}
         height={100}
       />
-      <h1 className="text-[2vh] portrait:text-[2.5vw] text-red-600 dark:text-red-500 w-[80%] text-center">
-        * {(dict.totem as I18nRecord).remember_to_tell_your_companion as string}
-      </h1>
-      <button
+      {tripData?.trip?.info && tripData?.trip?.rut2 && tripData?.trip?.state2 === "No verificado" && (
+        <h1 className="text-[2vh] portrait:text-[2.5vw] text-red-600 dark:text-red-500 w-[90%] text-center">
+          *{" "}
+          {(dict.totem as I18nRecord).remember_to_tell_your_companion as string}
+        </h1>
+      )}
+      {tripData?.trip?.info && <button
         onClick={() => setTestState(true)}
-        className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2"
+        className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
-      </button>
+      </button>}
+      {!tripData?.trip?.info && <button
+        onClick={() => window.location.reload()}
+        className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
+      >
+        <p className="text-[4vh] portrait:text-[4vw] font-light">
+          {(dict.totem as I18nRecord).finish as string}
+        </p>
+      </button>}
+      {tripData?.trip?.info && tripData?.trip?.rut2 && tripData?.trip?.state2 === "No verificado" && (
+        <button
+          onClick={() => {
+            console.log("tripData", tripData);
+            console.log("tripData?.trip?.rut2", tripData?.trip?.rut2);
+            setRutData({ rut: tripData?.trip?.rut2 });
+            setCurrentStep(1);
+          }}
+          className="bg-white text-gray-900 p-3 rounded-2xl w-full flex items-center justify-center gap-2"
+        >
+          <p className="text-[4vh] portrait:text-[4vw] font-light">
+            {(dict.totem as I18nRecord).verify_secondary_driver as string}
+          </p>
+        </button>
+      )}
     </div>
   );
 }

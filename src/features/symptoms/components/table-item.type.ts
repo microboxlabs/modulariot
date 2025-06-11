@@ -12,6 +12,7 @@ import speedLimitStandard from "@assets/timeline/speed-limit-standar.svg";
 import speedLimitCustom from "@assets/timeline/speed-limit-custom.svg";
 import maximumContinuousDriving from "@assets/timeline/continuos-drive-check.svg";
 import ofHoursDriving from "@assets/timeline/off-hour-driving.svg";
+import doubleDriverRotationCheck from "@assets/timeline/double-driver-rotation-check.svg";
 
 export type TableItemType = {
   id: string;
@@ -275,7 +276,7 @@ export const Symptoms: Record<string, SymptomType> = {
     secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
     separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
-    icon: maximumContinuousDriving, //define new icon with Miel
+    icon: doubleDriverRotationCheck,
   },
   "OFF HOURS DRIVING": {
     dict_name: "stable",
@@ -385,8 +386,10 @@ export type SymptomType = {
 };
 
 export function getSymptom(symptom: string): SymptomType {
+  console.log("symptom", symptom);
   const symptomIcon: SymptomType =
     Symptoms[symptom as keyof typeof Symptoms] ||
+    Symptoms[symptom.toUpperCase() as keyof typeof Symptoms] ||
     Symptoms["CONTINUOUS DRIVE CHECK"];
   return symptomIcon;
 }

@@ -4,7 +4,7 @@ import { HiArrowRight } from "react-icons/hi";
 import { Button, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
 import { useState } from "react";
-import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
+//import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
 import { SelectedOption } from "./types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
@@ -18,6 +18,7 @@ import { FaClock } from "react-icons/fa";
 import { TbSortAscendingShapes, TbSortDescendingShapes } from "react-icons/tb";
 import { ConditionsAgg } from "./types/timeline";
 import { GroupAllowed } from "../common/components/group-allowed/group-allowed";
+import SymptomForm from "./components/blurrable-stepped-menu/symptom-form";
 
 export default function SideInfo({
   dict,
@@ -59,7 +60,7 @@ export default function SideInfo({
   return (
     <div className="relative flex flex-col p-1 h-full">
       {treatments_templates && !loading && (
-        <BlurrableSteppedMenu
+        <SymptomForm
           selectedOption={selectedOption}
           dict={dict}
           isMenuOpen={isMenuOpen}

@@ -106,7 +106,7 @@ export default function TripInformation({
     );
   }
 
-  if (error) {
+  if (error && !tripData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>

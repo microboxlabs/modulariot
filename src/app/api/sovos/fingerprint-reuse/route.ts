@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Simple in-memory cache (for demonstration; use Redis or similar for production)
 const cache: Record<string, { value: any; expires: number }> = {};
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 

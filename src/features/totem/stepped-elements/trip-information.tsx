@@ -32,6 +32,8 @@ export default function TripInformation({
   } */
 
   useEffect(() => {
+    if (tripData) return; // Only run if tripData is not set
+
     setIsLoading(true);
     const verifyBiometric = async () => {
       if (!deviceId || !deviceLocation) {
@@ -59,51 +61,37 @@ export default function TripInformation({
         }
 
         const data = await response.json();
-        console.log("Biometric verification result:", data);
-
-        setTripData({
-          ...data,
-        });
-        setIsLoading(false);
+        setTripData({ ...data });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error occurred");
+      } finally {
         setIsLoading(false);
       }
     };
 
-    if (!tripData) {
-      verifyBiometric();
-      /*
-        setTripData({
-          trip {
-            rut,
-            email: "jhon@gmail.com",
-            phone: "+569 1234 5678",
-            state:
-              biometricResult && biometricResult.Erc === 0
-                ? "Verificado"
-                : "No verificado", //&& biometricResult.Rut === rut
-            rut2: "12312312-3",
-            email2: "jane@gmail.com",
-            phone2: "+569 1234 5678",
-            state2: "No verificado",
-            client: "Jhon Doe",
-
-            info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
-            origin: "Santiago",
-            destination: "Valparaiso",
-            schedule: "8:00 am - 16:00 pm",
-          });
-          } */
-    } else {
+    verifyBiometric();
+    /*
       setTripData({
-        tripInfo: {
-          ...tripData.tripInfo,
-          status2:
-            biometricResult && biometricResult.Erc === 0 ? "SUCCESS" : "ERROR", //&& biometricResult.Rut === rut
-        },
-      });
-    }
+        trip {
+          rut,
+          email: "jhon@gmail.com",
+          phone: "+569 1234 5678",
+          state:
+            biometricResult && biometricResult.Erc === 0
+              ? "Verificado"
+              : "No verificado", //&& biometricResult.Rut === rut
+          rut2: "12312312-3",
+          email2: "jane@gmail.com",
+          phone2: "+569 1234 5678",
+          state2: "No verificado",
+          client: "Jhon Doe",
+
+          info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
+          origin: "Santiago",
+          destination: "Valparaiso",
+          schedule: "8:00 am - 16:00 pm",
+        });
+        } */
   }, []);
 
   if (!deviceId || !deviceLocation) return null;
@@ -118,7 +106,7 @@ export default function TripInformation({
     );
   }
 
-  if (error) {
+  if (error && !tripData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>

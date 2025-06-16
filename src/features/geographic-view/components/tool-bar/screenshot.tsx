@@ -158,7 +158,7 @@ export default function Screenshot() {
         >
           <div
             className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-lg p-4 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="w-full flex items-center flex-row gap-2 pb-4 text-gray-500 justify-between">
@@ -195,7 +195,7 @@ export default function Screenshot() {
                   <div className="w-full flex justify-end gap-2">
                     <Button
                       color="blue"
-                      onClick={(e) => downloadFromPreview(e)}
+                      onClick={(e: React.MouseEvent) => downloadFromPreview(e)}
                       pill
                       size="sm"
                     >
@@ -203,7 +203,7 @@ export default function Screenshot() {
                     </Button>
                     <Button
                       color="blue"
-                      onClick={(e) => handleShare(e)}
+                      onClick={(e: React.MouseEvent) => handleShare(e)}
                       pill
                       size="sm"
                     >

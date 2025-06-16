@@ -77,12 +77,14 @@ export default function TimelineGroup({
 
   useEffect(() => {
     if (selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      setTimeout(() => {
+        selectedItemRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
     }
-  }, [selectedItemRef.current]);
+  }, [isExpanded, item.conditions_agg]);
 
   // Get unique conditions
   const uniqueConditions = new Set(

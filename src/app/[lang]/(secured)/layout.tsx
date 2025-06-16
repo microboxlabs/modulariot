@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { twMerge } from "tailwind-merge";
 import SecuredLayout from "@/features/layout/components/secured-layout";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { AuthProvider } from "@/features/auth/context/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,7 +21,9 @@ export default async function Layout({
       )}
     >
       <SessionProvider basePath="/app/api/auth">
-        <SecuredLayout params={params}>{children}</SecuredLayout>
+        <AuthProvider>
+          <SecuredLayout params={params}>{children}</SecuredLayout>
+        </AuthProvider>
       </SessionProvider>
     </main>
   );

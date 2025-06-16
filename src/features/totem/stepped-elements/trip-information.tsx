@@ -91,7 +91,6 @@ export default function TripInformation({
           schedule: "8:00 am - 16:00 pm",
         });
         } */
-
   }, []);
 
   if (!deviceId || !deviceLocation) return null;

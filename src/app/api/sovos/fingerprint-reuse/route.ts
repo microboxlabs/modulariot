@@ -1,40 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { getSovosFingerprintReuse } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
-const cache: Record<string, { value: any; expires: number }> = {};
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.next({
+      status: 401,
+    });
+  }
 
-export async function POST(request: NextRequest) {
-  try {
-    const { rut, result } = await request.json();
-    if (!rut || !result) {
-      return NextResponse.json(
-        { error: "Missing rut or result" },
-        { status: 400 },
-      );
-    }
-    // Save to cache with 1 day expiration
-    cache[rut] = { value: result, expires: Date.now() + ONE_DAY_MS };
-    return NextResponse.json({ success: true });
-  } catch (error) {
+  if (process.env.TOTEM_PILOT_ENABLED !== "true") {
     return NextResponse.json(
-      { error: "Failed to save result" },
+      { autoSigned: false, totemPilot: false },
+      { status: 200 },
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const rut = searchParams.get("rut");
+  const tripId = searchParams.get("tripId");
+
+  if (!rut || !tripId) {
+    return NextResponse.json({ error: "Missing data" }, { status: 400 });
+  }
+
+  try {
+    const fingerprintReuse = await getSovosFingerprintReuse(
+      session.user.ticket,
+      {
+        driverId: rut,
+        tripId,
+      },
+    );
+    return NextResponse.json({ fingerprintReuse });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
       { status: 500 },
     );
   }
-}
-
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const rut = searchParams.get("rut");
-  if (!rut) {
-    return NextResponse.json({ error: "Missing rut" }, { status: 400 });
-  }
-  const cached = cache[rut];
-  if (!cached || cached.expires < Date.now()) {
-    return NextResponse.json(
-      { error: "Not found or expired" },
-      { status: 404 },
-    );
-  }
-  return NextResponse.json({ result: cached.value });
 }

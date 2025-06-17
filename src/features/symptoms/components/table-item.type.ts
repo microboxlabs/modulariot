@@ -386,7 +386,6 @@ export type SymptomType = {
 };
 
 export function getSymptom(symptom: string): SymptomType {
-  console.log("symptom", symptom);
   const symptomIcon: SymptomType =
     Symptoms[symptom as keyof typeof Symptoms] ||
     Symptoms[symptom.toUpperCase() as keyof typeof Symptoms] ||

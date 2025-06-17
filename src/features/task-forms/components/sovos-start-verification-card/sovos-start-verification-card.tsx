@@ -16,6 +16,19 @@ import {
   useUserGroups,
 } from "@/features/common/providers/client-api.provider";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+
+type FingerprintReuseResponse = {
+  fingerprintReuse?: {
+    tripFound: boolean;
+    verifiedIntent: boolean;
+    fingerprintFound?: {
+      verifiedIntent: boolean;
+      totalExpectedFingerPrints: number;
+      successFingerPrints: Record<string, string>;
+    };
+  };
+};
+
 export default function SovosStartVerificationCard({
   // lang,
   task,
@@ -47,21 +60,58 @@ export default function SovosStartVerificationCard({
       requestSovosFingerprintReuse(
         getRut(),
         task.mintral_serviceCode as string,
-      ).then((result) => {
+      ).then((result: FingerprintReuseResponse) => {
         console.log(result);
         console.log(result?.fingerprintReuse?.tripFound);
+        console.log(result?.fingerprintReuse?.fingerprintFound?.verifiedIntent);
 
-        if (result?.fingerprintReuse?.tripFound) {
-          //TODO: show information completed
-          stepperController.toNextStep(false, {
-            Erc: 0,
-            ercText: "Reutilización de huella",
-            NroAudit: "0",
-            Rut: getRut(),
-          });
+        if (
+          result?.fingerprintReuse?.tripFound &&
+          result?.fingerprintReuse?.fingerprintFound?.verifiedIntent
+        ) {
+          console.log("entré");
+          if (
+            result?.fingerprintReuse?.fingerprintFound
+              ?.totalExpectedFingerPrints >= 1
+          ) {
+            const verifyID =
+              result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
+                getRut()
+              ];
+            console.log(verifyID);
+            stepperController.toNextStep(false, {
+              Erc: 0,
+              ercText: verifyID ?? "Reutilización de huella",
+              NroAudit: verifyID ?? "Reutilización de huella",
+              Rut: getRut(),
+            });
+          }
+
+          /* if (
+            result?.fingerprintReuse?.fingerprintFound
+              ?.totalExpectedFingerPrints == 2
+          ) {
+            console.log("2 fingers");
+            const verifyID2 =
+              result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
+                getRut()
+              ];
+            console.log(verifyID2);
+            stepperController.toNextStep(false, {
+              Erc: 0,
+              ercText: verifyID2 ?? "Reutilización de huella",
+              NroAudit: verifyID2 ?? "Reutilización de huella",
+              Rut: getRut(),
+            });
+          } else {
+            console.log("more than 2 fingers??");
+          } */
+
           setFingerprintReuse && setFingerprintReuse(true);
-          setFingerprintLoading(false);
+        } else {
+          console.log("no entré");
         }
+        setFingerprintLoading(false);
       });
     } catch (error) {
       //console.log(error);
@@ -137,10 +187,14 @@ export default function SovosStartVerificationCard({
         <h5 className="text-xl font-medium tracking-tight text-gray-900 dark:text-white mt-9">
           {msg!.title as string}
         </h5>
-        <div className="text-gray-900">{msg!.subtitle as string}</div>
-        <div className="text-gray-700 dark:text-gray-200 text-center text-justified p-4">
-          {msg!.description as string}
-        </div>
+        {hasRun.current && isFingerprintReuseNeeded && !fingerprintLoading && (
+          <>
+            <div className="text-gray-900">{msg!.subtitle as string}</div>
+            <div className="text-gray-700 dark:text-gray-200 text-center text-justified p-4">
+              {msg!.description as string}
+            </div>
+          </>
+        )}
         {hasRun.current && !isVerificationInProgress && !fingerprintLoading && (
           <GroupAllowed
             userGroups={userGroups}

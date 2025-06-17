@@ -15,7 +15,7 @@ import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
 import BlurrableDropdown from "@/features/layout/components/blurrable-dropdown/blurrable-dropdown";
-import router from "next/router";
+
 export default function SovosVerificationResultCard({
   msg,
   success,
@@ -25,7 +25,6 @@ export default function SovosVerificationResultCard({
   trParams,
   isSovosVerification,
   validationError,
-  fingerprintReuse,
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
@@ -153,7 +152,7 @@ export default function SovosVerificationResultCard({
             </div>
           </div>
         )}
-        {success && !fingerprintReuse && (
+        {success && (
           <Button
             color="blue"
             theme={{ inner: { base: "px-5 py-3" } }}
@@ -164,19 +163,6 @@ export default function SovosVerificationResultCard({
             {stepperController.hasNextStep()
               ? (msg?.continue as string)
               : (msg?.finish as string)}
-          </Button>
-        )}
-        {success && fingerprintReuse && (
-          <Button
-            color="blue"
-            theme={{ inner: { base: "px-5 py-3" } }}
-            className="w-full px-0 py-px"
-            onClick={() => {
-              //go to /shipping
-              router.push("/shipping");
-            }}
-          >
-            {msg?.continue as string}
           </Button>
         )}
       </div>

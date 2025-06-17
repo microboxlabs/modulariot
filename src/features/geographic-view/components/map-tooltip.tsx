@@ -33,7 +33,9 @@ export default function MapTooltip({
     e.stopPropagation();
     setIsDragging(true);
     setDragOffset({
-      x: e.clientX - position.left,
+      x:
+        e.clientX -
+        (start_right ? window.innerWidth - position.left : position.left),
       y: e.clientY - position.top,
     });
   };
@@ -41,7 +43,9 @@ export default function MapTooltip({
   const handleMouseMove = (e: MouseEvent) => {
     if (isDragging) {
       const newPosition = {
-        left: e.clientX - dragOffset.x,
+        left: start_right
+          ? window.innerWidth - (e.clientX - dragOffset.x)
+          : e.clientX - dragOffset.x,
         top: e.clientY - dragOffset.y,
       };
       setPosition(newPosition);
@@ -94,7 +98,7 @@ export default function MapTooltip({
 
   return (
     <div
-      className="absolute inset-0 z-10"
+      className="absolute inset-0 z-10 tooltip"
       onClick={handleBackdropClick}
       style={{ pointerEvents: "none" }}
     >

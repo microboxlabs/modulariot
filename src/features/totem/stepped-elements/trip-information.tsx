@@ -57,11 +57,19 @@ export default function TripInformation({
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to verify biometric data");
+          throw new Error(
+            errorData?.error?.info?.error
+              ? ((dict.totem as I18nRecord)[
+                  errorData?.error?.info?.error as keyof I18nRecord
+                ] as string)
+              : ((dict.totem as I18nRecord)
+                  .biometric_verification_error as string),
+          );
         }
         const data = await response.json();
         setTripData({ ...data });
       } catch (err) {
+        console.log(err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
@@ -69,28 +77,6 @@ export default function TripInformation({
     };
 
     verifyBiometric();
-    /*
-      setTripData({
-        trip {
-          rut,
-          email: "jhon@gmail.com",
-          phone: "+569 1234 5678",
-          state:
-            biometricResult && biometricResult.Erc === 0
-              ? "Verificado"
-              : "No verificado", //&& biometricResult.Rut === rut
-          rut2: "12312312-3",
-          email2: "jane@gmail.com",
-          phone2: "+569 1234 5678",
-          state2: "No verificado",
-          client: "Jhon Doe",
-
-          info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
-          origin: "Santiago",
-          destination: "Valparaiso",
-          schedule: "8:00 am - 16:00 pm",
-        });
-        } */
   }, []);
 
   if (!deviceId || !deviceLocation) return null;
@@ -107,8 +93,16 @@ export default function TripInformation({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
+        <button
+          onClick={() => setCurrentStep(currentStep + 1)}
+          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+        >
+          <p className="text-[4vh] portrait:text-[4vw] font-light">
+            {(dict.totem as I18nRecord).continue as string}
+          </p>
+        </button>
       </div>
     );
   }

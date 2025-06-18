@@ -67,6 +67,16 @@ export default function TripInformation({
           );
         }
         const data = await response.json();
+        console.log(data);
+        if (data?.success === false) {
+          throw new Error(
+            ((dict.totem as I18nRecord)[
+              data?.message as keyof I18nRecord
+            ] as string) ??
+              ((dict.totem as I18nRecord)
+                .biometric_verification_error as string),
+          );
+        }
         setTripData({ ...data });
       } catch (err) {
         console.log(err);

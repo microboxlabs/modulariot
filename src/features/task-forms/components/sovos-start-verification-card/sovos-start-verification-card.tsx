@@ -62,22 +62,20 @@ export default function SovosStartVerificationCard({
         task.mintral_serviceCode as string,
       ).then((result: FingerprintReuseResponse) => {
         console.log(result);
-        console.log(result?.fingerprintReuse?.tripFound);
-        console.log(result?.fingerprintReuse?.fingerprintFound?.verifiedIntent);
-
         if (
           result?.fingerprintReuse?.tripFound &&
           result?.fingerprintReuse?.fingerprintFound?.verifiedIntent
         ) {
-          console.log("entré");
+          const verifyID =
+            result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
+              getRut()
+            ];
           if (
             result?.fingerprintReuse?.fingerprintFound
-              ?.totalExpectedFingerPrints >= 1
+              ?.totalExpectedFingerPrints >= 1 &&
+            verifyID
           ) {
-            const verifyID =
-              result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
-                getRut()
-              ];
+            console.log("validation completed");
             console.log(verifyID);
             stepperController.toNextStep(false, {
               Erc: 0,
@@ -85,31 +83,10 @@ export default function SovosStartVerificationCard({
               NroAudit: verifyID ?? "Reutilización de huella",
               Rut: getRut(),
             });
+            setFingerprintReuse && setFingerprintReuse(true);
           }
-
-          /* if (
-            result?.fingerprintReuse?.fingerprintFound
-              ?.totalExpectedFingerPrints == 2
-          ) {
-            console.log("2 fingers");
-            const verifyID2 =
-              result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
-                getRut()
-              ];
-            console.log(verifyID2);
-            stepperController.toNextStep(false, {
-              Erc: 0,
-              ercText: verifyID2 ?? "Reutilización de huella",
-              NroAudit: verifyID2 ?? "Reutilización de huella",
-              Rut: getRut(),
-            });
-          } else {
-            console.log("more than 2 fingers??");
-          } */
-
-          setFingerprintReuse && setFingerprintReuse(true);
         } else {
-          console.log("no entré");
+          console.log("validation incomplete");
         }
         setFingerprintLoading(false);
       });

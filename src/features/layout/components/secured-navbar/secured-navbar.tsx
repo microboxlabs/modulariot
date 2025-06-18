@@ -4,7 +4,7 @@ import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import { HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
+import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
@@ -121,7 +121,13 @@ export function SecuredNavbar({
                 <span className="sr-only">Search</span>
                 <HiSearch className="h-6 w-6" />
               </button>
-              <NotificationBellDropdown />
+              <span
+                className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                onClick={() => router.push("/notifications")}
+              >
+                <span className="sr-only">Notifications</span>
+                <HiBell className="h-6 w-6" />
+              </span>
               <div className="hidden dark:block">
                 <Tooltip content="Toggle light mode">
                   <CustomThemeToggle />

@@ -146,6 +146,7 @@ export default async function SymptomsPage({
                   minute: "numeric",
                   hour12: true,
                 })}
+                read={item.read}
               />
             ))}
           </div>

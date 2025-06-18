@@ -52,9 +52,6 @@ export default function SovosStartVerificationCard({
     hasRun.current = true;
     if (!isFingerprintReuseNeeded) return;
 
-    console.log(getRut());
-    console.log(task.mintral_serviceCode);
-
     try {
       setFingerprintLoading(true);
       requestSovosFingerprintReuse(

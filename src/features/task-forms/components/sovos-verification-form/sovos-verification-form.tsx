@@ -32,6 +32,8 @@ export default function SovosVerificationForm({
     isError: false,
   });
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [fingerprintReuse, setFingerprintReuse] = useState<boolean>(false);
+  
   const handleSignDocument = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -157,6 +159,9 @@ export default function SovosVerificationForm({
           isSovosVerification={true}
           validationError={validationError}
           setValidationError={setValidationError}
+          isFingerprintReuseNeeded={true}
+          fingerprintReuse={fingerprintReuse}
+          setFingerprintReuse={setFingerprintReuse}
           />
         )}
       {(stepper.currentStep === "step2" ||
@@ -174,6 +179,9 @@ export default function SovosVerificationForm({
             userGroups={userGroups}
             validationError={validationError}
             setValidationError={setValidationError}
+            isFingerprintReuseNeeded={true}
+            fingerprintReuse={fingerprintReuse}
+            setFingerprintReuse={setFingerprintReuse}
           />
         )}
       <SovosDeps onReady={() => setPluginReady(true)} />

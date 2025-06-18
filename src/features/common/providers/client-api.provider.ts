@@ -451,3 +451,11 @@ export function useGetUserStates() {
     user_states_isLoading: isLoading,
   };
 }
+
+export function requestSovosFingerprintReuse(
+  rut: string,
+  tripId: string,
+): Promise<any> {
+  const url = `/app/api/sovos/fingerprint-reuse?rut=${rut}&tripId=${tripId}`;
+  return fetcher(url);
+}

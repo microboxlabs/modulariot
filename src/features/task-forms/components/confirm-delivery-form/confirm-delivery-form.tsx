@@ -162,6 +162,7 @@ export default function ConfirmDeliveryForm({
           isSovosVerification={false}
           validationError={validationError}
           setValidationError={setValidationError}
+          isFingerprintReuseNeeded={false}
         />
       )}
       {(stepper.currentStep === "step2" ||
@@ -190,6 +191,7 @@ export default function ConfirmDeliveryForm({
           isSovosVerification={false}
           validationError={validationError}
           setValidationError={setValidationError}
+          isFingerprintReuseNeeded={false}
         />
       )}
       <SovosDeps onReady={() => setPluginReady(true)} />

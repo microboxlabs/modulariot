@@ -19,10 +19,7 @@ export async function POST(request: NextRequest) {
     const result = await getBiometricVerification(session.user.ticket, data);
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Error in biometric verification:", error);
-    return NextResponse.json(
-      { error: "Failed to verify biometric data" },
-      { status: 500 },
-    );
+    console.error(error);
+    return NextResponse.json({ error }, { status: 500 });
   }
 }

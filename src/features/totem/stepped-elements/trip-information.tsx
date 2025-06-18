@@ -1,5 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 
 export default function TripInformation({
@@ -30,9 +30,11 @@ export default function TripInformation({
   /* if (biometricResult) {
     console.log("biometricResult in TripInformation:", biometricResult);
   } */
-
+  const hasRun = useRef(false);
   useEffect(() => {
-    if (tripData) return; // Only run if tripData is not set
+    if (hasRun.current) return;
+    hasRun.current = true;
+    //if (tripData) return; // Only run if tripData is not set
 
     setIsLoading(true);
     const verifyBiometric = async () => {
@@ -77,7 +79,54 @@ export default function TripInformation({
                 .biometric_verification_error as string),
           );
         }
-        setTripData({ ...data });
+        if (
+          tripData &&
+          tripData?.tripInfo?.driver1Info?.driverId === data?.tripInfo?.driverId
+        ) {
+          setTripData({
+            ...tripData,
+            tripInfo: {
+              ...tripData.tripInfo,
+              status:
+                data?.tripInfo?.driver1Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        } else if (
+          tripData &&
+          tripData?.tripInfo?.driver2Info?.driverId === data?.tripInfo?.driverId
+        ) {
+          setTripData({
+            ...tripData,
+            tripInfo: {
+              ...tripData.tripInfo,
+              status2:
+                data?.tripInfo?.driver2Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        } else {
+          setTripData({
+            ...data,
+            tripInfo: {
+              ...data.tripInfo,
+              status:
+                data?.tripInfo?.driver1Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+              status2:
+                data?.tripInfo?.driver2Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        }
       } catch (err) {
         console.log(err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -145,7 +194,7 @@ export default function TripInformation({
       <div className="flex flex-row items-stretch justify-between w-full my-[2vh]">
         <DriverInfo
           number={1}
-          name={tripData?.tripInfo?.driverId}
+          name={tripData?.tripInfo?.driver1Info?.driverId}
           /* email={tripData?.tripInfo?.email}
           phone={tripData?.tripInfo?.phone} */
           state={tripData?.tripInfo?.status}
@@ -154,7 +203,7 @@ export default function TripInformation({
         {tripData?.isDoubleDriver && (
           <DriverInfo
             number={2}
-            name={tripData?.tripInfo?.driverId2}
+            name={tripData?.tripInfo?.driver2Info?.driverId}
             /*  email={tripData?.trip?.email2}
             phone={tripData?.trip?.phone2} */
             state={tripData?.tripInfo?.status2}

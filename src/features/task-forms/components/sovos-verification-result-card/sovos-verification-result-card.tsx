@@ -15,6 +15,7 @@ import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import { useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
 import BlurrableDropdown from "@/features/layout/components/blurrable-dropdown/blurrable-dropdown";
+
 export default function SovosVerificationResultCard({
   msg,
   success,

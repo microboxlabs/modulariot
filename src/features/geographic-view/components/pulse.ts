@@ -25,7 +25,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
 
     return [
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-outer",
         data: this.props.data.features,
         getFillColor: () => [
           255,
@@ -44,7 +43,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         pickable: true,
       }) as Layer,
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
         getFillColor: (d: any) => {
           if (d.properties.id > displayPosition) {
@@ -67,7 +65,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         getZIndex: 1000,
       }) as Layer,
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
         getFillColor: () => [240, 50, 50, 255],
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
@@ -85,7 +82,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
         getFillColor: () => [255, 255, 255, 255],
         getRadius: 280000 / Math.pow(1.85, zoomLevel),
@@ -105,7 +101,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
         getFillColor: (d: any) =>
           d.properties.speed > 0 || !this.props.showStops
@@ -127,7 +122,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: "ScatterPlotLayer-pulse-inner",
         data: this.props.data.features,
         getFillColor: (_d: any) => {
           return [240, 50, 50, 255];

@@ -51,12 +51,12 @@ function Congratulation({
     <div
       className={`flex flex-col items-center justify-center w-[50%] rounded-2xl p-8 gap-8 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
-      {tripData?.trip?.info && (
+      {tripData?.tripInfo?.tripInfo?.tripId && (
         <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
           {(dict.totem as I18nRecord).congratulations as string}
         </h1>
       )}
-      {!tripData?.trip?.info && (
+      {!tripData?.tripInfo?.tripInfo?.tripId && (
         <h1 className="text-[4vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
           {(dict.totem as I18nRecord).notify_control_center as string}
         </h1>
@@ -68,9 +68,10 @@ function Congratulation({
         width={100}
         height={100}
       />
-      {tripData?.trip?.info &&
-        tripData?.trip?.rut2 &&
-        tripData?.trip?.state2 === "No verificado" && (
+      {tripData?.tripInfo?.tripInfo?.tripId &&
+        tripData?.isDoubleDriver &&
+        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
+          tripData?.tripInfo?.status !== "SUCCESS") && (
           <h1 className="text-[2vh] portrait:text-[2.5vw] text-red-600 dark:text-red-500 w-[90%] text-center">
             *{" "}
             {
@@ -79,7 +80,7 @@ function Congratulation({
             }
           </h1>
         )}
-      {tripData?.trip?.info && (
+      {tripData?.tripInfo?.tripInfo?.tripId && (
         <button
           onClick={() => setTestState(true)}
           className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
@@ -89,7 +90,7 @@ function Congratulation({
           </p>
         </button>
       )}
-      {!tripData?.trip?.info && (
+      {!tripData?.tripInfo?.tripInfo?.tripId && (
         <button
           onClick={() => window.location.reload()}
           className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
@@ -99,14 +100,18 @@ function Congratulation({
           </p>
         </button>
       )}
-      {tripData?.trip?.info &&
-        tripData?.trip?.rut2 &&
-        tripData?.trip?.state2 === "No verificado" && (
+      {tripData?.tripInfo?.tripInfo?.tripId &&
+        tripData?.isDoubleDriver &&
+        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
+          tripData?.tripInfo?.status !== "SUCCESS") && (
           <button
             onClick={() => {
-              console.log("tripData", tripData);
-              console.log("tripData?.trip?.rut2", tripData?.trip?.rut2);
-              setRutData({ rut: tripData?.trip?.rut2 });
+              setRutData({
+                rut:
+                  tripData?.tripInfo?.status2 !== "SUCCESS"
+                    ? tripData?.tripInfo?.driver2Info?.driverId
+                    : tripData?.tripInfo?.driver1Info?.driverId,
+              });
               setCurrentStep(1);
             }}
             className="bg-white text-gray-900 p-3 rounded-2xl w-full flex items-center justify-center gap-2"

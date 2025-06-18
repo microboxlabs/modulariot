@@ -1,5 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 
 export default function TripInformation({
@@ -30,9 +30,11 @@ export default function TripInformation({
   /* if (biometricResult) {
     console.log("biometricResult in TripInformation:", biometricResult);
   } */
-
+  const hasRun = useRef(false);
   useEffect(() => {
-    if (tripData) return; // Only run if tripData is not set
+    if (hasRun.current) return;
+    hasRun.current = true;
+    //if (tripData) return; // Only run if tripData is not set
 
     setIsLoading(true);
     const verifyBiometric = async () => {
@@ -57,12 +59,76 @@ export default function TripInformation({
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to verify biometric data");
+          throw new Error(
+            errorData?.error?.info?.error
+              ? ((dict.totem as I18nRecord)[
+                  errorData?.error?.info?.error as keyof I18nRecord
+                ] as string)
+              : ((dict.totem as I18nRecord)
+                  .biometric_verification_error as string),
+          );
         }
-
         const data = await response.json();
-        setTripData({ ...data });
+        console.log(data);
+        if (data?.success === false) {
+          throw new Error(
+            ((dict.totem as I18nRecord)[
+              data?.message as keyof I18nRecord
+            ] as string) ??
+              ((dict.totem as I18nRecord)
+                .biometric_verification_error as string),
+          );
+        }
+        if (
+          tripData &&
+          tripData?.tripInfo?.driver1Info?.driverId === data?.tripInfo?.driverId
+        ) {
+          setTripData({
+            ...tripData,
+            tripInfo: {
+              ...tripData.tripInfo,
+              status:
+                data?.tripInfo?.driver1Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        } else if (
+          tripData &&
+          tripData?.tripInfo?.driver2Info?.driverId === data?.tripInfo?.driverId
+        ) {
+          setTripData({
+            ...tripData,
+            tripInfo: {
+              ...tripData.tripInfo,
+              status2:
+                data?.tripInfo?.driver2Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        } else {
+          setTripData({
+            ...data,
+            tripInfo: {
+              ...data.tripInfo,
+              status:
+                data?.tripInfo?.driver1Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+              status2:
+                data?.tripInfo?.driver2Info?.driverId ===
+                data?.tripInfo?.driverId
+                  ? "SUCCESS"
+                  : "PENDING",
+            },
+          });
+        }
       } catch (err) {
+        console.log(err);
         setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
@@ -70,28 +136,6 @@ export default function TripInformation({
     };
 
     verifyBiometric();
-    /*
-      setTripData({
-        trip {
-          rut,
-          email: "jhon@gmail.com",
-          phone: "+569 1234 5678",
-          state:
-            biometricResult && biometricResult.Erc === 0
-              ? "Verificado"
-              : "No verificado", //&& biometricResult.Rut === rut
-          rut2: "12312312-3",
-          email2: "jane@gmail.com",
-          phone2: "+569 1234 5678",
-          state2: "No verificado",
-          client: "Jhon Doe",
-
-          info: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.",
-          origin: "Santiago",
-          destination: "Valparaiso",
-          schedule: "8:00 am - 16:00 pm",
-        });
-        } */
   }, []);
 
   if (!deviceId || !deviceLocation) return null;
@@ -108,8 +152,16 @@ export default function TripInformation({
 
   if (error && !tripData) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
+        <button
+          onClick={() => setCurrentStep(currentStep + 1)}
+          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+        >
+          <p className="text-[4vh] portrait:text-[4vw] font-light">
+            {(dict.totem as I18nRecord).continue as string}
+          </p>
+        </button>
       </div>
     );
   }
@@ -142,7 +194,7 @@ export default function TripInformation({
       <div className="flex flex-row items-stretch justify-between w-full my-[2vh]">
         <DriverInfo
           number={1}
-          name={tripData?.tripInfo?.driverId}
+          name={tripData?.tripInfo?.driver1Info?.driverId}
           /* email={tripData?.tripInfo?.email}
           phone={tripData?.tripInfo?.phone} */
           state={tripData?.tripInfo?.status}
@@ -151,7 +203,7 @@ export default function TripInformation({
         {tripData?.isDoubleDriver && (
           <DriverInfo
             number={2}
-            name={tripData?.tripInfo?.driverId2}
+            name={tripData?.tripInfo?.driver2Info?.driverId}
             /*  email={tripData?.trip?.email2}
             phone={tripData?.trip?.phone2} */
             state={tripData?.tripInfo?.status2}

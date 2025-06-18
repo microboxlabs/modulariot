@@ -747,6 +747,8 @@
     "rut_invalid": "RUT inválido",
     "no_trip_information": "Sin viaje asignado",
     "verify_secondary_driver": "Verificar al segundo conductor",
-    "notify_control_center": "Hemos informado a la torre de control."
+    "notify_control_center": "Hemos informado a la torre de control.",
+    "biometric_verification_error": "Error al verificar datos biométricos",
+    "Query return 2 results instead of max 1": "Más de un viaje asignado"
   }
 }

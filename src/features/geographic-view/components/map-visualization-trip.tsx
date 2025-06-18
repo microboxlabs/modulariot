@@ -216,7 +216,9 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
-  const [showStops, _setShowStops] = useState(true);
+  const [showStops, setShowStops] = useState(true);
+  const [showGeofences, setShowGeofences] = useState(true);
+  const [showPulse, setShowPulse] = useState(true);
 
   // Handle initial zoom when positions are loaded
   useEffect(() => {
@@ -340,16 +342,23 @@ export default function MapVisualizationTrip({
     const baseLayers = [];
 
     // Add geofence layer if available
-    if (processedGeofence && processedGeofence.features.length > 0) {
+    if (
+      processedGeofence &&
+      processedGeofence.features.length > 0 &&
+      showGeofences
+    ) {
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,
           zoom: viewState.zoom,
+          updateTriggers: {
+            showGeofences,
+          },
         }),
       );
     }
 
-    if (geoJson) {
+    if (geoJson && showPulse) {
       baseLayers.push(
         new PulsePinLayer({
           data: geoJson,
@@ -393,7 +402,11 @@ export default function MapVisualizationTrip({
     }
 
     // Geofences icons
-    if (processedGeofence && processedGeofence.features.length > 0) {
+    if (
+      processedGeofence &&
+      processedGeofence.features.length > 0 &&
+      showGeofences
+    ) {
       baseLayers.push(
         new GeofencePinLayer({
           data: processedGeofence,
@@ -408,6 +421,10 @@ export default function MapVisualizationTrip({
               camera_movement,
             );
             return true;
+          },
+          showGeofences,
+          updateTriggers: {
+            showGeofences,
           },
         }),
       );
@@ -469,6 +486,8 @@ export default function MapVisualizationTrip({
     displayPosition,
     camera_movement,
     showStops,
+    showGeofences,
+    showPulse,
   ]);
 
   // Handle errors and loading states
@@ -498,6 +517,7 @@ export default function MapVisualizationTrip({
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           attributionControl={true}
+          preserveDrawingBuffer={true}
           style={{ position: "relative" }}
         >
           <style jsx global>{`
@@ -560,7 +580,6 @@ export default function MapVisualizationTrip({
         {pictures_list.length > 0 ? (
           <ImageSelector images={pictures_list} />
         ) : null}
-
         <ToolBar
           positions={positions ?? []}
           displayPosition={displayPosition}
@@ -572,6 +591,12 @@ export default function MapVisualizationTrip({
           setSelectedStyle={setMapStyle}
           camera_movement={camera_movement}
           setCameraMovement={setCameraMovement}
+          showStops={showStops}
+          setShowStops={setShowStops}
+          showGeofences={showGeofences}
+          setShowGeofences={setShowGeofences}
+          showPulse={showPulse}
+          setShowPulse={setShowPulse}
         />
       </div>
       <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">

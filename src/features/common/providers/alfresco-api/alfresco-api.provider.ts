@@ -416,10 +416,19 @@ export async function getBiometricVerification(
 ): Promise<TaskResponse> {
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification?alf_ticket=${ticket}`;
 
-  // print the curl command
-  console.log(
-    `curl -X POST ${url} -H "Content-Type: application/json" -d '${JSON.stringify(data)}'`,
-  );
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
+}
+
+export async function getSovosFingerprintReuse(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/sovos/fingerprint-reuse?alf_ticket=${ticket}`;
 
   const result = await fetcher(url, {
     method: "POST",

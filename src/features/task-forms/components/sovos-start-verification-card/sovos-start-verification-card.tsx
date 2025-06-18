@@ -75,8 +75,6 @@ export default function SovosStartVerificationCard({
               ?.totalExpectedFingerPrints >= 1 &&
             verifyID
           ) {
-            console.log("validation completed");
-            console.log(verifyID);
             stepperController.toNextStep(false, {
               Erc: 0,
               ercText: verifyID ?? "Reutilización de huella",
@@ -85,8 +83,6 @@ export default function SovosStartVerificationCard({
             });
             setFingerprintReuse && setFingerprintReuse(true);
           }
-        } else {
-          console.log("validation incomplete");
         }
         setFingerprintLoading(false);
       });

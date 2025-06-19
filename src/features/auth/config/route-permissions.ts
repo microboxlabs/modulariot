@@ -6,6 +6,12 @@ const FULL_ACCESS_ROLES = [
   "MINTRAL_REGULARIZADORES_VIAJES",
   "MINTRAL_VALIDADOR_TRANSPORTE",
 ];
+
+// Define groups that should be blocked from certain routes
+const BLOCKED_GROUPS = {
+  GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
+};
+
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
@@ -37,4 +43,44 @@ export function getRoutePermissions(path: string): string[] {
     .sort((a, b) => b.length - a.length)[0];
 
   return matchingRoute ? [...ROUTE_PERMISSIONS[matchingRoute as RouteKey]] : [];
+}
+
+export function getBlockedGroupsForRoute(path: string): string[] {
+  const blockedGroups: string[] = [];
+
+  // Check if any group should be blocked from this specific path
+  Object.entries(BLOCKED_GROUPS).forEach(([group, blockedRoutes]) => {
+    if (blockedRoutes.some((route) => path.startsWith(route))) {
+      blockedGroups.push(group);
+    }
+  });
+
+  return blockedGroups;
+}
+
+export function hasRouteAccess(
+  userGroups: string[],
+  path: string,
+  operator: "OR" | "AND" = "OR",
+): boolean {
+  const requiredGroups = getRoutePermissions(path);
+  const blockedGroups = getBlockedGroupsForRoute(path);
+
+  // Check if user has any blocked groups
+  const hasBlockedGroup = blockedGroups.some((group) =>
+    userGroups.includes(group),
+  );
+  if (hasBlockedGroup) {
+    return false; // User is blocked from this route
+  }
+
+  // If no required groups, access is allowed (unless blocked above)
+  if (!requiredGroups.length) {
+    return true;
+  }
+
+  // Check if user has required groups
+  return operator === "OR"
+    ? requiredGroups.some((group) => userGroups.includes(group))
+    : requiredGroups.every((group) => userGroups.includes(group));
 }

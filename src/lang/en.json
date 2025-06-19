@@ -666,7 +666,26 @@
     "treatments": "Treatments",
     "message": "Message",
     "response": "Response",
-    "treatment_saved": "Treatment saved successfully"
+    "treatment_saved": "Treatment saved successfully",
+    "creation_date": "Creation date",
+    "Check Load Securing Absence": "Check load securing absence",
+    "types": {
+      "Continuous drive check": "Continuous drive check",
+      "Off Hours Driving": "Off Hours Driving",
+      "Speed Limit Standard": "Speed Limit Standard",
+      "Double Driver Rotation Check": "Double Driver Rotation Check",
+      "Risk Zone Stop": "Risk Zone Stop",
+      "Lost Signal": "Lost Signal",
+      "Continuous Drive Check": "Continuous Drive Check",
+      "Speed Limit": "Speed Limit",
+      "Check Load Securing Absence": "Check Load Securing Absence",
+      "Continuous resting check": "Continuous resting check",
+      "Night Risk Stay": "Night Risk Stay",
+      "Night Driving": "Night Driving",
+      "Continuous Resting Check": "Continuous Resting Check",
+      "Bad Sign": "Bad Sign",
+      "Speed Limit Custom": "Speed Limit Custom"
+    }
   },
   "geographic_view": {
     "speed": "Speed",

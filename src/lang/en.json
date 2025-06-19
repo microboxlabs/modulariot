@@ -665,7 +665,8 @@
     "descending": "Descending",
     "treatments": "Treatments",
     "message": "Message",
-    "response": "Response"
+    "response": "Response",
+    "treatment_saved": "Treatment saved successfully"
   },
   "geographic_view": {
     "speed": "Speed",

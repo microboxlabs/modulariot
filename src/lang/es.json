@@ -674,7 +674,8 @@
     "descending": "Descendente",
     "treatments": "Tratamientos",
     "message": "Mensaje",
-    "response": "Respuesta"
+    "response": "Respuesta",
+    "treatment_saved": "Tratamiento guardado correctamente"
   },
   "geographic_view": {
     "speed": "Velocidad",

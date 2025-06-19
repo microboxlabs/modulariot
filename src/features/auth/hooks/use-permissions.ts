@@ -1,8 +1,10 @@
-import { useSession } from "next-auth/react";
+//import { useSession } from "next-auth/react";
+import { hasRouteAccess } from "../config/route-permissions";
+import { useUserGroups } from "@/features/common/providers/client-api.provider";
 
 export function usePermissions() {
-  const { data: session, status } = useSession();
-  const userGroups = session?.user?.groups || [];
+  //const { data: status } = useSession();
+  const { data: userGroups, isLoading } = useUserGroups();
 
   const hasPermission = (
     requiredGroups: string[],
@@ -15,9 +17,17 @@ export function usePermissions() {
       : requiredGroups.every((group) => userGroups.includes(group));
   };
 
+  const hasRoutePermission = (
+    path: string,
+    operator: "OR" | "AND" = "OR",
+  ): boolean => {
+    return hasRouteAccess(userGroups, path, operator);
+  };
+
   return {
     hasPermission,
-    isLoading: status === "loading",
+    hasRoutePermission,
+    isLoading,
     userGroups,
   };
 }

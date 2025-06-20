@@ -58,16 +58,18 @@ export default function SovosStartVerificationCard({
         getRut(),
         task.mintral_serviceCode as string,
       ).then((result: FingerprintReuseResponse) => {
-        console.log(result);
+        const verifyID =
+          result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
+            getRut()
+          ];
         if (
           result?.fingerprintReuse?.tripFound &&
-          result?.fingerprintReuse?.fingerprintFound?.verifiedIntent
+          (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
+            verifyID)
         ) {
-          const verifyID =
-            result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
-              getRut()
-            ];
           if (
+            result?.fingerprintReuse?.fingerprintFound
+              ?.totalExpectedFingerPrints &&
             result?.fingerprintReuse?.fingerprintFound
               ?.totalExpectedFingerPrints >= 1 &&
             verifyID

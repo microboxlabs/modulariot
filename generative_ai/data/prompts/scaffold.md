@@ -1,15 +1,15 @@
 You are a code-gen assistant inside Cursor IDE.
-Create a monorepo named **modulariot** that uses **pnpm + Turborepo** for JavaScript/TypeScript
+Create a monorepo named **modulariot** that uses **Bun + Turborepo** for JavaScript/TypeScript
 and **Maven Wrapper** for the Quarkus service.
 
 ────────────────────────────────────────────────────────
 GLOBAL RULES
 ────────────────────────────────────────────────────────
 • All TypeScript targets ES2022, `"type":"module"`.
-• Root uses **pnpm workspaces**; JS/TS packages inherit scripts via `turbo.json`.
+• Root uses **Bun workspaces**; JS/TS packages inherit scripts via `turbo.json`.
 • Quarkus lives in `apps/ingest-quarkus/` and builds with the Maven wrapper (`mvnw`).
 • Leave TODO markers (`// TODO:` or `# TODO:`) anywhere details are omitted.
-• Generate every file listed, stubbing when content isn’t specified.
+• Generate every file listed, stubbing when content isn't specified.
 • Keep imports valid across workspaces.
 
 ────────────────────────────────────────────────────────
@@ -20,9 +20,9 @@ modulariot/
   .vscode/extensions.json           # recommended plugins
   .gitignore
   .env.example
-  package.json                      # root scripts: lint, test, build, fmt
-  pnpm-workspace.yaml
+  package.json                      # root scripts: dev, build, lint, format, check-types
   turbo.json
+  bun.lock                        # managed by Bun
   README.md
   LICENSE                           # MIT placeholder
   CODE_OF_CONDUCT.md                # Contributor Covenant stub
@@ -33,23 +33,41 @@ modulariot/
 2. APPS (runnable artefacts)
 ────────────────────────────────────────────────────────
 apps/
-  web-admin/                        # Next.js 14 (app router)
+  # --- Existing Frontend Apps ---
+  web-site/                         # Next.js 15 marketing site
     public/
     app/
+      alpha-2506/
+        [lang]/
+          dictionaries/
+            en.json
+            es.json
+            pt.json
+          dictionaries.ts
+          layout.tsx
+          page.tsx
+      globals.css
       layout.tsx
       page.tsx
-    app/api/health/route.ts         # GET /api/health → {ok:true}
-    tsconfig.json
-    next.config.mjs
-    tailwind.config.ts
+    components/                     # React components for the site
+    middleware.ts
+    next.config.ts
+    package.json
+    Dockerfile                      # Dockerfile for deployment
+
+  web/                              # Next.js 14 (app router)
+    # ... standard Next.js structure ...
     package.json
 
-  bff-node/                         # Fastify (or tRPC) BFF
-    src/
-      index.ts                      # basic “hello world” route
-    tsconfig.json
+  web-admin/                        # Next.js 14 (app router)
+    # ... standard Next.js structure ...
     package.json
 
+  docs/                             # Next.js 14 (app router) for docs
+    # ... standard Next.js structure ...
+    package.json
+
+  # --- Planned Backend Services ---
   ingest-quarkus/                   # Quarkus 3 + RESTEasy Reactive
     mvnw
     mvnw.cmd
@@ -67,30 +85,51 @@ apps/
 3. PACKAGES (shared libraries & generated code)
 ────────────────────────────────────────────────────────
 packages/
-  ui/                               # shadcn/ui wrapper + theme
-    src/Button.tsx
+  # --- Existing Shared Packages ---
+  ui/                               # React component library (e.g., shadcn/ui)
+    src/
+      button.tsx
+      card.tsx
+      code.tsx
     package.json
 
-  db/                               # Prisma schema + TS client
+  eslint-config/                    # Shared ESLint configurations
+    base.js
+    next.js
+    react-internal.js
+    package.json
+
+  typescript-config/                # Shared tsconfig files
+    base.json
+    nextjs.json
+    react-library.json
+    package.json
+
+  # --- Planned Shared Packages ---
+  db/                               # (Planned) Prisma schema + TS client
     schema.prisma
     prisma/seed.ts
     package.json
 
-  auth/                             # Supabase JWT helpers
+  auth/                             # (Planned) Supabase JWT helpers
     src/index.ts
     package.json
 
-  contracts/                        # API contracts + generated clients
+  contracts/                        # (Planned) API contracts + generated clients
     openapi.yaml                    # authoritative spec (minimal stub)
     ts/                             # ⟵ generated TypeScript client (placeholder)
     java/                           # ⟵ generated Java client  (placeholder)
 
-  tsconfig/                         # base tsconfig
-    tsconfig.base.json
-    package.json                    # “private”: true
+────────────────────────────────────────────────────────
+4. GENERATIVE AI (prompts for codegen)
+────────────────────────────────────────────────────────
+generative_ai/
+  data/
+    prompts/
+      scaffold.md                   # This file!
 
 ────────────────────────────────────────────────────────
-4. INFRA (GitOps)
+5. INFRA (GitOps) - Planned
 ────────────────────────────────────────────────────────
 infra/
   staging/
@@ -99,13 +138,13 @@ infra/
     Pulumi.yaml
 
 ────────────────────────────────────────────────────────
-5. SCRIPTS (utilities)
+6. SCRIPTS (utilities) - Planned
 ────────────────────────────────────────────────────────
 scripts/
-  migrate-and-seed.ts               # runs Prisma migrate dev + seed “Acme Org”
+  migrate-and-seed.ts               # runs Prisma migrate dev + seed "Acme Org"
 
 ────────────────────────────────────────────────────────
-6. TESTS
+7. TESTS - Planned
 ────────────────────────────────────────────────────────
 tests/
   e2e/                              # Playwright config + smoke test for /
@@ -114,24 +153,24 @@ tests/
     sum.test.ts
 
 ────────────────────────────────────────────────────────
-7. CI CONFIG
+8. CI CONFIG
 ────────────────────────────────────────────────────────
 .github/workflows/ci.yml  – matrix build:
-  job “node”   : `pnpm install` → `turbo run lint test build --filter=!apps/ingest-quarkus`
-  job “java”   : `./apps/ingest-quarkus/mvnw -f apps/ingest-quarkus/pom.xml -B clean verify`
-  job “contract-gen” (future TODO) regenerates both TS & Java clients when `packages/contracts/openapi.yaml` changes.
+  job "node"   : `bun install` → `turbo run lint test build --filter=!apps/ingest-quarkus`
+  job "java"   : `./apps/ingest-quarkus/mvnw -f apps/ingest-quarkus/pom.xml -B clean verify`
+  job "contract-gen" (future TODO) regenerates both TS & Java clients when `packages/contracts/openapi.yaml` changes.
 
 ────────────────────────────────────────────────────────
 CONTENT GUIDELINES
 ────────────────────────────────────────────────────────
 • All JS packages include eslint + prettier config stubs.
 • Quarkus service uses RESTEasy Reactive; native-image build commented in `pom.xml`.
-• Each package.json has meaningful `"scripts"` (dev, build, lint).
+• Each package.json has meaningful "scripts" (dev, build, lint, format).
 • README sections:
   1. What is ModularIoT?
-  2. Quick start (docker-compose up)
+  2. Quick start (e.g. `bun dev` or `docker-compose up`)
   3. Contributing guide link
-• Provide basic Tailwind config with shadcn preset in `packages/ui`.
+• Provide a `Dockerfile` for each runnable application in its respective directory.
 
 ────────────────────────────────────────────────────────
 DELIVERABLE FORMAT
@@ -141,3 +180,4 @@ DELIVERABLE FORMAT
    ```txt
    // path/to/file
    <file contents>
+   ```

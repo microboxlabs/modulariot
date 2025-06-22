@@ -11,9 +11,9 @@
     "**/*.ts",
     "**/*.tsx",
     "next-env.d.ts",
-    "next.config.js",
+    "next.config.mjs",
     ".next/types/**/*.ts"
-  ],
+, "app/page.tsx.back", "mdx-components.js" , "app/[[...mdxPath]]/page.jsx" ],
   "exclude": [
     "node_modules"
   ]

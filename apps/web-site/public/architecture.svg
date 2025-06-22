@@ -1,0 +1,80 @@
+<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="archGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0790ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#35b7ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff6a14;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Edge Devices -->
+  <g id="edge-devices">
+    <rect x="50" y="50" width="80" height="60" rx="8" fill="#f4f5f7" stroke="#0790ff" stroke-width="2"/>
+    <text x="90" y="85" text-anchor="middle" font-family="Arial" font-size="12" fill="#0790ff" font-weight="bold">Fleet</text>
+    
+    <rect x="50" y="150" width="80" height="60" rx="8" fill="#f4f5f7" stroke="#0790ff" stroke-width="2"/>
+    <text x="90" y="185" text-anchor="middle" font-family="Arial" font-size="12" fill="#0790ff" font-weight="bold">Sensors</text>
+    
+    <rect x="50" y="250" width="80" height="60" rx="8" fill="#f4f5f7" stroke="#0790ff" stroke-width="2"/>
+    <text x="90" y="285" text-anchor="middle" font-family="Arial" font-size="12" fill="#0790ff" font-weight="bold">IoT Devices</text>
+  </g>
+  
+  <!-- Data Ingestion -->
+  <g id="ingestion">
+    <rect x="200" y="120" width="100" height="80" rx="12" fill="#0790ff" opacity="0.8"/>
+    <text x="250" y="155" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Data</text>
+    <text x="250" y="175" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Ingestion</text>
+  </g>
+  
+  <!-- Stream Processing -->
+  <g id="processing">
+    <rect x="360" y="80" width="120" height="120" rx="16" fill="url(#archGradient)" opacity="0.9"/>
+    <text x="420" y="130" text-anchor="middle" font-family="Arial" font-size="16" fill="white" font-weight="bold">Stream</text>
+    <text x="420" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="white" font-weight="bold">Processing</text>
+    <text x="420" y="170" text-anchor="middle" font-family="Arial" font-size="12" fill="white">Real-time</text>
+  </g>
+  
+  <!-- Your Infrastructure -->
+  <g id="infrastructure">
+    <rect x="540" y="50" width="100" height="80" rx="12" fill="#ff6a14" opacity="0.8"/>
+    <text x="590" y="85" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Your</text>
+    <text x="590" y="105" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Database</text>
+    
+    <rect x="540" y="150" width="100" height="80" rx="12" fill="#ff6a14" opacity="0.8"/>
+    <text x="590" y="185" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Your</text>
+    <text x="590" y="205" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Analytics</text>
+    
+    <rect x="540" y="250" width="100" height="80" rx="12" fill="#ff6a14" opacity="0.8"/>
+    <text x="590" y="285" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Your</text>
+    <text x="590" y="305" text-anchor="middle" font-family="Arial" font-size="14" fill="white" font-weight="bold">Apps</text>
+  </g>
+  
+  <!-- Data Flow Arrows -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+            refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#0790ff" />
+    </marker>
+  </defs>
+  
+  <!-- Flow lines -->
+  <line x1="130" y1="80" x2="200" y2="140" stroke="#0790ff" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line x1="130" y1="180" x2="200" y2="160" stroke="#0790ff" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <line x1="130" y1="280" x2="200" y2="180" stroke="#0790ff" stroke-width="3" marker-end="url(#arrowhead)"/>
+  
+  <line x1="300" y1="160" x2="360" y2="140" stroke="#0790ff" stroke-width="4" marker-end="url(#arrowhead)"/>
+  
+  <line x1="480" y1="120" x2="540" y2="90" stroke="#ff6a14" stroke-width="4" marker-end="url(#arrowhead)"/>
+  <line x1="480" y1="140" x2="540" y2="190" stroke="#ff6a14" stroke-width="4" marker-end="url(#arrowhead)"/>
+  <line x1="480" y1="160" x2="540" y2="290" stroke="#ff6a14" stroke-width="4" marker-end="url(#arrowhead)"/>
+  
+  <!-- Performance metrics -->
+  <text x="400" y="350" text-anchor="middle" font-family="Arial" font-size="18" fill="#0790ff" font-weight="bold">
+    &lt; 56 ms median end-to-end latency
+  </text>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="Arial" font-size="20" fill="#232529" font-weight="bold">
+    Modular IoT Architecture
+  </text>
+</svg> 

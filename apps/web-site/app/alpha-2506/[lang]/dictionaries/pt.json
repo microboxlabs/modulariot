@@ -1,0 +1,326 @@
+{
+    "navigation": {
+        "features": "Recursos",
+        "customers": "Clientes",
+        "quickStart": "Início Rápido",
+        "pricing": "Preços",
+        "community": "Comunidade",
+        "getDemo": "Solicitar Demo",
+        "starGitHub": "Nos dê uma estrela no GitHub"
+    },
+    "hero": {
+        "title": "Possua os dados da sua frota em {realTime}—sem {saasHandcuffs}.",
+        "realTime": "tempo real",
+        "saasHandcuffs": "amarras SaaS",
+        "subtitle": "Transmita cada ping GPS, valor de sensor e evento do motorista através da {your} nuvem em milissegundos.",
+        "your": "sua",
+        "openSourceBadge": "Código Aberto · Apache-2.0",
+        "scheduleDemoCTA": "Agendar Demo Técnico de 20 min",
+        "architectureGuide": "Ler Guia de Arquitetura de 5 min"
+    },
+    "painOutcome": {
+        "painTitle": "Problemas Atuais",
+        "outcomeTitle": "Com Modular IoT",
+        "painPoints": [
+            "Dependência de fornecedores com taxas mensais SaaS caras",
+            "Dados presos em sistemas de terceiros que você não pode controlar",
+            "Opções limitadas de personalização e integração",
+            "Alta latência afetando tomada de decisões em tempo real",
+            "Problemas de conformidade com requisitos de soberania de dados"
+        ],
+        "outcomes": [
+            "Possua completamente seu pipeline de dados e infraestrutura",
+            "Streaming em tempo real com latência <56ms garantida",
+            "Construa fluxos de trabalho e integrações personalizadas facilmente",
+            "Escale sem custos recorrentes de licenças SaaS",
+            "Atenda requisitos GDPR e residência de dados sem esforço"
+        ]
+    },
+    "features": {
+        "title": "Três Capacidades Principais",
+        "subtitle": "Tudo que você precisa para processar, analisar e agir sobre dados de frota em tempo real",
+        "streaming": {
+            "title": "Pipeline de Streaming em Tempo Real",
+            "code": "// Streaming de dados GPS e sensores em tempo real\nconst pipeline = new StreamProcessor({\n  source: 'fleet-telemetry',\n  processors: [\n    new GPSProcessor(),\n    new SensorProcessor(),\n    new EventProcessor()\n  ],\n  sink: 'your-cloud-storage',\n  latency: '< 56ms'\n});\n\npipeline.start();\n// Stream ativo: Processando 10K+ eventos/seg"
+        },
+        "alerting": {
+            "title": "Alertas Baseados em Sintomas",
+            "code": "// Configurar regras de alerta inteligentes\nconst alertRules = {\n  driverFatigue: {\n    triggers: ['eye_closure > 3s', 'lane_deviation > 2'],\n    actions: ['sms_supervisor', 'audio_alert'],\n    priority: 'critical'\n  },\n  geofenceViolation: {\n    triggers: ['location_outside_zone'],\n    actions: ['notify_dispatch', 'log_incident'],\n    priority: 'high'\n  }\n};\n\nAlertManager.configure(alertRules);\n// 32% redução em incidentes em 2 semanas"
+        },
+        "workflow": {
+            "title": "Fluxo de Trabalho e Cofre de Evidências",
+            "code": "// Motor de fluxo de trabalho automatizado\nconst workflow = new BPMNWorkflow({\n  triggers: ['incident_detected', 'maintenance_due'],\n  steps: [\n    'capture_evidence',\n    'notify_stakeholders',\n    'create_work_order',\n    'schedule_followup'\n  ],\n  storage: 'evidence_vault',\n  retention: '7_years'\n});\n\n// Trilha de auditoria pronta para conformidade\nworkflow.getAuditLog(vehicleId, dateRange);"
+        }
+    },
+    "architecture": {
+        "title": "Visão Geral da Arquitetura",
+        "subtitle": "Veja como seus dados fluem de dispositivos edge até sua infraestrutura na nuvem em tempo real",
+        "latency": "< 56 ms latência mediana ponta a ponta",
+        "latencySubtitle": "Da leitura do sensor até a resposta da sua aplicação",
+        "steps": [
+            {
+                "title": "Ingestão de Dados",
+                "description": "Colete dados GPS, sensores e eventos da sua frota em tempo real"
+            },
+            {
+                "title": "Processamento de Streams",
+                "description": "Processe e analise fluxos de dados com latência subsegundo"
+            },
+            {
+                "title": "Sua Infraestrutura",
+                "description": "Dados fluem diretamente para seu banco de dados, analytics e aplicações"
+            }
+        ]
+    },
+    "liveDemo": {
+        "title": "Veja em Ação",
+        "subtitle": "Assista demos em tempo real de como Modular IoT processa e responde a eventos de frota",
+        "demos": [
+            {
+                "title": "Detecção de Fadiga do Motorista → Alerta SMS",
+                "description": "Monitoramento em tempo real detecta sintomas de fadiga e instantaneamente notifica supervisores",
+                "placeholder": "🚨 Fadiga do motorista detectada → SMS enviado ao supervisor em <3s"
+            },
+            {
+                "title": "Violação de Geocerca → Visualização Deck.gl",
+                "description": "Mapa ao vivo mostrando posição da frota com alertas instantâneos de violação de geocerca",
+                "placeholder": "🗺️ Veículo sai da zona autorizada → Atualização de mapa em tempo real com alerta"
+            },
+            {
+                "title": "Auto-Avanço de Fluxo BPMN",
+                "description": "Progressão automatizada de fluxo de trabalho baseada em dados de sensores e regras de negócio",
+                "placeholder": "⚡ Manutenção vencida → Auto-criar ordem de trabalho → Agendar técnico"
+            }
+        ],
+        "stats": [
+            {
+                "value": "<3s",
+                "label": "Tempo de resposta de alerta"
+            },
+            {
+                "value": "99.9%",
+                "label": "Precisão do processamento de eventos"
+            },
+            {
+                "value": "24/7",
+                "label": "Monitoramento contínuo"
+            }
+        ]
+    },
+    "deployment": {
+        "title": "Opções de Implantação",
+        "subtitle": "Escolha o modelo de implantação que melhor se adapta aos seus requisitos e necessidades de conformidade",
+        "options": [
+            {
+                "title": "Sua Nuvem",
+                "description": "Controle completo com implantação na sua infraestrutura AWS, Azure ou GCP",
+                "highlight": "Mais Popular",
+                "features": [
+                    "Soberania completa de dados",
+                    "Políticas de segurança personalizadas",
+                    "Escalamento ilimitado",
+                    "Acesso direto ao banco de dados"
+                ]
+            },
+            {
+                "title": "Gerenciado pela MBL",
+                "description": "Nós cuidamos da infraestrutura enquanto você foca nas suas aplicações e insights",
+                "highlight": "Configuração Mais Rápida",
+                "features": [
+                    "Zero overhead de DevOps",
+                    "Monitoramento e suporte 24/7",
+                    "Atualizações automáticas",
+                    "Garantias SLA"
+                ]
+            },
+            {
+                "title": "Edge Híbrido",
+                "description": "Processamento edge para ultra-baixa latência com backup na nuvem e analytics",
+                "highlight": "Ultra Baixa Latência",
+                "features": [
+                    "Processamento edge sub-10ms",
+                    "Capacidade offline",
+                    "Sincronização na nuvem",
+                    "Conformidade regional"
+                ]
+            }
+        ],
+        "seeReferenceCost": "Ver custo de referência"
+    },
+    "caseStudy": {
+        "company": "Mintral Logistics",
+        "quote": "Reduzimos os incidentes de fadiga do motorista em 32% em duas semanas de implementar o sistema de monitoramento em tempo real da Modular IoT.",
+        "attribution": {
+            "name": "James Sullivan",
+            "title": "Diretor de Operações de Frota",
+            "companyDetails": "Frota de 2.500+ veículos"
+        },
+        "results": [
+            {
+                "value": "32%",
+                "label": "Redução em incidentes de fadiga"
+            },
+            {
+                "value": "2 semanas",
+                "label": "Tempo para ver resultados"
+            },
+            {
+                "value": "$2.3M",
+                "label": "Economia anual de custos"
+            }
+        ]
+    },
+    "pricing": {
+        "title": "Preços Simples e Transparentes",
+        "subtitle": "Pague baseado no uso, não por licenças por assento. Escale conforme sua frota cresce.",
+        "plans": [
+            {
+                "name": "Starter",
+                "price": "60 UF",
+                "period": "/mês",
+                "description": "Perfeito para frotas pequenas começando",
+                "events": "Até 1M eventos/mês",
+                "features": [
+                    "Pipeline de streaming em tempo real",
+                    "Alertas e notificações básicas",
+                    "Integrações padrão",
+                    "Suporte L1 incluído",
+                    "SLA 99.9% uptime"
+                ],
+                "cta": "Iniciar Teste Gratuito"
+            },
+            {
+                "name": "Growth",
+                "price": "Personalizado",
+                "period": "",
+                "description": "Escala com sua frota em crescimento",
+                "events": "10M+ eventos/mês",
+                "features": [
+                    "Analytics avançado e ML",
+                    "Motor de fluxo de trabalho personalizado",
+                    "Integrações prioritárias",
+                    "Suporte L2 + CSM",
+                    "SLA 99.99% uptime",
+                    "Ferramentas de conformidade personalizadas"
+                ],
+                "highlight": "Mais Popular",
+                "cta": "Obter Cotação"
+            },
+            {
+                "name": "Enterprise",
+                "price": "Contatar",
+                "period": "",
+                "description": "Nível empresarial com suporte dedicado",
+                "events": "Eventos ilimitados/mês",
+                "features": [
+                    "Implantação white-label",
+                    "Desenvolvimento de recursos personalizados",
+                    "Infraestrutura dedicada",
+                    "Suporte premium 24/7",
+                    "SLAs personalizados",
+                    "Opções on-premise"
+                ],
+                "cta": "Obter Cotação"
+            }
+        ],
+        "note": "Todos os planos incluem nossa plataforma de streaming principal e integrações básicas.",
+        "ufNote": "UF = Fator de Uso (baseado em volume de dados, complexidade de processamento e requisitos de armazenamento)"
+    },
+    "faq": {
+        "title": "Perguntas Frequentes",
+        "subtitle": "Tudo que você precisa saber sobre Modular IoT",
+        "questions": [
+            {
+                "question": "Como Modular IoT se compara ao Apache Kafka ou Apache Pulsar?",
+                "answer": "Embora Kafka e Pulsar sejam excelentes brokers de mensagens, Modular IoT é uma plataforma completa de processamento de dados de frota em tempo real. Usamos tecnologias de streaming comprovadas como Pulsar por baixo, mas adicionamos processadores específicos para frotas, modelos ML e integrações prontas para uso. Você obtém streaming de nível empresarial sem a complexidade de construir tudo do zero."
+            },
+            {
+                "question": "E sobre os requisitos GDPR e soberania de dados?",
+                "answer": "Soberania de dados é um princípio fundamental da nossa plataforma. Todo processamento de dados acontece na sua região/nuvem escolhida, e nunca armazenamos os dados da sua frota nos nossos sistemas. Fornecemos ferramentas para conformidade GDPR incluindo anonimização de dados, políticas de retenção e trilhas de auditoria. Seus dados permanecem sob seu controle o tempo todo."
+            },
+            {
+                "question": "Posso obter um IP de saída estático para whitelist de firewall?",
+                "answer": "Sim, fornecemos IPs de saída estáticos para todas as implantações gerenciadas. Para implantações na sua-nuvem, você tem controle total sobre a rede e pode configurar IPs estáticos conforme necessário. Também suportamos VPC peering e endpoints privados para segurança aprimorada."
+            },
+            {
+                "question": "Qual é a diferença entre Modular IoT e provedores tradicionais de telemática?",
+                "answer": "Provedores tradicionais de telemática te prendem no seu ecossistema com taxas mensais por veículo e personalização limitada. Modular IoT te dá a infraestrutura de streaming bruta para construir suas próprias soluções. Você possui os dados, controla a lógica de processamento e pode integrar com qualquer sistema. É a diferença entre alugar e possuir."
+            },
+            {
+                "question": "Quão rapidamente podemos começar?",
+                "answer": "Para implantações gerenciadas, você pode estar processando dados ao vivo em 48 horas. Implantações na sua-nuvem tipicamente levam 1-2 semanas incluindo configuração de infraestrutura e testes de integração. Fornecemos ferramentas de migração e suporte para ajudá-lo a fazer a transição de sistemas existentes com tempo de inatividade mínimo."
+            },
+            {
+                "question": "Que tipo de suporte vocês oferecem?",
+                "answer": "Todos os planos incluem suporte técnico através do nosso portal. Planos Growth incluem um Customer Success Manager dedicado e tempos de resposta prioritários. Clientes Enterprise obtêm suporte 24/7 com SLAs garantidos. Também fornecemos serviços profissionais para integrações personalizadas e migrações."
+            }
+        ]
+    },
+    "finalCTA": {
+        "title": "Pronto para possuir os dados da sua frota?",
+        "subtitle": "Junte-se a empresas visionárias que escolheram propriedade de dados sobre dependência de fornecedores. Veja seu pipeline em tempo real rodando em 20 minutos.",
+        "primaryCTA": "Agendar Chamada de Integração",
+        "secondaryCTA": "ou role até o formulário de contato",
+        "stats": [
+            {
+                "value": "48hr",
+                "label": "Tempo de configuração para implantação gerenciada"
+            },
+            {
+                "value": "0%",
+                "label": "Dependência de fornecedores de dados"
+            },
+            {
+                "value": "100%",
+                "label": "Seus dados, seu controle"
+            }
+        ]
+    },
+    "footer": {
+        "companyDescription": "Plataforma de streaming de dados de frota em tempo real. Possua seus dados, controle seu destino.",
+        "sections": {
+            "documentation": {
+                "title": "Documentação",
+                "links": [
+                    "Início Rápido",
+                    "Referência da API",
+                    "Integrações",
+                    "Contribuir",
+                    "GitHub"
+                ]
+            },
+            "resources": {
+                "title": "Recursos",
+                "links": [
+                    "Blog",
+                    "Casos de Estudo",
+                    "Webinars",
+                    "Sobre MicroboxLabs"
+                ]
+            },
+            "contact": {
+                "title": "Contato",
+                "email": "hello@microboxlabs.com",
+                "phone": "+1 (555) 123-4567",
+                "location": "San Francisco, CA"
+            }
+        },
+        "contactForm": {
+            "title": "Comece Hoje",
+            "subtitle": "Pronto para ver os dados da sua frota fluindo em tempo real? Vamos configurar um demo.",
+            "fields": {
+                "name": "Seu nome",
+                "email": "Email corporativo",
+                "company": "Nome da empresa",
+                "message": "Conte-nos sobre sua frota e caso de uso…"
+            },
+            "submit": "Solicitar Demo"
+        },
+        "copyright": "© 2024 MicroboxLabs. Todos os direitos reservados.",
+        "legal": [
+            "Política de Privacidade",
+            "Termos de Serviço",
+            "Segurança"
+        ]
+    }
+}

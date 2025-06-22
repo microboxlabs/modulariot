@@ -1,0 +1,326 @@
+{
+    "navigation": {
+        "features": "Features",
+        "customers": "Customers",
+        "quickStart": "Quick Start",
+        "pricing": "Pricing",
+        "community": "Community",
+        "getDemo": "Get Demo",
+        "starGitHub": "Star us on GitHub"
+    },
+    "hero": {
+        "title": "Own your fleet data in {realTime}—without {saasHandcuffs}.",
+        "realTime": "real time",
+        "saasHandcuffs": "SaaS handcuffs",
+        "subtitle": "Stream every GPS ping, sensor value and driver event through {your} cloud in milliseconds.",
+        "your": "your",
+        "openSourceBadge": "Open Source · Apache-2.0",
+        "scheduleDemoCTA": "Schedule a 20-min Tech Demo",
+        "architectureGuide": "Read 5-min Architecture Guide"
+    },
+    "painOutcome": {
+        "painTitle": "Current Pain Points",
+        "outcomeTitle": "With Modular IoT",
+        "painPoints": [
+            "Vendor lock-in with expensive monthly SaaS fees",
+            "Data trapped in third-party systems you can't control",
+            "Limited customization and integration options",
+            "High latency affecting real-time decision making",
+            "Compliance issues with data sovereignty requirements"
+        ],
+        "outcomes": [
+            "Own your data pipeline and infrastructure completely",
+            "Real-time streaming with <56ms latency guaranteed",
+            "Build custom workflows and integrations easily",
+            "Scale without recurring SaaS licensing costs",
+            "Meet GDPR and data residency requirements effortlessly"
+        ]
+    },
+    "features": {
+        "title": "Three Core Capabilities",
+        "subtitle": "Everything you need to process, analyze, and act on fleet data in real-time",
+        "streaming": {
+            "title": "Realtime Streaming Pipeline",
+            "code": "// Real-time GPS and sensor data streaming\nconst pipeline = new StreamProcessor({\n  source: 'fleet-telemetry',\n  processors: [\n    new GPSProcessor(),\n    new SensorProcessor(),\n    new EventProcessor()\n  ],\n  sink: 'your-cloud-storage',\n  latency: '< 56ms'\n});\n\npipeline.start();\n// Stream active: Processing 10K+ events/sec"
+        },
+        "alerting": {
+            "title": "Symptom-based Alerting",
+            "code": "// Configure intelligent alerting rules\nconst alertRules = {\n  driverFatigue: {\n    triggers: ['eye_closure > 3s', 'lane_deviation > 2'],\n    actions: ['sms_supervisor', 'audio_alert'],\n    priority: 'critical'\n  },\n  geofenceViolation: {\n    triggers: ['location_outside_zone'],\n    actions: ['notify_dispatch', 'log_incident'],\n    priority: 'high'\n  }\n};\n\nAlertManager.configure(alertRules);\n// 32% reduction in incidents within 2 weeks"
+        },
+        "workflow": {
+            "title": "Workflow & Evidence Vault",
+            "code": "// Automated workflow engine\nconst workflow = new BPMNWorkflow({\n  triggers: ['incident_detected', 'maintenance_due'],\n  steps: [\n    'capture_evidence',\n    'notify_stakeholders',\n    'create_work_order',\n    'schedule_followup'\n  ],\n  storage: 'evidence_vault',\n  retention: '7_years'\n});\n\n// Compliance-ready audit trail\nworkflow.getAuditLog(vehicleId, dateRange);"
+        }
+    },
+    "architecture": {
+        "title": "Architecture Overview",
+        "subtitle": "See how your data flows from edge devices to your cloud infrastructure in real-time",
+        "latency": "< 56 ms median end-to-end latency",
+        "latencySubtitle": "From sensor reading to your application response",
+        "steps": [
+            {
+                "title": "Data Ingestion",
+                "description": "Collect GPS, sensor, and event data from your fleet in real-time"
+            },
+            {
+                "title": "Stream Processing",
+                "description": "Process and analyze data streams with sub-second latency"
+            },
+            {
+                "title": "Your Infrastructure",
+                "description": "Data flows directly to your database, analytics, and applications"
+            }
+        ]
+    },
+    "liveDemo": {
+        "title": "See It In Action",
+        "subtitle": "Watch real-time demos of how Modular IoT processes and responds to fleet events",
+        "demos": [
+            {
+                "title": "Driver Fatigue Detection → SMS Alert",
+                "description": "Real-time monitoring detects fatigue symptoms and instantly notifies supervisors",
+                "placeholder": "🚨 Driver fatigue detected → SMS sent to supervisor in <3s"
+            },
+            {
+                "title": "Geofence Breach → Deck.gl Visualization",
+                "description": "Live map showing fleet position with instant geofence violation alerts",
+                "placeholder": "🗺️ Vehicle exits authorized zone → Real-time map update with alert"
+            },
+            {
+                "title": "BPMN Workflow Auto-Advance",
+                "description": "Automated workflow progression based on sensor data and business rules",
+                "placeholder": "⚡ Maintenance due → Auto-create work order → Schedule technician"
+            }
+        ],
+        "stats": [
+            {
+                "value": "<3s",
+                "label": "Alert response time"
+            },
+            {
+                "value": "99.9%",
+                "label": "Event processing accuracy"
+            },
+            {
+                "value": "24/7",
+                "label": "Continuous monitoring"
+            }
+        ]
+    },
+    "deployment": {
+        "title": "Deployment Options",
+        "subtitle": "Choose the deployment model that best fits your requirements and compliance needs",
+        "options": [
+            {
+                "title": "Your Cloud",
+                "description": "Complete control with deployment in your AWS, Azure, or GCP infrastructure",
+                "highlight": "Most Popular",
+                "features": [
+                    "Full data sovereignty",
+                    "Custom security policies",
+                    "Unlimited scaling",
+                    "Direct database access"
+                ]
+            },
+            {
+                "title": "Managed by MBL",
+                "description": "We handle infrastructure while you focus on your applications and insights",
+                "highlight": "Fastest Setup",
+                "features": [
+                    "Zero DevOps overhead",
+                    "24/7 monitoring & support",
+                    "Automatic updates",
+                    "SLA guarantees"
+                ]
+            },
+            {
+                "title": "Hybrid Edge",
+                "description": "Edge processing for ultra-low latency with cloud backup and analytics",
+                "highlight": "Ultra Low Latency",
+                "features": [
+                    "Sub-10ms edge processing",
+                    "Offline capability",
+                    "Cloud synchronization",
+                    "Regional compliance"
+                ]
+            }
+        ],
+        "seeReferenceCost": "See reference cost"
+    },
+    "caseStudy": {
+        "company": "Mintral Logistics",
+        "quote": "We cut driver-fatigue incidents by 32% within two weeks of implementing Modular IoT's real-time monitoring system.",
+        "attribution": {
+            "name": "James Sullivan",
+            "title": "Director of Fleet Operations",
+            "companyDetails": "2,500+ vehicle fleet"
+        },
+        "results": [
+            {
+                "value": "32%",
+                "label": "Reduction in fatigue incidents"
+            },
+            {
+                "value": "2 weeks",
+                "label": "Time to see results"
+            },
+            {
+                "value": "$2.3M",
+                "label": "Annual cost savings"
+            }
+        ]
+    },
+    "pricing": {
+        "title": "Simple, Transparent Pricing",
+        "subtitle": "Pay based on usage, not per-seat licenses. Scale as your fleet grows.",
+        "plans": [
+            {
+                "name": "Starter",
+                "price": "60 UF",
+                "period": "/month",
+                "description": "Perfect for small fleets getting started",
+                "events": "Up to 1M events/month",
+                "features": [
+                    "Real-time streaming pipeline",
+                    "Basic alerting & notifications",
+                    "Standard integrations",
+                    "L1 support included",
+                    "99.9% uptime SLA"
+                ],
+                "cta": "Start Free Trial"
+            },
+            {
+                "name": "Growth",
+                "price": "Custom",
+                "period": "",
+                "description": "Scales with your growing fleet",
+                "events": "10M+ events/month",
+                "features": [
+                    "Advanced analytics & ML",
+                    "Custom workflow engine",
+                    "Priority integrations",
+                    "L2 support + CSM",
+                    "99.99% uptime SLA",
+                    "Custom compliance tools"
+                ],
+                "highlight": "Most Popular",
+                "cta": "Get Quote"
+            },
+            {
+                "name": "Enterprise",
+                "price": "Contact",
+                "period": "",
+                "description": "Enterprise-grade with dedicated support",
+                "events": "Unlimited events/month",
+                "features": [
+                    "White-label deployment",
+                    "Custom feature development",
+                    "Dedicated infrastructure",
+                    "24/7 premium support",
+                    "Custom SLAs",
+                    "On-premise options"
+                ],
+                "cta": "Get Quote"
+            }
+        ],
+        "note": "All plans include our core streaming platform and basic integrations.",
+        "ufNote": "UF = Usage Factor (based on data volume, processing complexity, and storage requirements)"
+    },
+    "faq": {
+        "title": "Frequently Asked Questions",
+        "subtitle": "Everything you need to know about Modular IoT",
+        "questions": [
+            {
+                "question": "How does Modular IoT compare to Apache Kafka or Apache Pulsar?",
+                "answer": "While Kafka and Pulsar are excellent message brokers, Modular IoT is a complete real-time fleet data processing platform. We use proven streaming technologies like Pulsar under the hood, but add fleet-specific processors, ML models, and integrations out of the box. You get enterprise-grade streaming without the complexity of building everything from scratch."
+            },
+            {
+                "question": "What about GDPR and data sovereignty requirements?",
+                "answer": "Data sovereignty is a core principle of our platform. All data processing happens in your chosen region/cloud, and we never store your fleet data on our systems. We provide tools for GDPR compliance including data anonymization, retention policies, and audit trails. Your data stays under your control at all times."
+            },
+            {
+                "question": "Can I get a static egress IP for firewall whitelisting?",
+                "answer": "Yes, we provide static egress IPs for all managed deployments. For your-cloud deployments, you have full control over networking and can configure static IPs as needed. We also support VPC peering and private endpoints for enhanced security."
+            },
+            {
+                "question": "What's the difference between Modular IoT and traditional telematics providers?",
+                "answer": "Traditional telematics providers lock you into their ecosystem with monthly per-vehicle fees and limited customization. Modular IoT gives you the raw streaming infrastructure to build your own solutions. You own the data, control the processing logic, and can integrate with any system. It's the difference between renting and owning."
+            },
+            {
+                "question": "How quickly can we get started?",
+                "answer": "For managed deployments, you can be processing live data within 48 hours. Your-cloud deployments typically take 1-2 weeks including infrastructure setup and integration testing. We provide migration tools and support to help you transition from existing systems with minimal downtime."
+            },
+            {
+                "question": "What kind of support do you offer?",
+                "answer": "All plans include technical support via our portal. Growth plans include a dedicated Customer Success Manager and priority response times. Enterprise customers get 24/7 support with guaranteed SLAs. We also provide professional services for custom integrations and migrations."
+            }
+        ]
+    },
+    "finalCTA": {
+        "title": "Ready to own your fleet data?",
+        "subtitle": "Join forward-thinking companies who chose data ownership over vendor lock-in. See your real-time pipeline running in 20 minutes.",
+        "primaryCTA": "Book Integration Call",
+        "secondaryCTA": "or scroll to contact form",
+        "stats": [
+            {
+                "value": "48hr",
+                "label": "Setup time for managed deployment"
+            },
+            {
+                "value": "0%",
+                "label": "Data vendor lock-in"
+            },
+            {
+                "value": "100%",
+                "label": "Your data, your control"
+            }
+        ]
+    },
+    "footer": {
+        "companyDescription": "Real-time fleet data streaming platform. Own your data, control your destiny.",
+        "sections": {
+            "documentation": {
+                "title": "Documentation",
+                "links": [
+                    "Quick Start",
+                    "API Reference",
+                    "Integrations",
+                    "Contribute",
+                    "GitHub"
+                ]
+            },
+            "resources": {
+                "title": "Resources",
+                "links": [
+                    "Blog",
+                    "Case Studies",
+                    "Webinars",
+                    "About MicroboxLabs"
+                ]
+            },
+            "contact": {
+                "title": "Contact",
+                "email": "hello@microboxlabs.com",
+                "phone": "+1 (555) 123-4567",
+                "location": "San Francisco, CA"
+            }
+        },
+        "contactForm": {
+            "title": "Get Started Today",
+            "subtitle": "Ready to see your fleet data flowing in real-time? Let's set up a demo.",
+            "fields": {
+                "name": "Your name",
+                "email": "Work email",
+                "company": "Company name",
+                "message": "Tell us about your fleet and use case…"
+            },
+            "submit": "Request Demo"
+        },
+        "copyright": "© 2024 MicroboxLabs. All rights reserved.",
+        "legal": [
+            "Privacy Policy",
+            "Terms of Service",
+            "Security"
+        ]
+    }
+}

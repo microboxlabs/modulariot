@@ -36,6 +36,11 @@ async function plugin(server: FastifyInstance, opts: any) {
             name: "apiKey",
             in: "header",
           },
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
         },
       },
     },

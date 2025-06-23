@@ -676,7 +676,7 @@
     "message": "Mensaje",
     "response": "Respuesta",
     "treatment_saved": "Tratamiento guardado correctamente",
-    "creation_date": "Fecha de creación",
+    "creation_date": "Fecha de creación del síntoma",
     "Check Load Securing Absence": "Verificar ausencia de carga",
     "types": {
       "Continuous drive check": "Conducción máxima continua",

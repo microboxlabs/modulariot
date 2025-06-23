@@ -51,7 +51,6 @@ export function getBlockedGroupsForRoute(path: string): string[] {
   // Check if any group should be blocked from this specific path
   Object.entries(BLOCKED_GROUPS).forEach(([group, blockedRoutes]) => {
     if (blockedRoutes.some((route) => path.startsWith(route))) {
-      console.log("entrando a grupos bloqueados");
       blockedGroups.push(group);
     }
   });

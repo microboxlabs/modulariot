@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import Link from 'next/link'
-import Logo from './components/Logo'
-import Footer from './components/Footer'
-import DarkModeToggle from './components/DarkModeToggle'
+import { Logo } from '@/app/components/Logo'
+import { Footer } from '@/app/components/Footer'
+import { DarkModeToggle } from '@/app/components/DarkModeToggle'
 import { Building, Plus, Users, Zap } from 'lucide-react'
 
 export default async function Dashboard() {

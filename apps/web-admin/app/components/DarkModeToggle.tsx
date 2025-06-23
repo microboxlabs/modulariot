@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from 'flowbite-react'
 
-export default function DarkModeToggle() {
+export function DarkModeToggle() {
   const [darkMode, setDarkMode] = useState(false)
 
   useEffect(() => {

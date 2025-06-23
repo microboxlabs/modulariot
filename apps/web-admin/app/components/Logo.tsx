@@ -6,7 +6,7 @@ interface LogoProps {
   className?: string
 }
 
-export default function Logo({ size = 'md', className = '' }: LogoProps) {
+export function Logo({ size = 'md', className = '' }: LogoProps) {
   const sizeClasses = {
     sm: 'text-lg',
     md: 'text-xl',

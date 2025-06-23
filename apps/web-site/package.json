@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 3000",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "bunx --bun next dev --turbopack --port 3000",
+    "build": "bunx --bun next build",
+    "start": "bunx --bun next start",
+    "lint": "bunx --bun next lint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "postinstall": "flowbite-react patch"

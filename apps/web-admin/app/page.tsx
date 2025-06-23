@@ -1,102 +1,195 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
-import styles from "./page.module.css";
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
+import Link from 'next/link'
+import Logo from './components/Logo'
+import Footer from './components/Footer'
+import DarkModeToggle from './components/DarkModeToggle'
+import { Building, Plus, Users, Zap } from 'lucide-react'
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
+export default async function Dashboard() {
+  const session = await auth()
 
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
+  if (!session?.user) {
+    redirect('/login')
+  }
 
   return (
-    <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
-
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="Turborepo logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/web-admin/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new/clone?demo-description=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+has+installed+three+local+packages.&demo-image=%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%2F&from=templates&project-name=Monorepo+with+Turborepo&repository-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&root-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=vercel&utm_source=create-turbo"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://turborepo.com/docs?utm_source"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Logo />
+            
+            <div className="flex items-center gap-4">
+              <DarkModeToggle />
+              
+              {/* User Menu */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {session.user.name || session.user.email}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {session.user.email}
+                  </p>
+                </div>
+                
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {(session.user.name || session.user.email)?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <Button appName="web" className={styles.secondary}>
-          Open alert
-        </Button>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold text-gray-900 dark:text-white tracking-tight">
+              Welcome to ModularIoT
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Manage your IoT devices, monitor symptoms, and analyze data from your dashboard.
+            </p>
+          </div>
+
+          {/* Quick Actions Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {/* Create Organization Card */}
+            <Link href="/org" className="group">
+              <div className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors">
+                    <Building className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Organizations
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Create or manage your organizations
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium">
+                  Get started
+                  <Plus className="w-4 h-4 ml-1" />
+                </div>
+              </div>
+            </Link>
+
+            {/* Quick Stats */}
+            <div className="card">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Getting Started
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Follow our setup guide
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Link href="/docs" className="text-green-600 dark:text-green-400 text-sm font-medium hover:underline">
+                  View documentation
+                </Link>
+              </div>
+            </div>
+
+            {/* Community */}
+            <div className="card">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Community
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Connect with other users
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <a 
+                  href="https://github.com/modulariot/community" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 dark:text-purple-400 text-sm font-medium hover:underline"
+                >
+                  Join community
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Platform Overview */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Platform Features
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Device management and monitoring</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Real-time symptom detection</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Team collaboration and RBAC</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">Webhook notifications</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Next Steps
+              </h2>
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-medium text-gray-900 dark:text-white">1. Create Organization</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Set up your first organization to start managing devices
+                  </p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-medium text-gray-900 dark:text-white">2. Invite Team Members</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Collaborate with your team by sending invitations
+                  </p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-medium text-gray-900 dark:text-white">3. Register Devices</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Start adding your IoT devices to the platform
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com/templates?search=turborepo&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://turborepo.com?utm_source=create-turbo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to turborepo.com →
-        </a>
-      </footer>
+
+      <Footer />
     </div>
-  );
-}
+  )
+} 

@@ -1,50 +1,55 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tailwindcss";
+@plugin "flowbite-react/plugin/tailwindcss";
+@source "../.flowbite-react/class-list.json";
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+@theme {
+  --color-blue-50: #ebf7ff;
+  --color-blue-100: #d1e8ff;
+  --color-blue-200: #aee2ff;
+  --color-blue-300: #76d2ff;
+  --color-blue-400: #35b7ff;
+  --color-blue-500: #0790ff; /* ← primary brand (Selective Blue 500) */
+  --color-blue-600: #006aff;
+  --color-blue-700: #0051ff;
+  --color-blue-800: #0043d7;
+  --color-blue-900: #003da5;
+  --color-blue-950: #062665;
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-}
+  --color-yellow-50: #fffde7;
+  --color-yellow-100: #fffac1;
+  --color-yellow-200: #fff186;
+  --color-yellow-300: #ffe141;
+  --color-yellow-400: #ffce0d;
+  --color-yellow-500: #ffb300;
+  --color-yellow-600: #d18900;
+  --color-yellow-700: #a66102;
+  --color-yellow-800: #894b0a;
+  --color-yellow-900: #743e0f;
+  --color-yellow-950: #441f04;
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
+  --color-gray-50: #f4f5f7;
+  --color-gray-100: #e4e8e9;
+  --color-gray-200: #ccd1d5;
+  --color-gray-300: #a8b1b8;
+  --color-gray-400: #7d8a93;
+  --color-gray-500: #5b6770;
+  --color-gray-600: #545e66;
+  --color-gray-700: #484f56;
+  --color-gray-800: #40454a;
+  --color-gray-900: #383b41;
+  --color-gray-950: #232529;
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.imgDark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
-  }
+  --color-orange-50: #fff6ed;
+  --color-orange-100: #ffebd4;
+  --color-orange-200: #ffd3a8;
+  --color-orange-300: #ffb470;
+  --color-orange-400: #ff8837;
+  --color-orange-500: #ff6a14; /* blaze accent */
+  --color-orange-600: #f04c06;
+  --color-orange-700: #c73707;
+  --color-orange-800: #9e2c0e;
+  --color-orange-900: #7f270f;
+  --color-orange-950: #451005;
 }

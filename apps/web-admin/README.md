@@ -1,36 +1,157 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# ModularIoT Web Admin
+
+Admin panel for the ModularIoT platform built with Next.js 15, TypeScript, and Tailwind CSS.
+
+## Features
+
+- 🔐 **Authentication**: Email/password and OAuth (Google, GitHub) via NextAuth.js v5
+- 🏢 **Organization Management**: Create, manage, and invite team members
+- 👥 **RBAC**: Role-based access control (Owner, Admin, Member)
+- 🌙 **Dark Mode**: Full dark mode support with system preference detection
+- 📱 **Responsive**: Mobile-first responsive design
+- ⚡ **Modern Stack**: Next.js 15, React 19, TypeScript, Tailwind CSS, Prisma
+
+## Prerequisites
+
+- Node.js 18+ or Bun
+- PostgreSQL database
+- Google OAuth app (optional)
+- GitHub OAuth app (optional)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install Dependencies
+
+```bash
+npm install
+# or
+bun install
+```
+
+### 2. Environment Variables
+
+Create a `.env.local` file in the root directory:
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/modulariot_admin"
+
+# NextAuth.js
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-key-here"
+
+# OAuth Providers (optional)
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+GITHUB_CLIENT_ID="your-github-client-id"
+GITHUB_CLIENT_SECRET="your-github-client-secret"
+```
+
+### 3. Database Setup
+
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Push schema to database
+npm run db:push
+
+# Seed with demo data
+npm run db:seed
+```
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo Credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+After seeding the database, you can use these credentials:
 
-## Learn More
+- **Email**: demo@miot.dev
+- **Password**: demo123
 
-To learn more about Next.js, take a look at the following resources:
+## API Routes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Authentication
+- `POST /api/auth/signup` - Create new user account
+- `POST /api/auth/signin` - Sign in (handled by NextAuth)
+- `POST /api/auth/signout` - Sign out (handled by NextAuth)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Organizations
+- `POST /api/organizations` - Create organization
+- `PATCH /api/organizations/:orgId` - Update organization
+- `GET /api/organizations/:orgId/members` - List organization members
 
-## Deploy on Vercel
+### Invitations
+- `POST /api/invitations` - Send invitation
+- `GET /api/invitations/:token` - Accept invitation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+apps/web-admin/
+├── app/
+│   ├── (auth)/           # Authentication pages
+│   ├── (org)/            # Organization pages
+│   ├── api/              # API routes
+│   ├── components/       # Reusable components
+│   └── layout.tsx        # Root layout
+├── lib/
+│   ├── auth.ts           # NextAuth configuration
+│   ├── db.ts             # Prisma client
+│   └── version.ts        # Version utilities
+├── prisma/
+│   ├── schema.prisma     # Database schema
+│   └── seed.ts           # Database seeding
+├── styles/
+│   └── globals.css       # Global styles
+└── package.json
+```
+
+## Technologies
+
+- **Framework**: Next.js 15 with App Router
+- **Authentication**: NextAuth.js v5
+- **Database**: PostgreSQL with Prisma ORM
+- **Styling**: Tailwind CSS + Flowbite React
+- **Forms**: React Hook Form + Zod validation
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
+
+## Deployment
+
+The app is ready for deployment on Vercel, Netlify, or any Node.js hosting platform.
+
+### Environment Variables for Production
+
+Make sure to set all required environment variables in your deployment platform.
+
+### Database Migration
+
+For production deployments, use Prisma migrations instead of `db:push`:
+
+```bash
+npx prisma migrate deploy
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if needed
+5. Submit a pull request
+
+## License
+
+This project is part of the ModularIoT platform and follows the same license terms.
+
+## Support
+
+For support and questions, please visit our [GitHub repository](https://github.com/modulariot) or join our community discussions.

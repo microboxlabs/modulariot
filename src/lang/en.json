@@ -667,7 +667,7 @@
     "message": "Message",
     "response": "Response",
     "treatment_saved": "Treatment saved successfully",
-    "creation_date": "Creation date",
+    "creation_date": "Symptom creation date",
     "Check Load Securing Absence": "Check load securing absence",
     "types": {
       "Continuous drive check": "Continuous drive check",

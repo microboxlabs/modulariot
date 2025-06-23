@@ -6,6 +6,7 @@ import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
 export default function TableItem({
   data,
   dict,
@@ -38,7 +39,11 @@ export default function TableItem({
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {data.alertType}
+          {(() => {
+            const symptomsDict = dict.symptoms as I18nRecord;
+            const types = symptomsDict.types as Record<string, string>;
+            return types[data.alertType] || data.alertType;
+          })()}
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}

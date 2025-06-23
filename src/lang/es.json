@@ -674,7 +674,27 @@
     "descending": "Descendente",
     "treatments": "Tratamientos",
     "message": "Mensaje",
-    "response": "Respuesta"
+    "response": "Respuesta",
+    "treatment_saved": "Tratamiento guardado correctamente",
+    "creation_date": "Fecha de creación del síntoma",
+    "Check Load Securing Absence": "Verificar ausencia de carga",
+    "types": {
+      "Continuous drive check": "Conducción máxima continua",
+      "Off Hours Driving": "Conducción fuera de horario",
+      "Speed Limit Standard": "Límite de velocidad",
+      "Double Driver Rotation Check": "Rotación de conductor",
+      "Risk Zone Stop": "Parada en zona de riesgo",
+      "Lost Signal": "Señal perdida",
+      "Continuous Drive Check": "Conducción máxima continua",
+      "Speed Limit": "Límite de velocidad",
+      "Check Load Securing Absence": "Verificar ausencia de carga",
+      "Continuous resting check": "Mínimo descanso requerido",
+      "Night Risk Stay": "Dormir en zona de riesgo",
+      "Night Driving": "Conducción nocturna",
+      "Continuous Resting Check": "Mínimo descanso requerido",
+      "Bad Sign": "Mala señal",
+      "Speed Limit Custom": "Límite de velocidad"
+    }
   },
   "geographic_view": {
     "speed": "Velocidad",

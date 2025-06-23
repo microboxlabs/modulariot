@@ -9,6 +9,7 @@ import { requestTreatment } from "@/features/common/providers/client-api.provide
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
+import { ShowNotification } from "@/features/notifications/notification";
 
 const sendTeamsCall = async (phoneNumber: string) => {
   // Get the phone number from the treatment request
@@ -89,6 +90,10 @@ export default function CallDriver({
         });
         setIsMenuOpen(false);
         router.push("/symptoms");
+        ShowNotification({
+          type: "success",
+          message: (dict.symptoms as I18nRecord).treatment_saved as string,
+        });
       },
     },
   ];

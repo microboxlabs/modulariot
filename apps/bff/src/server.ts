@@ -27,7 +27,7 @@ await initAppServer(/*config*/);
 //   // Ensure database connection is ready
 //   await database.ping();
 
-//   // Return the database instance
+//   // Return the daandtabase instance
 //   return database;
 // }
 

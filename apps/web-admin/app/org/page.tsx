@@ -41,7 +41,7 @@ export default function OrgSelectorPage() {
   const handleOrgCreated = (newOrg: { id: string; name: string; slug: string }) => {
     const newOrgWithRole: Organization = { ...newOrg, role: 'OWNER' };
     setOrgs(prev => [...prev, newOrgWithRole]);
-    router.push(`/org/settings?orgId=${newOrg.id}`)
+    router.push(`/settings?orgId=${newOrg.id}`)
   }
   
   const getRoleBadgeColor = (role: Organization['role']) => {

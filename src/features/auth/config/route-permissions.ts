@@ -1,10 +1,10 @@
 const FULL_ACCESS_ROLES = [
-  "MINTRAL_EJECUTIVO_TORRE_CONTROL",
-  "MINTRAL_OPERADORES",
-  "MINTRAL_OVERLORD_VIAJES",
-  "MINTRAL_RECEPTOR_VIAJES",
-  "MINTRAL_REGULARIZADORES_VIAJES",
-  "MINTRAL_VALIDADOR_TRANSPORTE",
+  "GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL",
+  "GROUP_MINTRAL_OPERADORES",
+  "GROUP_MINTRAL_OVERLORD_VIAJES",
+  "GROUP_MINTRAL_RECEPTOR_VIAJES",
+  "GROUP_MINTRAL_REGULARIZADORES_VIAJES",
+  "GROUP_MINTRAL_VALIDADOR_TRANSPORTE",
 ];
 
 // Define groups that should be blocked from certain routes
@@ -51,6 +51,7 @@ export function getBlockedGroupsForRoute(path: string): string[] {
   // Check if any group should be blocked from this specific path
   Object.entries(BLOCKED_GROUPS).forEach(([group, blockedRoutes]) => {
     if (blockedRoutes.some((route) => path.startsWith(route))) {
+      console.log("entrando a grupos bloqueados");
       blockedGroups.push(group);
     }
   });
@@ -70,6 +71,7 @@ export function hasRouteAccess(
   const hasBlockedGroup = blockedGroups.some((group) =>
     userGroups.includes(group),
   );
+
   if (hasBlockedGroup) {
     return false; // User is blocked from this route
   }

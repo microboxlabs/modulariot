@@ -8,6 +8,7 @@ import { Button, Select } from "flowbite-react";
 import { useState } from "react";
 import { TiDelete } from "react-icons/ti";
 import { useRouter } from "next/navigation";
+import { ShowNotification } from "@/features/notifications/notification";
 
 export default function IgnoreCondition({
   dict,
@@ -53,6 +54,10 @@ export default function IgnoreCondition({
         });
         setIsMenuOpen(false);
         router.push("/symptoms");
+        ShowNotification({
+          type: "success",
+          message: (dict.symptoms as I18nRecord).treatment_saved as string,
+        });
       },
     },
   ];

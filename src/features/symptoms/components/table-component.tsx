@@ -107,7 +107,7 @@ export default function SymptomsTable({
                 {(dict.symptoms as I18nRecord).driver as string}
               </TableHeadCell>
               <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).departure_date as string}
+                {(dict.symptoms as I18nRecord).creation_date as string}
               </TableHeadCell>
               {/* <TableHeadCell className="whitespace-nowrap">
                 {(dict.symptoms as I18nRecord).state as string}
@@ -119,7 +119,7 @@ export default function SymptomsTable({
                 {(dict.symptoms as I18nRecord).condition as string}
               </TableHeadCell>
               <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).departure_date as string}
+                {(dict.symptoms as I18nRecord).creation_date as string}
               </TableHeadCell>
             </TableHead>
           )}

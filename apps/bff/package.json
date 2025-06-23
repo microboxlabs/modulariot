@@ -4,17 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.ts --port 3030",
-    "build": "bun build src/index.ts --outdir dist",
-    "start": "node dist/index.js",
+    "dev": "FASTIFY_AUTOLOAD_TYPESCRIPT=true bun --watch src/server.ts --port 3030",
+    "build": "bun build src/server.ts --outdir dist",
+    "start": "node dist/server.js",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
+    "@fastify/auth": "^5.0.2",
+    "@fastify/autoload": "^6.3.1",
+    "@fastify/cors": "^11.0.1",
+    "@fastify/env": "^5.0.2",
+    "@fastify/jwt": "^9.1.0",
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "fastify": "^5.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
-    "typescript": "^5.5.3",
+    "@types/node": "^22.15.3",
+    "typescript": "5.8.2",
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*"
   }

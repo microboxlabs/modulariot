@@ -5,16 +5,17 @@ import { Config } from "./services/core/Config";
 // import { DatabaseManager } from "./services/core/db";
 // import { initDI } from "./infra/di";
 import appFramework from "./app";
+import { initDI } from "./infra/di";
 
 // Load configuration
-// const configManager = new Config();
-// const config = await configManager.load();
+const configManager = new Config();
+const config = await configManager.load();
 
 // Initialize the database
 // const database = await initDatabase(config);
 
 // Initialize DI
-// const diContainer = await initDI({ config, database });
+const diContainer = await initDI({ config, /*database*/ });
 
 // Initialize the app server
 await initAppServer(/*config*/);

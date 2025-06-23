@@ -3,25 +3,25 @@ import EnvSchema from "env-schema";
 const schema = {
   type: "object",
   required: [
-    "PORT",
-    "HOST",
-    "REDIS_URL",
-    "JWT_SECRET",
-    "SENTRY_DSN",
-    "BETTERSTACK_SOURCE_TOKEN",
+    // "PORT",
+    // "HOST",
+    // "REDIS_URL",
+    // "JWT_SECRET",
+    // "SENTRY_DSN",
+    // "BETTERSTACK_SOURCE_TOKEN",
   ],
-  anyOf: [
-    {
-      required: ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"],
-    },
-    {
-      required: ["DATABASE_URL"],
-    },
-  ],
+  // anyOf: [
+    // {
+    //   required: ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"],
+    // },
+    // {
+    //   required: ["DATABASE_URL"],
+    // },
+  // ],
   properties: {
     PORT: {
       type: "number",
-      default: 3000,
+      default: 3030,
     },
     HOST: {
       type: "string",

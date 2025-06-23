@@ -1,3 +1,18 @@
+<!--
+This is a prompt for a code-generation agent.
+
+Example of invocation: 
+```
+Using prompt description from @api-implementation.md  implement from @apis-roadmap.md the module ## 2. Organizations & Membership  (BFF Node)
+```
+
+Example of output:
+```
+// apps/bff/src/modules/organizations/organizations.schemas.ts
+// apps/bff/src/modules/organizations/organizations.routes.ts
+// apps/bff/src/modules/organizations/organizations.routes.test.ts
+```
+-->
 
 You are a code-generation agent inside my editor.  
 Create TypeScript files that match the MIOT BFF architecture described below.  

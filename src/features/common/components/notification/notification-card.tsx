@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import InfoCard from "./notification-types/info";
 
 export default function NotificationCard({ data }: { data: any }) {
+  console.log(data);
+
   const [showOptions, setShowOptions] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 

@@ -4,4 +4,5 @@ export type Info = {
   id: string;
   message: string;
   timestamp: string;
+  url?: string;
 };

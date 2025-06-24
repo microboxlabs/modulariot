@@ -19,6 +19,7 @@ import { ShowNotification } from "@/features/notifications/notification";
 
 export default function InfoCard({ data }: { data: Info }) {
   const [showOptions, setShowOptions] = useState(false);
+  const [isRead, setIsRead] = useState(data.is_read);
   const optionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,7 +51,10 @@ export default function InfoCard({ data }: { data: Info }) {
         if (response.ok) {
           // restart page
           // if the action has a url this should be a redirect
-          window.location.reload();
+          setIsRead(true);
+          if (data.url) {
+            window.location.href = data.url;
+          }
         } else {
           ShowNotification({
             type: "error",
@@ -115,7 +119,7 @@ export default function InfoCard({ data }: { data: Info }) {
 
                       if (response.ok) {
                         // restart page
-                        window.location.reload();
+                        setIsRead(true);
                       } else {
                         ShowNotification({
                           type: "error",

@@ -1,0 +1,50 @@
+export interface CreateOrganizationRequest {
+  name: string;
+  type: 'personal' | 'startup' | 'enterprise' | 'non-profit';
+  plan: 'free' | 'pro';
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  type: string;
+  plan: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function createOrganization(data: CreateOrganizationRequest): Promise<Organization> {
+  // TODO: Replace with actual API endpoint when backend is ready
+  const response = await fetch('/api/organizations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Invalid organization data');
+    }
+    if (response.status === 409) {
+      throw new Error('An organization with this name already exists');
+    }
+    if (response.status >= 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error('Failed to create organization');
+  }
+
+  if (response.status !== 201) {
+    throw new Error('Unexpected response from server');
+  }
+
+  return response.json();
+}
+
+// TODO: Add additional organization management functions as needed
+// export async function getOrganizations(): Promise<Organization[]> { ... }
+// export async function updateOrganization(id: string, data: Partial<CreateOrganizationRequest>): Promise<Organization> { ... }
+// export async function deleteOrganization(id: string): Promise<void> { ... }

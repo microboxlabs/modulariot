@@ -1,6 +1,6 @@
 {
-  "name": "@repo/ui",
-  "version": "0.0.0",
+  "name": "@modulariot/ui",
+  "version": "0.1.0",
   "private": true,
   "exports": {
     "./*": "./src/*.tsx"

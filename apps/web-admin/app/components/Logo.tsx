@@ -1,35 +1,29 @@
 import Link from 'next/link'
-import { Zap } from 'lucide-react'
+import Image from 'next/image'
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
 }
 
 export function Logo({ size = 'md', className = '' }: LogoProps) {
-  const sizeClasses = {
-    sm: 'text-lg',
-    md: 'text-xl',
-    lg: 'text-2xl'
-  }
-
-  const iconSizes = {
-    sm: 20,
-    md: 24,
-    lg: 28
+  const imageSizes = {
+    xs: { width: 32, height: 32 },
+    sm: { width: 120, height: 32 },
+    md: { width: 140, height: 36 },
+    lg: { width: 160, height: 40 }
   }
 
   return (
-    <Link href="/" className={`flex items-center gap-2 ${className}`}>
-      <div className="relative">
-        <Zap 
-          size={iconSizes[size]} 
-          className="text-blue-500 fill-current" 
-        />
-      </div>
-      <span className={`font-semibold text-slate-900 dark:text-slate-100 tracking-tight ${sizeClasses[size]}`}>
-        ModularIoT
-      </span>
+    <Link href="/" className={`flex items-center ${className}`}>
+      <Image
+        src="/headlogo.svg"
+        alt="ModularIoT"
+        width={imageSizes[size].width}
+        height={imageSizes[size].height}
+        className="dark:invert"
+        priority
+      />
     </Link>
   )
 } 

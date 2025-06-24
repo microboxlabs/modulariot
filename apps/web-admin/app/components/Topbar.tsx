@@ -10,7 +10,7 @@ export async function Topbar() {
   const user = session?.user || {
     name: 'Koru',
     email: 'koru@vialabs.com',
-    avatar: `https://ui-avatars.com/api/?name=Koru&background=random`,
+    avatar: `https://ui-avatars.com/api/?name=Korux&background=random`,
   };
 
   return (

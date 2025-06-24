@@ -42,7 +42,7 @@ export default function TopbarClient({ version, user }: TopbarClientProps) {
 
         <div className="flex items-center gap-4">
           <DarkModeToggle />
-          <Badge color="cyan" size="sm">v{version}</Badge>
+          <Badge color="orange" size="sm">v{version}</Badge>
           <Dropdown
             arrowIcon={false}
             inline

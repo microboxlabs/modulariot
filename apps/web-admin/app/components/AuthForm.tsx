@@ -96,7 +96,7 @@ export default function AuthForm({
                 <div className="w-full border-t border-gray-300 dark:border-gray-600" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-slate-800 text-gray-500 dark:text-gray-400">
+                <span className="px-2 bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 font-medium">
                   or
                 </span>
               </div>

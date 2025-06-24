@@ -77,7 +77,7 @@ export default async function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium">
+                <div className="mt-4 flex items-center text-orange-600 dark:text-orange-400 text-sm font-medium">
                   Get started
                   <Plus className="w-4 h-4 ml-1" />
                 </div>
@@ -142,19 +142,19 @@ export default async function Dashboard() {
               </h2>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   <span className="text-gray-700 dark:text-gray-300">Device management and monitoring</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   <span className="text-gray-700 dark:text-gray-300">Real-time symptom detection</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   <span className="text-gray-700 dark:text-gray-300">Team collaboration and RBAC</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   <span className="text-gray-700 dark:text-gray-300">Webhook notifications</span>
                 </div>
               </div>

@@ -120,8 +120,10 @@ export async function GET(
       );
     if (filters.driver)
       queryParams.append("driver_name", "ilike.*" + filters.driver + "*");
-    if (filters.page) queryParams.append("page", filters.page.toString());
-    if (filters.limit) queryParams.append("limit", filters.limit.toString());
+    if (filters.page)
+      queryParams.append("offset", "eq." + filters.page.toString());
+    if (filters.limit)
+      queryParams.append("limit", "eq." + filters.limit.toString());
 
     // Make API request with optimized headers
     const response = await fetch(

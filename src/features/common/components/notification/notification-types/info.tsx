@@ -62,7 +62,7 @@ export default function InfoCard({ data }: { data: Info }) {
           });
         }
       }}
-      className={`flex items-center flex-row gap-2 rounded-lg p-2 transition-all duration-300 cursor-pointer ${data.is_read ? "bg-gray-200 dark:bg-gray-800" : "bg-blue-200 dark:bg-blue-900"} border border-transparent hover:border-blue-500 dark:hover:border-blue-300`}
+      className={`flex items-center flex-row gap-2 rounded-lg p-2 transition-all duration-300 cursor-pointer ${isRead ? "bg-gray-200 dark:bg-gray-800" : "bg-blue-200 dark:bg-blue-900"} border border-transparent hover:border-blue-500 dark:hover:border-blue-300`}
     >
       <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-500 text-gray-800 dark:text-gray-200 flex items-center justify-center">
         {data.user_id[0].toUpperCase()}

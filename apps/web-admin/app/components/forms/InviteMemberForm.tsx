@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button, TextInput, Alert, Modal, Select, ModalHeader, ModalBody, HelperText } from 'flowbite-react'
 import { UserPlus, Mail, Shield } from 'lucide-react'
+import { CTAButton } from '@modulariot/ui/cta-button'
 
 const InviteMemberSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -135,11 +136,12 @@ export default function InviteMemberForm({ isOpen, onClose, orgId, onSuccess }: 
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button
+            <CTAButton
               type="submit"
+              variant="primary"
+              size="md"
               disabled={isSubmitting || loading}
-              color="blue"
-              className="flex-1"
+              className="flex-1 w-full"
             >
               {loading ? (
                 <>
@@ -152,8 +154,7 @@ export default function InviteMemberForm({ isOpen, onClose, orgId, onSuccess }: 
                   Send Invitation
                 </>
               )}
-            </Button>
-            
+            </CTAButton>
             <Button
               type="button"
               onClick={handleClose}

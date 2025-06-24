@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Button, TextInput, Alert, HelperText } from 'flowbite-react'
+import { TextInput, Alert, HelperText } from 'flowbite-react'
 import { Mail, Lock, User } from 'lucide-react'
+import { CTAButton } from '@modulariot/ui/cta-button'
 import { useRouter } from 'next/navigation'
 
 const SignUpSchema = z.object({
@@ -143,14 +144,15 @@ export default function SimpleSignUpForm({ onSocialLogin, socialLoading }: Simpl
         )}
       </div>
 
-      <Button
+      <CTAButton
         type="submit"
-        className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
+        variant="primary"
+        size="md"
         disabled={isSubmitting || loading || socialLoading}
-        color="blue"
+        className="w-full"
       >
         {loading ? 'Creating account...' : 'Sign Up'}
-      </Button>
+      </CTAButton>
     </form>
   )
 }

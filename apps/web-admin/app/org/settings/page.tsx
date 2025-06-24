@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card, Spinner, Tabs, Table, Badge, Avatar, TableHead, TableHeadCell, TabItem, TableBody, TableRow, TableCell } from 'flowbite-react';
 import { Building, Users, UserPlus, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { CTAButton } from '@modulariot/ui/cta-button';
 import InviteMemberForm from '../../components/forms/InviteMemberForm';
 
 // Mock types
@@ -100,10 +101,14 @@ export default function OrgSettingsPage() {
               <h5 className="text-xl font-bold leading-none text-gray-900 dark:text-white">
                 Team Members
               </h5>
-              <Button color="blue" onClick={() => setInviteModalOpen(true)}>
+              <CTAButton 
+                variant="primary" 
+                size="md" 
+                onClick={() => setInviteModalOpen(true)}
+              >
                 <UserPlus className="mr-2 h-5 w-5" />
                 Invite Member
-              </Button>
+              </CTAButton>
             </div>
             <Table>
               <TableHead>

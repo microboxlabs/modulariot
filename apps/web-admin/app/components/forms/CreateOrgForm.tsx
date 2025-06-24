@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button, TextInput, Alert, Modal, ModalHeader, ModalBody, HelperText } from 'flowbite-react'
 import { Building, Check } from 'lucide-react'
+import { CTAButton } from '@modulariot/ui/cta-button'
 
 const CreateOrgSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters').max(50, 'Organization name must be less than 50 characters'),
@@ -108,10 +109,20 @@ export default function CreateOrgForm({ isOpen, onClose, onSuccess }: CreateOrgF
 
           <div className="flex gap-3 pt-4">
             <Button
-              type="submit"
-              disabled={isSubmitting || loading}
-              color="blue"
+              type="button"
+              onClick={handleClose}
+              color="gray"
+              disabled={loading}
               className="flex-1"
+            >
+              Cancel
+            </Button>
+            <CTAButton
+              type="submit"
+              variant="primary"
+              size="md"
+              disabled={isSubmitting || loading}
+              className="flex-1 w-full"
             >
               {loading ? (
                 <>
@@ -124,16 +135,7 @@ export default function CreateOrgForm({ isOpen, onClose, onSuccess }: CreateOrgF
                   Create Organization
                 </>
               )}
-            </Button>
-            
-            <Button
-              type="button"
-              onClick={handleClose}
-              color="gray"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
+            </CTAButton>
           </div>
         </form>
       </ModalBody>

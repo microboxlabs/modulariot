@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Button, TextInput, Select, Spinner } from 'flowbite-react';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
+import { CTAButton } from '@modulariot/ui/cta-button';
 import { createOrganization } from '@/lib/api/org';
 
 const organizationTypes = [
@@ -176,15 +177,16 @@ export function CreateOrgForm() {
         >
           Cancel
         </Button>
-        <Button
+        <CTAButton
           type="submit"
+          variant="primary"
+          size="md"
           disabled={isSubmitting}
-          className="flex-1"
-          color="blue"
+          className="flex-1 w-full"
         >
           {isSubmitting && <Spinner size="sm" className="mr-2" />}
           Create organization
-        </Button>
+        </CTAButton>
       </div>
 
       {/* Helper Note */}

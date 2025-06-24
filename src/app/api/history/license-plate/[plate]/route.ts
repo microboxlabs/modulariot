@@ -106,17 +106,23 @@ export async function GET(
     queryParams.append("asset_id", "eq." + plate);
 
     // Add filters to query parameters
-    if (filters.date_from) queryParams.append("date_from", filters.date_from);
-    if (filters.date_to) queryParams.append("date_to", filters.date_to);
-    if (filters.status) queryParams.append("status", filters.status);
-    if (filters.origin) queryParams.append("origin", filters.origin);
+    if (filters.date_from)
+      queryParams.append("start_time", "eq." + filters.date_from);
+    if (filters.date_to)
+      queryParams.append("end_time", "eq." + filters.date_to);
+    if (filters.status) queryParams.append("status", "eq." + filters.status);
+    if (filters.origin)
+      queryParams.append("origin_geofence_label", "eq." + filters.origin);
     if (filters.destination)
-      queryParams.append("destination", filters.destination);
-    if (filters.driver) queryParams.append("driver", filters.driver);
+      queryParams.append(
+        "destination_geofence_label",
+        "eq." + filters.destination,
+      );
+    if (filters.driver)
+      queryParams.append("driver_name", "ilike.*" + filters.driver + "*");
     if (filters.page) queryParams.append("page", filters.page.toString());
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
-    console.log(`${HISTORICAL_TRIP_API_URL}?${queryParams.toString()}`);
     // Make API request with optimized headers
     const response = await fetch(
       `${HISTORICAL_TRIP_API_URL}?${queryParams.toString()}`,
@@ -153,29 +159,29 @@ export async function GET(
     // Transform and optimize the response data
     const transformedData: TripHistoryItem[] = Array.isArray(apiData)
       ? apiData.map((trip: any) => ({
-          trip_id: trip.trip_id || trip.id,
-          asset_id: trip.asset_id || plate,
+          trip_id: trip.trip_id,
+          asset_id: trip.asset_id,
+          trip_type: trip.trip_type,
+          origin_geofence_id: trip.origin_geofence_id,
+          destination_geofence_id: trip.destination_geofence_id,
+          stop_geofence_ids: trip.stop_geofence_ids,
+          status: trip.status,
+          driver_id: trip.driver_id,
           start_time: trip.start_time,
           end_time: trip.end_time,
-          origin: trip.origin,
-          destination: trip.destination,
-          driver: trip.driver,
-          driver2: trip.driver2,
-          carrier: trip.carrier,
+          current_geofence_id: trip.current_geofence_id,
+          created_by_client_id: trip.created_by_client_id,
+          created_timestamp: trip.created_timestamp,
+          modified_by_client_id: trip.modified_by_client_id,
+          modified_timestamp: trip.modified_timestamp,
+          carrier_id: trip.carrier_id || "",
+          carrier_name: trip.carrier_name,
           type_load: trip.type_load,
-          driver_contact: trip.driver_contact,
-          status: trip.status,
-          duration_sec: trip.duration_sec || 0,
-          distance_km: trip.distance_km,
-          average_speed: trip.average_speed,
-          max_speed: trip.max_speed,
-          fuel_consumption: trip.fuel_consumption,
-          symptoms_count: trip.symptoms_count,
-          treatments_count: trip.treatments_count,
-          geographical_reference_point: trip.geographical_reference_point,
-          client: trip.client,
-          created_at: trip.created_at,
-          updated_at: trip.updated_at,
+          driver_name: trip.driver_name,
+          rampla_plate: trip.rampla_plate,
+          origin_geofence_label: trip.origin_geofence_label,
+          destination_geofence_label: trip.destination_geofence_label,
+          closed_timestamp: trip.closed_timestamp,
         }))
       : [];
 

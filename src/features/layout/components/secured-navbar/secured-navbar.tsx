@@ -8,7 +8,6 @@ import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */

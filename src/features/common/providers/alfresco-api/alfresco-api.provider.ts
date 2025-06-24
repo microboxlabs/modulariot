@@ -428,3 +428,21 @@ export async function getBiometricVerification(
 
   return result as any;
 }
+
+export async function getNotifications(ticket: string) {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications?alf_ticket=${ticket}`;
+  const result = await fetcher(url, {
+    method: "GET",
+  });
+  return result as any;
+}
+
+export async function markAsRead(ticket: string, id: string) {
+  console.log("llega aqui locom x 2");
+
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications/mark-as-read?alf_ticket=${ticket}&id=${id}`;
+  const result = await fetcher(url, {
+    method: "PUT",
+  });
+  return result as any;
+}

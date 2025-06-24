@@ -8,27 +8,27 @@
 export interface TripHistoryItem {
   trip_id: string;
   asset_id: string;
-  start_time: string;
-  end_time: string;
-  origin: string;
-  destination: string;
-  driver: string;
-  driver2?: string;
-  carrier: string;
-  type_load: string;
-  driver_contact: string;
+  trip_type: string;
+  origin_geofence_id: number;
+  destination_geofence_id: number;
+  stop_geofence_ids: number[];
   status: string;
-  duration_sec: number;
-  distance_km?: number;
-  average_speed?: number;
-  max_speed?: number;
-  fuel_consumption?: number;
-  symptoms_count?: number;
-  treatments_count?: number;
-  geographical_reference_point?: string;
-  client?: string;
-  created_at: string;
-  updated_at: string;
+  driver_id: string;
+  start_time: string;
+  end_time: string | null;
+  current_geofence_id: number;
+  created_by_client_id: string;
+  created_timestamp: string;
+  modified_by_client_id: string;
+  modified_timestamp: string;
+  carrier_id: string;
+  carrier_name: string;
+  type_load: string;
+  driver_name: string;
+  rampla_plate: string;
+  origin_geofence_label: string;
+  destination_geofence_label: string;
+  closed_timestamp: string;
 }
 
 export interface TripHistoryResponse {

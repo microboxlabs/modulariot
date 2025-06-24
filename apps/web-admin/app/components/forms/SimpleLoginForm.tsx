@@ -101,9 +101,9 @@ export default function SimpleLoginForm({ onSocialLogin, socialLoading }: Simple
 
       <Button
         type="submit"
-        className="w-full focus:ring-4 focus:ring-teal-300/50 dark:focus:ring-teal-600/30"
+        className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
         disabled={isSubmitting || loading || socialLoading}
-        style={{ backgroundColor: '#0FB8C9' }}
+        color="blue"
       >
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>

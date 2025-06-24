@@ -179,7 +179,8 @@ export function CreateOrgForm() {
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 bg-teal-600 hover:bg-teal-700 focus:ring-teal-500"
+          className="flex-1"
+          color="blue"
         >
           {isSubmitting && <Spinner size="sm" className="mr-2" />}
           Create organization

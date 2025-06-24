@@ -139,7 +139,7 @@ export default function OrgSettingsPage() {
                 Pending Invitations
             </h5>
             {newlyCreatedInvite && (
-                <div className="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+                <div className="p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400" role="alert">
                     <span className="font-medium">Invitation sent!</span> You can share this link with {newlyCreatedInvite.email}:<br />
                     <div className="flex items-center gap-2 mt-2">
                         <input type="text" readOnly value={`${window.location.origin}/accept-invite?token=${newlyCreatedInvite.token}`} className="bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" />

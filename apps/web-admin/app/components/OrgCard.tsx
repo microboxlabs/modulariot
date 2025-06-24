@@ -23,7 +23,7 @@ export function OrgCard({ org }: OrgCardProps) {
       transition={{ duration: 0.2 }}
     >
       <Link href={`/org/settings?orgId=${org.id}`} aria-label={`View ${org.name}`}>
-        <Card className="rounded-2xl shadow-md p-6 h-full hover:ring-1 hover:ring-teal-300/60">
+        <Card className="rounded-2xl shadow-md p-6 h-full hover:ring-1 hover:ring-blue-300/60">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
               <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">

@@ -145,9 +145,9 @@ export default function SimpleSignUpForm({ onSocialLogin, socialLoading }: Simpl
 
       <Button
         type="submit"
-        className="w-full focus:ring-4 focus:ring-teal-300/50 dark:focus:ring-teal-600/30"
+        className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
         disabled={isSubmitting || loading || socialLoading}
-        style={{ backgroundColor: '#0FB8C9' }}
+        color="blue"
       >
         {loading ? 'Creating account...' : 'Sign Up'}
       </Button>

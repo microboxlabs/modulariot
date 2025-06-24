@@ -6,7 +6,7 @@ import { Quote } from 'lucide-react'
 
 export default function MarketingPanel() {
   return (
-    <div className="hidden sm:flex flex-col items-center justify-center p-8 bg-teal-50 dark:bg-slate-900">
+    <div className="hidden sm:flex flex-col items-center justify-center p-8 bg-blue-50 dark:bg-slate-900">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -33,7 +33,7 @@ export default function MarketingPanel() {
         
         <div className="mt-8 p-4 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-700">
           <div className="flex items-start space-x-3">
-            <Quote className="w-5 h-5 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0" />
+            <Quote className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
               <p className="text-gray-700 dark:text-gray-300 italic">
                 "ModularIoT helped us reduce our monitoring costs by 60% while improving our fleet visibility."

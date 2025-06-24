@@ -39,7 +39,7 @@ export default function AuthForm({
             {subtitle}{' '}
             <Link 
               href={switchLink} 
-              className="font-medium text-teal-600 hover:text-teal-500 dark:text-teal-400 dark:hover:text-teal-300"
+              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
             >
               {switchLinkText}
             </Link>
@@ -52,7 +52,7 @@ export default function AuthForm({
               <Button
                 type="button"
                 onClick={() => onSocialLogin?.('google')}
-                className="w-full focus:ring-4 focus:ring-teal-300/50 dark:focus:ring-teal-600/30"
+                className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
                 color="light"
                 disabled={socialLoading}
                 aria-label="Continue with Google"
@@ -69,7 +69,7 @@ export default function AuthForm({
               <Button
                 type="button"
                 onClick={() => onSocialLogin?.('github')}
-                className="w-full focus:ring-4 focus:ring-teal-300/50 dark:focus:ring-teal-600/30"
+                className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
                 color="dark"
                 disabled={socialLoading}
                 aria-label="Continue with GitHub"
@@ -81,7 +81,7 @@ export default function AuthForm({
               <Button
                 type="button"
                 onClick={() => onSocialLogin?.('apple')}
-                className="w-full focus:ring-4 focus:ring-teal-300/50 dark:focus:ring-teal-600/30"
+                className="w-full focus:ring-4 focus:ring-blue-300/50 dark:focus:ring-blue-600/30"
                 color="light"
                 disabled={socialLoading}
                 aria-label="Continue with Apple"
@@ -111,7 +111,7 @@ export default function AuthForm({
         <div className="text-center">
           <Link 
             href="/forgot-password" 
-            className="text-sm text-teal-600 hover:text-teal-500 dark:text-teal-400 dark:hover:text-teal-300"
+            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Forgot your password?
           </Link>
@@ -120,11 +120,11 @@ export default function AuthForm({
         <div className="pt-4 text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             By continuing, you agree to our{' '}
-            <Link href="/terms" className="text-teal-600 hover:underline dark:text-teal-400">
+            <Link href="/terms" className="text-blue-600 hover:underline dark:text-blue-400">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" className="text-teal-600 hover:underline dark:text-teal-400">
+            <Link href="/privacy" className="text-blue-600 hover:underline dark:text-blue-400">
               Privacy Policy
             </Link>
           </p>

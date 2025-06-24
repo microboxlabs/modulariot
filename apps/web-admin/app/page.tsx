@@ -87,8 +87,8 @@ export default async function Dashboard() {
             {/* Quick Stats */}
             <div className="card">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -100,7 +100,7 @@ export default async function Dashboard() {
                 </div>
               </div>
               <div className="mt-4">
-                <Link href="/docs" className="text-green-600 dark:text-green-400 text-sm font-medium hover:underline">
+                <Link href="/docs" className="text-yellow-600 dark:text-yellow-400 text-sm font-medium hover:underline">
                   View documentation
                 </Link>
               </div>
@@ -109,8 +109,8 @@ export default async function Dashboard() {
             {/* Community */}
             <div className="card">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -126,7 +126,7 @@ export default async function Dashboard() {
                   href="https://github.com/modulariot/community" 
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-purple-600 dark:text-purple-400 text-sm font-medium hover:underline"
+                  className="text-orange-600 dark:text-orange-400 text-sm font-medium hover:underline"
                 >
                   Join community
                 </a>

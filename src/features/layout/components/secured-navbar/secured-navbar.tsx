@@ -31,7 +31,7 @@ export function SecuredNavbar({
   const pathName = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
-  const { data: notifications} = useLoadNotifications();
+  const { data: notifications } = useLoadNotifications();
 
   let unreadNotifications = 0;
   if (Array.isArray(notifications)) {

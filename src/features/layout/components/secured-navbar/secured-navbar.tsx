@@ -15,6 +15,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
 // import { Filter } from "flowbite-react-icons/outline";
 
 export function SecuredNavbar({
@@ -29,6 +30,15 @@ export function SecuredNavbar({
   const router = useRouter();
   const pathName = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
+
+  const { data: notifications} = useLoadNotifications();
+
+  let unreadNotifications = 0;
+  if (Array.isArray(notifications)) {
+    unreadNotifications = notifications.filter(
+      (notification: any) => !notification.is_read,
+    ).length;
+  }
 
   const handleSearch = useDebouncedCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,9 +131,12 @@ export function SecuredNavbar({
                 <HiSearch className="h-6 w-6" />
               </button>
               <span
-                className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                className="relative cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                 onClick={() => router.push("/notifications")}
               >
+                {unreadNotifications > 0 && (
+                  <div className="flex items-center gap-2 w-2 h-2 bg-red-400 dark:bg-red-600 rounded-full absolute top-2 right-2"></div>
+                )}
                 <span className="sr-only">Notifications</span>
                 <HiBell className="h-6 w-6" />
               </span>

@@ -58,6 +58,7 @@ export interface TripHistoryFilters {
   origin?: string;
   destination?: string;
   driver?: string;
+  type_load?: string;
   page?: string;
   limit?: string;
 }

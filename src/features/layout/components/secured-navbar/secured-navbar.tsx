@@ -4,11 +4,10 @@ import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import { HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
+import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
@@ -16,6 +15,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
 // import { Filter } from "flowbite-react-icons/outline";
 
 export function SecuredNavbar({
@@ -30,6 +30,19 @@ export function SecuredNavbar({
   const router = useRouter();
   const pathName = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
+
+  const { data: notifications } = useLoadNotifications();
+
+  let unreadNotifications = 0;
+  if (
+    notifications &&
+    notifications.notifications &&
+    Array.isArray(notifications.notifications)
+  ) {
+    unreadNotifications = notifications.notifications.filter(
+      (notification: any) => !notification.is_read,
+    ).length;
+  }
 
   const handleSearch = useDebouncedCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,7 +134,16 @@ export function SecuredNavbar({
                 <span className="sr-only">Search</span>
                 <HiSearch className="h-6 w-6" />
               </button>
-              <NotificationBellDropdown />
+              <span
+                className="relative cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                onClick={() => router.push("/notifications")}
+              >
+                {unreadNotifications > 0 && (
+                  <div className="flex items-center gap-2 w-2 h-2 bg-red-400 dark:bg-red-600 rounded-full absolute top-2 right-2"></div>
+                )}
+                <span className="sr-only">Notifications</span>
+                <HiBell className="h-6 w-6" />
+              </span>
               <div className="hidden dark:block">
                 <Tooltip content="Toggle light mode">
                   <CustomThemeToggle />

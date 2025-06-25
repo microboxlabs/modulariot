@@ -9,4 +9,5 @@ export type SidebarItem = {
   badge?: string;
   totals: Record<string, number>;
   requiredGroups?: string[];
+  blockedGroups?: string[];
 };

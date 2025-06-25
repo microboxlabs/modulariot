@@ -97,6 +97,7 @@ export async function GET(
       origin: searchParams.get("origin") || undefined,
       destination: searchParams.get("destination") || undefined,
       driver: searchParams.get("driver") || undefined,
+      type_load: searchParams.get("type_load") || undefined,
       /* page: "eq." + (searchParams.get("page") || "1"),
       limit: "eq." + (searchParams.get("limit") || "50"), // Max 100 items per page */
     };
@@ -120,6 +121,8 @@ export async function GET(
       );
     if (filters.driver)
       queryParams.append("driver_name", "ilike.*" + filters.driver + "*");
+    if (filters.type_load)
+      queryParams.append("type_load", "eq." + filters.type_load);
     if (filters.page)
       queryParams.append("offset", "eq." + filters.page.toString());
     if (filters.limit)

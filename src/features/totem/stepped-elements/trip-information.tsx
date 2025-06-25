@@ -1,6 +1,8 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
+import Image from "next/image";
+import exclamationIcon from "@assets/wired-flat-1140-error-in-reveal.gif";
 
 export default function TripInformation({
   setCurrentStep,
@@ -71,13 +73,21 @@ export default function TripInformation({
         const data = await response.json();
         console.log(data);
         if (data?.success === false) {
-          throw new Error(
+          setError(
             ((dict.totem as I18nRecord)[
               data?.message as keyof I18nRecord
             ] as string) ??
               ((dict.totem as I18nRecord)
                 .biometric_verification_error as string),
           );
+          return;
+          /* throw new Error(
+            ((dict.totem as I18nRecord)[
+              data?.message as keyof I18nRecord
+            ] as string) ??
+              ((dict.totem as I18nRecord)
+                .biometric_verification_error as string),
+          ); */
         }
         if (
           tripData &&
@@ -154,6 +164,7 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
+        <Image src={exclamationIcon} alt="exclamation" />
         <button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
@@ -166,13 +177,19 @@ export default function TripInformation({
     );
   }
 
-  if (!tripData && !isLoading) {
+  if (!tripData && !isLoading && !error) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-center font-light text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
           El conductor con rut <span className="font-bold">{rut}</span> no posee
           un viaje asignado.
         </p>
+        <Image
+          src={exclamationIcon}
+          alt="exclamation"
+          width={300}
+          height={300}
+        />
         <button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"

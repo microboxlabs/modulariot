@@ -59,12 +59,14 @@ export const pages: SidebarItem[] = [
             label: "geographicView",
             totals: {},
             requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
+            blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
           },
           {
             href: "/symptoms",
             label: "symptoms",
             totals: {},
-            requiredGroups: []
+            requiredGroups: [],
+            blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
           },
         ]
         : []),
@@ -73,5 +75,6 @@ export const pages: SidebarItem[] = [
 
     totals: {},
     requiredGroups: [],
+    blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide reports section from revisors
   },
 ];

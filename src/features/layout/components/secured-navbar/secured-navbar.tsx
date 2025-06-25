@@ -34,8 +34,12 @@ export function SecuredNavbar({
   const { data: notifications } = useLoadNotifications();
 
   let unreadNotifications = 0;
-  if (Array.isArray(notifications)) {
-    unreadNotifications = notifications.filter(
+  if (
+    notifications &&
+    notifications.notifications &&
+    Array.isArray(notifications.notifications)
+  ) {
+    unreadNotifications = notifications.notifications.filter(
       (notification: any) => !notification.is_read,
     ).length;
   }

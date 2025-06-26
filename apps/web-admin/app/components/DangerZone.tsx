@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button, Modal, TextInput, Alert, ModalFooter, ModalBody, ModalHeader } from "flowbite-react";
 import { Trash2, AlertTriangle } from "lucide-react";
 
@@ -12,6 +12,7 @@ export default function DangerZone() {
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
+  const router = useRouter();
 
   const handleDeleteOrg = async () => {
     if (confirmText !== "DELETE") {
@@ -33,7 +34,7 @@ export default function DangerZone() {
       }
 
       // TODO: Redirect to organization list after successful deletion
-      window.location.href = "/org";
+      router.push('/org');
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete organization");
     } finally {

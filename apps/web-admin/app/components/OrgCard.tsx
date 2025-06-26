@@ -41,7 +41,7 @@ export function OrgCard({ org }: OrgCardProps) {
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </div>
           <div className="flex items-center gap-2 mt-4">
-            <Badge color={tierColors[org.tier]} title={`Tier: ${org.tier}`}>{org.tier}</Badge>
+            {/* <Badge color={tierColors[org.tier]} title={`Tier: ${org.tier}`}>{org.tier}</Badge> */}
             <Badge color="gray" title={`Region: ${org.region}`}>{org.region}</Badge>
           </div>
         </Card>

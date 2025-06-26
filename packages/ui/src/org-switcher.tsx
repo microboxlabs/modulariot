@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Search, Plus, Building } from 'lucide-react';
+import Link from 'next/link';
 
 export interface Organization {
   id: string;
@@ -106,14 +107,20 @@ export function OrgSwitcher({ currentOrg, organizations = mockOrganizations }: O
             </div>
             
             <div className="border-t border-slate-200 dark:border-slate-700 p-2">
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-colors">
+              <Link
+                href="/org"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md transition-colors"
+              >
                 <Building className="h-4 w-4" />
                 All Organizations
-              </button>
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors">
+              </Link>
+              <Link
+                href="/org/new"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-md transition-colors"
+              >
                 <Plus className="h-4 w-4" />
                 New Organization
-              </button>
+              </Link>
             </div>
           </div>
         </>

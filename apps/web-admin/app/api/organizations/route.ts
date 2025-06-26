@@ -71,3 +71,19 @@ export async function POST(request: NextRequest) {
     )
   }
 } 
+
+export async function GET(request: NextRequest) {
+  const session = await auth()
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+  }
+
+  const organizations = await prisma.organization.findMany({
+    where: {
+      ownerId: session.user.id,
+    },
+  })
+
+  return NextResponse.json(organizations)
+}

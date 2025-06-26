@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button, TextInput, Card, Spinner } from 'flowbite-react';
-import { Plus, Search, Filter, Building2 } from 'lucide-react';
+import { Button, TextInput, Card, Spinner, Alert } from 'flowbite-react';
+import { Plus, Search, Filter, Building2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { useOrgList } from '@/lib/hooks/useOrgList';
@@ -12,7 +12,7 @@ import { CTAButton } from '@modulariot/ui/cta-button';
 import { getSavedState } from '@modulariot/ui/sidebar';
 
 export default function OrganizationsPage() {
-  const { organizations, loading } = useOrgList();
+  const { organizations, loading, error } = useOrgList();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredOrgs = organizations.filter(org => 
@@ -34,6 +34,13 @@ export default function OrganizationsPage() {
           </p>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <Alert color="failure" icon={AlertCircle} className="mb-6">
+            <span className="font-medium">Error loading organizations:</span> {error}
+          </Alert>
+        )}
+
         {/* Main toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
           <div className="relative w-full sm:w-72">
@@ -46,6 +53,7 @@ export default function OrganizationsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full"
               aria-label="Search organizations"
+              disabled={loading}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -64,7 +72,22 @@ export default function OrganizationsPage() {
         {loading ? (
           <div className="text-center">
             <Spinner size="xl" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Loading organizations...</p>
           </div>
+        ) : error ? (
+          // Error state with retry option
+          <Card className="rounded-2xl shadow-md p-6 text-center">
+            <div className="flex flex-col items-center gap-4 py-8">
+              <AlertCircle className="h-16 w-16 text-red-400" />
+              <h3 className="text-xl font-semibold">Failed to load organizations</h3>
+              <p className="text-gray-500">
+                There was an error loading your organizations. Please try refreshing the page.
+              </p>
+              <Button onClick={() => window.location.reload()} className="mt-4">
+                Refresh Page
+              </Button>
+            </div>
+          </Card>
         ) : filteredOrgs.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredOrgs.map((org, i) => (
@@ -87,10 +110,10 @@ export default function OrganizationsPage() {
               <p className="text-gray-500">
                 Get started by creating your first organization.
               </p>
-              <Button as={Link} href="/org/new" className="mt-4">
+              <CTAButton as={Link} href="/org/new" className="mt-4">
                 <Plus className="h-5 w-5 mr-2" />
                 Create your first organization
-              </Button>
+              </CTAButton>
             </div>
           </Card>
         )}

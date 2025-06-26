@@ -10,6 +10,11 @@ export const modularTheme = createTheme({
     default: "bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-300 dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800",
     }
   },
+  modal: {
+    header: {
+        base: "flex items-start justify-between rounded-t border-b border-gray-200 p-5 dark:border-gray-600",
+    }
+  }
 });
 
 export const ModularThemeProvider = ({ children }: { children: React.ReactNode }) => {

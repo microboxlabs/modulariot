@@ -1,27 +1,12 @@
 import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 
-const HISTORICAL_TRIP_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/historical_trip`;
-
-import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 import {
   TripHistoryFilters,
   TripHistoryItem,
   TripHistoryResponse,
 } from "../route.types";
-
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
-
+import { getTaskByLicensePlate } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 /**
  * GET /api/history/license-plate/{plate}
  *
@@ -74,7 +59,6 @@ export async function GET(
   }
 
   try {
-    const token = await authToken.getToken();
     const { plate } = params;
 
     if (!plate) {
@@ -98,52 +82,41 @@ export async function GET(
       destination: searchParams.get("destination") || undefined,
       driver: searchParams.get("driver") || undefined,
       type_load: searchParams.get("type_load") || undefined,
+      trailer_license_plate:
+        searchParams.get("trailer_license_plate") || undefined,
       /* page: "eq." + (searchParams.get("page") || "1"),
       limit: "eq." + (searchParams.get("limit") || "50"), // Max 100 items per page */
     };
 
     // Build query parameters for the API call
-    const queryParams = new URLSearchParams();
-    queryParams.append("asset_id", "eq." + plate);
+    const body = {
+      from: 0,
+      size: 100,
+      filter: {
+        licensePlate: plate,
+      } as Record<string, any>,
+    };
 
     // Add filters to query parameters
-    if (filters.date_from)
-      queryParams.append("start_time", "eq." + filters.date_from);
-    if (filters.date_to)
-      queryParams.append("end_time", "eq." + filters.date_to);
-    if (filters.status) queryParams.append("status", "eq." + filters.status);
-    if (filters.origin)
-      queryParams.append("origin_geofence_label", "eq." + filters.origin);
-    if (filters.destination)
-      queryParams.append(
-        "destination_geofence_label",
-        "eq." + filters.destination,
-      );
-    if (filters.driver)
-      queryParams.append("driver_name", "ilike.*" + filters.driver + "*");
-    if (filters.type_load)
-      queryParams.append("type_load", "eq." + filters.type_load);
-    if (filters.page)
-      queryParams.append("offset", "eq." + filters.page.toString());
-    if (filters.limit)
-      queryParams.append("limit", "eq." + filters.limit.toString());
+    if (filters.driver) body.filter.driverId = filters.driver;
+    if (filters.trailer_license_plate)
+      body.filter.trailerLicensePlate = filters.trailer_license_plate;
+    if (filters.carrier_id) body.filter.carrierId = filters.carrier_id;
+    if (filters.carrier_name) body.filter.carrierName = filters.carrier_name;
+    if (filters.origin) body.filter.origin = filters.origin;
+    if (filters.destination) body.filter.destination = filters.destination;
+    if (filters.customer_code) body.filter.customerCode = filters.customer_code;
+
+    /* if (filters.date_from) body.filter.dateFrom = filters.date_from;
+    if (filters.date_to) body.filter.endTime = filters.date_to;
+    if (filters.status) body.filter.status = filters.status;
+    if (filters.type_load) body.filter.type_load = filters.type_load; */
+    if (filters.page) body.from = parseInt(filters.page);
+    if (filters.limit) body.size = parseInt(filters.limit);
 
     // Make API request with optimized headers
-    const response = await fetch(
-      `${HISTORICAL_TRIP_API_URL}?${queryParams.toString()}`,
-      {
-        headers: {
-          accept: "application/json",
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "public, max-age=300", // Cache for 5 minutes
-        },
-        // Add timeout for better performance
-        signal: AbortSignal.timeout(30000), // 30 second timeout
-      },
-    );
-
-    if (!response.ok) {
-      console.log(await response.json());
+    const response = await getTaskByLicensePlate(session.user.ticket, body);
+    if (!response) {
       const errorMessage =
         response.status === 404
           ? "No trips found for this license plate"
@@ -159,48 +132,24 @@ export async function GET(
       );
     }
 
-    const apiData = await response.json();
+    const apiData = response.tasks;
 
     // Transform and optimize the response data
     const transformedData: TripHistoryItem[] = Array.isArray(apiData)
-      ? apiData.map((trip: any) => ({
-          trip_id: trip.trip_id,
-          asset_id: trip.asset_id,
-          trip_type: trip.trip_type,
-          origin_geofence_id: trip.origin_geofence_id,
-          destination_geofence_id: trip.destination_geofence_id,
-          stop_geofence_ids: trip.stop_geofence_ids,
-          status: trip.status,
-          driver_id: trip.driver_id,
-          start_time: trip.start_time,
-          end_time: trip.end_time,
-          current_geofence_id: trip.current_geofence_id,
-          created_by_client_id: trip.created_by_client_id,
-          created_timestamp: trip.created_timestamp,
-          modified_by_client_id: trip.modified_by_client_id,
-          modified_timestamp: trip.modified_timestamp,
-          carrier_id: trip.carrier_id || "",
-          carrier_name: trip.carrier_name,
-          type_load: trip.type_load,
-          driver_name: trip.driver_name,
-          rampla_plate: trip.rampla_plate,
-          origin_geofence_label: trip.origin_geofence_label,
-          destination_geofence_label: trip.destination_geofence_label,
-          closed_timestamp: trip.closed_timestamp,
-        }))
+      ? apiData
       : [];
 
     // Calculate pagination info
     const total = transformedData.length;
-    const total_pages = Math.ceil(total / parseInt(filters.limit!));
+    const total_pages = Math.ceil(total / body.size!);
 
     const responseData: TripHistoryResponse = {
       success: true,
       data: transformedData,
       pagination: {
         total,
-        page: parseInt(filters.page!), //parseInt(filters.page!.split(".")[1]),
-        limit: parseInt(filters.limit!), //parseInt(filters.limit!.split(".")[1]),
+        page: body.from,
+        limit: body.size,
         total_pages,
       },
       filters: {
@@ -220,8 +169,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching trip history:", error);
-
     return NextResponse.json(
       {
         success: false,

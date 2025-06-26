@@ -49,3 +49,36 @@ export async function PATCH(
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 } 
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { orgId: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    const { orgId } = params;
+    // Verify that the user is an OWNER of the org
+    const membership = await prisma.membership.findFirst({
+      where: {
+        userId: session.user.id,
+        orgId: orgId,
+        role: 'OWNER',
+      },
+    });
+    if (!membership) {
+      return NextResponse.json({ message: 'Forbidden: Only the organization owner can delete the organization.' }, { status: 403 });
+    }
+    // Delete the organization (cascades to memberships, etc. if set in schema)
+    await prisma.organization.delete({
+      where: { id: orgId },
+    });
+    return NextResponse.json({ message: 'Organization deleted successfully.' }, { status: 200 });
+  } catch (error) {
+    console.error('Delete organization error:', error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}
+

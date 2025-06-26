@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Search, Plus, Building } from 'lucide-react';
 
-interface Organization {
+export interface Organization {
   id: string;
   name: string;
   plan: string;

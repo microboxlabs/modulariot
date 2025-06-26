@@ -7,6 +7,7 @@ import { Logo } from './Logo';
 import { OrgSwitcher } from './org-switcher';
 import { ProjectSwitcher } from './project-switcher';
 import { CTAButtons } from './cta-buttons';
+import { Organization } from './org-switcher';
 
 interface User {
   name?: string | null;
@@ -45,7 +46,7 @@ export function Header({
   const projectId = params?.projectId as string;
   
   // Determine current org and project
-  const currentOrg = mockOrganizations.find(org => org.id === orgId) ?? mockOrganizations[0];
+  const currentOrg = mockOrganizations.find(org => org.id === orgId) ?? mockOrganizations[0]!;
   const currentProject = mockProjects.find(project => project.id === projectId);
   
   // Show breadcrumbs only on org/project pages

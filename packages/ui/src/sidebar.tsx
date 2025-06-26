@@ -9,23 +9,35 @@ interface SidebarProps {
   storageKey: string;
 }
 
+export const getSavedState = (storageKey: string) => {
+  const saved = localStorage.getItem(storageKey);
+  if (saved !== null) {
+    return JSON.parse(saved);
+  }
+  return false;
+};
+
+const saveState = (storageKey: string, value: boolean) => {
+  localStorage.setItem(storageKey, JSON.stringify(value));
+};
+
 export function Sidebar({ items, storageKey }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const [isCollapsed, setIsCollapsed] = useState(getSavedState(storageKey));
 
   // Load collapsed state from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved !== null) {
-      setIsCollapsed(JSON.parse(saved));
-    }
+    setIsCollapsed(getSavedState(storageKey));
   }, [storageKey]);
 
   // Save collapsed state to localStorage
   const toggleCollapsed = () => {
     const newValue = !isCollapsed;
     setIsCollapsed(newValue);
-    localStorage.setItem(storageKey, JSON.stringify(newValue));
+    saveState(storageKey, newValue);
   };
+
+  console.log('isCollapsed', isCollapsed);
 
   return (
     <div

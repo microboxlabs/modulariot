@@ -4,7 +4,7 @@ import { sidebarCookie } from "@/features/sidebar/services/sidebar-cookie.servic
 import type { PropsWithChildren } from "react";
 import { SecuredNavbar } from "./secured-navbar/secured-navbar";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { buildNavBarMessages } from "../utils/utils";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 
@@ -20,6 +20,7 @@ export default async function SecuredTaskLayout({
         messages={navBarMessages}
         isSidebarToggleEnabled={false}
         isSeachEnabled={false}
+        dict={dict as unknown as I18nRecord}
       />
       <div data-testid="content" className="mt-16 mb-6 flex items-center">
         {children}

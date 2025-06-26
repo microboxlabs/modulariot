@@ -19,7 +19,17 @@ export default function OrganizationsPage() {
   );
 
   return (
-    <div className="container px-6 mx-auto py-8 overflow-y-auto h-full">
+    <div className="container px-6 mx-auto py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-white tracking-tight">
+          My Organizations
+        </h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          Choose an organization to manage your IoT projects and device fleets.
+        </p>
+      </div>
+
       {/* Main toolbar */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
         <div className="relative w-full sm:w-72">
@@ -82,4 +92,4 @@ export default function OrganizationsPage() {
       )}
     </div>
   );
-} 
+}

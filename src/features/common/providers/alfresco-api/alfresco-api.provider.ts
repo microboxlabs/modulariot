@@ -437,3 +437,17 @@ export async function getSovosFingerprintReuse(
 
   return result as any;
 }
+
+export async function getTaskByLicensePlate(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<any> {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter?alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
+}

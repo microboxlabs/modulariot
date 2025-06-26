@@ -27,6 +27,12 @@ export async function GET(req: NextRequest) {
   const size = url.searchParams.get("size");
   const show_finished = url.searchParams.get("showFinished") === "true";
   const search = url.searchParams.get("search");
+  const licensePlate = url.searchParams.get("licensePlate");
+  const driverId = url.searchParams.get("driverId");
+  const carrierId = url.searchParams.get("carrierId");
+  const carrierName = url.searchParams.get("carrierName");
+  const origin = url.searchParams.get("origin");
+  const destination = url.searchParams.get("destination");
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -46,7 +52,15 @@ export async function GET(req: NextRequest) {
           from: from ? parseInt(from) : 0,
           size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
-          serviceCode: search ? `v${search}` : undefined,
+          filter: {
+            serviceCode: search ? `v${search}` : undefined,
+            licensePlate: licensePlate ? licensePlate : undefined,
+            driverId: driverId ? driverId : undefined,
+            carrierId: carrierId ? carrierId : undefined,
+            carrierName: carrierName ? carrierName : undefined,
+            origin: origin ? origin : undefined,
+            destination: destination ? destination : undefined,
+          },
         }).then((res) => ({
           tasks: res.workflows,
           total: res.total,

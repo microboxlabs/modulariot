@@ -6,4 +6,7 @@ export { Header } from './header';
 export { Logo } from './Logo';
 export { Sidebar } from './sidebar';
 export { SidebarLink, type SidebarItem } from './sidebar-link';
-export { SmartSidebar } from './smart-sidebar'; 
+export { SmartSidebar } from './smart-sidebar';
+export { OrgSwitcher } from './org-switcher';
+export { ProjectSwitcher } from './project-switcher';
+export { CTAButtons } from './cta-buttons'; 

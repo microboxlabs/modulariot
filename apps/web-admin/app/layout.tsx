@@ -18,11 +18,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // TODO: Get user from session/auth
+
   return (
     <html lang="en" className={inter.variable}>
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
+          <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-200">
             {children}
           </div>
         </Providers>

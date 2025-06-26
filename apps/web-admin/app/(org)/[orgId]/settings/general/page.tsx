@@ -5,9 +5,9 @@ import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Card, TextInput, Button, Alert, Label, HelperText } from "flowbite-react";
+import { Card, TextInput, Button, Alert, Label } from "flowbite-react";
 import { Save } from "lucide-react";
-import DangerZone from "../../../components/DangerZone";
+import DangerZone from "../../../../components/DangerZone";
 
 const orgSettingsSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
@@ -102,12 +102,8 @@ export default function GeneralSettingsPage() {
                   id="name"
                   {...register("name")}
                   color={errors.name ? "failure" : "gray"}
+                  helperText={errors.name?.message}
                 />
-                <HelperText>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {errors.name?.message}
-                  </span>
-              </HelperText>
               </div>
 
               <div>
@@ -119,12 +115,8 @@ export default function GeneralSettingsPage() {
                   type="email"
                   {...register("billingEmail")}
                   color={errors.billingEmail ? "failure" : "gray"}
+                  helperText={errors.billingEmail?.message}
                 />
-                <HelperText>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {errors.billingEmail?.message}
-                  </span>
-              </HelperText>
               </div>
             </div>
 
@@ -137,12 +129,8 @@ export default function GeneralSettingsPage() {
                 {...register("description")}
                 placeholder="A brief description of your organization"
                 color={errors.description ? "failure" : "gray"}
+                helperText={errors.description?.message}
               />
-              <HelperText>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {errors.description?.message}
-                  </span>
-              </HelperText>
             </div>
 
             <div>
@@ -155,12 +143,8 @@ export default function GeneralSettingsPage() {
                 {...register("website")}
                 placeholder="https://example.com"
                 color={errors.website ? "failure" : "gray"}
+                helperText={errors.website?.message}
               />
-              <HelperText>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {errors.website?.message}
-                  </span>
-              </HelperText>
             </div>
 
             <div className="flex justify-end">

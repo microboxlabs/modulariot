@@ -26,7 +26,7 @@ Typography
 
 Component rules
   – Flowbite `Button`, `TextInput`, `Card`, `Badge`
-  – Cards: `rounded-2xl shadow-md p-6 hover:ring-1 hover:ring-teal-300/60`
+  – Cards: `rounded-2xl shadow-md p-6 hover:ring-1 hover:ring-primary-300/60`
   – Iconography via lucide-react (`ChevronRight`, `Search`, `Filter`, etc.)
 
 Responsive grid
@@ -77,14 +77,14 @@ UI REQUIREMENTS
    Icons only (dashboard, devices, symptoms, billing, settings). Highlight “dashboard”.
 
 3. **Main toolbar (below topbar)**
-   • **New organization** button (primary, teal).  
+   • **New organization** button (primary, primary).  
    • Search input with Search icon placeholder “Search organizations”.  
    • Small filter icon (lucide `Filter`)—no dropdown yet; just a disabled button.
 
 4. **Org card grid**
    • Card shows: name, region badge, tier badge, status text/icon, right chevron.  
    • Hover shadow + subtle upward motion (`Framer Motion translateY: -2`).  
-   • Click handler → navigate to `/org/[slug]/projects` (stub now).  
+   • Click handler → navigate to `/org/[slug]/project` (stub now).  
    • Show skeleton loaders while fetching.
 
 5. **Empty state**

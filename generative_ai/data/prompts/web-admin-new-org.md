@@ -23,7 +23,7 @@ BRAND & STYLE
    p-8 space-y-6`
 • Field labels left-aligned, inputs right-aligned using Flowbite `Select`
   and `TextInput`.
-• Buttons – `Cancel` (gray outline) and `Create organization` (primary teal).
+• Buttons – `Cancel` (gray outline) and `Create organization` (primary).
 • Helper text under each field (`text-sm text-slate-500 dark:text-slate-400`).
 • Note below form: “You can rename your organization later.”
 • Center card horizontally & vertically: `grid place-items-center h-screen`.

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { HiMail, HiPhone, HiLocationMarker } from 'react-icons/hi';
 import { FaLinkedin, FaTwitter, FaGithub } from 'react-icons/fa';
 import Link from 'next/link';
-import Image from 'next/image';
+import { Logo } from '@modulariot/ui/Logo';
 
 export default function FooterSection() {
   return (
@@ -19,13 +19,7 @@ export default function FooterSection() {
             viewport={{ once: true }}
           >
             <div className="flex items-center mb-4">
-              <Image
-                src="/logo.svg"
-                alt="Modular IoT Logo"
-                width={32}
-                height={32}
-                className="w-8 h-8 mr-3"
-              />
+              <Logo size="xs" src="/logo.svg" />
               <span className="text-xl font-bold">Modular IoT</span>
             </div>
             <p className="text-gray-300 mb-4 leading-relaxed">

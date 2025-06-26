@@ -1,10 +1,11 @@
-import { auth } from '@/lib/auth';
-import { getVersionBadge } from '@/lib/version';
-import TopbarClient from './TopbarClient';
+'use client';
 
-export async function Topbar() {
-  const version = await getVersionBadge();
-  const session = await auth();
+import { useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { Header } from '@modulariot/ui/header';
+
+export function Topbar() {
+  const { data: session } = useSession();
   
   // TODO: Replace with actual user session data
   const user = session?.user || {
@@ -13,7 +14,14 @@ export async function Topbar() {
     avatar: `https://ui-avatars.com/api/?name=Korux&background=random`,
   };
 
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
+
   return (
-    <TopbarClient version={version} user={user} />
+    <Header 
+      user={user} 
+      onSignOut={handleSignOut}
+    />
   );
 }

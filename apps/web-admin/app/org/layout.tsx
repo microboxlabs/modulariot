@@ -1,4 +1,4 @@
-import { Topbar } from '../components/Topbar';
+import { TopbarWrapper } from '../components/TopbarWrapper';
 import { Footer } from '../components/Footer';
 
 export default function OrgLayout({
@@ -8,11 +8,9 @@ export default function OrgLayout({
 }) {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      <Topbar />
-      <main className="flex-1 overflow-y-auto bg-white dark:bg-gray-800">
-        <div className="container px-6 mx-auto">
-          {children}
-        </div>
+      <TopbarWrapper />
+      <main className="flex-1 overflow-hidden bg-white dark:bg-gray-800">
+        {children}
       </main>
       <Footer />
     </div>

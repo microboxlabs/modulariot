@@ -1,21 +1,35 @@
 @import "tailwindcss";
 @plugin "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
+@source "../../../packages/ui/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-blue-50: #ebf7ff;
-  --color-blue-100: #d1e8ff;
-  --color-blue-200: #aee2ff;
-  --color-blue-300: #76d2ff;
-  --color-blue-400: #35b7ff;
-  --color-blue-500: #0790ff; /* ← primary brand (Selective Blue 500) */
-  --color-blue-600: #006aff;
-  --color-blue-700: #0051ff;
-  --color-blue-800: #0043d7;
-  --color-blue-900: #003da5;
-  --color-blue-950: #062665;
+  --color-primary-50: var(--color-blue-50);
+  --color-primary-100: var(--color-blue-100);
+  --color-primary-200: var(--color-blue-200);
+  --color-primary-300: var(--color-blue-300);
+  --color-primary-400: var(--color-blue-400);
+  --color-primary-500: var(--color-blue-500);
+  --color-primary-600: var(--color-blue-600);
+  --color-primary-700: var(--color-blue-700);
+  --color-primary-800: var(--color-blue-800);
+  --color-primary-900: var(--color-blue-900);
+  --color-primary-950: var(--color-blue-950);
+
+
+  --color-blue-50: #eef6fa;
+  --color-blue-100: #d4e9f2;
+  --color-blue-200: #a8d3e5;
+  --color-blue-300: #7cbdd8;
+  --color-blue-400: #50a7cb;
+  --color-blue-500: #247198; /* ← deep blue-teal from logo */
+  --color-blue-600: #1d5a7a;
+  --color-blue-700: #16435c;
+  --color-blue-800: #0f2c3e;
+  --color-blue-900: #081520;
+  --color-blue-950: #040a10;
 
   --color-yellow-50: #fffde7;
   --color-yellow-100: #fffac1;

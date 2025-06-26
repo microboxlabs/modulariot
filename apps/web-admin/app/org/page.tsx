@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 
 import { useOrgList } from '@/lib/hooks/useOrgList';
 import { OrgCard } from '../components/OrgCard';
+import { CTAButton } from '@modulariot/ui/cta-button';
 
 export default function OrganizationsPage() {
   const { organizations, loading } = useOrgList();
@@ -18,7 +19,7 @@ export default function OrganizationsPage() {
   );
 
   return (
-    <div className="py-8">
+    <div className="container px-6 mx-auto py-8 overflow-y-auto h-full">
       {/* Main toolbar */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
         <div className="relative w-full sm:w-72">
@@ -38,10 +39,10 @@ export default function OrganizationsPage() {
             <Filter className="h-5 w-5 mr-2" />
             Filter
           </Button>
-          <Button as={Link} href="/org/new">
+          <CTAButton as={Link} href="/org/new" variant="primary" size="md">
             <Plus className="h-5 w-5 mr-2" />
             New organization
-          </Button>
+          </CTAButton>
         </div>
       </div>
 

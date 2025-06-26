@@ -1,50 +1,34 @@
+'use client';
+
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { Logo } from '@/app/components/Logo'
-import { Footer } from '@/app/components/Footer'
-import { DarkModeToggle } from '@/app/components/DarkModeToggle'
+import { Header } from '@modulariot/ui/header';
+import { Footer } from '@/app/components/Footer';
 import { Building, Plus, Users, Zap } from 'lucide-react'
 
-export default async function Dashboard() {
-  const session = await auth()
+export default function Dashboard() {
+  const { data: session, status } = useSession()
+
+  if (status === 'loading') {
+    return <div>Loading...</div>
+  }
 
   if (!session?.user) {
     redirect('/login')
   }
 
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Logo />
-            
-            <div className="flex items-center gap-4">
-              <DarkModeToggle />
-              
-              {/* User Menu */}
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {session.user.name || session.user.email}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {session.user.email}
-                  </p>
-                </div>
-                
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {(session.user.name || session.user.email)?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header 
+        user={session.user}
+        onSignOut={handleSignOut}
+      />
 
       {/* Main Content */}
       <main className="flex-1">

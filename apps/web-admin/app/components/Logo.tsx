@@ -21,7 +21,6 @@ export function Logo({ size = 'md', className = '' }: LogoProps) {
         alt="ModularIoT"
         width={imageSizes[size].width}
         height={imageSizes[size].height}
-        className="dark:invert"
         priority
       />
     </Link>

@@ -12,22 +12,22 @@ export interface Organization {
 }
 
 interface OrgSwitcherProps {
-  currentOrg: Organization;
+  currentOrg: Organization | null;
   organizations?: Organization[];
 }
 
 // TODO: Replace with API fetch
-const mockOrganizations: Organization[] = [
-  { id: 'vialabs', name: 'ViaLabs', plan: 'FREE' },
-  { id: 'techcorp', name: 'TechCorp Industries', plan: 'PRO' },
-  { id: 'startupco', name: 'StartupCo', plan: 'FREE' },
-];
+// const mockOrganizations: Organization[] = [
+//   { id: 'mintral', name: 'Mintral', plan: 'FREE' },
+//   { id: 'techcorp', name: 'TechCorp Industries', plan: 'PRO' },
+//   { id: 'startupco', name: 'StartupCo', plan: 'FREE' },
+// ];
 
-export function OrgSwitcher({ currentOrg, organizations = mockOrganizations }: OrgSwitcherProps) {
+export function OrgSwitcher({ currentOrg, organizations = [] }: OrgSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
-
+  
   const filteredOrgs = organizations.filter(org =>
     org.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -39,7 +39,7 @@ export function OrgSwitcher({ currentOrg, organizations = mockOrganizations }: O
   };
 
   const getPlanBadgeColor = (plan: string) => {
-    switch (plan.toUpperCase()) {
+    switch (plan?.toUpperCase() ?? '') {
       case 'PRO':
         return 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-300';
       case 'FREE':
@@ -56,10 +56,10 @@ export function OrgSwitcher({ currentOrg, organizations = mockOrganizations }: O
         className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
       >
         <span className="font-medium text-slate-900 dark:text-slate-100 max-w-[180px] truncate">
-          {currentOrg.name}
+          {currentOrg?.name}
         </span>
-        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getPlanBadgeColor(currentOrg.plan)}`}>
-          {currentOrg.plan}
+        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getPlanBadgeColor(currentOrg?.plan ?? '')}`}>
+          {currentOrg?.plan}
         </span>
         <ChevronDown className="h-4 w-4 text-slate-500" />
       </button>
@@ -99,7 +99,7 @@ export function OrgSwitcher({ currentOrg, organizations = mockOrganizations }: O
                       {org.plan} Plan
                     </div>
                   </div>
-                  {org.id === currentOrg.id && (
+                  {org.id === currentOrg?.id && (
                     <div className="w-2 h-2 bg-primary-500 rounded-full" />
                   )}
                 </button>

@@ -55,8 +55,8 @@ GET /api/user/organizations →
 [
   {
     "id": "01HX1...",
-    "name": "ViaLabs",
-    "slug": "vialabs",
+    "name": "Mintral",
+    "slug": "mintral",
     "role": "OWNER",          // OWNER | ADMIN | MEMBER
     "status": "ACTIVE",       // ACTIVE | PAUSED
     "createdAt": "2025-06-22T16:00:00Z",

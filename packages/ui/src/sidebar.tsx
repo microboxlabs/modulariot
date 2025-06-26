@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export const getSavedState = (storageKey: string) => {
-  const saved = localStorage.getItem(storageKey);
+  const saved = localStorage?.getItem(storageKey);
   if (saved !== null) {
     return JSON.parse(saved);
   }
@@ -23,7 +23,9 @@ const saveState = (storageKey: string, value: boolean) => {
 
 export function Sidebar({ items, storageKey }: SidebarProps) {
 
-  const [isCollapsed, setIsCollapsed] = useState(getSavedState(storageKey));
+  
+
+  const [isCollapsed, setIsCollapsed] = useState<boolean|null>(null);
 
   // Load collapsed state from localStorage
   useEffect(() => {

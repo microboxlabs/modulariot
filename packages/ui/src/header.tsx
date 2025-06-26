@@ -8,6 +8,7 @@ import { OrgSwitcher } from './org-switcher';
 import { ProjectSwitcher } from './project-switcher';
 import { CTAButtons } from './cta-buttons';
 import { Organization } from './org-switcher';
+import { useEffect, useState } from 'react';
 
 interface User {
   name?: string | null;
@@ -22,11 +23,6 @@ interface HeaderProps {
   logoSize?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
 }
-
-// TODO: Replace with API fetch
-const mockOrganizations = [
-  { id: 'vialabs', name: 'ViaLabs', plan: 'FREE' },
-];
 
 const mockProjects = [
   { id: 'alpha', name: 'Project Alpha' },
@@ -44,9 +40,38 @@ export function Header({
   
   const orgId = params?.orgId as string;
   const projectId = params?.projectId as string;
+
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
+  const [orgLoading, setOrgLoading] = useState(true);
+  const [orgError, setOrgError] = useState<string | null>(null);
+
   
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        setOrgLoading(true);
+        setOrgError(null);
+        const res = await fetch('/api/organizations');
+        if (!res.ok) throw new Error('Failed to fetch organizations');
+        const data = await res.json() as Organization[];
+        setOrganizations(data);
+        setCurrentOrg(data.find(org => org.id === orgId) ?? data[0] ?? null);
+      } catch (err) {
+        setOrgError(err instanceof Error ? err.message : 'Failed to fetch organizations');
+        setOrganizations([]);
+      } finally {
+        setOrgLoading(false);
+      }
+    };
+    fetchOrgs();
+  }, [pathname]);
+  
+  
+
+
   // Determine current org and project
-  const currentOrg = mockOrganizations.find(org => org.id === orgId) ?? mockOrganizations[0]!;
   const currentProject = mockProjects.find(project => project.id === projectId);
   
   // Show breadcrumbs only on org/project pages
@@ -99,7 +124,7 @@ export function Header({
           {showBreadcrumbs && (
             <>
               <div className="flex items-center gap-2">
-                <OrgSwitcher currentOrg={currentOrg} />
+                <OrgSwitcher currentOrg={currentOrg} organizations={organizations} />
                 
                 {showProjectBreadcrumb && (
                   <>

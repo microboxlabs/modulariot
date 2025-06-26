@@ -47,7 +47,7 @@ packages/ui/src/
 ────────────────────────────────────────────
 DATA PLACEHOLDERS
 ────────────────────────────────────────────
-const orgs = [{ id:"vialabs", name:"ViaLabs", plan:"FREE" }]
+const orgs = [{ id:"mintral", name:"Mintral", plan:"FREE" }]
 const projects = [
   { id:"alpha", name:"Project Alpha" },
   { id:"beta",  name:"Project Beta" }

@@ -6,6 +6,8 @@ import { nanoid } from 'nanoid'
 
 const CreateOrgSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters').max(50, 'Organization name must be less than 50 characters'),
+  plan: z.enum(['free', 'pro']),
+  type: z.enum(['enterprise', 'personal', 'startup', 'non-profit']),
 })
 
 export async function POST(request: NextRequest) {
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    const body = await request.json() 
     const validatedData = CreateOrgSchema.parse(body)
 
     // Create slug from name
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
         name: validatedData.name,
         slug,
         ownerId: session.user.id,
+        typeId: validatedData.type,
+        planId: validatedData.plan,
         memberships: {
           create: {
             userId: session.user.id,
@@ -73,17 +77,19 @@ export async function POST(request: NextRequest) {
 } 
 
 export async function GET(request: NextRequest) {
-  const session = await auth()
+  const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
   const organizations = await prisma.organization.findMany({
     where: {
       ownerId: session.user.id,
     },
-  })
+  });
 
-  return NextResponse.json(organizations)
+  console.log(organizations);
+
+  return NextResponse.json(organizations);
 }

@@ -65,17 +65,63 @@ enum Role {
   MEMBER
 }
 
+model OrganizationType {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  defaultLimits Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organizations Organization[]
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  price       Int      @default(0)
+  features    Json     @default("{}")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions Subscription[]
+  organizations Organization[]
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  orgId     String
+  planId    String
+  status    String    @default("active")
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, status], map: "unique_active_sub")
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
   ownerId   String
+  typeId    String
+  planId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner       User         @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  memberships Membership[]
-  invitations Invitation[]
+  owner         User             @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  type          OrganizationType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  plan          Plan             @relation(fields: [planId], references: [id], onDelete: Restrict)
+  memberships   Membership[]
+  invitations   Invitation[]
+  subscriptions Subscription[]
 }
 
 model Membership {

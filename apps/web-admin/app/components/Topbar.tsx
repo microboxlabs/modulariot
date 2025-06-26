@@ -8,11 +8,7 @@ export function Topbar() {
   const { data: session } = useSession();
   
   // TODO: Replace with actual user session data
-  const user = session?.user || {
-    name: 'Koru',
-    email: 'koru@vialabs.com',
-    avatar: `https://ui-avatars.com/api/?name=Korux&background=random`,
-  };
+  const user = session?.user
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/login' });

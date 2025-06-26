@@ -159,11 +159,44 @@ exports.Prisma.VerificationTokenScalarFieldEnum = {
   expires: 'expires'
 };
 
+exports.Prisma.OrganizationTypeScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  defaultLimits: 'defaultLimits',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.PlanScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  price: 'price',
+  features: 'features',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SubscriptionScalarFieldEnum = {
+  id: 'id',
+  orgId: 'orgId',
+  planId: 'planId',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.OrganizationScalarFieldEnum = {
   id: 'id',
   name: 'name',
   slug: 'slug',
   ownerId: 'ownerId',
+  typeId: 'typeId',
+  planId: 'planId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -194,6 +227,10 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
+};
+
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
@@ -202,6 +239,12 @@ exports.Prisma.QueryMode = {
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
 };
 exports.Role = exports.$Enums.Role = {
   OWNER: 'OWNER',
@@ -214,6 +257,9 @@ exports.Prisma.ModelName = {
   Session: 'Session',
   User: 'User',
   VerificationToken: 'VerificationToken',
+  OrganizationType: 'OrganizationType',
+  Plan: 'Plan',
+  Subscription: 'Subscription',
   Organization: 'Organization',
   Membership: 'Membership',
   Invitation: 'Invitation'

@@ -10,11 +10,6 @@ type OrgCardProps = {
   org: Organization;
 };
 
-const tierColors: { [key: string]: string } = {
-  FREE: 'gray',
-  NANO: 'blue',
-  PRO: 'purple',
-};
 
 export function OrgCard({ org }: OrgCardProps) {
   return (

@@ -86,7 +86,8 @@ function ProjectCard({ project }: { project: Project }) {
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>Updated {new Date(project.lastActivity).toLocaleDateString()}</span>
+              {/* <span>Updated {new Date(project.lastActivity).toLocaleDateString()}</span> */}
+              <span>Updated {new Date().toLocaleDateString()}</span>
             </div>
           </div>
           

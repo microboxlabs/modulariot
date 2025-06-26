@@ -11,7 +11,7 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
@@ -30,7 +30,6 @@ export function SecuredNavbar({
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathName = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();

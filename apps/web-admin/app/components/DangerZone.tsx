@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Button, Modal, TextInput, Alert } from "flowbite-react";
+import { Button, Modal, TextInput, Alert, ModalFooter, ModalBody, ModalHeader } from "flowbite-react";
 import { Trash2, AlertTriangle } from "lucide-react";
 
 export default function DangerZone() {
@@ -57,9 +57,10 @@ export default function DangerZone() {
             </p>
             <div className="mt-4">
               <Button
-                color="failure"
+                color="red"
+                outline
                 onClick={() => setShowDeleteModal(true)}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 hover:cursor-pointer"
               >
                 <Trash2 className="h-4 w-4" />
                 <span>Delete Organization</span>
@@ -70,8 +71,8 @@ export default function DangerZone() {
       </div>
 
       <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-        <Modal.Header>Delete Organization</Modal.Header>
-        <Modal.Body>
+        <ModalHeader>Delete Organization</ModalHeader>
+        <ModalBody>
           <div className="space-y-4">
             <div className="flex items-center space-x-3 rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
               <AlertTriangle className="h-6 w-6 text-red-500" />
@@ -104,8 +105,8 @@ export default function DangerZone() {
               </Alert>
             )}
           </div>
-        </Modal.Body>
-        <Modal.Footer>
+        </ModalBody>
+        <ModalFooter>
           <Button
             color="failure"
             onClick={handleDeleteOrg}
@@ -116,7 +117,7 @@ export default function DangerZone() {
           <Button color="gray" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>
-        </Modal.Footer>
+        </ModalFooter>
       </Modal>
     </>
   );

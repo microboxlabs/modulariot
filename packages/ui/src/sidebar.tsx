@@ -51,7 +51,7 @@ export function Sidebar({ items, storageKey }: SidebarProps) {
       {/* Navigation Links */}
       <nav className="flex-1 px-2 py-4 space-y-1">
         {items.map((item) => (
-          <SidebarLink key={item.href} item={item} isCollapsed={isCollapsed} />
+          <SidebarLink key={item.href} item={item} isCollapsed={isCollapsed ?? false} />
         ))}
       </nav>
 

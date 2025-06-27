@@ -122,6 +122,7 @@ model Organization {
   memberships   Membership[]
   invitations   Invitation[]
   subscriptions Subscription[]
+  projects      Project[]
 }
 
 model Membership {
@@ -152,4 +153,34 @@ model Invitation {
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([email, orgId])
+}
+
+model Region {
+  id          String @id @default(cuid())
+  name        String @unique
+  displayName String
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projects Project[]
+}
+
+model Project {
+  id             String @id @default(cuid())
+  name           String
+  slug           String
+  regionId       String
+  superadminPassword String // Superadmin password for project (not a database password)
+  organizationId String
+  securityMode   String @default("api_and_connection")
+  apiSchema      String @default("public")
+  dbEngine       String @default("postgres")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  region       Region       @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, slug])
 } 

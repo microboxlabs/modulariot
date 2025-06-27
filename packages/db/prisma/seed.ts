@@ -123,12 +123,6 @@ async function main() {
           role: 'OWNER',
         }
       },
-      subscriptions: {
-        create: {
-          planId: freePlan.id,
-          status: 'active'
-        }
-      }
     },
   })
 

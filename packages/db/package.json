@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev --skip-generate",
+    "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "db:deploy": "prisma migrate deploy"
   },
   "devDependencies": {

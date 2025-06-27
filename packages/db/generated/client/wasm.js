@@ -222,6 +222,29 @@ exports.Prisma.InvitationScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.RegionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  displayName: 'displayName',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProjectScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  regionId: 'regionId',
+  superadminPassword: 'superadminPassword',
+  organizationId: 'organizationId',
+  securityMode: 'securityMode',
+  apiSchema: 'apiSchema',
+  dbEngine: 'dbEngine',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -262,7 +285,9 @@ exports.Prisma.ModelName = {
   Subscription: 'Subscription',
   Organization: 'Organization',
   Membership: 'Membership',
-  Invitation: 'Invitation'
+  Invitation: 'Invitation',
+  Region: 'Region',
+  Project: 'Project'
 };
 
 /**

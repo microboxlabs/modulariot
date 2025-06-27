@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
           size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
           filter: {
-            serviceCode: serviceCode ? `v145` : undefined, // NOT WORKING YET
+            : serviceCode ? `v145` : undefined, // NOT WORKING YET
             licensePlate: licensePlate ? licensePlate : undefined,
             driverId: driverId ? driverId : undefined,
             carrierId: carrierId ? carrierId : undefined,

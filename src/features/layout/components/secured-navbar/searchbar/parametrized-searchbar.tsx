@@ -112,11 +112,11 @@ export default function ParametrizedSearchBar({
                 }}
               >
                 Buscar
-                <label className="font-normal max-w-32 truncate text-white cursor-pointer">
+                <label className="font-normal max-w-32 truncate dark:text-white text-black cursor-pointer">
                   {search.split(":")[1]}
                 </label>
                 como
-                <label className="font-normal text-white cursor-pointer">
+                <label className="font-normal dark:text-white text-black cursor-pointer">
                   {search.split(":")[0]}
                 </label>
               </div>
@@ -130,11 +130,11 @@ export default function ParametrizedSearchBar({
                   }}
                 >
                   Buscar
-                  <label className="font-normal max-w-32 truncate text-white cursor-pointer">
+                  <label className="font-normal max-w-32 truncate dark:text-white text-black cursor-pointer">
                     {search}
                   </label>
                   como
-                  <label className="font-normal text-white cursor-pointer">
+                  <label className="font-normal dark:text-white text-black cursor-pointer">
                     {param.label}
                   </label>
                 </div>

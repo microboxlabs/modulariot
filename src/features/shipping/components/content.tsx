@@ -80,8 +80,10 @@ export default function PageContent({
     showFinishedTasks,
     page,
     pageSize,
-    searchParams.get("search") ?? undefined,
+    searchParams.toString(),
   );
+
+  console.log("omaigooooooood", searchParams.toString());
 
   const {
     data: searchTasksData,
@@ -239,7 +241,6 @@ export default function PageContent({
             <div className="w-full flex py-2 justify-center align-middle items-center mt-auto">
               <Pagination
                 theme={{
-                  
                   pages: {
                     base: "xs:mt-0 mt-0 inline-flex items-center align-middle -space-x-px",
                   },

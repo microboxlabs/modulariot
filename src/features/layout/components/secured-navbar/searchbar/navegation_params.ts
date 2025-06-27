@@ -46,6 +46,13 @@ export function getNavegationParams(dict: I18nRecord) {
         label: (
           ((dict.pages as I18nRecord).shipping as I18nRecord)
             .table as I18nRecord
+        ).licensePlate as string,
+        param: "licensePlate",
+      },
+      {
+        label: (
+          ((dict.pages as I18nRecord).shipping as I18nRecord)
+            .table as I18nRecord
         ).serviceKind as string,
         param: "type",
       },
@@ -62,6 +69,20 @@ export function getNavegationParams(dict: I18nRecord) {
             .table as I18nRecord
         ).status as string,
         param: "status",
+      },
+      {
+        label: (
+          ((dict.pages as I18nRecord).shipping as I18nRecord)
+            .table as I18nRecord
+        ).origin as string,
+        param: "origin",
+      },
+      {
+        label: (
+          ((dict.pages as I18nRecord).shipping as I18nRecord)
+            .table as I18nRecord
+        ).destination as string,
+        param: "destination",
       },
     ],
   };

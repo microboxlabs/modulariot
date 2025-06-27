@@ -14,6 +14,7 @@ export default function TripInformation({
   biometricResult,
   tripData,
   setTripData,
+  idCardNumber,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
@@ -24,6 +25,7 @@ export default function TripInformation({
   biometricResult: any;
   tripData: any;
   setTripData: (tripData: any) => void;
+  idCardNumber: string;
 }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export default function TripInformation({
             deviceId,
             deviceLocation,
             fingerprintData: biometricResult, // Add if available
+            idCardNumber, // Add if available
           }),
         });
 

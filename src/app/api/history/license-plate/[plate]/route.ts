@@ -113,6 +113,27 @@ export async function GET(
     if (filters.type_load) body.filter.type_load = filters.type_load; */
     if (filters.page) body.from = parseInt(filters.page);
     if (filters.limit) body.size = parseInt(filters.limit);
+    if (filters.date_from)
+      queryParams.append("start_time", "eq." + filters.date_from);
+    if (filters.date_to)
+      queryParams.append("end_time", "eq." + filters.date_to);
+    if (filters.status) queryParams.append("status", "eq." + filters.status);
+    if (filters.origin)
+      queryParams.append("origin_geofence_label", "eq." + filters.origin);
+    if (filters.destination)
+      queryParams.append(
+        "destination_geofence_label",
+        "eq." + filters.destination,
+      );
+    if (filters.driver)
+      queryParams.append("driver_name", "ilike.*" + filters.driver + "*");
+    if (filters.type_load)
+      queryParams.append("type_load", "eq." + filters.type_load);
+    if (filters.page)
+      queryParams.append("offset", "eq." + filters.page.toString());
+    if (filters.limit)
+      queryParams.append("limit", "eq." + filters.limit.toString());
+
 
     // Make API request with optimized headers
     const response = await getTaskByLicensePlate(session.user.ticket, body);

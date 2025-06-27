@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   const from = url.searchParams.get("from");
   const size = url.searchParams.get("size");
   const show_finished = url.searchParams.get("showFinished") === "true";
-  const search = url.searchParams.get("search");
+  const serviceCode = url.searchParams.get("service");
   const licensePlate = url.searchParams.get("licensePlate");
   const driverId = url.searchParams.get("driverId");
   const carrierId = url.searchParams.get("carrierId");
@@ -43,9 +43,10 @@ export async function GET(req: NextRequest) {
     filter: undefined,
   };
 
+  console.log(serviceCode);
+
   try {
     let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse;
-
     if (show_finished) {
       taskResponses = await Promise.all([
         getFinishedWorkflows(session.user.ticket, {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
           size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
           filter: {
-            serviceCode: search ? `v${search}` : undefined,
+            serviceCode: serviceCode ? `v145` : undefined, // NOT WORKING YET
             licensePlate: licensePlate ? licensePlate : undefined,
             driverId: driverId ? driverId : undefined,
             carrierId: carrierId ? carrierId : undefined,
@@ -74,15 +75,19 @@ export async function GET(req: NextRequest) {
       ])) as FastTasksResponse[];
     }
 
+    console.log(taskResponses[0]);
+
     taskResponses.forEach((tasks) => {
       toShippingKanban(tasks, data);
       total += tasks.total;
     });
+
     return NextResponse.json({
       total,
       data,
     });
   } catch (e: any) {
+    console.log(e.message);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
       return NextResponse.json(

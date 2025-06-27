@@ -1,3 +1,4 @@
+import { Datepicker } from "flowbite-react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { useEffect, useState } from "react";
 import { FaTag } from "react-icons/fa";
@@ -19,21 +20,27 @@ export default function Tags({
       value: string;
     }[]
   >([]);
-
+  const [startDate, setStartDate] = useState<Date | null>(null);
   // here from the searched params generate a list of tags
   useEffect(() => {
     if (searchParams) {
       const params = new URLSearchParams(searchParams.toString());
-      const tags = Array.from(params.entries()).map(([key, value]) => ({
-        name: key,
-        value,
-      }));
+      const tags = Array.from(params.entries())
+        .filter(([key]) => key !== "view") // Ignore the 'view' parameter
+        .map(([key, value]) => ({
+          name: key,
+          value,
+        }));
       setFilter(tags);
     }
   }, [searchParams]);
 
   return (
-    <div className={`${filter.length > 0 ? "scale-100" : "scale-0"} `}>
+    <div
+      className={`transition-all duration-300 ${
+        filter.length > 0 ? "scale-100" : "scale-0"
+      } `}
+    >
       <div
         className="h-10 w-10 select-none cursor-pointer relative flex items-center justify-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-600"
         onClick={() => setFilterOpen(!filterOpen)}
@@ -46,15 +53,15 @@ export default function Tags({
             <div
               key={index}
               className="w-fit border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 rounded-lg py-1 px-2 text-sm font-light whitespace-nowrap flex gap-1 text-gray-500 dark:text-gray-300"
-              onClick={() => {
-                const params = new URLSearchParams(searchParams.toString());
-                params.delete(tag.name);
-                router.push(`${pathName}?${params.toString()}`);
-              }}
             >
               <IoIosClose
                 className=" bg-gray-200 dark:bg-gray-500 rounded-full cursor-pointer text-gray-500 dark:text-gray-300 hover:bg-gray-300 hover:text-gray-700 dark:hover:bg-gray-300 dark:hover:text-gray-700 transition-all duration-300"
                 size={20}
+                onClick={() => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.delete(tag.name);
+                  router.push(`${pathName}?${params.toString()}`);
+                }}
               />
               <label className="font-normal">{tag.name}:</label> {tag.value}
             </div>

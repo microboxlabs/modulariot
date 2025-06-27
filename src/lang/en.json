@@ -128,6 +128,9 @@
         "validations": "Validations",
         "status": "Status",
         "stage": "Stage",
+        "origin": "Origin",
+        "destination": "Destination",
+        "licensePlate": "License Plate",
         "active": "Active",
         "completed": "Completed"
       }

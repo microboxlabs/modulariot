@@ -1,11 +1,13 @@
 "use client";
 
-import { TextInput } from "flowbite-react";
+import { Datepicker, TextInput } from "flowbite-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
+import DateSelections from "./date-selections";
+
 
 export default function ParametrizedSearchBar({
   messages,
@@ -121,6 +123,7 @@ export default function ParametrizedSearchBar({
           </div>
         )}
       </div>
+      <DateSelections />
       <Tags searchParams={searchParams} router={router} pathName={pathName} />
     </div>
   );

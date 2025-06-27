@@ -447,11 +447,24 @@ export async function getNotifications(ticket: string) {
 }
 
 export async function markAsRead(ticket: string, id: string) {
-  console.log("llega aqui locom x 2");
-
   const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications/mark-as-read?alf_ticket=${ticket}&id=${id}`;
   const result = await fetcher(url, {
     method: "PUT",
   });
+
+  return result as any;
+}
+
+export async function getTaskByLicensePlate(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<any> {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter?alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
   return result as any;
 }

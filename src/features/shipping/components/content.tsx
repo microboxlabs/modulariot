@@ -83,8 +83,6 @@ export default function PageContent({
     searchParams.toString(),
   );
 
-  console.log("omaigooooooood", searchParams.toString());
-
   const {
     data: searchTasksData,
     error: searchTasksError,

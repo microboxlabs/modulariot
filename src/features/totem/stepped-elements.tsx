@@ -56,6 +56,7 @@ export default function Stepped({
           pluginReady={pluginReady}
           onBiometricResult={setBiometricResult}
           setIdCardNumber={setIdCardNumber}
+          idCardNumber={idCardNumber}
         />
       ),
       title: (dict.totem as I18nRecord).fingerprint_scan as string,

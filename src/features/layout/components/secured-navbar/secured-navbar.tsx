@@ -28,7 +28,7 @@ export function SecuredNavbar({
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathName = usePathname();
+  const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();
@@ -54,7 +54,7 @@ export function SecuredNavbar({
       } else {
         params.delete("search");
       }
-      router.push(`${pathName}?${params.toString()}`);
+      router.push(`${pathname}?${params.toString()}`);
     },
     300,
   );
@@ -134,7 +134,7 @@ export function SecuredNavbar({
                 <span className="sr-only">Search</span>
                 <HiSearch className="h-6 w-6" />
               </button>
-              {!pathName.includes("/notifications") && (
+              {!pathname.includes("/notifications") && (
                 <span
                   className="relative border border-gray-200 dark:border-gray-700 cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                   onClick={() => router.push("/notifications")}

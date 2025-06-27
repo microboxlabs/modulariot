@@ -18,7 +18,10 @@ export default async function SecuredLayout({
   const navBarMessages = buildNavBarMessages({ messages: dict });
   return (
     <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
-      <SecuredNavbar messages={navBarMessages} />
+      <SecuredNavbar
+        messages={navBarMessages}
+        dict={dictionary as I18nRecord}
+      />
       <div
         data-testid="content-with-sidebar"
         className="mt-16 mb-12 flex items-start flex-1 overflow-hidden"

@@ -30,7 +30,8 @@
       "breadcrumb": {
         "tasks": "Mis tareas",
         "shipping": "Despachos",
-        "confirmDelivery": "Confirmar entrega"
+        "confirmDelivery": "Confirmar entrega",
+        "finished": "Finalizados"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"

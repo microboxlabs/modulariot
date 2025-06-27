@@ -115,132 +115,147 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Organization Selection */}
-      <div className="space-y-2">
-        <label htmlFor="organizationId" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Organization
-        </label>
-        <Select
-          id="organizationId"
-          aria-label="Organization selection"
-          {...register("organizationId")}
-          color={errors.organizationId ? "failure" : "gray"}
-          disabled={isSubmitting}
-        >
-          {organizations.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </Select>
-        {errors.organizationId && (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {errors.organizationId.message}
+      <div className="pt-8 px-8">
+        {/* Organization Selection */}
+        <div className="space-y-2">
+          <label htmlFor="organizationId" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Organization
+          </label>
+          <Select
+            id="organizationId"
+            aria-label="Organization selection"
+            {...register("organizationId")}
+            color={errors.organizationId ? "failure" : "gray"}
+            disabled={isSubmitting}
+          >
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </Select>
+          {errors.organizationId && (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.organizationId.message}
+            </p>
+          )}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+            Select the organization for this project
           </p>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Select the organization for this project
-        </p>
-      </div>
-
-      {/* Project Name */}
-      <div className="space-y-2">
-        <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Project name
-        </label>
-        <TextInput
-          id="name"
-          type="text"
-          placeholder="my-awesome-project"
-          aria-label="Project name"
-          {...register("name")}
-          color={errors.name ? "failure" : "gray"}
-          disabled={isSubmitting}
-        />
-        {errors.name && (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {errors.name.message}
-          </p>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Used for subdomain and database name. Only lowercase letters, numbers, and hyphens.
-        </p>
-      </div>
-
-      {/* Region */}
-      <div className="space-y-2">
-        <label htmlFor="regionId" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Region
-        </label>
-        <Select
-          id="regionId"
-          aria-label="Region selection"
-          {...register("regionId")}
-          color={errors.regionId ? "failure" : "gray"}
-          disabled={isSubmitting}
-        >
-          <option value="">Select a region</option>
-          {REGIONS.map((region) => (
-            <option key={region.value} value={region.value}>
-              {region.label}
-            </option>
-          ))}
-        </Select>
-        {errors.regionId && (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {errors.regionId.message}
-          </p>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Choose the geographic region for your project
-        </p>
-      </div>
-
-      {/* Superadmin Password */}
-      <div className="space-y-2">
-        <label htmlFor="superadminPassword" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-          Superadmin Password
-        </label>
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <TextInput
-              id="superadminPassword"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter a secure password"
-              aria-label="Superadmin password"
-              {...register("superadminPassword")}
-              color={errors.superadminPassword ? "failure" : "gray"}
-              disabled={isSubmitting}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-              disabled={isSubmitting}
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-          <PasswordGenerator onGenerate={handlePasswordGenerate} disabled={isSubmitting} />
         </div>
-        {errors.superadminPassword && (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {errors.superadminPassword.message}
-          </p>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          A secure superadmin password for your project (not a database password)
-        </p>
-      </div>
 
+        {/* Project Name */}
+        <div className="space-y-2">
+          <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Project name
+          </label>
+          <TextInput
+            id="name"
+            type="text"
+            placeholder="my-awesome-project"
+            aria-label="Project name"
+            {...register("name")}
+            color={errors.name ? "failure" : "gray"}
+            disabled={isSubmitting}
+          />
+          {errors.name && (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.name.message}
+            </p>
+          )}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+            Used for subdomain and platform name. Only lowercase letters, numbers, and hyphens.
+          </p>
+        </div>
+
+        {/* Region */}
+        <div className="space-y-2">
+          <label htmlFor="regionId" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Region
+          </label>
+          <Select
+            id="regionId"
+            aria-label="Region selection"
+            {...register("regionId")}
+            color={errors.regionId ? "failure" : "gray"}
+            disabled={isSubmitting}
+          >
+            <option value="">Select a region</option>
+            {REGIONS.map((region) => (
+              <option key={region.value} value={region.value}>
+                {region.label}
+              </option>
+            ))}
+          </Select>
+          {errors.regionId && (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.regionId.message}
+            </p>
+          )}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+            Choose the geographic region for your project
+          </p>
+        </div>
+
+        {/* Superadmin Password */}
+        <div className="space-y-2">
+          <label htmlFor="superadminPassword" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Superadmin Password
+          </label>
+          <div className="flex gap-2 items-stretch">
+            <div className="flex-1 relative">
+              <TextInput
+                id="superadminPassword"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter a secure password"
+                aria-label="Superadmin password"
+                {...register("superadminPassword")}
+                color={errors.superadminPassword ? "failure" : "gray"}
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                disabled={isSubmitting}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            <div className="h-full flex items-stretch min-h-[42px]">
+              <PasswordGenerator onGenerate={handlePasswordGenerate} disabled={isSubmitting} />
+            </div>
+          </div>
+          {errors.superadminPassword && (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {errors.superadminPassword.message}
+            </p>
+          )}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+            A secure superadmin password for your project (not a database password)
+          </p>
+        </div>
+      </div>
       {/* Security Options */}
-      <Accordion>
+      <Accordion collapseAll theme={{
+        base: "divide-y dark:divide-gray-700 dark:border-gray-700",
+        flush: {
+          off: "rounded-none border",
+          on: "border-b"
+        },
+      }}>
         <AccordionPanel>
-          <AccordionTitle className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-            <Shield size={16} />
-            Security Options
+          <AccordionTitle className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300" theme={{
+            "base": "flex w-full items-center justify-between p-5 text-left font-medium text-gray-500 rounded-none! dark:text-gray-400",
+          }}>
+            <span className="flex items-center gap-2">
+              <Shield size={16} />
+              Security Options
+            </span>
           </AccordionTitle>
-          <AccordionContent>
+          <AccordionContent theme={{
+            "base": "p-5",
+          }}>
             <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="securityMode" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -289,7 +304,7 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
                   </p>
                 )}
                 {apiSchemaDisabled && (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
                     API schema options are disabled when using connection string only
                   </p>
                 )}
@@ -297,14 +312,12 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
             </div>
           </AccordionContent>
         </AccordionPanel>
-      </Accordion>
-
-      {/* Advanced Options */}
-      <Accordion>
         <AccordionPanel>
           <AccordionTitle className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-            <Settings size={16} />
-            Advanced
+            <span className="flex items-center gap-2">
+              <Settings size={16} />
+              Advanced
+            </span>
           </AccordionTitle>
           <AccordionContent>
             <div className="space-y-2">
@@ -329,49 +342,50 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
                   {errors.dbEngine.message}
                 </p>
               )}
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
                 Choose the database engine for your project
               </p>
             </div>
           </AccordionContent>
         </AccordionPanel>
       </Accordion>
+      <div className="px-8 pb-8">
+        {/* Submit Error */}
+        {submitError && (
+          <div className="p-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-md dark:bg-red-900 dark:text-red-300 dark:border-red-700" role="alert">
+            {submitError}
+          </div>
+        )}
 
-      {/* Submit Error */}
-      {submitError && (
-        <div className="p-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-md dark:bg-red-900 dark:text-red-300 dark:border-red-700" role="alert">
-          {submitError}
+        {/* Form Actions */}
+        <div className="flex gap-3 pt-4">
+          <Button
+            type="button"
+            color="gray"
+            outline
+            onClick={handleCancel}
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <CTAButton
+            type="submit"
+            variant="primary"
+            size="md"
+            disabled={isSubmitting}
+            className="flex-1 w-full"
+          >
+            {isSubmitting && <Spinner size="sm" className="mr-2" />}
+            Create project
+          </CTAButton>
         </div>
-      )}
 
-      {/* Form Actions */}
-      <div className="flex gap-3 pt-4">
-        <Button
-          type="button"
-          color="gray"
-          outline
-          onClick={handleCancel}
-          disabled={isSubmitting}
-          className="flex-1"
-        >
-          Cancel
-        </Button>
-        <CTAButton
-          type="submit"
-          variant="primary"
-          size="md"
-          disabled={isSubmitting}
-          className="flex-1 w-full"
-        >
-          {isSubmitting && <Spinner size="sm" className="mr-2" />}
-          Create project
-        </CTAButton>
+        {/* Helper Note */}
+        <p className="text-sm text-slate-500 dark:text-slate-400 text-center pt-2">
+          You can modify project settings after creation.
+        </p>
       </div>
-
-      {/* Helper Note */}
-      <p className="text-sm text-slate-500 dark:text-slate-400 text-center pt-2">
-        You can modify project settings after creation.
-      </p>
     </form>
   );
 }

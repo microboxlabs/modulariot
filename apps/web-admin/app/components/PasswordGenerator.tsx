@@ -43,10 +43,9 @@ export function PasswordGenerator({ onGenerate, disabled = false }: PasswordGene
       type="button"
       color="gray"
       outline
-      size="sm"
       onClick={handleGenerate}
       disabled={disabled}
-      className="shrink-0"
+      className="shrink-0 h-[42px] px-4"
     >
       <RefreshCw className="w-4 h-4 mr-2" />
       Generate

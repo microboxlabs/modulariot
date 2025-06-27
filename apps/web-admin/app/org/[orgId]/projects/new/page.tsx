@@ -4,9 +4,9 @@ import { prisma } from "@modulariot/db";
 import { CreateProjectForm } from "@/app/components/CreateProjectForm";
 
 interface NewProjectPageProps {
-  params: {
+  params: Promise<{
     orgId: string;
-  };
+  }>;
 }
 
 async function getOrganizationsForUser(userEmail: string) {
@@ -41,16 +41,16 @@ export default async function NewProjectPage({ params }: NewProjectPageProps) {
   }
 
   const organizations = await getOrganizationsForUser(session.user.email);
-
+  const { orgId } = await params;
   // Check if user has access to the specified organization
-  const currentOrg = organizations.find((org) => org.id === params.orgId);
+  const currentOrg = organizations.find((org) => org.id === orgId);
   if (!currentOrg) {
     notFound();
   }
 
   return (
     <div className="grid place-items-center h-screen">
-      <div className="max-w-lg w-full border rounded-2xl shadow-md bg-white dark:bg-slate-900 p-8 space-y-6">
+      <div className="max-w-lg w-full border rounded-2xl shadow-md bg-white dark:bg-slate-900 pt-8 space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
             Create Project
@@ -60,7 +60,7 @@ export default async function NewProjectPage({ params }: NewProjectPageProps) {
           </p>
         </div>
         <CreateProjectForm
-          orgId={params.orgId}
+          orgId={orgId}
           organizations={organizations}
         />
       </div>

@@ -8,7 +8,7 @@ import Link from 'next/link';
 export interface Organization {
   id: string;
   name: string;
-  plan: string;
+  planId: string;
 }
 
 interface OrgSwitcherProps {
@@ -38,11 +38,11 @@ export function OrgSwitcher({ currentOrg, organizations = [] }: OrgSwitcherProps
     setSearchQuery('');
   };
 
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan?.toUpperCase() ?? '') {
-      case 'PRO':
+  const getPlanBadgeColor = (plan: Organization['planId']) => {
+    switch (plan) {
+      case 'pro':
         return 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-300';
-      case 'FREE':
+      case 'free':
         return 'bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
       default:
         return 'bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
@@ -58,8 +58,8 @@ export function OrgSwitcher({ currentOrg, organizations = [] }: OrgSwitcherProps
         <span className="font-medium text-slate-900 dark:text-slate-100 max-w-[180px] truncate">
           {currentOrg?.name}
         </span>
-        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getPlanBadgeColor(currentOrg?.plan ?? '')}`}>
-          {currentOrg?.plan}
+        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getPlanBadgeColor(currentOrg?.planId ?? '')}`}>
+          {currentOrg?.planId}
         </span>
         <ChevronDown className="h-4 w-4 text-slate-500" />
       </button>
@@ -96,7 +96,7 @@ export function OrgSwitcher({ currentOrg, organizations = [] }: OrgSwitcherProps
                       {org.name}
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {org.plan} Plan
+                      {org.planId} Plan
                     </div>
                   </div>
                   {org.id === currentOrg?.id && (

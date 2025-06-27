@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ChevronDown, Search, Plus, FolderOpen } from 'lucide-react';
 
-interface Project {
+export interface Project {
   id: string;
   name: string;
 }
@@ -14,14 +14,7 @@ interface ProjectSwitcherProps {
   projects?: Project[];
 }
 
-// TODO: Replace with API fetch
-const mockProjects: Project[] = [
-  { id: 'alpha', name: 'Project Alpha' },
-  { id: 'beta', name: 'Project Beta' },
-  { id: 'gamma', name: 'Project Gamma Dashboard' },
-];
-
-export function ProjectSwitcher({ currentProject, projects = mockProjects }: ProjectSwitcherProps) {
+export function ProjectSwitcher({ currentProject, projects = [] }: ProjectSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();

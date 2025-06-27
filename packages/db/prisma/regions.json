@@ -1,0 +1,22 @@
+[
+    {
+        "id": "us-east",
+        "name": "US East",
+        "displayName": "N. Virginia"
+    },
+    {
+        "id": "us-west",
+        "name": "US West",
+        "displayName": "Oregon"
+    },
+    {
+        "id": "eu-central",
+        "name": "Europe",
+        "displayName": "Frankfurt"
+    },
+    {
+        "id": "ap-southeast",
+        "name": "Asia Pacific",
+        "displayName": "Singapore)"
+    }
+]

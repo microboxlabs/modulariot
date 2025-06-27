@@ -14,6 +14,15 @@ import {
   Modal,
   Table,
   Badge,
+  ModalHeader,
+  ModalBody,
+  HelperText,
+  TableHead,
+  TableHeadCell,
+  TableBody,
+  TableRow,
+  TableCell,
+  ModalFooter,
 } from "flowbite-react";
 import { Plus, Copy, Trash2, ExternalLink } from "lucide-react";
 
@@ -141,18 +150,18 @@ export default function OAuthAppsPage() {
         {oauthApps.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
-              <Table.Head>
-                <Table.HeadCell>Application</Table.HeadCell>
-                <Table.HeadCell>Client ID</Table.HeadCell>
-                <Table.HeadCell>Redirect URI</Table.HeadCell>
-                <Table.HeadCell>Status</Table.HeadCell>
-                <Table.HeadCell>Created</Table.HeadCell>
-                <Table.HeadCell>Actions</Table.HeadCell>
-              </Table.Head>
-              <Table.Body className="divide-y">
+              <TableHead>
+                <TableHeadCell>Application</TableHeadCell>
+                <TableHeadCell>Client ID</TableHeadCell>
+                <TableHeadCell>Redirect URI</TableHeadCell>
+                <TableHeadCell>Status</TableHeadCell>
+                <TableHeadCell>Created</TableHeadCell>
+                <TableHeadCell>Actions</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
                 {oauthApps.map((app) => (
-                  <Table.Row key={app.id}>
-                    <Table.Cell>
+                  <TableRow key={app.id}>
+                    <TableCell>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">
                           {app.name}
@@ -174,8 +183,8 @@ export default function OAuthAppsPage() {
                           </a>
                         )}
                       </div>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center space-x-2">
                         <code className="text-sm">{app.clientId}</code>
                         <Button
@@ -186,19 +195,19 @@ export default function OAuthAppsPage() {
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <code className="text-sm">{app.redirectUri}</code>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <Badge color={app.status === "active" ? "green" : "red"}>
                         {app.status}
                       </Badge>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       {new Date(app.createdAt).toLocaleDateString()}
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <Button
                         size="xs"
                         color="failure"
@@ -206,10 +215,10 @@ export default function OAuthAppsPage() {
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
-                    </Table.Cell>
-                  </Table.Row>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Table.Body>
+              </TableBody>
             </Table>
           </div>
         ) : (
@@ -234,8 +243,8 @@ export default function OAuthAppsPage() {
       </Card>
 
       <Modal show={showCreateModal} onClose={() => setShowCreateModal(false)}>
-        <Modal.Header>Create OAuth Application</Modal.Header>
-        <Modal.Body>
+        <ModalHeader>Create OAuth Application</ModalHeader>
+        <ModalBody>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Label htmlFor="name" className="mb-2 block">
@@ -245,9 +254,11 @@ export default function OAuthAppsPage() {
                 id="name"
                 {...register("name")}
                 color={errors.name ? "failure" : "gray"}
-                helperText={errors.name?.message}
               />
             </div>
+            <HelperText color={errors.name ? "failure" : "gray"}>
+              {errors.name?.message}
+            </HelperText>
 
             <div>
               <Label htmlFor="description" className="mb-2 block">
@@ -258,8 +269,10 @@ export default function OAuthAppsPage() {
                 {...register("description")}
                 placeholder="Brief description of your application"
                 color={errors.description ? "failure" : "gray"}
-                helperText={errors.description?.message}
               />
+              <HelperText color={errors.description ? "failure" : "gray"}>
+                {errors.description?.message}
+              </HelperText>
             </div>
 
             <div>
@@ -272,8 +285,10 @@ export default function OAuthAppsPage() {
                 {...register("redirectUri")}
                 placeholder="https://yourapp.com/auth/callback"
                 color={errors.redirectUri ? "failure" : "gray"}
-                helperText={errors.redirectUri?.message}
               />
+              <HelperText color={errors.redirectUri ? "failure" : "gray"}>
+                {errors.redirectUri?.message}
+              </HelperText>
             </div>
 
             <div>
@@ -286,8 +301,10 @@ export default function OAuthAppsPage() {
                 {...register("website")}
                 placeholder="https://yourapp.com"
                 color={errors.website ? "failure" : "gray"}
-                helperText={errors.website?.message}
               />
+              <HelperText color={errors.website ? "failure" : "gray"}>
+                {errors.website?.message}
+              </HelperText>
             </div>
 
             {error && (
@@ -296,8 +313,8 @@ export default function OAuthAppsPage() {
               </Alert>
             )}
           </form>
-        </Modal.Body>
-        <Modal.Footer>
+        </ModalBody>
+        <ModalFooter>
           <Button
             onClick={handleSubmit(onSubmit)}
             disabled={isCreating}
@@ -307,7 +324,7 @@ export default function OAuthAppsPage() {
           <Button color="gray" onClick={() => setShowCreateModal(false)}>
             Cancel
           </Button>
-        </Modal.Footer>
+        </ModalFooter>
       </Modal>
     </div>
   );

@@ -8,6 +8,7 @@ import { OrgSwitcher } from './org-switcher';
 import { ProjectSwitcher } from './project-switcher';
 import { CTAButtons } from './cta-buttons';
 import { Organization } from './org-switcher';
+import { Project } from './project-switcher';
 import { useEffect, useState } from 'react';
 
 interface User {
@@ -24,11 +25,6 @@ interface HeaderProps {
   className?: string;
 }
 
-const mockProjects = [
-  { id: 'alpha', name: 'Project Alpha' },
-  { id: 'beta', name: 'Project Beta' },
-];
-
 export function Header({ 
   user,
   onSignOut,
@@ -42,11 +38,14 @@ export function Header({
   const projectId = params?.projectId as string;
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [orgLoading, setOrgLoading] = useState(true);
   const [orgError, setOrgError] = useState<string | null>(null);
 
-  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrgs = async () => {
@@ -65,14 +64,23 @@ export function Header({
         setOrgLoading(false);
       }
     };
+
+    const fetchProjects = async () => {
+      const res = await fetch(`/api/projects?orgId=${orgId}`);
+      if (!res.ok) throw new Error('Failed to fetch projects');
+      const data = await res.json() as Project[];
+      setProjects(data);
+    };
+
     fetchOrgs();
-  }, [pathname]);
+    fetchProjects();
+  }, [orgId]);
   
   
 
 
   // Determine current org and project
-  const currentProject = mockProjects.find(project => project.id === projectId);
+  const currentProject = projects.find(project => project.id === projectId);
   
   // Show breadcrumbs only on org/project pages
   const showBreadcrumbs = pathname.includes('/org/');
@@ -86,6 +94,8 @@ export function Header({
         showStreamIngest: true,
         showProjectSettings: false, // TODO: Show on specific project subpages
         showReports: pathname.includes('/reports'), // Show on reports page
+        orgId,
+        projectId,
       };
     }
     
@@ -94,11 +104,16 @@ export function Header({
       return {
         showTeamManagement: pathname.includes('/teams'), // Show on teams page
         showReports: pathname.includes('/reports'), // Show on reports page
+        orgId,
+        projectId,
       };
     }
     
     // Default - no buttons
-    return {};
+    return {
+        orgId,
+        projectId,
+    };
   };
 
   const handleAvatarClick = async () => {
@@ -129,7 +144,7 @@ export function Header({
                 {showProjectBreadcrumb && (
                   <>
                     <span className="text-slate-400 dark:text-slate-500">/</span>
-                    <ProjectSwitcher currentProject={currentProject} />
+                    <ProjectSwitcher currentProject={currentProject} projects={projects} />
                   </>
                 )}
               </div>

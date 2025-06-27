@@ -9,4 +9,7 @@ export { SidebarLink, type SidebarItem } from './sidebar-link';
 export { SmartSidebar } from './smart-sidebar';
 export { OrgSwitcher } from './org-switcher';
 export { ProjectSwitcher } from './project-switcher';
-export { CTAButtons } from './cta-buttons'; 
+export { CTAButtons } from './cta-buttons';
+export { ConnectStreamModal } from './connect-stream-modal';
+export { ConnectionCard } from './connection-card';
+export { PROTOCOLS, getConnectionDetails, buildConnectionUri, type Protocol, type ConnectionDetails } from './protocol-helpers'; 

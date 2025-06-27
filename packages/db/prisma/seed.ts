@@ -2,6 +2,18 @@ import { PrismaClient } from '../generated/client'
 
 const prisma = new PrismaClient()
 
+async function seedRegions() {
+  const regions = (await import('./regions.json')).default;
+  for (let region of regions) {
+    await prisma.region.upsert({
+      where: { id: region.id },
+      update: {},
+      create: region,
+    });
+  }
+  console.log(`Created ${regions.length} regions`)
+}
+
 async function main() {
   console.log('🌱 Seeding database...')
 
@@ -88,6 +100,9 @@ async function main() {
       }
     },
   })
+
+  await seedRegions();
+  
 
   console.log(`Created plans: ${freePlan.name}, ${proPlan.name}, ${teamPlan.name}`)
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button, TextInput, Card, Spinner, Badge } from 'flowbite-react';
@@ -16,26 +16,8 @@ const mockProjects: Project[] = [
     description: 'IoT sensors monitoring production line efficiency',
     status: 'ACTIVE' as const,
     deviceCount: 24,
-    createdAt: '2024-01-15',
-    lastActivity: '2024-01-20',
-  },
-  {
-    id: '2',
-    name: 'Warehouse Climate Control',
-    description: 'Temperature and humidity monitoring system',
-    status: 'ACTIVE' as const,
-    deviceCount: 12,
-    createdAt: '2024-01-10',
-    lastActivity: '2024-01-19',
-  },
-  {
-    id: '3',
-    name: 'Fleet Tracking',
-    description: 'GPS and diagnostics for delivery vehicles',
-    status: 'PAUSED' as const,
-    deviceCount: 8,
-    createdAt: '2024-01-05',
-    lastActivity: '2024-01-18',
+    updatedAt: new Date().toISOString(),
+    regionId: 'us-east-1',
   },
 ];
 
@@ -45,8 +27,8 @@ interface Project {
   description: string;
   status: 'ACTIVE' | 'PAUSED' | 'INACTIVE';
   deviceCount: number;
-  createdAt: string;
-  lastActivity: string;
+  updatedAt: string;
+  regionId: string;
 }
 
 function ProjectCard({ project }: { project: Project }) {
@@ -73,7 +55,9 @@ function ProjectCard({ project }: { project: Project }) {
                   {project.name}
                 </h5>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {project.description}
+                  {/* TODO: Add description */}
+                  {/* {project.description} */}
+                  {project.name} is a project that monitors the temperature and humidity of the warehouse.
                 </p>
               </div>
             </div>
@@ -82,19 +66,21 @@ function ProjectCard({ project }: { project: Project }) {
           <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
-              <span>{project.deviceCount} devices</span>
+              {/* TODO: Add device count */}
+              <span>{/*project.deviceCount*/} {Math.floor(Math.random() * 1000)} devices</span>
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {/* <span>Updated {new Date(project.lastActivity).toLocaleDateString()}</span> */}
-              <span>Updated {new Date().toLocaleDateString()}</span>
+              <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
             <Badge color={statusColors[project.status]} title={`Status: ${project.status}`}>
-              {project.status}
+              {/* TODO: Add status */}
+              {/* {project.status} */}  ACTIVE
             </Badge>
+            <Badge color="gray" title={`Region: ${project.regionId}`}>{project.regionId}</Badge>
           </div>
         </Card>
       </Link>
@@ -107,10 +93,21 @@ export default function OrgDetailPage() {
   const orgId = params.orgId as string;
   const [searchTerm, setSearchTerm] = useState('');
   const [loading] = useState(false); // Replace with actual loading state
+  const [projects, setProjects] = useState<Project[]>([]);
 
-  const filteredProjects = mockProjects.filter(project => 
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const res = await fetch(`/api/projects?orgId=${orgId}`);
+      if (!res.ok) throw new Error('Failed to fetch projects');
+      const data = await res.json() as Project[];
+      setProjects(data);
+    };
+
+    fetchProjects();
+  }, [orgId]);
+
+  const filteredProjects = projects.filter(project => 
+    project.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

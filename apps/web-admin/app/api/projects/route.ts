@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 
 const createProjectSchema = z.object({
   organizationId: z.string().min(1, "Organization is required"),
-  name: z.string()
+  projectName: z.string()
     .min(3, "Project name must be at least 3 characters")
     .max(20, "Project name must be less than 20 characters")
     .regex(/^[a-z0-9-]+$/, "Project name must contain only lowercase letters, numbers, and hyphens"),
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate slug from project name
-    const slug = slugify(validatedData.name);
+    const slug = slugify(validatedData.projectName);
 
     // Check if project slug already exists in the organization
     const existingProject = await prisma.project.findFirst({
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // Create the project
     const project = await prisma.project.create({
       data: {
-        name: validatedData.name,
+        name: validatedData.projectName,
         slug: slug,
         regionId: validatedData.regionId,
         superadminPassword: hashedPassword,
@@ -123,4 +123,27 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const orgId = request.nextUrl.searchParams.get('orgId');
+
+  if (!orgId) {
+    return NextResponse.json({ message: "Organization ID is required" }, { status: 400 });
+  }
+
+  const projects = await prisma.project.findMany({
+    where: {
+      organization: {
+        id: orgId,
+      },
+    },
+  });
+
+  return NextResponse.json(projects);
 }

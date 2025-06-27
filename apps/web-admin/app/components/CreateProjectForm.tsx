@@ -12,7 +12,7 @@ import { PasswordGenerator } from "./PasswordGenerator";
 
 const CreateProjectSchema = z.object({
   organizationId: z.string().min(1, "Organization is required"),
-  name: z.string()
+  projectName: z.string()
     .min(3, "Project name must be at least 3 characters")
     .max(20, "Project name must be less than 20 characters")
     .regex(/^[a-z0-9-]+$/, "Project name must contain only lowercase letters, numbers, and hyphens"),
@@ -146,21 +146,21 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
 
         {/* Project Name */}
         <div className="space-y-2">
-          <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="projectName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
             Project name
           </label>
           <TextInput
-            id="name"
+            id="projectName"
             type="text"
             placeholder="my-awesome-project"
             aria-label="Project name"
-            {...register("name")}
-            color={errors.name ? "failure" : "gray"}
+            {...register("projectName")}
+            color={errors.projectName ? "failure" : "gray"}
             disabled={isSubmitting}
           />
-          {errors.name && (
+          {errors.projectName && (
             <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-              {errors.name.message}
+              {errors.projectName.message}
             </p>
           )}
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">

@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "flowbite-react": "^0.11.7",
+    "lucide-react": "^0.522.0"
   }
 }

@@ -170,7 +170,7 @@ export type FinishedWorkflowsRequest = {
   size: number;
   definitionKey: string;
   filter: {
-    serviceCode?: string;
+    mintralKey?: string;
     licensePlate?: string;
     driverId?: string;
     trailerLicensePlate?: string;

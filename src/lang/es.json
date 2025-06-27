@@ -132,7 +132,11 @@
         "origin": "Origen",
         "destination": "Destino",
         "active": "Activo",
-        "completed": "Completado"
+        "completed": "Completado",
+        "driverId": "RUT Conductor",
+        "carrierId": "ID Transportista",
+        "carrierName": "Transportista",
+        "customerCode": "Cliente"
       }
     },
     "notFound": {

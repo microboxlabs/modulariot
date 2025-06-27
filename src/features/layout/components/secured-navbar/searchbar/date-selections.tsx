@@ -4,7 +4,6 @@ import { FaCalendar } from "react-icons/fa";
 
 export default function DateSelections() {
   const [open, setOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const [openFromDate, setOpenFromDate] = useState(false);
   const [openToDate, setOpenToDate] = useState(false);

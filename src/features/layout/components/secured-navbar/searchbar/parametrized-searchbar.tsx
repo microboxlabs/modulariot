@@ -1,13 +1,11 @@
 "use client";
 
-import { Datepicker, TextInput } from "flowbite-react";
+import { TextInput } from "flowbite-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
-import DateSelections from "./date-selections";
-
 
 export default function ParametrizedSearchBar({
   messages,
@@ -74,7 +72,18 @@ export default function ParametrizedSearchBar({
             if (e.key === "Enter") {
               e.preventDefault();
               if (/^[^:]+:[^:]+$/.test(search)) {
-                handleSearch(search.split(":")[1], search.split(":")[0]);
+                // Search for this page in validation format
+                // Check if the search.split(":")[0] is equal to the label, change the value to the param
+                const param = navegation_params.find(
+                  (param: any) =>
+                    param.label.toUpperCase() ===
+                    search.split(":")[0].toUpperCase(),
+                );
+                if (param) {
+                  handleSearch(search.split(":")[1], param.param);
+                } else {
+                  handleSearch(search.split(":")[1], search.split(":")[0]);
+                }
               }
             }
           }}
@@ -88,7 +97,18 @@ export default function ParametrizedSearchBar({
               <div
                 className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-600"
                 onClick={() => {
-                  handleSearch(search.split(":")[1], search.split(":")[0]);
+                  if (/^[^:]+:[^:]+$/.test(search)) {
+                    // Search for this page in validation format
+                    // Check if the search.split(":")[0] is equal to the label, change the value to the param
+                    const param = navegation_params.find(
+                      (param: any) => param.label === search.split(":")[0],
+                    );
+                    if (param) {
+                      handleSearch(search.split(":")[1], param.param);
+                    } else {
+                      handleSearch(search.split(":")[1], search.split(":")[0]);
+                    }
+                  }
                 }}
               >
                 Buscar
@@ -123,8 +143,13 @@ export default function ParametrizedSearchBar({
           </div>
         )}
       </div>
-      <DateSelections />
-      <Tags searchParams={searchParams} router={router} pathName={pathName} />
+      {/*<DateSelections />*/}
+      <Tags
+        searchParams={searchParams}
+        router={router}
+        pathName={pathName}
+        navegation_params={navegation_params}
+      />
     </div>
   );
 }

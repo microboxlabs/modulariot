@@ -132,7 +132,11 @@
         "destination": "Destination",
         "licensePlate": "License Plate",
         "active": "Active",
-        "completed": "Completed"
+        "completed": "Completed",
+        "driverId": "Driver Rut",
+        "carrierId": "Carrier ID",
+        "carrierName": "Carrier",
+        "customerCode": "Customer"
       }
     },
     "notFound": {

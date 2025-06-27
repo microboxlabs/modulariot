@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
   const carrierName = url.searchParams.get("carrierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
+  const customerCode = url.searchParams.get("customerCode");
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -43,8 +44,6 @@ export async function GET(req: NextRequest) {
     filter: undefined,
   };
 
-  console.log(serviceCode);
-
   try {
     let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse;
     if (show_finished) {
@@ -54,13 +53,14 @@ export async function GET(req: NextRequest) {
           size: size ? parseInt(size) : 10,
           definitionKey: "shippingCoordinatorProcess",
           filter: {
-            : serviceCode ? `v145` : undefined, // NOT WORKING YET
-            licensePlate: licensePlate ? licensePlate : undefined,
+            mintralKey: serviceCode ? `v${serviceCode}` : undefined,
+            licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,
             driverId: driverId ? driverId : undefined,
             carrierId: carrierId ? carrierId : undefined,
             carrierName: carrierName ? carrierName : undefined,
-            origin: origin ? origin : undefined,
-            destination: destination ? destination : undefined,
+            origin: origin ? origin.toUpperCase() : undefined,
+            destination: destination ? destination.toUpperCase() : undefined,
+            customerCode: customerCode ? customerCode : undefined,
           },
         }).then((res) => ({
           tasks: res.workflows,
@@ -75,8 +75,6 @@ export async function GET(req: NextRequest) {
       ])) as FastTasksResponse[];
     }
 
-    console.log(taskResponses[0]);
-
     taskResponses.forEach((tasks) => {
       toShippingKanban(tasks, data);
       total += tasks.total;
@@ -87,7 +85,6 @@ export async function GET(req: NextRequest) {
       data,
     });
   } catch (e: any) {
-    console.log(e.message);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
       return NextResponse.json(

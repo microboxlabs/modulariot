@@ -1,4 +1,3 @@
-import { Datepicker } from "flowbite-react";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { useEffect, useState } from "react";
 import { FaTag } from "react-icons/fa";
@@ -8,32 +7,42 @@ export default function Tags({
   searchParams,
   router,
   pathName,
+  navegation_params,
 }: {
   searchParams: URLSearchParams;
   router: AppRouterInstance;
   pathName: string;
+  navegation_params?: Array<{ label: string; param: string }>;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<
     {
       name: string;
       value: string;
+      label: string;
     }[]
   >([]);
-  const [startDate, setStartDate] = useState<Date | null>(null);
+
   // here from the searched params generate a list of tags
   useEffect(() => {
     if (searchParams) {
       const params = new URLSearchParams(searchParams.toString());
       const tags = Array.from(params.entries())
         .filter(([key]) => key !== "view") // Ignore the 'view' parameter
-        .map(([key, value]) => ({
-          name: key,
-          value,
-        }));
+        .map(([key, value]) => {
+          // Find the label for this parameter from navigation_params
+          const navParam = navegation_params?.find(
+            (param) => param.param === key,
+          );
+          return {
+            name: key,
+            value,
+            label: navParam?.label || key, // Use label if found, otherwise use parameter name
+          };
+        });
       setFilter(tags);
     }
-  }, [searchParams]);
+  }, [searchParams, navegation_params]);
 
   return (
     <div
@@ -63,7 +72,7 @@ export default function Tags({
                   router.push(`${pathName}?${params.toString()}`);
                 }}
               />
-              <label className="font-normal">{tag.name}:</label> {tag.value}
+              <label className="font-normal">{tag.label}:</label> {tag.value}
             </div>
           ))}
         </div>

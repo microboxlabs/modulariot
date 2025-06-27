@@ -113,6 +113,8 @@ export async function GET(
     if (filters.type_load) body.filter.type_load = filters.type_load; */
     if (filters.page) body.from = parseInt(filters.page);
     if (filters.limit) body.size = parseInt(filters.limit);
+
+    /*
     if (filters.date_from)
       queryParams.append("start_time", "eq." + filters.date_from);
     if (filters.date_to)
@@ -133,7 +135,7 @@ export async function GET(
       queryParams.append("offset", "eq." + filters.page.toString());
     if (filters.limit)
       queryParams.append("limit", "eq." + filters.limit.toString());
-
+    */
 
     // Make API request with optimized headers
     const response = await getTaskByLicensePlate(session.user.ticket, body);

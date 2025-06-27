@@ -24,7 +24,7 @@ interface CTAButtonsProps {
   config?: CTAButtonsConfig;
 }
 
-export function CTAButtons({ config = {} }: CTAButtonsProps) {
+export function CTAButtons({ config = { orgId: "", projectId: "" } }: CTAButtonsProps) {
   const [isStreamModalOpen, setIsStreamModalOpen] = useState(false);
   
   const {

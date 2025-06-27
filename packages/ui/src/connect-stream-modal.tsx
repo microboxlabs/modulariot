@@ -63,7 +63,7 @@ export function ConnectStreamModal({
   }
 
   return (
-    <Modal show={isOpen} onClose={onClose} size="4xl" className="max-h-[90vh] overflow-y-auto">
+    <Modal show={isOpen} onClose={onClose} size="4xl">
       <ModalHeader className="border-b">
         <div className="flex items-center justify-between w-full">
           <div>
@@ -85,7 +85,7 @@ export function ConnectStreamModal({
           <Tabs
             aria-label="Protocol tabs"
             variant="pills"
-            onActiveTabChange={(tab) => setActiveTab(PROTOCOLS[tab].id)}
+            onActiveTabChange={(tab: number) => setActiveTab(PROTOCOLS[tab]?.id ?? "rest")}
           >
             {PROTOCOLS.map((protocol) => {
               const IconComponent = ICON_MAP[protocol.icon as keyof typeof ICON_MAP];

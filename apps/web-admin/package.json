@@ -15,7 +15,10 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
     "@hookform/resolvers": "^3.3.0",
+    "@modulariot/db": "*",
+    "@modulariot/ui": "*",
     "@prisma/client": "^6.10.1",
+    "auth0": "^4.26.0",
     "flowbite-icons": "^1.5.0",
     "flowbite-react": "^0.11.7",
     "framer-motion": "^12.18.1",
@@ -29,9 +32,7 @@
     "react-icons": "^5.5.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.3.1",
-    "zod": "^3.25.67",
-    "@modulariot/db": "*",
-    "@modulariot/ui": "*"
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

@@ -59,11 +59,11 @@ export function buildConnectionUri(
   apiKey?: string
 ): string {
   const uris = {
-    rest: `https://ingest.miot.io/v1/org/${orgId}/proj/${projectId}`,
-    websocket: `wss://ws.miot.io/stream?org=${orgId}&proj=${projectId}${apiKey ? `&token=${apiKey}` : ''}`,
-    mqtt: `mqtts://mqtt.miot.io`,
-    amqp: `persistent://miot/${orgId}/${projectId}`,
-    atcmd: `tcp://at.miot.io:7010`
+    rest: `https://ingest.modulariot.com/v1/org/${orgId}/proj/${projectId}`,
+    websocket: `wss://ws.modulariot.com/stream?org=${orgId}&proj=${projectId}${apiKey ? `&token=${apiKey}` : ''}`,
+    mqtt: `mqtts://mqtt.modulariot.com`,
+    amqp: `persistent://modulariot/${orgId}/${projectId}`,
+    atcmd: `tcp://at.modulariot.com:7010`
   };
   
   return uris[protocol as keyof typeof uris] || '';
@@ -245,7 +245,7 @@ await producer.send({
       description: "Raw TCP connection for legacy GPS trackers using AT command format.",
       uri,
       parameters: [
-        { name: "Host", value: "at.miot.io" },
+        { name: "Host", value: "at.modulariot.com" },
         { name: "Port", value: "7010" },
         { name: "Protocol", value: "TCP (raw)" },
         { name: "Format", value: "Plain text AT commands" }
@@ -280,5 +280,5 @@ client.on('data', (data) => {
     }
   };
   
-  return details[protocol] || details.rest;
+  return details[protocol] ?? details.rest!;
 }

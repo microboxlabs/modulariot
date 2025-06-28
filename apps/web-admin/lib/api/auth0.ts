@@ -1,28 +1,28 @@
+import "server-only";
 import { ManagementClient } from 'auth0'
 import { 
   IdentityClient, 
   Client, 
-  CreateClientInput, 
-  UpdateClientInput,
   Credential,
-  CreateCredInput,
-  UpdateCredInput,
   RotatedSecret,
-  Connection
+  Connection,
+  ProjectAuth0M2MInput,
+  UpdateProjectAuth0M2MInput
 } from './identityClient'
+import { env } from '@/env/server';
 
 // TODO: Initialize management client properly with environment variables
 
 export class Auth0Client implements IdentityClient {
 
-  // private managementClient: ManagementClient;
+  private managementClient: ManagementClient;
 
   constructor() {
-    // this.managementClient = new ManagementClient({
-    //   domain: process.env.AUTH0_DOMAIN,
-    //   clientId: process.env.AUTH0_CLIENT_ID,
-    //   clientSecret: process.env.AUTH0_CLIENT_SECRET,
-    // })
+    this.managementClient = new ManagementClient({
+      domain: env.AUTH0_DOMAIN,
+      clientId: env.AUTH0_CLIENT_ID,
+      clientSecret: env.AUTH0_CLIENT_SECRET,
+    });
   }
 
   async listClients(): Promise<Client[]> {
@@ -30,10 +30,23 @@ export class Auth0Client implements IdentityClient {
     throw new Error('Not implemented')
   }
 
-  async createClient(_input: CreateClientInput): Promise<Client> {
+  async createClient(input: ProjectAuth0M2MInput): Promise<Client> {
     // TODO: Implement Auth0 client creation
-    
-    throw new Error('Not implemented')
+    const response = await this.managementClient.clients.create({
+      name: input.name,
+      description: input.description,
+      app_type: input.appType,
+      is_first_party: true,
+      oidc_conformant: true,
+      jwt_configuration: {
+        alg: input.jwtConfiguration?.alg,
+        lifetime_in_seconds: input.jwtConfiguration?.lifetimeInSeconds,
+      },
+      token_endpoint_auth_method: input.tokenEndpointAuthMethod,
+      grant_types: input.grantTypes,
+      allowed_clients: input.allowedClients,
+    });
+    return response.data;
   }
 
   async getClient(_id: string): Promise<Client> {
@@ -41,7 +54,7 @@ export class Auth0Client implements IdentityClient {
     throw new Error('Not implemented')
   }
 
-  async updateClient(_id: string, _input: UpdateClientInput): Promise<Client> {
+  async updateClient(_id: string, _input: UpdateProjectAuth0M2MInput): Promise<Client> {
     // TODO: Implement Auth0 client update
     throw new Error('Not implemented')
   }
@@ -56,7 +69,7 @@ export class Auth0Client implements IdentityClient {
     throw new Error('Not implemented')
   }
 
-  async createClientCredential(_clientId: string, _input: CreateCredInput): Promise<Credential> {
+  async createClientCredential(_clientId: string, _input: ProjectAuth0M2MInput): Promise<Credential> {
     
     throw new Error('Not implemented')
   }
@@ -66,7 +79,7 @@ export class Auth0Client implements IdentityClient {
     throw new Error('Not implemented')
   }
 
-  async updateClientCredential(_clientId: string, _credId: string, _input: UpdateCredInput): Promise<Credential> {
+  async updateClientCredential(_clientId: string, _credId: string, _input: UpdateProjectAuth0M2MInput): Promise<Credential> {
     // TODO: Implement Auth0 client credential update
     throw new Error('Not implemented')
   }

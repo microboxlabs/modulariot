@@ -5,6 +5,7 @@ import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 import GitHub from "next-auth/providers/github"
 import { z } from "zod"
+import { PrismaClient } from "@prisma/client"
 
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -12,7 +13,7 @@ const LoginSchema = z.object({
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma as PrismaClient),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",

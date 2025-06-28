@@ -1,16 +1,26 @@
 import { z } from 'zod'
 
-export const CreateClientInputSchema = z.object({
+const allowedClients = z.enum([
+  'https://modulariot.com/v1/project/admin',
+  'https://modulariot.com/v1/project/user',
+  'https://modulariot.com/v1/project/readonly',
+]);
+
+export const ProjectAuth0M2MInputSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  app_type: z.enum(['native', 'spa', 'regular_web', 'non_interactive']).default('regular_web'),
+  appType: z.enum(['non_interactive']).default('non_interactive'),
   callbacks: z.array(z.string()).optional(),
-  web_origins: z.array(z.string()).optional(),
-  allowed_origins: z.array(z.string()).optional(),
-  grant_types: z.array(z.string()).optional(),
-})
+  allowedClients: z.array(allowedClients).min(1, "At least one client must be selected"),
+  grantTypes: z.array(z.string()).optional(),
+  jwtConfiguration: z.object({
+    alg: z.enum(['HS256', 'RS256']).default('HS256'),
+    lifetimeInSeconds: z.number().min(3600).max(2592000).default(2592000),
+  }).optional(),
+  tokenEndpointAuthMethod: z.enum(['client_secret_post', 'client_secret_basic']).default('client_secret_post'),
+});
 
-export const UpdateClientInputSchema = CreateClientInputSchema.partial()
+export const UpdateProjectAuth0M2MInputSchema = ProjectAuth0M2MInputSchema.partial()
 
 export const CreateCredInputSchema = z.object({
   credential_type: z.enum(['public_key', 'x509_cert']),
@@ -57,10 +67,10 @@ export const ConnectionSchema = z.object({
   enabled_clients: z.array(z.string()).optional(),
 })
 
-export type CreateClientInput = z.infer<typeof CreateClientInputSchema>
-export type UpdateClientInput = z.infer<typeof UpdateClientInputSchema>
-export type CreateCredInput = z.infer<typeof CreateCredInputSchema>
-export type UpdateCredInput = z.infer<typeof UpdateCredInputSchema>
+export type ProjectAuth0M2MInput = z.infer<typeof ProjectAuth0M2MInputSchema>
+export type UpdateProjectAuth0M2MInput = z.infer<typeof UpdateProjectAuth0M2MInputSchema>
+// export type CreateCredInput = z.infer<typeof CreateCredInputSchema>
+// export type UpdateCredInput = z.infer<typeof UpdateCredInputSchema>
 export type Client = z.infer<typeof ClientSchema>
 export type Credential = z.infer<typeof CredentialSchema>
 export type RotatedSecret = z.infer<typeof RotatedSecretSchema>
@@ -68,15 +78,15 @@ export type Connection = z.infer<typeof ConnectionSchema>
 
 export interface IdentityClient {
   listClients(): Promise<Client[]>
-  createClient(input: CreateClientInput): Promise<Client>
+  createClient(input: ProjectAuth0M2MInput): Promise<Client>
   getClient(id: string): Promise<Client>
-  updateClient(id: string, input: UpdateClientInput): Promise<Client>
+  updateClient(id: string, input: UpdateProjectAuth0M2MInput): Promise<Client>
   deleteClient(id: string): Promise<void>
 
   listClientCredentials(clientId: string): Promise<Credential[]>
-  createClientCredential(clientId: string, input: CreateCredInput): Promise<Credential>
-  getClientCredential(clientId: string, credId: string): Promise<Credential>
-  updateClientCredential(clientId: string, credId: string, input: UpdateCredInput): Promise<Credential>
+  // createClientCredential(clientId: string, input: CreateCredInput): Promise<Credential>
+  // getClientCredential(clientId: string, credId: string): Promise<Credential>
+  // updateClientCredential(clientId: string, credId: string, input: UpdateCredInput): Promise<Credential>
   deleteClientCredential(clientId: string, credId: string): Promise<void>
   rotateClientSecret(clientId: string): Promise<RotatedSecret>
   getEnabledConnections(clientId: string): Promise<Connection[]>

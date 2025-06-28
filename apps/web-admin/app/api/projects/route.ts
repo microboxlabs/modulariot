@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { Auth0Client } from "@/lib/api/auth0";
+import { env } from "@/env/server";
 
 const createProjectSchema = z.object({
   organizationId: z.string().min(1, "Organization is required"),
@@ -99,6 +101,30 @@ export async function POST(request: NextRequest) {
         dbEngine: validatedData.dbEngine,
       },
     });
+
+    const auth0Client = new Auth0Client();
+
+    const auth0ClientResponse = await auth0Client.createClient({
+      name: `miot:${project.name}:${validatedData.organizationId}`,
+      description: `miot:${project.name}`,
+      appType: "non_interactive",
+      allowedClients: ["https://modulariot.com/v1/project/admin"],
+      tokenEndpointAuthMethod: "client_secret_post",
+      jwtConfiguration: {
+        alg: env.AUTH0_JWT_ALG,
+        lifetimeInSeconds: env.AUTH0_JWT_LIFETIME_IN_SECONDS,
+      },
+      grantTypes: ["client_credentials"],
+    });
+
+    console.log(auth0ClientResponse);
+
+    // await prisma.project.update({
+    //   where: { id: project.id },
+    //   data: {
+    //     auth0ClientId: auth0ClientResponse.client_id,
+    //   },
+    // });
 
     // TODO: Trigger project infrastructure setup (database creation, API endpoints, etc.)
     // TODO: Send notification to organization members

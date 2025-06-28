@@ -36,7 +36,7 @@ export default function GeneralSettingsPage() {
   } = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
-      name: mockProject.name,
+      name: '',
     },
   });
 
@@ -71,7 +71,7 @@ export default function GeneralSettingsPage() {
   };
 
   const handlePauseResume = async () => {
-    const action = mockProject.status === "paused" ? "resume" : "pause";
+    const action = "resume";
     
     try {
       const response = await fetch(`/api/projects/${projectId}/pause`, {
@@ -198,20 +198,13 @@ export default function GeneralSettingsPage() {
             </label>
             <Button
               onClick={handlePauseResume}
-              color={mockProject.status === "paused" ? "blue" : "gray"}
+              color={"gray"}
               className="w-full"
             >
-              {mockProject.status === "paused" ? (
                 <>
                   <Play className="h-4 w-4 mr-2" />
                   Resume Project
                 </>
-              ) : (
-                <>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Pause Project
-                </>
-              )}
             </Button>
           </div>
         </div>
@@ -225,25 +218,16 @@ export default function GeneralSettingsPage() {
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-white">Custom Domains</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {mockProject.plan === "free" 
-                  ? "Connect custom domains to your project. Available on paid plans."
-                  : "Connect custom domains to your project."
-                }
+                Connect custom domains to your project. Available on paid plans.
               </p>
             </div>
           </div>
-          {mockProject.plan === "free" ? (
             <Link href={`/org/${orgId}/project/${projectId}/settings/subscription`}>
               <Button color="purple" size="sm">
                 <CreditCard className="h-4 w-4 mr-2" />
                 Upgrade
               </Button>
             </Link>
-          ) : (
-            <Button color="purple" size="sm">
-              Configure Domains
-            </Button>
-          )}
         </div>
       </Card>
 
@@ -268,7 +252,7 @@ export default function GeneralSettingsPage() {
       {/* Delete Project */}
       <DangerZone
         entityType="Project"
-        entityName={mockProject.name}
+        entityName={""}
         deleter={async ()=>{}}
         entityId={projectId}
         url={`/api/projects/${projectId}`}

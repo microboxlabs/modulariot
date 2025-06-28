@@ -55,9 +55,8 @@ function ProjectCard({ project }: { project: Project }) {
           </div>
           
           <div className="flex items-center gap-2">
-            <Badge color={statusColors[project.status]} title={`Status: ${project.status}`}>
-              {/* TODO: Add status */}
-              {/* {project.status} */}  ACTIVE
+            <Badge color={statusColors['ACTIVE']} title={`Status: ACTIVE`}>
+              ACTIVE
             </Badge>
             <Badge color="gray" title={`Region: ${project.regionId}`}>{project.regionId}</Badge>
           </div>
@@ -147,7 +146,7 @@ export default function OrgDetailPage() {
             <p className="text-gray-500">
               Get started by creating your first project to group your device fleets.
             </p>
-            <CTAButton as={Link} href={`/org/${orgId}/project/new`} className="mt-4">
+            <CTAButton as={Link} href={`/org/${orgId}/projects/new`} className="mt-4">
               <Plus className="h-5 w-5 mr-2" />
               Create your first project
             </CTAButton>

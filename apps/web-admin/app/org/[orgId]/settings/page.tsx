@@ -26,9 +26,7 @@ export default function GeneralSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-  const { data: organization, error: orgError, isLoading } = useOrganization(orgId, {
-    keepPreviousData: true,
-  });
+  const { data: organization, error: orgError, isLoading } = useOrganization(orgId);
   
   const {
     register,

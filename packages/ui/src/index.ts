@@ -12,4 +12,5 @@ export { ProjectSwitcher } from './project-switcher';
 export { CTAButtons } from './cta-buttons';
 export { ConnectStreamModal } from './connect-stream-modal';
 export { ConnectionCard } from './connection-card';
-export { PROTOCOLS, getConnectionDetails, buildConnectionUri, type Protocol, type ConnectionDetails } from './protocol-helpers'; 
+export { PROTOCOLS, getConnectionDetails, buildConnectionUri, type Protocol, type ConnectionDetails } from './protocol-helpers';
+export { DangerZone, type DangerZoneProps } from './danger-zone'; 

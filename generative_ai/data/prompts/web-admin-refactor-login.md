@@ -41,7 +41,7 @@ LAYOUT & STYLE SPECS
 ────────────────────────────────────────────
 • Wrapper: `class="h-screen grid grid-cols-1 sm:grid-cols-2"`  
 • **MarketingPanel** (hidden on `sm:hidden`):  
-  – Background: `bg-teal-50 dark:bg-slate-900`  
+  – Background: `bg-primary-50 dark:bg-slate-900`  
   – Centered content:  
     1. `<Image src="/logo.svg" alt="ModularIoT" width={160} />`  
     2. H1 `text-3xl sm:text-4xl font-semibold tracking-tight`  
@@ -61,7 +61,7 @@ LAYOUT & STYLE SPECS
 
 • **Accessibility**:  
   – `aria-label` on social buttons, form inputs.  
-  – Keyboard focus ring on `Button` (`focus:ring-4 focus:ring-teal-300/50`).  
+  – Keyboard focus ring on `Button` (`focus:ring-4 focus:ring-primary-300/50`).  
 
 • **Responsiveness**:  
   – `sm:grid-cols-2`; MarketingPanel `hidden sm:flex flex-col items-center justify-center p-8`.  

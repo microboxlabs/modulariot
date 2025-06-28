@@ -82,3 +82,37 @@ export async function DELETE(
   }
 }
 
+type GetOrganizationParams = { 
+  params: { orgId: string };
+};
+
+export async function GET(request: NextRequest,  { params }: GetOrganizationParams) {
+
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: {
+      userId: session.user.id,
+      orgId: params.orgId
+    },
+  });
+
+  if (!membership) {
+    return NextResponse.json({ message: 'Forbidden: Only organization members can view the organization.' }, { status: 403 });
+  }
+
+  const includeProjects = request.nextUrl.searchParams.get('projects') === 'true';
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: params.orgId },
+    include: {
+      projects: includeProjects,
+    },
+  });
+
+  return NextResponse.json(organization);
+}

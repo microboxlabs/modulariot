@@ -2,7 +2,6 @@
 
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Tabs } from "flowbite-react";
 import { Settings, Shield, FileText, ScrollText } from "lucide-react";
 
 interface SettingsTabsProps {

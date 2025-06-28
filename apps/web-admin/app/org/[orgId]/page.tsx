@@ -1,35 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button, TextInput, Card, Spinner, Badge } from 'flowbite-react';
 import { Plus, Search, Filter, FolderOpen, Calendar, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { CTAButton } from '@modulariot/ui/cta-button';
-
-// Mock data for projects - replace with actual API call
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Smart Factory Floor',
-    description: 'IoT sensors monitoring production line efficiency',
-    status: 'ACTIVE' as const,
-    deviceCount: 24,
-    updatedAt: new Date().toISOString(),
-    regionId: 'us-east-1',
-  },
-];
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  status: 'ACTIVE' | 'PAUSED' | 'INACTIVE';
-  deviceCount: number;
-  updatedAt: string;
-  regionId: string;
-}
+import { useOrganization } from '@/lib/hooks/organization';
+import { Project } from '@modulariot/db';
 
 function ProjectCard({ project }: { project: Project }) {
   const statusColors = {
@@ -92,31 +71,24 @@ export default function OrgDetailPage() {
   const params = useParams();
   const orgId = params.orgId as string;
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading] = useState(false); // Replace with actual loading state
-  const [projects, setProjects] = useState<Project[]>([]);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      const res = await fetch(`/api/projects?orgId=${orgId}`);
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json() as Project[];
-      setProjects(data);
-    };
+  const { data: organization, error, isLoading } = useOrganization(orgId, {
+    include: {
+      projects: true,
+    },
+  });
 
-    fetchProjects();
-  }, [orgId]);
-
-  const filteredProjects = projects.filter(project => 
+  const filteredProjects = organization?.projects?.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div>
+    <div className="container px-6 mx-auto py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-gray-900 dark:text-white tracking-tight">
-          Organization Projects
-        </h1>
+          {`${organization?.name}'s Projects`}
+        </h1> 
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Manage your device fleets and IoT projects for this organization.
         </p>
@@ -149,13 +121,13 @@ export default function OrgDetailPage() {
       </div>
 
       {/* Projects grid */}
-      {loading ? (
+      {isLoading ? (
         <div className="text-center">
           <Spinner size="xl" />
         </div>
-      ) : filteredProjects.length > 0 ? (
+      ) : (filteredProjects?.length ?? 0) > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project, i) => (
+          {filteredProjects?.map((project, i) => (
             <motion.div
               key={project.id}
               initial={{ opacity: 0, y: 20 }}

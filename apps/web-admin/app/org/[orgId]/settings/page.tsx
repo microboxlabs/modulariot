@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, TextInput, Button, Alert, Label, HelperText } from "flowbite-react";
 import { Save } from "lucide-react";
-import DangerZone from "../../../components/DangerZone";
+import { DangerZone } from "@modulariot/ui/danger-zone";
+import { deleteOrganization } from "@/lib/api/org";
+import { useOrganization } from "@/lib/hooks/organization";
 
 const orgSettingsSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
@@ -24,21 +26,32 @@ export default function GeneralSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
+  const { data: organization, error: orgError, isLoading } = useOrganization(orgId, {
+    keepPreviousData: true,
+  });
+  
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<OrgSettingsForm>({
     resolver: zodResolver(orgSettingsSchema),
     defaultValues: {
-      // TODO: Load organization data from API
-      name: "Demo Organization",
-      description: "A demonstration organization for testing purposes",
-      website: "https://example.com",
-      billingEmail: "billing@example.com",
+      name: organization?.name ?? "",
     },
   });
+
+  useEffect(() => {
+    if (organization) {
+      reset({
+        name: organization.name,
+        // description: organization.description,
+        // website: organization.website,
+        // billingEmail: organization.billingEmail,
+      });
+    }
+  }, [organization, reset]);
 
   const onSubmit = async (data: OrgSettingsForm) => {
     setIsSaving(true);
@@ -67,6 +80,17 @@ export default function GeneralSettingsPage() {
     }
   };
 
+  // id: string;
+  // slug: string;
+  // createdAt: Date;
+  // updatedAt: Date;
+  // regionId: string;
+  // superadminPassword: string;
+  // organizationId: string;
+  // securityMode: string;
+  // apiSchema: string;
+  // dbEngine: string;
+
   return (
     <div className="space-y-8">
       <Card>
@@ -86,9 +110,9 @@ export default function GeneralSettingsPage() {
             </Alert>
           )}
 
-          {error && (
+          {orgError && (
             <Alert color="failure" className="mb-4">
-              {error}
+              {orgError.message}
             </Alert>
           )}
 
@@ -177,7 +201,15 @@ export default function GeneralSettingsPage() {
         </div>
       </Card>
 
-      <DangerZone />
+      <DangerZone
+        entityType="Organization"
+        entityName={organization?.name ?? ""}
+        entityId={orgId}
+        deleter={deleteOrganization}
+        redirect="/org"
+        url={`/api/organizations/${orgId}`}
+        disabled={isSaving}
+      />
     </div>
   );
 }

@@ -16,9 +16,9 @@ export default function OrgDetailLayout({
         projectSidebarItems={getProjectSidebarItems}
       />
       <main className="flex-1 overflow-y-auto">
-        <div className="container px-6 mx-auto py-8">
+        {/* <div className="container px-6 mx-auto py-8"> */}
           {children}
-        </div>
+        {/* </div> */}
       </main>
     </div>
   );

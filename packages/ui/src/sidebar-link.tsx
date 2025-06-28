@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 
 export interface SidebarItem {
   label: string;
@@ -16,7 +16,17 @@ interface SidebarLinkProps {
 
 export function SidebarLink({ item, isCollapsed }: SidebarLinkProps) {
   const pathname = usePathname();
-  const isActive = pathname === item.href;
+  const params = useParams();
+  const orgId = params?.orgId as string;
+  const projectId = params?.projectId as string;
+  let isActive = false;
+  if (item.href === `/org/${orgId}`) {
+    isActive = pathname === item.href;
+  } else if (item.href === `/org/${orgId}/project/${projectId}`) {
+    isActive = pathname === item.href;
+  } else {
+    isActive = pathname.startsWith(item.href) && item.href !== `/org/${orgId}` && item.href !== `/org/${orgId}/project/${projectId}`;
+  }
 
   return (
     <Link

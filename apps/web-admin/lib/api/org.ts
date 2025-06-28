@@ -1,17 +1,14 @@
+import { Prisma } from '@modulariot/db';
+import { Organization } from '@prisma/client';
+import fetcher from './fetcher';
+
+
 export interface CreateOrganizationRequest {
   name: string;
   type: 'personal' | 'startup' | 'enterprise' | 'non-profit';
   plan: 'free' | 'pro';
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  type: string;
-  plan: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export async function createOrganization(data: CreateOrganizationRequest): Promise<Organization> {
   // TODO: Replace with actual API endpoint when backend is ready
@@ -43,6 +40,26 @@ export async function createOrganization(data: CreateOrganizationRequest): Promi
 
   return response.json();
 }
+
+
+type UpdateOrganizationArgs = { 
+  arg: Prisma.OrganizationUpdateInput;
+};
+
+export async function updateOrganization(url: string, { arg: organization }: UpdateOrganizationArgs): Promise<Organization> {
+  const response = await fetcher<Organization>(url, {
+    method: 'PATCH',
+    body: JSON.stringify(organization),
+  });
+
+  return response;
+}
+
+export async function deleteOrganization(url: string): Promise<void> {
+  await fetcher<void>(url, {
+    method: 'DELETE',
+  });  
+};
 
 // TODO: Add additional organization management functions as needed
 // export async function getOrganizations(): Promise<Organization[]> { ... }

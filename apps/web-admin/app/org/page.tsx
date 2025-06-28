@@ -61,10 +61,8 @@ export default function OrganizationsPage() {
               <Filter className="h-5 w-5 mr-2" />
               Filter
             </Button>
-            <CTAButton as={Link} href="/org/new" variant="primary" size="md">
-              <Plus className="h-5 w-5 mr-2" />
-              New organization
-            </CTAButton>
+            <CTAButton as={Link} href="/org/new" variant="primary" size="md" disabled={loading || organizations.length === 0}>
+              <Plus className="h-5 w-5 mr-2" /> New organization </CTAButton>
           </div>
         </div>
 

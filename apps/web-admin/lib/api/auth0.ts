@@ -14,6 +14,17 @@ import {
 // TODO: Initialize management client properly with environment variables
 
 export class Auth0Client implements IdentityClient {
+
+  // private managementClient: ManagementClient;
+
+  constructor() {
+    // this.managementClient = new ManagementClient({
+    //   domain: process.env.AUTH0_DOMAIN,
+    //   clientId: process.env.AUTH0_CLIENT_ID,
+    //   clientSecret: process.env.AUTH0_CLIENT_SECRET,
+    // })
+  }
+
   async listClients(): Promise<Client[]> {
     // TODO: Implement with proper error handling and pagination
     throw new Error('Not implemented')
@@ -21,6 +32,7 @@ export class Auth0Client implements IdentityClient {
 
   async createClient(_input: CreateClientInput): Promise<Client> {
     // TODO: Implement Auth0 client creation
+    
     throw new Error('Not implemented')
   }
 
@@ -45,7 +57,7 @@ export class Auth0Client implements IdentityClient {
   }
 
   async createClientCredential(_clientId: string, _input: CreateCredInput): Promise<Credential> {
-    // TODO: Implement Auth0 client credential creation
+    
     throw new Error('Not implemented')
   }
 

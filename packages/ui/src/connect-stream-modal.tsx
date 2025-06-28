@@ -113,15 +113,6 @@ export function ConnectStreamModal({
                       badges={protocol.badges}
                     />
 
-                    {protocol.id === "rest" && (
-                      <div className="bg-gray-50 border rounded-lg p-4">
-                        <h4 className="font-medium mb-2">WebSocket Alternative</h4>
-                        <ConnectionCard 
-                          details={getConnectionDetails("websocket", orgId, projectId, apiKey ?? "")}
-                          badges={["Real-time", "Bidirectional"]}
-                        />
-                      </div>
-                    )}
                   </div>
                 </Tabs.Item>
               );

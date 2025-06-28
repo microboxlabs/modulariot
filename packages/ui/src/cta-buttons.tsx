@@ -64,7 +64,7 @@ export function CTAButtons({ config = { orgId: "", projectId: "" } }: CTAButtons
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md transition-colors"
         >
           <CloudUpload className="h-4 w-4" />
-          Stream Ingest
+          Connect Stream
         </button>
       )}
       

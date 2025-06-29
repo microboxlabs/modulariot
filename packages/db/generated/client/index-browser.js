@@ -245,12 +245,37 @@ exports.Prisma.ProjectScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ProjectIdentityAppScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  projectId: 'projectId',
+  externalAppId: 'externalAppId',
+  externalSecret: 'externalSecret',
+  tenant: 'tenant',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.UserIdentityScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  userId: 'userId',
+  externalUserId: 'externalUserId',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
 };
 
 exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull
 };
 
@@ -275,6 +300,10 @@ exports.Role = exports.$Enums.Role = {
   MEMBER: 'MEMBER'
 };
 
+exports.IdentityProvider = exports.$Enums.IdentityProvider = {
+  AUTH0: 'AUTH0'
+};
+
 exports.Prisma.ModelName = {
   Account: 'Account',
   Session: 'Session',
@@ -287,7 +316,9 @@ exports.Prisma.ModelName = {
   Membership: 'Membership',
   Invitation: 'Invitation',
   Region: 'Region',
-  Project: 'Project'
+  Project: 'Project',
+  ProjectIdentityApp: 'ProjectIdentityApp',
+  UserIdentity: 'UserIdentity'
 };
 
 /**

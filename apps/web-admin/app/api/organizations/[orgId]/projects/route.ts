@@ -122,14 +122,16 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    console.log(auth0ClientResponse);
-
-    // await prisma.project.update({
-    //   where: { id: project.id },
-    //   data: {
-    //     auth0ClientId: auth0ClientResponse.client_id,
-    //   },
-    // });
+    // Create ProjectIdentityApp record with Auth0 details
+    await prisma.projectIdentityApp.create({
+      data: {
+        provider: "AUTH0",
+        projectId: project.id,
+        externalAppId: auth0ClientResponse.client_id,
+        externalSecret: auth0ClientResponse.client_secret,
+        tenant: auth0ClientResponse.tenant,
+      },
+    });
 
     // TODO: Trigger project infrastructure setup (database creation, API endpoints, etc.)
     // TODO: Send notification to organization members

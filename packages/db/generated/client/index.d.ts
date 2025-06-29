@@ -73,6 +73,16 @@ export type Region = $Result.DefaultSelection<Prisma.$RegionPayload>
  * 
  */
 export type Project = $Result.DefaultSelection<Prisma.$ProjectPayload>
+/**
+ * Model ProjectIdentityApp
+ * 
+ */
+export type ProjectIdentityApp = $Result.DefaultSelection<Prisma.$ProjectIdentityAppPayload>
+/**
+ * Model UserIdentity
+ * 
+ */
+export type UserIdentity = $Result.DefaultSelection<Prisma.$UserIdentityPayload>
 
 /**
  * Enums
@@ -86,11 +96,22 @@ export namespace $Enums {
 
 export type Role = (typeof Role)[keyof typeof Role]
 
+
+export const IdentityProvider: {
+  AUTH0: 'AUTH0'
+};
+
+export type IdentityProvider = (typeof IdentityProvider)[keyof typeof IdentityProvider]
+
 }
 
 export type Role = $Enums.Role
 
 export const Role: typeof $Enums.Role
+
+export type IdentityProvider = $Enums.IdentityProvider
+
+export const IdentityProvider: typeof $Enums.IdentityProvider
 
 /**
  * ##  Prisma Client ʲˢ
@@ -336,6 +357,26 @@ export class PrismaClient<
     * ```
     */
   get project(): Prisma.ProjectDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.projectIdentityApp`: Exposes CRUD operations for the **ProjectIdentityApp** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ProjectIdentityApps
+    * const projectIdentityApps = await prisma.projectIdentityApp.findMany()
+    * ```
+    */
+  get projectIdentityApp(): Prisma.ProjectIdentityAppDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.userIdentity`: Exposes CRUD operations for the **UserIdentity** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more UserIdentities
+    * const userIdentities = await prisma.userIdentity.findMany()
+    * ```
+    */
+  get userIdentity(): Prisma.UserIdentityDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -787,7 +828,9 @@ export namespace Prisma {
     Membership: 'Membership',
     Invitation: 'Invitation',
     Region: 'Region',
-    Project: 'Project'
+    Project: 'Project',
+    ProjectIdentityApp: 'ProjectIdentityApp',
+    UserIdentity: 'UserIdentity'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -806,7 +849,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "account" | "session" | "user" | "verificationToken" | "organizationType" | "plan" | "subscription" | "organization" | "membership" | "invitation" | "region" | "project"
+      modelProps: "account" | "session" | "user" | "verificationToken" | "organizationType" | "plan" | "subscription" | "organization" | "membership" | "invitation" | "region" | "project" | "projectIdentityApp" | "userIdentity"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1698,6 +1741,154 @@ export namespace Prisma {
           }
         }
       }
+      ProjectIdentityApp: {
+        payload: Prisma.$ProjectIdentityAppPayload<ExtArgs>
+        fields: Prisma.ProjectIdentityAppFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ProjectIdentityAppFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ProjectIdentityAppFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          findFirst: {
+            args: Prisma.ProjectIdentityAppFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ProjectIdentityAppFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          findMany: {
+            args: Prisma.ProjectIdentityAppFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>[]
+          }
+          create: {
+            args: Prisma.ProjectIdentityAppCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          createMany: {
+            args: Prisma.ProjectIdentityAppCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ProjectIdentityAppCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>[]
+          }
+          delete: {
+            args: Prisma.ProjectIdentityAppDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          update: {
+            args: Prisma.ProjectIdentityAppUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          deleteMany: {
+            args: Prisma.ProjectIdentityAppDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ProjectIdentityAppUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ProjectIdentityAppUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>[]
+          }
+          upsert: {
+            args: Prisma.ProjectIdentityAppUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProjectIdentityAppPayload>
+          }
+          aggregate: {
+            args: Prisma.ProjectIdentityAppAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateProjectIdentityApp>
+          }
+          groupBy: {
+            args: Prisma.ProjectIdentityAppGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ProjectIdentityAppGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ProjectIdentityAppCountArgs<ExtArgs>
+            result: $Utils.Optional<ProjectIdentityAppCountAggregateOutputType> | number
+          }
+        }
+      }
+      UserIdentity: {
+        payload: Prisma.$UserIdentityPayload<ExtArgs>
+        fields: Prisma.UserIdentityFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.UserIdentityFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.UserIdentityFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          findFirst: {
+            args: Prisma.UserIdentityFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.UserIdentityFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          findMany: {
+            args: Prisma.UserIdentityFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+          }
+          create: {
+            args: Prisma.UserIdentityCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          createMany: {
+            args: Prisma.UserIdentityCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.UserIdentityCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+          }
+          delete: {
+            args: Prisma.UserIdentityDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          update: {
+            args: Prisma.UserIdentityUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          deleteMany: {
+            args: Prisma.UserIdentityDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.UserIdentityUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.UserIdentityUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+          }
+          upsert: {
+            args: Prisma.UserIdentityUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+          }
+          aggregate: {
+            args: Prisma.UserIdentityAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateUserIdentity>
+          }
+          groupBy: {
+            args: Prisma.UserIdentityGroupByArgs<ExtArgs>
+            result: $Utils.Optional<UserIdentityGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.UserIdentityCountArgs<ExtArgs>
+            result: $Utils.Optional<UserIdentityCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1794,6 +1985,8 @@ export namespace Prisma {
     invitation?: InvitationOmit
     region?: RegionOmit
     project?: ProjectOmit
+    projectIdentityApp?: ProjectIdentityAppOmit
+    userIdentity?: UserIdentityOmit
   }
 
   /* Types for Logging */
@@ -1892,6 +2085,7 @@ export namespace Prisma {
     sessions: number
     ownedOrgs: number
     memberships: number
+    identities: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -1899,6 +2093,7 @@ export namespace Prisma {
     sessions?: boolean | UserCountOutputTypeCountSessionsArgs
     ownedOrgs?: boolean | UserCountOutputTypeCountOwnedOrgsArgs
     memberships?: boolean | UserCountOutputTypeCountMembershipsArgs
+    identities?: boolean | UserCountOutputTypeCountIdentitiesArgs
   }
 
   // Custom InputTypes
@@ -1938,6 +2133,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountMembershipsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: MembershipWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountIdentitiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserIdentityWhereInput
   }
 
 
@@ -4525,6 +4727,7 @@ export namespace Prisma {
     sessions?: boolean | User$sessionsArgs<ExtArgs>
     ownedOrgs?: boolean | User$ownedOrgsArgs<ExtArgs>
     memberships?: boolean | User$membershipsArgs<ExtArgs>
+    identities?: boolean | User$identitiesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -4567,6 +4770,7 @@ export namespace Prisma {
     sessions?: boolean | User$sessionsArgs<ExtArgs>
     ownedOrgs?: boolean | User$ownedOrgsArgs<ExtArgs>
     memberships?: boolean | User$membershipsArgs<ExtArgs>
+    identities?: boolean | User$identitiesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -4579,6 +4783,7 @@ export namespace Prisma {
       sessions: Prisma.$SessionPayload<ExtArgs>[]
       ownedOrgs: Prisma.$OrganizationPayload<ExtArgs>[]
       memberships: Prisma.$MembershipPayload<ExtArgs>[]
+      identities: Prisma.$UserIdentityPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4987,6 +5192,7 @@ export namespace Prisma {
     sessions<T extends User$sessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     ownedOrgs<T extends User$ownedOrgsArgs<ExtArgs> = {}>(args?: Subset<T, User$ownedOrgsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     memberships<T extends User$membershipsArgs<ExtArgs> = {}>(args?: Subset<T, User$membershipsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    identities<T extends User$identitiesArgs<ExtArgs> = {}>(args?: Subset<T, User$identitiesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5505,6 +5711,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: MembershipScalarFieldEnum | MembershipScalarFieldEnum[]
+  }
+
+  /**
+   * User.identities
+   */
+  export type User$identitiesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    where?: UserIdentityWhereInput
+    orderBy?: UserIdentityOrderByWithRelationInput | UserIdentityOrderByWithRelationInput[]
+    cursor?: UserIdentityWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UserIdentityScalarFieldEnum | UserIdentityScalarFieldEnum[]
   }
 
   /**
@@ -14559,6 +14789,7 @@ export namespace Prisma {
     updatedAt?: boolean
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     region?: boolean | RegionDefaultArgs<ExtArgs>
+    identityApp?: boolean | Project$identityAppArgs<ExtArgs>
   }, ExtArgs["result"]["project"]>
 
   export type ProjectSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -14611,6 +14842,7 @@ export namespace Prisma {
   export type ProjectInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     region?: boolean | RegionDefaultArgs<ExtArgs>
+    identityApp?: boolean | Project$identityAppArgs<ExtArgs>
   }
   export type ProjectIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
@@ -14626,6 +14858,7 @@ export namespace Prisma {
     objects: {
       organization: Prisma.$OrganizationPayload<ExtArgs>
       region: Prisma.$RegionPayload<ExtArgs>
+      identityApp: Prisma.$ProjectIdentityAppPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -15035,6 +15268,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     organization<T extends OrganizationDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrganizationDefaultArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     region<T extends RegionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RegionDefaultArgs<ExtArgs>>): Prisma__RegionClient<$Result.GetResult<Prisma.$RegionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    identityApp<T extends Project$identityAppArgs<ExtArgs> = {}>(args?: Subset<T, Project$identityAppArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -15471,6 +15705,25 @@ export namespace Prisma {
   }
 
   /**
+   * Project.identityApp
+   */
+  export type Project$identityAppArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    where?: ProjectIdentityAppWhereInput
+  }
+
+  /**
    * Project without action
    */
   export type ProjectDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -15486,6 +15739,2170 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: ProjectInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ProjectIdentityApp
+   */
+
+  export type AggregateProjectIdentityApp = {
+    _count: ProjectIdentityAppCountAggregateOutputType | null
+    _min: ProjectIdentityAppMinAggregateOutputType | null
+    _max: ProjectIdentityAppMaxAggregateOutputType | null
+  }
+
+  export type ProjectIdentityAppMinAggregateOutputType = {
+    id: string | null
+    provider: $Enums.IdentityProvider | null
+    projectId: string | null
+    externalAppId: string | null
+    externalSecret: string | null
+    tenant: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProjectIdentityAppMaxAggregateOutputType = {
+    id: string | null
+    provider: $Enums.IdentityProvider | null
+    projectId: string | null
+    externalAppId: string | null
+    externalSecret: string | null
+    tenant: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProjectIdentityAppCountAggregateOutputType = {
+    id: number
+    provider: number
+    projectId: number
+    externalAppId: number
+    externalSecret: number
+    tenant: number
+    metadata: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ProjectIdentityAppMinAggregateInputType = {
+    id?: true
+    provider?: true
+    projectId?: true
+    externalAppId?: true
+    externalSecret?: true
+    tenant?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProjectIdentityAppMaxAggregateInputType = {
+    id?: true
+    provider?: true
+    projectId?: true
+    externalAppId?: true
+    externalSecret?: true
+    tenant?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProjectIdentityAppCountAggregateInputType = {
+    id?: true
+    provider?: true
+    projectId?: true
+    externalAppId?: true
+    externalSecret?: true
+    tenant?: true
+    metadata?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ProjectIdentityAppAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProjectIdentityApp to aggregate.
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProjectIdentityApps to fetch.
+     */
+    orderBy?: ProjectIdentityAppOrderByWithRelationInput | ProjectIdentityAppOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ProjectIdentityAppWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProjectIdentityApps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProjectIdentityApps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ProjectIdentityApps
+    **/
+    _count?: true | ProjectIdentityAppCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ProjectIdentityAppMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ProjectIdentityAppMaxAggregateInputType
+  }
+
+  export type GetProjectIdentityAppAggregateType<T extends ProjectIdentityAppAggregateArgs> = {
+        [P in keyof T & keyof AggregateProjectIdentityApp]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateProjectIdentityApp[P]>
+      : GetScalarType<T[P], AggregateProjectIdentityApp[P]>
+  }
+
+
+
+
+  export type ProjectIdentityAppGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ProjectIdentityAppWhereInput
+    orderBy?: ProjectIdentityAppOrderByWithAggregationInput | ProjectIdentityAppOrderByWithAggregationInput[]
+    by: ProjectIdentityAppScalarFieldEnum[] | ProjectIdentityAppScalarFieldEnum
+    having?: ProjectIdentityAppScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ProjectIdentityAppCountAggregateInputType | true
+    _min?: ProjectIdentityAppMinAggregateInputType
+    _max?: ProjectIdentityAppMaxAggregateInputType
+  }
+
+  export type ProjectIdentityAppGroupByOutputType = {
+    id: string
+    provider: $Enums.IdentityProvider
+    projectId: string
+    externalAppId: string
+    externalSecret: string | null
+    tenant: string | null
+    metadata: JsonValue | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ProjectIdentityAppCountAggregateOutputType | null
+    _min: ProjectIdentityAppMinAggregateOutputType | null
+    _max: ProjectIdentityAppMaxAggregateOutputType | null
+  }
+
+  type GetProjectIdentityAppGroupByPayload<T extends ProjectIdentityAppGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ProjectIdentityAppGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ProjectIdentityAppGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ProjectIdentityAppGroupByOutputType[P]>
+            : GetScalarType<T[P], ProjectIdentityAppGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ProjectIdentityAppSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    projectId?: boolean
+    externalAppId?: boolean
+    externalSecret?: boolean
+    tenant?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["projectIdentityApp"]>
+
+  export type ProjectIdentityAppSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    projectId?: boolean
+    externalAppId?: boolean
+    externalSecret?: boolean
+    tenant?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["projectIdentityApp"]>
+
+  export type ProjectIdentityAppSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    projectId?: boolean
+    externalAppId?: boolean
+    externalSecret?: boolean
+    tenant?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["projectIdentityApp"]>
+
+  export type ProjectIdentityAppSelectScalar = {
+    id?: boolean
+    provider?: boolean
+    projectId?: boolean
+    externalAppId?: boolean
+    externalSecret?: boolean
+    tenant?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ProjectIdentityAppOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "provider" | "projectId" | "externalAppId" | "externalSecret" | "tenant" | "metadata" | "createdAt" | "updatedAt", ExtArgs["result"]["projectIdentityApp"]>
+  export type ProjectIdentityAppInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }
+  export type ProjectIdentityAppIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }
+  export type ProjectIdentityAppIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }
+
+  export type $ProjectIdentityAppPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ProjectIdentityApp"
+    objects: {
+      project: Prisma.$ProjectPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      provider: $Enums.IdentityProvider
+      projectId: string
+      externalAppId: string
+      externalSecret: string | null
+      tenant: string | null
+      metadata: Prisma.JsonValue | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["projectIdentityApp"]>
+    composites: {}
+  }
+
+  type ProjectIdentityAppGetPayload<S extends boolean | null | undefined | ProjectIdentityAppDefaultArgs> = $Result.GetResult<Prisma.$ProjectIdentityAppPayload, S>
+
+  type ProjectIdentityAppCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ProjectIdentityAppFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ProjectIdentityAppCountAggregateInputType | true
+    }
+
+  export interface ProjectIdentityAppDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ProjectIdentityApp'], meta: { name: 'ProjectIdentityApp' } }
+    /**
+     * Find zero or one ProjectIdentityApp that matches the filter.
+     * @param {ProjectIdentityAppFindUniqueArgs} args - Arguments to find a ProjectIdentityApp
+     * @example
+     * // Get one ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ProjectIdentityAppFindUniqueArgs>(args: SelectSubset<T, ProjectIdentityAppFindUniqueArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ProjectIdentityApp that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ProjectIdentityAppFindUniqueOrThrowArgs} args - Arguments to find a ProjectIdentityApp
+     * @example
+     * // Get one ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ProjectIdentityAppFindUniqueOrThrowArgs>(args: SelectSubset<T, ProjectIdentityAppFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ProjectIdentityApp that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppFindFirstArgs} args - Arguments to find a ProjectIdentityApp
+     * @example
+     * // Get one ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ProjectIdentityAppFindFirstArgs>(args?: SelectSubset<T, ProjectIdentityAppFindFirstArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ProjectIdentityApp that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppFindFirstOrThrowArgs} args - Arguments to find a ProjectIdentityApp
+     * @example
+     * // Get one ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ProjectIdentityAppFindFirstOrThrowArgs>(args?: SelectSubset<T, ProjectIdentityAppFindFirstOrThrowArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ProjectIdentityApps that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ProjectIdentityApps
+     * const projectIdentityApps = await prisma.projectIdentityApp.findMany()
+     * 
+     * // Get first 10 ProjectIdentityApps
+     * const projectIdentityApps = await prisma.projectIdentityApp.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const projectIdentityAppWithIdOnly = await prisma.projectIdentityApp.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ProjectIdentityAppFindManyArgs>(args?: SelectSubset<T, ProjectIdentityAppFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ProjectIdentityApp.
+     * @param {ProjectIdentityAppCreateArgs} args - Arguments to create a ProjectIdentityApp.
+     * @example
+     * // Create one ProjectIdentityApp
+     * const ProjectIdentityApp = await prisma.projectIdentityApp.create({
+     *   data: {
+     *     // ... data to create a ProjectIdentityApp
+     *   }
+     * })
+     * 
+     */
+    create<T extends ProjectIdentityAppCreateArgs>(args: SelectSubset<T, ProjectIdentityAppCreateArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ProjectIdentityApps.
+     * @param {ProjectIdentityAppCreateManyArgs} args - Arguments to create many ProjectIdentityApps.
+     * @example
+     * // Create many ProjectIdentityApps
+     * const projectIdentityApp = await prisma.projectIdentityApp.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ProjectIdentityAppCreateManyArgs>(args?: SelectSubset<T, ProjectIdentityAppCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ProjectIdentityApps and returns the data saved in the database.
+     * @param {ProjectIdentityAppCreateManyAndReturnArgs} args - Arguments to create many ProjectIdentityApps.
+     * @example
+     * // Create many ProjectIdentityApps
+     * const projectIdentityApp = await prisma.projectIdentityApp.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ProjectIdentityApps and only return the `id`
+     * const projectIdentityAppWithIdOnly = await prisma.projectIdentityApp.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ProjectIdentityAppCreateManyAndReturnArgs>(args?: SelectSubset<T, ProjectIdentityAppCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ProjectIdentityApp.
+     * @param {ProjectIdentityAppDeleteArgs} args - Arguments to delete one ProjectIdentityApp.
+     * @example
+     * // Delete one ProjectIdentityApp
+     * const ProjectIdentityApp = await prisma.projectIdentityApp.delete({
+     *   where: {
+     *     // ... filter to delete one ProjectIdentityApp
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ProjectIdentityAppDeleteArgs>(args: SelectSubset<T, ProjectIdentityAppDeleteArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ProjectIdentityApp.
+     * @param {ProjectIdentityAppUpdateArgs} args - Arguments to update one ProjectIdentityApp.
+     * @example
+     * // Update one ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ProjectIdentityAppUpdateArgs>(args: SelectSubset<T, ProjectIdentityAppUpdateArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ProjectIdentityApps.
+     * @param {ProjectIdentityAppDeleteManyArgs} args - Arguments to filter ProjectIdentityApps to delete.
+     * @example
+     * // Delete a few ProjectIdentityApps
+     * const { count } = await prisma.projectIdentityApp.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ProjectIdentityAppDeleteManyArgs>(args?: SelectSubset<T, ProjectIdentityAppDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProjectIdentityApps.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ProjectIdentityApps
+     * const projectIdentityApp = await prisma.projectIdentityApp.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ProjectIdentityAppUpdateManyArgs>(args: SelectSubset<T, ProjectIdentityAppUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProjectIdentityApps and returns the data updated in the database.
+     * @param {ProjectIdentityAppUpdateManyAndReturnArgs} args - Arguments to update many ProjectIdentityApps.
+     * @example
+     * // Update many ProjectIdentityApps
+     * const projectIdentityApp = await prisma.projectIdentityApp.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ProjectIdentityApps and only return the `id`
+     * const projectIdentityAppWithIdOnly = await prisma.projectIdentityApp.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ProjectIdentityAppUpdateManyAndReturnArgs>(args: SelectSubset<T, ProjectIdentityAppUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ProjectIdentityApp.
+     * @param {ProjectIdentityAppUpsertArgs} args - Arguments to update or create a ProjectIdentityApp.
+     * @example
+     * // Update or create a ProjectIdentityApp
+     * const projectIdentityApp = await prisma.projectIdentityApp.upsert({
+     *   create: {
+     *     // ... data to create a ProjectIdentityApp
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ProjectIdentityApp we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ProjectIdentityAppUpsertArgs>(args: SelectSubset<T, ProjectIdentityAppUpsertArgs<ExtArgs>>): Prisma__ProjectIdentityAppClient<$Result.GetResult<Prisma.$ProjectIdentityAppPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ProjectIdentityApps.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppCountArgs} args - Arguments to filter ProjectIdentityApps to count.
+     * @example
+     * // Count the number of ProjectIdentityApps
+     * const count = await prisma.projectIdentityApp.count({
+     *   where: {
+     *     // ... the filter for the ProjectIdentityApps we want to count
+     *   }
+     * })
+    **/
+    count<T extends ProjectIdentityAppCountArgs>(
+      args?: Subset<T, ProjectIdentityAppCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ProjectIdentityAppCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ProjectIdentityApp.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ProjectIdentityAppAggregateArgs>(args: Subset<T, ProjectIdentityAppAggregateArgs>): Prisma.PrismaPromise<GetProjectIdentityAppAggregateType<T>>
+
+    /**
+     * Group by ProjectIdentityApp.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProjectIdentityAppGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ProjectIdentityAppGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ProjectIdentityAppGroupByArgs['orderBy'] }
+        : { orderBy?: ProjectIdentityAppGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ProjectIdentityAppGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetProjectIdentityAppGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ProjectIdentityApp model
+   */
+  readonly fields: ProjectIdentityAppFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ProjectIdentityApp.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ProjectIdentityAppClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    project<T extends ProjectDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ProjectDefaultArgs<ExtArgs>>): Prisma__ProjectClient<$Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ProjectIdentityApp model
+   */
+  interface ProjectIdentityAppFieldRefs {
+    readonly id: FieldRef<"ProjectIdentityApp", 'String'>
+    readonly provider: FieldRef<"ProjectIdentityApp", 'IdentityProvider'>
+    readonly projectId: FieldRef<"ProjectIdentityApp", 'String'>
+    readonly externalAppId: FieldRef<"ProjectIdentityApp", 'String'>
+    readonly externalSecret: FieldRef<"ProjectIdentityApp", 'String'>
+    readonly tenant: FieldRef<"ProjectIdentityApp", 'String'>
+    readonly metadata: FieldRef<"ProjectIdentityApp", 'Json'>
+    readonly createdAt: FieldRef<"ProjectIdentityApp", 'DateTime'>
+    readonly updatedAt: FieldRef<"ProjectIdentityApp", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ProjectIdentityApp findUnique
+   */
+  export type ProjectIdentityAppFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter, which ProjectIdentityApp to fetch.
+     */
+    where: ProjectIdentityAppWhereUniqueInput
+  }
+
+  /**
+   * ProjectIdentityApp findUniqueOrThrow
+   */
+  export type ProjectIdentityAppFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter, which ProjectIdentityApp to fetch.
+     */
+    where: ProjectIdentityAppWhereUniqueInput
+  }
+
+  /**
+   * ProjectIdentityApp findFirst
+   */
+  export type ProjectIdentityAppFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter, which ProjectIdentityApp to fetch.
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProjectIdentityApps to fetch.
+     */
+    orderBy?: ProjectIdentityAppOrderByWithRelationInput | ProjectIdentityAppOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProjectIdentityApps.
+     */
+    cursor?: ProjectIdentityAppWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProjectIdentityApps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProjectIdentityApps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProjectIdentityApps.
+     */
+    distinct?: ProjectIdentityAppScalarFieldEnum | ProjectIdentityAppScalarFieldEnum[]
+  }
+
+  /**
+   * ProjectIdentityApp findFirstOrThrow
+   */
+  export type ProjectIdentityAppFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter, which ProjectIdentityApp to fetch.
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProjectIdentityApps to fetch.
+     */
+    orderBy?: ProjectIdentityAppOrderByWithRelationInput | ProjectIdentityAppOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProjectIdentityApps.
+     */
+    cursor?: ProjectIdentityAppWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProjectIdentityApps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProjectIdentityApps.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProjectIdentityApps.
+     */
+    distinct?: ProjectIdentityAppScalarFieldEnum | ProjectIdentityAppScalarFieldEnum[]
+  }
+
+  /**
+   * ProjectIdentityApp findMany
+   */
+  export type ProjectIdentityAppFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter, which ProjectIdentityApps to fetch.
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProjectIdentityApps to fetch.
+     */
+    orderBy?: ProjectIdentityAppOrderByWithRelationInput | ProjectIdentityAppOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ProjectIdentityApps.
+     */
+    cursor?: ProjectIdentityAppWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProjectIdentityApps from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProjectIdentityApps.
+     */
+    skip?: number
+    distinct?: ProjectIdentityAppScalarFieldEnum | ProjectIdentityAppScalarFieldEnum[]
+  }
+
+  /**
+   * ProjectIdentityApp create
+   */
+  export type ProjectIdentityAppCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ProjectIdentityApp.
+     */
+    data: XOR<ProjectIdentityAppCreateInput, ProjectIdentityAppUncheckedCreateInput>
+  }
+
+  /**
+   * ProjectIdentityApp createMany
+   */
+  export type ProjectIdentityAppCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ProjectIdentityApps.
+     */
+    data: ProjectIdentityAppCreateManyInput | ProjectIdentityAppCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ProjectIdentityApp createManyAndReturn
+   */
+  export type ProjectIdentityAppCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * The data used to create many ProjectIdentityApps.
+     */
+    data: ProjectIdentityAppCreateManyInput | ProjectIdentityAppCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ProjectIdentityApp update
+   */
+  export type ProjectIdentityAppUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ProjectIdentityApp.
+     */
+    data: XOR<ProjectIdentityAppUpdateInput, ProjectIdentityAppUncheckedUpdateInput>
+    /**
+     * Choose, which ProjectIdentityApp to update.
+     */
+    where: ProjectIdentityAppWhereUniqueInput
+  }
+
+  /**
+   * ProjectIdentityApp updateMany
+   */
+  export type ProjectIdentityAppUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ProjectIdentityApps.
+     */
+    data: XOR<ProjectIdentityAppUpdateManyMutationInput, ProjectIdentityAppUncheckedUpdateManyInput>
+    /**
+     * Filter which ProjectIdentityApps to update
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * Limit how many ProjectIdentityApps to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ProjectIdentityApp updateManyAndReturn
+   */
+  export type ProjectIdentityAppUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * The data used to update ProjectIdentityApps.
+     */
+    data: XOR<ProjectIdentityAppUpdateManyMutationInput, ProjectIdentityAppUncheckedUpdateManyInput>
+    /**
+     * Filter which ProjectIdentityApps to update
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * Limit how many ProjectIdentityApps to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ProjectIdentityApp upsert
+   */
+  export type ProjectIdentityAppUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ProjectIdentityApp to update in case it exists.
+     */
+    where: ProjectIdentityAppWhereUniqueInput
+    /**
+     * In case the ProjectIdentityApp found by the `where` argument doesn't exist, create a new ProjectIdentityApp with this data.
+     */
+    create: XOR<ProjectIdentityAppCreateInput, ProjectIdentityAppUncheckedCreateInput>
+    /**
+     * In case the ProjectIdentityApp was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ProjectIdentityAppUpdateInput, ProjectIdentityAppUncheckedUpdateInput>
+  }
+
+  /**
+   * ProjectIdentityApp delete
+   */
+  export type ProjectIdentityAppDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+    /**
+     * Filter which ProjectIdentityApp to delete.
+     */
+    where: ProjectIdentityAppWhereUniqueInput
+  }
+
+  /**
+   * ProjectIdentityApp deleteMany
+   */
+  export type ProjectIdentityAppDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProjectIdentityApps to delete
+     */
+    where?: ProjectIdentityAppWhereInput
+    /**
+     * Limit how many ProjectIdentityApps to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ProjectIdentityApp without action
+   */
+  export type ProjectIdentityAppDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProjectIdentityApp
+     */
+    select?: ProjectIdentityAppSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ProjectIdentityApp
+     */
+    omit?: ProjectIdentityAppOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectIdentityAppInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model UserIdentity
+   */
+
+  export type AggregateUserIdentity = {
+    _count: UserIdentityCountAggregateOutputType | null
+    _min: UserIdentityMinAggregateOutputType | null
+    _max: UserIdentityMaxAggregateOutputType | null
+  }
+
+  export type UserIdentityMinAggregateOutputType = {
+    id: string | null
+    provider: $Enums.IdentityProvider | null
+    userId: string | null
+    externalUserId: string | null
+    createdAt: Date | null
+  }
+
+  export type UserIdentityMaxAggregateOutputType = {
+    id: string | null
+    provider: $Enums.IdentityProvider | null
+    userId: string | null
+    externalUserId: string | null
+    createdAt: Date | null
+  }
+
+  export type UserIdentityCountAggregateOutputType = {
+    id: number
+    provider: number
+    userId: number
+    externalUserId: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type UserIdentityMinAggregateInputType = {
+    id?: true
+    provider?: true
+    userId?: true
+    externalUserId?: true
+    createdAt?: true
+  }
+
+  export type UserIdentityMaxAggregateInputType = {
+    id?: true
+    provider?: true
+    userId?: true
+    externalUserId?: true
+    createdAt?: true
+  }
+
+  export type UserIdentityCountAggregateInputType = {
+    id?: true
+    provider?: true
+    userId?: true
+    externalUserId?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type UserIdentityAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserIdentity to aggregate.
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserIdentities to fetch.
+     */
+    orderBy?: UserIdentityOrderByWithRelationInput | UserIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: UserIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned UserIdentities
+    **/
+    _count?: true | UserIdentityCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: UserIdentityMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: UserIdentityMaxAggregateInputType
+  }
+
+  export type GetUserIdentityAggregateType<T extends UserIdentityAggregateArgs> = {
+        [P in keyof T & keyof AggregateUserIdentity]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateUserIdentity[P]>
+      : GetScalarType<T[P], AggregateUserIdentity[P]>
+  }
+
+
+
+
+  export type UserIdentityGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: UserIdentityWhereInput
+    orderBy?: UserIdentityOrderByWithAggregationInput | UserIdentityOrderByWithAggregationInput[]
+    by: UserIdentityScalarFieldEnum[] | UserIdentityScalarFieldEnum
+    having?: UserIdentityScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: UserIdentityCountAggregateInputType | true
+    _min?: UserIdentityMinAggregateInputType
+    _max?: UserIdentityMaxAggregateInputType
+  }
+
+  export type UserIdentityGroupByOutputType = {
+    id: string
+    provider: $Enums.IdentityProvider
+    userId: string
+    externalUserId: string
+    createdAt: Date
+    _count: UserIdentityCountAggregateOutputType | null
+    _min: UserIdentityMinAggregateOutputType | null
+    _max: UserIdentityMaxAggregateOutputType | null
+  }
+
+  type GetUserIdentityGroupByPayload<T extends UserIdentityGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<UserIdentityGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof UserIdentityGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], UserIdentityGroupByOutputType[P]>
+            : GetScalarType<T[P], UserIdentityGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type UserIdentitySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    userId?: boolean
+    externalUserId?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["userIdentity"]>
+
+  export type UserIdentitySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    userId?: boolean
+    externalUserId?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["userIdentity"]>
+
+  export type UserIdentitySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    provider?: boolean
+    userId?: boolean
+    externalUserId?: boolean
+    createdAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["userIdentity"]>
+
+  export type UserIdentitySelectScalar = {
+    id?: boolean
+    provider?: boolean
+    userId?: boolean
+    externalUserId?: boolean
+    createdAt?: boolean
+  }
+
+  export type UserIdentityOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "provider" | "userId" | "externalUserId" | "createdAt", ExtArgs["result"]["userIdentity"]>
+  export type UserIdentityInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type UserIdentityIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type UserIdentityIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $UserIdentityPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "UserIdentity"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      provider: $Enums.IdentityProvider
+      userId: string
+      externalUserId: string
+      createdAt: Date
+    }, ExtArgs["result"]["userIdentity"]>
+    composites: {}
+  }
+
+  type UserIdentityGetPayload<S extends boolean | null | undefined | UserIdentityDefaultArgs> = $Result.GetResult<Prisma.$UserIdentityPayload, S>
+
+  type UserIdentityCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<UserIdentityFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: UserIdentityCountAggregateInputType | true
+    }
+
+  export interface UserIdentityDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['UserIdentity'], meta: { name: 'UserIdentity' } }
+    /**
+     * Find zero or one UserIdentity that matches the filter.
+     * @param {UserIdentityFindUniqueArgs} args - Arguments to find a UserIdentity
+     * @example
+     * // Get one UserIdentity
+     * const userIdentity = await prisma.userIdentity.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends UserIdentityFindUniqueArgs>(args: SelectSubset<T, UserIdentityFindUniqueArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one UserIdentity that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {UserIdentityFindUniqueOrThrowArgs} args - Arguments to find a UserIdentity
+     * @example
+     * // Get one UserIdentity
+     * const userIdentity = await prisma.userIdentity.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends UserIdentityFindUniqueOrThrowArgs>(args: SelectSubset<T, UserIdentityFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UserIdentity that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityFindFirstArgs} args - Arguments to find a UserIdentity
+     * @example
+     * // Get one UserIdentity
+     * const userIdentity = await prisma.userIdentity.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends UserIdentityFindFirstArgs>(args?: SelectSubset<T, UserIdentityFindFirstArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UserIdentity that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityFindFirstOrThrowArgs} args - Arguments to find a UserIdentity
+     * @example
+     * // Get one UserIdentity
+     * const userIdentity = await prisma.userIdentity.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends UserIdentityFindFirstOrThrowArgs>(args?: SelectSubset<T, UserIdentityFindFirstOrThrowArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more UserIdentities that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all UserIdentities
+     * const userIdentities = await prisma.userIdentity.findMany()
+     * 
+     * // Get first 10 UserIdentities
+     * const userIdentities = await prisma.userIdentity.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const userIdentityWithIdOnly = await prisma.userIdentity.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends UserIdentityFindManyArgs>(args?: SelectSubset<T, UserIdentityFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a UserIdentity.
+     * @param {UserIdentityCreateArgs} args - Arguments to create a UserIdentity.
+     * @example
+     * // Create one UserIdentity
+     * const UserIdentity = await prisma.userIdentity.create({
+     *   data: {
+     *     // ... data to create a UserIdentity
+     *   }
+     * })
+     * 
+     */
+    create<T extends UserIdentityCreateArgs>(args: SelectSubset<T, UserIdentityCreateArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many UserIdentities.
+     * @param {UserIdentityCreateManyArgs} args - Arguments to create many UserIdentities.
+     * @example
+     * // Create many UserIdentities
+     * const userIdentity = await prisma.userIdentity.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends UserIdentityCreateManyArgs>(args?: SelectSubset<T, UserIdentityCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many UserIdentities and returns the data saved in the database.
+     * @param {UserIdentityCreateManyAndReturnArgs} args - Arguments to create many UserIdentities.
+     * @example
+     * // Create many UserIdentities
+     * const userIdentity = await prisma.userIdentity.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many UserIdentities and only return the `id`
+     * const userIdentityWithIdOnly = await prisma.userIdentity.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends UserIdentityCreateManyAndReturnArgs>(args?: SelectSubset<T, UserIdentityCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a UserIdentity.
+     * @param {UserIdentityDeleteArgs} args - Arguments to delete one UserIdentity.
+     * @example
+     * // Delete one UserIdentity
+     * const UserIdentity = await prisma.userIdentity.delete({
+     *   where: {
+     *     // ... filter to delete one UserIdentity
+     *   }
+     * })
+     * 
+     */
+    delete<T extends UserIdentityDeleteArgs>(args: SelectSubset<T, UserIdentityDeleteArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one UserIdentity.
+     * @param {UserIdentityUpdateArgs} args - Arguments to update one UserIdentity.
+     * @example
+     * // Update one UserIdentity
+     * const userIdentity = await prisma.userIdentity.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends UserIdentityUpdateArgs>(args: SelectSubset<T, UserIdentityUpdateArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more UserIdentities.
+     * @param {UserIdentityDeleteManyArgs} args - Arguments to filter UserIdentities to delete.
+     * @example
+     * // Delete a few UserIdentities
+     * const { count } = await prisma.userIdentity.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends UserIdentityDeleteManyArgs>(args?: SelectSubset<T, UserIdentityDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UserIdentities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many UserIdentities
+     * const userIdentity = await prisma.userIdentity.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends UserIdentityUpdateManyArgs>(args: SelectSubset<T, UserIdentityUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UserIdentities and returns the data updated in the database.
+     * @param {UserIdentityUpdateManyAndReturnArgs} args - Arguments to update many UserIdentities.
+     * @example
+     * // Update many UserIdentities
+     * const userIdentity = await prisma.userIdentity.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more UserIdentities and only return the `id`
+     * const userIdentityWithIdOnly = await prisma.userIdentity.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends UserIdentityUpdateManyAndReturnArgs>(args: SelectSubset<T, UserIdentityUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one UserIdentity.
+     * @param {UserIdentityUpsertArgs} args - Arguments to update or create a UserIdentity.
+     * @example
+     * // Update or create a UserIdentity
+     * const userIdentity = await prisma.userIdentity.upsert({
+     *   create: {
+     *     // ... data to create a UserIdentity
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the UserIdentity we want to update
+     *   }
+     * })
+     */
+    upsert<T extends UserIdentityUpsertArgs>(args: SelectSubset<T, UserIdentityUpsertArgs<ExtArgs>>): Prisma__UserIdentityClient<$Result.GetResult<Prisma.$UserIdentityPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of UserIdentities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityCountArgs} args - Arguments to filter UserIdentities to count.
+     * @example
+     * // Count the number of UserIdentities
+     * const count = await prisma.userIdentity.count({
+     *   where: {
+     *     // ... the filter for the UserIdentities we want to count
+     *   }
+     * })
+    **/
+    count<T extends UserIdentityCountArgs>(
+      args?: Subset<T, UserIdentityCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], UserIdentityCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a UserIdentity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends UserIdentityAggregateArgs>(args: Subset<T, UserIdentityAggregateArgs>): Prisma.PrismaPromise<GetUserIdentityAggregateType<T>>
+
+    /**
+     * Group by UserIdentity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UserIdentityGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends UserIdentityGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: UserIdentityGroupByArgs['orderBy'] }
+        : { orderBy?: UserIdentityGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, UserIdentityGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUserIdentityGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the UserIdentity model
+   */
+  readonly fields: UserIdentityFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for UserIdentity.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__UserIdentityClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the UserIdentity model
+   */
+  interface UserIdentityFieldRefs {
+    readonly id: FieldRef<"UserIdentity", 'String'>
+    readonly provider: FieldRef<"UserIdentity", 'IdentityProvider'>
+    readonly userId: FieldRef<"UserIdentity", 'String'>
+    readonly externalUserId: FieldRef<"UserIdentity", 'String'>
+    readonly createdAt: FieldRef<"UserIdentity", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * UserIdentity findUnique
+   */
+  export type UserIdentityFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which UserIdentity to fetch.
+     */
+    where: UserIdentityWhereUniqueInput
+  }
+
+  /**
+   * UserIdentity findUniqueOrThrow
+   */
+  export type UserIdentityFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which UserIdentity to fetch.
+     */
+    where: UserIdentityWhereUniqueInput
+  }
+
+  /**
+   * UserIdentity findFirst
+   */
+  export type UserIdentityFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which UserIdentity to fetch.
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserIdentities to fetch.
+     */
+    orderBy?: UserIdentityOrderByWithRelationInput | UserIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserIdentities.
+     */
+    cursor?: UserIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserIdentities.
+     */
+    distinct?: UserIdentityScalarFieldEnum | UserIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * UserIdentity findFirstOrThrow
+   */
+  export type UserIdentityFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which UserIdentity to fetch.
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserIdentities to fetch.
+     */
+    orderBy?: UserIdentityOrderByWithRelationInput | UserIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UserIdentities.
+     */
+    cursor?: UserIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserIdentities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UserIdentities.
+     */
+    distinct?: UserIdentityScalarFieldEnum | UserIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * UserIdentity findMany
+   */
+  export type UserIdentityFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter, which UserIdentities to fetch.
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UserIdentities to fetch.
+     */
+    orderBy?: UserIdentityOrderByWithRelationInput | UserIdentityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing UserIdentities.
+     */
+    cursor?: UserIdentityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UserIdentities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UserIdentities.
+     */
+    skip?: number
+    distinct?: UserIdentityScalarFieldEnum | UserIdentityScalarFieldEnum[]
+  }
+
+  /**
+   * UserIdentity create
+   */
+  export type UserIdentityCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * The data needed to create a UserIdentity.
+     */
+    data: XOR<UserIdentityCreateInput, UserIdentityUncheckedCreateInput>
+  }
+
+  /**
+   * UserIdentity createMany
+   */
+  export type UserIdentityCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many UserIdentities.
+     */
+    data: UserIdentityCreateManyInput | UserIdentityCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * UserIdentity createManyAndReturn
+   */
+  export type UserIdentityCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * The data used to create many UserIdentities.
+     */
+    data: UserIdentityCreateManyInput | UserIdentityCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * UserIdentity update
+   */
+  export type UserIdentityUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * The data needed to update a UserIdentity.
+     */
+    data: XOR<UserIdentityUpdateInput, UserIdentityUncheckedUpdateInput>
+    /**
+     * Choose, which UserIdentity to update.
+     */
+    where: UserIdentityWhereUniqueInput
+  }
+
+  /**
+   * UserIdentity updateMany
+   */
+  export type UserIdentityUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update UserIdentities.
+     */
+    data: XOR<UserIdentityUpdateManyMutationInput, UserIdentityUncheckedUpdateManyInput>
+    /**
+     * Filter which UserIdentities to update
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * Limit how many UserIdentities to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * UserIdentity updateManyAndReturn
+   */
+  export type UserIdentityUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * The data used to update UserIdentities.
+     */
+    data: XOR<UserIdentityUpdateManyMutationInput, UserIdentityUncheckedUpdateManyInput>
+    /**
+     * Filter which UserIdentities to update
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * Limit how many UserIdentities to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * UserIdentity upsert
+   */
+  export type UserIdentityUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * The filter to search for the UserIdentity to update in case it exists.
+     */
+    where: UserIdentityWhereUniqueInput
+    /**
+     * In case the UserIdentity found by the `where` argument doesn't exist, create a new UserIdentity with this data.
+     */
+    create: XOR<UserIdentityCreateInput, UserIdentityUncheckedCreateInput>
+    /**
+     * In case the UserIdentity was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<UserIdentityUpdateInput, UserIdentityUncheckedUpdateInput>
+  }
+
+  /**
+   * UserIdentity delete
+   */
+  export type UserIdentityDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
+    /**
+     * Filter which UserIdentity to delete.
+     */
+    where: UserIdentityWhereUniqueInput
+  }
+
+  /**
+   * UserIdentity deleteMany
+   */
+  export type UserIdentityDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which UserIdentities to delete
+     */
+    where?: UserIdentityWhereInput
+    /**
+     * Limit how many UserIdentities to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * UserIdentity without action
+   */
+  export type UserIdentityDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UserIdentity
+     */
+    select?: UserIdentitySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UserIdentity
+     */
+    omit?: UserIdentityOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserIdentityInclude<ExtArgs> | null
   }
 
 
@@ -15664,6 +18081,32 @@ export namespace Prisma {
   export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
 
 
+  export const ProjectIdentityAppScalarFieldEnum: {
+    id: 'id',
+    provider: 'provider',
+    projectId: 'projectId',
+    externalAppId: 'externalAppId',
+    externalSecret: 'externalSecret',
+    tenant: 'tenant',
+    metadata: 'metadata',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ProjectIdentityAppScalarFieldEnum = (typeof ProjectIdentityAppScalarFieldEnum)[keyof typeof ProjectIdentityAppScalarFieldEnum]
+
+
+  export const UserIdentityScalarFieldEnum: {
+    id: 'id',
+    provider: 'provider',
+    userId: 'userId',
+    externalUserId: 'externalUserId',
+    createdAt: 'createdAt'
+  };
+
+  export type UserIdentityScalarFieldEnum = (typeof UserIdentityScalarFieldEnum)[keyof typeof UserIdentityScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -15677,6 +18120,14 @@ export namespace Prisma {
   };
 
   export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+  export const NullableJsonNullValueInput: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull
+  };
+
+  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
   export const QueryMode: {
@@ -15783,6 +18234,20 @@ export namespace Prisma {
    * Reference to a field of type 'Role[]'
    */
   export type ListEnumRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Role[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'IdentityProvider'
+   */
+  export type EnumIdentityProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'IdentityProvider'>
+    
+
+
+  /**
+   * Reference to a field of type 'IdentityProvider[]'
+   */
+  export type ListEnumIdentityProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'IdentityProvider[]'>
     
 
 
@@ -15962,6 +18427,7 @@ export namespace Prisma {
     sessions?: SessionListRelationFilter
     ownedOrgs?: OrganizationListRelationFilter
     memberships?: MembershipListRelationFilter
+    identities?: UserIdentityListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -15977,6 +18443,7 @@ export namespace Prisma {
     sessions?: SessionOrderByRelationAggregateInput
     ownedOrgs?: OrganizationOrderByRelationAggregateInput
     memberships?: MembershipOrderByRelationAggregateInput
+    identities?: UserIdentityOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -15995,6 +18462,7 @@ export namespace Prisma {
     sessions?: SessionListRelationFilter
     ownedOrgs?: OrganizationListRelationFilter
     memberships?: MembershipListRelationFilter
+    identities?: UserIdentityListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -16582,6 +19050,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Project"> | Date | string
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     region?: XOR<RegionScalarRelationFilter, RegionWhereInput>
+    identityApp?: XOR<ProjectIdentityAppNullableScalarRelationFilter, ProjectIdentityAppWhereInput> | null
   }
 
   export type ProjectOrderByWithRelationInput = {
@@ -16598,6 +19067,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     organization?: OrganizationOrderByWithRelationInput
     region?: RegionOrderByWithRelationInput
+    identityApp?: ProjectIdentityAppOrderByWithRelationInput
   }
 
   export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -16618,6 +19088,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Project"> | Date | string
     organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
     region?: XOR<RegionScalarRelationFilter, RegionWhereInput>
+    identityApp?: XOR<ProjectIdentityAppNullableScalarRelationFilter, ProjectIdentityAppWhereInput> | null
   }, "id" | "organizationId_slug">
 
   export type ProjectOrderByWithAggregationInput = {
@@ -16652,6 +19123,136 @@ export namespace Prisma {
     dbEngine?: StringWithAggregatesFilter<"Project"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Project"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Project"> | Date | string
+  }
+
+  export type ProjectIdentityAppWhereInput = {
+    AND?: ProjectIdentityAppWhereInput | ProjectIdentityAppWhereInput[]
+    OR?: ProjectIdentityAppWhereInput[]
+    NOT?: ProjectIdentityAppWhereInput | ProjectIdentityAppWhereInput[]
+    id?: StringFilter<"ProjectIdentityApp"> | string
+    provider?: EnumIdentityProviderFilter<"ProjectIdentityApp"> | $Enums.IdentityProvider
+    projectId?: StringFilter<"ProjectIdentityApp"> | string
+    externalAppId?: StringFilter<"ProjectIdentityApp"> | string
+    externalSecret?: StringNullableFilter<"ProjectIdentityApp"> | string | null
+    tenant?: StringNullableFilter<"ProjectIdentityApp"> | string | null
+    metadata?: JsonNullableFilter<"ProjectIdentityApp">
+    createdAt?: DateTimeFilter<"ProjectIdentityApp"> | Date | string
+    updatedAt?: DateTimeFilter<"ProjectIdentityApp"> | Date | string
+    project?: XOR<ProjectScalarRelationFilter, ProjectWhereInput>
+  }
+
+  export type ProjectIdentityAppOrderByWithRelationInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    projectId?: SortOrder
+    externalAppId?: SortOrder
+    externalSecret?: SortOrderInput | SortOrder
+    tenant?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    project?: ProjectOrderByWithRelationInput
+  }
+
+  export type ProjectIdentityAppWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    projectId?: string
+    externalAppId?: string
+    AND?: ProjectIdentityAppWhereInput | ProjectIdentityAppWhereInput[]
+    OR?: ProjectIdentityAppWhereInput[]
+    NOT?: ProjectIdentityAppWhereInput | ProjectIdentityAppWhereInput[]
+    provider?: EnumIdentityProviderFilter<"ProjectIdentityApp"> | $Enums.IdentityProvider
+    externalSecret?: StringNullableFilter<"ProjectIdentityApp"> | string | null
+    tenant?: StringNullableFilter<"ProjectIdentityApp"> | string | null
+    metadata?: JsonNullableFilter<"ProjectIdentityApp">
+    createdAt?: DateTimeFilter<"ProjectIdentityApp"> | Date | string
+    updatedAt?: DateTimeFilter<"ProjectIdentityApp"> | Date | string
+    project?: XOR<ProjectScalarRelationFilter, ProjectWhereInput>
+  }, "id" | "projectId" | "externalAppId">
+
+  export type ProjectIdentityAppOrderByWithAggregationInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    projectId?: SortOrder
+    externalAppId?: SortOrder
+    externalSecret?: SortOrderInput | SortOrder
+    tenant?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ProjectIdentityAppCountOrderByAggregateInput
+    _max?: ProjectIdentityAppMaxOrderByAggregateInput
+    _min?: ProjectIdentityAppMinOrderByAggregateInput
+  }
+
+  export type ProjectIdentityAppScalarWhereWithAggregatesInput = {
+    AND?: ProjectIdentityAppScalarWhereWithAggregatesInput | ProjectIdentityAppScalarWhereWithAggregatesInput[]
+    OR?: ProjectIdentityAppScalarWhereWithAggregatesInput[]
+    NOT?: ProjectIdentityAppScalarWhereWithAggregatesInput | ProjectIdentityAppScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ProjectIdentityApp"> | string
+    provider?: EnumIdentityProviderWithAggregatesFilter<"ProjectIdentityApp"> | $Enums.IdentityProvider
+    projectId?: StringWithAggregatesFilter<"ProjectIdentityApp"> | string
+    externalAppId?: StringWithAggregatesFilter<"ProjectIdentityApp"> | string
+    externalSecret?: StringNullableWithAggregatesFilter<"ProjectIdentityApp"> | string | null
+    tenant?: StringNullableWithAggregatesFilter<"ProjectIdentityApp"> | string | null
+    metadata?: JsonNullableWithAggregatesFilter<"ProjectIdentityApp">
+    createdAt?: DateTimeWithAggregatesFilter<"ProjectIdentityApp"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ProjectIdentityApp"> | Date | string
+  }
+
+  export type UserIdentityWhereInput = {
+    AND?: UserIdentityWhereInput | UserIdentityWhereInput[]
+    OR?: UserIdentityWhereInput[]
+    NOT?: UserIdentityWhereInput | UserIdentityWhereInput[]
+    id?: StringFilter<"UserIdentity"> | string
+    provider?: EnumIdentityProviderFilter<"UserIdentity"> | $Enums.IdentityProvider
+    userId?: StringFilter<"UserIdentity"> | string
+    externalUserId?: StringFilter<"UserIdentity"> | string
+    createdAt?: DateTimeFilter<"UserIdentity"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type UserIdentityOrderByWithRelationInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    userId?: SortOrder
+    externalUserId?: SortOrder
+    createdAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type UserIdentityWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    externalUserId?: string
+    AND?: UserIdentityWhereInput | UserIdentityWhereInput[]
+    OR?: UserIdentityWhereInput[]
+    NOT?: UserIdentityWhereInput | UserIdentityWhereInput[]
+    provider?: EnumIdentityProviderFilter<"UserIdentity"> | $Enums.IdentityProvider
+    userId?: StringFilter<"UserIdentity"> | string
+    createdAt?: DateTimeFilter<"UserIdentity"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "externalUserId">
+
+  export type UserIdentityOrderByWithAggregationInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    userId?: SortOrder
+    externalUserId?: SortOrder
+    createdAt?: SortOrder
+    _count?: UserIdentityCountOrderByAggregateInput
+    _max?: UserIdentityMaxOrderByAggregateInput
+    _min?: UserIdentityMinOrderByAggregateInput
+  }
+
+  export type UserIdentityScalarWhereWithAggregatesInput = {
+    AND?: UserIdentityScalarWhereWithAggregatesInput | UserIdentityScalarWhereWithAggregatesInput[]
+    OR?: UserIdentityScalarWhereWithAggregatesInput[]
+    NOT?: UserIdentityScalarWhereWithAggregatesInput | UserIdentityScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"UserIdentity"> | string
+    provider?: EnumIdentityProviderWithAggregatesFilter<"UserIdentity"> | $Enums.IdentityProvider
+    userId?: StringWithAggregatesFilter<"UserIdentity"> | string
+    externalUserId?: StringWithAggregatesFilter<"UserIdentity"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"UserIdentity"> | Date | string
   }
 
   export type AccountCreateInput = {
@@ -16819,6 +19420,7 @@ export namespace Prisma {
     sessions?: SessionCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationCreateNestedManyWithoutOwnerInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
+    identities?: UserIdentityCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -16834,6 +19436,7 @@ export namespace Prisma {
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationUncheckedCreateNestedManyWithoutOwnerInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
+    identities?: UserIdentityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -16849,6 +19452,7 @@ export namespace Prisma {
     sessions?: SessionUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -16864,6 +19468,7 @@ export namespace Prisma {
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUncheckedUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -17481,6 +20086,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     organization: OrganizationCreateNestedOneWithoutProjectsInput
     region: RegionCreateNestedOneWithoutProjectsInput
+    identityApp?: ProjectIdentityAppCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateInput = {
@@ -17495,6 +20101,7 @@ export namespace Prisma {
     dbEngine?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    identityApp?: ProjectIdentityAppUncheckedCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectUpdateInput = {
@@ -17509,6 +20116,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     organization?: OrganizationUpdateOneRequiredWithoutProjectsNestedInput
     region?: RegionUpdateOneRequiredWithoutProjectsNestedInput
+    identityApp?: ProjectIdentityAppUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateInput = {
@@ -17523,6 +20131,7 @@ export namespace Prisma {
     dbEngine?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identityApp?: ProjectIdentityAppUncheckedUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectCreateManyInput = {
@@ -17563,6 +20172,144 @@ export namespace Prisma {
     dbEngine?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProjectIdentityAppCreateInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalAppId: string
+    externalSecret?: string | null
+    tenant?: string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutIdentityAppInput
+  }
+
+  export type ProjectIdentityAppUncheckedCreateInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    projectId: string
+    externalAppId: string
+    externalSecret?: string | null
+    tenant?: string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProjectIdentityAppUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutIdentityAppNestedInput
+  }
+
+  export type ProjectIdentityAppUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    projectId?: StringFieldUpdateOperationsInput | string
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProjectIdentityAppCreateManyInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    projectId: string
+    externalAppId: string
+    externalSecret?: string | null
+    tenant?: string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProjectIdentityAppUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProjectIdentityAppUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    projectId?: StringFieldUpdateOperationsInput | string
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityCreateInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalUserId: string
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutIdentitiesInput
+  }
+
+  export type UserIdentityUncheckedCreateInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    userId: string
+    externalUserId: string
+    createdAt?: Date | string
+  }
+
+  export type UserIdentityUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutIdentitiesNestedInput
+  }
+
+  export type UserIdentityUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    userId?: StringFieldUpdateOperationsInput | string
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityCreateManyInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    userId: string
+    externalUserId: string
+    createdAt?: Date | string
+  }
+
+  export type UserIdentityUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    userId?: StringFieldUpdateOperationsInput | string
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -17807,6 +20554,12 @@ export namespace Prisma {
     none?: MembershipWhereInput
   }
 
+  export type UserIdentityListRelationFilter = {
+    every?: UserIdentityWhereInput
+    some?: UserIdentityWhereInput
+    none?: UserIdentityWhereInput
+  }
+
   export type AccountOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -17820,6 +20573,10 @@ export namespace Prisma {
   }
 
   export type MembershipOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type UserIdentityOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -18284,6 +21041,11 @@ export namespace Prisma {
     isNot?: RegionWhereInput
   }
 
+  export type ProjectIdentityAppNullableScalarRelationFilter = {
+    is?: ProjectIdentityAppWhereInput | null
+    isNot?: ProjectIdentityAppWhereInput | null
+  }
+
   export type ProjectOrganizationIdSlugCompoundUniqueInput = {
     organizationId: string
     slug: string
@@ -18329,6 +21091,135 @@ export namespace Prisma {
     dbEngine?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type EnumIdentityProviderFilter<$PrismaModel = never> = {
+    equals?: $Enums.IdentityProvider | EnumIdentityProviderFieldRefInput<$PrismaModel>
+    in?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    notIn?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    not?: NestedEnumIdentityProviderFilter<$PrismaModel> | $Enums.IdentityProvider
+  }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type ProjectScalarRelationFilter = {
+    is?: ProjectWhereInput
+    isNot?: ProjectWhereInput
+  }
+
+  export type ProjectIdentityAppCountOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    projectId?: SortOrder
+    externalAppId?: SortOrder
+    externalSecret?: SortOrder
+    tenant?: SortOrder
+    metadata?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProjectIdentityAppMaxOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    projectId?: SortOrder
+    externalAppId?: SortOrder
+    externalSecret?: SortOrder
+    tenant?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProjectIdentityAppMinOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    projectId?: SortOrder
+    externalAppId?: SortOrder
+    externalSecret?: SortOrder
+    tenant?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnumIdentityProviderWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.IdentityProvider | EnumIdentityProviderFieldRefInput<$PrismaModel>
+    in?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    notIn?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    not?: NestedEnumIdentityProviderWithAggregatesFilter<$PrismaModel> | $Enums.IdentityProvider
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumIdentityProviderFilter<$PrismaModel>
+    _max?: NestedEnumIdentityProviderFilter<$PrismaModel>
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
+
+  export type UserIdentityCountOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    userId?: SortOrder
+    externalUserId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type UserIdentityMaxOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    userId?: SortOrder
+    externalUserId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type UserIdentityMinOrderByAggregateInput = {
+    id?: SortOrder
+    provider?: SortOrder
+    userId?: SortOrder
+    externalUserId?: SortOrder
+    createdAt?: SortOrder
   }
 
   export type UserCreateNestedOneWithoutAccountsInput = {
@@ -18407,6 +21298,13 @@ export namespace Prisma {
     connect?: MembershipWhereUniqueInput | MembershipWhereUniqueInput[]
   }
 
+  export type UserIdentityCreateNestedManyWithoutUserInput = {
+    create?: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput> | UserIdentityCreateWithoutUserInput[] | UserIdentityUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserIdentityCreateOrConnectWithoutUserInput | UserIdentityCreateOrConnectWithoutUserInput[]
+    createMany?: UserIdentityCreateManyUserInputEnvelope
+    connect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+  }
+
   export type AccountUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<AccountCreateWithoutUserInput, AccountUncheckedCreateWithoutUserInput> | AccountCreateWithoutUserInput[] | AccountUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
@@ -18433,6 +21331,13 @@ export namespace Prisma {
     connectOrCreate?: MembershipCreateOrConnectWithoutUserInput | MembershipCreateOrConnectWithoutUserInput[]
     createMany?: MembershipCreateManyUserInputEnvelope
     connect?: MembershipWhereUniqueInput | MembershipWhereUniqueInput[]
+  }
+
+  export type UserIdentityUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput> | UserIdentityCreateWithoutUserInput[] | UserIdentityUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserIdentityCreateOrConnectWithoutUserInput | UserIdentityCreateOrConnectWithoutUserInput[]
+    createMany?: UserIdentityCreateManyUserInputEnvelope
+    connect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
   }
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
@@ -18495,6 +21400,20 @@ export namespace Prisma {
     deleteMany?: MembershipScalarWhereInput | MembershipScalarWhereInput[]
   }
 
+  export type UserIdentityUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput> | UserIdentityCreateWithoutUserInput[] | UserIdentityUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserIdentityCreateOrConnectWithoutUserInput | UserIdentityCreateOrConnectWithoutUserInput[]
+    upsert?: UserIdentityUpsertWithWhereUniqueWithoutUserInput | UserIdentityUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UserIdentityCreateManyUserInputEnvelope
+    set?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    disconnect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    delete?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    connect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    update?: UserIdentityUpdateWithWhereUniqueWithoutUserInput | UserIdentityUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UserIdentityUpdateManyWithWhereWithoutUserInput | UserIdentityUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UserIdentityScalarWhereInput | UserIdentityScalarWhereInput[]
+  }
+
   export type AccountUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<AccountCreateWithoutUserInput, AccountUncheckedCreateWithoutUserInput> | AccountCreateWithoutUserInput[] | AccountUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
@@ -18549,6 +21468,20 @@ export namespace Prisma {
     update?: MembershipUpdateWithWhereUniqueWithoutUserInput | MembershipUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: MembershipUpdateManyWithWhereWithoutUserInput | MembershipUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: MembershipScalarWhereInput | MembershipScalarWhereInput[]
+  }
+
+  export type UserIdentityUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput> | UserIdentityCreateWithoutUserInput[] | UserIdentityUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UserIdentityCreateOrConnectWithoutUserInput | UserIdentityCreateOrConnectWithoutUserInput[]
+    upsert?: UserIdentityUpsertWithWhereUniqueWithoutUserInput | UserIdentityUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UserIdentityCreateManyUserInputEnvelope
+    set?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    disconnect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    delete?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    connect?: UserIdentityWhereUniqueInput | UserIdentityWhereUniqueInput[]
+    update?: UserIdentityUpdateWithWhereUniqueWithoutUserInput | UserIdentityUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UserIdentityUpdateManyWithWhereWithoutUserInput | UserIdentityUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UserIdentityScalarWhereInput | UserIdentityScalarWhereInput[]
   }
 
   export type OrganizationCreateNestedManyWithoutTypeInput = {
@@ -19027,6 +21960,18 @@ export namespace Prisma {
     connect?: RegionWhereUniqueInput
   }
 
+  export type ProjectIdentityAppCreateNestedOneWithoutProjectInput = {
+    create?: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+    connectOrCreate?: ProjectIdentityAppCreateOrConnectWithoutProjectInput
+    connect?: ProjectIdentityAppWhereUniqueInput
+  }
+
+  export type ProjectIdentityAppUncheckedCreateNestedOneWithoutProjectInput = {
+    create?: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+    connectOrCreate?: ProjectIdentityAppCreateOrConnectWithoutProjectInput
+    connect?: ProjectIdentityAppWhereUniqueInput
+  }
+
   export type OrganizationUpdateOneRequiredWithoutProjectsNestedInput = {
     create?: XOR<OrganizationCreateWithoutProjectsInput, OrganizationUncheckedCreateWithoutProjectsInput>
     connectOrCreate?: OrganizationCreateOrConnectWithoutProjectsInput
@@ -19041,6 +21986,58 @@ export namespace Prisma {
     upsert?: RegionUpsertWithoutProjectsInput
     connect?: RegionWhereUniqueInput
     update?: XOR<XOR<RegionUpdateToOneWithWhereWithoutProjectsInput, RegionUpdateWithoutProjectsInput>, RegionUncheckedUpdateWithoutProjectsInput>
+  }
+
+  export type ProjectIdentityAppUpdateOneWithoutProjectNestedInput = {
+    create?: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+    connectOrCreate?: ProjectIdentityAppCreateOrConnectWithoutProjectInput
+    upsert?: ProjectIdentityAppUpsertWithoutProjectInput
+    disconnect?: ProjectIdentityAppWhereInput | boolean
+    delete?: ProjectIdentityAppWhereInput | boolean
+    connect?: ProjectIdentityAppWhereUniqueInput
+    update?: XOR<XOR<ProjectIdentityAppUpdateToOneWithWhereWithoutProjectInput, ProjectIdentityAppUpdateWithoutProjectInput>, ProjectIdentityAppUncheckedUpdateWithoutProjectInput>
+  }
+
+  export type ProjectIdentityAppUncheckedUpdateOneWithoutProjectNestedInput = {
+    create?: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+    connectOrCreate?: ProjectIdentityAppCreateOrConnectWithoutProjectInput
+    upsert?: ProjectIdentityAppUpsertWithoutProjectInput
+    disconnect?: ProjectIdentityAppWhereInput | boolean
+    delete?: ProjectIdentityAppWhereInput | boolean
+    connect?: ProjectIdentityAppWhereUniqueInput
+    update?: XOR<XOR<ProjectIdentityAppUpdateToOneWithWhereWithoutProjectInput, ProjectIdentityAppUpdateWithoutProjectInput>, ProjectIdentityAppUncheckedUpdateWithoutProjectInput>
+  }
+
+  export type ProjectCreateNestedOneWithoutIdentityAppInput = {
+    create?: XOR<ProjectCreateWithoutIdentityAppInput, ProjectUncheckedCreateWithoutIdentityAppInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutIdentityAppInput
+    connect?: ProjectWhereUniqueInput
+  }
+
+  export type EnumIdentityProviderFieldUpdateOperationsInput = {
+    set?: $Enums.IdentityProvider
+  }
+
+  export type ProjectUpdateOneRequiredWithoutIdentityAppNestedInput = {
+    create?: XOR<ProjectCreateWithoutIdentityAppInput, ProjectUncheckedCreateWithoutIdentityAppInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutIdentityAppInput
+    upsert?: ProjectUpsertWithoutIdentityAppInput
+    connect?: ProjectWhereUniqueInput
+    update?: XOR<XOR<ProjectUpdateToOneWithWhereWithoutIdentityAppInput, ProjectUpdateWithoutIdentityAppInput>, ProjectUncheckedUpdateWithoutIdentityAppInput>
+  }
+
+  export type UserCreateNestedOneWithoutIdentitiesInput = {
+    create?: XOR<UserCreateWithoutIdentitiesInput, UserUncheckedCreateWithoutIdentitiesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutIdentitiesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type UserUpdateOneRequiredWithoutIdentitiesNestedInput = {
+    create?: XOR<UserCreateWithoutIdentitiesInput, UserUncheckedCreateWithoutIdentitiesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutIdentitiesInput
+    upsert?: UserUpsertWithoutIdentitiesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutIdentitiesInput, UserUpdateWithoutIdentitiesInput>, UserUncheckedUpdateWithoutIdentitiesInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -19284,6 +22281,46 @@ export namespace Prisma {
     _max?: NestedEnumRoleFilter<$PrismaModel>
   }
 
+  export type NestedEnumIdentityProviderFilter<$PrismaModel = never> = {
+    equals?: $Enums.IdentityProvider | EnumIdentityProviderFieldRefInput<$PrismaModel>
+    in?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    notIn?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    not?: NestedEnumIdentityProviderFilter<$PrismaModel> | $Enums.IdentityProvider
+  }
+
+  export type NestedEnumIdentityProviderWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.IdentityProvider | EnumIdentityProviderFieldRefInput<$PrismaModel>
+    in?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    notIn?: $Enums.IdentityProvider[] | ListEnumIdentityProviderFieldRefInput<$PrismaModel>
+    not?: NestedEnumIdentityProviderWithAggregatesFilter<$PrismaModel> | $Enums.IdentityProvider
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumIdentityProviderFilter<$PrismaModel>
+    _max?: NestedEnumIdentityProviderFilter<$PrismaModel>
+  }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
   export type UserCreateWithoutAccountsInput = {
     id?: string
     name?: string | null
@@ -19296,6 +22333,7 @@ export namespace Prisma {
     sessions?: SessionCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationCreateNestedManyWithoutOwnerInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
+    identities?: UserIdentityCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
@@ -19310,6 +22348,7 @@ export namespace Prisma {
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationUncheckedCreateNestedManyWithoutOwnerInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
+    identities?: UserIdentityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAccountsInput = {
@@ -19340,6 +22379,7 @@ export namespace Prisma {
     sessions?: SessionUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -19354,6 +22394,7 @@ export namespace Prisma {
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUncheckedUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutSessionsInput = {
@@ -19368,6 +22409,7 @@ export namespace Prisma {
     accounts?: AccountCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationCreateNestedManyWithoutOwnerInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
+    identities?: UserIdentityCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSessionsInput = {
@@ -19382,6 +22424,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationUncheckedCreateNestedManyWithoutOwnerInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
+    identities?: UserIdentityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSessionsInput = {
@@ -19412,6 +22455,7 @@ export namespace Prisma {
     accounts?: AccountUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -19426,6 +22470,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUncheckedUpdateManyWithoutOwnerNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AccountCreateWithoutUserInput = {
@@ -19552,6 +22597,30 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type UserIdentityCreateWithoutUserInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalUserId: string
+    createdAt?: Date | string
+  }
+
+  export type UserIdentityUncheckedCreateWithoutUserInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalUserId: string
+    createdAt?: Date | string
+  }
+
+  export type UserIdentityCreateOrConnectWithoutUserInput = {
+    where: UserIdentityWhereUniqueInput
+    create: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput>
+  }
+
+  export type UserIdentityCreateManyUserInputEnvelope = {
+    data: UserIdentityCreateManyUserInput | UserIdentityCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type AccountUpsertWithWhereUniqueWithoutUserInput = {
     where: AccountWhereUniqueInput
     update: XOR<AccountUpdateWithoutUserInput, AccountUncheckedUpdateWithoutUserInput>
@@ -19668,6 +22737,33 @@ export namespace Prisma {
     role?: EnumRoleFilter<"Membership"> | $Enums.Role
     createdAt?: DateTimeFilter<"Membership"> | Date | string
     updatedAt?: DateTimeFilter<"Membership"> | Date | string
+  }
+
+  export type UserIdentityUpsertWithWhereUniqueWithoutUserInput = {
+    where: UserIdentityWhereUniqueInput
+    update: XOR<UserIdentityUpdateWithoutUserInput, UserIdentityUncheckedUpdateWithoutUserInput>
+    create: XOR<UserIdentityCreateWithoutUserInput, UserIdentityUncheckedCreateWithoutUserInput>
+  }
+
+  export type UserIdentityUpdateWithWhereUniqueWithoutUserInput = {
+    where: UserIdentityWhereUniqueInput
+    data: XOR<UserIdentityUpdateWithoutUserInput, UserIdentityUncheckedUpdateWithoutUserInput>
+  }
+
+  export type UserIdentityUpdateManyWithWhereWithoutUserInput = {
+    where: UserIdentityScalarWhereInput
+    data: XOR<UserIdentityUpdateManyMutationInput, UserIdentityUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type UserIdentityScalarWhereInput = {
+    AND?: UserIdentityScalarWhereInput | UserIdentityScalarWhereInput[]
+    OR?: UserIdentityScalarWhereInput[]
+    NOT?: UserIdentityScalarWhereInput | UserIdentityScalarWhereInput[]
+    id?: StringFilter<"UserIdentity"> | string
+    provider?: EnumIdentityProviderFilter<"UserIdentity"> | $Enums.IdentityProvider
+    userId?: StringFilter<"UserIdentity"> | string
+    externalUserId?: StringFilter<"UserIdentity"> | string
+    createdAt?: DateTimeFilter<"UserIdentity"> | Date | string
   }
 
   export type OrganizationCreateWithoutTypeInput = {
@@ -19986,6 +23082,7 @@ export namespace Prisma {
     accounts?: AccountCreateNestedManyWithoutUserInput
     sessions?: SessionCreateNestedManyWithoutUserInput
     memberships?: MembershipCreateNestedManyWithoutUserInput
+    identities?: UserIdentityCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutOwnedOrgsInput = {
@@ -20000,6 +23097,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
     memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
+    identities?: UserIdentityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutOwnedOrgsInput = {
@@ -20158,6 +23256,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     region: RegionCreateNestedOneWithoutProjectsInput
+    identityApp?: ProjectIdentityAppCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateWithoutOrganizationInput = {
@@ -20171,6 +23270,7 @@ export namespace Prisma {
     dbEngine?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    identityApp?: ProjectIdentityAppUncheckedCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectCreateOrConnectWithoutOrganizationInput = {
@@ -20206,6 +23306,7 @@ export namespace Prisma {
     accounts?: AccountUpdateManyWithoutUserNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
     memberships?: MembershipUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutOwnedOrgsInput = {
@@ -20220,6 +23321,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
     memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
+    identities?: UserIdentityUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type OrganizationTypeUpsertWithoutOrganizationsInput = {
@@ -20394,6 +23496,7 @@ export namespace Prisma {
     accounts?: AccountCreateNestedManyWithoutUserInput
     sessions?: SessionCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationCreateNestedManyWithoutOwnerInput
+    identities?: UserIdentityCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutMembershipsInput = {
@@ -20408,6 +23511,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
     sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
     ownedOrgs?: OrganizationUncheckedCreateNestedManyWithoutOwnerInput
+    identities?: UserIdentityUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutMembershipsInput = {
@@ -20471,6 +23575,7 @@ export namespace Prisma {
     accounts?: AccountUpdateManyWithoutUserNestedInput
     sessions?: SessionUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUpdateManyWithoutOwnerNestedInput
+    identities?: UserIdentityUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutMembershipsInput = {
@@ -20485,6 +23590,7 @@ export namespace Prisma {
     accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
     ownedOrgs?: OrganizationUncheckedUpdateManyWithoutOwnerNestedInput
+    identities?: UserIdentityUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type OrganizationUpsertWithoutMembershipsInput = {
@@ -20609,6 +23715,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     organization: OrganizationCreateNestedOneWithoutProjectsInput
+    identityApp?: ProjectIdentityAppCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateWithoutRegionInput = {
@@ -20622,6 +23729,7 @@ export namespace Prisma {
     dbEngine?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    identityApp?: ProjectIdentityAppUncheckedCreateNestedOneWithoutProjectInput
   }
 
   export type ProjectCreateOrConnectWithoutRegionInput = {
@@ -20706,6 +23814,33 @@ export namespace Prisma {
     create: XOR<RegionCreateWithoutProjectsInput, RegionUncheckedCreateWithoutProjectsInput>
   }
 
+  export type ProjectIdentityAppCreateWithoutProjectInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalAppId: string
+    externalSecret?: string | null
+    tenant?: string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProjectIdentityAppUncheckedCreateWithoutProjectInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalAppId: string
+    externalSecret?: string | null
+    tenant?: string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProjectIdentityAppCreateOrConnectWithoutProjectInput = {
+    where: ProjectIdentityAppWhereUniqueInput
+    create: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+  }
+
   export type OrganizationUpsertWithoutProjectsInput = {
     update: XOR<OrganizationUpdateWithoutProjectsInput, OrganizationUncheckedUpdateWithoutProjectsInput>
     create: XOR<OrganizationCreateWithoutProjectsInput, OrganizationUncheckedCreateWithoutProjectsInput>
@@ -20774,6 +23909,187 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ProjectIdentityAppUpsertWithoutProjectInput = {
+    update: XOR<ProjectIdentityAppUpdateWithoutProjectInput, ProjectIdentityAppUncheckedUpdateWithoutProjectInput>
+    create: XOR<ProjectIdentityAppCreateWithoutProjectInput, ProjectIdentityAppUncheckedCreateWithoutProjectInput>
+    where?: ProjectIdentityAppWhereInput
+  }
+
+  export type ProjectIdentityAppUpdateToOneWithWhereWithoutProjectInput = {
+    where?: ProjectIdentityAppWhereInput
+    data: XOR<ProjectIdentityAppUpdateWithoutProjectInput, ProjectIdentityAppUncheckedUpdateWithoutProjectInput>
+  }
+
+  export type ProjectIdentityAppUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProjectIdentityAppUncheckedUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalAppId?: StringFieldUpdateOperationsInput | string
+    externalSecret?: NullableStringFieldUpdateOperationsInput | string | null
+    tenant?: NullableStringFieldUpdateOperationsInput | string | null
+    metadata?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProjectCreateWithoutIdentityAppInput = {
+    id?: string
+    name: string
+    slug: string
+    superadminPassword: string
+    securityMode?: string
+    apiSchema?: string
+    dbEngine?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutProjectsInput
+    region: RegionCreateNestedOneWithoutProjectsInput
+  }
+
+  export type ProjectUncheckedCreateWithoutIdentityAppInput = {
+    id?: string
+    name: string
+    slug: string
+    regionId: string
+    superadminPassword: string
+    organizationId: string
+    securityMode?: string
+    apiSchema?: string
+    dbEngine?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProjectCreateOrConnectWithoutIdentityAppInput = {
+    where: ProjectWhereUniqueInput
+    create: XOR<ProjectCreateWithoutIdentityAppInput, ProjectUncheckedCreateWithoutIdentityAppInput>
+  }
+
+  export type ProjectUpsertWithoutIdentityAppInput = {
+    update: XOR<ProjectUpdateWithoutIdentityAppInput, ProjectUncheckedUpdateWithoutIdentityAppInput>
+    create: XOR<ProjectCreateWithoutIdentityAppInput, ProjectUncheckedCreateWithoutIdentityAppInput>
+    where?: ProjectWhereInput
+  }
+
+  export type ProjectUpdateToOneWithWhereWithoutIdentityAppInput = {
+    where?: ProjectWhereInput
+    data: XOR<ProjectUpdateWithoutIdentityAppInput, ProjectUncheckedUpdateWithoutIdentityAppInput>
+  }
+
+  export type ProjectUpdateWithoutIdentityAppInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    superadminPassword?: StringFieldUpdateOperationsInput | string
+    securityMode?: StringFieldUpdateOperationsInput | string
+    apiSchema?: StringFieldUpdateOperationsInput | string
+    dbEngine?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutProjectsNestedInput
+    region?: RegionUpdateOneRequiredWithoutProjectsNestedInput
+  }
+
+  export type ProjectUncheckedUpdateWithoutIdentityAppInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    regionId?: StringFieldUpdateOperationsInput | string
+    superadminPassword?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    securityMode?: StringFieldUpdateOperationsInput | string
+    apiSchema?: StringFieldUpdateOperationsInput | string
+    dbEngine?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserCreateWithoutIdentitiesInput = {
+    id?: string
+    name?: string | null
+    email: string
+    emailVerified?: Date | string | null
+    image?: string | null
+    passwordHash?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    sessions?: SessionCreateNestedManyWithoutUserInput
+    ownedOrgs?: OrganizationCreateNestedManyWithoutOwnerInput
+    memberships?: MembershipCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutIdentitiesInput = {
+    id?: string
+    name?: string | null
+    email: string
+    emailVerified?: Date | string | null
+    image?: string | null
+    passwordHash?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    sessions?: SessionUncheckedCreateNestedManyWithoutUserInput
+    ownedOrgs?: OrganizationUncheckedCreateNestedManyWithoutOwnerInput
+    memberships?: MembershipUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutIdentitiesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutIdentitiesInput, UserUncheckedCreateWithoutIdentitiesInput>
+  }
+
+  export type UserUpsertWithoutIdentitiesInput = {
+    update: XOR<UserUpdateWithoutIdentitiesInput, UserUncheckedUpdateWithoutIdentitiesInput>
+    create: XOR<UserCreateWithoutIdentitiesInput, UserUncheckedCreateWithoutIdentitiesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutIdentitiesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutIdentitiesInput, UserUncheckedUpdateWithoutIdentitiesInput>
+  }
+
+  export type UserUpdateWithoutIdentitiesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    emailVerified?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    sessions?: SessionUpdateManyWithoutUserNestedInput
+    ownedOrgs?: OrganizationUpdateManyWithoutOwnerNestedInput
+    memberships?: MembershipUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutIdentitiesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    emailVerified?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    image?: NullableStringFieldUpdateOperationsInput | string | null
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    sessions?: SessionUncheckedUpdateManyWithoutUserNestedInput
+    ownedOrgs?: OrganizationUncheckedUpdateManyWithoutOwnerNestedInput
+    memberships?: MembershipUncheckedUpdateManyWithoutUserNestedInput
+  }
+
   export type AccountCreateManyUserInput = {
     id?: string
     type: string
@@ -20810,6 +24126,13 @@ export namespace Prisma {
     role?: $Enums.Role
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type UserIdentityCreateManyUserInput = {
+    id?: string
+    provider: $Enums.IdentityProvider
+    externalUserId: string
+    createdAt?: Date | string
   }
 
   export type AccountUpdateWithoutUserInput = {
@@ -20932,6 +24255,27 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserIdentityUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    provider?: EnumIdentityProviderFieldUpdateOperationsInput | $Enums.IdentityProvider
+    externalUserId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type OrganizationCreateManyTypeInput = {
@@ -21210,6 +24554,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     region?: RegionUpdateOneRequiredWithoutProjectsNestedInput
+    identityApp?: ProjectIdentityAppUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateWithoutOrganizationInput = {
@@ -21223,6 +24568,7 @@ export namespace Prisma {
     dbEngine?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identityApp?: ProjectIdentityAppUncheckedUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateManyWithoutOrganizationInput = {
@@ -21262,6 +24608,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     organization?: OrganizationUpdateOneRequiredWithoutProjectsNestedInput
+    identityApp?: ProjectIdentityAppUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateWithoutRegionInput = {
@@ -21275,6 +24622,7 @@ export namespace Prisma {
     dbEngine?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    identityApp?: ProjectIdentityAppUncheckedUpdateOneWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateManyWithoutRegionInput = {

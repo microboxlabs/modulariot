@@ -49,6 +49,7 @@ model User {
   sessions    Session[]
   ownedOrgs   Organization[] @relation("OrganizationOwner")
   memberships Membership[]
+  identities  UserIdentity[]
 }
 
 model VerificationToken {
@@ -179,8 +180,35 @@ model Project {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  region       Region       @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  region       Region              @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  identityApp  ProjectIdentityApp?
 
   @@unique([organizationId, slug])
+}
+
+enum IdentityProvider {
+  AUTH0
+}
+
+model ProjectIdentityApp {
+  id             String           @id @default(cuid())
+  provider       IdentityProvider
+  project        Project          @relation(fields: [projectId], references: [id])
+  projectId      String           @unique
+  externalAppId  String           @unique
+  externalSecret String?
+  tenant         String?
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model UserIdentity {
+  id             String           @id @default(cuid())
+  provider       IdentityProvider
+  user           User             @relation(fields: [userId], references: [id])
+  userId         String
+  externalUserId String           @unique
+  createdAt      DateTime         @default(now())
 }

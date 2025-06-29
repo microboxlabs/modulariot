@@ -198,6 +198,7 @@ model ProjectIdentityApp {
   projectId      String           @unique
   externalAppId  String           @unique
   externalSecret String?
+  tenant         String?
   metadata       Json?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt

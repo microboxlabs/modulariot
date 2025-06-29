@@ -147,6 +147,12 @@ export function ConnectStreamModal({
                     <ConnectionCard 
                       details={connectionDetails} 
                       badges={protocol.badges}
+                      auth0Credentials={protocol.id === "rest" && credentials ? {
+                        clientId: credentials.auth0.clientId,
+                        clientSecret: credentials.auth0.clientSecret,
+                        audience: credentials.auth0.audience,
+                        grantType: credentials.auth0.grantType
+                      } : undefined}
                     />
 
                   </div>

@@ -2,6 +2,7 @@
 
 import { useOrganizations } from "@/lib/hooks/organization";
 import { Header } from "@modulariot/ui/header";
+import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
 export function AdminHeader() {
@@ -15,8 +16,11 @@ export function AdminHeader() {
 
     const showProjectBreadcrumb = pathname.includes('/project/');
 
+    const { data: session } = useSession();
+
     return (
         <Header 
+            user={session?.user}
             showBreadcrumbs={showBreadcrumbs} 
             showProjectBreadcrumb={showProjectBreadcrumb} 
             organizations={organizations}

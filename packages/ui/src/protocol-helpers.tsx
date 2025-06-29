@@ -10,6 +10,7 @@ export interface Step {
   title: string;
   code: string;
   description: string;
+  sampleCode?: { [key: string]: string };
 }
 
 export interface ConnectionDetails {
@@ -113,6 +114,38 @@ export function buildAuth0Curl(auth0: Auth0Credentials): string {
   }'`;
 }
 
+export function buildAuth0SampleCode(auth0: Auth0Credentials): { [key: string]: string } {
+  return {
+    curl: buildAuth0Curl(auth0),
+    javascript: `// Get Auth Token
+const tokenResponse = await fetch('https://${auth0.domain}/oauth/token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    client_id: '${auth0.clientId}',
+    client_secret: '${auth0.clientSecret}',
+    audience: '${auth0.audience}',
+    grant_type: '${auth0.grantType}'
+  })
+});
+const { access_token } = await tokenResponse.json();
+console.log('Access token:', access_token);`,
+    python: `import requests
+
+# Get Auth Token
+token_response = requests.post('https://${auth0.domain}/oauth/token', 
+  json={
+    'client_id': '${auth0.clientId}',
+    'client_secret': '${auth0.clientSecret}',
+    'audience': '${auth0.audience}',
+    'grant_type': '${auth0.grantType}'
+  }
+)
+access_token = token_response.json()['access_token']
+print(f'Access token: {access_token}')`
+  };
+}
+
 export function buildRestCurl(ingestUrl: string, endpoint: string): string {
   const fullUrl = `${ingestUrl}${endpoint}`;
   return `curl -X POST "${fullUrl}" \\
@@ -127,6 +160,42 @@ export function buildRestCurl(ingestUrl: string, endpoint: string): string {
   }'`;
 }
 
+export function buildRestSampleCode(ingestUrl: string, endpoint: string): { [key: string]: string } {
+  const fullUrl = `${ingestUrl}${endpoint}`;
+  return {
+    curl: buildRestCurl(ingestUrl, endpoint),
+    javascript: `// Send data using the access token from step 1
+const response = await fetch('${fullUrl}', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer \${access_token}\`
+  },
+  body: JSON.stringify({
+    deviceId: 'device123',
+    timestamp: new Date().toISOString(),
+    data: { temperature: 25.3 }
+  })
+});
+const result = await response.json();
+console.log('Response:', result);`,
+    python: `# Send data using the access token from step 1
+response = requests.post('${fullUrl}', 
+  headers={
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {access_token}'
+  },
+  json={
+    'deviceId': 'device123',
+    'timestamp': '2024-01-01T00:00:00Z',
+    'data': {'temperature': 25.3}
+  }
+)
+result = response.json()
+print(f'Response: {result}')`
+  };
+}
+
 export function getConnectionDetails({protocol, orgId, projectId, apiKey, auth0, ingest}: ConnectionDetailsParams): ConnectionDetails {
   const uri = buildConnectionUri(protocol, orgId, projectId, apiKey);
   
@@ -136,7 +205,7 @@ export function getConnectionDetails({protocol, orgId, projectId, apiKey, auth0,
       description: "Secure two-step process: First obtain an Auth0 access token, then use it to send data.",
       uri,
       parameters: [
-        { name: "Step 1", value: "Get Auth0 Token", description: "Obtain short-lived access token (expires in 30 days)" },
+        { name: "Step 1", value: "Get Auth Token", description: "Obtain short-lived access token (expires in 30 days)" },
         { name: "Step 2", value: "Send Data", description: "Use token to authenticate data ingestion" },
         { name: "Security", value: "Bearer Token", description: "JWT token from Auth0 M2M flow" },
         { name: "Host", value: process.env.NEXT_PUBLIC_INGEST_URL ?? '' }
@@ -145,18 +214,20 @@ export function getConnectionDetails({protocol, orgId, projectId, apiKey, auth0,
         {
           title: "① Get an Auth token (once every 30 days)",
           code: auth0 ? buildAuth0Curl(auth0) : "# Loading Auth0 credentials...",
-          description: "Authenticate with Auth0 to receive a short-lived access token. Save the 'access_token' from the response."
+          description: "Authenticate with Auth0 to receive a short-lived access token. Save the 'access_token' from the response.",
+          sampleCode: auth0 ? buildAuth0SampleCode(auth0) : undefined
         },
         {
           title: "② Send data", 
           code: ingest ? buildRestCurl(ingest.url, ingest.endpoint) : "# Loading ingest endpoint...",
-          description: "Use the access token from step 1 as the Bearer token to send data to your project."
+          description: "Use the access token from step 1 as the Bearer token to send data to your project.",
+          sampleCode: ingest ? buildRestSampleCode(ingest.url, ingest.endpoint) : undefined
         }
       ],
       sampleCode: {
-        curl: `# Step 1: Get Auth0 Token\ncurl -X POST "https://YOUR_DOMAIN.auth0.com/oauth/token" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "client_id": "YOUR_CLIENT_ID",\n    "client_secret": "YOUR_CLIENT_SECRET",\n    "audience": "https://modulariot.com/v1/project/admin",\n    "grant_type": "client_credentials"\n  }'\n\n# Step 2: Send Data\ncurl -X POST "${uri}" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer $TOKEN" \\\n  -d '{\n    "deviceId": "device123",\n    "timestamp": "2024-01-01T00:00:00Z",\n    "data": {"temperature": 25.3}\n  }'`,
-        javascript: `// Step 1: Get Auth0 Token\nconst tokenResponse = await fetch('https://YOUR_DOMAIN.auth0.com/oauth/token', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    client_id: 'YOUR_CLIENT_ID',\n    client_secret: 'YOUR_CLIENT_SECRET',\n    audience: 'https://modulariot.com/v1/project/admin',\n    grant_type: 'client_credentials'\n  })\n});\nconst { access_token } = await tokenResponse.json();\n\n// Step 2: Send Data\nconst response = await fetch('${uri}', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'Authorization': \`Bearer \${access_token}\`\n  },\n  body: JSON.stringify({\n    deviceId: 'device123',\n    timestamp: new Date().toISOString(),\n    data: { temperature: 25.3 }\n  })\n});`,
-        python: `import requests\n\n# Step 1: Get Auth0 Token\ntoken_response = requests.post('https://YOUR_DOMAIN.auth0.com/oauth/token', \n  json={\n    'client_id': 'YOUR_CLIENT_ID',\n    'client_secret': 'YOUR_CLIENT_SECRET',\n    'audience': 'https://modulariot.com/v1/project/admin',\n    'grant_type': 'client_credentials'\n  }\n)\naccess_token = token_response.json()['access_token']\n\n# Step 2: Send Data\nresponse = requests.post('${uri}', \n  headers={\n    'Content-Type': 'application/json',\n    'Authorization': f'Bearer {access_token}'\n  },\n  json={\n    'deviceId': 'device123',\n    'timestamp': '2024-01-01T00:00:00Z',\n    'data': {'temperature': 25.3}\n  }\n)`
+        curl: `# Step 1: Get Auth Token\ncurl -X POST "https://YOUR_DOMAIN.auth0.com/oauth/token" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "client_id": "YOUR_CLIENT_ID",\n    "client_secret": "YOUR_CLIENT_SECRET",\n    "audience": "https://modulariot.com/v1/project/admin",\n    "grant_type": "client_credentials"\n  }'\n\n# Step 2: Send Data\ncurl -X POST "${uri}" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer $TOKEN" \\\n  -d '{\n    "deviceId": "device123",\n    "timestamp": "2024-01-01T00:00:00Z",\n    "data": {"temperature": 25.3}\n  }'`,
+        javascript: `// Step 1: Get Auth Token\nconst tokenResponse = await fetch('https://YOUR_DOMAIN.auth0.com/oauth/token', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    client_id: 'YOUR_CLIENT_ID',\n    client_secret: 'YOUR_CLIENT_SECRET',\n    audience: 'https://modulariot.com/v1/project/admin',\n    grant_type: 'client_credentials'\n  })\n});\nconst { access_token } = await tokenResponse.json();\n\n// Step 2: Send Data\nconst response = await fetch('${uri}', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'Authorization': \`Bearer \${access_token}\`\n  },\n  body: JSON.stringify({\n    deviceId: 'device123',\n    timestamp: new Date().toISOString(),\n    data: { temperature: 25.3 }\n  })\n});`,
+        python: `import requests\n\n# Step 1: Get Auth Token\ntoken_response = requests.post('https://YOUR_DOMAIN.auth0.com/oauth/token', \n  json={\n    'client_id': 'YOUR_CLIENT_ID',\n    'client_secret': 'YOUR_CLIENT_SECRET',\n    'audience': 'https://modulariot.com/v1/project/admin',\n    'grant_type': 'client_credentials'\n  }\n)\naccess_token = token_response.json()['access_token']\n\n# Step 2: Send Data\nresponse = requests.post('${uri}', \n  headers={\n    'Content-Type': 'application/json',\n    'Authorization': f'Bearer {access_token}'\n  },\n  json={\n    'deviceId': 'device123',\n    'timestamp': '2024-01-01T00:00:00Z',\n    'data': {'temperature': 25.3}\n  }\n)`
       }
     },
     websocket: {

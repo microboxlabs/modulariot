@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
+import { auth0Client } from "@/lib/api/auth0";
 
 const credentialsParamsSchema = z.object({
   orgId: z.string().min(1),
-  projectId: z.string().min(1),
+  id: z.string().min(1),
 });
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgId: string; projectId: string } }
+  { params }: { params: { orgId: string; id: string } }
 ) {
   try {
     const session = await auth();
@@ -22,7 +23,7 @@ export async function GET(
       );
     }
 
-    const { orgId, projectId } = credentialsParamsSchema.parse(params);
+    const { orgId, id: projectId } = params;
 
     // Check if user has access to the organization
     const membership = await prisma.membership.findFirst({
@@ -50,42 +51,33 @@ export async function GET(
     }
 
     // Check if project exists in the organization
-    const project = await prisma.project.findFirst({
+    const identityApp = await prisma.projectIdentityApp.findFirst({
       where: {
-        id: projectId,
-        organizationId: orgId,
-      },
-      include: {
-        identityApp: true,
+        projectId: projectId,
       },
     });
 
-    if (!project) {
+    if (!identityApp) {
       return NextResponse.json(
         { message: "Project not found" },
         { status: 404 }
       );
     }
 
-    // TODO: Load real Auth0 credentials from ProjectIdentityApp
-    // For now, return stubbed data
+    const appClient = await auth0Client.getClient(identityApp.externalAppId);
+
     const credentials = {
       auth0: {
-        domain: project.identityApp?.tenant ? `${project.identityApp.tenant}.auth0.com` : "dev-example.auth0.com",
-        clientId: project.identityApp?.externalAppId || "your_client_id_here",
+        domain: identityApp?.tenant ? `${identityApp.tenant}.auth0.com` : "dev-example.auth0.com",
+        clientId: identityApp?.externalAppId || "your_client_id_here",
         audience: "https://modulariot.com/v1/project/admin",
         grantType: "client_credentials",
-        // Never expose client_secret in API response
+        clientSecret: appClient.client_secret,
       },
       ingest: {
-        url: process.env.NEXT_PUBLIC_INGEST_URL || "https://ingest.miot.io",
+        url: process.env.NEXT_PUBLIC_INGEST_URL!,
         endpoint: `/v1/org/${orgId}/proj/${projectId}`,
-      },
-      project: {
-        id: projectId,
-        name: project.name,
-        organizationId: orgId,
-      },
+      }
     };
 
     return NextResponse.json(credentials);

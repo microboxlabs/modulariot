@@ -79,7 +79,7 @@ export default function ProjectSettingsShell({ children }: ProjectSettingsShellP
   };
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex h-screen w-full">
       {/* Left Sidebar */}
       <div className="w-60 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <div className="flex h-full flex-col">
@@ -130,7 +130,7 @@ export default function ProjectSettingsShell({ children }: ProjectSettingsShellP
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50 dark:bg-gray-800">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800">
         <div className="mx-auto max-w-4xl p-8">
           {children}
         </div>

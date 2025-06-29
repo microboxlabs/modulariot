@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import Link from "next/link";
 
 import CopyField from "@/app/components/CopyField";
 import { DangerZone } from "@modulariot/ui/danger-zone";
+import { useProject } from "@/lib/hooks/project";
 
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -27,6 +28,7 @@ export default function GeneralSettingsPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const { data: project, error: projectError, isLoading } = useProject(projectId, orgId);
 
   const {
     register,
@@ -39,6 +41,15 @@ export default function GeneralSettingsPage() {
       name: '',
     },
   });
+
+  useEffect(() => {
+    if (project) {
+      console.log("project", project);
+      reset({
+        name: project.name,
+      });
+    }
+  }, [project, reset]);
 
   const onSubmit = async (data: ProjectFormData) => {
     setIsSubmitting(true);
@@ -56,7 +67,7 @@ export default function GeneralSettingsPage() {
 
   const handleRestart = async (restartType: string) => {
     try {
-      const response = await fetch(`/api/projects/${projectId}/restart`, {
+      const response = await fetch(`/api/organizations/${orgId}/projects/${projectId}/restart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: restartType }),
@@ -252,10 +263,10 @@ export default function GeneralSettingsPage() {
       {/* Delete Project */}
       <DangerZone
         entityType="Project"
-        entityName={""}
+        entityName={project?.name ?? ""}
         deleter={async ()=>{}}
         entityId={projectId}
-        url={`/api/projects/${projectId}`}
+        url={`/api/organizations/${orgId}/projects/${projectId}`}
         disabled={isSubmitting}
         redirect={`/org/${orgId}`}
       />

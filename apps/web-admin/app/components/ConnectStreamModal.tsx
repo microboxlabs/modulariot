@@ -39,7 +39,7 @@ export function ConnectStreamModal({ isOpen, onClose }: ConnectStreamModalProps)
     try {
       setLoading(true);
       // TODO: Replace with actual API call
-      const response = await fetch(`/api/projects/${projectId}/credentials`);
+      const response = await fetch(`/api/organizations/${orgId}/projects/${projectId}/credentials`);
       if (response.ok) {
         const data = await response.json();
         setApiKey(data.apiKey);

@@ -83,7 +83,7 @@ export function CreateProjectForm({ orgId, organizations }: CreateProjectFormPro
     setSubmitError(null);
 
     try {
-      const response = await fetch("/api/projects", {
+      const response = await fetch(`/api/organizations/${orgId}/projects`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

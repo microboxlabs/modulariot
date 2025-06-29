@@ -8,7 +8,7 @@ import { z } from "zod";
 import { Card, TextInput, Button, Alert, Label, HelperText } from "flowbite-react";
 import { Save } from "lucide-react";
 import { DangerZone } from "@modulariot/ui/danger-zone";
-import { deleteOrganization } from "@/lib/api/org";
+import { deleteOrganization } from "@/lib/api/organization";
 import { useOrganization } from "@/lib/hooks/organization";
 
 const orgSettingsSchema = z.object({

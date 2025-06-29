@@ -9,7 +9,7 @@ import { Button, TextInput, Select, Spinner } from 'flowbite-react';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { CTAButton } from '@modulariot/ui/cta-button';
-import { createOrganization } from '@/lib/api/org';
+import { createOrganization } from '@/lib/api/organization';
 
 const organizationTypes = [
   { value: 'personal', label: 'Personal' },

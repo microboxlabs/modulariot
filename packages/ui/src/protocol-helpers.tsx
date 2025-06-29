@@ -59,7 +59,7 @@ export function buildConnectionUri(
   apiKey?: string
 ): string {
 
-  const ingestUrl = process.env.INGEST_URL;
+  const ingestUrl = process.env.NEXT_PUBLIC_INGEST_URL;
 
   const uris = {
     rest: `${ingestUrl}/org/${orgId}/proj/${projectId}`,
@@ -92,7 +92,7 @@ export function getConnectionDetails({protocol, orgId, projectId, apiKey}: Conne
         { name: "Method", value: "POST" },
         { name: "Content-Type", value: "application/json" },
         { name: "Authorization", value: `Bearer ${apiKey || 'YOUR_API_KEY'}` },
-        { name: "Host", value: "ingest.miot.io" }
+        { name: "Host", value: process.env.NEXT_PUBLIC_INGEST_URL ?? '' }
       ],
       sampleCode: {
         curl: `curl -X POST "${uri}" \\

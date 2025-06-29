@@ -1,8 +1,7 @@
 import "server-only";
-import { ManagementClient } from 'auth0'
+import { ManagementClient, Client } from 'auth0'
 import { 
   IdentityClient, 
-  Client, 
   Credential,
   RotatedSecret,
   Connection,

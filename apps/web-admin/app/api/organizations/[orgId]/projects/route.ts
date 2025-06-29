@@ -108,13 +108,18 @@ export async function POST(request: NextRequest) {
       name: `miot:${project.name}:${validatedData.organizationId}`,
       description: `miot:${project.name}`,
       appType: "non_interactive",
-      allowedClients: ["https://modulariot.com/v1/project/admin"],
       tokenEndpointAuthMethod: "client_secret_post",
       jwtConfiguration: {
         alg: env.AUTH0_JWT_ALG,
         lifetimeInSeconds: env.AUTH0_JWT_LIFETIME_IN_SECONDS,
       },
       grantTypes: ["client_credentials"],
+      clientGrants: [
+        {
+          audience: 'https://modulariot.com/v1/project/admin',
+          scope: [],
+        },
+      ],
     });
 
     console.log(auth0ClientResponse);

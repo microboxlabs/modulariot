@@ -35,4 +35,33 @@ export async function GET(request: NextRequest,  { params }: GetProjectParams) {
     });
   
     return NextResponse.json(project);
-  }
+}
+
+export async function DELETE(request: NextRequest,  { params }: GetProjectParams) {
+
+    const session = await auth();
+  
+    if (!session?.user?.id) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const membership = await prisma.membership.findFirst({
+      where: {
+        userId: session.user.id,
+        orgId: params.orgId,
+        role: {
+          in: ['ADMIN', 'OWNER']
+        }
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ message: 'Forbidden: Only organization members can delete the project.' }, { status: 403 });
+    }
+
+    await prisma.project.delete({
+      where: { id: params.id },
+    });
+
+    return NextResponse.json({ message: 'Project deleted successfully' });
+}

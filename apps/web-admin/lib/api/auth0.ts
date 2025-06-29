@@ -43,9 +43,17 @@ export class Auth0Client implements IdentityClient {
         lifetime_in_seconds: input.jwtConfiguration?.lifetimeInSeconds,
       },
       token_endpoint_auth_method: input.tokenEndpointAuthMethod,
-      grant_types: input.grantTypes,
-      allowed_clients: input.allowedClients,
+      grant_types: input.grantTypes
     });
+
+    input.clientGrants.forEach(grant => {
+      this.managementClient.clientGrants.create({
+        client_id: response.data.client_id,
+        audience: grant.audience,
+        scope: grant.scope,
+      });
+    });
+
     return response.data;
   }
 

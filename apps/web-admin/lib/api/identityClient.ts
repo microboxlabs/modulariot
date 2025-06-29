@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const allowedClients = z.enum([
+const clientGrants = z.enum([
   'https://modulariot.com/v1/project/admin',
   'https://modulariot.com/v1/project/user',
   'https://modulariot.com/v1/project/readonly',
@@ -11,13 +11,16 @@ export const ProjectAuth0M2MInputSchema = z.object({
   description: z.string().optional(),
   appType: z.enum(['non_interactive']).default('non_interactive'),
   callbacks: z.array(z.string()).optional(),
-  allowedClients: z.array(allowedClients).min(1, "At least one client must be selected"),
   grantTypes: z.array(z.string()).optional(),
   jwtConfiguration: z.object({
     alg: z.enum(['HS256', 'RS256']).default('HS256'),
     lifetimeInSeconds: z.number().min(3600).max(2592000).default(2592000),
   }).optional(),
   tokenEndpointAuthMethod: z.enum(['client_secret_post', 'client_secret_basic']).default('client_secret_post'),
+  clientGrants: z.array(z.object({
+    audience: clientGrants,
+    scope: z.array(z.string()),
+  })),
 });
 
 export const UpdateProjectAuth0M2MInputSchema = ProjectAuth0M2MInputSchema.partial()

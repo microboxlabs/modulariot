@@ -108,7 +108,7 @@ export default function OrgDetailPage() {
             <Filter className="h-5 w-5 mr-2" />
             Filter
           </Button>
-          <CTAButton as={Link} href={`/org/${orgId}/projects/new`} variant="primary" size="md">
+          <CTAButton as={Link} href={`/org/${orgId}/projects/new`} variant="primary" size="md" disabled={isLoading}>
             <Plus className="h-5 w-5 mr-2" />
             New project
           </CTAButton>

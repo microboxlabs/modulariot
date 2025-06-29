@@ -13,6 +13,8 @@ import Link from "next/link";
 import CopyField from "@/app/components/CopyField";
 import { DangerZone } from "@modulariot/ui/danger-zone";
 import { useProject } from "@/lib/hooks/project";
+import { endpointOrgProject, endpointOrgProjectRestart } from "@/lib/api/endpoints";
+import { deleteFetcher } from "@/lib/api/fetcher";
 
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -67,7 +69,7 @@ export default function GeneralSettingsPage() {
 
   const handleRestart = async (restartType: string) => {
     try {
-      const response = await fetch(`/api/organizations/${orgId}/projects/${projectId}/restart`, {
+      const response = await fetch(endpointOrgProjectRestart(orgId, projectId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: restartType }),
@@ -85,7 +87,7 @@ export default function GeneralSettingsPage() {
     const action = "resume";
     
     try {
-      const response = await fetch(`/api/projects/${projectId}/pause`, {
+      const response = await fetch(endpointOrgProject(orgId, projectId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
@@ -97,23 +99,6 @@ export default function GeneralSettingsPage() {
     } catch (error) {
       toast.error(`Failed to ${action} project`);
     }
-  };
-
-  const handleDeleteProject = async () => {
-    const response = await fetch(`/api/projects/${projectId}/delete`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) throw new Error("Failed to delete project");
-  };
-
-  const handleDeleteSuccess = () => {
-    toast.success("Project deleted successfully");
-    router.push(`/org/${orgId}`);
-  };
-
-  const handleDeleteError = (error: Error) => {
-    toast.error(error.message);
   };
 
   return (
@@ -264,9 +249,9 @@ export default function GeneralSettingsPage() {
       <DangerZone
         entityType="Project"
         entityName={project?.name ?? ""}
-        deleter={async ()=>{}}
+        deleter={deleteFetcher}
         entityId={projectId}
-        url={`/api/organizations/${orgId}/projects/${projectId}`}
+        url={endpointOrgProject(orgId, projectId)}
         disabled={isSubmitting}
         redirect={`/org/${orgId}`}
       />

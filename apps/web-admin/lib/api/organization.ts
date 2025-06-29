@@ -55,12 +55,6 @@ export async function updateOrganization(url: string, { arg: organization }: Upd
   return response;
 }
 
-export async function deleteOrganization(url: string): Promise<void> {
-  await fetcher<void>(url, {
-    method: 'DELETE',
-  });  
-};
-
 // TODO: Add additional organization management functions as needed
 // export async function getOrganizations(): Promise<Organization[]> { ... }
 // export async function updateOrganization(id: string, data: Partial<CreateOrganizationRequest>): Promise<Organization> { ... }

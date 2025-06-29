@@ -8,8 +8,8 @@ import { z } from "zod";
 import { Card, TextInput, Button, Alert, Label, HelperText } from "flowbite-react";
 import { Save } from "lucide-react";
 import { DangerZone } from "@modulariot/ui/danger-zone";
-import { deleteOrganization } from "@/lib/api/organization";
 import { useOrganization } from "@/lib/hooks/organization";
+import { deleteFetcher } from "@/lib/api/fetcher";
 
 const orgSettingsSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
@@ -203,7 +203,7 @@ export default function GeneralSettingsPage() {
         entityType="Organization"
         entityName={organization?.name ?? ""}
         entityId={orgId}
-        deleter={deleteOrganization}
+        deleter={deleteFetcher}
         redirect="/org"
         url={`/api/organizations/${orgId}`}
         disabled={isSaving}

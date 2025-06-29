@@ -47,4 +47,11 @@ export function buildIncludeQuery(include?: Record<string, any>): string {
   const queryString = queryParams.toString();
   return queryString ? `?${queryString}` : '';
 }
+
+
+export function deleteFetcher(url: string): Promise<void> {
+  return fetcher(url, {
+    method: 'DELETE',
+  });
+}
   

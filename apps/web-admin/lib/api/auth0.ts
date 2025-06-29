@@ -57,8 +57,10 @@ export class Auth0Client implements IdentityClient {
   }
 
   async getClient(_id: string): Promise<Client> {
-    // TODO: Implement Auth0 client retrieval
-    throw new Error('Not implemented')
+    const response = await this.managementClient.clients.get({
+      client_id: _id,
+    });
+    return response.data;
   }
 
   async updateClient(_id: string, _input: UpdateProjectAuth0M2MInput): Promise<Client> {

@@ -5,9 +5,13 @@ import useSWRMutation from 'swr/mutation';
 import fetcher, { deleteFetcher, FetcherError } from '../api/fetcher';
 import { Prisma } from '@modulariot/db';
 import { updateOrganization } from '../api/organization';
-import { endpointOrg } from '../api/endpoints';
+import { endpointOrg, endpointOrgs } from '../api/endpoints';
 
 
+export const useOrganizations = (options?: Prisma.OrganizationInclude) => {
+    const { data, error, isLoading } = useSWR<Prisma.OrganizationGetPayload<{ include: Prisma.OrganizationInclude }>[], FetcherError>(endpointOrgs(options), fetcher);
+    return { data, error, isLoading };
+};
 
 export const useOrganization = (orgId: string, options?: Prisma.OrganizationInclude) => {
     const { data, error, isLoading } = useSWR<Prisma.OrganizationGetPayload<{ include: Prisma.OrganizationInclude }>, FetcherError>(endpointOrg(orgId, options), fetcher);

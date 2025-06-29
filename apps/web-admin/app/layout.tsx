@@ -18,7 +18,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // TODO: Get user from session/auth
 
   return (
     <html lang="en" className={inter.variable}>

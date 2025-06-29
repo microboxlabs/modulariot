@@ -1,4 +1,4 @@
-import { TopbarWrapper } from '../components/TopbarWrapper';
+import { AdminHeader } from '../components/AdminHeader';
 import { Footer } from '../components/Footer';
 
 export default function OrgLayout({
@@ -8,7 +8,7 @@ export default function OrgLayout({
 }) {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      <TopbarWrapper />
+      <AdminHeader />
       <main className="flex-1 overflow-hidden bg-white dark:bg-gray-800">
         {children}
       </main>

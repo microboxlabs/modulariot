@@ -13,6 +13,7 @@ export const env = createEnv({
     AUTH0_CLIENT_SECRET: z.string().min(1),
     AUTH0_JWT_ALG: z.enum(['HS256', 'RS256']),
     AUTH0_JWT_LIFETIME_IN_SECONDS: z.coerce.number().min(3600).max(2592000),
+    INGEST_SERVER_URL: z.string().url(),
     // OPEN_AI_API_KEY: z.string().min(1),
   },
   /*

@@ -4,88 +4,44 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { DarkThemeToggle } from 'flowbite-react';
 import { Logo } from './Logo';
-import { OrgSwitcher } from './org-switcher';
+import { Organization, OrgSwitcher } from './org-switcher';
 import { ProjectSwitcher } from './project-switcher';
 import { CTAButtons } from './cta-buttons';
-import { Organization } from './org-switcher';
-import { Project } from './project-switcher';
-import { useEffect, useState } from 'react';
 
-interface User {
+type User = {
   name?: string | null;
   email?: string | null;
   image?: string | null;
   avatar?: string;
 }
 
-interface HeaderProps {
+type HeaderProps = {
   user?: User;
   onSignOut?: () => void | Promise<void>;
   logoSize?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
+  showBreadcrumbs?: boolean;
+  showProjectBreadcrumb?: boolean;
+  organizations?: Organization[];
 }
 
 export function Header({ 
   user,
   onSignOut,
   logoSize = "xs",
-  className = ""
+  className = "",
+  showBreadcrumbs = false,
+  showProjectBreadcrumb = false,
+  organizations,
 }: HeaderProps) {
   const params = useParams();
   const pathname = usePathname();
   
   const orgId = params?.orgId as string;
   const projectId = params?.projectId as string;
+  const currentOrg = organizations?.find(org => org.id === orgId);
+  const currentProject = currentOrg?.projects?.find(project => project.id === projectId);
 
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-
-  const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
-  const [orgLoading, setOrgLoading] = useState(true);
-  const [orgError, setOrgError] = useState<string | null>(null);
-
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectLoading, setProjectLoading] = useState(true);
-  const [projectError, setProjectError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchOrgs = async () => {
-      try {
-        setOrgLoading(true);
-        setOrgError(null);
-        const res = await fetch('/api/organizations');
-        if (!res.ok) throw new Error('Failed to fetch organizations');
-        const data = await res.json() as Organization[];
-        setOrganizations(data);
-        setCurrentOrg(data.find(org => org.id === orgId) ?? data[0] ?? null);
-      } catch (err) {
-        setOrgError(err instanceof Error ? err.message : 'Failed to fetch organizations');
-        setOrganizations([]);
-      } finally {
-        setOrgLoading(false);
-      }
-    };
-
-    const fetchProjects = async () => {
-      const res = await fetch(`/api/projects?orgId=${orgId}`);
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json() as Project[];
-      setProjects(data);
-    };
-
-    fetchOrgs();
-    fetchProjects();
-  }, [orgId]);
-  
-  
-
-
-  // Determine current org and project
-  const currentProject = projects.find(project => project.id === projectId);
-  
-  // Show breadcrumbs only on org/project pages
-  const showBreadcrumbs = pathname.includes('/org/');
-  const showProjectBreadcrumb = pathname.includes('/project/') && currentProject;
-  
   // Determine which CTA buttons to show based on current path
   const getCtaButtonsConfig = () => {
     // Project context - show stream ingest and project settings
@@ -139,12 +95,12 @@ export function Header({
           {showBreadcrumbs && (
             <>
               <div className="flex items-center gap-2">
-                <OrgSwitcher currentOrg={currentOrg} organizations={organizations} />
+                <OrgSwitcher currentOrg={currentOrg ?? null} organizations={organizations ?? []} />
                 
                 {showProjectBreadcrumb && (
                   <>
                     <span className="text-slate-400 dark:text-slate-500">/</span>
-                    <ProjectSwitcher currentProject={currentProject} projects={projects} />
+                    <ProjectSwitcher currentProject={currentProject} projects={currentOrg?.projects ?? []} />
                   </>
                 )}
               </div>

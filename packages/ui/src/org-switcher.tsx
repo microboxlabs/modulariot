@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Search, Plus, Building } from 'lucide-react';
 import Link from 'next/link';
+import { Project } from './project-switcher';
 
 export interface Organization {
   id: string;
   name: string;
   planId: string;
+  projects?: Project[];
 }
 
 interface OrgSwitcherProps {

@@ -83,9 +83,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const includeProjects = request.nextUrl.searchParams.get('projects') === 'true';
+
+
   const organizations = await prisma.organization.findMany({
     where: {
       ownerId: session.user.id,
+    },
+    include: {
+      projects: includeProjects,
     },
   });
 

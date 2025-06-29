@@ -58,8 +58,11 @@ export function buildConnectionUri(
   projectId: string, 
   apiKey?: string
 ): string {
+
+  const ingestUrl = process.env.INGEST_URL;
+
   const uris = {
-    rest: `https://ingest.modulariot.com/v1/org/${orgId}/proj/${projectId}`,
+    rest: `${ingestUrl}/org/${orgId}/proj/${projectId}`,
     websocket: `wss://ws.modulariot.com/stream?org=${orgId}&proj=${projectId}${apiKey ? `&token=${apiKey}` : ''}`,
     mqtt: `mqtts://mqtt.modulariot.com`,
     amqp: `persistent://modulariot/${orgId}/${projectId}`,

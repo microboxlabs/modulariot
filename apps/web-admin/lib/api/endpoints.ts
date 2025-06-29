@@ -1,7 +1,7 @@
 import { Prisma } from "@modulariot/db";
 import { buildIncludeQuery } from "./fetcher";
 
-export const endpointOrgs = () => `/api/organizations`;
+export const endpointOrgs = (options?: Prisma.OrganizationInclude) => `/api/organizations${buildIncludeQuery(options)}`;
 
 export const endpointOrg = (orgId: string, options?: Prisma.OrganizationInclude) => `${endpointOrgs()}/${orgId}${buildIncludeQuery(options)}`;
 

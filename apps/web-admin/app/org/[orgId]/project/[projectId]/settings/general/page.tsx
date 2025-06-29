@@ -46,7 +46,6 @@ export default function GeneralSettingsPage() {
 
   useEffect(() => {
     if (project) {
-      console.log("project", project);
       reset({
         name: project.name,
       });
@@ -103,7 +102,6 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">General Settings</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

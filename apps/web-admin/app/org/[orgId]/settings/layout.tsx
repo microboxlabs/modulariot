@@ -7,7 +7,6 @@ interface SettingsLayoutProps {
 export default function SettingsLayout({ children }: SettingsLayoutProps) {
   return (
     <div className="container px-6 mx-auto py-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-gray-900 dark:text-white tracking-tight">
           Organization Settings

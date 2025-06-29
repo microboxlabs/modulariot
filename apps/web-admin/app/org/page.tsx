@@ -24,7 +24,6 @@ export default function OrganizationsPage() {
   return (
     <div className={`${isCollapsed ? 'ml-16' : 'ml-60'}`}>
       <div className="container px-6 mx-auto py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-gray-900 dark:text-white tracking-tight">
             My Organizations

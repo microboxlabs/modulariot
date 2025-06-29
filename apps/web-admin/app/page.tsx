@@ -3,9 +3,9 @@
 import { redirect } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { Header } from '@modulariot/ui/header';
 import { Footer } from '@/app/components/Footer';
 import { Building, Plus, Users, Zap } from 'lucide-react'
+import { AdminHeader } from './components/AdminHeader';
 
 export default function Dashboard() {
   const { data: session, status } = useSession()
@@ -18,17 +18,9 @@ export default function Dashboard() {
     redirect('/login')
   }
 
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/login' });
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <Header 
-        user={session.user}
-        onSignOut={handleSignOut}
-      />
+      <AdminHeader />
 
       {/* Main Content */}
       <main className="flex-1">

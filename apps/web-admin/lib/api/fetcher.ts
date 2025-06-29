@@ -1,8 +1,20 @@
+/**
+ * An error type that extends the built-in Error class with additional properties:
+ * - info: Additional error information from the response
+ * - status: The HTTP status code of the response
+ */
 export type FetcherError = Error & {
-    info: any;
+    info: Record<string, unknown>;
     status: number;
 };
   
+
+/**
+ * Fetches data from the API and throws an error if the response is not ok.
+ * @param input - The URL to fetch from.
+ * @param init - The request init object.
+ * @returns The response body as a JSON object.
+ */
 export default async function fetcher<T>(
     input: RequestInfo | URL,
     init?: RequestInit,

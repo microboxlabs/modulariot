@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Modal, Tabs, Spinner, ModalHeader, ModalBody } from "flowbite-react";
 import { Server, Wifi, Waves, MessageCircle, Terminal } from "lucide-react";
 import { ConnectionCard } from "./connection-card";
-import { PROTOCOLS, getConnectionDetails, buildAuth0Curl, buildRestCurl, Auth0Credentials, IngestConfig } from "./protocol-helpers";
+import { PROTOCOLS, getConnectionDetails, Auth0Credentials, IngestConfig } from "./protocol-helpers";
 
 interface CredentialsResponse {
   auth0: Auth0Credentials;
@@ -122,24 +122,10 @@ export function ConnectStreamModal({
                 orgId,
                 projectId,
                 apiKey: apiKey ?? "",
-                serverUrl: protocolsConfig[protocol.id]?.serverUrl ?? ""
+                serverUrl: protocolsConfig[protocol.id]?.serverUrl ?? "",
+                auth0: credentials?.auth0,
+                ingest: credentials?.ingest
               });
-
-              // For REST protocol, populate steps with real Auth0 credentials
-              if (protocol.id === "rest" && credentials) {
-                connectionDetails.steps = [
-                  {
-                    title: "① Get an Auth token (once every 30 days)",
-                    code: buildAuth0Curl(credentials.auth0),
-                    description: "Authenticate with Auth0 to receive a short-lived access token. Save the 'access_token' from the response."
-                  },
-                  {
-                    title: "② Send data",
-                    code: buildRestCurl(credentials.ingest.url, credentials.ingest.endpoint),
-                    description: "Use the access token from step 1 as the Bearer token to send data to your project."
-                  }
-                ];
-              }
 
               return (
                 <Tabs.Item

@@ -85,6 +85,8 @@ interface ConnectionDetailsParams {
   projectId: string;
   apiKey?: string;
   serverUrl?: string;
+  auth0?: Auth0Credentials;
+  ingest?: IngestConfig;
 }
 
 export interface Auth0Credentials {
@@ -124,7 +126,7 @@ export function buildRestCurl(ingestUrl: string, endpoint: string): string {
   }'`;
 }
 
-export function getConnectionDetails({protocol, orgId, projectId, apiKey}: ConnectionDetailsParams): ConnectionDetails {
+export function getConnectionDetails({protocol, orgId, projectId, apiKey, auth0, ingest}: ConnectionDetailsParams): ConnectionDetails {
   const uri = buildConnectionUri(protocol, orgId, projectId, apiKey);
   
   const details: { [key: string]: ConnectionDetails } = {
@@ -141,13 +143,13 @@ export function getConnectionDetails({protocol, orgId, projectId, apiKey}: Conne
       steps: [
         {
           title: "① Get an Auth token (once every 30 days)",
-          code: "# This will be populated by the modal with real Auth0 credentials",
-          description: "Authenticate with Auth0 to receive a short-lived access token"
+          code: auth0 ? buildAuth0Curl(auth0) : "# Loading Auth0 credentials...",
+          description: "Authenticate with Auth0 to receive a short-lived access token. Save the 'access_token' from the response."
         },
         {
           title: "② Send data", 
-          code: "# This will be populated by the modal with real ingest URL",
-          description: "Use the access token to send data to your project endpoint"
+          code: ingest ? buildRestCurl(ingest.url, ingest.endpoint) : "# Loading ingest endpoint...",
+          description: "Use the access token from step 1 as the Bearer token to send data to your project."
         }
       ],
       sampleCode: {

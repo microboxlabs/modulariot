@@ -118,7 +118,7 @@ export function CTAButtons({ config = { orgId: "", projectId: "" } }: CTAButtons
           onFetchCredentials={onFetchCredentials}
           protocolsConfig={{
             rest: {
-              serverUrl: 'https://ingest.modulariot.com',
+              serverUrl: process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.modulariot.com',
             },
           }}
         />

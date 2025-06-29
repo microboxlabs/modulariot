@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Modal, Tabs, Spinner, ModalHeader, ModalBody } from "flowbite-react";
 import { Server, Wifi, Waves, MessageCircle, Terminal } from "lucide-react";
 import { ConnectionCard } from "./connection-card";
-import { PROTOCOLS, getConnectionDetails } from "./protocol-helpers";
+import { PROTOCOLS, getConnectionDetails, buildAuth0Curl, buildRestCurl, Auth0Credentials, IngestConfig } from "./protocol-helpers";
+
+interface CredentialsResponse {
+  auth0: Auth0Credentials;
+  ingest: IngestConfig;
+  project: {
+    id: string;
+    name: string;
+    organizationId: string;
+  };
+}
 
 interface ConnectStreamModalProps {
   isOpen: boolean;
@@ -40,22 +50,26 @@ export function ConnectStreamModal({
   const [activeTab, setActiveTab] = useState("rest");
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [credentials, setCredentials] = useState<CredentialsResponse | null>(null);
 
-  useEffect(() => {
-    if (isOpen && projectId) {
-      fetchCredentials();
-    }
-  }, [isOpen, projectId]);
-
-  const fetchCredentials = async () => {
+  const fetchCredentials = useCallback(async () => {
     try {
       setLoading(true);
-      if (onFetchCredentials) {
+      
+      // Try to fetch real credentials from the new API endpoint
+      const response = await fetch(`/api/organizations/${orgId}/projects/${projectId}/credentials`);
+      if (response.ok) {
+        const credentialsData: CredentialsResponse = await response.json();
+        setCredentials(credentialsData);
+        // Keep backward compatibility
+        setApiKey("auth0_token_placeholder");
+      } else if (onFetchCredentials) {
+        // Fallback to old API
         const data = await onFetchCredentials(projectId);
         setApiKey(data.apiKey);
       } else {
-        // Fallback for development
-        setApiKey("miot_key_" + Math.random().toString(36).substr(2, 20));
+        // Development fallback
+        setApiKey("miot_key_" + Math.random().toString(36).substring(2, 22));
       }
     } catch (error) {
       console.error("Failed to fetch credentials:", error);
@@ -64,7 +78,13 @@ export function ConnectStreamModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [orgId, projectId, onFetchCredentials]);
+
+  useEffect(() => {
+    if (isOpen && projectId) {
+      fetchCredentials();
+    }
+  }, [isOpen, projectId, fetchCredentials]);
 
   if (!orgId || !projectId) {
     return null;
@@ -105,6 +125,22 @@ export function ConnectStreamModal({
                 serverUrl: protocolsConfig[protocol.id]?.serverUrl ?? ""
               });
 
+              // For REST protocol, populate steps with real Auth0 credentials
+              if (protocol.id === "rest" && credentials) {
+                connectionDetails.steps = [
+                  {
+                    title: "① Get an Auth token (once every 30 days)",
+                    code: buildAuth0Curl(credentials.auth0),
+                    description: "Authenticate with Auth0 to receive a short-lived access token. Save the 'access_token' from the response."
+                  },
+                  {
+                    title: "② Send data",
+                    code: buildRestCurl(credentials.ingest.url, credentials.ingest.endpoint),
+                    description: "Use the access token from step 1 as the Bearer token to send data to your project."
+                  }
+                ];
+              }
+
               return (
                 <Tabs.Item
                   key={protocol.id}
@@ -138,9 +174,10 @@ export function ConnectStreamModal({
           <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="font-medium text-yellow-800 mb-2">Security Notes</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
-              <li>• Keep your API keys secure and never commit them to version control</li>
+              <li>• <strong>Never expose client_secret in UI</strong> - download service credentials from project settings</li>
+              <li>• Access tokens expire every 30 days - implement automatic refresh in production</li>
+              <li>• Keep credentials secure and never commit them to version control</li>
               <li>• Use environment variables for production deployments</li>
-              <li>• Rotate credentials regularly from the project settings</li>
               <li>• Consider IP allowlisting for additional security</li>
             </ul>
           </div>

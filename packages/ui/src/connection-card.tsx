@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, Badge, Tabs } from "flowbite-react";
 import { Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
-import { ConnectionDetails } from "./protocol-helpers";
+import { ConnectionDetails, Step } from "./protocol-helpers";
 
 interface ConnectionCardProps {
   details: ConnectionDetails;
@@ -13,12 +13,26 @@ interface ConnectionCardProps {
 export function ConnectionCard({ details, badges = [] }: ConnectionCardProps) {
   const [copied, setCopied] = useState(false);
   const [showParameters, setShowParameters] = useState(false);
+  const [copiedStepIndex, setCopiedStepIndex] = useState<number | null>(null);
 
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      
+      // TODO: Replace with proper toast notification
+      console.log("Copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleStepCopy = async (text: string, stepIndex: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedStepIndex(stepIndex);
+      setTimeout(() => setCopiedStepIndex(null), 2000);
       
       // TODO: Replace with proper toast notification
       console.log("Copied to clipboard");
@@ -44,23 +58,50 @@ export function ConnectionCard({ details, badges = [] }: ConnectionCardProps) {
           <p className="text-gray-600 text-sm mb-3">{details.description}</p>
         </div>
 
-        <div className="relative">
-          <div 
-            className="bg-gray-50 border rounded-lg p-3 font-mono text-sm cursor-pointer hover:bg-gray-100 transition-colors"
-            onClick={() => handleCopy(details.uri)}
-          >
-            <div className="flex items-center justify-between">
-              <span className="break-all pr-8">{details.uri}</span>
-              <div className="absolute top-3 right-3">
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                )}
+        {/* Show steps if available, otherwise show the original URI */}
+        {details.steps && details.steps.length > 0 ? (
+          <div className="space-y-4">
+            {details.steps.map((step, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-sm">{step.title}</h4>
+                  <button
+                    onClick={() => handleStepCopy(step.code, index)}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  >
+                    {copiedStepIndex === index ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 mb-2">{step.description}</p>
+                <div className="bg-gray-900 text-gray-100 p-3 rounded text-xs font-mono overflow-x-auto">
+                  <pre className="whitespace-pre-wrap">{step.code}</pre>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="relative">
+            <div 
+              className="bg-gray-50 border rounded-lg p-3 font-mono text-sm cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => handleCopy(details.uri)}
+            >
+              <div className="flex items-center justify-between">
+                <span className="break-all pr-8">{details.uri}</span>
+                <div className="absolute top-3 right-3">
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-2">
           <button

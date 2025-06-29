@@ -6,12 +6,19 @@ export interface Protocol {
   badges: string[];
 }
 
+export interface Step {
+  title: string;
+  code: string;
+  description: string;
+}
+
 export interface ConnectionDetails {
   title: string;
   description: string;
   uri: string;
   parameters: { name: string; value: string; description?: string }[];
   sampleCode?: { [key: string]: string };
+  steps?: Step[];
 }
 
 export const PROTOCOLS: Protocol[] = [
@@ -80,50 +87,73 @@ interface ConnectionDetailsParams {
   serverUrl?: string;
 }
 
+export interface Auth0Credentials {
+  domain: string;
+  clientId: string;
+  audience: string;
+  grantType: string;
+}
+
+export interface IngestConfig {
+  url: string;
+  endpoint: string;
+}
+
+export function buildAuth0Curl(auth0: Auth0Credentials): string {
+  return `curl -X POST "https://${auth0.domain}/oauth/token" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "client_id": "${auth0.clientId}",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "audience": "${auth0.audience}",
+    "grant_type": "${auth0.grantType}"
+  }'`;
+}
+
+export function buildRestCurl(ingestUrl: string, endpoint: string): string {
+  const fullUrl = `${ingestUrl}${endpoint}`;
+  return `curl -X POST "${fullUrl}" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -d '{
+    "deviceId": "device123",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "data": {
+      "temperature": 25.3
+    }
+  }'`;
+}
+
 export function getConnectionDetails({protocol, orgId, projectId, apiKey}: ConnectionDetailsParams): ConnectionDetails {
   const uri = buildConnectionUri(protocol, orgId, projectId, apiKey);
   
   const details: { [key: string]: ConnectionDetails } = {
     rest: {
-      title: "Direct HTTPS",
-      description: "Ideal for low-volume or server-side cron jobs. Simple POST requests with JSON payloads.",
+      title: "REST API (Two-Step Authentication)",
+      description: "Secure two-step process: First obtain an Auth0 access token, then use it to send data.",
       uri,
       parameters: [
-        { name: "Method", value: "POST" },
-        { name: "Content-Type", value: "application/json" },
-        { name: "Authorization", value: `Bearer ${apiKey || 'YOUR_API_KEY'}` },
+        { name: "Step 1", value: "Get Auth0 Token", description: "Obtain short-lived access token (expires in 30 days)" },
+        { name: "Step 2", value: "Send Data", description: "Use token to authenticate data ingestion" },
+        { name: "Security", value: "Bearer Token", description: "JWT token from Auth0 M2M flow" },
         { name: "Host", value: process.env.NEXT_PUBLIC_INGEST_URL ?? '' }
       ],
+      steps: [
+        {
+          title: "① Get an Auth token (once every 30 days)",
+          code: "# This will be populated by the modal with real Auth0 credentials",
+          description: "Authenticate with Auth0 to receive a short-lived access token"
+        },
+        {
+          title: "② Send data", 
+          code: "# This will be populated by the modal with real ingest URL",
+          description: "Use the access token to send data to your project endpoint"
+        }
+      ],
       sampleCode: {
-        curl: `curl -X POST "${uri}" \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${apiKey || 'YOUR_API_KEY'}" \\
-  -d '{"deviceId": "device123", "timestamp": "2024-01-01T00:00:00Z", "data": {"temperature": 25.3}}'`,
-        javascript: `fetch('${uri}', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${apiKey || 'YOUR_API_KEY'}'
-  },
-  body: JSON.stringify({
-    deviceId: 'device123',
-    timestamp: new Date().toISOString(),
-    data: { temperature: 25.3 }
-  })
-});`,
-        python: `import requests
-
-response = requests.post('${uri}', 
-  headers={
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${apiKey || 'YOUR_API_KEY'}'
-  },
-  json={
-    'deviceId': 'device123',
-    'timestamp': '2024-01-01T00:00:00Z',
-    'data': {'temperature': 25.3}
-  }
-)`
+        curl: `# Step 1: Get Auth0 Token\ncurl -X POST "https://YOUR_DOMAIN.auth0.com/oauth/token" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "client_id": "YOUR_CLIENT_ID",\n    "client_secret": "YOUR_CLIENT_SECRET",\n    "audience": "https://modulariot.com/v1/project/admin",\n    "grant_type": "client_credentials"\n  }'\n\n# Step 2: Send Data\ncurl -X POST "${uri}" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer $TOKEN" \\\n  -d '{\n    "deviceId": "device123",\n    "timestamp": "2024-01-01T00:00:00Z",\n    "data": {"temperature": 25.3}\n  }'`,
+        javascript: `// Step 1: Get Auth0 Token\nconst tokenResponse = await fetch('https://YOUR_DOMAIN.auth0.com/oauth/token', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    client_id: 'YOUR_CLIENT_ID',\n    client_secret: 'YOUR_CLIENT_SECRET',\n    audience: 'https://modulariot.com/v1/project/admin',\n    grant_type: 'client_credentials'\n  })\n});\nconst { access_token } = await tokenResponse.json();\n\n// Step 2: Send Data\nconst response = await fetch('${uri}', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'Authorization': \`Bearer \${access_token}\`\n  },\n  body: JSON.stringify({\n    deviceId: 'device123',\n    timestamp: new Date().toISOString(),\n    data: { temperature: 25.3 }\n  })\n});`,
+        python: `import requests\n\n# Step 1: Get Auth0 Token\ntoken_response = requests.post('https://YOUR_DOMAIN.auth0.com/oauth/token', \n  json={\n    'client_id': 'YOUR_CLIENT_ID',\n    'client_secret': 'YOUR_CLIENT_SECRET',\n    'audience': 'https://modulariot.com/v1/project/admin',\n    'grant_type': 'client_credentials'\n  }\n)\naccess_token = token_response.json()['access_token']\n\n# Step 2: Send Data\nresponse = requests.post('${uri}', \n  headers={\n    'Content-Type': 'application/json',\n    'Authorization': f'Bearer {access_token}'\n  },\n  json={\n    'deviceId': 'device123',\n    'timestamp': '2024-01-01T00:00:00Z',\n    'data': {'temperature': 25.3}\n  }\n)`
       }
     },
     websocket: {

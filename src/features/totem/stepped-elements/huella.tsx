@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import fingerPrint from "@assets/icons/totem/fingerprint-security.gif";
@@ -11,6 +11,8 @@ import {
 } from "@/features/sovos-fingerprint/services/autentia";
 import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
+// import dynamic from "next/dynamic";
+// const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
 export default function Huella({
   setCurrentStep,
@@ -41,11 +43,41 @@ export default function Huella({
   const [manualAccess, setManualAccess] = useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
 
+  const qrRef = useRef(null);
+
   useEffect(() => {
     if (count >= 3) {
       setCurrentStep(3);
     }
   }, [count]);
+
+  useEffect(() => {
+    if (idCardLoading && qrRef.current) {
+      import("html5-qrcode").then(({ Html5Qrcode }) => {
+        const html5QrCode = new Html5Qrcode("html5qr-code");
+        html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            console.log("QR Code link:", decodedText);
+            html5QrCode.stop();
+          },
+          (errorMessage) => {
+            // Optionally handle scan errors
+            console.error("QR Code error:", errorMessage);
+          }
+        );
+      });
+    }
+    // Optionally: cleanup on unmount or when idCardLoading becomes false
+    return () => {
+      const el = document.getElementById("html5qr-code");
+      if (el) el.innerHTML = "";
+    };
+  }, [idCardLoading]);
 
   if (!pluginReady) return null;
 
@@ -207,6 +239,8 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
+        {!idCardLoading && (
+          <>
         <Image
           className="w-[18vh] h-[18vh] animate-scale-in"
           src={SmartLockCard}
@@ -214,15 +248,39 @@ export default function Huella({
           width={100}
           height={100}
         />
+        </>)
+        }
 
         <div className="flex flex-col items-center justify-center">
           {idCardLoading ? (
-            <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
-              {
-                (dict.totem as I18nRecord)
-                  .smart_lock_card_subtext_loading as string
-              }
-            </p>
+            <>
+              {/*
+              <div className="w-full flex justify-center mb-4">
+                <QrReader
+                  constraints={{ facingMode: "environment" }}
+                  onResult={(result, error) => {
+                    if (!!result) {
+                      console.log("QR Code link:", result?.getText());
+                    }
+                    if (!!error && error.name !== "NotFoundException" && error.name !== "ChecksumException") {
+                      console.error("QR Code error:", error);
+                    }
+                  }}
+                  containerStyle={{ width: "100%" }}
+                  videoStyle={{ width: "100%" }}
+                />
+              </div>
+              */}
+              <div className="w-full flex justify-center mb-4">
+                <div id="html5qr-code" ref={qrRef} style={{ width: "100%", maxWidth: 400 }} />
+              </div>
+              <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+                {
+                  (dict.totem as I18nRecord)
+                    .smart_lock_card_subtext_loading as string
+                }
+              </p>
+            </>
           ) : (
             <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
               {(dict.totem as I18nRecord).smart_lock_card_subtext as string}

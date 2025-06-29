@@ -94,6 +94,7 @@ export interface Auth0Credentials {
   clientId: string;
   audience: string;
   grantType: string;
+  clientSecret: string;
 }
 
 export interface IngestConfig {
@@ -106,7 +107,7 @@ export function buildAuth0Curl(auth0: Auth0Credentials): string {
   -H "Content-Type: application/json" \\
   -d '{
     "client_id": "${auth0.clientId}",
-    "client_secret": "YOUR_CLIENT_SECRET",
+    "client_secret": "${auth0.clientSecret}",
     "audience": "${auth0.audience}",
     "grant_type": "${auth0.grantType}"
   }'`;

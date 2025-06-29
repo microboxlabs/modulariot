@@ -116,6 +116,11 @@ export function CTAButtons({ config = { orgId: "", projectId: "" } }: CTAButtons
           orgId={orgId}
           projectId={projectId}
           onFetchCredentials={onFetchCredentials}
+          protocolsConfig={{
+            rest: {
+              serverUrl: 'https://ingest.modulariot.com',
+            },
+          }}
         />
       )}
     </div>

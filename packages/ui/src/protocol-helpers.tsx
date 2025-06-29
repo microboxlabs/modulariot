@@ -72,12 +72,15 @@ export function buildConnectionUri(
   return uris[protocol as keyof typeof uris] || '';
 }
 
-export function getConnectionDetails(
-  protocol: string, 
-  orgId: string, 
-  projectId: string, 
-  apiKey?: string
-): ConnectionDetails {
+interface ConnectionDetailsParams {
+  protocol: string;
+  orgId: string;
+  projectId: string;
+  apiKey?: string;
+  serverUrl?: string;
+}
+
+export function getConnectionDetails({protocol, orgId, projectId, apiKey}: ConnectionDetailsParams): ConnectionDetails {
   const uri = buildConnectionUri(protocol, orgId, projectId, apiKey);
   
   const details: { [key: string]: ConnectionDetails } = {

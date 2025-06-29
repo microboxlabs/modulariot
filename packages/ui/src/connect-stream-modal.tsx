@@ -12,6 +12,13 @@ interface ConnectStreamModalProps {
   orgId: string;
   projectId: string;
   onFetchCredentials?: (projectId: string) => Promise<{ apiKey: string }>;
+  protocolsConfig: {
+    [key: string]: {
+      // icon: string;
+      // badges: string[];
+      serverUrl: string;
+    };
+  };
 }
 
 const ICON_MAP = {
@@ -27,7 +34,8 @@ export function ConnectStreamModal({
   onClose, 
   orgId, 
   projectId,
-  onFetchCredentials 
+  onFetchCredentials,
+  protocolsConfig
 }: ConnectStreamModalProps) {
   const [activeTab, setActiveTab] = useState("rest");
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -89,7 +97,13 @@ export function ConnectStreamModal({
           >
             {PROTOCOLS.map((protocol) => {
               const IconComponent = ICON_MAP[protocol.icon as keyof typeof ICON_MAP];
-              const connectionDetails = getConnectionDetails(protocol.id, orgId, projectId, apiKey ?? "");
+              const connectionDetails = getConnectionDetails({
+                protocol: protocol.id,
+                orgId,
+                projectId,
+                apiKey: apiKey ?? "",
+                serverUrl: protocolsConfig[protocol.id]?.serverUrl ?? ""
+              });
 
               return (
                 <Tabs.Item

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button, TextInput, Card, Spinner, Alert } from 'flowbite-react';
 import { Plus, Search, Filter, Building2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 import { useOrgList } from '@/lib/hooks/useOrgList';
 import { OrgCard } from '../components/OrgCard';
@@ -12,14 +14,29 @@ import { CTAButton } from '@modulariot/ui/cta-button';
 import { getSavedState } from '@modulariot/ui/sidebar';
 
 export default function OrganizationsPage() {
+  const { data: session, status } = useSession();
   const { organizations, loading, error } = useOrgList();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  if (status === 'loading') {
+    return <div>Loading...</div>;
+  }
+
+  if (!session?.user) {
+    redirect('/login');
+  }
 
   const filteredOrgs = organizations.filter(org => 
     org.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const isCollapsed = getSavedState('miot_sidebar');
+  useEffect(() => {
+    const isCollapsed = getSavedState('miot_sidebar');
+    setIsCollapsed(isCollapsed);
+  }, []);
+
+  
 
   return (
     <div className={`${isCollapsed ? 'ml-16' : 'ml-60'}`}>

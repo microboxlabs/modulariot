@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-const metricsParamsSchema = z.object({
-  id: z.string().min(1),
-});
-
 const metricsQuerySchema = z.object({
   window: z.enum(["15m", "60m", "24h"]).default("60m"),
 });
@@ -24,11 +20,11 @@ function generateMockMetrics(window: string) {
     "24h": 144,
   }[window];
 
-  const interval = windowMs / dataPoints;
+  const interval = windowMs! / dataPoints!;
 
   // Generate time series data
-  const timeSeriesData = Array.from({ length: dataPoints }, (_, i) => {
-    const timestamp = new Date(now.getTime() - (dataPoints - i - 1) * interval);
+  const timeSeriesData = Array.from({ length: dataPoints! }, (_, i) => {
+    const timestamp = new Date(now.getTime() - (dataPoints! - i - 1) * interval);
     return {
       timestamp: timestamp.toISOString(),
       tps: Math.floor(Math.random() * 1000) + 500,
@@ -155,10 +151,8 @@ function generateMockMetrics(window: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = metricsParamsSchema.parse(params);
     const url = new URL(request.url);
     const { window } = metricsQuerySchema.parse({
       window: url.searchParams.get("window"),
@@ -184,5 +178,5 @@ export async function GET(
       { message: "Metrics service not implemented yet" },
       { status: 501 }
     );
-  }
+  } 
 }

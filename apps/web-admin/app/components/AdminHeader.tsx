@@ -1,9 +1,10 @@
 'use client';
 
+import { signOut } from "next-auth/react";
 import { useOrganizations } from "@/lib/hooks/organization";
 import { Header } from "@modulariot/ui/header";
 import { useSession } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export function AdminHeader() {
     
@@ -18,12 +19,20 @@ export function AdminHeader() {
 
     const { data: session } = useSession();
 
+    const router = useRouter();
+    
     return (
         <Header 
             user={session?.user}
             showBreadcrumbs={showBreadcrumbs} 
             showProjectBreadcrumb={showProjectBreadcrumb} 
             organizations={organizations}
+            onSignOut={async () => {
+                await signOut({
+                    redirect: true,
+                    redirectTo: '/login',
+                });
+            }}
         />
     );
 }

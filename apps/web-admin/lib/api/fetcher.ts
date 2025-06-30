@@ -36,7 +36,7 @@ export default async function fetcher<T>(
  * @param include - An object where keys are field names and values are booleans or strings
  * @returns A query string starting with '?' if any keys are included, otherwise an empty string
  */
-export function buildIncludeQuery(include?: Record<string, any>): string {
+export function buildIncludeQuery(include?: Record<string, unknown>): string {
   if (!include) return '';
   const queryParams = new URLSearchParams();
   for (const key in include) {

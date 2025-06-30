@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, TextInput, Card, Select, Modal, Alert, ModalHeader, ModalBody, ModalFooter, HelperText } from "flowbite-react";
-import { Pause, Play, Globe, Truck, Trash2, BarChart3, CreditCard } from "lucide-react";
+import { Button, TextInput, Card, Select, Modal, ModalHeader, ModalBody, ModalFooter, HelperText } from "flowbite-react";
+import { Play, Globe, Truck, BarChart3, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -24,13 +24,12 @@ type ProjectFormData = z.infer<typeof projectFormSchema>;
 
 export default function GeneralSettingsPage() {
   const params = useParams();
-  const router = useRouter();
   const orgId = params.orgId as string;
   const projectId = params.projectId as string;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const { data: project, error: projectError, isLoading } = useProject(projectId, orgId);
+  const { data: project } = useProject(projectId, orgId);
 
   const {
     register,
@@ -60,6 +59,7 @@ export default function GeneralSettingsPage() {
       toast.success("Project updated successfully");
       reset(data);
     } catch (error) {
+      console.error(error);
       toast.error("Failed to update project");
     } finally {
       setIsSubmitting(false);
@@ -78,6 +78,7 @@ export default function GeneralSettingsPage() {
       
       toast.success(`Project ${restartType} restart initiated`);
     } catch (error) {
+      console.error(error);
       toast.error("Failed to restart project");
     }
   };
@@ -96,6 +97,7 @@ export default function GeneralSettingsPage() {
       
       toast.success(`Project ${action} initiated`);
     } catch (error) {
+      console.error(error);
       toast.error(`Failed to ${action} project`);
     }
   };
@@ -117,7 +119,7 @@ export default function GeneralSettingsPage() {
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-white">Monitor Usage</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Track your project's resource consumption and costs.
+                {"Track your project's resource consumption and costs."}
               </p>
             </div>
           </div>
@@ -248,7 +250,6 @@ export default function GeneralSettingsPage() {
         entityType="Project"
         entityName={project?.name ?? ""}
         deleter={deleteFetcher}
-        entityId={projectId}
         url={endpointOrgProject(orgId, projectId)}
         disabled={isSubmitting}
         redirect={`/org/${orgId}`}
@@ -264,7 +265,7 @@ export default function GeneralSettingsPage() {
               Transfer Project
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              This feature is coming soon. You'll be able to transfer projects between organizations.
+              {"This feature is coming soon. You'll be able to transfer projects between organizations."}
             </p>
           </div>
         </ModalBody>

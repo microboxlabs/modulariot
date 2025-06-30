@@ -1,6 +1,5 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { Card, Button, Table, Badge, Alert, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from "flowbite-react";
 import { Crown, Calendar, User, Activity } from "lucide-react";
 
@@ -16,8 +15,6 @@ interface AuditLogEntry {
 }
 
 export default function AuditLogsPage() {
-  const params = useParams();
-  const orgId = params.orgId as string;
   
   // TODO: Load organization plan from API
   const organizationPlan = "free"; // stub - will be "free", "pro", "team", "enterprise"

@@ -25,8 +25,8 @@ export default function GeneralSettingsPage() {
   const orgId = params.orgId as string;
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
-  const { data: organization, error: orgError, isLoading } = useOrganization(orgId);
+  const [, setError] = useState("");
+  const { data: organization, error: orgError } = useOrganization(orgId);
   
   const {
     register,
@@ -78,17 +78,6 @@ export default function GeneralSettingsPage() {
     }
   };
 
-  // id: string;
-  // slug: string;
-  // createdAt: Date;
-  // updatedAt: Date;
-  // regionId: string;
-  // superadminPassword: string;
-  // organizationId: string;
-  // securityMode: string;
-  // apiSchema: string;
-  // dbEngine: string;
-
   return (
     <div className="space-y-8">
       <Card>
@@ -98,7 +87,7 @@ export default function GeneralSettingsPage() {
               Organization Information
             </h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Update your organization's basic information and settings.
+              {"Update your organization's basic information and settings."}
             </p>
           </div>
 
@@ -202,7 +191,6 @@ export default function GeneralSettingsPage() {
       <DangerZone
         entityType="Organization"
         entityName={organization?.name ?? ""}
-        entityId={orgId}
         deleter={deleteFetcher}
         redirect="/org"
         url={`/api/organizations/${orgId}`}

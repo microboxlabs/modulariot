@@ -32,10 +32,10 @@ export const useOrgList = () => {
           throw new Error(`Failed to fetch organizations: ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const data = await response.json() as Organization[];
         
         // Transform the API response to match the expected UI format
-        const transformedOrgs = data.map((org: any) => ({
+        const transformedOrgs = data.map((org) => ({
           ...org,
           role: 'OWNER', // Since the API returns user's own orgs, they're the owner
           status: 'ACTIVE', // Default status, can be updated when API provides this

@@ -581,6 +581,7 @@ export default function MapVisualizationTrip({
           <ImageSelector images={pictures_list} />
         ) : null}
         <ToolBar
+          dictionary={dict}
           positions={positions ?? []}
           displayPosition={displayPosition}
           setDisplayPosition={setDisplayPosition}

@@ -34,7 +34,7 @@ export default async function SymptomsPage({
       </div>
       {/* BREADCRUMB */}
       {/* CONTENT */}
-      <Notifications />
+      <Notifications lang={lang} />
       {/* CONTENT */}
     </div>
   );

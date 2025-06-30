@@ -1,6 +1,5 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { Card, Button, Badge, Alert } from "flowbite-react";
 import { FileText, Download, ExternalLink, Crown, Shield, Award } from "lucide-react";
 

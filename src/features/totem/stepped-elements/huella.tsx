@@ -58,17 +58,19 @@ export default function Huella({
         html5QrCode.start(
           { facingMode: "environment" },
           {
-            fps: 10,
+            fps: 20,
             qrbox: { width: 250, height: 250 },
           },
-          (decodedText) => {
+          (decodedText, decodedResult) => {
             console.log("QR Code link:", decodedText);
+            console.log("QR Code result:", decodedResult);
+            html5QrCode.clear();
             html5QrCode.stop();
           },
           (errorMessage) => {
             // Optionally handle scan errors
             console.error("QR Code error:", errorMessage);
-          }
+          },
         );
       });
     }
@@ -241,24 +243,23 @@ export default function Huella({
         </div>
         {!idCardLoading && (
           <>
-        <Image
-          className="w-[18vh] h-[18vh] animate-scale-in"
-          src={SmartLockCard}
-          alt="Ok"
-          width={100}
-          height={100}
-        />
-        </>)
-        }
+            <Image
+              className="w-[18vh] h-[18vh] animate-scale-in"
+              src={SmartLockCard}
+              alt="Ok"
+              width={100}
+              height={100}
+            />
+          </>
+        )}
 
         <div className="flex flex-col items-center justify-center">
           {idCardLoading ? (
             <>
-              {/*
-              <div className="w-full flex justify-center mb-4">
+              {/* <div className="w-full flex justify-center mb-4">
                 <QrReader
                   constraints={{ facingMode: "environment" }}
-                  onResult={(result, error) => {
+                  onResult={(result, error) => {                    
                     if (!!result) {
                       console.log("QR Code link:", result?.getText());
                     }
@@ -269,10 +270,14 @@ export default function Huella({
                   containerStyle={{ width: "100%" }}
                   videoStyle={{ width: "100%" }}
                 />
-              </div>
-              */}
+              </div> */}
+
               <div className="w-full flex justify-center mb-4">
-                <div id="html5qr-code" ref={qrRef} style={{ width: "100%", maxWidth: 400 }} />
+                <div
+                  id="html5qr-code"
+                  ref={qrRef}
+                  style={{ width: "100%", maxWidth: 400 }}
+                />
               </div>
               <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
                 {

@@ -59,6 +59,7 @@ export default function OrgSettingsPage() {
     }
   }, [orgId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleInviteSuccess = (invitation: any) => {
     const newInvitation: Invitation = { ...invitation, status: 'PENDING' };
     setInvitations(prev => [...prev, newInvitation]);

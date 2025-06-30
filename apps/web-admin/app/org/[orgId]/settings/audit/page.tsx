@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Card, Button, Table, Badge, Alert } from "flowbite-react";
+import { Card, Button, Table, Badge, Alert, TableHead, TableHeadCell, TableBody, TableRow, TableCell } from "flowbite-react";
 import { Crown, Calendar, User, Activity } from "lucide-react";
 
 interface AuditLogEntry {
@@ -12,7 +12,7 @@ interface AuditLogEntry {
   timestamp: string;
   ipAddress: string;
   userAgent: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export default function AuditLogsPage() {
@@ -96,7 +96,7 @@ export default function AuditLogsPage() {
               <div className="flex items-start">
                 <Activity className="h-5 w-5 mt-0.5 mr-3 flex-shrink-0" />
                 <div>
-                  <h4 className="font-medium mb-1">What you'll get:</h4>
+                  <h4 className="font-medium mb-1">{"What you'll get:"}</h4>
                   <ul className="text-sm space-y-1">
                     <li>• Complete activity tracking</li>
                     <li>• User login/logout events</li>
@@ -148,29 +148,29 @@ export default function AuditLogsPage() {
         {auditLogs.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
-              <Table.Head>
-                <Table.HeadCell>Event</Table.HeadCell>
-                <Table.HeadCell>Actor</Table.HeadCell>
-                <Table.HeadCell>Target</Table.HeadCell>
-                <Table.HeadCell>Timestamp</Table.HeadCell>
-                <Table.HeadCell>IP Address</Table.HeadCell>
-                <Table.HeadCell>Details</Table.HeadCell>
-              </Table.Head>
-              <Table.Body className="divide-y">
+              <TableHead>
+                <TableHeadCell>Event</TableHeadCell>
+                <TableHeadCell>Actor</TableHeadCell>
+                <TableHeadCell>Target</TableHeadCell>
+                <TableHeadCell>Timestamp</TableHeadCell>
+                <TableHeadCell>IP Address</TableHeadCell>
+                <TableHeadCell>Details</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
                 {auditLogs.map((log) => (
-                  <Table.Row key={log.id}>
-                    <Table.Cell>
+                  <TableRow key={log.id}>
+                    <TableCell>
                       <Badge color={getEventBadgeColor(log.event)}>
                         {formatEventName(log.event)}
                       </Badge>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-400" />
                         {log.actor}
                       </div>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       {log.target ? (
                         <div className="flex items-center">
                           <User className="h-4 w-4 mr-2 text-gray-400" />
@@ -179,21 +179,21 @@ export default function AuditLogsPage() {
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <div className="text-sm">
                         <div>{new Date(log.timestamp).toLocaleDateString()}</div>
                         <div className="text-gray-500">
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </div>
                       </div>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
                         {log.ipAddress}
                       </code>
-                    </Table.Cell>
-                    <Table.Cell>
+                    </TableCell>
+                    <TableCell>
                       {log.metadata ? (
                         <details className="text-sm">
                           <summary className="cursor-pointer text-blue-600 hover:text-blue-800 dark:text-blue-400">
@@ -206,10 +206,10 @@ export default function AuditLogsPage() {
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
-                    </Table.Cell>
-                  </Table.Row>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Table.Body>
+              </TableBody>
             </Table>
           </div>
         ) : (

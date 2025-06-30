@@ -65,46 +65,54 @@ export class Auth0Client implements IdentityClient {
 
   async updateClient(_id: string, _input: UpdateProjectAuth0M2MInput): Promise<Client> {
     // TODO: Implement Auth0 client update
+    console.log(_input, _id);
     throw new Error('Not implemented')
   }
 
   async deleteClient(_id: string): Promise<void> {
     // TODO: Implement Auth0 client deletion with proper error handling
+    console.log(_id);
     throw new Error('Not implemented')
   }
 
   async listClientCredentials(_clientId: string): Promise<Credential[]> {
     // TODO: Implement Auth0 client credentials listing
+    console.log(_clientId);
     throw new Error('Not implemented')
   }
 
   async createClientCredential(_clientId: string, _input: ProjectAuth0M2MInput): Promise<Credential> {
-    
+    console.log(_clientId, _input);
     throw new Error('Not implemented')
   }
 
   async getClientCredential(_clientId: string, _credId: string): Promise<Credential> {
     // TODO: Implement Auth0 client credential retrieval
+    console.log(_clientId, _credId);
     throw new Error('Not implemented')
   }
 
   async updateClientCredential(_clientId: string, _credId: string, _input: UpdateProjectAuth0M2MInput): Promise<Credential> {
     // TODO: Implement Auth0 client credential update
+    console.log(_clientId, _credId, _input);
     throw new Error('Not implemented')
   }
 
   async deleteClientCredential(_clientId: string, _credId: string): Promise<void> {
     // TODO: Implement Auth0 client credential deletion
+    console.log(_clientId, _credId);
     throw new Error('Not implemented')
   }
 
   async rotateClientSecret(_clientId: string): Promise<RotatedSecret> {
     // TODO: Implement secret rotation with proper auditing
+    console.log(_clientId);
     throw new Error('Not implemented')
   }
 
   async getEnabledConnections(_clientId: string): Promise<Connection[]> {
     // TODO: Implement connection retrieval for client
+    console.log(_clientId);
     throw new Error('Not implemented')
   }
 }

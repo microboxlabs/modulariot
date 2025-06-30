@@ -2,12 +2,16 @@ import { auth } from "@/auth";
 import {
   // getDocumentTypes,
   login,
-  createContentSign,
+  // createContentSign,
   createContent,
   signIdCard,
   getDocument,
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
-import { ContentRequest, GetDocumentRequest, SignIdCardRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
+import {
+  ContentRequest,
+  GetDocumentRequest,
+  SignIdCardRequest,
+} from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
   endTask,
   getContentByTaskId,
@@ -136,7 +140,7 @@ export async function POST(request: NextRequest) {
         message: response.message,
       });
     }
-   
+
     const documentCode = response.result.code!;
     const signIdCardRequest: SignIdCardRequest = {
       user_rut: json.signerRuts[0],

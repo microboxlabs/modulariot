@@ -47,6 +47,7 @@ export function ConnectStreamModal({
   onFetchCredentials,
   protocolsConfig
 }: ConnectStreamModalProps) {
+  const [, setActiveTab] = useState("rest");
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [credentials, setCredentials] = useState<CredentialsResponse | null>(null);

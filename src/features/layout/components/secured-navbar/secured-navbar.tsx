@@ -1,7 +1,7 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
+import { Label, Navbar, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
@@ -11,19 +11,21 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
-import { useDebouncedCallback } from "use-debounce";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
+import SearchBar from "./searchbar/search-bar";
 // import { Filter } from "flowbite-react-icons/outline";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export function SecuredNavbar({
   messages,
   isSeachEnabled = true,
   isSidebarToggleEnabled = true,
   isUserMenuEnabled = true,
-}: SecuredNavBarProps) {
+  dict,
+}: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
@@ -104,22 +106,11 @@ export function SecuredNavbar({
                 <Label htmlFor="search" className="sr-only">
                   {messages.search}
                 </Label>
-                <div className="flex items-center gap-2">
-                  <TextInput
-                    className="w-full lg:w-96"
-                    icon={HiSearch}
-                    id="search"
-                    name="search"
-                    placeholder={messages.search}
-                    type="search"
-                    defaultValue={searchParams.get("search") || ""}
-                    onChange={handleSearch}
-                  />
-                  {/* @TODO: Add filter button */}
-                  {/* <Button color="gray">
-                    <Filter className="h-4 w-4" />
-                  </Button> */}
-                </div>
+                <SearchBar
+                  messages={messages}
+                  searchParams={searchParams}
+                  dict={dict}
+                />
               </form>
             )}
           </div>

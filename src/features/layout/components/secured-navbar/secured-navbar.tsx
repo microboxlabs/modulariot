@@ -30,7 +30,6 @@ export function SecuredNavbar({
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();

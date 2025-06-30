@@ -16,9 +16,6 @@ interface LegalDocument {
 }
 
 export default function LegalDocumentsPage() {
-  const params = useParams();
-  const orgId = params.orgId as string;
-  
   // TODO: Load organization plan from API
   const organizationPlan = "free"; // stub - will be "free", "pro", "team", "enterprise"
 

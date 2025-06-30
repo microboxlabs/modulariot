@@ -12,7 +12,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
           Organization Settings
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Manage your organization's configuration and preferences.
+          {"Manage your organization's configuration and preferences."}
         </p>
       </div>
       <div className="container max-w-4xl">

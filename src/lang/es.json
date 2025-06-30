@@ -30,7 +30,8 @@
       "breadcrumb": {
         "tasks": "Mis tareas",
         "shipping": "Despachos",
-        "confirmDelivery": "Confirmar entrega"
+        "confirmDelivery": "Confirmar entrega",
+        "finished": "Finalizados"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -685,6 +686,11 @@
     "treatment_saved": "Tratamiento guardado correctamente",
     "creation_date": "Fecha de creación del síntoma",
     "Check Load Securing Absence": "Verificar ausencia de carga",
+    "mapSelection": "Selección de mapa",
+    "pulse": "Pulso",
+    "stops": "Paradas",
+    "geofences": "Geofences",
+    "cameraMovement": "Seguimiento de cámara",
     "types": {
       "Continuous drive check": "Conducción máxima continua",
       "Off Hours Driving": "Conducción fuera de horario",
@@ -778,5 +784,17 @@
     "biometric_verification_error": "Error al verificar datos biométricos",
     "Query return 2 results instead of max 1": "Más de un viaje asignado",
     "Driver already verified": "Conductor ya verificado"
+  },
+  "notifications": {
+    "client": "Cliente",
+    "client_code": "Código de cliente",
+    "origin_destination": "Origen - Destino",
+    "truck_license_plate": "Patente del camión",
+    "trailer_license_plate": "Patente del remolque",
+    "estimated_arrival_date": "Fecha estimada de llegada",
+    "message": "Mensaje",
+    "service_type": "Tipo de servicio",
+    "reason": "Motivo",
+    "reject_reason": "Motivo de rechazo"
   }
 }

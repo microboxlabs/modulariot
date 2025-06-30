@@ -30,7 +30,8 @@
       "breadcrumb": {
         "tasks": "My tasks",
         "shipping": "Shipping",
-        "confirmDelivery": "Confirm delivery"
+        "confirmDelivery": "Confirm delivery",
+        "finished": "Finished"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -676,6 +677,11 @@
     "treatment_saved": "Treatment saved successfully",
     "creation_date": "Symptom creation date",
     "Check Load Securing Absence": "Check load securing absence",
+    "mapSelection": "Map selection",
+    "pulse": "Pulse",
+    "stops": "Stops",
+    "geofences": "Geofences",
+    "cameraMovement": "Camera tracking",
     "types": {
       "Continuous drive check": "Continuous drive check",
       "Off Hours Driving": "Off Hours Driving",
@@ -766,5 +772,17 @@
     "no_trip_information": "No trip information",
     "verify_secondary_driver": "Verify secondary driver",
     "notify_control_center": "We have notified the control center."
+  },
+  "notifications": {
+    "client": "Client",
+    "client_code": "Client code",
+    "origin_destination": "Origin - Destination",
+    "truck_license_plate": "Truck license plate",
+    "trailer_license_plate": "Trailer license plate",
+    "estimated_arrival_date": "Estimated arrival date",
+    "message": "Message",
+    "service_type": "Service type",
+    "reason": "Reason",
+    "reject_reason": "Reject reason"
   }
 }

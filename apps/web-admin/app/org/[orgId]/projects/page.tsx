@@ -59,8 +59,7 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
     notFound();
   }
 
-  const { organization, projects, canCreateProjects } = data;
-
+  const { projects, canCreateProjects } = data;
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -69,7 +68,7 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
             Projects
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your organization's projects
+            {"Manage your organization's projects"}
           </p>
         </div>
         {canCreateProjects && (

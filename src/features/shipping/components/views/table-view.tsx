@@ -22,11 +22,19 @@ export function TableView({ data, dict }: TableViewProps) {
         <Table striped>
           <Table.Head>
             <Table.HeadCell>{tr("table.service", dict)}</Table.HeadCell>
+            <Table.HeadCell>{tr("table.licensePlate", dict)}</Table.HeadCell>
             <Table.HeadCell>
               {tr("table.departureDateTime", dict)}
             </Table.HeadCell>
-            <Table.HeadCell>{tr("table.serviceKind", dict)}</Table.HeadCell>
-            <Table.HeadCell>{tr("table.stage", dict)}</Table.HeadCell>
+            <Table.HeadCell className="text-center">
+              {tr("table.serviceKind", dict)}
+            </Table.HeadCell>
+            <Table.HeadCell className="text-center">
+              {tr("table.stage", dict)}
+            </Table.HeadCell>
+            <Table.HeadCell className="text-center">
+              {tr("table.origin", dict)}-{tr("table.destination", dict)}
+            </Table.HeadCell>
             <Table.HeadCell>{tr("table.status", dict)}</Table.HeadCell>
           </Table.Head>
           <Table.Body>
@@ -39,13 +47,21 @@ export function TableView({ data, dict }: TableViewProps) {
                   <Table.Cell className="font-medium text-gray-900 dark:text-white cursor-pointer">
                     <Link href={`/task/edit/${task.id}`}>{task.name}</Link>
                   </Table.Cell>
+                  <Table.Cell>{task.mintral_truckLicensePlate}</Table.Cell>
                   <Table.Cell>
                     {task.expectedDepartureDate
                       ? new Date(task.expectedDepartureDate).toLocaleString()
                       : "-"}
                   </Table.Cell>
-                  <Table.Cell>{task.serviceKind}</Table.Cell>
-                  <Table.Cell>{tr(`kanban.${task.title}`, dict)}</Table.Cell>
+                  <Table.Cell className="text-center">
+                    {task.serviceKind}
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    {tr(`kanban.${task.title}`, dict)}
+                  </Table.Cell>
+                  <Table.Cell className="text-center">
+                    {task.origin}-{task.destination}
+                  </Table.Cell>
                   <Table.Cell>
                     <div className="w-fit">
                       <DepartureDateShip

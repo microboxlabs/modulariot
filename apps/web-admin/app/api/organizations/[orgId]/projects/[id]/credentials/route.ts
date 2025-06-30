@@ -68,7 +68,7 @@ export async function GET(
 
     const credentials = {
       auth0: {
-        domain: identityApp?.tenant ? `${identityApp.tenant}.auth0.com` : "dev-example.auth0.com",
+        domain: identityApp?.tenant ? `${identityApp.tenant}.us.auth0.com` : "dev-example.auth0.com",
         clientId: identityApp?.externalAppId || "your_client_id_here",
         audience: "https://modulariot.com/v1/project/admin",
         grantType: "client_credentials",

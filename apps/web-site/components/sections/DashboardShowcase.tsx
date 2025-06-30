@@ -24,7 +24,7 @@ const features = [
   },
   {
     icon: IoNotifications,
-    title: 'Intelligent Alerts',
+    title: 'Intelligent Symptoms',
     description: 'Get notified about issues before they become critical problems.',
   },
   {

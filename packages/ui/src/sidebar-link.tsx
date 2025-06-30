@@ -6,6 +6,7 @@ import { useParams, usePathname } from 'next/navigation';
 export interface SidebarItem {
   label: string;
   href: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: any;
 }
 

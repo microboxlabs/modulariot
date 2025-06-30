@@ -12,11 +12,11 @@ export interface CTAButtonProps extends React.ComponentProps<typeof Button> {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const CTAButton = React.forwardRef<any, CTAButtonProps>(
   ({ as = 'button', modalContent, ...props }, ref) => {
     // Only support modalContent for button
     if (modalContent && as !== 'button') {
-      // eslint-disable-next-line no-console
       console.warn('modalContent is only supported for as="button"');
     }
     return (

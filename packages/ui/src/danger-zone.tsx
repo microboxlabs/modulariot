@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 export type DangerZoneProps = {
   entityType: string;
   entityName: string;
-  entityId: string;
   title?: string;
   description?: string;
   buttonText?: string;
@@ -23,7 +22,6 @@ export type DangerZoneProps = {
 export function DangerZone({
   entityType,
   entityName,
-  entityId,
   title,
   description,
   buttonText,
@@ -38,7 +36,7 @@ export function DangerZone({
   const [internalIsDeleting, setInternalIsDeleting] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const { trigger, error: deleteError, isMutating } = useSWRMutation(url, deleter);
+  const { trigger, isMutating } = useSWRMutation(url, deleter);
 
   const isDeleting = isMutating ?? internalIsDeleting;
   const finalTitle = title ?? `Delete ${entityType}`;
@@ -139,6 +137,7 @@ export function DangerZone({
               <TextInput
                 type="text"
                 value={confirmText}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onChange={(e: any) => setConfirmText(e.target.value)}
                 placeholder={finalConfirmationText}
                 className="mt-1"

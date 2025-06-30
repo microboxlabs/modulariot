@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, Badge, Tabs, Button } from "flowbite-react";
 import { Copy, Check, ChevronDown, ChevronRight, Eye, EyeOff, ExternalLink } from "lucide-react";
-import { ConnectionDetails, Step } from "./protocol-helpers";
+import { ConnectionDetails } from "./protocol-helpers";
 
 interface ConnectionCardProps {
   details: ConnectionDetails;

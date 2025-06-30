@@ -63,6 +63,7 @@ export default function InviteMemberForm({ isOpen, onClose, orgId, onSuccess }: 
         setError(errorData.message || 'Failed to send invitation')
       }
     } catch (err) {
+      console.error(err);
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)

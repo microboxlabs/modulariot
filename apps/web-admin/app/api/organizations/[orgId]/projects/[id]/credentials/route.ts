@@ -4,11 +4,6 @@ import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
 import { auth0Client } from "@/lib/api/auth0";
 
-const credentialsParamsSchema = z.object({
-  orgId: z.string().min(1),
-  id: z.string().min(1),
-});
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { orgId: string; id: string } }

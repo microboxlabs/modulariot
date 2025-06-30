@@ -7,7 +7,7 @@ export default function DataApiPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data API</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Configure your project's data access endpoints and permissions.
+          {"Configure your project's data access endpoints and permissions."}
         </p>
       </div>
 
@@ -18,7 +18,7 @@ export default function DataApiPage() {
             Data API Configuration
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to configure data access patterns and API endpoints.
+            {"This feature is coming soon. You'll be able to configure data access patterns and API endpoints."}
           </p>
         </div>
       </Card>

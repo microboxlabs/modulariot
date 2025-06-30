@@ -36,7 +36,7 @@ export default function MarketingPanel() {
             <Quote className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
               <p className="text-gray-700 dark:text-gray-300 italic">
-                "ModularIoT helped us reduce our monitoring costs by 60% while improving our fleet visibility."
+                {"ModularIoT helped us reduce our monitoring costs by 60% while improving our fleet visibility."}
               </p>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 — Sarah Chen, IoT Operations Lead

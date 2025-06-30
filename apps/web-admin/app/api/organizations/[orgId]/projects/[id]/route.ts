@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
-import { nanoid } from 'nanoid'
+import { prisma } from '@modulariot/db'
 
 type GetProjectParams = { 
     params: { id: string, orgId: string };

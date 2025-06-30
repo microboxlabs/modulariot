@@ -71,7 +71,7 @@ export default function OrgDetailPage() {
   const orgId = params.orgId as string;
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: organization, error, isLoading } = useOrganization(orgId, { projects: true });
+  const { data: organization, isLoading } = useOrganization(orgId, { projects: true });
 
   const filteredProjects = organization?.projects?.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase())

@@ -4,7 +4,7 @@ import { signOut } from "next-auth/react";
 import { useOrganizations } from "@/lib/hooks/organization";
 import { Header } from "@modulariot/ui/header";
 import { useSession } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function AdminHeader() {
     
@@ -18,8 +18,6 @@ export function AdminHeader() {
     const showProjectBreadcrumb = pathname.includes('/project/');
 
     const { data: session } = useSession();
-
-    const router = useRouter();
     
     return (
         <Header 

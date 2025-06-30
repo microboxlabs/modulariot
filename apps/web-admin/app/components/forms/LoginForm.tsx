@@ -46,6 +46,7 @@ export default function LoginForm() {
         router.push('/org')
       }
     } catch (err) {
+      console.error(err);
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
@@ -57,6 +58,7 @@ export default function LoginForm() {
       setLoading(true)
       await signIn(provider, { callbackUrl: '/org' })
     } catch (err) {
+      console.error(err);
       setError('OAuth sign in failed. Please try again.')
       setLoading(false)
     }

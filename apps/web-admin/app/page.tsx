@@ -1,7 +1,7 @@
 'use client';
 
 import { redirect } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Footer } from '@/app/components/Footer';
 import { Building, Plus, Users, Zap } from 'lucide-react'

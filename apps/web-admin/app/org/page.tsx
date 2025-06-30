@@ -19,6 +19,11 @@ export default function OrganizationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  useEffect(() => {
+    const isCollapsed = getSavedState('miot_sidebar');
+    setIsCollapsed(isCollapsed);
+  }, []);
+
   if (status === 'loading') {
     return <div>Loading...</div>;
   }
@@ -30,13 +35,6 @@ export default function OrganizationsPage() {
   const filteredOrgs = organizations.filter(org => 
     org.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  useEffect(() => {
-    const isCollapsed = getSavedState('miot_sidebar');
-    setIsCollapsed(isCollapsed);
-  }, []);
-
-  
 
   return (
     <div className={`${isCollapsed ? 'ml-16' : 'ml-60'}`}>

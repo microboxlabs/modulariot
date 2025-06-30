@@ -26,7 +26,7 @@ interface SimpleSignUpFormProps {
   socialLoading?: boolean
 }
 
-export default function SimpleSignUpForm({ onSocialLogin, socialLoading }: SimpleSignUpFormProps) {
+export default function SimpleSignUpForm({ socialLoading }: SimpleSignUpFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -62,6 +62,7 @@ export default function SimpleSignUpForm({ onSocialLogin, socialLoading }: Simpl
         setError(errorData.message || 'Failed to create account')
       }
     } catch (err) {
+      console.error(err);
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)

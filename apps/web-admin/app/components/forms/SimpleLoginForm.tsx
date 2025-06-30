@@ -22,7 +22,7 @@ interface SimpleLoginFormProps {
   socialLoading?: boolean
 }
 
-export default function SimpleLoginForm({ onSocialLogin, socialLoading }: SimpleLoginFormProps) {
+export default function SimpleLoginForm({ socialLoading }: SimpleLoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -52,6 +52,7 @@ export default function SimpleLoginForm({ onSocialLogin, socialLoading }: Simple
         router.push('/org')
       }
     } catch (err) {
+      console.error(err);
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)

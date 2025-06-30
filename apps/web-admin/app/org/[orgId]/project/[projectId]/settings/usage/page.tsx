@@ -7,7 +7,7 @@ export default function UsagePage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Usage</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Monitor your project's resource consumption and usage metrics.
+          {"Monitor your project's resource consumption and usage metrics."}
         </p>
       </div>
 
@@ -18,7 +18,7 @@ export default function UsagePage() {
             Usage Analytics
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to view detailed usage metrics and analytics.
+            {"This feature is coming soon. You'll be able to view detailed usage metrics and analytics."}
           </p>
         </div>
       </Card>

@@ -18,7 +18,7 @@ export default function StoragePage() {
             Storage Configuration
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to configure storage buckets and file management settings.
+            {"This feature is coming soon. You'll be able to configure storage buckets and file management settings."}
           </p>
         </div>
       </Card>

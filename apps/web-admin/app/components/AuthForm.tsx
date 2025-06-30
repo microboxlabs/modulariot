@@ -2,8 +2,8 @@
 
 import { ReactNode } from 'react'
 import Link from 'next/link'
-import { Button, TextInput, Alert } from 'flowbite-react'
-import { Github, Apple } from 'lucide-react'
+import { Button } from 'flowbite-react'
+import { Github, Apple } from 'flowbite-react-icons/solid'
 
 interface AuthFormProps {
   title: string
@@ -20,7 +20,6 @@ interface AuthFormProps {
 export default function AuthForm({
   title,
   subtitle,
-  switchText,
   switchLink,
   switchLinkText,
   children,

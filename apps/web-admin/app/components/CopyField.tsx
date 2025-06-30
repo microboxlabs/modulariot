@@ -21,6 +21,7 @@ export default function CopyField({ label, value, className = "" }: CopyFieldPro
       toast.success("Copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
+      console.error(err);
       toast.error("Failed to copy to clipboard");
     }
   };

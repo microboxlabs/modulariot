@@ -11,22 +11,14 @@ import { IssuesTable } from "@/app/components/IssuesTable";
 import { SlowQueriesTable } from "@/app/components/SlowQueriesTable";
 import { LibrariesAndExamples } from "@/app/components/LibrariesAndExamples";
 import { useParams } from "next/navigation";
+import fetcher from "@/lib/api/fetcher";
 
-interface ProjectPageProps {
-  params: {
-    orgId: string;
-    projectId: string;
-  };
-}
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export default function ProjectOverviewPage({ params }: ProjectPageProps) {
+export default function ProjectOverviewPage() {
   const { orgId, projectId } = useParams();
   const [timeWindow, setTimeWindow] = useState("60m");
 
   const { data, error, isLoading } = useSWR(
-    `/api/projects/${projectId}/metrics?window=${timeWindow}`,
+    `/api/organizations/${orgId}/projects/${projectId}/metrics?window=${timeWindow}`,
     fetcher,
     {
       refreshInterval: 30000, // Refresh every 30 seconds

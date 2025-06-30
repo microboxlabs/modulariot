@@ -45,7 +45,7 @@ export function TimeSeriesPanel({ data, window, onWindowChange }: TimeSeriesPane
             {["tps", "symptoms", "storage"].map((type) => (
               <button
                 key={type}
-                onClick={() => setSelectedChart(type as any)}
+                onClick={() => setSelectedChart(type as "tps" | "symptoms" | "storage")}
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${ 
                   selectedChart === type 
                     ? "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300"
@@ -87,7 +87,7 @@ export function TimeSeriesPanel({ data, window, onWindowChange }: TimeSeriesPane
             <YAxis className="text-xs" />
             <Tooltip 
               labelFormatter={(value) => new Date(value).toLocaleString()}
-              formatter={(value: any) => [value, chartConfig.label]}
+              formatter={(value: number) => [value, chartConfig.label]}
             />
             <Line 
               type="monotone" 

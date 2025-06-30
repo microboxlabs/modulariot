@@ -18,7 +18,7 @@ export default function ApiKeysPage() {
             API Keys Management
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to create and manage API keys for your project.
+            {"This feature is coming soon. You'll be able to create and manage API keys for your project."}
           </p>
         </div>
       </Card>

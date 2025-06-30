@@ -18,7 +18,7 @@ export default function AuthenticationPage() {
             Authentication Settings
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to configure authentication providers and security policies.
+            {"This feature is coming soon. You'll be able to configure authentication providers and security policies."}
           </p>
         </div>
       </Card>

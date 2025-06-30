@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
-import { LayoutDashboard, FolderOpen, RadioTower, Thermometer, CreditCard, Settings } from 'lucide-react';
+import { FolderOpen, RadioTower, Thermometer, CreditCard, Settings } from 'lucide-react';
 import { Tooltip } from 'flowbite-react';
 
 export function Sidebar() {

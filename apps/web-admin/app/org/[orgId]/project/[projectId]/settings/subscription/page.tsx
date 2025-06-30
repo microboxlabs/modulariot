@@ -7,7 +7,7 @@ export default function SubscriptionPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Subscription</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Manage your project's billing and subscription settings.
+          {"Manage your project's billing and subscription settings."}
         </p>
       </div>
 
@@ -18,7 +18,7 @@ export default function SubscriptionPage() {
             Subscription Management
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            This feature is coming soon. You'll be able to manage billing, plans, and payment methods.
+            {"This feature is coming soon. You'll be able to manage billing, plans, and payment methods."}
           </p>
         </div>
       </Card>

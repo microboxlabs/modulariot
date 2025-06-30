@@ -18,6 +18,7 @@ import { useLoadNotifications } from "@/features/notifications/hooks/use-load-no
 import SearchBar from "./searchbar/search-bar";
 // import { Filter } from "flowbite-react-icons/outline";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useDebouncedCallback } from "use-debounce";
 
 export function SecuredNavbar({
   messages,
@@ -46,7 +47,7 @@ export function SecuredNavbar({
     ).length;
   }
 
-  const handleSearch = useDebouncedCallback(
+  const _handleSearch = useDebouncedCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const term = event.target.value;
       const params = new URLSearchParams(searchParams.toString());

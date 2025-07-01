@@ -691,6 +691,7 @@
     "stops": "Paradas",
     "geofences": "Geofences",
     "cameraMovement": "Seguimiento de cámara",
+    "watch": "Ver",
     "types": {
       "Continuous drive check": "Conducción máxima continua",
       "Off Hours Driving": "Conducción fuera de horario",

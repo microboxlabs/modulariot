@@ -32,7 +32,7 @@ export function GeographicHistoric({
           >
             <div className="w-4 h-full flex items-center justify-center">
               <KanbanViewSwitcherIcon
-                className={`w-4 h-4 flex items-center justify-center ${selected_table === 0 ? "fill-gray-100" : ""}`}
+                className={`w-4 h-4 flex items-center justify-center ${selected_table === 0 ? "fill-gray-100" : "fill-gray-200"}`}
               />
             </div>
             {

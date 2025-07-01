@@ -2,22 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@modulariot/db'
 
-type GetProjectParams = { 
-    params: { id: string, orgId: string };
-  };
+interface GetProjectPageProps {
+  params: Promise<{
+    id: string;
+    orgId: string;
+  }>;
+}
 
-export async function GET(request: NextRequest,  { params }: GetProjectParams) {
+export async function GET(request: NextRequest,  { params }: GetProjectPageProps) {
 
     const session = await auth();
   
     if (!session?.user?.id) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id, orgId } = await params;
+
   
     const membership = await prisma.membership.findFirst({
       where: {
         userId: session.user.id,
-        orgId: params.orgId
+        orgId
       },
     });
   
@@ -26,7 +32,7 @@ export async function GET(request: NextRequest,  { params }: GetProjectParams) {
     }
   
     const project = await prisma.project.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: true,
       },
@@ -35,7 +41,7 @@ export async function GET(request: NextRequest,  { params }: GetProjectParams) {
     return NextResponse.json(project);
 }
 
-export async function DELETE(request: NextRequest,  { params }: GetProjectParams) {
+export async function DELETE(request: NextRequest,  { params }: GetProjectPageProps) {
 
     const session = await auth();
   
@@ -43,10 +49,12 @@ export async function DELETE(request: NextRequest,  { params }: GetProjectParams
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id, orgId } = await params;
+
     const membership = await prisma.membership.findFirst({
       where: {
         userId: session.user.id,
-        orgId: params.orgId,
+        orgId,
         role: {
           in: ['ADMIN', 'OWNER']
         }
@@ -58,7 +66,7 @@ export async function DELETE(request: NextRequest,  { params }: GetProjectParams
     }
 
     await prisma.project.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Project deleted successfully' });

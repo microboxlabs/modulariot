@@ -7,9 +7,15 @@ type MemberWithUser = Membership & {
     user: Pick<User, 'id' | 'name' | 'email' | 'image'>
 }
 
+interface MembersPageProps {
+  params: Promise<{
+    orgId: string;
+  }>;
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: MembersPageProps
 ) {
   try {
     const session = await auth()
@@ -17,7 +23,7 @@ export async function GET(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    const { orgId } = params
+    const { orgId } = await params;
 
     // Check if the user is a member of the organization
     const membership = await prisma.membership.findFirst({

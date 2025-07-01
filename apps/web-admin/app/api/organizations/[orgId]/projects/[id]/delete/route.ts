@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
+interface DeleteProjectPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: DeleteProjectPageProps
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
 
     // TODO: Implement soft delete in database
     // Example implementation:

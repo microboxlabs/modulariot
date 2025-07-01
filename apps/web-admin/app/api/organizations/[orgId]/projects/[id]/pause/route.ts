@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+interface PauseProjectPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: PauseProjectPageProps
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const body = await request.json();
     const { action } = body; // "pause" or "resume"
 

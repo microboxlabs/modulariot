@@ -4,10 +4,14 @@ import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
 import { auth0Client } from "@/lib/api/auth0";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { orgId: string; id: string } }
-) {
+interface CredentialsPageProps {
+  params: Promise<{
+    orgId: string;
+    id: string;
+  }>;
+}
+
+export async function GET(request: NextRequest, { params }: CredentialsPageProps) {
   try {
     const session = await auth();
     
@@ -18,7 +22,7 @@ export async function GET(
       );
     }
 
-    const { orgId, id: projectId } = params;
+    const { orgId, id: projectId } = await params;
 
     // Check if user has access to the organization
     const membership = await prisma.membership.findFirst({

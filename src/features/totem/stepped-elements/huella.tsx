@@ -13,6 +13,7 @@ import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
+import { useDeviceDetection } from "@/features/common/hooks/use-device-detection";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -49,6 +50,9 @@ export default function Huella({
 
   const qrRef = useRef(null);
 
+  // Device detection hook
+  const deviceInfo = useDeviceDetection();
+
   useEffect(() => {
     if (count >= 3) {
       setCurrentStep(3);
@@ -84,6 +88,12 @@ export default function Huella({
       if (el) el.innerHTML = "";
     };
   }, [idCardLoading]);
+
+  useEffect(() => {
+    if (deviceInfo.isMobile) {
+      setQrCode(true);
+    }
+  }, [deviceInfo.isMobile]);
 
   if (!pluginReady) return null;
 
@@ -366,7 +376,7 @@ export default function Huella({
         />
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-[2vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).qrcode_subtext as string}
           </p>
         </div>
@@ -458,7 +468,7 @@ export default function Huella({
           }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
-          <p className="text-[3vh] portrait:text-[4vw] font-light">
+          <p className="text-[2vh] portrait:text-[3vw] font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}
           </p>
         </Button>

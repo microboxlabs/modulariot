@@ -107,6 +107,11 @@ export type SignIdCardRequest = {
   session_id: string;
 };
 
+export type ValidateIdCardRequest = {
+  user_rut: string;
+  nro_serie: string;
+};
+
 export type GetDocumentRequest = {
   code: string;
   institution: string;

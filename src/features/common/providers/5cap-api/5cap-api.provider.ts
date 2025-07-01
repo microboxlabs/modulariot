@@ -6,6 +6,7 @@ import {
   ContentResult,
   SignIdCardRequest,
   GetDocumentRequest,
+  ValidateIdCardRequest,
 } from "./5cap-api.provider.types";
 
 export function login(): Promise<LoginResult> {
@@ -82,6 +83,20 @@ export function getDocument(
   contentRequest: GetDocumentRequest,
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/documents`;
+  return fetcher(url, {
+    headers: {
+      "X-API-KEY": process.env.CAP_API_KEY as string,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify(contentRequest),
+  });
+}
+
+export function validateIdCard(
+  contentRequest: ValidateIdCardRequest,
+): Promise<ContentResult> {
+  const url = `${process.env.CAP_API_URL}/sign/ci`;
   return fetcher(url, {
     headers: {
       "X-API-KEY": process.env.CAP_API_KEY as string,

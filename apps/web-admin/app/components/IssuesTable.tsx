@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Tabs, Badge } from "flowbite-react";
+import { Card, Tabs, Badge, TabItem } from "flowbite-react";
 import { ExternalLink, AlertTriangle, Zap } from "lucide-react";
 import Link from "next/link";
 
@@ -71,7 +71,7 @@ export function IssuesTable({ issues }: IssuesTableProps) {
       </div>
 
       <Tabs aria-label="Issues tabs" variant="underline">
-        <Tabs.Item title={`Security (${securityIssues.length})`}>
+        <TabItem title={`Security (${securityIssues.length})`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -95,9 +95,9 @@ export function IssuesTable({ issues }: IssuesTableProps) {
               </tbody>
             </table>
           </div>
-        </Tabs.Item>
+        </TabItem>
 
-        <Tabs.Item title={`Performance (${performanceIssues.length})`}>
+        <TabItem title={`Performance (${performanceIssues.length})`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -121,7 +121,7 @@ export function IssuesTable({ issues }: IssuesTableProps) {
               </tbody>
             </table>
           </div>
-        </Tabs.Item>
+        </TabItem>
       </Tabs>
     </Card>
   );

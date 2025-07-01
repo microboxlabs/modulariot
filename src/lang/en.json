@@ -682,6 +682,7 @@
     "stops": "Stops",
     "geofences": "Geofences",
     "cameraMovement": "Camera tracking",
+    "watch": "Watch",
     "types": {
       "Continuous drive check": "Continuous drive check",
       "Off Hours Driving": "Off Hours Driving",

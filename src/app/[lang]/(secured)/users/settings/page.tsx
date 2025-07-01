@@ -18,7 +18,7 @@ export default async function ShippingPage({
     return (
       <RouteGuard path="/users/settings" fallbackPath={`/${lang}/shipping`}>
         <>
-          <SseListener />
+          <SseListener dictionary={dictionary} />
           <PageContent
             dict={(dictionary.pages as I18nRecord)?.userSettings as I18nRecord}
           />

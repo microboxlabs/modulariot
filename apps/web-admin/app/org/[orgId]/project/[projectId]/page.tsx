@@ -17,7 +17,8 @@ export default function ProjectOverviewPage() {
   const { orgId, projectId } = useParams();
   const [timeWindow, setTimeWindow] = useState("60m");
 
-  const { data, error, isLoading } = useSWR(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error, isLoading } = useSWR<Record<string, any>>(
     `/api/organizations/${orgId}/projects/${projectId}/metrics?window=${timeWindow}`,
     fetcher,
     {

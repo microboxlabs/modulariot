@@ -72,7 +72,7 @@ export default function Stepped({
           dict={dict}
           deviceId={deviceId}
           deviceLocation={deviceLocation}
-          rut={rut}
+          rutData={rutData}
           biometricResult={biometricResult}
           tripData={tripData}
           setTripData={setTripData}

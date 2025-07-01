@@ -50,7 +50,7 @@ export default function Rut({
   };
 
   return (
-    <div className="flex flex-col gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 landscape:p-10 shadow-md ">
+    <div className="flex flex-col gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 w-full md:w-fit shadow-md ">
       <h1 className="text-[3vh] portrait:text-[5vw] text-gray-700 font-light dark:text-gray-300">
         {(dict.totem as I18nRecord).write_your_rut as string}
       </h1>

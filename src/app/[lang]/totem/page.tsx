@@ -19,20 +19,20 @@ export default async function TotemPage({
       <Totem dict={dictionary} />
       <Footer
         date-testid="secured-footer"
-        className="flex-row z-40 h-12 lg:px-5 fixed left-0 bottom-0"
+        className="flex-col sm:flex-row z-40 h-auto sm:h-12 px-5 fixed left-0 bottom-0"
         theme={{
           root: {
-            base: "w-full bg-white fixed bottom-0 shadow dark:bg-gray-800 md:flex md:items-center md:justify-between",
+            base: "w-full bg-white dark:bg-gray-800 fixed bottom-0 shadow flex items-center justify-between",
           },
         }}
       >
         <FooterCopyright
-          className=""
+          className="flex justify-center items-center lg:justify-start whitespace-nowrap text-sm sm:text-base"
           href="https://microboxlabs.com"
           by={(dictionary.footer as I18nRecord).rights as string}
           year={2024}
         />
-        <ReleaseView />
+        <ReleaseView className="flex justify-center items-center lg:justify-end sm:mt-0" />
       </Footer>
     </div>
   );

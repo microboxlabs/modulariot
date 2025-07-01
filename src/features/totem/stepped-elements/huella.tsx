@@ -12,6 +12,7 @@ import {
 import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
+import { Button } from "flowbite-react";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -171,7 +172,7 @@ export default function Huella({
             {rutData?.rut}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setCurrentStep(2);
           }}
@@ -180,7 +181,7 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -221,7 +222,7 @@ export default function Huella({
               }`}
             />
           </div>
-          <button
+          <Button
             onClick={async () => {
               setManualVerificationLoading(true);
               const response = await validateIdCard({
@@ -249,7 +250,7 @@ export default function Huella({
                 ? ((dict.totem as I18nRecord).loading as string)
                 : ((dict.totem as I18nRecord).continue as string)}
             </p>
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -315,7 +316,7 @@ export default function Huella({
           )}
         </div>
         {idCardLoading ? (
-          <button
+          <Button
             onClick={() => {
               setIdCardLoading(false);
               setVerificatioSuccess(true);
@@ -328,9 +329,9 @@ export default function Huella({
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={() => {
               setIdCardLoading(true);
             }}
@@ -342,7 +343,7 @@ export default function Huella({
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -369,7 +370,7 @@ export default function Huella({
             {(dict.totem as I18nRecord).qrcode_subtext as string}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setManualAccess(true);
           }}
@@ -381,8 +382,8 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => {
             setIdCard(true);
           }}
@@ -394,7 +395,7 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -434,7 +435,7 @@ export default function Huella({
         </p>
       </div>
       {count < 1 ? (
-        <button
+        <Button
           onClick={handleScanFingerprint}
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
@@ -446,9 +447,9 @@ export default function Huella({
               ? ((dict.totem as I18nRecord).continue as string)
               : ((dict.totem as I18nRecord).try_again as string)}
           </p>
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
           onClick={() => {
             setQrCode(true);
           }}
@@ -460,7 +461,7 @@ export default function Huella({
           <p className="text-[3vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}
           </p>
-        </button>
+        </Button>
       )}
     </div>
   );

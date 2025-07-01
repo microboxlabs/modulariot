@@ -10,20 +10,22 @@ export default function TripInformation({
   dict,
   deviceId,
   deviceLocation,
-  rut,
+  rutData,
   biometricResult,
   tripData,
   setTripData,
+  idCardNumber,
 }: {
   setCurrentStep: (step: number) => void;
   currentStep: number;
   dict: I18nRecord;
   deviceId: string | null;
   deviceLocation: string | null;
-  rut: string;
+  rutData: { rut: string } | null;
   biometricResult: any;
   tripData: any;
   setTripData: (tripData: any) => void;
+  idCardNumber: string;
 }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +54,11 @@ export default function TripInformation({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            driverId: rut, // Replace with actual driver ID
+            driverId: rutData?.rut, // Replace with actual driver ID
             deviceId,
             deviceLocation,
             fingerprintData: biometricResult, // Add if available
+            driverSerieId: idCardNumber, // Add if available
           }),
         });
 
@@ -71,8 +74,28 @@ export default function TripInformation({
           );
         }
         const data = await response.json();
-        console.log(data);
         if (data?.success === false) {
+          if (data?.message == "Driver already verified") {
+            if (tripData?.tripInfo?.driver1Info?.driverId === rutData?.rut) {
+              setTripData({
+                ...tripData,
+                tripInfo: {
+                  ...tripData.tripInfo,
+                  status: "SUCCESS",
+                },
+              });
+            }
+            if (tripData?.tripInfo?.driver2Info?.driverId === rutData?.rut) {
+              setTripData({
+                ...tripData,
+                tripInfo: {
+                  ...tripData.tripInfo,
+                  status2: "SUCCESS",
+                },
+              });
+            }
+            return;
+          }
           setError(
             ((dict.totem as I18nRecord)[
               data?.message as keyof I18nRecord
@@ -81,13 +104,6 @@ export default function TripInformation({
                 .biometric_verification_error as string),
           );
           return;
-          /* throw new Error(
-            ((dict.totem as I18nRecord)[
-              data?.message as keyof I18nRecord
-            ] as string) ??
-              ((dict.totem as I18nRecord)
-                .biometric_verification_error as string),
-          ); */
         }
         if (
           tripData &&
@@ -181,8 +197,8 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-center font-light text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
-          El conductor con rut <span className="font-bold">{rut}</span> no posee
-          un viaje asignado.
+          El conductor con rut <span className="font-bold">{rutData?.rut}</span>{" "}
+          no posee un viaje asignado.
         </p>
         <Image
           src={exclamationIcon}

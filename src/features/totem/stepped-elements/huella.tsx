@@ -42,6 +42,8 @@ export default function Huella({
   const [idCard, setIdCard] = useState(false);
   const [idCardLoading, setIdCardLoading] = useState(false);
   const [manualAccess, setManualAccess] = useState(false);
+  const [manualVerificationLoading, setManualVerificationLoading] =
+    useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
 
   const qrRef = useRef(null);
@@ -219,34 +221,36 @@ export default function Huella({
               }`}
             />
           </div>
-        </div>
-        <button
-          onClick={async () => {
-            console.log("---Validando ID---");
-            console.log(idCardNumber);
-            console.log("----------------------------------");
-            const response = await validateIdCard({
-              user_rut: rutData?.rut as string,
-              nro_serie: idCardNumber,
-            });
-            if (response.success) {
-              setVerificatioSuccess(true);
-            } else {
-              setStatus("error-id-card");
+          <button
+            onClick={async () => {
+              setManualVerificationLoading(true);
+              const response = await validateIdCard({
+                user_rut: rutData?.rut as string,
+                nro_serie: idCardNumber,
+              });
+              if (response.success) {
+                setVerificatioSuccess(true);
+              } else {
+                setStatus("error-id-card");
+              }
+              setManualVerificationLoading(false);
+            }}
+            disabled={
+              status !== "idle" &&
+              status !== "success" &&
+              status !== "error" &&
+              status !== "error-id-card" &&
+              manualVerificationLoading
             }
-          }}
-          disabled={
-            status !== "idle" &&
-            status !== "success" &&
-            status !== "error" &&
-            status !== "error-id-card"
-          }
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
-        >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
-            {(dict.totem as I18nRecord).continue as string}
-          </p>
-        </button>
+            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center disabled:opacity-50"
+          >
+            <p className="text-[4vh] portrait:text-[4vw] font-light">
+              {manualVerificationLoading
+                ? ((dict.totem as I18nRecord).loading as string)
+                : ((dict.totem as I18nRecord).continue as string)}
+            </p>
+          </button>
+        </div>
       </div>
     );
   }

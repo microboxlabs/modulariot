@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@modulariot/db";
 import { auth } from "@/lib/auth";
-import bcrypt from "bcryptjs";
 import { Auth0Client } from "@/lib/api/auth0";
 import { env } from "@/env/server";
 
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash the superadmin password
-    const hashedPassword = await bcrypt.hash(validatedData.superadminPassword, 12);
+    const hashedPassword = await Bun.password.hash(validatedData.superadminPassword, "bcrypt");
 
     // Create the project
     const project = await prisma.project.create({

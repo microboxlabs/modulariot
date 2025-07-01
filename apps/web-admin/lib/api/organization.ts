@@ -1,5 +1,4 @@
-import { Prisma } from '@modulariot/db';
-import { Organization } from '@prisma/client';
+import { Prisma, Organization } from '@modulariot/db';
 import fetcher from './fetcher';
 
 

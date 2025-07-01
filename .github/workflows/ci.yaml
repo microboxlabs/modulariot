@@ -6,6 +6,8 @@ on:
   pull_request:
     types: [opened, synchronize]
  
+env:
+  NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
 jobs:
   build:
     name: Build and Test

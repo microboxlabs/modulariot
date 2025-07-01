@@ -7,7 +7,8 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["DATABASE_URL", "NEXT_PUBLIC_INGEST_URL", "NEXT_PUBLIC_INGEST_URL"]
+      "envMode": "loose",
+      "env": ["DATABASE_URL", "NEXT_PUBLIC_INGEST_URL"]
     },
     "lint": {
       "dependsOn": ["^lint"]

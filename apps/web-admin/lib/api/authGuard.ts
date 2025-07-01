@@ -1,5 +1,5 @@
-import { getServerSession } from 'next-auth'
-import { prisma } from '@miot/db'
+import { auth } from '@/lib/auth'
+import { prisma } from '@modulariot/db'
 import { z } from 'zod'
 
 export const ProjectIdSchema = z.string().cuid()
@@ -7,7 +7,7 @@ export const ProjectIdSchema = z.string().cuid()
 export async function assertOrgOwner(projectId: string): Promise<void> {
   const validatedProjectId = ProjectIdSchema.parse(projectId)
   
-  const session = await getServerSession()
+  const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthenticated')
   }
@@ -28,7 +28,7 @@ export async function assertOrgOwner(projectId: string): Promise<void> {
   }
 
   const membership = project.organization.memberships.find(
-    m => m.userId === session.user.id
+    m => m.userId === session.user?.id
   )
 
   if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
@@ -37,7 +37,7 @@ export async function assertOrgOwner(projectId: string): Promise<void> {
 }
 
 export async function assertOrgOwnerForOrg(organizationId: string): Promise<void> {
-  const session = await getServerSession()
+  const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthenticated')
   }

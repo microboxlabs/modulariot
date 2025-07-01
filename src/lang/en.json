@@ -764,11 +764,11 @@
     "id_card_scan":"ID card Scann",
     "qr_code_scann":"Qr Code Scann",
     "manual_access":"Manual Access",
-    "qrcode_subtext":"Scann QR code or manual access",
+    "qrcode_subtext":"Scann QR code or manual input",
     "smart_lock_card_subtext":"Place your ID card face up showing the QR code facing down",
     "smart_lock_card_subtext_loading":"Please wait, it is being scanned...",
-    "id_card_manual_access":"Manual Access",
-    "id_card_manual_access_subtext":"Enter your data in the corresponding fields",
+    "id_card_manual_access":"Manual Input",
+    "id_card_manual_access_subtext":"Enter your ID card serial number",
     "verification_success":"Verification successful",
     "verification_success_subtext": "ID card scan successful"
   }

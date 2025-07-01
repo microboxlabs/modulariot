@@ -780,7 +780,7 @@
     "smart_lock_card_subtext":"Debe colocar su cédula en dirección boca arriba mostrando el QR de su cédula hacia abajo",
     "smart_lock_card_subtext_loading":"Espere por favor, se está escaneando...",
     "id_card_manual_access":"Ingreso manual",
-    "id_card_manual_access_subtext":"Ingreses sus datos en los campos correspondientes",
+    "id_card_manual_access_subtext":"Ingrese el número de serie de su cédula de identidad",
     "verification_success":"Verificación exitosa",
     "verification_success_subtext": "Escaneo de cédula exitoso"
   }

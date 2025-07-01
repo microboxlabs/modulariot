@@ -6,11 +6,12 @@ import SmartLockCard from "@assets/icons/totem/smart-lock-card-hover-pinch.gif";
 import QrCode from "@assets/icons/totem/qr-code-hover-pinch.gif";
 import VerificationSuccess from "@assets/icons/totem/approve-checked-simple-hover-pinch.gif";
 import {
-  //fakeValidateRut,
+  fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
 import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
+import { validateIdCard } from "@/features/common/providers/client-api.provider";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -34,7 +35,7 @@ export default function Huella({
   setIdCardNumber: (idCardNumber: string) => void;
 }) {
   const [status, setStatus] = useState<
-    "idle" | "scanning" | "success" | "error"
+    "idle" | "scanning" | "success" | "error" | "error-id-card"
   >("idle");
   const [count, setCount] = useState(0);
   const [qrCode, setQrCode] = useState(false);
@@ -85,15 +86,15 @@ export default function Huella({
 
   const validator =
     process.env.NEXT_PUBLIC_SIMULATE_AUTENTIA === "true"
-      ? async () => {
+      ? /*  async () => {
           return new Promise((resolve, reject) => {
             setTimeout(() => {
               reject("Error");
             }, 1000);
           });
-        }
-      : //fakeValidateRut
-        validateRut;
+        } */
+        fakeValidateRut
+      : validateRut;
 
   const handleScanFingerprint = async () => {
     if (status === "success") {
@@ -138,6 +139,10 @@ export default function Huella({
       style: "text-red-500 border-red-500",
       text: (dict.totem as I18nRecord).fingerprint_scan_error as string,
     },
+    "error-id-card": {
+      style: "text-red-500 border-red-500",
+      text: (dict.totem as I18nRecord).fingerprint_scan_error as string,
+    },
   };
 
   if (verificatioSuccess) {
@@ -168,9 +173,6 @@ export default function Huella({
           onClick={() => {
             setCurrentStep(2);
           }}
-          disabled={
-            status !== "idle" && status !== "success" && status !== "error"
-          }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
@@ -212,16 +214,32 @@ export default function Huella({
               placeholder="No de Serie"
               value={idCardNumber}
               onChange={(e) => setIdCardNumber(e.target.value)}
-              className="pl-[5vh] portrait:pl-[6vw] w-full h-full caret-gray-800 dark:caret-gray-200 p-2 text-3xl font-light rounded-md border-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200"
+              className={`pl-[5vh] portrait:pl-[6vw] w-full h-full caret-gray-800 dark:caret-gray-200 p-2 text-3xl font-light rounded-md border-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 ${
+                status === "error-id-card" ? "border-red-500" : ""
+              }`}
             />
           </div>
         </div>
         <button
-          onClick={() => {
-            setVerificatioSuccess(true);
+          onClick={async () => {
+            console.log("---Validando ID---");
+            console.log(idCardNumber);
+            console.log("----------------------------------");
+            const response = await validateIdCard({
+              user_rut: rutData?.rut as string,
+              nro_serie: idCardNumber,
+            });
+            if (response.success) {
+              setVerificatioSuccess(true);
+            } else {
+              setStatus("error-id-card");
+            }
           }}
           disabled={
-            status !== "idle" && status !== "success" && status !== "error"
+            status !== "idle" &&
+            status !== "success" &&
+            status !== "error" &&
+            status !== "error-id-card"
           }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
@@ -384,7 +402,6 @@ export default function Huella({
           {(dict.totem as I18nRecord).fingerprint_scan as string}
         </h1>
       </div>
-
       {status == "error" ? (
         <Image
           className="w-[18vh] h-[18vh] animate-scale-in"
@@ -407,12 +424,12 @@ export default function Huella({
           {status_icon[status].text}
         </p>
         <p
-          className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
+          className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : ""}`}
         >
           {rutData?.rut}
         </p>
       </div>
-      {count <= 1 ? (
+      {count < 1 ? (
         <button
           onClick={handleScanFingerprint}
           disabled={

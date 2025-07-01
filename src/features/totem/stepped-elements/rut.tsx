@@ -2,6 +2,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FaIdCard } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { isRutValid } from "@/utils/rut";
+import { Button } from "flowbite-react";
 
 export default function Rut({
   setCurrentStep,
@@ -67,14 +68,14 @@ export default function Rut({
         />
       </div>
       {error && <p className="text-red-500 text-sm">{error}</p>}
-      <button
+      <Button
         onClick={handleValidateRut}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2 disabled:opacity-50"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
-      </button>
+      </Button>
     </div>
   );
 }

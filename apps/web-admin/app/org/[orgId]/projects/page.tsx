@@ -6,9 +6,9 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 
 interface ProjectsPageProps {
-  params: {
+  params: Promise<{
     orgId: string;
-  };
+  }>;
 }
 
 async function getOrganizationProjects(orgId: string, userEmail: string) {
@@ -53,7 +53,8 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
     notFound();
   }
 
-  const data = await getOrganizationProjects(params.orgId, session.user.email);
+  const { orgId } = await params;
+  const data = await getOrganizationProjects(orgId, session.user.email);
 
   if (!data) {
     notFound();
@@ -73,7 +74,7 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
         </div>
         {canCreateProjects && (
           <Link
-            href={`/org/${params.orgId}/projects/new`}
+            href={`/org/${orgId}/projects/new`}
             className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
             <Plus size={20} className="mr-2" />
@@ -98,7 +99,7 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
             </div>
             {canCreateProjects && (
               <Link
-                href={`/org/${params.orgId}/projects/new`}
+                href={`/org/${orgId}/projects/new`}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
                 <Plus size={20} className="mr-2" />
@@ -133,7 +134,7 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
                 </div>
                 <div className="mt-4">
                   <Link
-                    href={`/org/${params.orgId}/project/${project.id}`}
+                    href={`/org/${orgId}/project/${project.id}`}
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
                     View project →

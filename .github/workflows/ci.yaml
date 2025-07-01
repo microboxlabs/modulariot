@@ -8,7 +8,7 @@ on:
  
 env:
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
-  
+
 jobs:
   build:
     name: Build and Test
@@ -44,7 +44,9 @@ jobs:
         run: bun install
  
       - name: Build
-        run: bun run build
+        run: |
+          bunx turbo db:generate
+          bun run build
  
       - name: Test
         run: bun run test

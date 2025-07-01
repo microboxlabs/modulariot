@@ -7,9 +7,15 @@ const UpdateOrgSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters').max(50, 'Organization name must be less than 50 characters'),
 })
 
+interface OrgIdParams {
+  params: Promise<{
+    orgId: string;
+  }>;
+}
+
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: OrgIdParams
 ) {
   try {
     const session = await auth()
@@ -17,7 +23,7 @@ export async function PATCH(
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    const { orgId } = params;
+    const { orgId } = await params;
     const body = await request.json()
     const validatedData = UpdateOrgSchema.parse(body)
 
@@ -52,14 +58,14 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: OrgIdParams
 ) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    const { orgId } = params;
+    const { orgId } = await params;
     // Verify that the user is an OWNER of the org
     const membership = await prisma.membership.findFirst({
       where: {
@@ -82,11 +88,8 @@ export async function DELETE(
   }
 }
 
-type GetOrganizationParams = { 
-  params: { orgId: string };
-};
 
-export async function GET(request: NextRequest,  { params }: GetOrganizationParams) {
+export async function GET(request: NextRequest,  { params }: OrgIdParams) {
 
   const session = await auth();
 
@@ -94,10 +97,12 @@ export async function GET(request: NextRequest,  { params }: GetOrganizationPara
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  const { orgId } = await params;
+
   const membership = await prisma.membership.findFirst({
     where: {
       userId: session.user.id,
-      orgId: params.orgId
+      orgId
     },
   });
 
@@ -108,7 +113,7 @@ export async function GET(request: NextRequest,  { params }: GetOrganizationPara
   const includeProjects = request.nextUrl.searchParams.get('projects') === 'true';
 
   const organization = await prisma.organization.findUnique({
-    where: { id: params.orgId },
+    where: { id: orgId },
     include: {
       projects: includeProjects,
     },

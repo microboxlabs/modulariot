@@ -97,9 +97,9 @@ export default function Stepped({
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-10 p-10 relative">
+    <div className="flex flex-col items-center justify-center w-full h-full gap-10 p-5 relative">
       {/* Stepper */}
-      <div className="flex justify-center portrait:justify-between flex-row gap-10 w-[90%]">
+      <div className="flex justify-center portrait:justify-between flex-row gap-10">
         <StepperMarker
           id={0}
           selected={currentStep === 0}
@@ -170,7 +170,7 @@ function StepperMarker({
       onClick={onClick}
     >
       <div
-        className={`relative w-[8vh] portrait:w-[10vw] h-[8vh] portrait:h-[10vw] rounded-full border-4 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
+        className={`relative  w-[8vh] portrait:w-[10vw] h-[8vh] portrait:h-[10vw] rounded-full border-2 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
       >
         {icon}
         <div

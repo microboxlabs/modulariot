@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Modal, Tabs, Spinner, ModalHeader, ModalBody } from "flowbite-react";
+import { Modal, Tabs, Spinner, ModalHeader, ModalBody, TabItem } from "flowbite-react";
 import { Server, Wifi, Waves, MessageCircle, Terminal } from "lucide-react";
 import { ConnectionCard } from "./connection-card";
 import { PROTOCOLS, getConnectionDetails, Auth0Credentials, IngestConfig } from "./protocol-helpers";
@@ -128,7 +128,7 @@ export function ConnectStreamModal({
               });
 
               return (
-                <Tabs.Item
+                <TabItem
                   key={protocol.id}
                   title={
                     <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export function ConnectStreamModal({
                     />
 
                   </div>
-                </Tabs.Item>
+                </TabItem>
               );
             })}
           </Tabs>

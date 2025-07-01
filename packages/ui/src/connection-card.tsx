@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Badge, Tabs, Button } from "flowbite-react";
+import { Card, Badge, Tabs, Button, TabItem } from "flowbite-react";
 import { Copy, Check, ChevronDown, ChevronRight, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { ConnectionDetails } from "./protocol-helpers";
 
@@ -102,7 +102,7 @@ export function ConnectionCard({ details, badges = [], auth0Credentials }: Conne
                 {step.sampleCode && Object.keys(step.sampleCode).length > 0 ? (
                   <Tabs aria-label="Code samples" variant="underline">
                     {Object.entries(step.sampleCode).map(([language, code]) => (
-                      <Tabs.Item key={language} title={language.charAt(0).toUpperCase() + language.slice(1)}>
+                      <TabItem key={language} title={language.charAt(0).toUpperCase() + language.slice(1)}>
                         <div className="relative">
                           <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">
                             <code>{code}</code>
@@ -118,7 +118,7 @@ export function ConnectionCard({ details, badges = [], auth0Credentials }: Conne
                             )}
                           </button>
                         </div>
-                      </Tabs.Item>
+                      </TabItem>
                     ))}
                   </Tabs>
                 ) : (

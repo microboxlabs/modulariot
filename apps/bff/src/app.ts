@@ -1,10 +1,6 @@
-import { fileURLToPath } from "url";
 import path from "path";
 import autoload from "@fastify/autoload";
 import { FastifyInstance } from "fastify";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default function AppFramework(fastify: FastifyInstance, opts: any): FastifyInstance {
   const appConfig = opts.config;

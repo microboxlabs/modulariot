@@ -125,9 +125,9 @@ export async function taskSignIdCardDocument(
       transitionId,
       serviceCode,
       bpmPackage: formData.get("bpmPackage"),
-      signerRuts: signerRuts.split(","),
-      auditNumbers: auditNumbers.split(","),
-      nro_serie: serialNumbers.split(","),
+      signerRuts, //: signerRuts.split(","),
+      auditNumbers, //: auditNumbers, //.split(","),
+      nro_serie: serialNumbers, //: serialNumbers, //.split(","),
       taskType,
     }),
   });

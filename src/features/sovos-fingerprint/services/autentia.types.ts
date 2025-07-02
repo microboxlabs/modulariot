@@ -27,4 +27,5 @@ export type AutentiaParamsGet = {
   ercText: string;
   NroAudit: string;
   Rut: string;
+  SerialNumber?: string;
 };

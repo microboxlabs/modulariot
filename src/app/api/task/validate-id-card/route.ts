@@ -87,9 +87,6 @@ export async function POST(request: NextRequest) {
         message: response.message,
       });
     }
-    console.log("---Respuesta de crear Contenido---");
-    console.log(response);
-    console.log("----------------------------------");
 
     const documentCode = response.result.code!;
     const signIdCardRequest: SignIdCardRequest = {
@@ -101,10 +98,6 @@ export async function POST(request: NextRequest) {
       session_id: sessionId,
     };
 
-    console.log("Payload de firma");
-    console.log(signIdCardRequest);
-    console.log("------------------");
-
     const signIdCardResponse = await signIdCard(signIdCardRequest);
     if (signIdCardResponse.status !== 200) {
       return NextResponse.json({
@@ -113,10 +106,6 @@ export async function POST(request: NextRequest) {
         message: signIdCardResponse.message,
       });
     }
-
-    console.log("---Respuesta de firmar Contenido---");
-    console.log(signIdCardResponse);
-    console.log("----------------------------------");
 
     if (signIdCardResponse.status !== 200) {
       return NextResponse.json({

@@ -770,6 +770,7 @@
     "id_card_manual_access":"Manual Input",
     "id_card_manual_access_subtext":"Enter your ID card serial number",
     "verification_success":"Verification successful",
-    "verification_success_subtext": "ID card scan successful"
+    "verification_success_subtext": "ID card scan successful",
+    "id_card_manual_access_error": "Invalid serial number. Please try again."
   }
 }

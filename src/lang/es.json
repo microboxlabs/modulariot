@@ -782,6 +782,7 @@
     "id_card_manual_access":"Ingreso manual",
     "id_card_manual_access_subtext":"Ingrese el número de serie de su cédula de identidad",
     "verification_success":"Verificación exitosa",
-    "verification_success_subtext": "Escaneo de cédula exitoso"
+    "verification_success_subtext": "Escaneo de cédula exitoso",
+    "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor."
   }
 }

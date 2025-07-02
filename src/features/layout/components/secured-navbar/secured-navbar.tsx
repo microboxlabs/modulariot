@@ -132,7 +132,7 @@ export function SecuredNavbar({
                   onClick={() => router.push("/notifications")}
                 >
                   {unreadNotifications > 0 && (
-                    <div className="flex items-center justify-center gap-2 w-5 h-5 bg-red-400 dark:bg-red-600 text-sm dark:text-white rounded-full absolute bottom-[-0.625rem] left-[-0.625rem]">
+                    <div className="flex items-center justify-center gap-2 w-5 h-5 bg-red-400 dark:bg-red-600 text-xs dark:text-white rounded-full absolute bottom-[-0.625rem] left-[-0.625rem]">
                       {unreadNotifications}
                     </div>
                   )}

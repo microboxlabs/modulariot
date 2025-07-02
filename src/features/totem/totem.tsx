@@ -44,7 +44,7 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center w-screen h-screen gap-10">
+    <div className="flex flex-col items-center justify-center gap-10 h-full">
       {currentOption < options.length && options[currentOption].interface}
     </div>
   );

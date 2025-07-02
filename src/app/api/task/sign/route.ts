@@ -6,7 +6,7 @@ import {
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  endTask,
+  //endTask,
   getContentByTaskId,
   uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -182,13 +182,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const endTaskResult = await endTask(
+    /*  const endTaskResult = await endTask(
       session.user.ticket,
       json.taskId,
       json.transitionId,
     );
 
-    console.log(endTaskResult);
+    console.log(endTaskResult); */
 
     // {
     //   type_code,

@@ -94,25 +94,25 @@ export default function Huella({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+    <div className="flex flex-col items-center justify-center gap-4 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md w-full">
       <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-[4vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).fingerprint_scan as string}
         </h1>
       </div>
       <div
-        className={`p-[1vh] portrait:p-[1vw] rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
+        className={`p-2 rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
       >
-        <IoIosFingerPrint className="w-[10vh] portrait:w-[10vw] h-[10vh] portrait:h-[10vw] transition-colors duration-300" />
+        <IoIosFingerPrint className="w-20 h-20 transition-colors duration-300" />
       </div>
       <div className="flex flex-col items-center justify-center">
         <p
-          className={`text-[3vh] portrait:text-[3vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
+          className={`text-sm text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
         >
           {status_icon[status].text}
         </p>
         <p
-          className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
+          className={`text-lg font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >
           {rutData?.rut}
         </p>
@@ -122,9 +122,9 @@ export default function Huella({
         disabled={
           status !== "idle" && status !== "success" && status !== "error"
         }
-        className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+        className="bg-blue-500 text-white p-4 rounded-lg w-full flex items-center justify-center"
       >
-        <p className="text-[4vh] portrait:text-[4vw] font-light">
+        <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
       </button>

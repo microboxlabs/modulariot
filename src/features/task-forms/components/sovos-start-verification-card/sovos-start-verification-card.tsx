@@ -26,6 +26,14 @@ type FingerprintReuseResponse = {
       totalExpectedFingerPrints: number;
       successFingerPrints: Record<string, string>;
     };
+    pilotFlag: boolean;
+    rutValidationsFound: {
+      verifiedIntent: boolean;
+      successRutValidations: {
+        [key: string]: string;
+      };
+      totalExpectedRutValidations: number;
+    };
   };
 };
 
@@ -61,7 +69,11 @@ export default function SovosStartVerificationCard({
         const verifyID =
           result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
             getRut()
+          ] ||
+          result?.fingerprintReuse?.rutValidationsFound?.successRutValidations[
+            getRut()
           ];
+        console.log(verifyID);
         if (
           result?.fingerprintReuse?.tripFound &&
           (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
@@ -79,6 +91,22 @@ export default function SovosStartVerificationCard({
               ercText: verifyID ?? "Reutilización de huella",
               NroAudit: verifyID ?? "Reutilización de huella",
               Rut: getRut(),
+            });
+            setFingerprintReuse && setFingerprintReuse(true);
+          }
+          if (
+            result?.fingerprintReuse?.rutValidationsFound
+              ?.totalExpectedRutValidations &&
+            result?.fingerprintReuse?.rutValidationsFound
+              ?.totalExpectedRutValidations >= 1 &&
+            verifyID
+          ) {
+            stepperController.toNextStep(false, {
+              Erc: 0,
+              ercText: verifyID ?? "Reutilización de ID Card",
+              NroAudit: verifyID ?? "Reutilización de ID Card",
+              Rut: getRut(),
+              SerialNumber: verifyID,
             });
             setFingerprintReuse && setFingerprintReuse(true);
           }

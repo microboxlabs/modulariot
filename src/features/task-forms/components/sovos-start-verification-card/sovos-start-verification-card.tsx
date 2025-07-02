@@ -73,18 +73,29 @@ export default function SovosStartVerificationCard({
           result?.fingerprintReuse?.rutValidationsFound?.successRutValidations[
             getRut()
           ];
+
+        const signatureType = result?.fingerprintReuse?.fingerprintFound
+          ?.successFingerPrints[getRut()]
+          ? "fingerprint"
+          : result?.fingerprintReuse?.rutValidationsFound
+                ?.successRutValidations[getRut()]
+            ? "idCard"
+            : "none";
+
         console.log(verifyID);
+        console.log(signatureType);
         if (
           result?.fingerprintReuse?.tripFound &&
           (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
             verifyID)
         ) {
           if (
-            result?.fingerprintReuse?.fingerprintFound
+            /* result?.fingerprintReuse?.fingerprintFound
               ?.totalExpectedFingerPrints &&
             result?.fingerprintReuse?.fingerprintFound
-              ?.totalExpectedFingerPrints >= 1 &&
-            verifyID
+              ?.totalExpectedFingerPrints >= 1 && */
+            verifyID &&
+            signatureType === "fingerprint"
           ) {
             stepperController.toNextStep(false, {
               Erc: 0,
@@ -95,16 +106,17 @@ export default function SovosStartVerificationCard({
             setFingerprintReuse && setFingerprintReuse(true);
           }
           if (
-            result?.fingerprintReuse?.rutValidationsFound
+            /* result?.fingerprintReuse?.rutValidationsFound
               ?.totalExpectedRutValidations &&
             result?.fingerprintReuse?.rutValidationsFound
-              ?.totalExpectedRutValidations >= 1 &&
-            verifyID
+              ?.totalExpectedRutValidations >= 1 && */
+            verifyID &&
+            signatureType === "idCard"
           ) {
             stepperController.toNextStep(false, {
               Erc: 0,
               ercText: verifyID ?? "Reutilización de ID Card",
-              NroAudit: verifyID ?? "Reutilización de ID Card",
+              //NroAudit: verifyID ?? "Reutilización de ID Card",
               Rut: getRut(),
               SerialNumber: verifyID,
             });

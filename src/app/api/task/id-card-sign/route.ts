@@ -13,7 +13,7 @@ import {
   SignIdCardRequest,
 } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  endTask,
+  //endTask,
   getContentByTaskId,
   uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     const signIdCardRequest: SignIdCardRequest = {
       user_rut: json.signerRuts[0],
       nro_serie: json.nro_serie,
-      user_role: targetRole,
+      user_role: json.signerRuts[0],
       user_institution: institutionId,
       code: documentCode,
       session_id: sessionId,
@@ -231,13 +231,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const endTaskResult = await endTask(
+    /* const endTaskResult = await endTask(
       session.user.ticket,
       json.taskId,
       json.transitionId,
     );
 
-    console.log(endTaskResult);
+    console.log(endTaskResult); */
 
     return NextResponse.json({
       success: true,

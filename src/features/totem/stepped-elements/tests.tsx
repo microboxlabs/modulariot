@@ -164,14 +164,14 @@ function GotoBox({
           </div>
         </div>
       </div>
-      <button
+      <Button
         onClick={() => window.location.reload()}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).finish as string}
         </p>
-      </button>
+      </Button>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-s
 import { useState } from "react";
 import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
 import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
-import { taskSignDocument } from "../../services/client-form.service";
+import { taskNextAction, taskSignDocument, taskSignIdCardDocument } from "../../services/client-form.service";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
 import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
@@ -35,20 +35,76 @@ export default function SovosVerificationForm({
   const [fingerprintReuse, setFingerprintReuse] = useState<boolean>(false);
   
   const handleSignDocument = async () => {
-    setLoading(true);
-    const formData = new FormData();
-    const auditNumbers = audits.map((audit) => audit.NroAudit).join(",");
-    const signerRuts = audits.map((audit) => audit.Rut).join(",");
+    setLoading(true);    
+    console.log(audits);
+    //let pos = 0;
+    let results = [];
+    for (const audit of audits) {
+      const formData = new FormData();
+      const signerRuts = audit.Rut ? audit.Rut : "";         
+      
+      
+      /* if(pos != 0){
+        formData.append("documentCode", results[pos-1]?.result?.code ?? "");
+      } */
+      if (audit.SerialNumber) {
+        formData.append("taskId", task.id);
+        formData.append("transitionId", "Viaje Iniciado");
+        formData.append("bpmPackage", task.bpm_package as string);
+        formData.append("serviceCode", task.mintral_serviceCode as string);      
+        formData.append("signerRuts", signerRuts);
+        formData.append("taskType", "sovosVerification");
+        formData.append("serialNumbers", audit.SerialNumber);
+        const result = await taskSignIdCardDocument({}, formData);
+        if (result.success)  {
+          results.push(result);
+        }else{
+          setStepper({
+            ...stepper,
+            isError: true,
+          });
+          return;
+        }
+      }else if (audit.NroAudit) {
+        formData.append("taskId", task.id);
+        formData.append("transitionId", "Viaje Iniciado");
+        formData.append("bpmPackage", task.bpm_package as string);
+        formData.append("serviceCode", task.mintral_serviceCode as string);      
+        formData.append("signerRuts", audit.Rut);
+        formData.append("taskType", "sovosVerification");
+        formData.append("auditNumbers", audit.NroAudit);        
+        const result = await taskSignDocument({}, formData);
+        if (result.success)  {
+          results.push(result);
+        }else{
+          setStepper({
+            ...stepper,
+            isError: true,
+          });
+          return;
+        }
+      }
+      //pos++;
+    }
 
+    const formData = new FormData();
     formData.append("taskId", task.id);
     formData.append("transitionId", "Viaje Iniciado");
-    formData.append("bpmPackage", task.bpm_package as string);
-    formData.append("serviceCode", task.mintral_serviceCode as string);
-    formData.append("auditNumbers", auditNumbers);
-    formData.append("signerRuts", signerRuts);
-    formData.append("taskType", "sovosVerification");
+    formData.append("comments", "Firma de documentos");
+    //formData.append("nativeGenerationEnabled", "true");
+    //formData.append("reason", "Firma de documentos");
+    //formData.append("reasonId", "sovosVerification");
 
-    const result = await taskSignDocument({}, formData);
+    const response = await taskNextAction({}, formData);
+      if (response.success)  {
+        router.push(`/${lang}/shipping`);
+      } else {
+        setStepper({
+          ...stepper,
+          isError: true,
+        });
+      }
+    /* const result = await taskSignDocument({}, formData);
 
     if (result.success) {
       router.push(`/${lang}/shipping`);
@@ -57,7 +113,7 @@ export default function SovosVerificationForm({
         ...stepper,
         isError: true,
       });
-    }
+    } */
     setLoading(false);
     //TODO: toast check for some errors
   };

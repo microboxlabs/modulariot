@@ -41,7 +41,7 @@ export default function SovosVerificationForm({
     let results = [];
     for (const audit of audits) {
       const formData = new FormData();
-      const signerRuts = audit.Rut ? audit.Rut : "";         
+      const signerRuts = audit.Rut ? audit.Rut : "";
       
       
       /* if(pos != 0){
@@ -81,7 +81,7 @@ export default function SovosVerificationForm({
             ...stepper,
             isError: true,
           });
-          return;
+          //return;
         }
       }
       //pos++;

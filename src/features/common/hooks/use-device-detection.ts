@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 
 export type DeviceType = "mobile" | "tablet" | "desktop" | "unknown";
 
+export type OperatingSystem =
+  | "Windows"
+  | "macOS"
+  | "Linux"
+  | "iOS"
+  | "Android"
+  | "ChromeOS"
+  | "unknown";
+
 interface DeviceInfo {
   type: DeviceType;
   isMobile: boolean;
@@ -11,6 +20,8 @@ interface DeviceInfo {
   screenWidth: number;
   screenHeight: number;
   orientation: "portrait" | "landscape";
+  operatingSystem: OperatingSystem;
+  osVersion?: string;
 }
 
 export function useDeviceDetection(): DeviceInfo {
@@ -23,16 +34,68 @@ export function useDeviceDetection(): DeviceInfo {
     screenWidth: 0,
     screenHeight: 0,
     orientation: "portrait",
+    operatingSystem: "unknown",
+    osVersion: undefined,
   });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    const detectOperatingSystem = (
+      userAgent: string,
+    ): { os: OperatingSystem; version?: string } => {
+      // iOS detection
+      if (/iPad|iPhone|iPod/.test(userAgent)) {
+        const match = userAgent.match(/OS (\d+_\d+)/);
+        const version = match ? match[1].replace("_", ".") : undefined;
+        return { os: "iOS", version };
+      }
+
+      // Android detection
+      if (/Android/.test(userAgent)) {
+        const match = userAgent.match(/Android (\d+\.\d+)/);
+        const version = match ? match[1] : undefined;
+        return { os: "Android", version };
+      }
+
+      // Windows detection
+      if (/Windows/.test(userAgent)) {
+        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
+        const version = match ? match[1] : undefined;
+        return { os: "Windows", version };
+      }
+
+      // macOS detection
+      if (/Mac OS X/.test(userAgent)) {
+        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+        const version = match ? match[1].replace("_", ".") : undefined;
+        return { os: "macOS", version };
+      }
+
+      // Linux detection
+      if (/Linux/.test(userAgent)) {
+        return { os: "Linux" };
+      }
+
+      // ChromeOS detection
+      if (/CrOS/.test(userAgent)) {
+        const match = userAgent.match(/CrOS (\d+\.\d+)/);
+        const version = match ? match[1] : undefined;
+        return { os: "ChromeOS", version };
+      }
+
+      return { os: "unknown" };
+    };
 
     const detectDevice = (): DeviceInfo => {
       const userAgent = navigator.userAgent;
       const screenWidth = window.screen.width;
       const screenHeight = window.screen.height;
       const orientation = screenWidth > screenHeight ? "landscape" : "portrait";
+
+      // Detect operating system
+      const { os: operatingSystem, version: osVersion } =
+        detectOperatingSystem(userAgent);
 
       // Method 1: User Agent Detection
       const isMobileUA =
@@ -107,6 +170,8 @@ export function useDeviceDetection(): DeviceInfo {
         screenWidth,
         screenHeight,
         orientation,
+        operatingSystem,
+        osVersion,
       };
     };
 
@@ -178,3 +243,55 @@ export const isDesktopDevice = (): boolean => {
 
   return hasFinePointer && hasHover && !hasTouchScreen;
 };
+
+// Utility functions for operating system detection
+export const getOperatingSystem = (): OperatingSystem => {
+  if (typeof window === "undefined") return "unknown";
+
+  const userAgent = navigator.userAgent;
+
+  if (/iPad|iPhone|iPod/.test(userAgent)) return "iOS";
+  if (/Android/.test(userAgent)) return "Android";
+  if (/Windows/.test(userAgent)) return "Windows";
+  if (/Mac OS X/.test(userAgent)) return "macOS";
+  if (/Linux/.test(userAgent)) return "Linux";
+  if (/CrOS/.test(userAgent)) return "ChromeOS";
+
+  return "unknown";
+};
+
+export const getOSVersion = (): string | undefined => {
+  if (typeof window === "undefined") return undefined;
+
+  const userAgent = navigator.userAgent;
+
+  // iOS version
+  const iosMatch = userAgent.match(/OS (\d+_\d+)/);
+  if (iosMatch) return iosMatch[1].replace("_", ".");
+
+  // Android version
+  const androidMatch = userAgent.match(/Android (\d+\.\d+)/);
+  if (androidMatch) return androidMatch[1];
+
+  // Windows version
+  const windowsMatch = userAgent.match(/Windows NT (\d+\.\d+)/);
+  if (windowsMatch) return windowsMatch[1];
+
+  // macOS version
+  const macMatch = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+  if (macMatch) return macMatch[1].replace("_", ".");
+
+  // ChromeOS version
+  const chromeMatch = userAgent.match(/CrOS (\d+\.\d+)/);
+  if (chromeMatch) return chromeMatch[1];
+
+  return undefined;
+};
+
+// Convenience functions for specific OS checks
+export const isIOS = (): boolean => getOperatingSystem() === "iOS";
+export const isAndroid = (): boolean => getOperatingSystem() === "Android";
+export const isWindows = (): boolean => getOperatingSystem() === "Windows";
+export const isMacOS = (): boolean => getOperatingSystem() === "macOS";
+export const isLinux = (): boolean => getOperatingSystem() === "Linux";
+export const isChromeOS = (): boolean => getOperatingSystem() === "ChromeOS";

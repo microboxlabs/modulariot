@@ -13,7 +13,7 @@ import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
-import { useDeviceDetection } from "@/features/common/hooks/use-device-detection";
+import { isWindows } from "@/features/common/hooks/use-device-detection";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -51,7 +51,7 @@ export default function Huella({
   const qrRef = useRef(null);
 
   // Device detection hook
-  const deviceInfo = useDeviceDetection();
+  const isWindowsDevice = isWindows();
 
   useEffect(() => {
     if (count >= 3) {
@@ -72,12 +72,19 @@ export default function Huella({
           (decodedText: string, decodedResult: any) => {
             console.log("QR Code link:", decodedText);
             console.log("QR Code result:", decodedResult);
+            const serialText = decodedText.substring(
+              decodedText.indexOf("&serial=") + 8,
+              decodedText.indexOf("&mrz=") - 1,
+            );
+            console.log("Serial text:", serialText);
+            setIdCardNumber(serialText);
+            setIdCard(true);
             html5QrCode.clear();
             html5QrCode.stop();
           },
-          (errorMessage: any) => {
+          (_errorMessage: any) => {
             // Optionally handle scan errors
-            console.error("QR Code error:", errorMessage);
+            //console.error("QR Code error:", errorMessage);
           },
         );
       });
@@ -90,10 +97,10 @@ export default function Huella({
   }, [idCardLoading]);
 
   useEffect(() => {
-    if (deviceInfo.isMobile) {
+    if (!isWindowsDevice) {
       setQrCode(true);
     }
-  }, [deviceInfo.isMobile]);
+  }, [isWindowsDevice]);
 
   if (!pluginReady) return null;
 

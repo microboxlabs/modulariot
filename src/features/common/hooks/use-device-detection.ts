@@ -296,24 +296,6 @@ export const getOperatingSystem = (): OperatingSystem => {
   const platform = navigator.platform;
   const userAgentData = (navigator as any).userAgentData;
 
-  // iOS detection
-  if (/iPad|iPhone|iPod/.test(userAgent)) return "iOS";
-
-  // Android detection
-  if (/Android/.test(userAgent)) return "Android";
-
-  // ChromeOS detection
-  if (/CrOS/.test(userAgent)) return "ChromeOS";
-
-  // macOS detection using multiple methods
-  if (
-    platform === "MacIntel" ||
-    platform === "MacPPC" ||
-    /Mac OS X/.test(userAgent) ||
-    userAgentData?.platform === "macOS"
-  )
-    return "macOS";
-
   // Windows detection using multiple methods
   if (
     platform === "Win32" ||
@@ -322,17 +304,6 @@ export const getOperatingSystem = (): OperatingSystem => {
     userAgentData?.platform === "Windows"
   )
     return "Windows";
-
-  // Linux detection using multiple methods
-  if (
-    platform === "Linux x86_64" ||
-    platform === "Linux i686" ||
-    platform === "Linux armv7l" ||
-    platform === "Linux aarch64" ||
-    /Linux/.test(userAgent) ||
-    userAgentData?.platform === "Linux"
-  )
-    return "Linux";
 
   return "unknown";
 };

@@ -1,5 +1,6 @@
 import { FaArrowRight } from "react-icons/fa";
 import { I18nRecord } from "../i18n/i18n.service.types";
+import { Button } from "flowbite-react";
 
 export default function Welcome({
   setCurrentOption,
@@ -24,7 +25,7 @@ export default function Welcome({
         </div>
         {/* Form */}
         <div className="flex flex-col items-center justify-center w-full">
-          <button
+          <Button
             onClick={() => setCurrentOption(currentOption + 1)}
             className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
           >
@@ -32,7 +33,7 @@ export default function Welcome({
               {(dict.totem as I18nRecord).start as string}
             </p>
             <FaArrowRight className="w-[3vh] portrait:w-[3vw] h-[3vh] portrait:h-[3vw]" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

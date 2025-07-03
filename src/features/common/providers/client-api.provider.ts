@@ -25,7 +25,10 @@ import {
 import { MapService } from "@/features/geographic-view/services/map.service";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { TreatmentsLocationResponseItem } from "@/app/api/treatments/location/route.type";
-import { ValidateIdCardRequest } from "./5cap-api/5cap-api.provider.types";
+import {
+  SignIdCardRequest,
+  ValidateIdCardRequest,
+} from "./5cap-api/5cap-api.provider.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -465,6 +468,17 @@ export function validateIdCard(
   idCardRequest: ValidateIdCardRequest,
 ): Promise<any> {
   const url = `/app/api/task/validate-id-card`;
+  return fetcher(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify(idCardRequest),
+  });
+}
+
+export function signIdCard(idCardRequest: SignIdCardRequest): Promise<any> {
+  const url = `/app/api/task/id-card-sign`;
   return fetcher(url, {
     headers: {
       "Content-Type": "application/json",

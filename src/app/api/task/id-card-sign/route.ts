@@ -13,7 +13,7 @@ import {
   SignIdCardRequest,
 } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  endTask,
+  //endTask,
   getContentByTaskId,
   uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const json = (await request.json()) as {
       serviceCode: string;
       signersEmails: string[];
-      signerRuts: string[];
+      signerRuts: string;
       nro_serie: string;
       taskId: string;
       auditNumbers: string[];
@@ -74,10 +74,6 @@ export async function POST(request: NextRequest) {
       requireInternalSign,
     );
 
-    // const documentTypes = await getDocumentTypes(institutionId, sessionId);
-    // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];
-    // console.log(documentTypes);
-
     let signersRoles: string[] = [];
     let signersInstitutions: string[] = [];
     let signersEmails: string[] = [];
@@ -87,16 +83,14 @@ export async function POST(request: NextRequest) {
     let signersNotify: number[] = [];
     let signersAudit: string[] = [];
 
-    json.signerRuts.forEach((rut, index) => {
-      signersRoles.push(rut);
-      signersInstitutions.push(rut);
-      signersEmails.push("michel@microboxlabs.com");
-      signersRuts.push(rut);
-      signersType.push(0);
-      signersOrder.push(1);
-      signersNotify.push(2);
-      signersAudit.push(json.auditNumbers[index]);
-    });
+    signersRoles.push(json.signerRuts);
+    signersInstitutions.push(json.signerRuts);
+    signersEmails.push("michel@microboxlabs.com");
+    signersRuts.push(json.signerRuts);
+    signersType.push(0);
+    signersOrder.push(1);
+    signersNotify.push(2);
+    signersAudit.push(json.auditNumbers[0]);
 
     // last signer is the dispatcher
     if (json.taskType === "confirmDelivery") {
@@ -141,16 +135,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    console.log(JSON.stringify(response));
     const documentCode = response.result.code!;
     const signIdCardRequest: SignIdCardRequest = {
-      user_rut: json.signerRuts[0],
+      user_rut: json.signerRuts,
       nro_serie: json.nro_serie,
-      user_role: targetRole,
+      user_role: json.signerRuts,
       user_institution: institutionId,
       code: documentCode,
       session_id: sessionId,
     };
 
+    console.log(JSON.stringify(signIdCardRequest));
     const signIdCardResponse = await signIdCard(signIdCardRequest);
     if (signIdCardResponse.status !== 200) {
       return NextResponse.json({
@@ -231,13 +227,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const endTaskResult = await endTask(
+    /* const endTaskResult = await endTask(
       session.user.ticket,
       json.taskId,
       json.transitionId,
     );
 
-    console.log(endTaskResult);
+    console.log(endTaskResult); */
 
     return NextResponse.json({
       success: true,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 import Image from "next/image";
 import exclamationIcon from "@assets/wired-flat-1140-error-in-reveal.gif";
+import { Button } from "flowbite-react";
 
 export default function TripInformation({
   setCurrentStep,
@@ -181,14 +182,14 @@ export default function TripInformation({
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
         <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
         <Image src={exclamationIcon} alt="exclamation" />
-        <button
+        <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -206,14 +207,14 @@ export default function TripInformation({
           width={300}
           height={300}
         />
-        <button
+        <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -285,14 +286,14 @@ export default function TripInformation({
           </h1>
         </div>
       )}
-      <button
+      <Button
         onClick={() => setCurrentStep(currentStep + 1)}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
-      </button>
+      </Button>
     </div>
   );
 }

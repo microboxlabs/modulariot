@@ -61,7 +61,7 @@ export default function Huella({
 
   useEffect(() => {
     if (idCardLoading && qrRef.current) {
-      import("html5-qrcode").then(({ Html5Qrcode }) => {
+      import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         const html5QrCode = new Html5Qrcode("html5qr-code");
         html5QrCode.start(
           { facingMode: "environment" },
@@ -69,13 +69,13 @@ export default function Huella({
             fps: 20,
             qrbox: { width: 250, height: 250 },
           },
-          (decodedText, decodedResult) => {
+          (decodedText: string, decodedResult: any) => {
             console.log("QR Code link:", decodedText);
             console.log("QR Code result:", decodedResult);
             html5QrCode.clear();
             html5QrCode.stop();
           },
-          (errorMessage) => {
+          (errorMessage: any) => {
             // Optionally handle scan errors
             console.error("QR Code error:", errorMessage);
           },

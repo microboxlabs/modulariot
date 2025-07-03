@@ -784,7 +784,7 @@
     "notify_control_center": "Hemos informado a la torre de control.",
     "biometric_verification_error": "Error al verificar datos biométricos",
     "Query return 2 results instead of max 1": "Más de un viaje asignado",
-    "Driver already verified": "Conductor ya verificado"
+    "Driver already verified": "Conductor ya verificado",
     "to_qrcode":"Ir a escaneo Cédula de identidad",
     "id_card_scan":"Escaneo de Cédula de identidad",
     "qr_code_scann":"Escanear código QR",

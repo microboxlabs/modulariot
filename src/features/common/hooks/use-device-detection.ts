@@ -44,37 +44,26 @@ export function useDeviceDetection(): DeviceInfo {
     const detectOperatingSystem = (
       userAgent: string,
     ): { os: OperatingSystem; version?: string } => {
-      // iOS detection
+      // Method 1: Use navigator.platform (more reliable for desktop OS)
+      const platform = navigator.platform;
+
+      // Method 2: Use navigator.userAgentData (modern API, more reliable)
+      const userAgentData = (navigator as any).userAgentData;
+
+      // Method 3: Use navigator.userAgent (fallback)
+
+      // iOS detection (mobile devices)
       if (/iPad|iPhone|iPod/.test(userAgent)) {
         const match = userAgent.match(/OS (\d+_\d+)/);
         const version = match ? match[1].replace("_", ".") : undefined;
         return { os: "iOS", version };
       }
 
-      // Android detection
+      // Android detection (mobile devices)
       if (/Android/.test(userAgent)) {
         const match = userAgent.match(/Android (\d+\.\d+)/);
         const version = match ? match[1] : undefined;
         return { os: "Android", version };
-      }
-
-      // Windows detection
-      if (/Windows/.test(userAgent)) {
-        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
-        const version = match ? match[1] : undefined;
-        return { os: "Windows", version };
-      }
-
-      // macOS detection
-      if (/Mac OS X/.test(userAgent)) {
-        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
-        const version = match ? match[1].replace("_", ".") : undefined;
-        return { os: "macOS", version };
-      }
-
-      // Linux detection
-      if (/Linux/.test(userAgent)) {
-        return { os: "Linux" };
       }
 
       // ChromeOS detection
@@ -82,6 +71,61 @@ export function useDeviceDetection(): DeviceInfo {
         const match = userAgent.match(/CrOS (\d+\.\d+)/);
         const version = match ? match[1] : undefined;
         return { os: "ChromeOS", version };
+      }
+
+      // Desktop OS detection using multiple methods
+
+      // macOS detection
+      if (
+        platform === "MacIntel" ||
+        platform === "MacPPC" ||
+        /Mac OS X/.test(userAgent) ||
+        userAgentData?.platform === "macOS"
+      ) {
+        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+        const version = match ? match[1].replace("_", ".") : undefined;
+        return { os: "macOS", version };
+      }
+
+      // Windows detection
+      if (
+        platform === "Win32" ||
+        platform === "Win64" ||
+        /Windows/.test(userAgent) ||
+        userAgentData?.platform === "Windows"
+      ) {
+        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
+        const version = match ? match[1] : undefined;
+        return { os: "Windows", version };
+      }
+
+      // Linux detection
+      if (
+        platform === "Linux x86_64" ||
+        platform === "Linux i686" ||
+        platform === "Linux armv7l" ||
+        platform === "Linux aarch64" ||
+        /Linux/.test(userAgent) ||
+        userAgentData?.platform === "Linux"
+      ) {
+        return { os: "Linux" };
+      }
+
+      // Fallback: Try to detect from user agent string only
+      if (/Mac OS X/.test(userAgent)) {
+        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+        const version = match ? match[1].replace("_", ".") : undefined;
+        return { os: "macOS", version };
+      }
+
+      if (/Windows/.test(userAgent)) {
+        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
+        const version = match ? match[1] : undefined;
+        return { os: "Windows", version };
+      }
+
+      if (/Linux/.test(userAgent)) {
+        return { os: "Linux" };
       }
 
       return { os: "unknown" };
@@ -249,13 +293,46 @@ export const getOperatingSystem = (): OperatingSystem => {
   if (typeof window === "undefined") return "unknown";
 
   const userAgent = navigator.userAgent;
+  const platform = navigator.platform;
+  const userAgentData = (navigator as any).userAgentData;
 
+  // iOS detection
   if (/iPad|iPhone|iPod/.test(userAgent)) return "iOS";
+
+  // Android detection
   if (/Android/.test(userAgent)) return "Android";
-  if (/Windows/.test(userAgent)) return "Windows";
-  if (/Mac OS X/.test(userAgent)) return "macOS";
-  if (/Linux/.test(userAgent)) return "Linux";
+
+  // ChromeOS detection
   if (/CrOS/.test(userAgent)) return "ChromeOS";
+
+  // macOS detection using multiple methods
+  if (
+    platform === "MacIntel" ||
+    platform === "MacPPC" ||
+    /Mac OS X/.test(userAgent) ||
+    userAgentData?.platform === "macOS"
+  )
+    return "macOS";
+
+  // Windows detection using multiple methods
+  if (
+    platform === "Win32" ||
+    platform === "Win64" ||
+    /Windows/.test(userAgent) ||
+    userAgentData?.platform === "Windows"
+  )
+    return "Windows";
+
+  // Linux detection using multiple methods
+  if (
+    platform === "Linux x86_64" ||
+    platform === "Linux i686" ||
+    platform === "Linux armv7l" ||
+    platform === "Linux aarch64" ||
+    /Linux/.test(userAgent) ||
+    userAgentData?.platform === "Linux"
+  )
+    return "Linux";
 
   return "unknown";
 };

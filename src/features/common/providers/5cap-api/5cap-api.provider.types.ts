@@ -97,3 +97,24 @@ export type ContentResult = {
     file?: string;
   };
 };
+
+export type SignIdCardRequest = {
+  user_rut: string;
+  nro_serie: string;
+  user_role: string;
+  user_institution: string;
+  code: string;
+  session_id: string;
+};
+
+export type ValidateIdCardRequest = {
+  user_rut: string;
+  nro_serie: string;
+};
+
+export type GetDocumentRequest = {
+  code: string;
+  institution: string;
+  extra: string;
+  session_id: string;
+};

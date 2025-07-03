@@ -84,9 +84,10 @@ function Congratulation({
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => setTestState(true)}
-          className="bg-blue-500 text-white p-3 rounded-lg w-full flex items-center justify-center gap-2"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
+          color="blue"
         >
-          <p className="text-lg font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -94,9 +95,10 @@ function Congratulation({
       {!tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => window.location.reload()}
-          className="bg-blue-500 text-white p-3 rounded-lg w-full flex items-center justify-center gap-2"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
+          color="blue"
         >
-          <p className="text-lg font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).finish as string}
           </p>
         </Button>
@@ -116,8 +118,9 @@ function Congratulation({
               setCurrentStep(1);
             }}
             className="bg-white text-gray-900 p-3 rounded-lg w-full flex items-center justify-center gap-2"
+            color="light"
           >
-            <p className="text-lg font-light">
+            <p className="text-base font-light">
               {(dict.totem as I18nRecord).verify_secondary_driver as string}
             </p>
           </Button>
@@ -166,9 +169,10 @@ function GotoBox({
       </div>
       <Button
         onClick={() => window.location.reload()}
-        className="bg-blue-500 text-white p-4 rounded-lg w-full flex items-center justify-center gap-2"
+        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
+        color="blue"
       >
-        <p className="text-lg font-light">
+        <p className="text-base font-light">
           {(dict.totem as I18nRecord).finish as string}
         </p>
       </Button>

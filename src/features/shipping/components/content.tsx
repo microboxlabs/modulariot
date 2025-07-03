@@ -132,7 +132,10 @@ export default function PageContent({
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
-            path={["breadcrumb.tasks", "breadcrumb.shipping"]}
+            path={[
+              "breadcrumb.tasks",
+              showFinishedTasks ? "breadcrumb.finished" : "breadcrumb.shipping",
+            ]}
             lang={lang}
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dict}

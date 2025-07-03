@@ -5,6 +5,8 @@ import { SlOptionsVertical } from "react-icons/sl";
 import { FaCheck } from "react-icons/fa";
 import { Info } from "../types/notification-types";
 import { ShowNotification } from "@/features/notifications/notification";
+import InnerData from "./inner-data";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 /*
 {
@@ -17,7 +19,13 @@ import { ShowNotification } from "@/features/notifications/notification";
 },
 */
 
-export default function InfoCard({ data }: { data: Info }) {
+export default function InfoCard({
+  data,
+  dictionary,
+}: {
+  data: Info;
+  dictionary: I18nRecord;
+}) {
   const [showOptions, setShowOptions] = useState(false);
   const [isRead, setIsRead] = useState(data.is_read);
   const optionsRef = useRef<HTMLDivElement>(null);
@@ -39,6 +47,14 @@ export default function InfoCard({ data }: { data: Info }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showOptions]);
+
+  let message = data.message;
+
+  try {
+    message = JSON.parse(data.message);
+  } catch (e) {
+    message = data.message;
+  }
 
   return (
     <div
@@ -71,7 +87,11 @@ export default function InfoCard({ data }: { data: Info }) {
         {/* Inner content */}
         <div className="flex flex-col">
           <div className="text-sm font-light text-gray-800 dark:text-gray-200">
-            {data.message}
+            {typeof message === "object" ? (
+              <InnerData data={message} dictionary={dictionary} />
+            ) : (
+              message
+            )}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             {new Date(data.timestamp).toLocaleTimeString("en-US", {
@@ -108,7 +128,8 @@ export default function InfoCard({ data }: { data: Info }) {
                   */}
                   <div
                     className="font-light text-sm px-4 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap flex flex-row items-center gap-2 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600"
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       const response = await fetch(
                         `/app/api/notifications/mark-as-read`,
                         {

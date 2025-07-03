@@ -61,7 +61,7 @@ export default function Huella({
 
   useEffect(() => {
     if (idCardLoading && qrRef.current) {
-      import("html5-qrcode").then(({ Html5Qrcode }) => {
+      import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         const html5QrCode = new Html5Qrcode("html5qr-code");
         html5QrCode.start(
           { facingMode: "environment" },
@@ -69,13 +69,13 @@ export default function Huella({
             fps: 20,
             qrbox: { width: 250, height: 250 },
           },
-          (decodedText, decodedResult) => {
+          (decodedText: string, decodedResult: any) => {
             console.log("QR Code link:", decodedText);
             console.log("QR Code result:", decodedResult);
             html5QrCode.clear();
             html5QrCode.stop();
           },
-          (errorMessage) => {
+          (errorMessage: any) => {
             // Optionally handle scan errors
             console.error("QR Code error:", errorMessage);
           },
@@ -160,9 +160,9 @@ export default function Huella({
 
   if (verificatioSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+      <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-[3vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
             {(dict.totem as I18nRecord).verification_success as string}
           </h1>
         </div>
@@ -175,10 +175,10 @@ export default function Huella({
         />
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).verification_success_subtext as string}
           </p>
-          <p className="text-[3vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
             {rutData?.rut}
           </p>
         </div>
@@ -186,9 +186,10 @@ export default function Huella({
           onClick={() => {
             setCurrentStep(2);
           }}
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -198,14 +199,14 @@ export default function Huella({
 
   if (manualAccess) {
     return (
-      <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+      <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-[3vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
             {(dict.totem as I18nRecord).id_card_manual_access as string}
           </h1>
         </div>
         <Image
-          className="w-[18vh] h-[18vh] animate-scale-in"
+          className="w-28 h-28 animate-scale-in"
           src={SmartLockCard}
           alt="Ok"
           width={100}
@@ -213,30 +214,30 @@ export default function Huella({
         />
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).id_card_manual_access_subtext as string}
           </p>
-          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6 font-bold">
+          <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6 font-bold">
             RUT:{rutData?.rut}
           </p>
         </div>
-        <div className="flex flex-col items-center justify-center gap-2">
-          <div className="relative w-[50vh] portrait:w-[50vw] h-14 portrait:h-20">
-            <span className="absolute left-[1vh] portrait:left-[2vw] top-1/2 -translate-y-1/2 text-gray-400">
-              <FaIdCard className="w-[3vh] h-[3vh] portrait:w-[3vw] portrait:h-[3vw]" />
-            </span>
-            <input
-              type="text"
-              placeholder="No de Serie"
-              value={idCardNumber}
-              onChange={(e) => setIdCardNumber(e.target.value)}
-              className={`pl-[5vh] portrait:pl-[6vw] w-full h-full caret-gray-800 dark:caret-gray-200 p-2 text-3xl font-light rounded-md border-2 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 ${
-                status === "error-id-card" ? "border-red-500" : ""
-              }`}
-            />
+        <div className="flex flex-col items-center justify-center gap-2 w-full">
+          <div className="relative w-full h-10">
+            <div className="relative w-full h-10 flex flex-row items-center border-2 border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+              <div className=" h-full text-gray-400 pl-2 pr-1 py-2 flex items-center">
+                <FaIdCard className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                placeholder="No de Serie"
+                value={idCardNumber}
+                onChange={(e) => setIdCardNumber(e.target.value)}
+                className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+              />
+            </div>
           </div>
           {status === "error-id-card" && (
-            <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-14 text-red-500">
+            <p className="text-xs text-red-500 text-center px-14">
               {(dict.totem as I18nRecord).id_card_manual_access_error as string}
             </p>
           )}
@@ -261,9 +262,10 @@ export default function Huella({
               status !== "error-id-card" &&
               manualVerificationLoading
             }
-            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center disabled:opacity-50"
+            className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+            color="blue"
           >
-            <p className="text-[4vh] portrait:text-[4vw] font-light">
+            <p className="text-base font-light">
               {manualVerificationLoading
                 ? ((dict.totem as I18nRecord).loading as string)
                 : ((dict.totem as I18nRecord).continue as string)}
@@ -276,16 +278,16 @@ export default function Huella({
 
   if (idCard) {
     return (
-      <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+      <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-[3vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
         {!idCardLoading && (
           <>
             <Image
-              className="w-[18vh] h-[18vh] animate-scale-in"
+              className="w-28 h-28 animate-scale-in"
               src={SmartLockCard}
               alt="Ok"
               width={100}
@@ -320,7 +322,7 @@ export default function Huella({
                   style={{ width: "100%", maxWidth: 400 }}
                 />
               </div>
-              <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
                 {
                   (dict.totem as I18nRecord)
                     .smart_lock_card_subtext_loading as string
@@ -328,7 +330,7 @@ export default function Huella({
               </p>
             </>
           ) : (
-            <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
               {(dict.totem as I18nRecord).smart_lock_card_subtext as string}
             </p>
           )}
@@ -342,9 +344,10 @@ export default function Huella({
             disabled={
               status !== "idle" && status !== "success" && status !== "error"
             }
-            className="bg-white text-black p-4 rounded-2xl w-full flex items-center justify-center"
+            className="text-black p-2 rounded-lg w-full flex items-center justify-center"
+            color="light"
           >
-            <p className="text-[4vh] portrait:text-[4vw] font-light">
+            <p className="text-base font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
           </Button>
@@ -356,9 +359,10 @@ export default function Huella({
             disabled={
               status !== "idle" && status !== "success" && status !== "error"
             }
-            className="bg-white text-black p-4 rounded-2xl w-full flex items-center justify-center"
+            className="text-black p-2 rounded-lg w-full flex items-center justify-center"
+            color="light"
           >
-            <p className="text-[4vh] portrait:text-[4vw] font-light">
+            <p className="text-base font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
           </Button>
@@ -369,14 +373,14 @@ export default function Huella({
 
   if (qrCode) {
     return (
-      <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+      <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-[3vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
         <Image
-          className="w-[18vh] h-[18vh] animate-scale-in"
+          className="w-28 h-28 animate-scale-in"
           src={QrCode}
           alt="Ok"
           width={100}
@@ -384,7 +388,7 @@ export default function Huella({
         />
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-[2vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).qrcode_subtext as string}
           </p>
         </div>
@@ -395,9 +399,10 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-white text-black p-4 rounded-2xl w-full flex items-center justify-center"
+          color="light"
+          className="text-black p-2 rounded-lg w-full flex items-center justify-center"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
         </Button>
@@ -408,9 +413,10 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
         </Button>
@@ -419,15 +425,15 @@ export default function Huella({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+    <div className="flex flex-col items-center justify-center gap-4 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md w-full">
       <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-[4vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).fingerprint_scan as string}
         </h1>
       </div>
       {status == "error" ? (
         <Image
-          className="w-[18vh] h-[18vh] animate-scale-in"
+          className="w-20 h-20 animate-scale-in"
           src={fingerPrint}
           alt="Ok"
           width={100}
@@ -435,19 +441,19 @@ export default function Huella({
         />
       ) : (
         <div
-          className={`p-[1vh] portrait:p-[1vw] rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
+          className={`p-2 rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
         >
-          <IoIosFingerPrint className="w-[16vh] portrait:w-[16vw] h-[16vh] portrait:h-[16vw] transition-colors duration-300" />
+          <IoIosFingerPrint className="w-20 h-20 transition-colors duration-300" />
         </div>
       )}
       <div className="flex flex-col items-center justify-center">
         <p
-          className={`text-[2vh] portrait:text-[2vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
+          className={`text-sm text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
         >
           {status_icon[status].text}
         </p>
         <p
-          className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : ""}`}
+          className={`text-lg font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >
           {rutData?.rut}
         </p>
@@ -458,9 +464,10 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          color="blue"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {count == 0
               ? ((dict.totem as I18nRecord).continue as string)
               : ((dict.totem as I18nRecord).try_again as string)}
@@ -474,9 +481,10 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          color="blue"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
         >
-          <p className="text-[2vh] portrait:text-[3vw] font-light">
+          <p className="text-sm font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}
           </p>
         </Button>

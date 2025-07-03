@@ -13,10 +13,7 @@ import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
-import {
-  isWindows,
-  useDeviceDetection,
-} from "@/features/common/hooks/use-device-detection";
+import { isWindows } from "@/features/common/hooks/use-device-detection";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 

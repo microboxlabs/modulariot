@@ -3,6 +3,7 @@ import okImage from "@assets/icons/totem/ok.gif";
 import Image from "next/image";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
+import { Button } from "flowbite-react";
 
 export default function Tests({
   dict,
@@ -81,30 +82,30 @@ function Congratulation({
           </h1>
         )}
       {tripData?.tripInfo?.tripInfo?.tripId && (
-        <button
+        <Button
           onClick={() => setTestState(true)}
           className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </button>
+        </Button>
       )}
       {!tripData?.tripInfo?.tripInfo?.tripId && (
-        <button
+        <Button
           onClick={() => window.location.reload()}
           className="bg-blue-500 text-white p-3 rounded-2xl w-full flex items-center justify-center gap-2"
         >
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).finish as string}
           </p>
-        </button>
+        </Button>
       )}
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
         (tripData?.tripInfo?.status2 !== "SUCCESS" ||
           tripData?.tripInfo?.status !== "SUCCESS") && (
-          <button
+          <Button
             onClick={() => {
               setRutData({
                 rut:
@@ -119,7 +120,7 @@ function Congratulation({
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).verify_secondary_driver as string}
             </p>
-          </button>
+          </Button>
         )}
     </div>
   );
@@ -163,14 +164,14 @@ function GotoBox({
           </div>
         </div>
       </div>
-      <button
+      <Button
         onClick={() => window.location.reload()}
         className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center gap-2"
       >
         <p className="text-[4vh] portrait:text-[4vw] font-light">
           {(dict.totem as I18nRecord).finish as string}
         </p>
-      </button>
+      </Button>
     </div>
   );
 }

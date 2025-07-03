@@ -12,6 +12,8 @@ import {
 import Image from "next/image";
 import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
+import { Button } from "flowbite-react";
+import { useDeviceDetection } from "@/features/common/hooks/use-device-detection";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -42,9 +44,14 @@ export default function Huella({
   const [idCard, setIdCard] = useState(false);
   const [idCardLoading, setIdCardLoading] = useState(false);
   const [manualAccess, setManualAccess] = useState(false);
+  const [manualVerificationLoading, setManualVerificationLoading] =
+    useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
 
   const qrRef = useRef(null);
+
+  // Device detection hook
+  const deviceInfo = useDeviceDetection();
 
   useEffect(() => {
     if (count >= 3) {
@@ -81,6 +88,12 @@ export default function Huella({
       if (el) el.innerHTML = "";
     };
   }, [idCardLoading]);
+
+  useEffect(() => {
+    if (deviceInfo.isMobile) {
+      setQrCode(true);
+    }
+  }, [deviceInfo.isMobile]);
 
   if (!pluginReady) return null;
 
@@ -169,7 +182,7 @@ export default function Huella({
             {rutData?.rut}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setCurrentStep(2);
           }}
@@ -178,7 +191,7 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -203,8 +216,11 @@ export default function Huella({
           <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).id_card_manual_access_subtext as string}
           </p>
+          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6 font-bold">
+            RUT:{rutData?.rut}
+          </p>
         </div>
-        <div className="flex flex-col items-center justify-center gap-4">
+        <div className="flex flex-col items-center justify-center gap-2">
           <div className="relative w-[50vh] portrait:w-[50vw] h-14 portrait:h-20">
             <span className="absolute left-[1vh] portrait:left-[2vw] top-1/2 -translate-y-1/2 text-gray-400">
               <FaIdCard className="w-[3vh] h-[3vh] portrait:w-[3vw] portrait:h-[3vw]" />
@@ -219,34 +235,41 @@ export default function Huella({
               }`}
             />
           </div>
-        </div>
-        <button
-          onClick={async () => {
-            console.log("---Validando ID---");
-            console.log(idCardNumber);
-            console.log("----------------------------------");
-            const response = await validateIdCard({
-              user_rut: rutData?.rut as string,
-              nro_serie: idCardNumber,
-            });
-            if (response.success) {
-              setVerificatioSuccess(true);
-            } else {
-              setStatus("error-id-card");
+          {status === "error-id-card" && (
+            <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-14 text-red-500">
+              {(dict.totem as I18nRecord).id_card_manual_access_error as string}
+            </p>
+          )}
+          <Button
+            onClick={async () => {
+              setManualVerificationLoading(true);
+              const response = await validateIdCard({
+                user_rut: rutData?.rut as string,
+                nro_serie: idCardNumber,
+              });
+              if (response.success) {
+                setVerificatioSuccess(true);
+              } else {
+                setStatus("error-id-card");
+              }
+              setManualVerificationLoading(false);
+            }}
+            disabled={
+              status !== "idle" &&
+              status !== "success" &&
+              status !== "error" &&
+              status !== "error-id-card" &&
+              manualVerificationLoading
             }
-          }}
-          disabled={
-            status !== "idle" &&
-            status !== "success" &&
-            status !== "error" &&
-            status !== "error-id-card"
-          }
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
-        >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
-            {(dict.totem as I18nRecord).continue as string}
-          </p>
-        </button>
+            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center disabled:opacity-50"
+          >
+            <p className="text-[4vh] portrait:text-[4vw] font-light">
+              {manualVerificationLoading
+                ? ((dict.totem as I18nRecord).loading as string)
+                : ((dict.totem as I18nRecord).continue as string)}
+            </p>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -311,7 +334,7 @@ export default function Huella({
           )}
         </div>
         {idCardLoading ? (
-          <button
+          <Button
             onClick={() => {
               setIdCardLoading(false);
               setVerificatioSuccess(true);
@@ -324,9 +347,9 @@ export default function Huella({
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={() => {
               setIdCardLoading(true);
             }}
@@ -338,7 +361,7 @@ export default function Huella({
             <p className="text-[4vh] portrait:text-[4vw] font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -361,11 +384,11 @@ export default function Huella({
         />
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-[2vh] portrait:text-[2vw] text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-[2vh] portrait:text-[3vw] text-gray-600 dark:text-gray-400 text-center px-6">
             {(dict.totem as I18nRecord).qrcode_subtext as string}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setManualAccess(true);
           }}
@@ -377,8 +400,8 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => {
             setIdCard(true);
           }}
@@ -390,7 +413,7 @@ export default function Huella({
           <p className="text-[4vh] portrait:text-[4vw] font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
-        </button>
+        </Button>
       </div>
     );
   }
@@ -430,7 +453,7 @@ export default function Huella({
         </p>
       </div>
       {count < 1 ? (
-        <button
+        <Button
           onClick={handleScanFingerprint}
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
@@ -442,9 +465,9 @@ export default function Huella({
               ? ((dict.totem as I18nRecord).continue as string)
               : ((dict.totem as I18nRecord).try_again as string)}
           </p>
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
           onClick={() => {
             setQrCode(true);
           }}
@@ -453,10 +476,10 @@ export default function Huella({
           }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
-          <p className="text-[3vh] portrait:text-[4vw] font-light">
+          <p className="text-[2vh] portrait:text-[3vw] font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}
           </p>
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -169,8 +169,8 @@ export default function TripInformation({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800">
-        <p className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+      <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800 w-full">
+        <p className="text-xl font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).loading as string}
         </p>
       </div>
@@ -179,14 +179,15 @@ export default function TripInformation({
 
   if (error && !tripData) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
-        <p className="text-[3vh] portrait:text-[4vw] text-red-500">{error}</p>
-        <Image src={exclamationIcon} alt="exclamation" />
+      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
+        <p className="text-lg text-red-500 text-center">{error}</p>
+        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -196,22 +197,18 @@ export default function TripInformation({
 
   if (!tripData && !isLoading && !error) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-10 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
-        <p className="text-center font-light text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
+        <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
           El conductor con rut <span className="font-bold">{rutData?.rut}</span>{" "}
           no posee un viaje asignado.
         </p>
-        <Image
-          src={exclamationIcon}
-          alt="exclamation"
-          width={300}
-          height={300}
-        />
+        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -220,12 +217,12 @@ export default function TripInformation({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
-      <h1 className="text-[3vh] portrait:text-[4vw] text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col items-center justify-center rounded-2xl p-4 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
+      <h1 className="text-lg text-gray-900 dark:text-gray-100">
         {(dict.totem as I18nRecord).trip_information as string}
       </h1>
       <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
-      <div className="flex flex-row items-stretch justify-between w-full my-[2vh]">
+      <div className="flex flex-wrap items-stretch w-full my-2 gap-4">
         <DriverInfo
           number={1}
           name={tripData?.tripInfo?.driver1Info?.driverId}
@@ -247,19 +244,19 @@ export default function TripInformation({
       </div>
       <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
       {tripData?.tripInfo?.tripInfo?.tripId && (
-        <div className="flex flex-row items-stretch justify-center gap-3 w-full my-[2vh]">
-          <div className="flex flex-col justify-center gap-[1vh] w-full">
-            <h1 className="text-[2vh] portrait:text-[3vw] font-light text-gray-900 dark:text-gray-100">
+        <div className="flex flex-row items-stretch justify-center gap-3 w-full my-2">
+          <div className="flex flex-col justify-center gap-2 w-full">
+            <h1 className="text-base font-light text-gray-900 dark:text-gray-100">
               {(dict.totem as I18nRecord).trip_information as string}
             </h1>
             <div className="flex flex-col justify-center gap-1 w-full">
-              <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
                 {(dict.totem as I18nRecord).trip_information_client as string}:{" "}
                 <span className="font-light">
                   {tripData?.tripInfo?.tripInfo?.tripId}
                 </span>
               </h1>
-              <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
                 {((dict.totem as I18nRecord)
                   .trip_information_origin_destination as string) + ": "}
                 <span className="font-light">
@@ -267,7 +264,7 @@ export default function TripInformation({
                   {tripData?.tripInfo?.tripInfo?.destination}
                 </span>
               </h1>
-              <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
                 {(dict.totem as I18nRecord).trip_information_schedule as string}
                 :{" "}
                 <span className="font-light">
@@ -280,17 +277,18 @@ export default function TripInformation({
         </div>
       )}
       {!tripData?.tripInfo?.tripInfo?.tripId && (
-        <div className="flex flex-col justify-center gap-2 portrait:gap-7 w-full my-[2vh]">
-          <h1 className="text-[2vh] portrait:text-[3vw] font-light text-red-500 dark:text-red-500">
+        <div className="flex flex-col justify-center gap-2 w-full my-2">
+          <h1 className="text-sm font-light text-red-500 dark:text-red-500">
             {(dict.totem as I18nRecord).no_trip_information as string}
           </h1>
         </div>
       )}
       <Button
         onClick={() => setCurrentStep(currentStep + 1)}
-        className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+        color="blue"
       >
-        <p className="text-[4vh] portrait:text-[4vw] font-light">
+        <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
       </Button>
@@ -314,42 +312,27 @@ function DriverInfo({
   dict: I18nRecord;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 portrait:gap-7 w-full">
+    <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-[300px] w-full">
       <div className="flex flex-col justify-center w-full">
-        <h1 className="text-[3vh] portrait:text-[3vw] font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2">
-          {name}
+        <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2 w-full">
+          <span className="break-words min-w-0">{name}</span>
           {state === "SUCCESS" && (
-            <FaCheckCircle className="w-6 h-6 text-green-500" />
+            <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
           )}
           {state !== "SUCCESS" && (
-            <FaExclamationCircle className="w-6 h-6 text-yellow-300" />
+            <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
           )}
         </h1>
-        <h1 className="text-[1.5vh] portrait:text-[2vw] font-light text-gray-900 dark:text-gray-400">
+        <h1 className="text-xs font-light text-gray-900 dark:text-gray-400">
           {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>
-      <div className="flex flex-col justify-center gap-3 w-full">
-        {/* <h1 className="text-[2vh] portrait:text-[2.5vw] font-bold text-gray-900 dark:text-gray-100">
-          {(dict.totem as I18nRecord).contact_information as string}
-        </h1> */}
-        <div className="flex flex-col justify-center gap-[1vh] w-full">
-          {/*  <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
-            {(dict.totem as I18nRecord).email as string}:{" "}
-            <span className="font-light">{email}</span>
-          </h1> */}
-          <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
+      <div className="flex flex-col justify-center gap-2 w-full">
+        <div className="flex flex-col justify-center gap-1 w-full">
+          <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).state as string}:{" "}
             <span className="font-light">{state}</span>
           </h1>
-          {/*  <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
-            {(dict.totem as I18nRecord).phone as string}:{" "}
-            <span className="font-light">{phone}</span>
-          </h1> */}
-          {/* <h1 className="text-[1.5vh] portrait:text-[2vw] font-bold text-gray-900 dark:text-gray-400">
-            {(dict.totem as I18nRecord).rut as string}:{" "}
-            <span className="font-light">{rut}</span>
-          </h1> */}
         </div>
       </div>
     </div>

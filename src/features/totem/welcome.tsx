@@ -27,12 +27,17 @@ export default function Welcome({
         <div className="flex flex-col items-center justify-center w-full">
           <Button
             onClick={() => setCurrentOption(currentOption + 1)}
-            className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+            className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+            color="blue"
           >
-            <p className="text-[4vh] portrait:text-[4vw] font-light">
-              {(dict.totem as I18nRecord).start as string}
-            </p>
-            <FaArrowRight className="w-[3vh] portrait:w-[3vw] h-[3vh] portrait:h-[3vw]" />
+            <div className="flex items-center justify-center w-full gap-1">
+              <p className="text-xl font-light">
+                {(dict.totem as I18nRecord).start as string}
+              </p>
+              <div className="flex items-center justify-center w-full">
+                <FaArrowRight className="w-4 h-4" />
+              </div>
+            </div>
           </Button>
         </div>
       </div>

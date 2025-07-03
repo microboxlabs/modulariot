@@ -12,6 +12,7 @@ import EllipseIcon from "@/features/icons/ellipse";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 import { Spinner } from "flowbite-react";
+import { CheckCircle, Exclamation, ErrorCircle, Ellipse } from "../task-bento-form/components/trip-information/trip-verifications";
 
 export default function GpsValidationItem({
   task,
@@ -63,16 +64,16 @@ export default function GpsValidationItem({
   return (
     <small className="flex items-center">
       {loading && (
-        <>
-          <Spinner /> <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
-        </>
+        <div className="flex items-center">
+          <Spinner className="w-5 h-5" /> <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
+        </div>
       )}
       {!loading && !error && (
         <>
-          {gpsValidationType === "ok" && <CheckCircleIcon />}
-          {gpsValidationType === "warning" && <ExclamationIcon />}
-          {gpsValidationType === "error" && <ErrorCircleIcon />}
-          {gpsValidationType === undefined && <EllipseIcon />}
+          {gpsValidationType === "ok" && <CheckCircle />}
+          {gpsValidationType === "warning" && <Exclamation />}
+          {gpsValidationType === "error" && <ErrorCircle />}
+          {gpsValidationType === undefined && <Ellipse />}
 
           <a
             href="#"

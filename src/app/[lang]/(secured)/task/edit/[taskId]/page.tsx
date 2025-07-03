@@ -11,6 +11,7 @@ import { TaskForm } from "@/features/task-forms/components/task-form/task-form";
 import { redirect } from "next/navigation";
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 import { ErrorTripView } from "@/features/shipping/components/error-trip/error-trip-view";
+import {TaskBentoForm} from "@/features/task-forms/components/task-bento-form/task-bento";
 
 export default async function TaskEditPage({
   params: { taskId, lang },
@@ -36,7 +37,7 @@ export default async function TaskEditPage({
       if (taskResponse) {
         return (
           <div className="overflow-y-auto h-full">
-            <TaskForm
+            <TaskBentoForm
               task={taskResponse as ExtendedTaskResponse}
               lang={lang}
               msg={_dictionary}
@@ -53,13 +54,14 @@ export default async function TaskEditPage({
 
     return (
       <div className="h-full overflow-y-auto">
-        <TaskForm
+       <TaskBentoForm
           task={task as ExtendedTaskResponse}
           lang={lang}
           msg={_dictionary}
           ticket={session.user.ticket}
           user={session.user.name ?? ""}
           userGroups={userGroups}
+          active={false}
         />
       </div>
     );

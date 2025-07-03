@@ -179,14 +179,15 @@ export default function TripInformation({
 
   if (error && !tripData) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
-        <p className="text-lg text-red-500">aaaaa{error}</p>
-        <Image src={exclamationIcon} alt="exclamation" />
+      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
+        <p className="text-lg text-red-500 text-center">{error}</p>
+        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-4 rounded-lg w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -196,22 +197,18 @@ export default function TripInformation({
 
   if (!tripData && !isLoading && !error) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-5 bg-gray-100 dark:bg-gray-800 w-[50%] portrait:w-full">
+      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
           El conductor con rut <span className="font-bold">{rutData?.rut}</span>{" "}
           no posee un viaje asignado.
         </p>
-        <Image
-          src={exclamationIcon}
-          alt="exclamation"
-          width={300}
-          height={300}
-        />
+        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
+          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="blue"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
         </Button>
@@ -288,7 +285,8 @@ export default function TripInformation({
       )}
       <Button
         onClick={() => setCurrentStep(currentStep + 1)}
-        className="bg-blue-500 text-white p-4 rounded-lg w-full flex items-center justify-center"
+        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+        color="blue"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}

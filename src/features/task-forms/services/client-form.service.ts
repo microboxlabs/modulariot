@@ -103,6 +103,36 @@ export async function taskSignDocument(
   });
 }
 
+export async function taskSignIdCardDocument(
+  _prevState: TaskNextActionState,
+  formData: FormData,
+): Promise<TaskNextActionState> {
+  const taskId = formData.get("taskId") as string;
+  const transitionId = formData.get("transitionId");
+  const serviceCode = formData.get("serviceCode");
+  const taskType = formData.get("taskType");
+  const signerRuts = (formData.get("signerRuts") ?? "") as string;
+  const auditNumbers = (formData.get("auditNumbers") ?? "") as string;
+  const serialNumbers = (formData.get("serialNumbers") ?? "") as string;
+
+  return fetcherClient("/app/api/task/id-card-sign", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      taskId,
+      transitionId,
+      serviceCode,
+      bpmPackage: formData.get("bpmPackage"),
+      signerRuts, //: signerRuts.split(","),
+      auditNumbers, //: auditNumbers, //.split(","),
+      nro_serie: serialNumbers, //: serialNumbers, //.split(","),
+      taskType,
+    }),
+  });
+}
+
 /**
  * Calcula el tipo de validación GPS basado en el último timestamp de la entidad.
  * La regla definida es:

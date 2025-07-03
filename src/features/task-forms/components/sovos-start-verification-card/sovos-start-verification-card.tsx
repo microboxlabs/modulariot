@@ -26,6 +26,14 @@ type FingerprintReuseResponse = {
       totalExpectedFingerPrints: number;
       successFingerPrints: Record<string, string>;
     };
+    pilotFlag: boolean;
+    rutValidationsFound: {
+      verifiedIntent: boolean;
+      successRutValidations: {
+        [key: string]: string;
+      };
+      totalExpectedRutValidations: number;
+    };
   };
 };
 
@@ -61,24 +69,56 @@ export default function SovosStartVerificationCard({
         const verifyID =
           result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
             getRut()
+          ] ||
+          result?.fingerprintReuse?.rutValidationsFound?.successRutValidations[
+            getRut()
           ];
+
+        const signatureType = result?.fingerprintReuse?.fingerprintFound
+          ?.successFingerPrints[getRut()]
+          ? "fingerprint"
+          : result?.fingerprintReuse?.rutValidationsFound
+                ?.successRutValidations[getRut()]
+            ? "idCard"
+            : "none";
+
+        console.log(verifyID);
+        console.log(signatureType);
         if (
           result?.fingerprintReuse?.tripFound &&
           (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
             verifyID)
         ) {
           if (
-            result?.fingerprintReuse?.fingerprintFound
+            /* result?.fingerprintReuse?.fingerprintFound
               ?.totalExpectedFingerPrints &&
             result?.fingerprintReuse?.fingerprintFound
-              ?.totalExpectedFingerPrints >= 1 &&
-            verifyID
+              ?.totalExpectedFingerPrints >= 1 && */
+            verifyID &&
+            signatureType === "fingerprint"
           ) {
             stepperController.toNextStep(false, {
               Erc: 0,
               ercText: verifyID ?? "Reutilización de huella",
               NroAudit: verifyID ?? "Reutilización de huella",
               Rut: getRut(),
+            });
+            setFingerprintReuse && setFingerprintReuse(true);
+          }
+          if (
+            /* result?.fingerprintReuse?.rutValidationsFound
+              ?.totalExpectedRutValidations &&
+            result?.fingerprintReuse?.rutValidationsFound
+              ?.totalExpectedRutValidations >= 1 && */
+            verifyID &&
+            signatureType === "idCard"
+          ) {
+            stepperController.toNextStep(false, {
+              Erc: 0,
+              ercText: verifyID ?? "Reutilización de ID Card",
+              //NroAudit: verifyID ?? "Reutilización de ID Card",
+              Rut: getRut(),
+              SerialNumber: verifyID,
             });
             setFingerprintReuse && setFingerprintReuse(true);
           }

@@ -2,9 +2,8 @@ import Totem from "@/features/totem/totem";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { Footer, FooterCopyright } from "flowbite-react";
-import ReleaseView from "@/features/layout/components/release-view/release-view";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
+import TotemNavbar from "./totem-navbar";
 
 export default async function TotemPage({
   params: { lang },
@@ -15,7 +14,7 @@ export default async function TotemPage({
 
   return (
     <div className="flex flex-col items-center justify-center w-screen h-screen">
-      <NavbarSignIn />
+      <TotemNavbar />
       <div className="flex flex-grow w-full justify-center items-center overflow-y-auto">
         <Totem dict={dictionary} />
       </div>

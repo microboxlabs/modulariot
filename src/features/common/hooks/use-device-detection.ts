@@ -290,20 +290,10 @@ export const isDesktopDevice = (): boolean => {
 
 // Utility functions for operating system detection
 export const getOperatingSystem = (): OperatingSystem => {
-  if (typeof window === "undefined") return "unknown";
-
-  const userAgent = navigator.userAgent;
   const platform = navigator.platform;
-  const userAgentData = (navigator as any).userAgentData;
-
+  console.log("platform", platform);
   // Windows detection using multiple methods
-  if (
-    platform === "Win32" ||
-    platform === "Win64" ||
-    /Windows/.test(userAgent) ||
-    userAgentData?.platform === "Windows"
-  )
-    return "Windows";
+  if (platform === "Win32" || platform === "Win64") return "Windows";
 
   return "unknown";
 };

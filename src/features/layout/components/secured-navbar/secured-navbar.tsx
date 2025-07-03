@@ -11,13 +11,14 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
 import SearchBar from "./searchbar/search-bar";
 // import { Filter } from "flowbite-react-icons/outline";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useDebouncedCallback } from "use-debounce";
 
 export function SecuredNavbar({
   messages,
@@ -30,6 +31,7 @@ export function SecuredNavbar({
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();
@@ -44,6 +46,21 @@ export function SecuredNavbar({
       (notification: any) => !notification.is_read,
     ).length;
   }
+
+  const _handleSearch = useDebouncedCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const term = event.target.value;
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (term) {
+        params.set("search", term);
+      } else {
+        params.delete("search");
+      }
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    300,
+  );
 
   function handleToggleSidebar() {
     if (isDesktop) {
@@ -109,16 +126,20 @@ export function SecuredNavbar({
                 <span className="sr-only">Search</span>
                 <HiSearch className="h-6 w-6" />
               </button>
-              <span
-                className="relative cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-                onClick={() => router.push("/notifications")}
-              >
-                {unreadNotifications > 0 && (
-                  <div className="flex items-center gap-2 w-2 h-2 bg-red-400 dark:bg-red-600 rounded-full absolute top-2 right-2"></div>
-                )}
-                <span className="sr-only">Notifications</span>
-                <HiBell className="h-6 w-6" />
-              </span>
+              {!pathname.includes("/notifications") && (
+                <span
+                  className="relative border border-gray-200 dark:border-gray-700 cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                  onClick={() => router.push("/notifications")}
+                >
+                  {unreadNotifications > 0 && (
+                    <div className="flex items-center justify-center gap-2 w-5 h-5 bg-red-400 dark:bg-red-600 text-xs dark:text-white rounded-full absolute bottom-[-0.625rem] left-[-0.625rem]">
+                      {unreadNotifications}
+                    </div>
+                  )}
+                  <span className="sr-only">Notifications</span>
+                  <HiBell className="h-6 w-6" />
+                </span>
+              )}
               <div className="hidden dark:block">
                 <Tooltip content="Toggle light mode">
                   <CustomThemeToggle />

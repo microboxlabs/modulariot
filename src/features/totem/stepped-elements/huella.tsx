@@ -61,7 +61,7 @@ export default function Huella({
 
   useEffect(() => {
     if (idCardLoading && qrRef.current) {
-      import("html5-qrcode").then(({ Html5Qrcode }) => {
+      import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         const html5QrCode = new Html5Qrcode("html5qr-code");
         html5QrCode.start(
           { facingMode: "environment" },
@@ -69,13 +69,13 @@ export default function Huella({
             fps: 20,
             qrbox: { width: 250, height: 250 },
           },
-          (decodedText, decodedResult) => {
+          (decodedText: string, decodedResult: any) => {
             console.log("QR Code link:", decodedText);
             console.log("QR Code result:", decodedResult);
             html5QrCode.clear();
             html5QrCode.stop();
           },
-          (errorMessage) => {
+          (errorMessage: any) => {
             // Optionally handle scan errors
             console.error("QR Code error:", errorMessage);
           },
@@ -419,15 +419,15 @@ export default function Huella({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 bg-gray-100 dark:bg-gray-800 rounded-2xl p-10 shadow-md portrait:w-full w-[40%]">
+    <div className="flex flex-col items-center justify-center gap-4 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md w-full">
       <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-[4vh] portrait:text-[4vw] font-light text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100">
           {(dict.totem as I18nRecord).fingerprint_scan as string}
         </h1>
       </div>
       {status == "error" ? (
         <Image
-          className="w-[18vh] h-[18vh] animate-scale-in"
+          className="w-20 h-20 animate-scale-in"
           src={fingerPrint}
           alt="Ok"
           width={100}
@@ -435,19 +435,19 @@ export default function Huella({
         />
       ) : (
         <div
-          className={`p-[1vh] portrait:p-[1vw] rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
+          className={`p-2 rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
         >
-          <IoIosFingerPrint className="w-[16vh] portrait:w-[16vw] h-[16vh] portrait:h-[16vw] transition-colors duration-300" />
+          <IoIosFingerPrint className="w-20 h-20 transition-colors duration-300" />
         </div>
       )}
       <div className="flex flex-col items-center justify-center">
         <p
-          className={`text-[2vh] portrait:text-[2vw] text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
+          className={`text-sm text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
         >
           {status_icon[status].text}
         </p>
         <p
-          className={`text-[3vh] font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : ""}`}
+          className={`text-lg font-light text-gray-800 dark:text-gray-200 transition-all duration-300 rounded-xl ${status == "success" ? "text-green-500 opacity-100" : "opacity-0"}`}
         >
           {rutData?.rut}
         </p>
@@ -460,7 +460,7 @@ export default function Huella({
           }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
-          <p className="text-[4vh] portrait:text-[4vw] font-light">
+          <p className="text-base font-light">
             {count == 0
               ? ((dict.totem as I18nRecord).continue as string)
               : ((dict.totem as I18nRecord).try_again as string)}
@@ -476,7 +476,7 @@ export default function Huella({
           }
           className="bg-blue-500 text-white p-4 rounded-2xl w-full flex items-center justify-center"
         >
-          <p className="text-[2vh] portrait:text-[3vw] font-light">
+          <p className="text-sm font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}
           </p>
         </Button>

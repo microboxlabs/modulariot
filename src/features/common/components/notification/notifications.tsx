@@ -1,12 +1,15 @@
 import { auth } from "@/auth";
 import NotificationCard from "./notification-card";
 import { getNotifications } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDictionary } from "@/features/i18n/i18n.service";
 
-export default async function Notifications() {
+export default async function Notifications({ lang }: { lang: string }) {
   const session = await auth();
   const data = await getNotifications(session?.user.ticket ?? "");
 
   const notifications = data.notifications;
+
+  const [, dictionary] = await getDictionary(lang);
 
   if (!notifications) {
     return (
@@ -36,7 +39,7 @@ export default async function Notifications() {
       } else if (date.toDateString() === yesterday.toDateString()) {
         dayKey = "Yesterday";
       } else {
-        dayKey = date.toLocaleDateString("en-US", {
+        dayKey = date.toLocaleDateString(lang === "es" ? "es-CL" : "en-US", {
           day: "numeric",
           month: "long",
           year: "numeric",
@@ -61,7 +64,11 @@ export default async function Notifications() {
           </h2>
           {Array.isArray(notifications) &&
             notifications.map((item: any, index: number) => (
-              <NotificationCard key={`${day}-${index}`} data={item} />
+              <NotificationCard
+                key={`${day}-${index}`}
+                data={item}
+                dictionary={dictionary}
+              />
             ))}
         </div>
       ))}

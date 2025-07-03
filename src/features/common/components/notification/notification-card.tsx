@@ -2,10 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import InfoCard from "./notification-types/info";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function NotificationCard({ data }: { data: any }) {
-  console.log(data);
-
+export default function NotificationCard({
+  data,
+  dictionary,
+}: {
+  data: any;
+  dictionary: I18nRecord;
+}) {
   const [showOptions, setShowOptions] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +34,7 @@ export default function NotificationCard({ data }: { data: any }) {
 
   switch (data.type.toUpperCase()) {
     case "INFO":
-      return <InfoCard data={data} />;
+      return <InfoCard data={data} dictionary={dictionary} />;
     default:
       return (
         <div>

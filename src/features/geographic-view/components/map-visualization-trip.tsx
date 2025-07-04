@@ -232,7 +232,7 @@ export default function MapVisualizationTrip({
       );
     }
   }, [positions, filteredLocationData]);
-  
+
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
     () => ({
@@ -280,9 +280,9 @@ export default function MapVisualizationTrip({
         }
       });
     }
-    
+
     setSelectedPulse(Array.from(matchingIndices));
-    
+
     if (matchingIndices.size > 0) {
       setHoverInfo({
         x: 10,

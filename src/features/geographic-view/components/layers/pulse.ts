@@ -23,8 +23,8 @@ function isValidCoordinate(coords: any): boolean {
     coords &&
     Array.isArray(coords) &&
     coords.length >= 2 &&
-    typeof coords[0] === 'number' &&
-    typeof coords[1] === 'number' &&
+    typeof coords[0] === "number" &&
+    typeof coords[1] === "number" &&
     !isNaN(coords[0]) &&
     !isNaN(coords[1])
   );
@@ -44,33 +44,34 @@ export class PulsePinLayer extends CompositeLayer<any> {
 
     // Filter data for each layer to avoid null positions and validate coordinates
     const movingVehicles = this.props.data.features.filter(
-      (d: any) => 
-        d.properties?.speed > 0 && 
-        isValidCoordinate(d.geometry?.coordinates)
+      (d: any) =>
+        d.properties?.speed > 0 && isValidCoordinate(d.geometry?.coordinates),
     );
     const stoppedVehicles = this.props.data.features.filter(
-      (d: any) => 
-        d.properties?.speed <= 0 && 
-        showStops && 
-        isValidCoordinate(d.geometry?.coordinates)
+      (d: any) =>
+        d.properties?.speed <= 0 &&
+        showStops &&
+        isValidCoordinate(d.geometry?.coordinates),
     );
     const selectedVehicles = this.props.data.features.filter(
-      (d: any) => 
-        selectedPulse.includes(d.properties?.id) && 
-        isValidCoordinate(d.geometry?.coordinates)
+      (d: any) =>
+        selectedPulse.includes(d.properties?.id) &&
+        isValidCoordinate(d.geometry?.coordinates),
     );
     const selectedStoppedVehicles = this.props.data.features.filter(
       (d: any) =>
         selectedPulse.includes(d.properties?.id) &&
         d.properties?.speed <= 0 &&
         showStops &&
-        isValidCoordinate(d.geometry?.coordinates)
+        isValidCoordinate(d.geometry?.coordinates),
     );
 
     return [
       new ScatterplotLayer({
-        id: 'pulse-background-layer',
-        data: this.props.data.features.filter((d: any) => isValidCoordinate(d.geometry?.coordinates)),
+        id: "pulse-background-layer",
+        data: this.props.data.features.filter((d: any) =>
+          isValidCoordinate(d.geometry?.coordinates),
+        ),
         getFillColor: () => [
           255,
           255,
@@ -88,7 +89,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         pickable: true,
       }) as Layer,
       new ScatterplotLayer({
-        id: 'pulse-moving-vehicles-layer',
+        id: "pulse-moving-vehicles-layer",
         data: movingVehicles,
         getFillColor: (d: any) => {
           if (d.properties.id > displayPosition) {
@@ -110,7 +111,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         getZIndex: 1000,
       }) as Layer,
       new ScatterplotLayer({
-        id: 'pulse-stopped-vehicles-layer',
+        id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
         getFillColor: () => [240, 50, 50, 255],
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
@@ -125,7 +126,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: 'pulse-selected-background-layer',
+        id: "pulse-selected-background-layer",
         data: selectedVehicles,
         getFillColor: () => [255, 255, 255, 255],
         getRadius: 280000 / Math.pow(1.85, zoomLevel),
@@ -139,7 +140,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: 'pulse-selected-vehicles-layer',
+        id: "pulse-selected-vehicles-layer",
         data: selectedVehicles,
         getFillColor: (d: any) =>
           d.properties.speed > 0 || !showStops
@@ -155,7 +156,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
       }) as Layer,
       new ScatterplotLayer({
-        id: 'pulse-selected-stopped-vehicles-layer',
+        id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
         getFillColor: (_d: any) => {
           return [240, 50, 50, 255];

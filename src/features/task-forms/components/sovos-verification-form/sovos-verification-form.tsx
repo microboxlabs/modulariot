@@ -81,7 +81,7 @@ export default function SovosVerificationForm({
             ...stepper,
             isError: true,
           });
-          //return;
+          return;
         }
       }
       //pos++;

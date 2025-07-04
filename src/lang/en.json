@@ -784,7 +784,8 @@
     "id_card_manual_access_subtext":"Enter your ID card serial number",
     "verification_success":"Verification successful",
     "verification_success_subtext": "ID card scan successful",
-    "id_card_manual_access_error": "Invalid serial number. Please try again."
+    "id_card_manual_access_error": "Invalid serial number. Please try again.",
+    "multiple_tasks": "Multiple tasks assigned"
   },
   "notifications": {
     "client": "Client",

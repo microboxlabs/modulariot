@@ -62,9 +62,13 @@ export default function TripInformation({
             driverSerieId: idCardNumber, // Add if available
           }),
         });
-
         if (!response.ok) {
           const errorData = await response.json();
+          console.log("errorData", errorData);
+          if (errorData?.error?.code === "multiple_tasks") {
+            setError((dict.totem as I18nRecord).multiple_tasks as string);
+            return;
+          }
           throw new Error(
             errorData?.error?.info?.error
               ? ((dict.totem as I18nRecord)[
@@ -156,7 +160,7 @@ export default function TripInformation({
         }
       } catch (err) {
         console.log(err);
-        setError(err instanceof Error ? err.message : "Unknown error occurred");
+        //setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
       }

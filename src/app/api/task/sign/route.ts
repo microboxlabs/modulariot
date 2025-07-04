@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
       bpmPackage: string;
       taskType: string;
       transitionId: string;
+      documentName: string;
     };
 
-    let documentName = "ho-sin-firma.pdf";
+    let documentName = json.documentName ?? "ho-sin-firma.pdf";
     let uploadFileName = "ho-firmado.pdf";
     let targetRole = dispatcherRole;
     let requireInternalSign = true;

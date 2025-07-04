@@ -37,16 +37,19 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     setLoading(true);    
     console.log(audits);
-    //let pos = 0;
+    let pos = 0;
     let results = [];
     for (const audit of audits) {
       const formData = new FormData();
       const signerRuts = audit.Rut ? audit.Rut : "";
       
       
-      /* if(pos != 0){
-        formData.append("documentCode", results[pos-1]?.result?.code ?? "");
-      } */
+      if(pos != 0){
+        //formData.append("documentCode", results[pos-1]?.result?.code ?? "");
+        formData.append("documentName", "ho-firmado.pdf");
+      }else{
+        formData.append("documentName", "ho-sin-firma.pdf");
+      }
       if (audit.SerialNumber) {
         formData.append("taskId", task.id);
         formData.append("transitionId", "Viaje Iniciado");
@@ -84,7 +87,7 @@ export default function SovosVerificationForm({
           return;
         }
       }
-      //pos++;
+      pos++;
     }
 
     const formData = new FormData();

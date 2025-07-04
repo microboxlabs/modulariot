@@ -114,6 +114,7 @@ export async function taskSignIdCardDocument(
   const signerRuts = (formData.get("signerRuts") ?? "") as string;
   const auditNumbers = (formData.get("auditNumbers") ?? "") as string;
   const serialNumbers = (formData.get("serialNumbers") ?? "") as string;
+  const documentName = (formData.get("documentName") ?? "") as string;
 
   return fetcherClient("/app/api/task/id-card-sign", {
     method: "POST",
@@ -128,6 +129,7 @@ export async function taskSignIdCardDocument(
       signerRuts, //: signerRuts.split(","),
       auditNumbers, //: auditNumbers, //.split(","),
       nro_serie: serialNumbers, //: serialNumbers, //.split(","),
+      documentName,
       taskType,
     }),
   });

@@ -796,6 +796,7 @@
     "message": "Mensaje",
     "service_type": "Tipo de servicio",
     "reason": "Motivo",
-    "reject_reason": "Motivo de rechazo"
+    "reject_reason": "Motivo de rechazo",
+    "service": "Servicio"
   }
 }

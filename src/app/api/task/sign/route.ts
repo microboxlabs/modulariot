@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
       ...createContentRequest,
       file: "<...binary data...>",
     }); */
+    console.log("createContentRequest", createContentRequest);
     const response = await createContentSign(createContentRequest);
     //console.log({ ...response.result, file: "<...binary data...>" });
     if (response.status !== 200) {

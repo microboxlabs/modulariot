@@ -4,8 +4,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator, LinearInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
-import { PinLayer } from "./pin_layer_clustered";
-import { PulsePinLayer } from "./pulse";
+import { PinLayer } from "./layers/pin_layer";
+import { PulsePinLayer } from "./layers/pulse";
 import Map from "react-map-gl";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
@@ -211,11 +211,6 @@ export default function MapVisualizationTrip({
     }
   }, [positions?.length]);
 
-  const handleViewStateChange = useCallback((e: any) => {
-    if (e.viewState) {
-      setViewState(e.viewState);
-    }
-  }, []);
   const [showStops, setShowStops] = useState(true);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
@@ -237,7 +232,7 @@ export default function MapVisualizationTrip({
       );
     }
   }, [positions, filteredLocationData]);
-
+  
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
     () => ({
@@ -271,6 +266,7 @@ export default function MapVisualizationTrip({
 
     // Create a set of matching position indices
     const matchingIndices = new Set<number>();
+
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
@@ -284,7 +280,9 @@ export default function MapVisualizationTrip({
         }
       });
     }
+    
     setSelectedPulse(Array.from(matchingIndices));
+    
     if (matchingIndices.size > 0) {
       setHoverInfo({
         x: 10,
@@ -500,6 +498,10 @@ export default function MapVisualizationTrip({
       console.log("Loading geofences...");
     }
   }, [geofence_error, geofence_isLoading]);
+
+  const handleViewStateChange = useCallback((e: any) => {
+    setViewState(e.viewState);
+  }, []);
 
   return (
     <div className="h-full w-full relative overflow-hidden">

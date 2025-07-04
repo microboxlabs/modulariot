@@ -80,7 +80,7 @@ export default function PageContent({
     showFinishedTasks,
     page,
     pageSize,
-    searchParams.get("search") ?? undefined,
+    searchParams.toString(),
   );
 
   const {
@@ -132,7 +132,10 @@ export default function PageContent({
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb
-            path={["breadcrumb.tasks", "breadcrumb.title"]}
+            path={[
+              "breadcrumb.tasks",
+              showFinishedTasks ? "breadcrumb.finished" : "breadcrumb.shipping",
+            ]}
             lang={lang}
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
             dict={dict}
@@ -218,7 +221,7 @@ export default function PageContent({
             })}
           </div>
         ) : (
-          <div className="overflow-x-auto p-4 bg-white dark:bg-gray-900 dark:text-white flex flex-col h-full">
+          <div className="overflow-x-auto px-4 bg-white dark:bg-gray-900 dark:text-white flex flex-col h-full">
             <TableView
               set_page={setPage}
               page={page}
@@ -236,8 +239,13 @@ export default function PageContent({
               lang={lang}
               data_length={myTasksData?.total}
             />
-            <div className="w-full flex justify-center align-middle mt-auto">
+            <div className="w-full flex py-2 justify-center align-middle items-center mt-auto">
               <Pagination
+                theme={{
+                  pages: {
+                    base: "xs:mt-0 mt-0 inline-flex items-center align-middle -space-x-px",
+                  },
+                }}
                 nextLabel=""
                 previousLabel=""
                 currentPage={page}

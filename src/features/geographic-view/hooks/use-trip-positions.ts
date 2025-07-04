@@ -25,7 +25,9 @@ export function useTripPositions(tripId: string, assetId: string) {
             try {
               const position = JSON.parse(event.data as string) as MapPosition;
               positionBuffer[size++] = position;
-              if (size % 2 === 0) {
+              if (size % 2 === 0 && size > 1) {
+                setPositions((_prev) => [...positionBuffer.slice()]);
+              } else {
                 setPositions((_prev) => [...positionBuffer.slice()]);
               }
             } catch (err) {

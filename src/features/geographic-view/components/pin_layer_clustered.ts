@@ -175,7 +175,7 @@ export class PinLayer extends CompositeLayer<any> {
         },
         geometry: {
           type: "Point",
-          coordinates: [point.longitude, point.latitude],
+          coordinates: [point.longitude || 0, point.latitude || 0],
         },
       }));
 

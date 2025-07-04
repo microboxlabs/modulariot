@@ -169,7 +169,17 @@ export type FinishedWorkflowsRequest = {
   from: number;
   size: number;
   definitionKey: string;
-  serviceCode?: string;
+  filter: {
+    mintralKey?: string;
+    licensePlate?: string;
+    driverId?: string;
+    trailerLicensePlate?: string;
+    carrierId?: string;
+    carrierName?: string;
+    origin?: string;
+    destination?: string;
+    customerCode?: string;
+  };
 };
 
 export type HistoricalWorkflow = {

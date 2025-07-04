@@ -10,8 +10,9 @@ import TagManager from "../tag-manager";
 import phoneIcon from "@assets/timeline/phone.svg";
 import messageIcon from "@assets/timeline/message-dots.svg";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "flowbite-react";
+import { FaImages } from "react-icons/fa";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -53,6 +54,7 @@ export default function TimelineGroup({
   setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const selectedItemRef = useRef<HTMLDivElement>(null);
 
   // Get unique tags from all items
   const allTags = new Set(
@@ -62,6 +64,27 @@ export default function TimelineGroup({
       return tags;
     }) ?? [],
   );
+
+  useEffect(() => {
+    if (
+      item.conditions_agg?.some(
+        (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id,
+      )
+    ) {
+      setIsExpanded(true);
+    }
+  }, [item]);
+
+  useEffect(() => {
+    if (selectedItemRef.current) {
+      setTimeout(() => {
+        selectedItemRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+    }
+  }, [isExpanded, item.conditions_agg]);
 
   // Get unique conditions
   const uniqueConditions = new Set(
@@ -198,151 +221,171 @@ export default function TimelineGroup({
             isExpanded ? "animate-hide-flex-middle" : "animate-show-flex-middle"
           }`}
         >
-          <div className="flex align-middle gap-1 flex-grow">
-            <TagManager
-              tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
-              tags={Array.from(allTags).map((tag) => {
-                return {
-                  text: ((dict.symptoms as I18nRecord)[tag] as string) ?? tag,
-                };
-              })}
-            />
-          </div>
+          {!isExpanded && (
+            <div className="flex align-middle gap-1 flex-grow">
+              <TagManager
+                tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
+                tags={Array.from(allTags).map((tag) => {
+                  return {
+                    text: ((dict.symptoms as I18nRecord)[tag] as string) ?? tag,
+                  };
+                })}
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Expanded content */}
       <div
         className={`border-t border-gray-100 dark:border-gray-800 transition-all duration-200 flex-col ${
-          isExpanded ? "animate-show-flex-middle" : "animate-hide-flex-middle"
+          isExpanded
+            ? "animate-show-flex-middle"
+            : "animate-hide-flex-middle min-h-0"
         }`}
       >
-        {item.conditions_agg?.map((subItem, subIndex) => {
-          return (
-            <div
-              key={subIndex}
-              className={`p-2 cursor-pointer flex flex-row gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md last:rounded-b-md transition-all duration-200 ${
-                subItem.is_symptom == 0 ||
-                subItem.type == "EVENTS END" ||
-                subItem.type == "TRIP_START"
-                  ? "opacity-50 rounded-md"
-                  : ""
-              }`}
-              onClick={() => {
-                setSelectedTreatment(treatmentData);
-                setSelectedTreatmentIndex(subItem);
-              }}
-            >
-              <div className="flex flex-col">
-                <ConditionIcon
-                  condition={subItem?.icu_condition?.toLowerCase() ?? ""}
-                  size="h-5 w-5"
-                  dict={dict}
-                />
-                <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
-              </div>
-              <div className="flex flex-col w-full">
-                <div className="flex flex-row justify-between">
-                  <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
-                    {new Date(subItem.start).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    {/* {new Date(subItem.end).toLocaleTimeString([], {
+        {isExpanded &&
+          item.conditions_agg?.map((subItem, subIndex) => {
+            const isSelected =
+              subItem.symptom_id == treatmentData.symptom_info?.id;
+            return (
+              <div
+                key={subIndex}
+                ref={isSelected ? selectedItemRef : null}
+                className={`p-2 cursor-pointer flex flex-row gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 hover:shadow-md last:rounded-b-md transition-all duration-200  ${isSelected ? "border rounded-md border-amber-300" : ""} ${
+                  subItem.is_symptom == 0 ||
+                  subItem.type == "EVENTS END" ||
+                  subItem.type == "TRIP_START"
+                    ? "opacity-50 rounded-md"
+                    : ""
+                }`}
+                onClick={() => {
+                  setSelectedTreatment(treatmentData);
+                  setSelectedTreatmentIndex(subItem);
+                }}
+              >
+                <div className="flex flex-col">
+                  <ConditionIcon
+                    condition={subItem?.icu_condition?.toLowerCase() ?? ""}
+                    size="h-5 w-5"
+                    dict={dict}
+                  />
+                  <div className="w-[2px] mt-1 mx-auto bg-gray-400 flex-grow" />
+                </div>
+                <div className="flex flex-col w-full">
+                  <div className="flex flex-row justify-between">
+                    <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
+                      {new Date(subItem.start).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}{" "}
+                      {/* {new Date(subItem.end).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })} */}
-                    |{" "}
-                    {subItem.start && subItem.end && (
-                      <>
-                        {/* difference between start and end in minutes */}
-                        {Math.floor(
-                          (new Date(subItem.end).getTime() -
-                            new Date(subItem.start).getTime()) /
-                            60000,
-                        )}
-                      </>
-                    )}{" "}
-                    min
-                  </p>
-                  {subItem.assigned_to && (
-                    <p className="flex flex-row flex-grow justify-end">
-                      <small className="bg-blue-200 rounded-md px-2  py-1 text-gray-600 flex items-center text-xs">
-                        {formatLongEmails(
-                          ((dict.symptoms as I18nRecord)[
-                            subItem.assigned_to
-                          ] as string) ?? subItem.assigned_to,
-                        )}
-                      </small>
+                      |{" "}
+                      {subItem.start && subItem.end && (
+                        <>
+                          {/* difference between start and end in minutes */}
+                          {Math.floor(
+                            (new Date(subItem.end).getTime() -
+                              new Date(subItem.start).getTime()) /
+                              60000,
+                          )}
+                        </>
+                      )}{" "}
+                      min
                     </p>
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                    {((dict.symptoms as I18nRecord)[subItem.type] as string) ??
-                      subItem.type}
-                  </p>
-                  <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-                    {((dict.symptoms as I18nRecord)[
-                      subItem.symptom_description
-                    ] as string) ?? subItem.symptom_description}
-                  </p>
-                  {subItem.treatments.length > 0 && (
-                    <div className="mt-2 text-xs font-light bg-amber-200 dark:bg-amber-700 text-amber-900 dark:text-amber-100 rounded-md p-1 ">
-                      <p className="font-medium">
-                        {(dict.symptoms as I18nRecord).treatments as string}:
-                      </p>
-                      {subItem.treatments.map((treatment, index) => (
-                        <Tooltip
-                          key={index}
-                          style="auto"
-                          content={
-                            <div className="text-xs">
-                              <p className="font-medium">
-                                {
-                                  (dict.symptoms as I18nRecord)
-                                    .message as string
-                                }
-                                :{" "}
-                                <span className="font-light">
-                                  {treatment.description.message}
-                                </span>
-                              </p>
-
-                              {treatment.description.driver_response && (
-                                <>
-                                  <hr className="my-2 border-gray-200 dark:border-gray-700" />
-                                  <p className="font-medium">
-                                    {
-                                      (dict.symptoms as I18nRecord)
-                                        .response as string
-                                    }
-                                    :{" "}
-                                    <span className="font-light">
-                                      {treatment.description.driver_response}
-                                    </span>
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                          }
-                          placement="top"
-                        >
-                          <p className="hover:underline">
-                            -{" "}
-                            {((dict.symptoms as I18nRecord)[
-                              treatment.treatment_type.toUpperCase()
-                            ] as string) ?? treatment.treatment_type}
+                    <div className="flex flex-row flex-grow justify-end gap-1">
+                      {subItem.evidences && subItem.evidences?.length > 0 && (
+                        <small className="bg-gray-100 dark:bg-gray-800 rounded-md px-2 flex items-center text-xs gap-1">
+                          <FaImages
+                            className="text-gray-600 dark:text-gray-400"
+                            size={15}
+                          />
+                          <p className="text-gray-800 dark:text-gray-200">
+                            {subItem.evidences?.length}
                           </p>
-                        </Tooltip>
-                      ))}
+                        </small>
+                      )}
+                      {subItem.assigned_to && (
+                        <small className="bg-blue-200 rounded-md px-2 flex items-center text-xs">
+                          {formatLongEmails(
+                            ((dict.symptoms as I18nRecord)[
+                              subItem.assigned_to
+                            ] as string) ?? subItem.assigned_to,
+                          )}
+                        </small>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <div className="flex flex-col">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                      {((dict.symptoms as I18nRecord)[
+                        subItem.type
+                      ] as string) ?? subItem.type}
+                    </p>
+                    <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+                      {((dict.symptoms as I18nRecord)[
+                        subItem.symptom_description
+                      ] as string) ?? subItem.symptom_description}
+                    </p>
+                    {subItem.treatments.length > 0 && (
+                      <div className="mt-2 text-xs font-light bg-amber-200 dark:bg-amber-700 text-amber-900 dark:text-amber-100 rounded-md p-1 ">
+                        <p className="font-medium">
+                          {(dict.symptoms as I18nRecord).treatments as string}:
+                        </p>
+                        {subItem.treatments.map((treatment, index) => (
+                          <Tooltip
+                            key={index}
+                            style="auto"
+                            content={
+                              <div className="text-xs">
+                                <p className="font-medium">
+                                  {
+                                    (dict.symptoms as I18nRecord)
+                                      .message as string
+                                  }
+                                  :{" "}
+                                  <span className="font-light">
+                                    {treatment.description.message}
+                                  </span>
+                                </p>
+
+                                {treatment.description.driver_response && (
+                                  <>
+                                    <hr className="my-2 border-gray-200 dark:border-gray-700" />
+                                    <p className="font-medium">
+                                      {
+                                        (dict.symptoms as I18nRecord)
+                                          .response as string
+                                      }
+                                      :{" "}
+                                      <span className="font-light">
+                                        {treatment.description.driver_response}
+                                      </span>
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            }
+                            placement="top"
+                          >
+                            <p className="hover:underline">
+                              -{" "}
+                              {((dict.symptoms as I18nRecord)[
+                                treatment.treatment_type.toUpperCase()
+                              ] as string) ?? treatment.treatment_type}
+                            </p>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
     </div>
   );

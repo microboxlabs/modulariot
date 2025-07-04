@@ -29,8 +29,9 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "title": "Shipping",
-        "confirmDelivery": "Confirm delivery"
+        "shipping": "Shipping",
+        "confirmDelivery": "Confirm delivery",
+        "finished": "Finished"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -130,8 +131,15 @@
         "validations": "Validations",
         "status": "Status",
         "stage": "Stage",
+        "origin": "Origin",
+        "destination": "Destination",
+        "licensePlate": "License Plate",
         "active": "Active",
-        "completed": "Completed"
+        "completed": "Completed",
+        "driverId": "Driver Rut",
+        "carrierId": "Carrier ID",
+        "carrierName": "Carrier",
+        "customerCode": "Customer"
       }
     },   
     "notFound": {
@@ -542,6 +550,7 @@
     "driver_response": "Driver response",
     "end_treatment": "Treatment finished",
     "continuous_driving_state": "Continuous driving",
+    "double_driver_rotation_check": "Double driver rotation check",
     "service_information": "Service information.",
     "driver_name": "Driver name",
     "vehicle_plate": "Vehicle plate",
@@ -629,6 +638,7 @@
     "Fin de Eventos": "Last Recorded Event.",
     "CONTINUOUS DRIVE CHECK": "Maximum continuous driving",
     "CONTINUOUS RESTING CHECK": "Continuous resting check",
+    "DOUBLE DRIVER ROTATION CHECK": "Double driver rotation check",
     "-MENSAJE KAUSANA": "Message Kausana",
     "CORREO ELECTRONICO": "Email",
     "today": "Today",
@@ -662,11 +672,38 @@
     "Speed Limit Standard": "Speed limit",
     "Continuous Drive Check": "Maximum continuous driving",
     "Continuous Resting Check": "Continuous resting check",
+    "Double Driver Rotation Check": "Double driver rotation check",
     "ascending": "Ascending",
     "descending": "Descending",
     "treatments": "Treatments",
     "message": "Message",
-    "response": "Response"
+    "response": "Response",
+    "treatment_saved": "Treatment saved successfully",
+    "creation_date": "Symptom creation date",
+    "Check Load Securing Absence": "Check load securing absence",
+    "mapSelection": "Map selection",
+    "pulse": "Pulse",
+    "stops": "Stops",
+    "geofences": "Geofences",
+    "cameraMovement": "Camera tracking",
+    "watch": "Watch",
+    "types": {
+      "Continuous drive check": "Continuous drive check",
+      "Off Hours Driving": "Off Hours Driving",
+      "Speed Limit Standard": "Speed Limit Standard",
+      "Double Driver Rotation Check": "Double Driver Rotation Check",
+      "Risk Zone Stop": "Risk Zone Stop",
+      "Lost Signal": "Lost Signal",
+      "Continuous Drive Check": "Continuous Drive Check",
+      "Speed Limit": "Speed Limit",
+      "Check Load Securing Absence": "Check Load Securing Absence",
+      "Continuous resting check": "Continuous resting check",
+      "Night Risk Stay": "Night Risk Stay",
+      "Night Driving": "Night Driving",
+      "Continuous Resting Check": "Continuous Resting Check",
+      "Bad Sign": "Bad Sign",
+      "Speed Limit Custom": "Speed Limit Custom"
+    }
   },
   "geographic_view": {
     "speed": "Speed",
@@ -703,5 +740,54 @@
   },
   "release": {
     "other_versions": "Other Versions"
+  },
+  "totem": {
+    "welcome": "Welcome",
+    "subtitle": "To the verification totem",
+    "start": "Start",
+    "rut_ingress": "Rut ingress",
+    "fingerprint_scan": "Fingerprint scan",
+    "assigned_trip": "Assigned trip",
+    "tests": "Tests",
+    "write_your_rut": "Write your RUT",
+    "continue": "Continue",
+    "loading": "Loading...",
+    "fingerprint_scan_success": "Fingerprint scan successful.",
+    "fingerprint_scan_error": "Fingerprint scan error.",
+    "fingerprint_scan_idle": "Place your index finger on the scanner.",
+    "trip_information": "Trip information",
+    "trip_information_client": "Client information",
+    "driver": "Driver",
+    "contact_information": "Contact information",
+    "email": "Email",
+    "state": "State",
+    "rut": "RUT",
+    "phone": "Phone",
+    "trip_information_origin_destination": "Origin - Destination",
+    "trip_information_schedule": "Schedule",
+    "congratulations": "Congratulations, you have completed the registration process.",
+    "remember_to_tell_your_companion": "Remember to tell your companion driver to complete the registration process.",
+    "now_go_to_the_module": "Now go to the module",
+    "take_your_test": "To take your test:",
+    "drug_test": "Drug test",
+    "sleepiness_test": "Sleepiness test",
+    "alcohol_test": "Alcohol test",
+    "finish": "Finish",
+    "rut_invalid": "Invalid RUT",
+    "no_trip_information": "No trip information",
+    "verify_secondary_driver": "Verify secondary driver",
+    "notify_control_center": "We have notified the control center."
+  },
+  "notifications": {
+    "client": "Client",
+    "client_code": "Client code",
+    "origin_destination": "Origin - Destination",
+    "truck_license_plate": "Truck license plate",
+    "trailer_license_plate": "Trailer license plate",
+    "estimated_arrival_date": "Estimated arrival date",
+    "message": "Message",
+    "service_type": "Service type",
+    "reason": "Reason",
+    "reject_reason": "Reject reason"
   }
 }

@@ -7,6 +7,7 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import PageContent from "@/features/user-settings/components/page-content";
+import { RouteGuard } from "@/features/auth/components/route-guard";
 
 export default async function ShippingPage({
   params: { lang },
@@ -15,12 +16,14 @@ export default async function ShippingPage({
 
   try {
     return (
-      <>
-        <SseListener />
-        <PageContent
-          dict={(dictionary.pages as I18nRecord)?.userSettings as I18nRecord}
-        />
-      </>
+      <RouteGuard path="/users/settings" fallbackPath={`/${lang}/shipping`}>
+        <>
+          <SseListener dictionary={dictionary} />
+          <PageContent
+            dict={(dictionary.pages as I18nRecord)?.userSettings as I18nRecord}
+          />
+        </>
+      </RouteGuard>
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {

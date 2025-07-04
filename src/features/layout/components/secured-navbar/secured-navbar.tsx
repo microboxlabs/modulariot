@@ -1,37 +1,53 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar, TextInput, Tooltip } from "flowbite-react";
+import { Label, Navbar, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import { HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
+import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import NotificationBellDropdown from "../notification-bell-dropdown/notification-bell-dropdown";
 import logoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
-import { useDebouncedCallback } from "use-debounce";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React from "react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
+import SearchBar from "./searchbar/search-bar";
 // import { Filter } from "flowbite-react-icons/outline";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useDebouncedCallback } from "use-debounce";
 
 export function SecuredNavbar({
   messages,
   isSeachEnabled = true,
   isSidebarToggleEnabled = true,
   isUserMenuEnabled = true,
-}: SecuredNavBarProps) {
+  dict,
+}: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathName = usePathname();
+  const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
-  const handleSearch = useDebouncedCallback(
+  const { data: notifications } = useLoadNotifications();
+
+  let unreadNotifications = 0;
+  if (
+    notifications &&
+    notifications.notifications &&
+    Array.isArray(notifications.notifications)
+  ) {
+    unreadNotifications = notifications.notifications.filter(
+      (notification: any) => !notification.is_read,
+    ).length;
+  }
+
+  const _handleSearch = useDebouncedCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const term = event.target.value;
       const params = new URLSearchParams(searchParams.toString());
@@ -41,7 +57,7 @@ export function SecuredNavbar({
       } else {
         params.delete("search");
       }
-      router.push(`${pathName}?${params.toString()}`);
+      router.push(`${pathname}?${params.toString()}`);
     },
     300,
   );
@@ -91,22 +107,11 @@ export function SecuredNavbar({
                 <Label htmlFor="search" className="sr-only">
                   {messages.search}
                 </Label>
-                <div className="flex items-center gap-2">
-                  <TextInput
-                    className="w-full lg:w-96"
-                    icon={HiSearch}
-                    id="search"
-                    name="search"
-                    placeholder={messages.search}
-                    type="search"
-                    defaultValue={searchParams.get("search") || ""}
-                    onChange={handleSearch}
-                  />
-                  {/* @TODO: Add filter button */}
-                  {/* <Button color="gray">
-                    <Filter className="h-4 w-4" />
-                  </Button> */}
-                </div>
+                <SearchBar
+                  messages={messages}
+                  searchParams={searchParams}
+                  dict={dict}
+                />
               </form>
             )}
           </div>
@@ -121,7 +126,26 @@ export function SecuredNavbar({
                 <span className="sr-only">Search</span>
                 <HiSearch className="h-6 w-6" />
               </button>
-              <NotificationBellDropdown />
+              {!pathname.includes("/notifications") && (
+                <span
+                  className="relative border border-gray-200 dark:border-gray-700 cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+                  onClick={() => router.push("/notifications")}
+                >
+                  {unreadNotifications > 0 && (
+                    <div
+                      className={`absolute flex items-center justify-center ${
+                        unreadNotifications.toString().length > 1
+                          ? "w-7 -left-3"
+                          : "w-5 -left-1"
+                      } h-5 bg-red-400 dark:bg-red-600 text-xs font-medium text-white rounded-full -top-2  min-w-[1.25rem]`}
+                    >
+                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                    </div>
+                  )}
+                  <span className="sr-only">Notifications</span>
+                  <HiBell className="h-6 w-6" />
+                </span>
+              )}
               <div className="hidden dark:block">
                 <Tooltip content="Toggle light mode">
                   <CustomThemeToggle />

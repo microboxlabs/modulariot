@@ -40,14 +40,14 @@ export function useMyTasks(
   showFinished: boolean,
   page?: number,
   limit?: number,
-  search?: string,
+  params?: string,
 ) {
   const columnQuery = columns.map((column) => `columns=${column}`).join("&");
 
   const from = page ? (page - 1) * (limit ?? 10) : 0;
 
   const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
-  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}${search ? `&search=${search}` : ""}`;
+  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}&${params}`;
 
   const { data, error, isLoading } = useSWR<
     KanbanBoardTaskResponse,
@@ -450,4 +450,12 @@ export function useGetUserStates() {
     user_states_error: error,
     user_states_isLoading: isLoading,
   };
+}
+
+export function requestSovosFingerprintReuse(
+  rut: string,
+  tripId: string,
+): Promise<any> {
+  const url = `/app/api/sovos/fingerprint-reuse?rut=${rut}&tripId=${tripId}`;
+  return fetcher(url);
 }

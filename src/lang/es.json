@@ -29,8 +29,9 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "title": "Despachos",
-        "confirmDelivery": "Confirmar entrega"
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega",
+        "finished": "Finalizados"
       },
       "taskCounter": {
         "activeCount": "{count} visibles"
@@ -130,8 +131,15 @@
         "validations": "Validaciones",
         "status": "Estado",
         "stage": "Etapa",
+        "licensePlate": "Patente",
+        "origin": "Origen",
+        "destination": "Destino",
         "active": "Activo",
-        "completed": "Completado"
+        "completed": "Completado",
+        "driverId": "RUT Conductor",
+        "carrierId": "ID Transportista",
+        "carrierName": "Transportista",
+        "customerCode": "Cliente"
       }
     },   
     "notFound": {
@@ -357,7 +365,7 @@
       "driver": "Conductor",
       "validator": "Despachador",
       "receiver": "Receptor",
-      "description": "Coloque su dedo indice de la mano derecha en el lector para poder ser identificado.",
+      "description": "Coloque su dedo índice de la mano derecha en el lector para poder ser identificado.",
       "successTitle": "Identidad reconocida",
       "successDescription": "Su identidad ha sido reconocida exitosamente",
       "errorTitle": "Error en la verificación",
@@ -506,6 +514,7 @@
     "showing": "Mostrando",
     "of": "de",
     "maximum_continuous_driving": "Conducción máxima continua",
+    "double_driver_rotation_check": "Rotación de conductor",
     "diagnose": "Tratar",
     "search": "Buscar",
     "seconds": "segundos",
@@ -637,6 +646,7 @@
     "Fin de Eventos": "Último evento",
     "CONTINUOUS DRIVE CHECK": "Conducción máxima continua",
     "CONTINUOUS RESTING CHECK": "Mínimo descanso requerido",
+    "DOUBLE DRIVER ROTATION CHECK": "Rotación de conductor",
     "-MENSAJE KAUSANA": "Mensaje Kausana",
     "CORREO ELECTRONICO": "Correo electrónico",
     "today": "Hoy",
@@ -671,11 +681,38 @@
     "Speed Limit Standard": "Límite de velocidad",
     "Continuous Drive Check": "Conducción máxima continua",
     "Continuous Resting Check": "Mínimo descanso requerido",
+    "Double Driver Rotation Check": "Rotación de conductor",
     "ascending": "Ascendente",
     "descending": "Descendente",
     "treatments": "Tratamientos",
     "message": "Mensaje",
-    "response": "Respuesta"
+    "response": "Respuesta",
+    "treatment_saved": "Tratamiento guardado correctamente",
+    "creation_date": "Fecha de creación del síntoma",
+    "Check Load Securing Absence": "Verificar ausencia de carga",
+    "mapSelection": "Selección de mapa",
+    "pulse": "Pulso",
+    "stops": "Paradas",
+    "geofences": "Geofences",
+    "cameraMovement": "Seguimiento de cámara",
+    "watch": "Ver",
+    "types": {
+      "Continuous drive check": "Conducción máxima continua",
+      "Off Hours Driving": "Conducción fuera de horario",
+      "Speed Limit Standard": "Límite de velocidad",
+      "Double Driver Rotation Check": "Rotación de conductor",
+      "Risk Zone Stop": "Parada en zona de riesgo",
+      "Lost Signal": "Señal perdida",
+      "Continuous Drive Check": "Conducción máxima continua",
+      "Speed Limit": "Límite de velocidad",
+      "Check Load Securing Absence": "Verificar ausencia de carga",
+      "Continuous resting check": "Mínimo descanso requerido",
+      "Night Risk Stay": "Dormir en zona de riesgo",
+      "Night Driving": "Conducción nocturna",
+      "Continuous Resting Check": "Mínimo descanso requerido",
+      "Bad Sign": "Mala señal",
+      "Speed Limit Custom": "Límite de velocidad"
+    }
   },
   "geographic_view": {
     "speed": "Velocidad",
@@ -712,5 +749,57 @@
   },
   "release": {
     "other_versions": "Otras versiones"
+  },
+  "totem": {
+    "welcome": "Les damos la bienvenida",
+    "subtitle": "Al totem de verificación",
+    "start": "Comenzar",
+    "rut_ingress": "Ingreso Rut",
+    "fingerprint_scan": "Escaneo Huella",
+    "assigned_trip": "Viaje Asignado",
+    "tests": "Test",
+    "write_your_rut": "Ingrese su N° de RUT",
+    "continue": "Continuar",
+    "loading": "Cargando...",
+    "fingerprint_scan_success": "Escaneo de huella exitoso.",
+    "fingerprint_scan_error": "Error al escanear huella.",
+    "fingerprint_scan_idle": "Ingrese su dedo índice de la mano derecha en el lector.",
+    "trip_information": "Información del viaje",
+    "trip_information_client": "Información del cliente",
+    "driver": "Conductor",
+    "contact_information": "Información de contacto",
+    "email": "Correo electrónico",
+    "state": "Estado",
+    "rut": "RUT",
+    "phone": "Teléfono",
+    "trip_information_origin_destination": "Origen - Destino",
+    "trip_information_schedule": "Horario",
+    "congratulations": "Felicidades, has completado el proceso de registro.",
+    "remember_to_tell_your_companion": "Recuerda decirle a tu compañero conductor que realice el proceso de registro.",
+    "now_go_to_the_module": "Recuerde realizar sus test de:",
+    "take_your_test": "Para tomar su test:",
+    "drug_test": "Test de drogas",
+    "sleepiness_test": "Test de somnolencia",
+    "alcohol_test": "Test de alcohol",
+    "finish": "Finalizar",
+    "rut_invalid": "RUT inválido",
+    "no_trip_information": "Sin viaje asignado",
+    "verify_secondary_driver": "Verificar al segundo conductor",
+    "notify_control_center": "Hemos informado a la torre de control.",
+    "biometric_verification_error": "Error al verificar datos biométricos",
+    "Query return 2 results instead of max 1": "Más de un viaje asignado",
+    "Driver already verified": "Conductor ya verificado"
+  },
+  "notifications": {
+    "client": "Cliente",
+    "client_code": "Código de cliente",
+    "origin_destination": "Origen - Destino",
+    "truck_license_plate": "Patente del camión",
+    "trailer_license_plate": "Patente del remolque",
+    "estimated_arrival_date": "Fecha estimada de llegada",
+    "message": "Mensaje",
+    "service_type": "Tipo de servicio",
+    "reason": "Motivo",
+    "reject_reason": "Motivo de rechazo"
   }
 }

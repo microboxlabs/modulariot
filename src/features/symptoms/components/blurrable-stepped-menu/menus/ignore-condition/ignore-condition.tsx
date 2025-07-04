@@ -1,8 +1,14 @@
+"use client";
+
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Select } from "flowbite-react";
+import { Button, Select } from "flowbite-react";
 import { useState } from "react";
 import { TiDelete } from "react-icons/ti";
+import { useRouter } from "next/navigation";
+import { ShowNotification } from "@/features/notifications/notification";
 
 export default function IgnoreCondition({
   dict,
@@ -11,6 +17,9 @@ export default function IgnoreCondition({
   setDuration,
   scope,
   setScope,
+  treatmentRequest,
+  setTreatmentRequest,
+  setIsMenuOpen,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -18,8 +27,41 @@ export default function IgnoreCondition({
   setDuration: (duration: number) => void;
   scope: string;
   setScope: (scope: string) => void;
+  treatmentRequest: TreatmentsRequest;
+  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
+  setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
   const [durationLocal, setDurationLocal] = useState(duration);
+  const router = useRouter();
+
+  const buttons = [
+    {
+      text: (dict.symptoms as I18nRecord).save_and_confirm,
+      function: async () => {
+        setTreatmentRequest({
+          ...treatmentRequest,
+          v_symptom_treatment_time: duration,
+          status: "active",
+        });
+        /* console.log("duration", duration);
+        console.log("treatmentRequest", treatmentRequest);
+        console.log("scope", scope); */
+        await requestTreatment({
+          ...treatmentRequest,
+          status: "active",
+          treatment_type: "ignorar condicion",
+          v_symptom_treatment_time: duration,
+        });
+        setIsMenuOpen(false);
+        router.push("/symptoms");
+        ShowNotification({
+          type: "success",
+          message: (dict.symptoms as I18nRecord).treatment_saved as string,
+        });
+      },
+    },
+  ];
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-3 flex-grow">
@@ -143,6 +185,20 @@ export default function IgnoreCondition({
           <p className="text-sm font-light text-orange-800 dark:text-orange-800">
             {(dict.symptoms as I18nRecord).ignore_alert as string}
           </p>
+        </div>
+        <div className="w-full flex flex-col gap-2">
+          {buttons.map((button, index) => (
+            <Button
+              color="blue"
+              className="flex-1"
+              key={index}
+              onClick={() => {
+                button.function();
+              }}
+            >
+              {button.text as string}
+            </Button>
+          ))}
         </div>
       </div>
     </div>

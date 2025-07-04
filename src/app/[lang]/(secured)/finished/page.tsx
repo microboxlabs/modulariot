@@ -30,7 +30,7 @@ export default async function FinishedPage({
     // });
     return (
       <div className="h-full w-full overflow-auto">
-        <SseListener />
+        <SseListener dictionary={dictionary} />
         <PageContent
           showFinishedTasks={true}
           kanbanBoards={staticData}

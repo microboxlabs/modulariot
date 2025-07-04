@@ -7,14 +7,28 @@ import {
 } from "@/features/sovos-fingerprint/services/autentia";
 import SmartCardIcon from "@/features/icons/smartcard";
 import FingerprintIcon from "@/features/icons/figerprint";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
   getUserStatus,
+  requestSovosFingerprintReuse,
   useUserGroups,
 } from "@/features/common/providers/client-api.provider";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+
+type FingerprintReuseResponse = {
+  fingerprintReuse?: {
+    tripFound: boolean;
+    verifiedIntent: boolean;
+    fingerprintFound?: {
+      verifiedIntent: boolean;
+      totalExpectedFingerPrints: number;
+      successFingerPrints: Record<string, string>;
+    };
+  };
+};
+
 export default function SovosStartVerificationCard({
   // lang,
   task,
@@ -23,10 +37,60 @@ export default function SovosStartVerificationCard({
   stepperController,
   user,
   setValidationError,
+  setFingerprintReuse,
+  isFingerprintReuseNeeded,
 }: SovosVerificationCardProps) {
   const [isVerificationInProgress, setIsVerificationInProgress] =
     useState(false);
   const { data: userGroups } = useUserGroups();
+
+  const [fingerprintLoading, setFingerprintLoading] = useState<boolean>(false);
+
+  const hasRun = useRef(false);
+  useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+    if (!isFingerprintReuseNeeded) return;
+
+    try {
+      setFingerprintLoading(true);
+      requestSovosFingerprintReuse(
+        getRut(),
+        task.mintral_serviceCode as string,
+      ).then((result: FingerprintReuseResponse) => {
+        const verifyID =
+          result?.fingerprintReuse?.fingerprintFound?.successFingerPrints[
+            getRut()
+          ];
+        if (
+          result?.fingerprintReuse?.tripFound &&
+          (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
+            verifyID)
+        ) {
+          if (
+            result?.fingerprintReuse?.fingerprintFound
+              ?.totalExpectedFingerPrints &&
+            result?.fingerprintReuse?.fingerprintFound
+              ?.totalExpectedFingerPrints >= 1 &&
+            verifyID
+          ) {
+            stepperController.toNextStep(false, {
+              Erc: 0,
+              ercText: verifyID ?? "Reutilización de huella",
+              NroAudit: verifyID ?? "Reutilización de huella",
+              Rut: getRut(),
+            });
+            setFingerprintReuse && setFingerprintReuse(true);
+          }
+        }
+        setFingerprintLoading(false);
+      });
+    } catch (error) {
+      //console.log(error);
+      //ignore error
+      setFingerprintLoading(false);
+    }
+  }, []);
 
   async function startVerification() {
     await getUserStatus();
@@ -95,11 +159,15 @@ export default function SovosStartVerificationCard({
         <h5 className="text-xl font-medium tracking-tight text-gray-900 dark:text-white mt-9">
           {msg!.title as string}
         </h5>
-        <div className="text-gray-900">{msg!.subtitle as string}</div>
-        <div className="text-gray-700 dark:text-gray-200 text-center text-justified p-4">
-          {msg!.description as string}
-        </div>
-        {!isVerificationInProgress && (
+        {hasRun.current && isFingerprintReuseNeeded && !fingerprintLoading && (
+          <>
+            <div className="text-gray-900">{msg!.subtitle as string}</div>
+            <div className="text-gray-700 dark:text-gray-200 text-center text-justified p-4">
+              {msg!.description as string}
+            </div>
+          </>
+        )}
+        {hasRun.current && !isVerificationInProgress && !fingerprintLoading && (
           <GroupAllowed
             userGroups={userGroups}
             notAllowedTo={["GROUP_MINTRAL_REVISOR"]}

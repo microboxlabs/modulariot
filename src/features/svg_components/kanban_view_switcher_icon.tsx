@@ -10,7 +10,7 @@ export default function KanbanViewSwitcherIcon({
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`fill-gray-700 dark:fill-gray-300 ${className}`}
+      className={`${className}`}
     >
       <rect x="1.28198" y="3.37476" width="6" height="17.2505" rx="2" />
       <rect x="1.28198" y="3.37476" width="6" height="17.2505" rx="2" />

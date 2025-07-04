@@ -1,29 +1,123 @@
 "use client";
 
-import { useEffect } from "react";
+import { CustomNotification } from "@/features/notifications/notification";
+import { useEffect, useRef } from "react";
+import {
+  humanizeFrom,
+  configureLocale,
+} from "@/features/common/services/days.service";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-let isLoadedEventSource = false;
-export default function SseListener() {
+// Global singleton to track SSE connection
+let globalEventSource: EventSource | null = null;
+let globalNotificationHandlers: Set<(event: any) => void> = new Set();
+let isInitialized = false;
+
+export default function SseListener({
+  dictionary,
+}: {
+  dictionary: I18nRecord;
+}) {
+  configureLocale();
+  const lastNotificationRef = useRef<string>("");
+  const notificationTimeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (isLoadedEventSource) return;
-    const eventSource = new EventSource(
-      `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/stream`,
-    );
-    isLoadedEventSource = true;
-    eventSource.onmessage = (event) => {
-      console.log(event.data);
-      const _a = {
-        id: "54903c4e-eeab-4b37-b8d6-a26260caf57d",
-        eventType: "create",
-        payload: {
-          taskFormKey: "wfship:tripOutsideInitiatedTask",
-          taskId: "699920",
-          instanceId: "699805",
-        },
-        timestamp: "2024-09-11T04:54:00.510587504Z",
-        metadata: null,
+    // Initialize the global EventSource if not already done
+    if (!isInitialized) {
+      globalEventSource = new EventSource(
+        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/stream`,
+      );
+      isInitialized = true;
+      globalEventSource.onmessage = (event: MessageEvent) => {
+        const parsed_event = JSON.parse(event.data);
+
+        if (parsed_event.eventType === "internalNotifications") {
+          // Notify all registered handlers
+          globalNotificationHandlers.forEach((handler) => {
+            handler(event);
+          });
+        }
+
+        const _a = {
+          id: "54903c4e-eeab-4b37-b8d6-a26260caf57d",
+          eventType: "create",
+          payload: {
+            taskFormKey: "wfship:tripOutsideInitiatedTask",
+            taskId: "699920",
+            instanceId: "699805",
+          },
+          timestamp: "2024-09-11T04:54:00.510587504Z",
+          metadata: null,
+        };
       };
+    }
+
+    // Add this component's handler to the global handlers
+    const handler = (event: any) => {
+      const parsed_event = JSON.parse(event.data);
+      if (parsed_event.eventType === "internalNotifications") {
+        // Create a unique identifier for this notification
+        const notificationId = `${parsed_event.payload.message}-${parsed_event.payload.timestamp}`;
+
+        // Check if this is a duplicate notification
+        if (lastNotificationRef.current === notificationId) {
+          return;
+        }
+
+        // Clear any existing timeout
+        if (notificationTimeoutRef.current) {
+          clearTimeout(notificationTimeoutRef.current);
+        }
+
+        // Set a timeout to allow the same notification again after 5 seconds
+        notificationTimeoutRef.current = window.setTimeout(() => {
+          lastNotificationRef.current = "";
+        }, 1000);
+
+        // Update the last notification reference
+        lastNotificationRef.current = notificationId;
+
+        CustomNotification(
+          <div className=" w-full flex flex-row gap-2 items-center cursor-pointer rounded-md">
+            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-gray-500 text-gray-800 dark:text-gray-200 flex items-center justify-center ">
+              <p className="flex items-center justify-center text-white">
+                {parsed_event.payload.creator.name.charAt(0).toUpperCase()}
+              </p>
+            </div>
+            <div className="flex flex-col flex-grow ml-2 gap-2">
+              <p>{parsed_event.payload.message}</p>
+              <p className="text-xs text-gray-500">
+                {humanizeFrom(parsed_event.payload.timestamp)}
+              </p>
+            </div>
+            <div className="flex flex-col flex-shrink-0">
+              <div
+                className="select-none px-2 py-0.5 whitespace-nowrap bg-gray-900 border border-gray-900 transition-all duration-300 rounded-md text-xs text-white hover:bg-gray-100 hover:text-gray-900 min-w-fit"
+                onClick={() => {
+                  window.location.href = parsed_event.payload.viewUrl;
+                }}
+              >
+                {
+                  ((dictionary as I18nRecord).symptoms as I18nRecord)
+                    .watch as string
+                }
+              </div>
+            </div>
+          </div>,
+        );
+      }
     };
-  }, []);
+
+    globalNotificationHandlers.add(handler);
+
+    return () => {
+      globalNotificationHandlers.delete(handler);
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+    };
+  }, [dictionary]);
+
   return null;
 }

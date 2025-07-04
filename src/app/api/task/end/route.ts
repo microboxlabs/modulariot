@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
         status: 401,
       });
     }
+    const { user } = session;
     const json = (await request.json()) as EndTaskRequest;
     const taskId = json.taskId;
     const transitionId = json.transitionId;
@@ -23,7 +24,10 @@ export async function POST(request: NextRequest) {
     const reason = json.reason;
     const reasonId = json.reasonId;
 
-    let updateTaskPayload: UpdateTaskRequest = {};
+    let updateTaskPayload: UpdateTaskRequest = {
+      prop_cm_owner: user.email!,
+    };
+
     if (comments) {
       try {
         updateTaskPayload = {

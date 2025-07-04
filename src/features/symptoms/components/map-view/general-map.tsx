@@ -8,7 +8,7 @@ import SideInfo from "@/features/symptoms/side-info";
 import MapVisualizationTrip from "@/features/geographic-view/components/map-visualization-trip";
 import { useTripPositions } from "@/features/geographic-view/hooks/use-trip-positions";
 import { useTreatmentsGeneral } from "../../hooks/use-treatments-general";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useTreatmentsLocation } from "@/features/common/providers/client-api.provider";
 import { titles } from "../../types/symptom-titles";
@@ -45,6 +45,19 @@ export default function GeneralMap({
     useState<TreatmentsGeneralResponseItem | null>(null);
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
     useState<ConditionsAgg | null>(null);
+
+  useEffect(() => {
+    if (treatmentData) {
+      treatmentData.timeline.forEach((item) => {
+        item.conditions_agg?.forEach((condition) => {
+          if (condition.symptom_id == treatmentData.symptom_info?.id) {
+            setSelectedTreatment(treatmentData);
+            setSelectedTreatmentIndex(condition);
+          }
+        });
+      });
+    }
+  }, [treatmentData]);
 
   const {
     data: filteredLocationData,
@@ -248,6 +261,7 @@ export default function GeneralMap({
             averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
+            selectedTreatmentIndex={selectedTreatmentIndex ?? null}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
           />

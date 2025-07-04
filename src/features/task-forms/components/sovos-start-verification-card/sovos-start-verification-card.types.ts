@@ -9,4 +9,7 @@ export type SovosVerificationCardProps = TaskFormProps & {
   trParams?: Record<string, { [key: string]: string }>;
   validationError: string | null | undefined;
   setValidationError: (validationError: string | null) => void | undefined;
+  fingerprintReuse?: boolean;
+  setFingerprintReuse?: (fingerprintReuse: boolean) => void;
+  isFingerprintReuseNeeded: boolean;
 };

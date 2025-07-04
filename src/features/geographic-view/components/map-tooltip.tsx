@@ -9,6 +9,7 @@ type MapTooltipProps = {
   setHoverInfo: (hoverInfo: any) => void;
   isOpen?: boolean;
   onExitAction?: () => void;
+  start_right?: boolean;
 };
 
 export default function MapTooltip({
@@ -18,6 +19,7 @@ export default function MapTooltip({
   setHoverInfo,
   isOpen = false,
   onExitAction,
+  start_right,
 }: MapTooltipProps) {
   const [position, setPosition] = useState({
     left: initialLeft,
@@ -31,7 +33,9 @@ export default function MapTooltip({
     e.stopPropagation();
     setIsDragging(true);
     setDragOffset({
-      x: e.clientX - position.left,
+      x:
+        e.clientX -
+        (start_right ? window.innerWidth - position.left : position.left),
       y: e.clientY - position.top,
     });
   };
@@ -39,7 +43,9 @@ export default function MapTooltip({
   const handleMouseMove = (e: MouseEvent) => {
     if (isDragging) {
       const newPosition = {
-        left: e.clientX - dragOffset.x,
+        left: start_right
+          ? window.innerWidth - (e.clientX - dragOffset.x)
+          : e.clientX - dragOffset.x,
         top: e.clientY - dragOffset.y,
       };
       setPosition(newPosition);
@@ -92,14 +98,15 @@ export default function MapTooltip({
 
   return (
     <div
-      className="absolute inset-0 z-10"
+      className="absolute inset-0 z-10 tooltip"
       onClick={handleBackdropClick}
       style={{ pointerEvents: "none" }}
     >
       <div
         className="absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700"
         style={{
-          left: position.left,
+          left: start_right ? undefined : position.left,
+          right: start_right ? position.left : undefined,
           top: position.top,
           pointerEvents: "auto",
         }}

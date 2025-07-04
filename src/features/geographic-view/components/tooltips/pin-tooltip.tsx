@@ -90,7 +90,12 @@ export default function PinTooltip({
             {object?.properties.associate_symptoms.map(
               (symptom: Symptom, index: number) => (
                 <div key={index} className="text-sm indent-2">
-                  - {symptom.symptom_name}
+                  -{" "}
+                  {(() => {
+                    const symptomsDict = dict.symptoms as I18nRecord;
+                    const types = symptomsDict.types as Record<string, string>;
+                    return types[symptom.symptom_name] || symptom.symptom_name;
+                  })()}
                 </div>
               ),
             )}

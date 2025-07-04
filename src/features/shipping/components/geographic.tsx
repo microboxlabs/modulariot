@@ -11,11 +11,11 @@ export default function Geographic({
   task: TaskResponse;
   dictionary: Record<string, string>;
 }) {
-  const task_id = task.mintral_serviceCode;
+  const trip_id = task.mintral_serviceCode;
   const assetId = task.mintral_truckLicensePlate;
 
   const { positions, error, isLoading } = useTripPositions(
-    task_id as string,
+    trip_id as string,
     assetId as string,
   );
 
@@ -43,6 +43,7 @@ export default function Geographic({
         averagePosition={averagePosition}
         filteredLocationData={null}
         dict={dictionary}
+        selectedTreatmentIndex={null}
       />
     </div>
   );

@@ -11,6 +11,7 @@ import type {
   FastTasksResponse,
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
+  HistoricalWorkflow,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
@@ -300,6 +301,21 @@ export async function getFinishedWorkflows(
   return result as FinishedWorkflowsResponse;
 }
 
+export async function getFinishedWorkflowByInstanceId(
+  ticket: string,
+  data: string,
+): Promise<HistoricalWorkflow> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/finished/workflow/details?instanceId=${data}`,
+  );
+
+  return result as HistoricalWorkflow;
+}
+
 export async function checkDocumentExists(
   ticket: string,
   nodeId: string,
@@ -392,4 +408,63 @@ export async function getInfoEntity(licencePlate: string, ticket: string) {
   const url = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?licencePlate=${licencePlate}&alf_ticket=${ticket}`;
   const result = await fetcher(url);
   return result as GetEntityInfoResponse;
+}
+
+export async function getBiometricVerification(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification?alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
+}
+
+export async function getSovosFingerprintReuse(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<TaskResponse> {
+  const url = `${process.env.ECM_API_URL}/alfresco/service/sovos/fingerprint-reuse?alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
+}
+
+export async function getNotifications(ticket: string) {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications?alf_ticket=${ticket}`;
+  const result = await fetcher(url, {
+    method: "GET",
+  });
+  return result as any;
+}
+
+export async function markAsRead(ticket: string, id: string) {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications/mark-as-read?alf_ticket=${ticket}&id=${id}`;
+  const result = await fetcher(url, {
+    method: "PUT",
+  });
+
+  return result as any;
+}
+
+export async function getTaskByLicensePlate(
+  ticket: string,
+  data: Record<string, unknown>,
+): Promise<any> {
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter?alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  return result as any;
 }

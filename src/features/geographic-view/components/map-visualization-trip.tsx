@@ -26,6 +26,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 // import MapButton from "./map-button";
 // import { BsSignStop } from "react-icons/bs";
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
+import ImageSelector from "./image-selector";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -102,6 +103,7 @@ type MapVisualizationProps = {
   };
   filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
+  selectedTreatmentIndex: ConditionsAgg | null;
   setSelectedTreatment?: (
     treatment: TreatmentsGeneralResponseItem | null,
   ) => void;
@@ -180,6 +182,7 @@ export default function MapVisualizationTrip({
   averagePosition,
   filteredLocationData,
   dict,
+  selectedTreatmentIndex,
   setSelectedTreatment,
   setSelectedTreatmentIndex,
 }: MapVisualizationProps) {
@@ -193,6 +196,13 @@ export default function MapVisualizationTrip({
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [camera_movement, setCameraMovement] = useState<boolean>(true);
   const [displayPosition, setDisplayPosition] = useState<number>(0);
+  const [pictures_list, setPicturesList] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (selectedTreatmentIndex && selectedTreatmentIndex.evidences) {
+      setPicturesList(selectedTreatmentIndex.evidences as string[]);
+    }
+  }, [selectedTreatmentIndex]);
 
   // Add effect to update displayPosition when positions change
   useEffect(() => {
@@ -206,7 +216,9 @@ export default function MapVisualizationTrip({
       setViewState(e.viewState);
     }
   }, []);
-  const [showStops, _setShowStops] = useState(true);
+  const [showStops, setShowStops] = useState(true);
+  const [showGeofences, setShowGeofences] = useState(true);
+  const [showPulse, setShowPulse] = useState(true);
 
   // Handle initial zoom when positions are loaded
   useEffect(() => {
@@ -330,16 +342,23 @@ export default function MapVisualizationTrip({
     const baseLayers = [];
 
     // Add geofence layer if available
-    if (processedGeofence && processedGeofence.features.length > 0) {
+    if (
+      processedGeofence &&
+      processedGeofence.features.length > 0 &&
+      showGeofences
+    ) {
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,
           zoom: viewState.zoom,
+          updateTriggers: {
+            showGeofences,
+          },
         }),
       );
     }
 
-    if (geoJson) {
+    if (geoJson && showPulse) {
       baseLayers.push(
         new PulsePinLayer({
           data: geoJson,
@@ -376,13 +395,18 @@ export default function MapVisualizationTrip({
             data: positions,
             selectedPulse,
             showStops,
+            displayPosition,
           },
         }),
       );
     }
 
     // Geofences icons
-    if (processedGeofence && processedGeofence.features.length > 0) {
+    if (
+      processedGeofence &&
+      processedGeofence.features.length > 0 &&
+      showGeofences
+    ) {
       baseLayers.push(
         new GeofencePinLayer({
           data: processedGeofence,
@@ -397,6 +421,10 @@ export default function MapVisualizationTrip({
               camera_movement,
             );
             return true;
+          },
+          showGeofences,
+          updateTriggers: {
+            showGeofences,
           },
         }),
       );
@@ -458,6 +486,8 @@ export default function MapVisualizationTrip({
     displayPosition,
     camera_movement,
     showStops,
+    showGeofences,
+    showPulse,
   ]);
 
   // Handle errors and loading states
@@ -487,6 +517,7 @@ export default function MapVisualizationTrip({
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
           mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
           attributionControl={true}
+          preserveDrawingBuffer={true}
           style={{ position: "relative" }}
         >
           <style jsx global>{`
@@ -527,6 +558,7 @@ export default function MapVisualizationTrip({
       */}
       {hoverInfo && (
         <MapTooltip
+          start_right={true}
           left={hoverInfo.x}
           top={hoverInfo.y}
           setHoverInfo={setHoverInfo}
@@ -544,8 +576,12 @@ export default function MapVisualizationTrip({
           />
         </MapTooltip>
       )}
-      <div className="absolute w-full h-full flex flex-col justify-end items-start p-5 gap-2 pointer-events-none">
+      <div className="absolute w-full h-full flex flex-row justify-end items-start pointer-events-none">
+        {pictures_list.length > 0 ? (
+          <ImageSelector images={pictures_list} />
+        ) : null}
         <ToolBar
+          dictionary={dict}
           positions={positions ?? []}
           displayPosition={displayPosition}
           setDisplayPosition={setDisplayPosition}
@@ -556,9 +592,15 @@ export default function MapVisualizationTrip({
           setSelectedStyle={setMapStyle}
           camera_movement={camera_movement}
           setCameraMovement={setCameraMovement}
+          showStops={showStops}
+          setShowStops={setShowStops}
+          showGeofences={showGeofences}
+          setShowGeofences={setShowGeofences}
+          showPulse={showPulse}
+          setShowPulse={setShowPulse}
         />
       </div>
-      <div className="absolute left-0 top-5 bg-white dark:bg-gray-800 rounded-r-full border-r border-y border-gray-400 dark:border-gray-700">
+      <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">
         {isLoading ? (
           <div className="flex items-center justify-center h-full p-2">
             <Spinner />

@@ -257,6 +257,7 @@ export default function Huella({
               });
               if (response.success) {
                 setVerificatioSuccess(true);
+                setStatus("success");
               } else {
                 setStatus("error-id-card");
               }

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       signersEmails: string[];
       signerRuts: string[];
       taskId: string;
-      auditNumbers: string; //[];
+      auditNumbers: string[];
       bpmPackage: string;
       taskType: string;
       transitionId: string;
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     let signersNotify: number[] = [];
     let signersAudit: string[] = [];
 
-    json.signerRuts.forEach((rut, _index) => {
+    json.signerRuts.forEach((rut, index) => {
       signersRoles.push(rut);
       signersInstitutions.push(rut);
       signersEmails.push("michel@microboxlabs.com");
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       signersType.push(0);
       signersOrder.push(1);
       signersNotify.push(2);
-      signersAudit.push(json.auditNumbers); //[index]
+      signersAudit.push(json.auditNumbers[index]); //
     });
 
     // last signer is the dispatcher

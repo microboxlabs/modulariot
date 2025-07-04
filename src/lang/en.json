@@ -784,6 +784,7 @@
     "message": "Message",
     "service_type": "Service type",
     "reason": "Reason",
-    "reject_reason": "Reject reason"
+    "reject_reason": "Reject reason",
+    "service": "Service"
   }
 }

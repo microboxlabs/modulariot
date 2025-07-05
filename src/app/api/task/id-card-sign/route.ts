@@ -2,9 +2,16 @@ import { auth } from "@/auth";
 import {
   // getDocumentTypes,
   login,
-  createContentSign,
+  // createContentSign,
+  createContent,
+  signIdCard,
+  getDocument,
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
-import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
+import {
+  ContentRequest,
+  GetDocumentRequest,
+  SignIdCardRequest,
+} from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
   //endTask,
   getContentByTaskId,
@@ -41,7 +48,8 @@ export async function POST(request: NextRequest) {
     const json = (await request.json()) as {
       serviceCode: string;
       signersEmails: string[];
-      signerRuts: string[];
+      signerRuts: string;
+      nro_serie: string;
       taskId: string;
       auditNumbers: string[];
       bpmPackage: string;
@@ -67,10 +75,6 @@ export async function POST(request: NextRequest) {
       requireInternalSign,
     );
 
-    // const documentTypes = await getDocumentTypes(institutionId, sessionId);
-    // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];
-    // console.log(documentTypes);
-
     let signersRoles: string[] = [];
     let signersInstitutions: string[] = [];
     let signersEmails: string[] = [];
@@ -80,16 +84,14 @@ export async function POST(request: NextRequest) {
     let signersNotify: number[] = [];
     let signersAudit: string[] = [];
 
-    json.signerRuts.forEach((rut, index) => {
-      signersRoles.push(rut);
-      signersInstitutions.push(rut);
-      signersEmails.push("michel@microboxlabs.com");
-      signersRuts.push(rut);
-      signersType.push(0);
-      signersOrder.push(1);
-      signersNotify.push(2);
-      signersAudit.push(json.auditNumbers[index]); //
-    });
+    signersRoles.push(json.signerRuts);
+    signersInstitutions.push(json.signerRuts);
+    signersEmails.push("michel@microboxlabs.com");
+    signersRuts.push(json.signerRuts);
+    signersType.push(0);
+    signersOrder.push(1);
+    signersNotify.push(2);
+    signersAudit.push(json.auditNumbers[0]);
 
     // last signer is the dispatcher
     if (json.taskType === "confirmDelivery") {
@@ -124,13 +126,8 @@ export async function POST(request: NextRequest) {
       file_mime: "application/pdf",
       return_file: 1,
     };
-    /* console.log("createContentRequest", {
-      ...createContentRequest,
-      file: "<...binary data...>",
-    }); */
-    console.log("createContentRequest", createContentRequest);
-    const response = await createContentSign(createContentRequest);
-    //console.log({ ...response.result, file: "<...binary data...>" });
+
+    const response = await createContent(createContentRequest);
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -138,9 +135,56 @@ export async function POST(request: NextRequest) {
         message: response.message,
       });
     }
-    const _signedFile = response.result.file!;
+
+    console.log(JSON.stringify(response));
+    const documentCode = response.result.code!;
+    const signIdCardRequest: SignIdCardRequest = {
+      user_rut: json.signerRuts,
+      nro_serie: json.nro_serie,
+      user_role: json.signerRuts,
+      user_institution: institutionId,
+      code: documentCode,
+      session_id: sessionId,
+    };
+
+    console.log(JSON.stringify(signIdCardRequest));
+    const signIdCardResponse = await signIdCard(signIdCardRequest);
+    if (signIdCardResponse.status !== 200) {
+      return NextResponse.json({
+        success: false,
+        status: signIdCardResponse.status,
+        message: signIdCardResponse.message,
+      });
+    }
+
+    const getDocumentRequest: GetDocumentRequest = {
+      code: documentCode,
+      institution: institutionId,
+      extra: "file",
+      session_id: sessionId,
+    };
+
+    const getDocumentResponse = await getDocument(getDocumentRequest);
+    if (getDocumentResponse.status !== 200) {
+      return NextResponse.json({
+        success: false,
+        status: getDocumentResponse.status,
+        message: getDocumentResponse.message,
+      });
+    }
+
+    /* const response = await createContentSign(createContentRequest);
+    //console.log({ ...response.result, file: "<...binary data...>" });
+    if (response.status !== 200) {
+      return NextResponse.json({
+        success: false,
+        status: response.status,
+        message: response.message,
+      });
+    } */
+    const signedFileResponse = getDocumentResponse.result.file!;
     // Convert base64 to Uint8Array
-    const binaryString = atob(_signedFile);
+    const binaryString = atob(signedFileResponse);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
@@ -184,31 +228,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    /*  const endTaskResult = await endTask(
+    /* const endTaskResult = await endTask(
       session.user.ticket,
       json.taskId,
       json.transitionId,
     );
 
     console.log(endTaskResult); */
-
-    // {
-    //   type_code,
-    //   institution: INSTITUTION,
-    //   name,
-    //   session_id,
-    //   signers_roles: SIGNER_ROLES.split(),
-    //   signers_institutions: [ INSTITUTION ],
-    //   signers_emails: signRequest.getSignerEmails(),
-    //   signers_ruts: signRequest.getRuts(),
-    //   signers_type: signRequest.getSignersType(),
-    //   signers_order: signRequest.getSignersOrder(),
-    //   signers_notify: signRequest.getSignerNotifications(),
-    //   signers_audit: signRequest.getSignerAudit(),
-    //   file: base64,
-    //   file_mime: file.mime,
-    //   return_file: 1//signRequest.getReturnFileId()
-    // }
 
     return NextResponse.json({
       success: true,

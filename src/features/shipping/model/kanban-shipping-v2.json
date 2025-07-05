@@ -1,0 +1,59 @@
+[
+  {
+    "id": 1,
+    "title": "assignDriverAndTransport",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 2,
+    "title": "usertask1",
+    "description": "Presentar Conductor",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 3,
+    "title": "prepareService",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 4,
+    "title": "missionControlTripInit",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 5,
+    "title": "overlordTripInit",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 6,
+    "title": "monitoringInCourseTrip",
+    "finished": false,
+    "state": "started",
+    "tasks": []
+  },
+  {
+    "id": 7,
+    "title": "confirmTripDestinationArrival",
+    "finished": false,
+    "state": "started",
+    "tasks": []
+  },  
+  {
+    "id": 8,
+    "title": "confirmMonitoringFinalization",
+    "finished": false,
+    "state": "done",
+    "tasks": []
+  }
+]

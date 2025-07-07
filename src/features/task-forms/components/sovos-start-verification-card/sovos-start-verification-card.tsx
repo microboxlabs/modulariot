@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { PersonEntry } from "@alfresco/js-api";
 import { ShowNotification } from "@/features/notifications/notification";
 import {
+  biometricVerify,
   getUserStatus,
   requestSovosFingerprintReuse,
   useUserGroups,
@@ -147,6 +148,13 @@ export default function SovosStartVerificationCard({
     validator(getRut())
       .then((result) => {
         if (result) {
+          //console.log(result);
+          biometricVerify(
+            getRut(),
+            "coordinador-web",
+            "coordinador-web-location",
+            result,
+          );
           stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }
       })

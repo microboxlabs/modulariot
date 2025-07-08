@@ -143,7 +143,7 @@
     "shippingv2": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos",
+        "shippingv2": "Despachos",
         "confirmDelivery": "Confirmar entrega",
         "finished": "Finalizados"
       },
@@ -151,17 +151,16 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
-        "assignDriverAndTransport": "Asignar Conductor y Transporte",
-        "assignDriverAndTransportCompact": "Asignar Conductor y Transporte",
-        "usertask1": "Presentar Conductor",
-        "usertask1Compact": "Presentar Conductor",
+        "assignDriver": "Asignar Conductor y Transporte",
+        "assignDriverCompact": "Asignar Conductor y Transporte",
+        "presentDriver": "Presentar Conductor",
+        "presentDriver1Compact": "Presentar Conductor",
         "prepareService": "Preparar Servicio",
         "prepareServiceCompact": "Preparar Servicio",
         "missionControlTripInit": "Torre de Control: Iniciar viaje",
         "missionControlTripInitCompact": "TC: Iniciar viaje",
-        "sovosDigitalSignature": "Firma Digital de SOVOS",
-        "tripInitiatedOutside": "Viajes iniciados sin coordinación",
-        "tripInitiatedOutsideCompact": "Viajes iniciados",
+        "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
+        "overlordTripInitCompact": "Overlord - Iniciar viaje",
         "monitoringInCourseTrip": "Monitorear Viaje Iniciado",
         "monitoringInCourseTripCompact": "Viaje Iniciado",
         "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
@@ -562,6 +561,7 @@
         "werehouse": "Bodega",
         "logistics": "Logística",
         "shipping": "Despachos",
+        "shippingv2": "Despachos V2",
         "picking": "Retiros",
         "delivery": "Entregas",
         "finished": "Finalizados",

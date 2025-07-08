@@ -121,3 +121,10 @@ export type MonitorTripTaskOutcome =
   | "Torre de Control: Iniciar Viaje"
   | "Viaje Cancelado"
   | "Viaje Anulado";
+
+export type TaskOutcomeV2 =
+  | AssignDriverTaskOutcome
+  | PresentDriverTaskOutcome
+  | PrepareServiceTaskOutcome
+  | MissionControlTaskOutcome
+  | MonitorTripTaskOutcome;

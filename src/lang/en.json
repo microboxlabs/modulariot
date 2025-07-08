@@ -143,7 +143,7 @@
     "shippingv2": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping",
+        "shippingv2": "Shipping",
         "confirmDelivery": "Confirm delivery",
         "finished": "Finished"
       },
@@ -151,17 +151,16 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {       
-        "assignDriverAndTransport": "Assign Driver and Transport",
-        "assignDriverAndTransportCompact": "Assign Driver and Transport",
-        "usertask1": "Driver Presentation",
-        "usertask1Compact": "Driver Presentation",
+        "assignDriver": "Assign Driver and Transport",
+        "assignDriverCompact": "Assign Driver and Transport",
+        "presentDriver": "Driver Presentation",
+        "presentDriverCompact": "Driver Presentation",
         "prepareService": "Prepare Service",
         "prepareServiceCompact": "Prepare Service",
         "missionControlTripInit": "Mission Control: Start trip",
         "missionControlTripInitCompact": "Mission Control",
-        "sovosDigitalSignature": "SOVOS Digital Signature",
-        "tripInitiatedOutside": "Trip Initiated without coordination",
-        "tripInitiatedOutsideCompact": "Trip Initiated",
+        "overlordTripInit": "Overlord - Start Trip (Confirmation)",
+        "overlordTripInitCompact": "Overlord - Start Trip",
         "monitoringInCourseTrip": "Monitoring in course trip",
         "monitoringInCourseTripCompact": "Trip Started",
         "confirmTripDestinationArrival": "Confirm trip destination arrival",
@@ -557,6 +556,7 @@
         "werehouse": "Werehouse",
         "logistics": "Logistics",
         "shipping": "Shipping",
+        "shippingv2": "Shipping V2",
         "picking": "Picking",
         "delivery": "Delivery",
         "finished": "Finished",

@@ -5,6 +5,7 @@ import {
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
   OverlordTripInitOutcome,
+  ShippingCoordinatorProcessFormsV2,
 } from "./form.service.types";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
@@ -150,4 +151,40 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
     TASK_CONFIRM_MONITORING_FINALIZATION,
     TASK_MONITORING_FINALIZATION,
+  ];
+
+/* ------------------------------------------------------------- */
+/* Shipping Coordinator Process V2 */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:assignDriverTask";
+
+export const TYPE_WFSHIP2_PRESENT_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:presentDriverTask";
+
+export const TYPE_WFSHIP2_PREPARE_SERVICE_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:prepareServiceTask";
+
+export const TYPE_WFSHIP2_MISSION_CONTROL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:missionControlTask";
+
+export const TYPE_WFSHIP2_MONITOR_TRIP_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:monitorTripTask";
+
+export const TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:confirmArrivalTask";
+
+export const TYPE_WFSHIP2_CLOSE_MONITORING_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:closeMonitoringTask";
+
+export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessFormsV2[] =
+  [
+    TYPE_WFSHIP2_ASSIGN_DRIVER_TASK,
+    TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
+    TYPE_WFSHIP2_PREPARE_SERVICE_TASK,
+    TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+    TYPE_WFSHIP2_MONITOR_TRIP_TASK,
+    TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
+    TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
   ];

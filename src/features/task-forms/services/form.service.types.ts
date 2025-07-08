@@ -68,3 +68,5 @@ export type OverlordTripInitOutcome =
   | "Cancelado por Overlord";
 
 export type GPSValidityType = "ok" | "warning" | "error";
+
+export type ShippingCoordinatorProcessV2 = "shipping_coordination";

@@ -69,4 +69,55 @@ export type OverlordTripInitOutcome =
 
 export type GPSValidityType = "ok" | "warning" | "error";
 
+/* ------------------------------------------------------------- */
+/* Shipping Coordinator Process V2 */
+/* ------------------------------------------------------------- */
+
 export type ShippingCoordinatorProcessV2 = "shipping_coordination";
+
+export type ShippingCoordinatorProcessFormsV2 =
+  | "wfship2:assignDriverTask"
+  | "wfship2:presentDriverTask"
+  | "wfship2:prepareServiceTask"
+  | "wfship2:missionControlTask"
+  | "wfship2:monitorTripTask"
+  | "wfship2:confirmArrivalTask"
+  | "wfship2:closeMonitoringTask";
+
+export type AssignDriverTaskOutcome =
+  | "Presentar Conductor"
+  | "Preparar Servicio"
+  | "Torre de Control: Iniciar Viaje"
+  | "Monitorear viaje en curso"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type PresentDriverTaskOutcome =
+  | "Preparar Servicio"
+  | "Torre de Control: Iniciar Viaje"
+  | "Monitorear viaje en curso"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type PrepareServiceTaskOutcome =
+  | "Torre de Control: Iniciar Viaje"
+  | "Monitorear viaje en curso"
+  | "Presentar Conductor"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type MissionControlTaskOutcome =
+  | "Monitorear viaje en curso"
+  | "Preparar Servicio"
+  | "Presentar Conductor"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type MonitorTripTaskOutcome =
+  | "Confirmar Arribo a Destino"
+  | "Torre de Control: Iniciar Viaje"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";

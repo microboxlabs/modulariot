@@ -100,20 +100,25 @@ export default function Huella({
         html5QrCode.start(
           config.cameraConfig,
           config.scannerConfig,
-          (decodedText: string, _decodedResult: any) => {
+          async (decodedText: string, _decodedResult: any) => {
             const serialText = decodedText.substring(
               decodedText.indexOf("&serial=") + 8,
-              decodedText.indexOf("&mrz=") - 1,
+              decodedText.indexOf("&mrz="),
             );
             setQrMessage(serialText);
             setIdCardNumber(serialText);
-            setIdCard(true);
             html5QrCode.clear();
             html5QrCode.stop();
-
-            setVerificatioSuccess(true);
-            setStatus("success");
-            setCurrentStep(3);
+            const response = await validateIdCard({
+              user_rut: rutData?.rut as string,
+              nro_serie: serialText,
+            });
+            if (response.success) {
+              setVerificatioSuccess(true);
+              setStatus("success");
+            } else {
+              setStatus("error-id-card");
+            }
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors
@@ -371,7 +376,11 @@ export default function Huella({
           )}
         </div>
         {idCardLoading ? (
-          <Button
+          <>
+            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+              {(dict.totem as I18nRecord).loading as string}
+            </p>
+            {/* <Button
             onClick={() => {
               setIdCardLoading(false);
               setVerificatioSuccess(true);
@@ -385,7 +394,8 @@ export default function Huella({
             <p className="text-base font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </Button>
+          </Button> */}
+          </>
         ) : (
           <Button
             onClick={() => {

@@ -107,8 +107,6 @@ export default function Huella({
             );
             setQrMessage(serialText);
             setIdCardNumber(serialText);
-            html5QrCode.clear();
-            html5QrCode.stop();
             const response = await validateIdCard({
               user_rut: rutData?.rut as string,
               nro_serie: serialText,
@@ -121,6 +119,8 @@ export default function Huella({
               alert("error");
               setStatus("error-id-card");
             }
+            html5QrCode?.clear();
+            html5QrCode?.stop();
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors

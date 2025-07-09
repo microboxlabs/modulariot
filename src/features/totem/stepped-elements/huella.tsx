@@ -112,11 +112,9 @@ export default function Huella({
               nro_serie: serialText,
             });
             if (response.success) {
-              alert("success");
               setVerificatioSuccess(true);
               setStatus("success");
             } else {
-              alert("error");
               setStatus("error-id-card");
             }
             html5QrCode?.clear();

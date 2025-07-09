@@ -22,7 +22,6 @@
     "@react-google-maps/api": "^2.20.3",
     "@types/mdx": "^2.0.13",
     "@types/negotiator": "^0.6.3",
-    "@zxing/browser": "^0.1.5",
     "csv-parse": "^5.6.0",
     "dayjs": "^1.11.12",
     "deck.gl": "^9.1.2",

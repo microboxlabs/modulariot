@@ -14,55 +14,8 @@ import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
-import { BrowserQRCodeReader } from "@zxing/browser";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
-
-export function ZXingHighResScanner({
-  onResult,
-}: {
-  onResult: (result: string) => void;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let stopScan: (() => void) | undefined;
-
-    async function start() {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        const codeReader = new BrowserQRCodeReader();
-        codeReader
-          .decodeFromVideoElement(videoRef.current, (result, err, controls) => {
-            if (result) {
-              onResult(result.getText());
-              controls.stop();
-            }
-          })
-          .then((controls) => {
-            stopScan = controls.stop;
-          });
-      }
-    }
-    start();
-
-    return () => {
-      if (stopScan) stopScan();
-      if (stream) stream.getTracks().forEach((track) => track.stop());
-    };
-  }, [onResult]);
-
-  return <video ref={videoRef} style={{ width: "100%", maxWidth: 600 }} />;
-}
 
 export default function Huella({
   setCurrentStep,
@@ -94,10 +47,6 @@ export default function Huella({
   const [manualVerificationLoading, setManualVerificationLoading] =
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
-  const [useZXing, setUseZXing] = useState(false);
-  const zxingVideoRef = useRef<HTMLVideoElement>(null);
-  const [zxingError, setZxingError] = useState<string | null>(null);
-  const [zxingScanning, setZxingScanning] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
 
   const qrRef = useRef(null);
@@ -151,19 +100,20 @@ export default function Huella({
         html5QrCode.start(
           config.cameraConfig,
           config.scannerConfig,
-          (decodedText: string, decodedResult: any) => {
-            console.log("QR Code link:", decodedText);
-            console.log("QR Code result:", decodedResult);
+          (decodedText: string, _decodedResult: any) => {
             const serialText = decodedText.substring(
               decodedText.indexOf("&serial=") + 8,
               decodedText.indexOf("&mrz=") - 1,
             );
-            console.log("Serial text:", serialText);
-            setQrMessage(decodedText);
+            setQrMessage(serialText);
             setIdCardNumber(serialText);
             setIdCard(true);
             html5QrCode.clear();
             html5QrCode.stop();
+
+            setVerificatioSuccess(true);
+            setStatus("success");
+            setCurrentStep(3);
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors
@@ -178,61 +128,6 @@ export default function Huella({
       if (el) el.innerHTML = "";
     };
   }, [idCardLoading]);
-
-  // ZXing QR Scanner effect
-  useEffect(() => {
-    if (!useZXing || !idCardLoading) return;
-    setZxingError(null);
-    setZxingScanning(true);
-    const codeReader = new BrowserQRCodeReader();
-    let stopScan: (() => void) | undefined;
-    if (zxingVideoRef.current) {
-      codeReader
-        .decodeFromVideoDevice(
-          undefined, // use default camera
-          zxingVideoRef.current,
-          (result, err, controls) => {
-            if (result) {
-              const decodedText = result.getText();
-              // Try to extract serial number as before
-              const serialText =
-                decodedText.includes("&serial=") &&
-                decodedText.includes("&mrz=")
-                  ? decodedText.substring(
-                      decodedText.indexOf("&serial=") + 8,
-                      decodedText.indexOf("&mrz=") - 1,
-                    )
-                  : decodedText;
-              setIdCardNumber(serialText);
-              setQrMessage(decodedText);
-              setIdCard(true);
-              controls.stop();
-              setZxingScanning(false);
-            }
-            if (err) {
-              // Log the error for debugging, just ignore
-              /* console.error("ZXing error:", err);
-              if (err.name !== "NotFoundException") {
-                setZxingError(err.message || "Unknown error");
-              } else {
-                setZxingError(null);
-              } */
-            }
-          },
-        )
-        .then((controls) => {
-          stopScan = controls.stop;
-        })
-        .catch((e) => {
-          setZxingError(e.message || "Camera error");
-          setZxingScanning(false);
-        });
-    }
-    return () => {
-      if (stopScan) stopScan();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useZXing, idCardLoading]);
 
   useEffect(() => {
     if (!isWindowsDevice) {
@@ -450,48 +345,18 @@ export default function Huella({
           {idCardLoading ? (
             <>
               <div className="w-full flex justify-center mb-4">
-                {useZXing ? (
-                  <video
-                    ref={zxingVideoRef}
-                    className="w-full h-auto rounded-lg border-2 border-blue-500"
-                    autoPlay
-                    playsInline
-                    muted
-                  />
-                ) : (
-                  <div
-                    id="html5qr-code"
-                    ref={qrRef}
-                    style={{
-                      width: "100%",
-                      maxWidth: 600,
-                      minHeight: 450,
-                      aspectRatio: "4/3",
-                    }}
-                    className="rounded-lg overflow-hidden border-2 border-gray-300"
-                  />
-                )}
+                <div
+                  id="html5qr-code"
+                  ref={qrRef}
+                  style={{
+                    width: "100%",
+                    maxWidth: 400,
+                    minHeight: 400,
+                    aspectRatio: "1/1",
+                  }}
+                  className="rounded-lg overflow-hidden border-2 border-gray-300"
+                />
               </div>
-              <div className="flex flex-row gap-2 mb-2">
-                <button
-                  className={`px-3 py-1 rounded ${useZXing ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-                  onClick={() => setUseZXing(true)}
-                  disabled={useZXing}
-                >
-                  ZXing
-                </button>
-                <button
-                  className={`px-3 py-1 rounded ${!useZXing ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-                  onClick={() => setUseZXing(false)}
-                  disabled={!useZXing}
-                >
-                  html5-qrcode
-                </button>
-              </div>
-              {useZXing && zxingScanning && <p>Scanning...</p>}
-              {useZXing && zxingError && (
-                <p className="text-red-500">{zxingError}</p>
-              )}
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
                 {
                   (dict.totem as I18nRecord)

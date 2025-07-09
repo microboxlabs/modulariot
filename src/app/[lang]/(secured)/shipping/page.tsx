@@ -30,7 +30,7 @@ export default async function ShippingPage({
     // });
     return (
       <>
-        <SseListener />
+        <SseListener dictionary={dictionary} />
         <PageContent
           showFinishedTasks={false}
           kanbanBoards={staticData}

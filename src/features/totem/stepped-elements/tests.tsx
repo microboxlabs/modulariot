@@ -10,11 +10,13 @@ export default function Tests({
   tripData,
   setCurrentStep,
   setRutData,
+  setIdCardNumber,
 }: {
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
   setRutData: ({ rut }: { rut: string }) => void;
+  setIdCardNumber: (idCardNumber: string) => void;
 }) {
   const [testState, setTestState] = useState(false);
 
@@ -27,6 +29,7 @@ export default function Tests({
         tripData={tripData}
         setCurrentStep={setCurrentStep}
         setRutData={setRutData}
+        setIdCardNumber={setIdCardNumber}
       />
       <GotoBox testState={testState} dict={dict} />
     </div>
@@ -40,6 +43,7 @@ function Congratulation({
   tripData,
   setCurrentStep,
   setRutData,
+  setIdCardNumber,
 }: {
   testState: boolean;
   setTestState: (state: boolean) => void;
@@ -47,6 +51,7 @@ function Congratulation({
   tripData: any;
   setCurrentStep: (step: number) => void;
   setRutData: ({ rut }: { rut: string }) => void;
+  setIdCardNumber: (idCardNumber: string) => void;
 }) {
   return (
     <div
@@ -115,6 +120,7 @@ function Congratulation({
                     ? tripData?.tripInfo?.driver2Info?.driverId
                     : tripData?.tripInfo?.driver1Info?.driverId,
               });
+              setIdCardNumber("");
               setCurrentStep(1);
             }}
             className="bg-white text-gray-900 p-3 rounded-lg w-full flex items-center justify-center gap-2"

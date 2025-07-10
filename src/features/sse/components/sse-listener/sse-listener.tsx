@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomNotification } from "@/features/notifications/notification";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { configureLocale } from "@/features/common/services/days.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import InnerData from "@/features/common/components/notification/notification-types/inner-data";
@@ -19,6 +19,7 @@ export default function SseListener({
   tenantId: string | null | undefined;
 }) {
   configureLocale();
+
   const lastNotificationRef = useRef<string>("");
   const notificationTimeoutRef = useRef<number | null>(null);
 
@@ -26,8 +27,16 @@ export default function SseListener({
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
       globalEventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`, // HERE ADD THE USER EMAIL
+        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/stream`, // HERE ADD THE USER EMAIL
       );
+
+      tenantBasedEventSource(
+        tenantId,
+        dictionary,
+        lastNotificationRef,
+        notificationTimeoutRef,
+      );
+
       isInitialized = true;
       globalEventSource.onmessage = (event: MessageEvent) => {
         const parsed_event = JSON.parse(event.data);
@@ -54,58 +63,7 @@ export default function SseListener({
     }
 
     // Add this component's handler to the global handlers
-    const handler = (event: any) => {
-      const parsed_event = JSON.parse(event.data);
-
-      console.log(parsed_event);
-
-      if (parsed_event.eventType === "internalNotifications") {
-        // Create a unique identifier for this notification
-        const notificationId = `${parsed_event.payload.message}-${parsed_event.payload.timestamp}`;
-
-        // Check if this is a duplicate notification
-        if (lastNotificationRef.current === notificationId) {
-          return;
-        }
-
-        // Clear any existing timeout
-        if (notificationTimeoutRef.current) {
-          clearTimeout(notificationTimeoutRef.current);
-        }
-
-        // Set a timeout to allow the same notification again after 5 seconds
-        notificationTimeoutRef.current = window.setTimeout(() => {
-          lastNotificationRef.current = "";
-        }, 1000);
-
-        // Update the last notification reference
-        lastNotificationRef.current = notificationId;
-
-        CustomNotification(
-          <div className=" w-fit flex flex-row gap-2 items-center cursor-pointer rounded-md">
-            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-gray-500 text-gray-800 flex items-center justify-center ">
-              <p className="flex items-center justify-center text-white">
-                {parsed_event.payload.creator.name.charAt(0).toUpperCase()}
-              </p>
-            </div>
-            <InnerData data={parsed_event.payload} dictionary={dictionary} />
-            <div className="flex flex-col w-fit h-fit">
-              <div
-                className="select-none px-2 py-0.5 whitespace-nowrap bg-gray-900 border border-gray-900 transition-all duration-300 rounded-md text-xs text-white hover:bg-gray-100 hover:text-gray-900 min-w-fit"
-                onClick={() => {
-                  window.location.href = parsed_event.payload.viewUrl;
-                }}
-              >
-                {
-                  ((dictionary as I18nRecord).symptoms as I18nRecord)
-                    .watch as string
-                }
-              </div>
-            </div>
-          </div>,
-        );
-      }
-    };
+    const handler = (_event: any) => {};
 
     globalNotificationHandlers.add(handler);
 
@@ -118,4 +76,70 @@ export default function SseListener({
   }, [dictionary]);
 
   return null;
+}
+
+function tenantBasedEventSource(
+  tenantId: string | null | undefined,
+  dictionary: I18nRecord,
+  lastNotificationRef: React.RefObject<string>,
+  notificationTimeoutRef: React.RefObject<number | null>,
+) {
+  globalEventSource = new EventSource(
+    `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`, // HERE ADD THE USER EMAIL
+  );
+
+  globalEventSource.onmessage = (event: MessageEvent) => {
+    const parsed_event = JSON.parse(event.data);
+
+    if (parsed_event.eventType === "internalNotifications") {
+      // Create a unique identifier for this notification
+      const notificationId = `${parsed_event.payload.message}-${parsed_event.payload.timestamp}`;
+
+      // Check if this is a duplicate notification
+      if (lastNotificationRef.current === notificationId) {
+        return;
+      }
+
+      // Clear any existing timeout
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+
+      // Set a timeout to allow the same notification again after 5 seconds
+      const timeoutId = window.setTimeout(() => {
+        (lastNotificationRef as React.MutableRefObject<string>).current = "";
+      }, 5000);
+      (
+        notificationTimeoutRef as React.MutableRefObject<number | null>
+      ).current = timeoutId;
+
+      // Update the last notification reference
+      (lastNotificationRef as React.MutableRefObject<string>).current =
+        notificationId;
+
+      CustomNotification(
+        <div className=" w-fit flex flex-row gap-2 items-center cursor-pointer rounded-md">
+          <div className="w-10 h-10 flex-shrink-0 rounded-full bg-gray-500 text-gray-800 flex items-center justify-center ">
+            <p className="flex items-center justify-center text-white">
+              {parsed_event.payload.creator.name.charAt(0).toUpperCase()}
+            </p>
+          </div>
+          <InnerData data={parsed_event.payload} dictionary={dictionary} />
+          <div className="flex flex-col w-fit h-fit">
+            <div
+              className="select-none px-2 py-0.5 whitespace-nowrap bg-gray-900 border border-gray-900 transition-all duration-300 rounded-md text-xs text-white hover:bg-gray-100 hover:text-gray-900 min-w-fit"
+              onClick={() => {
+                window.location.href = parsed_event.payload.viewUrl;
+              }}
+            >
+              {
+                ((dictionary as I18nRecord).symptoms as I18nRecord)
+                  .watch as string
+              }
+            </div>
+          </div>
+        </div>,
+      );
+    }
+  };
 }

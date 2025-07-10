@@ -168,7 +168,7 @@ export default function KanbanCard({
               <div className="flex items-center justify-start">
                 {task.members.map((member) => (
                   <Fragment key={member.id}>
-                    <Link href="#" className="-mr-3">
+                    <Link href="#" className="-mr-3" prefetch={false}>
                       <Image
                         alt={member.name}
                         height={28}

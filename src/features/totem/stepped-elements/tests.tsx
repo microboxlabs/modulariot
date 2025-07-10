@@ -11,12 +11,14 @@ export default function Tests({
   setCurrentStep,
   setRutData,
   setIdCardNumber,
+  setBiometricResult,
 }: {
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
   setRutData: ({ rut }: { rut: string }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
+  setBiometricResult: (biometricResult: any) => void;
 }) {
   const [testState, setTestState] = useState(false);
 
@@ -30,6 +32,7 @@ export default function Tests({
         setCurrentStep={setCurrentStep}
         setRutData={setRutData}
         setIdCardNumber={setIdCardNumber}
+        setBiometricResult={setBiometricResult}
       />
       <GotoBox testState={testState} dict={dict} />
     </div>
@@ -44,6 +47,7 @@ function Congratulation({
   setCurrentStep,
   setRutData,
   setIdCardNumber,
+  setBiometricResult,
 }: {
   testState: boolean;
   setTestState: (state: boolean) => void;
@@ -52,6 +56,7 @@ function Congratulation({
   setCurrentStep: (step: number) => void;
   setRutData: ({ rut }: { rut: string }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
+  setBiometricResult: (biometricResult: any) => void;
 }) {
   return (
     <div
@@ -121,6 +126,7 @@ function Congratulation({
                     : tripData?.tripInfo?.driver1Info?.driverId,
               });
               setIdCardNumber("");
+              setBiometricResult(null);
               setCurrentStep(1);
             }}
             className="bg-white text-gray-900 p-3 rounded-lg w-full flex items-center justify-center gap-2"

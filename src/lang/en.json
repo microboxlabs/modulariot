@@ -682,6 +682,7 @@
     "stops": "Stops",
     "geofences": "Geofences",
     "cameraMovement": "Camera tracking",
+    "watch": "Watch",
     "types": {
       "Continuous drive check": "Continuous drive check",
       "Off Hours Driving": "Off Hours Driving",
@@ -797,6 +798,7 @@
     "message": "Message",
     "service_type": "Service type",
     "reason": "Reason",
-    "reject_reason": "Reject reason"
+    "reject_reason": "Reject reason",
+    "service": "Service"
   }
 }

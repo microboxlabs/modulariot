@@ -12,7 +12,7 @@ type NotificationAction =
   | {
     type: "action";
     label: string;
-    message: string;
+    message: string | React.ReactNode;
     onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   }
   | {
@@ -71,4 +71,8 @@ export function ShowNotification(action: NotificationAction) {
     default:
       toast(action.message);
   }
+}
+
+export function CustomNotification(children: React.ReactNode) {
+  toast(children);
 }

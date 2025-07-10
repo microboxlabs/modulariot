@@ -31,7 +31,7 @@ export function CompactKanbanViewSwitcher({
           {activeView ? (
             <KanbanViewSwitcherIconCompressed />
           ) : (
-            <KanbanViewSwitcherIcon />
+            <KanbanViewSwitcherIcon className="fill-gray-700 dark:fill-gray-300" />
           )}
         </div>
       </div>

@@ -8,6 +8,11 @@ export function useLoadNotifications() {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     `/app/api/notifications`,
     fetcher,
+    {
+      refreshInterval: 5000, // 5 seconds in milliseconds
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
   );
 
   return {

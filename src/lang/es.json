@@ -691,6 +691,7 @@
     "stops": "Paradas",
     "geofences": "Geofences",
     "cameraMovement": "Seguimiento de cámara",
+    "watch": "Ver",
     "types": {
       "Continuous drive check": "Conducción máxima continua",
       "Off Hours Driving": "Conducción fuera de horario",
@@ -809,6 +810,7 @@
     "message": "Mensaje",
     "service_type": "Tipo de servicio",
     "reason": "Motivo",
-    "reject_reason": "Motivo de rechazo"
+    "reject_reason": "Motivo de rechazo",
+    "service": "Servicio"
   }
 }

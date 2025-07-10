@@ -472,7 +472,7 @@ export async function ecmSovosDec5(
   ticket: string,
   taskId: string,
 ): Promise<any> {
-  const url = `${process.env.ECM_API_URL}alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}&alf_ticket=${ticket}`;
+  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}&alf_ticket=${ticket}`;
 
   const result = await fetcher(url, {
     method: "POST",

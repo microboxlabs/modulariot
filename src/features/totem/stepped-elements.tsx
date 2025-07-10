@@ -85,6 +85,7 @@ export default function Stepped({
           tripData={tripData}
           setRutData={setRutData}
           setCurrentStep={setCurrentStep}
+          setIdCardNumber={setIdCardNumber}
         />
       ),
       title: (dict.totem as I18nRecord).tests as string,

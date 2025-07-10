@@ -1,7 +1,7 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
 import Supercluster from "supercluster";
 import { PinCountLayer } from "./pin_count";
-import { createSVGIcon } from "./prototype/svg-generation";
+import { createSVGIcon } from "../prototype/svg-generation";
 import conditions_atlas from "@assets/icons/map/conditions-atlas.png";
 
 // remision

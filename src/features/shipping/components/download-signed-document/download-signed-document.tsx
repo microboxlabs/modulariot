@@ -14,7 +14,10 @@ export default function DownloadSignedDocument({
   asLink = false,
   name = "carta porte",
 }: DownloadSignedDocumentProps) {
-  const documentPath = documentId?.replace(":/", "");
+  const documentPath =
+    documentId && typeof documentId?.replace === "function"
+      ? documentId?.replace(":/", "")
+      : documentId;
   const href = `/api/document/download?documentId=${documentPath}`;
   //const uuid = documentId?.split("/");
   /* const { exists } = useVerifyDocument(uuid?.[uuid.length - 1] || ""); */

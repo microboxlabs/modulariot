@@ -411,10 +411,9 @@ export async function getInfoEntity(licencePlate: string, ticket: string) {
 }
 
 export async function getBiometricVerification(
-  ticket: string,
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
-  const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification?alf_ticket=${ticket}`;
+  const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
 
   const result = await fetcher(url, {
     method: "POST",
@@ -464,6 +463,20 @@ export async function getTaskByLicensePlate(
   const result = await fetcher(url, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+
+  return result as any;
+}
+
+export async function ecmSovosDec5(
+  ticket: string,
+  taskId: string,
+): Promise<any> {
+  const url = `${process.env.ECM_API_URL}alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}&alf_ticket=${ticket}`;
+
+  const result = await fetcher(url, {
+    method: "POST",
+    body: JSON.stringify({}),
   });
 
   return result as any;

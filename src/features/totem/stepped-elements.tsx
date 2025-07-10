@@ -26,6 +26,7 @@ export default function Stepped({
   const [rutData, setRutData] = useState<{ rut: string } | null>(null);
   const [biometricResult, setBiometricResult] = useState<any>(null);
   const [rut, setRut] = useState("");
+  const [idCardNumber, setIdCardNumber] = useState("");
   const [tripData, setTripData] = useState<{ trip: any } | null>(null);
 
   const steps = [
@@ -41,9 +42,7 @@ export default function Stepped({
         />
       ),
       title: (dict.totem as I18nRecord).rut_ingress as string,
-      icon: (
-        <FaIdCard className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
-      ),
+      icon: <FaIdCard className="w-[1.5rem] h-[1.5rem]" />,
     },
     {
       interface: (
@@ -54,12 +53,12 @@ export default function Stepped({
           rutData={rutData}
           pluginReady={pluginReady}
           onBiometricResult={setBiometricResult}
+          setIdCardNumber={setIdCardNumber}
+          idCardNumber={idCardNumber}
         />
       ),
       title: (dict.totem as I18nRecord).fingerprint_scan as string,
-      icon: (
-        <FaFingerprint className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
-      ),
+      icon: <FaFingerprint className="w-[1.5rem] h-[1.5rem]" />,
     },
     {
       interface: (
@@ -69,16 +68,15 @@ export default function Stepped({
           dict={dict}
           deviceId={deviceId}
           deviceLocation={deviceLocation}
-          rut={rut}
+          rutData={rutData}
           biometricResult={biometricResult}
           tripData={tripData}
           setTripData={setTripData}
+          idCardNumber={idCardNumber}
         />
       ),
       title: (dict.totem as I18nRecord).assigned_trip as string,
-      icon: (
-        <IoMdPin className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
-      ),
+      icon: <IoMdPin className="w-[1.5rem] h-[1.5rem]" />,
     },
     {
       interface: (
@@ -87,19 +85,18 @@ export default function Stepped({
           tripData={tripData}
           setRutData={setRutData}
           setCurrentStep={setCurrentStep}
+          setIdCardNumber={setIdCardNumber}
         />
       ),
       title: (dict.totem as I18nRecord).tests as string,
-      icon: (
-        <FaBell className="w-[3vh] h-[3vh] portrait:w-[5vw] portrait:h-[5vw]" />
-      ),
+      icon: <FaBell className="w-[1.5rem] h-[1.5rem]" />,
     },
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-10 p-10 relative">
+    <div className="flex flex-col h-full p-5 relative w-full sm:gap-4">
       {/* Stepper */}
-      <div className="flex justify-center portrait:justify-between flex-row gap-10 w-[90%]">
+      <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content">
         <StepperMarker
           id={0}
           selected={currentStep === 0}
@@ -140,8 +137,10 @@ export default function Stepped({
           onClick={() => currentStep > 3 && setCurrentStep(3)}
         />
       </div>
-      <div className="flex items-center justify-center w-full h-full">
-        {steps[currentStep].interface}
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center w-[20rem] scale-[1.0] xs:scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-[1.0] xl:scale-[1.5] 2xl:scale-[1.6] portrait:scale-100 portrait:xs:scale-110 portrait:sm:scale-125 portrait:md:scale-150 portrait:lg:scale-175 portrait:xl:scale-200 portrait:2xl:scale-225 scale-content">
+          {steps[currentStep].interface}
+        </div>
       </div>
       <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
@@ -165,23 +164,21 @@ function StepperMarker({
 }) {
   return (
     <div
-      className={`flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-blue-300" : selected ? "text-blue-500" : "text-gray-500"}`}
+      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-blue-300" : selected ? "text-blue-500" : "text-gray-500"}`}
       style={{ cursor: current_step > id ? "pointer" : "default" }}
       onClick={onClick}
     >
       <div
-        className={`relative w-[8vh] portrait:w-[10vw] h-[8vh] portrait:h-[10vw] rounded-full border-4 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
+        className={`relative w-[3rem] h-[3rem] rounded-full border-2 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
       >
         {icon}
         <div
-          className={`absolute top-[-1vh] portrait:top-[-1.5vw] right-[-1vh] portrait:right-[-1.5vw] w-[3vh] portrait:w-[5vw] h-[3vh] portrait:h-[5vw] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
+          className={`absolute top-[-0.2rem] right-[-0.2rem] w-[1rem] h-[1rem] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
         >
           <RxCheck className="w-full h-full text-blue-900" />
         </div>
       </div>
-      <p className="text-[2vh] portrait:text-[2vw] font-light whitespace-nowrap">
-        {text}
-      </p>
+      <p className="text-xs font-light whitespace-nowrap">{text}</p>
     </div>
   );
 }

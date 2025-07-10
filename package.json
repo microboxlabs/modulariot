@@ -31,6 +31,7 @@
     "flowbite-react-icons": "^1.1.0",
     "formatjs": "^0.1.1",
     "hexoid": "^1.0.0",
+    "html5-qrcode": "^2.3.8",
     "lottie-web": "^5.12.2",
     "mapbox-gl": "^3.9.3",
     "negotiator": "^0.6.3",

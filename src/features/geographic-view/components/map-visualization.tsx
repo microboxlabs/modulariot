@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
-import { PinLayer } from "./pin_layer_clustered";
+import { PinLayer } from "./layers/pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
 import Map from "react-map-gl";
 import { useSearchParams } from "next/navigation";
@@ -83,14 +83,17 @@ function zoom_on_pin(
     const longitude = object.geometry.coordinates[0];
     const latitude = object.geometry.coordinates[1];
 
-    setViewState({
-      ...viewState,
-      longitude,
-      latitude,
-      zoom: object.properties.cluster ? viewState.zoom + 5.0 : 15.0,
-      transitionDuration: 1000,
-      transitionInterpolator: new FlyToInterpolator(),
-    });
+    // Defer the setState call to avoid updating during render
+    setTimeout(() => {
+      setViewState({
+        ...viewState,
+        longitude,
+        latitude,
+        zoom: object.properties.cluster ? viewState.zoom + 5.0 : 15.0,
+        transitionDuration: 1000,
+        transitionInterpolator: new FlyToInterpolator(),
+      });
+    }, 0);
   }
 }
 
@@ -127,7 +130,10 @@ function zoom_on_position(
           t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
       };
 
-      setViewState(newViewState);
+      // Defer the setState call to avoid updating during render
+      setTimeout(() => {
+        setViewState(newViewState);
+      }, 0);
     }
   }
 }

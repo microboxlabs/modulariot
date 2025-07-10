@@ -86,6 +86,7 @@ export default function Stepped({
           setRutData={setRutData}
           setCurrentStep={setCurrentStep}
           setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
         />
       ),
       title: (dict.totem as I18nRecord).tests as string,

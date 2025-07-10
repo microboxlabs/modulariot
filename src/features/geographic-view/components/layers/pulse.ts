@@ -17,15 +17,61 @@ function getColor(icu_code: number): [number, number, number, number] {
   }
 }
 
+// Helper function to validate coordinates
+function isValidCoordinate(coords: any): boolean {
+  return (
+    coords &&
+    Array.isArray(coords) &&
+    coords.length >= 2 &&
+    typeof coords[0] === "number" &&
+    typeof coords[1] === "number" &&
+    !isNaN(coords[0]) &&
+    !isNaN(coords[1])
+  );
+}
+
 export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const zoomLevel = this.props.zoom;
-    const selectedPulse = this.props.selectedPulse;
-    const displayPosition = this.props.displayPosition;
+    const selectedPulse = this.props.selectedPulse || [];
+    const displayPosition = this.props.displayPosition || 0;
+    const showStops = this.props.showStops || false;
+
+    // Ensure data exists and has features
+    if (!this.props.data || !this.props.data.features) {
+      return [];
+    }
+
+    // Filter data for each layer to avoid null positions and validate coordinates
+    const movingVehicles = this.props.data.features.filter(
+      (d: any) =>
+        d.properties?.speed > 0 && isValidCoordinate(d.geometry?.coordinates),
+    );
+    const stoppedVehicles = this.props.data.features.filter(
+      (d: any) =>
+        d.properties?.speed <= 0 &&
+        showStops &&
+        isValidCoordinate(d.geometry?.coordinates),
+    );
+    const selectedVehicles = this.props.data.features.filter(
+      (d: any) =>
+        selectedPulse.includes(d.properties?.id) &&
+        isValidCoordinate(d.geometry?.coordinates),
+    );
+    const selectedStoppedVehicles = this.props.data.features.filter(
+      (d: any) =>
+        selectedPulse.includes(d.properties?.id) &&
+        d.properties?.speed <= 0 &&
+        showStops &&
+        isValidCoordinate(d.geometry?.coordinates),
+    );
 
     return [
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-background-layer",
+        data: this.props.data.features.filter((d: any) =>
+          isValidCoordinate(d.geometry?.coordinates),
+        ),
         getFillColor: () => [
           255,
           255,
@@ -43,7 +89,8 @@ export class PulsePinLayer extends CompositeLayer<any> {
         pickable: true,
       }) as Layer,
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-moving-vehicles-layer",
+        data: movingVehicles,
         getFillColor: (d: any) => {
           if (d.properties.id > displayPosition) {
             return [0, 0, 0, 0];
@@ -52,97 +99,75 @@ export class PulsePinLayer extends CompositeLayer<any> {
           }
         },
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) =>
-          d.properties.speed > 0 ? d.geometry.coordinates : null,
+        getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,
         },
         pickable: true,
         updateTriggers: {
           getFillColor: [selectedPulse, displayPosition],
-          getPosition: [this.props.showStops],
+          getPosition: [showStops],
         },
         getZIndex: 1000,
       }) as Layer,
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-stopped-vehicles-layer",
+        data: stoppedVehicles,
         getFillColor: () => [240, 50, 50, 255],
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) =>
-          d.properties.speed <= 0 && this.props.showStops
-            ? d.geometry.coordinates
-            : null,
+        getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,
         },
         pickable: true,
         updateTriggers: {
           getFillColor: [selectedPulse, displayPosition],
-          getPosition: [this.props.showStops],
+          getPosition: [showStops],
         },
       }) as Layer,
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-selected-background-layer",
+        data: selectedVehicles,
         getFillColor: () => [255, 255, 255, 255],
         getRadius: 280000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) => {
-          if (selectedPulse.includes(d.properties.id)) {
-            return d.geometry.coordinates;
-          } else {
-            return null;
-          }
-        },
+        getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,
         },
         updateTriggers: {
           getFillColor: [selectedPulse],
-          getPosition: [this.props.showStops],
+          getPosition: [showStops],
         },
       }) as Layer,
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-selected-vehicles-layer",
+        data: selectedVehicles,
         getFillColor: (d: any) =>
-          d.properties.speed > 0 || !this.props.showStops
+          d.properties.speed > 0 || !showStops
             ? getColor(d.properties.icu_code)
             : [240, 50, 50, 255],
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) => {
-          if (selectedPulse.includes(d.properties.id)) {
-            return d.geometry.coordinates;
-          } else {
-            return null;
-          }
-        },
+        getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,
         },
         updateTriggers: {
-          getFillColor: [selectedPulse, this.props.showStops],
+          getFillColor: [selectedPulse, showStops],
         },
       }) as Layer,
       new ScatterplotLayer({
-        data: this.props.data.features,
+        id: "pulse-selected-stopped-vehicles-layer",
+        data: selectedStoppedVehicles,
         getFillColor: (_d: any) => {
           return [240, 50, 50, 255];
         },
         getRadius: 200000 / Math.pow(1.85, zoomLevel),
-        getPosition: (d: any) => {
-          if (
-            selectedPulse.includes(d.properties.id) &&
-            d.properties.speed <= 0 &&
-            this.props.showStops
-          ) {
-            return d.geometry.coordinates;
-          } else {
-            return null;
-          }
-        },
+        getPosition: (d: any) => d.geometry.coordinates,
         parameters: {
           depthTest: false,
         },
         updateTriggers: {
-          getFillColor: [selectedPulse, this.props.showStops],
+          getFillColor: [selectedPulse, showStops],
         },
       }) as Layer,
     ];

@@ -152,25 +152,34 @@ export default function ImageSelector({ images }: { images: string[] }) {
   );
 }
 
-function ImageComponent({
+export function ImageComponent({
   image,
   index,
   setSelected,
+  setSize = "h-40 w-40",
+  stepped = true,
 }: {
-  image: string;
+  image: string | null;
   index: number;
   setSelected: (index: number) => void;
+  setSize?: string;
+  stepped?: boolean
 }) {
   return (
-    <div>
-      <div className="h-40 w-40 flex flex-col items-center justify-center gap-2 border-b-2 border-gray-300 relative">
-        <Image
-          src={image}
-          alt="Image"
-          width={160}
-          height={160}
-          className="object-cover w-full h-full"
-        />
+    <div className="overflow-hidden">
+      <div className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}>
+        {image ? (
+          <Image
+            src={image}
+            alt="Image"
+            width={160}
+            height={160}
+            className="object-cover w-full h-full"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-300 dark:bg-gray-600 overflow-hidden">
+          </div>
+        )}
         <div className="absolute top-0 right-0 left-0 bottom-0 opacity-0 flex justify-center items-center text-white transition-all duration-300 hover:opacity-100 visible backdrop-blur-[10px] bg-black/30 gap-2">
           <div
             className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
@@ -181,8 +190,8 @@ function ImageComponent({
             <MdOutlineRemoveRedEye className="w-6 h-6" />
           </div>
           <a
-            href={image}
-            download={image}
+            href={image ?? undefined}
+            download={image ?? undefined}
             className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
           >
             <MdOutlineFileDownload className="w-6 h-6" />

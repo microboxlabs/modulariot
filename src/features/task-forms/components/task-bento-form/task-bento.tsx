@@ -53,8 +53,7 @@ export async function TaskBentoForm({
       user={user}
       userGroups={userGroups}
       msg={
-        (dictionary.pages as I18nRecord)
-          .transportValidationForm as I18nRecord
+        dictionary as I18nRecord
       }
       active={active}
     />

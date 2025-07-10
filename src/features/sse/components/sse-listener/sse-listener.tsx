@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomNotification } from "@/features/notifications/notification";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { configureLocale } from "@/features/common/services/days.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import InnerData from "@/features/common/components/notification/notification-types/inner-data";
@@ -19,6 +19,7 @@ export default function SseListener({
   tenantId: string | null | undefined;
 }) {
   configureLocale();
+
   const lastNotificationRef = useRef<string>("");
   const notificationTimeoutRef = useRef<number | null>(null);
 
@@ -28,6 +29,7 @@ export default function SseListener({
       globalEventSource = new EventSource(
         `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`,
       );
+
       isInitialized = true;
       globalEventSource.onmessage = (event: MessageEvent) => {
         const parsed_event = JSON.parse(event.data);

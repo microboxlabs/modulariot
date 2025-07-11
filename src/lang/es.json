@@ -143,7 +143,7 @@
     "shippingv2": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shippingv2": "Despachos",
+        "shipping": "Despachos",
         "confirmDelivery": "Confirmar entrega",
         "finished": "Finalizados"
       },

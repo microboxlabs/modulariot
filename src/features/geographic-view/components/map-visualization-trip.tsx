@@ -444,21 +444,21 @@ export default function MapVisualizationTrip({
               ...info,
               object: {
                 properties: {
-                  icu_code: info.object?.properties.icu_code ?? 0,
-                  asset_id: info.object?.properties.assetid,
-                  rotation: info.object?.properties.heading * (180 / Math.PI),
-                  latitude: info.object?.properties.latitude,
-                  longitude: info.object?.properties.longitude,
-                  speed: info.object?.properties.speed,
-                  timestamp: info.object?.properties.timestamp,
+                  icu_code: info.object?.properties?.icu_code ?? 0,
+                  asset_id: info.object?.assetid,
+                  rotation: info.object?.heading * (180 / Math.PI),
+                  latitude: info.object?.latitude,
+                  longitude: info.object?.longitude,
+                  speed: info.object?.speed,
+                  timestamp: info.object?.timestamp,
                 },
               },
             };
 
             setHoverInfo(formattedInfo as any);
             zoom_on_pin(
-              info.object?.properties.longitude,
-              info.object?.properties.latitude,
+              info.object?.longitude,
+              info.object?.latitude,
               false,
               setViewState,
               viewState,

@@ -25,6 +25,7 @@ export default function RootLayout({
           position="bottom-center"
           richColors
           toastOptions={{ className: "bg-white dark:bg-gray-800" }}
+          closeButton
         />
       </body>
     </html>

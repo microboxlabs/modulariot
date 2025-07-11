@@ -1,7 +1,7 @@
 "use client";
 
 import { CustomNotification } from "@/features/notifications/notification";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { configureLocale } from "@/features/common/services/days.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import InnerData from "@/features/common/components/notification/notification-types/inner-data";
@@ -19,6 +19,7 @@ export default function SseListener({
   tenantId: string | null | undefined;
 }) {
   configureLocale();
+
   const lastNotificationRef = useRef<string>("");
   const notificationTimeoutRef = useRef<number | null>(null);
 
@@ -26,8 +27,9 @@ export default function SseListener({
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
       globalEventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`, // HERE ADD THE USER EMAIL
+        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`,
       );
+
       isInitialized = true;
       globalEventSource.onmessage = (event: MessageEvent) => {
         const parsed_event = JSON.parse(event.data);
@@ -82,26 +84,18 @@ export default function SseListener({
         lastNotificationRef.current = notificationId;
 
         CustomNotification(
-          <div className=" w-fit flex flex-row gap-2 items-center cursor-pointer rounded-md">
+          <div
+            className=" w-fit flex flex-row gap-2 items-center cursor-pointer rounded-md transition-all duration-300 hover:bg-gray-300 dark:hover:bg-gray-700 p-2"
+            onClick={() => {
+              window.location.href = parsed_event.payload.viewUrl;
+            }}
+          >
             <div className="w-10 h-10 flex-shrink-0 rounded-full bg-gray-500 text-gray-800 flex items-center justify-center ">
               <p className="flex items-center justify-center text-white">
                 {parsed_event.payload.creator.name.charAt(0).toUpperCase()}
               </p>
             </div>
             <InnerData data={parsed_event.payload} dictionary={dictionary} />
-            <div className="flex flex-col w-fit h-fit">
-              <div
-                className="select-none px-2 py-0.5 whitespace-nowrap bg-gray-900 border border-gray-900 transition-all duration-300 rounded-md text-xs text-white hover:bg-gray-100 hover:text-gray-900 min-w-fit"
-                onClick={() => {
-                  window.location.href = parsed_event.payload.viewUrl;
-                }}
-              >
-                {
-                  ((dictionary as I18nRecord).symptoms as I18nRecord)
-                    .watch as string
-                }
-              </div>
-            </div>
           </div>,
         );
       }

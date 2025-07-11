@@ -487,3 +487,39 @@ export function signIdCard(idCardRequest: SignIdCardRequest): Promise<any> {
     body: JSON.stringify(idCardRequest),
   });
 }
+
+export function biometricVerify(
+  driverId: string,
+  deviceId: string,
+  deviceLocation: string,
+  fingerprintData?: object,
+  driverSerieId?: string,
+): Promise<any> {
+  const url = "/app/api/biometric/verify";
+  return fetcher(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify({
+      driverId,
+      deviceId,
+      deviceLocation,
+      fingerprintData: JSON.stringify(fingerprintData),
+      driverSerieId,
+    }),
+  });
+}
+
+export function signDec5(taskId: string): Promise<any> {
+  const url = `/app/api/task/sign-dec5`;
+  return fetcher(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify({
+      taskId,
+    }),
+  });
+}

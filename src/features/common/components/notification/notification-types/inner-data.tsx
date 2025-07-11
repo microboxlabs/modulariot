@@ -24,6 +24,20 @@ export default function InnerData({
         {data.message}
       </div>
       <div className="text-sm text-gray-600 dark:text-gray-400 gap-y-1 gap-x-1 flex flex-wrap">
+        {data.properties.identificadorServicio &&
+          data.properties.identificadorServicio != "" &&
+          data.properties.identificadorServicio != "-" && (
+            <div className="p-1 px-2 bg-gray-100 dark:bg-gray-700 rounded-md text-sm whitespace-nowrap flex flex-row gap-1">
+              {
+                ((dictionary as I18nRecord).notifications as I18nRecord)
+                  .service as string
+              }
+              :{" "}
+              <div className=" text-gray-800 dark:text-gray-200">
+                {data.properties.identificadorServicio}
+              </div>
+            </div>
+          )}
         {data.properties.cliente &&
           data.properties.cliente != "" &&
           data.properties.cliente != "-" && (

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import fingerPrint from "@assets/icons/totem/fingerprint-security.gif";
@@ -47,11 +47,40 @@ export default function Huella({
   const [manualVerificationLoading, setManualVerificationLoading] =
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
+  const [qrMessage, setQrMessage] = useState<string | null>(null);
 
   const qrRef = useRef(null);
 
   // Device detection hook
   const isWindowsDevice = isWindows();
+
+  // Function to get optimal QR scanning configuration
+  const getQRScannerConfig = () => {
+    const container = document.getElementById("html5qr-code");
+    const containerWidth = container?.offsetWidth || 600;
+    const containerHeight = container?.offsetHeight || 450;
+
+    // Calculate optimal QR box size based on container
+    const qrBoxSize = Math.min(containerWidth, containerHeight) * 0.85; // 85% of container size
+
+    return {
+      cameraConfig: {
+        facingMode: "environment",
+      },
+      scannerConfig: {
+        fps: 8, // Lower FPS for better processing of large QR codes
+        qrbox: {
+          width: qrBoxSize,
+          height: qrBoxSize,
+        },
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
+        aspectRatio: 1.0,
+        formatsToSupport: ["QR_CODE", "DATA_MATRIX", "AZTEC"],
+      },
+    };
+  };
 
   useEffect(() => {
     if (count >= 3) {
@@ -60,27 +89,36 @@ export default function Huella({
   }, [count]);
 
   useEffect(() => {
+    console.log("idCardLoading", idCardLoading);
     if (idCardLoading && qrRef.current) {
       import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         const html5QrCode = new Html5Qrcode("html5qr-code");
+
+        // Get optimal configuration for large QR codes
+        const config = getQRScannerConfig();
+
         html5QrCode.start(
-          { facingMode: "environment" },
-          {
-            fps: 20,
-            qrbox: { width: 250, height: 250 },
-          },
-          (decodedText: string, decodedResult: any) => {
-            console.log("QR Code link:", decodedText);
-            console.log("QR Code result:", decodedResult);
+          config.cameraConfig,
+          config.scannerConfig,
+          async (decodedText: string, _decodedResult: any) => {
             const serialText = decodedText.substring(
               decodedText.indexOf("&serial=") + 8,
-              decodedText.indexOf("&mrz=") - 1,
+              decodedText.indexOf("&mrz="),
             );
-            console.log("Serial text:", serialText);
+            setQrMessage(serialText);
             setIdCardNumber(serialText);
-            setIdCard(true);
-            html5QrCode.clear();
-            html5QrCode.stop();
+            const response = await validateIdCard({
+              user_rut: rutData?.rut as string,
+              nro_serie: serialText,
+            });
+            if (response.success) {
+              setVerificatioSuccess(true);
+              setStatus("success");
+            } else {
+              setStatus("error-id-card");
+            }
+            html5QrCode?.clear();
+            html5QrCode?.stop();
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors
@@ -303,31 +341,25 @@ export default function Huella({
             />
           </>
         )}
-
+        {qrMessage && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
+            {qrMessage}
+          </p>
+        )}
         <div className="flex flex-col items-center justify-center">
           {idCardLoading ? (
             <>
-              {/* <div className="w-full flex justify-center mb-4">
-                <QrReader
-                  constraints={{ facingMode: "environment" }}
-                  onResult={(result, error) => {                    
-                    if (!!result) {
-                      console.log("QR Code link:", result?.getText());
-                    }
-                    if (!!error && error.name !== "NotFoundException" && error.name !== "ChecksumException") {
-                      console.error("QR Code error:", error);
-                    }
-                  }}
-                  containerStyle={{ width: "100%" }}
-                  videoStyle={{ width: "100%" }}
-                />
-              </div> */}
-
               <div className="w-full flex justify-center mb-4">
                 <div
                   id="html5qr-code"
                   ref={qrRef}
-                  style={{ width: "100%", maxWidth: 400 }}
+                  style={{
+                    width: "100%",
+                    maxWidth: 400,
+                    minHeight: 400,
+                    aspectRatio: "1/1",
+                  }}
+                  className="rounded-lg overflow-hidden border-2 border-gray-300"
                 />
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
@@ -344,7 +376,11 @@ export default function Huella({
           )}
         </div>
         {idCardLoading ? (
-          <Button
+          <>
+            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+              {(dict.totem as I18nRecord).loading as string}
+            </p>
+            {/* <Button
             onClick={() => {
               setIdCardLoading(false);
               setVerificatioSuccess(true);
@@ -358,7 +394,8 @@ export default function Huella({
             <p className="text-base font-light">
               {(dict.totem as I18nRecord).continue as string}
             </p>
-          </Button>
+          </Button> */}
+          </>
         ) : (
           <Button
             onClick={() => {

@@ -35,9 +35,9 @@ export default async function Notifications({ lang }: { lang: string }) {
 
       let dayKey;
       if (date.toDateString() === today.toDateString()) {
-        dayKey = "Today";
+        dayKey = lang === "es" ? "Hoy" : "Today";
       } else if (date.toDateString() === yesterday.toDateString()) {
-        dayKey = "Yesterday";
+        dayKey = lang === "es" ? "Ayer" : "Yesterday";
       } else {
         dayKey = date.toLocaleDateString(lang === "es" ? "es-CL" : "en-US", {
           day: "numeric",

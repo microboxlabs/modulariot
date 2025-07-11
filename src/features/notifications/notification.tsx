@@ -81,6 +81,7 @@ export function CustomNotification(children: React.ReactNode) {
       maxWidth: "90vw",
       height: "auto",
       minHeight: "fit-content",
+      padding: "0",
     },
   });
 }

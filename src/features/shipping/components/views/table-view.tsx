@@ -45,7 +45,9 @@ export function TableView({ data, dict }: TableViewProps) {
                   className="bg-white dark:border-gray-700 dark:bg-gray-800"
                 >
                   <Table.Cell className="font-medium text-gray-900 dark:text-white cursor-pointer">
-                    <Link href={`/task/edit/${task.id}`}>{task.name}</Link>
+                    <Link href={`/task/edit/${task.id}`} prefetch={false}>
+                      {task.name}
+                    </Link>
                   </Table.Cell>
                   <Table.Cell>{task.mintral_truckLicensePlate}</Table.Cell>
                   <Table.Cell>

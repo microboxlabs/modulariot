@@ -25,8 +25,8 @@ export default function TripData({
   );
 
   return (
-    <div className="flex flex-col whitespace-nowrap">
-      <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col font-light h-full ">
+    <div className="flex flex-col whitespace-nowrap w-fit">
+      <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col justify-between  font-light h-full ">
         <span className="text-gray-600 dark:text-gray-400  text-xs">
           {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
           <span className="text-gray-800 dark:text-gray-200  text-xs">

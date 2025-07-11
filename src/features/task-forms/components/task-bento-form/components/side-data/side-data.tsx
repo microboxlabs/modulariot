@@ -31,7 +31,8 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
               a file here or{" "}
               <span className="font-bold text-gray-700 dark:text-gray-200">
                 click
-              </span> to upload
+              </span>{" "}
+              to upload
             </p>
           </div>
           <FileInput id="dropzone-file" className="hidden" />
@@ -40,7 +41,9 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
 
       {/* Images */}
       <div className="gap-2 duration-300 rounded-lg relative">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Galeria (12 elementos)</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Galeria (12 elementos)
+        </p>
         <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative">
           <ImageComponent
             image={null}
@@ -76,7 +79,9 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
       {/* Documents */}
       <div className="gap-2 duration-300 rounded-lg relative">
         <div className="flex flex-row justify-between items-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Documentos (12 elementos)</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Documentos (12 elementos)
+          </p>
           <div className="text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed">
             Ver mas
           </div>
@@ -90,8 +95,7 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
       </div>
 
       {/* Forum */}
-      {
-        /*
+      {/*
         <div className="w-full h-96 rounded-lg flex flex-col overflow-hidden border border-gray-300">
         <h1 className="text-sm font-bold p-2">Foro</h1>
         <div className="flex flex-col gap-2 bg-gray-200 h-full p-2">
@@ -110,10 +114,11 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
         </div>
         <TextInput id="email1" type="text" placeholder="Escribe tu mensaje" required />
       </div>
-        */
-      }
+        */}
       <div className="w-fit rounded-lg flex flex-col overflow-hidden whitespace-nowrap min-w-fit">
-        <h1 className="text-sm text-gray-800 dark:text-gray-200">Síntomas presentes en el viaje</h1>
+        <h1 className="text-sm text-gray-800 dark:text-gray-200">
+          Síntomas presentes en el viaje
+        </h1>
         {/* Code black */}
         <div className="flex flex-row gap-2 items-center w-full rounded-lg pl-2 pr-1 py-1 border border-gray-300">
           <Image
@@ -130,9 +135,13 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
                 size="h-7 w-7"
                 dict={dict as unknown as I18nRecord}
               />
-              <p className="text-sm text-gray-600 dark:text-gray-400">Codigo Negro</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Codigo Negro
+              </p>
             </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">00</h1>
+            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+              00
+            </h1>
           </div>
         </div>
         {/* Critical condition */}
@@ -145,29 +154,36 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
             height={35}
           />
           <div className="flex flex-row gap-1 w-full">
-            
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="critic"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">Condición crítica</p>
+            <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 rounded-lg px-2 py-1">
+              <div className="flex flex-row gap-2 items-center w-full">
+                <ConditionIcon
+                  condition="critic"
+                  size="h-7 w-7"
+                  dict={dict as unknown as I18nRecord}
+                />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Condición crítica
+                </p>
+              </div>
+              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+                00
+              </h1>
             </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">00</h1>
-          </div>
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="compromised"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">Condición comprometida</p>
+            <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 rounded-lg px-2 py-1">
+              <div className="flex flex-row gap-2 items-center w-full">
+                <ConditionIcon
+                  condition="compromised"
+                  size="h-7 w-7"
+                  dict={dict as unknown as I18nRecord}
+                />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Condición comprometida
+                </p>
+              </div>
+              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+                00
+              </h1>
             </div>
-            <h1 className="text-md text-gray-800 h-full flex items-center justify-center">00</h1>
-          </div>
           </div>
         </div>
         {/* Treatment and observation */}
@@ -187,9 +203,13 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
                   size="h-7 w-7"
                   dict={dict as unknown as I18nRecord}
                 />
-                <p className="text-sm text-gray-600 dark:text-gray-400">En tratamiento</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  En tratamiento
+                </p>
               </div>
-              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">00</h1>
+              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+                00
+              </h1>
             </div>
             <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 rounded-lg px-2 py-1">
               <div className="flex flex-row gap-2 items-center w-full">
@@ -198,9 +218,13 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
                   size="h-7 w-7"
                   dict={dict as unknown as I18nRecord}
                 />
-                <p className="text-sm text-gray-600 dark:text-gray-400">En observación</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  En observación
+                </p>
               </div>
-              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">00</h1>
+              <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+                00
+              </h1>
             </div>
           </div>
         </div>
@@ -220,9 +244,13 @@ export default function SideData({ dict }: { dict: I18nRecord }) {
                 size="h-7 w-7"
                 dict={dict as unknown as I18nRecord}
               />
-              <p className="text-sm text-gray-600 dark:text-gray-400">Estable</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Estable
+              </p>
             </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">00</h1>
+            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+              00
+            </h1>
           </div>
         </div>
       </div>

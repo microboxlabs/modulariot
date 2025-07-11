@@ -14,24 +14,30 @@ export default function TripInformation({
   lang: string;
   userGroups: string[];
 }) {
+  console.log(task);
+
   return (
-    <div className="flex flex-wrap items-center flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg gap-2 p-2 border border-gray-300 dark:border-gray-700 portrait:w-full">
-      <div className="flex flex-wrap flex-col gap-2 items-stretch w-fit">
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit">Trip Information</h1>
+    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg gap-2 p-2 border border-gray-300 dark:border-gray-700 portrait:w-full">
+      <div className="flex flex-wrap gap-2">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit">
+          Trip Information
+        </h1>
+        <h2 className="text-sm flex font-normal items-end text-gray-600  dark:text-gray-400 w-fit">
+          {task.mintral_serviceCode + "-V"}
+        </h2>
+      </div>
+      <div className="flex flex-wrap gap-2 w-fit">
         <TripData
           task={task}
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
         />
+        <TripVerifications
+          task={task}
+          msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+          lang={lang}
+          userGroups={userGroups}
+        />
       </div>
-      <TripVerifications
-        task={task}
-        msg={
-          (msg.pages as I18nRecord)
-            .transportValidationForm as I18nRecord
-        }
-        lang={lang}
-        userGroups={userGroups}
-      />
     </div>
   );
 }

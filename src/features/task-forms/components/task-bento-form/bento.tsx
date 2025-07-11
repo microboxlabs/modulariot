@@ -87,6 +87,26 @@ export default function Bento({
       </div>
       {/* Head */}
 
+      {/* Fixed Content */}
+      <div className="grid grid-cols-3 gap-2 p-2">
+        <div className="col-span-1 row-span-1 w-full h-96 bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          Trip information
+        </div>
+        <div className="col-span-1 w-full h-96 bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          Driver information
+        </div>
+        <div className="row-start-1 row-end-5 col-start-3 col-end-3 w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          AAAAA
+        </div>
+        <div className="row-start-2 row-end-5 col-start-1 col-end-3 w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          Map
+        </div>
+        
+      </div>
+      {/* Fixed Content */}
+
+
+
       {/* Content */}
       <div className="flex flex-row flex-wrap gap-2 p-2 overflow-y-auto flex-grow w-full">
         <div className="flex gap-2 flex-col flex-1 portrait:w-full">

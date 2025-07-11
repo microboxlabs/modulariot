@@ -61,9 +61,7 @@ export const pages: SidebarItem[] = [
     icon: ChartMixedIcon,
     label: "controlTower",
     /* eslint-disable */
-    items: [
-      ...(process.env.NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW == "TRUE"
-        ? [
+    items: [       
           {
             href: "/geographic-view",
             label: "geographicView",
@@ -77,9 +75,7 @@ export const pages: SidebarItem[] = [
             totals: {},
             requiredGroups: [],
             blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
-          },
-        ]
-        : []),
+          },       
     ],
     /* eslint-enable */
 

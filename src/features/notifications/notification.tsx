@@ -74,5 +74,13 @@ export function ShowNotification(action: NotificationAction) {
 }
 
 export function CustomNotification(children: React.ReactNode) {
-  toast(children);
+  toast(children, {
+    style: {
+      width: "fit-content",
+      minWidth: "400px",
+      maxWidth: "90vw",
+      height: "auto",
+      minHeight: "fit-content",
+    },
+  });
 }

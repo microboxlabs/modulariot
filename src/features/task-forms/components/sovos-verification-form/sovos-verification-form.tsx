@@ -8,11 +8,12 @@ import SovosStartVerificationCard from "../sovos-start-verification-card/sovos-s
 import { useState } from "react";
 import SovosVerificationResultCard from "../sovos-verification-result-card/sovos-verification-result-card";
 import { StepperController } from "@/features/layout/components/stepper-navigation/stepper-navigation.types";
-import { taskNextAction, taskSignDocument, taskSignIdCardDocument } from "../../services/client-form.service";
+//import { taskNextAction, taskSignDocument, taskSignIdCardDocument } from "../../services/client-form.service";
 import SovosDeps from "../sovos-deps/sovos-deps";
 import { useRouter } from "next/navigation";
 import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
 import { TaskOutcome } from "../../services/form.service.types";
+import { signDec5 } from "@/features/common/providers/client-api.provider";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -37,7 +38,7 @@ export default function SovosVerificationForm({
   const handleSignDocument = async () => {
     setLoading(true);    
     console.log(audits);
-    let pos = 0;
+    /* let pos = 0;
     let results = [];
     for (const audit of audits) {
       const formData = new FormData();
@@ -106,9 +107,10 @@ export default function SovosVerificationForm({
           ...stepper,
           isError: true,
         });
-      }
-    /* const result = await taskSignDocument({}, formData);
-
+      }   
+    setLoading(false); */
+   
+    const result = await signDec5(task.id);
     if (result.success) {
       router.push(`/${lang}/shipping`);
     } else {
@@ -116,9 +118,7 @@ export default function SovosVerificationForm({
         ...stepper,
         isError: true,
       });
-    } */
-    setLoading(false);
-    //TODO: toast check for some errors
+    }
   };
 
   const stepperController: StepperController = {

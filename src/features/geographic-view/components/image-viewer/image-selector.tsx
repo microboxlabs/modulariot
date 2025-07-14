@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { FaChevronRight, FaShare } from "react-icons/fa";
+import { FaChevronRight } from "react-icons/fa";
 import { MdOutlineFileDownload, MdOutlineRemoveRedEye } from "react-icons/md";
 import Image from "next/image";
-import { Button } from "flowbite-react";
-import Carousel from "./carousel";
-import { toast } from "sonner";
+import ImageViewer from "./image-viewer";
 
 export default function ImageSelector({ images }: { images: string[] }) {
   const [open, setOpen] = useState(true);
@@ -41,27 +39,6 @@ export default function ImageSelector({ images }: { images: string[] }) {
     };
   }, [open]);
 
-  const handleShare = () => {
-    // Basic share implementation (could be expanded)
-    if (navigator.share && selected) {
-      navigator
-        .share({
-          title: "Vista geográfica",
-          text: "Compartir la vista geográfica",
-          url: images[selected],
-        })
-        .then(() => {
-          toast.success("Imagen compartida");
-        })
-        .catch((error) => {
-          console.error("Share error:", error);
-          toast.error("Error al compartir imagen");
-        });
-    } else {
-      console.error("Sharing is not supported on this device/browser");
-    }
-  };
-
   return (
     <div
       ref={scrollRef}
@@ -95,59 +72,11 @@ export default function ImageSelector({ images }: { images: string[] }) {
           ↓
         </div>
       </div>
-      <div
-        className={`fixed top-0 right-0 left-0 bottom-0 opacity-0 flex justify-center items-center text-white transition-all duration-300 visible z-50 backdrop-blur-[10px] gap-2 ${selected !== null ? "animate-show-flex" : "animate-hide-flex"}`}
-        onClick={(e) => {
-          // Only close if clicking the background, not the content
-          if (e.target === e.currentTarget) {
-            setSelected(null);
-          }
-        }}
-      >
-        <div className="w-[80%] h-[80%]">
-          <div className="flex flex-col items-center justify-center bg-white dark:bg-gray-700 rounded-lg border border-gray-800 w-full h-full">
-            <div className="relative flex flex-col items-center justify-center gap-2 bg-gray-300 dark:bg-gray-600 rounded-t-lg shadow-lg w-full h-full">
-              {selected !== null && (
-                <Carousel
-                  images={images}
-                  selected={selected}
-                  setSelected={setSelected}
-                />
-              )}
-            </div>
-            {selected !== null && (
-              <div className="w-full flex justify-between items-center text-white transition-all duration-300 gap-2 p-2">
-                <div className="text-gray-500 dark:text-gray-300 text-sm font-light">
-                  {
-                    images[selected]?.split("/")[
-                      images[selected]?.split("/").length - 1
-                    ]
-                  }
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    color="blue"
-                    onClick={() => {
-                      if (!selected) return;
-                      const link = document.createElement("a");
-                      link.download = `vista-geografica-${new Date().toISOString().slice(0, 10)}.png`;
-                      link.href = images[selected];
-                      link.click();
-                    }}
-                    pill
-                    size="sm"
-                  >
-                    <MdOutlineFileDownload className="w-4 h-4" />
-                  </Button>
-                  <Button color="blue" onClick={handleShare} pill size="sm">
-                    <FaShare className="h-4 w-4 text-white text-center" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ImageViewer
+        images={images}
+        selected={selected}
+        setSelected={setSelected}
+      />
     </div>
   );
 }
@@ -163,11 +92,13 @@ export function ImageComponent({
   index: number;
   setSelected: (index: number) => void;
   setSize?: string;
-  stepped?: boolean
+  stepped?: boolean;
 }) {
   return (
     <div className="overflow-hidden">
-      <div className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}>
+      <div
+        className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}
+      >
         {image ? (
           <Image
             src={image}
@@ -177,8 +108,7 @@ export function ImageComponent({
             className="object-cover w-full h-full"
           />
         ) : (
-          <div className="w-full h-full bg-gray-300 dark:bg-gray-600 overflow-hidden">
-          </div>
+          <div className="w-full h-full bg-gray-300 dark:bg-gray-600 overflow-hidden"></div>
         )}
         <div className="absolute top-0 right-0 left-0 bottom-0 opacity-0 flex justify-center items-center text-white transition-all duration-300 hover:opacity-100 visible backdrop-blur-[10px] bg-black/30 gap-2">
           <div

@@ -33,8 +33,6 @@ export default function Geographic({
     { latitude: 0, longitude: 0 },
   );
 
-  console.log("oli");
-
   return (
     <div className="bg-gray-100 dark:bg-gray-800 h-full w-full flex-1 overflow-hidden ">
       <MapVisualizationTrip
@@ -46,6 +44,7 @@ export default function Geographic({
         filteredLocationData={null}
         dict={dictionary}
         selectedTreatmentIndex={null}
+        minimized={true}
       />
     </div>
   );

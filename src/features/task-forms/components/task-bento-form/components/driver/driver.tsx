@@ -39,12 +39,12 @@ export default function DriverInfo({
   }
 
   return (
-    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700 whitespace-nowrap relative">
+    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg whitespace-nowrap relative">
       <DriverData driver={driver1} msg={msg} />
       {
         driver2 && (
           <>
-            <hr className="w-full mb-2 mt-3" />
+            <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
             <DriverData driver={driver2} msg={msg} />
           </>
         )

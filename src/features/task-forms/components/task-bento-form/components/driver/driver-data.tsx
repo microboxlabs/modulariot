@@ -15,8 +15,8 @@ export default function DriverData({
   console.log(driver);
 
   return (
-    <div className="flex flex-col gap-1 h-full">
-      <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 items-center">
+    <div className="flex flex-col gap-2 h-full">
+      <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 items-center whitespace-normal">
         {driver.name}
         <Tooltip
           style="auto"

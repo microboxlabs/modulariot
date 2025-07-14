@@ -1,13 +1,7 @@
-import DriverValidation from "../../../driver-validation-card/driver-validation-card";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import DriverValidations from "./driver-validations";
-import { IoIosMail } from "react-icons/io";
-import { FaCheck, FaIdCard, FaPhoneAlt, FaRegIdCard } from "react-icons/fa";
-import { Tooltip } from "flowbite-react";
 import DriverData from "./driver-data";
 import { Driver } from "@/features/task-forms/components/driver-contact-info/driver-contact-info.type";
-
 
 export default function DriverInfo({
   task,
@@ -16,7 +10,6 @@ export default function DriverInfo({
   task: TaskResponse;
   msg: I18nRecord;
 }) {
-
   const driver1: Driver = {
     name: (task.mintral_driver1Name as string) ?? "-",
     email: (task.mintral_driver1Email as string) ?? "-",
@@ -39,16 +32,14 @@ export default function DriverInfo({
   }
 
   return (
-    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg whitespace-nowrap relative">
+    <div className="flex flex-col flex-grow rounded-lg whitespace-nowrap relative">
       <DriverData driver={driver1} msg={msg} />
-      {
-        driver2 && (
-          <>
-            <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
-            <DriverData driver={driver2} msg={msg} />
-          </>
-        )
-      }
+      {driver2 && (
+        <>
+          <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
+          <DriverData driver={driver2} msg={msg} />
+        </>
+      )}
     </div>
   );
 }

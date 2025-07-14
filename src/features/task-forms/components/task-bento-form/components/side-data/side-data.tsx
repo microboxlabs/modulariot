@@ -1,5 +1,5 @@
 import { FileInput, Label, TextInput } from "flowbite-react";
-import { ImageComponent } from "@/features/geographic-view/components/image-selector";
+import { ImageComponent } from "@/features/geographic-view/components/image-viewer/image-selector";
 import Link from "next/link";
 import { FaRegFilePdf } from "react-icons/fa";
 import Image from "next/image";

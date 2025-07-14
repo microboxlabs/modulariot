@@ -17,7 +17,8 @@ import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
 import SymptomsListSkeleton from "@/features/symptoms/components/symptoms-list/symptoms-list-skeleton";
 import EmptyAnimation from "@/features/symptoms/components/empty-animation";
-
+import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
+import { useState } from "react";
 
 export default function Bento({
   lang,
@@ -34,11 +35,15 @@ export default function Bento({
   msg: I18nRecord;
   active: boolean;
 }) {
-  console.log(task);
+  const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
-  
-
-  console.log(msg);
+  const testImages = [
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+  ];
 
   return (
     <div className="flex flex-col w-full h-full ">
@@ -84,7 +89,9 @@ export default function Bento({
             </div>
           </Button>
           <TaskActions
-            dict={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+            dict={
+              (msg.pages as I18nRecord).transportValidationForm as I18nRecord
+            }
             taskId={task.id}
             taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
             lang={lang}
@@ -95,11 +102,11 @@ export default function Bento({
       {/* Head */}
 
       {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 p-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 bg-gray-50">
         {/* Trip Information and Driver Info - side by side on portrait, separate on landscape */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-2">
           {/* Trip Information */}
-          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
             <TripInformation
               task={task}
               msg={msg}
@@ -109,22 +116,25 @@ export default function Bento({
           </div>
 
           {/* Driver Info */}
-          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
             <DriverInfo task={task} msg={msg} />
           </div>
         </div>
 
         {/* Conditions */}
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
           <Conditions dict={msg as I18nRecord} />
         </div>
-        
+
         {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}
-        <div className="lg:col-span-2 sm:bg-gray-100 sm:dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit">
           <div className="h-full w-full hidden sm:flex">
-            <Geographic task={task} dictionary={msg as unknown as Record<string, string>} />
+            <Geographic
+              task={task}
+              dictionary={msg as unknown as Record<string, string>}
+            />
           </div>
-          <div className="rounded-lg overflow-hidden sm:hidden bg-gray-100 dark:bg-gray-800">
+          <div className="rounded-lg overflow-hidden sm:hidden bg-white dark:bg-gray-800">
             <Button className="w-full h-full" color="gray">
               <div className="flex flex-row gap-2 items-center">
                 <FaMapPin />
@@ -135,12 +145,15 @@ export default function Bento({
         </div>
 
         {/* File Images */}
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-          <FileImages />
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          <FileImages
+            images={testImages.slice(0, 4)}
+            setSelectedImage={setSelectedImage}
+          />
         </div>
 
         {/* Historic Loads - spans full width */}
-        <div className="lg:col-span-2 bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[343px]">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[343px]">
           <HistoricLoads
             task={task}
             dictionary={msg as unknown as Record<string, string>}
@@ -149,13 +162,20 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        <div className=" bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
+        <div className=" bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
           <div className="flex flex-col items-center justify-center h-full scale-90">
-            <EmptyAnimation/>          
+            <EmptyAnimation />
           </div>
         </div>
       </div>
       {/* Content */}
+
+      {/* Image Viewer */}
+      <ImageViewer
+        images={testImages}
+        selected={selectedImage}
+        setSelected={setSelectedImage}
+      />
     </div>
   );
 }

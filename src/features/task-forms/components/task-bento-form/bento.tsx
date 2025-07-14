@@ -8,17 +8,15 @@ import { FaMapPin, FaRegFilePdf } from "react-icons/fa";
 import { GoClockFill } from "react-icons/go";
 import { MdWindow } from "react-icons/md";
 import DriverInfo from "./components/driver/driver";
-import { GeographicHistoric } from "@/features/shipping/components/geographic-historic";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
-import SideData from "./components/side-data/side-data";
 import Conditions from "./components/side-data/conditions";
 import FileImages from "./components/side-data/file-images";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
-import SymptomsListSkeleton from "@/features/symptoms/components/symptoms-list/symptoms-list-skeleton";
 import EmptyAnimation from "@/features/symptoms/components/empty-animation";
 import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
 import { useState } from "react";
+import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 
 export default function Bento({
   lang,
@@ -77,17 +75,14 @@ export default function Bento({
               </p>
             </div>
           </Button>
-          <Button
-            color="gray"
-            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800 gap-2 w-fit"
-          >
-            <div className="flex flex-row gap-2 items-center">
-              <FaRegFilePdf className="w-5 h-5" width={20} height={20} />
-              <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                Carta Porte
-              </p>
-            </div>
-          </Button>
+          {task.mintral_hoReference && (
+            <DownloadSignedDocument
+              documentId={task.mintral_hoReference}
+              asLink
+              name="Carta Porte"
+            />
+          )}
+
           <TaskActions
             dict={
               (msg.pages as I18nRecord).transportValidationForm as I18nRecord
@@ -102,7 +97,7 @@ export default function Bento({
       {/* Head */}
 
       {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 bg-gray-50">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 bg-gray-50 dark:bg-gray-900">
         {/* Trip Information and Driver Info - side by side on portrait, separate on landscape */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-2">
           {/* Trip Information */}
@@ -153,7 +148,7 @@ export default function Bento({
         </div>
 
         {/* Historic Loads - spans full width */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[343px]">
+        <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg min-h-[343px]">
           <HistoricLoads
             task={task}
             dictionary={msg as unknown as Record<string, string>}
@@ -162,11 +157,13 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        <div className=" bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
-          <div className="flex flex-col items-center justify-center h-full scale-90">
-            <EmptyAnimation />
+        {/*
+          <div className=" bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
+            <div className="flex flex-col items-center justify-center h-full scale-90">
+              <EmptyAnimation />
+            </div>
           </div>
-        </div>
+        */}
       </div>
       {/* Content */}
 

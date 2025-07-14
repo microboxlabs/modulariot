@@ -367,13 +367,6 @@ export default function TaskActions({
         </div>
       );
     default:
-      return (
-        <div className="">
-          <Button size="md" color="blue">
-            Choose plan
-            <HiOutlineArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </div>
-      );
+      return null;
   }
 }

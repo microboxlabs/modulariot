@@ -12,6 +12,7 @@ export default function FileImages({
   return (
     <div className="h-full w-full flex flex-col">
       {/* Update of files */}
+
       <div className="flex w-full items-center justify-center flex-1">
         <Label
           htmlFor="dropzone-file"
@@ -38,9 +39,14 @@ export default function FileImages({
 
       {/* Images */}
       <div className="gap-2 flex flex-col duration-300 rounded-lg relative mt-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Galeria (12 elementos)
-        </p>
+        <div className="flex flex-row justify-between items-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Galeria (12 elementos)
+          </p>
+          <div className="text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed">
+            Ver mas
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative">
           {images.map((image, index) => (
             <ImageComponent

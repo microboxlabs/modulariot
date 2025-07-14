@@ -14,8 +14,6 @@ export default function TripInformation({
   lang: string;
   userGroups: string[];
 }) {
-  console.log(task);
-
   return (
     <div className="flex flex-col flex-grow rounded-lg gap-2 dark:border-gray-700 portrait:w-full">
       <div className="flex flex-wrap gap-2">

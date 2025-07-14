@@ -128,3 +128,12 @@ export type TaskOutcomeV2 =
   | PrepareServiceTaskOutcome
   | MissionControlTaskOutcome
   | MonitorTripTaskOutcome;
+
+export type ShippingCoordinatorProcessTaskV2 =
+  | "assignDriver"
+  | "presentDriver"
+  | "prepareService"
+  | "missionControl"
+  | "monitorTrip"
+  | "confirmArrival"
+  | "closeMonitoring";

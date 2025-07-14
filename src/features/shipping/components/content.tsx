@@ -45,7 +45,10 @@ import {
 } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
+import {
+  SHIPPING_COORDINATOR_PROCESS_TASKS,
+  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+} from "@/features/task-forms/services/form.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
 import { useViewPreference } from "../hooks/use-view-preference";
@@ -76,7 +79,10 @@ export default function PageContent({
     error: myTasksError,
     isLoading: _1,
   } = useMyTasks(
-    SHIPPING_COORDINATOR_PROCESS_TASKS,
+    [
+      ...SHIPPING_COORDINATOR_PROCESS_TASKS,
+      ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+    ],
     showFinishedTasks,
     page,
     pageSize,

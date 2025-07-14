@@ -30,6 +30,13 @@ const taskShippingBoardMap: Record<string, string> = {
 
   tripNullified: "tripNullified",
   tripCanceled: "tripCancelled",
+  // v2
+  "wfship2:assignDriverTask": "assignDriver",
+  "wfship2:presentDriverTask": "presentDriver",
+  "wfship2:prepareServiceTask": "prepareService",
+  "wfship2:missionControlTask": "missionControl",
+  "wfship2:monitorTripTask": "monitorTrip",
+  "wfship2:confirmArrivalTask": "confirmArrival",
 };
 
 function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {

@@ -95,7 +95,7 @@ export function ImageComponent({
   stepped?: boolean;
 }) {
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600">
       <div
         className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}
       >

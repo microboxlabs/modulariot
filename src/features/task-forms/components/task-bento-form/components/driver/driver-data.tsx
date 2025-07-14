@@ -12,35 +12,38 @@ export default function DriverData({
   driver: Driver;
   msg: I18nRecord;
 }) {
-  console.log(driver);
-
   return (
     <div className="flex flex-col gap-2 h-full">
-      <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 items-center whitespace-normal">
-        {driver.name}
-        <Tooltip
-          style="auto"
-          content={
-            <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light">
-              Estado:{" "}
-              <span className="text-gray-800 dark:text-gray-100 text-sm">
-                {driver.status}
-              </span>
-            </div>
-          }
-        >
-          {driver.status === "verified" && (
-            <div className="border border-green-500 bg-green-500 rounded-full p-1">
-              <FaCheck className="w-4 h-4 text-white" />
-            </div>
-          )}
-          {driver.status !== "verified" && (
-            <div className="border border-red-500 bg-red-500 rounded-full p-1">
-              <FaTimes className="w-4 h-4 text-white" />
-            </div>
-          )}
-        </Tooltip>
-      </h1>
+      <div className="flex flex-col">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 items-center whitespace-normal">
+          {driver.name}
+          <Tooltip
+            style="auto"
+            content={
+              <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light">
+                Estado:{" "}
+                <span className="text-gray-800 dark:text-gray-100 text-sm">
+                  {driver.status}
+                </span>
+              </div>
+            }
+          >
+            {driver.status === "verified" && (
+              <div className="border border-green-500 bg-green-500 rounded-full p-1">
+                <FaCheck className="w-4 h-4 text-white" />
+              </div>
+            )}
+            {driver.status !== "verified" && (
+              <div className="border border-red-500 bg-red-500 rounded-full p-1">
+                <FaTimes className="w-4 h-4 text-white" />
+              </div>
+            )}
+          </Tooltip>
+        </h1>
+        <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
+          {driver.varName}
+        </h2>
+      </div>
 
       {/* Trip specific data */}
       <div className="flex flex-wrap gap-2 items-stretch h-full">

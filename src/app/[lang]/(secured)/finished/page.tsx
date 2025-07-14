@@ -16,8 +16,6 @@ export default async function FinishedPage({
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
-  console.log("RAAAAAAAAAAAAAH");
-  console.log(session?.user.email);
 
   // let tasks;
   try {

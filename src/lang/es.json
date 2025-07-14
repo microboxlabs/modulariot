@@ -39,7 +39,7 @@
       "kanban": {
         "transportValidation": "Validación de Conductor / transporte",
         "transportValidationCompact": "Validación transporte",
-        "missionControlTripInit": "Torre de Control: Iniciar viaje",
+        "missionControlTripInit": "Iniciar viaje",
         "missionControlTripInitCompact": "TC: Iniciar viaje",
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "overlordTripInitCompact": "Overlord - Iniciar viaje",
@@ -157,7 +157,7 @@
         "presentDriver1Compact": "Presentar Conductor",
         "prepareService": "Preparar Servicio",
         "prepareServiceCompact": "Preparar Servicio",
-        "missionControlTripInit": "Torre de Control: Iniciar viaje",
+        "missionControlTripInit": "Iniciar viaje",
         "missionControlTripInitCompact": "TC: Iniciar viaje",
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "overlordTripInitCompact": "Overlord - Iniciar viaje",

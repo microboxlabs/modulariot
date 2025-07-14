@@ -3,7 +3,7 @@ import { FaRegFilePdf } from "react-icons/fa";
 
 export default function Document() {
   return (
-    <div className="w-full rounded-lg flex flex-row items-center overflow-hidden border-2 border-gray-300">
+    <div className="w-full rounded-lg flex flex-row items-center overflow-hidden border border-gray-300 p-2">
       <div className="h-full bg-gray-200 aspect-square"></div>
       <div className="flex flex-col h-full justify-center p-2 w-full">
         <p className="text-sm text-gray-800 dark:text-gray-200">Padrón</p>

@@ -17,7 +17,7 @@ export default function TripInformation({
   console.log(task);
 
   return (
-    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg gap-2 p-2 border border-gray-300 dark:border-gray-700 portrait:w-full">
+    <div className="flex flex-col flex-grow bg-gray-100 dark:bg-gray-800 rounded-lg gap-2 dark:border-gray-700 portrait:w-full">
       <div className="flex flex-wrap gap-2">
         <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit">
           Trip Information

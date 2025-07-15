@@ -5,6 +5,7 @@ import {
   NodesApi,
   PersonEntry,
   GroupsApi,
+  NodeChildAssociationPaging,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -173,6 +174,18 @@ export async function uploadNodeContent(
     body: formdata,
   });
   return result as string;
+}
+
+export async function getChildrenNodes(
+  ticket: string,
+  nodeId: string,
+): Promise<NodeChildAssociationPaging> {
+  alfrescoApi.setTicket(ticket, "");
+  const nodesApi = new NodesApi(alfrescoApi.contentClient);
+  const children = await nodesApi.listNodeChildren(nodeId, {
+    where: "(isFile=true)",
+  });
+  return children;
 }
 
 export async function getContentNode(

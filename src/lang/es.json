@@ -135,7 +135,7 @@
         "active": "Activo",
         "completed": "Completado",
         "driverId": "RUT Conductor",
-        "carrierId": "ID Transportista",
+        "carrierId": "RUT Transportista",
         "carrierName": "Transportista",
         "customerCode": "Cliente"
       }

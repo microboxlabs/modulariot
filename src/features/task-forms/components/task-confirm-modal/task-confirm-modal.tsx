@@ -17,8 +17,10 @@ import { ErrorAlert } from "../error-alert";
 import {
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
+  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "../../services/form.service";
 import { useState } from "react";
+import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.types";
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
@@ -75,7 +77,16 @@ export default function TaskConfirmModal({
       if (response.success) {
         setIsProcessing(false);
         setOpenModal(false);
-        router.push(`/shipping`);
+        if (
+          taskType &&
+          SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
+            taskType as ShippingCoordinatorProcessTaskV2,
+          )
+        ) {
+          router.push(`/shipping2`);
+        } else {
+          router.push(`/shipping`);
+        }
         return;
       }
       setIsProcessing(false);

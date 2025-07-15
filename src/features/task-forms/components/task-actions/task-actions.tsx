@@ -26,6 +26,14 @@ import {
   OUTCOME_OVERLORD_CANCELED,
   OUTCOME_OVERLORD_ANULLED,
   OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+  TYPE_WFSHIP2_ASSIGN_DRIVER_TASK,
+  TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
+  TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
+  TYPE_WFSHIP2_PREPARE_SERVICE_TASK,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFSHIP2_MONITOR_TRIP_TASK,
+  TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
+  getTransitionIdV2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -33,7 +41,11 @@ import {
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
-import { TaskOutcome } from "../../services/form.service.types";
+import {
+  ShippingCoordinatorProcessFormsV2,
+  TaskOutcome,
+  TaskOutcomeV2,
+} from "../../services/form.service.types";
 import OtherOptions from "./other-options";
 import CanceledAnnulledOptions from "./canceled-annulled-options";
 import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
@@ -48,17 +60,22 @@ export default function TaskActions({
   extraData,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
-  const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
+  const [outcome, setOutcome] = useState<
+    TaskOutcome | TaskOutcomeV2 | undefined
+  >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
 
-  const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
+  const handleSelection = (
+    outcome: TaskOutcome | TaskOutcomeV2,
+    outcomeLabel: string,
+  ) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
     setOpenModal(true);
   };
 
-  const isCommentsFieldEnabled = (outcome: TaskOutcome) => {
+  const isCommentsFieldEnabled = (outcome: TaskOutcome | TaskOutcomeV2) => {
     return (
       outcome !== OUTCOME_NORMAL_INITIATION &&
       outcome !== OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION &&
@@ -366,14 +383,58 @@ export default function TaskActions({
           </GroupAllowed>
         </div>
       );
-    default:
+
+    case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
+    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
+    case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
+    case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
+    case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
+    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK: {
+      const transitionId = getTransitionIdV2(
+        taskType as ShippingCoordinatorProcessFormsV2,
+        outcome as TaskOutcomeV2,
+      );
+      console.log(transitionId);
       return (
-        <div className="">
-          <Button size="md" color="blue">
-            Choose plan
-            <HiOutlineArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+          <GroupAllowed
+            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+            userGroups={userGroups}
+          >
+            <Button.Group className="w-full">
+              <CanceledAnnulledOptions
+                dict={dict}
+                handleSelection={handleSelection}
+              />
+              <TaskActionButton
+                fluid={fluid}
+                label={(dict.outcome as I18nRecord).continue as string}
+                taskId={taskId}
+                transitionId={transitionId}
+                onClick={() =>
+                  handleSelection(
+                    transitionId,
+                    (dict.outcome as I18nRecord)[transitionId] as string,
+                  )
+                }
+              />
+            </Button.Group>
+
+            <TaskConfirmModal
+              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+              dict={dict}
+              taskId={taskId}
+              outcome={outcome!}
+              outcomeLabel={outcomeLabel!}
+              openModal={openModal}
+              setOpenModal={setOpenModal}
+            />
+          </GroupAllowed>
         </div>
       );
+    }
+    default:
+      return <div className="">{/* TODO: Add task actions*/}</div>;
   }
 }

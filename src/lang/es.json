@@ -231,7 +231,8 @@
         "tripInformation": "Información del viaje",
         "patente": "Patente",
         "transportNumberCode": "N° de transporte",
-        "truckLicensePlate": "Patente"        
+        "truckLicensePlate": "Patente"  ,
+        "withoutDriver": "Sin Asignación"
       },
       "views": {
         "table": "Tabla",

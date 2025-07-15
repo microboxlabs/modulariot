@@ -37,6 +37,7 @@ const taskShippingBoardMap: Record<string, string> = {
   "wfship2:missionControlTask": "missionControl",
   "wfship2:monitorTripTask": "monitorTrip",
   "wfship2:confirmArrivalTask": "confirmArrival",
+  "wfship2:closeMonitoringTask": "closeMonitoring",
 };
 
 function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {

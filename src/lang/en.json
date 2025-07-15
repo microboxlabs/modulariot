@@ -231,7 +231,8 @@
         "tripInformation": "Trip Information",
         "patente": "License Plate",
         "transportNumberCode": "Transport Number",
-        "truckLicensePlate": "License"
+        "truckLicensePlate": "License",
+        "withoutDriver": "No Assignment"
       },
       "views": {
         "table": "Table",

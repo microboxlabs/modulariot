@@ -147,7 +147,7 @@ export default function KanbanCard({
                       task?.mintral_supplierName?.length > 22
                         ? "..."
                         : "")
-                    : ""}
+                    : tr("card.withoutDriver", dict)}
                 </strong>
               </Tooltip>
             </div>

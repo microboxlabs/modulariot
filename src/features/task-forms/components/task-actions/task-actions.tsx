@@ -34,6 +34,15 @@ import {
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   getTransitionIdV2,
+  OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_PRESENT_DRIVER_V2,
+  OUTCOME_MONITOR_TRIP_V2,
+  OUTCOME_PREPARE_SERVICE_V2,
+  OUTCOME_MISSION_CONTROL_V2,
+  OUTCOME_CONFIRM_ARRIVAL_V2,
+  OUTCOME_CLOSE_MONITORING_V2,
+  OUTCOME_OVERLORD_ANULLED_V2,
+  OUTCOME_OVERLORD_CANCELED_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -52,6 +61,7 @@ import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
 import CanceledAnnulledAndOptions from "./canceled-annulled-and-options";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
+import GroupButtonOptions from "./group-button-options";
 export default function TaskActions({
   taskId,
   taskType,
@@ -84,7 +94,16 @@ export default function TaskActions({
       outcome !== OUTCOME_MONITORING_FINALIZATION &&
       outcome !== OUTCOME_CONFIRM_MONITORING_FINALIZATION &&
       outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
-      outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS
+      outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS &&
+
+      /* V2 Tasks */
+      outcome !== OUTCOME_ASSIGN_DRIVER_V2 &&
+      outcome !== OUTCOME_PRESENT_DRIVER_V2 &&
+      outcome !== OUTCOME_PREPARE_SERVICE_V2 &&
+      outcome !== OUTCOME_MISSION_CONTROL_V2 &&
+      outcome !== OUTCOME_MONITOR_TRIP_V2 &&
+      outcome !== OUTCOME_CONFIRM_ARRIVAL_V2 &&
+      outcome !== OUTCOME_CLOSE_MONITORING_V2
     );
   };
 
@@ -395,7 +414,83 @@ export default function TaskActions({
         taskType as ShippingCoordinatorProcessFormsV2,
         outcome as TaskOutcomeV2,
       );
-      console.log(transitionId);
+      const otherOptions = []
+
+      /*
+      {
+          id: OUTCOME_REDIRECT_TO_MISSION_CONTROL,
+          label: (dict.outcome as I18nRecord)
+            .redirectToMissionControl as string,
+          icon: HiOutlineArrowRight,
+        },
+        {
+          id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+          label: (dict.outcome as I18nRecord)
+            .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
+          icon: HiCheck,
+        },
+         */
+
+        if(taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+          otherOptions.push(...[        
+            {
+              id: OUTCOME_ASSIGN_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ]);
+        }
+        if(taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
+          otherOptions.push(...[        
+            {
+              id: OUTCOME_PRESENT_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ]);
+        }         
+        if(taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+          otherOptions.push(...[        
+            {
+              id: OUTCOME_ASSIGN_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+              icon: HiOutlineArrowLeft,
+            },
+            {
+              id: OUTCOME_PRESENT_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+              icon: HiOutlineArrowLeft,
+            },
+            {
+              id: OUTCOME_PREPARE_SERVICE_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_PREPARE_SERVICE_V2] as string,
+              icon: HiOutlineArrowLeft,
+            }            
+          ]);
+        }
+        if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK || taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK ) {
+          otherOptions.push(...[        
+            {
+              id: OUTCOME_MISSION_CONTROL_V2,
+              label: (dict.outcome as I18nRecord)[OUTCOME_MISSION_CONTROL_V2] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ]);
+        }
+        otherOptions.push(...[        
+          {
+            id: OUTCOME_OVERLORD_CANCELED_V2,
+            label: (dict.outcome as I18nRecord).canceled as string,
+            icon: HiOutlineArrowLeft,
+          },
+          {
+            id: OUTCOME_OVERLORD_ANULLED_V2,
+            label: (dict.outcome as I18nRecord).annulled as string,
+            icon: HiTrash,
+          },
+        ]);
+
+        console.log(transitionId);
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <GroupAllowed
@@ -403,10 +498,11 @@ export default function TaskActions({
             userGroups={userGroups}
           >
             <Button.Group className="w-full">
-              <CanceledAnnulledOptions
+            <GroupButtonOptions
                 dict={dict}
                 handleSelection={handleSelection}
-              />
+                otherOptions={otherOptions}
+              />              
               <TaskActionButton
                 fluid={fluid}
                 label={(dict.outcome as I18nRecord).continue as string}

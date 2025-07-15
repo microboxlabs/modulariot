@@ -493,8 +493,7 @@ export default function TaskActions({
             icon: HiTrash,
           },
         ]);
-
-        console.log(transitionId);
+                
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <GroupAllowed
@@ -525,6 +524,7 @@ export default function TaskActions({
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
               dict={dict}
               taskId={taskId}
+              taskType={taskType}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
               openModal={openModal}

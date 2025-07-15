@@ -449,7 +449,7 @@ export default function TaskActions({
             },
           ]);
         }         
-        if(taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+        if(taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
           otherOptions.push(...[        
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
@@ -468,7 +468,7 @@ export default function TaskActions({
             }            
           ]);
         }
-        if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK || taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK ) {
+        if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK || taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK || taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
           otherOptions.push(...[        
             {
               id: OUTCOME_MISSION_CONTROL_V2,

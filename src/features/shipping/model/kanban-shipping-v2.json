@@ -27,30 +27,23 @@
     "finished": false,
     "state": "pending",
     "tasks": []
-  },
+  },  
   {
     "id": 5,
-    "title": "overlordTripInit",
-    "finished": false,
-    "state": "pending",
-    "tasks": []
-  },
-  {
-    "id": 6,
     "title": "monitorTrip",
     "finished": false,
     "state": "started",
     "tasks": []
   },
   {
-    "id": 7,
+    "id": 6,
     "title": "confirmArrival",
     "finished": false,
     "state": "started",
     "tasks": []
   },  
   {
-    "id": 8,
+    "id": 7,
     "title": "closeMonitoring",
     "finished": false,
     "state": "done",

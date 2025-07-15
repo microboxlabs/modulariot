@@ -212,17 +212,27 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTa
     TASK_CLOSE_MONITORING,
   ];
 
-export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
-export const OUTCOME_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Preparar Servicio";
-export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 =
+export const OUTCOME_TO_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Asignar Conductor/Transporte";
+export const OUTCOME_TO_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Preparar Servicio";
+export const OUTCOME_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_TO_PREPARE_SERVICE_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
-export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
+export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 =
+  "Preparar Servicio";
+export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
-export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
+export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje";
+export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Confirmar Arribo a Destino";
-export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
+export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
+  "Monitorear viaje en curso";
+export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";
-export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
+export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
+  "Confirmar Arribo a Destino";
+export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
 export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 
@@ -232,19 +242,19 @@ export const getTransitionIdV2 = (
 ): TaskOutcomeV2 => {
   switch (taskType) {
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
-      return OUTCOME_ASSIGN_DRIVER_V2;
+      return OUTCOME_TO_ASSIGN_DRIVER_V2;
     case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
-      return OUTCOME_PRESENT_DRIVER_V2;
+      return OUTCOME_TO_PRESENT_DRIVER_V2;
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
-      return OUTCOME_PREPARE_SERVICE_V2;
+      return OUTCOME_TO_PREPARE_SERVICE_V2;
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
-      return OUTCOME_MISSION_CONTROL_V2;
+      return OUTCOME_TO_MISSION_CONTROL_V2;
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
-      return OUTCOME_MONITOR_TRIP_V2;
+      return OUTCOME_TO_MONITOR_TRIP_V2;
     case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
-      return OUTCOME_CONFIRM_ARRIVAL_V2;
+      return OUTCOME_TO_CONFIRM_ARRIVAL_V2;
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
-      return OUTCOME_CLOSE_MONITORING_V2;
+      return OUTCOME_TO_CLOSE_MONITORING_V2;
     default:
       return outcome;
   }

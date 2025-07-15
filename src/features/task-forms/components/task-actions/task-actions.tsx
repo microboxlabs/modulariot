@@ -33,16 +33,20 @@ import {
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
-  getTransitionIdV2,
-  OUTCOME_ASSIGN_DRIVER_V2,
-  OUTCOME_PRESENT_DRIVER_V2,
-  OUTCOME_MONITOR_TRIP_V2,
-  OUTCOME_PREPARE_SERVICE_V2,
-  OUTCOME_MISSION_CONTROL_V2,
-  OUTCOME_CONFIRM_ARRIVAL_V2,
-  OUTCOME_CLOSE_MONITORING_V2,
+  getTransitionIdV2,  
   OUTCOME_OVERLORD_ANULLED_V2,
   OUTCOME_OVERLORD_CANCELED_V2,
+  OUTCOME_TO_ASSIGN_DRIVER_V2,
+  OUTCOME_TO_PRESENT_DRIVER_V2,
+  OUTCOME_TO_PREPARE_SERVICE_V2,
+  OUTCOME_TO_MISSION_CONTROL_V2,
+  OUTCOME_TO_MONITOR_TRIP_V2,
+  OUTCOME_TO_CONFIRM_ARRIVAL_V2,
+  OUTCOME_TO_CLOSE_MONITORING_V2,
+  OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_PRESENT_DRIVER_V2,
+  OUTCOME_PREPARE_SERVICE_V2,
+  OUTCOME_MISSION_CONTROL_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -97,13 +101,13 @@ export default function TaskActions({
       outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS &&
 
       /* V2 Tasks */
-      outcome !== OUTCOME_ASSIGN_DRIVER_V2 &&
-      outcome !== OUTCOME_PRESENT_DRIVER_V2 &&
-      outcome !== OUTCOME_PREPARE_SERVICE_V2 &&
-      outcome !== OUTCOME_MISSION_CONTROL_V2 &&
-      outcome !== OUTCOME_MONITOR_TRIP_V2 &&
-      outcome !== OUTCOME_CONFIRM_ARRIVAL_V2 &&
-      outcome !== OUTCOME_CLOSE_MONITORING_V2
+      outcome !== OUTCOME_TO_ASSIGN_DRIVER_V2 &&
+      outcome !== OUTCOME_TO_PRESENT_DRIVER_V2 &&
+      outcome !== OUTCOME_TO_PREPARE_SERVICE_V2 &&
+      outcome !== OUTCOME_TO_MISSION_CONTROL_V2 &&
+      outcome !== OUTCOME_TO_MONITOR_TRIP_V2 &&
+      outcome !== OUTCOME_TO_CONFIRM_ARRIVAL_V2 &&
+      outcome !== OUTCOME_TO_CLOSE_MONITORING_V2
     );
   };
 
@@ -439,7 +443,7 @@ export default function TaskActions({
               icon: HiOutlineArrowLeft,
             },
           ]);
-        }
+        }else 
         if(taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
           otherOptions.push(...[        
             {
@@ -448,7 +452,7 @@ export default function TaskActions({
               icon: HiOutlineArrowLeft,
             },
           ]);
-        }         
+        }else         
         if(taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
           otherOptions.push(...[        
             {
@@ -467,7 +471,7 @@ export default function TaskActions({
               icon: HiOutlineArrowLeft,
             }            
           ]);
-        }
+        }else
         if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK || taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK || taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
           otherOptions.push(...[        
             {

@@ -72,15 +72,15 @@ export default function TaskConfirmModal({
         Object.entries(extraData).forEach(([key, value]) => {
           formData.append(key, value as string);
         });
-      }
+      }      
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
-        setOpenModal(false);
+        setOpenModal(false);        
         if (
           taskType &&
           SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
-            taskType as ShippingCoordinatorProcessTaskV2,
+            (taskType?.replace("wfship2:", "").replace("Task", "")) as ShippingCoordinatorProcessTaskV2
           )
         ) {
           router.push(`/shipping`);

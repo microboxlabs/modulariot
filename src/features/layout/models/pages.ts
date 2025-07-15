@@ -31,15 +31,15 @@ export const pages: SidebarItem[] = [
         totals: {},
       }, */
       {
+        href: "/shippingv2",
+        label: "shippingv2",
+        totals: {},
+      },
+      {
         href: "/shipping",
         label: "shipping",
         totals: {},
         requiredGroups: [],
-      },
-      {
-        href: "/shippingv2",
-        label: "shippingv2",
-        totals: {},
       },
       {
         href: "/finished",

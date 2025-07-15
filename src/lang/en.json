@@ -26,7 +26,7 @@
         "invalidFromData": "Invalid form data. Please verify your credentials and try again."
       }
     },
-    "shipping": {
+    "shippingv1": {
       "breadcrumb": {
         "tasks": "My tasks",
         "shipping": "Shipping V1",
@@ -140,7 +140,7 @@
         "customerCode": "Customer"
       }
     },
-    "shippingv2": {
+    "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
         "shipping": "Shipping",
@@ -567,8 +567,8 @@
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
-        "shipping": "Shipping V1",
-        "shippingv2": "Shipping",
+        "shipping": "Shipping",
+        "shippingv1": "Shipping V1",
         "picking": "Picking",
         "delivery": "Delivery",
         "finished": "Finished",

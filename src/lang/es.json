@@ -26,7 +26,7 @@
         "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente."
       }
     },
-   "shipping": {
+    "shippingv1": {
       "breadcrumb": {
         "tasks": "Mis tareas",
         "shipping": "Despachos V1",
@@ -140,7 +140,7 @@
         "customerCode": "Cliente"
       }
     },   
-    "shippingv2": {
+    "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
         "shipping": "Despachos",
@@ -572,8 +572,8 @@
         "tasks": "Mis tareas",
         "werehouse": "Bodega",
         "logistics": "Logística",
-        "shipping": "Despachos V1",
-        "shippingv2": "Despachos",
+        "shipping": "Despachos",
+        "shippingv1": "Despachos V1",
         "picking": "Retiros",
         "delivery": "Entregas",
         "finished": "Finalizados",

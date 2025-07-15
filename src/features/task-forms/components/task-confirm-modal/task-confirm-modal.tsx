@@ -83,9 +83,9 @@ export default function TaskConfirmModal({
             taskType as ShippingCoordinatorProcessTaskV2,
           )
         ) {
-          router.push(`/shipping2`);
-        } else {
           router.push(`/shipping`);
+        } else {
+          router.push(`/shippingv1`);
         }
         return;
       }

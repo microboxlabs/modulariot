@@ -17,7 +17,10 @@ import {
   useMyTasksCount,
   useSymptoms,
 } from "@/features/common/providers/client-api.provider";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
+import {
+  SHIPPING_COORDINATOR_PROCESS_TASKS,
+  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+} from "@/features/task-forms/services/form.service";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
@@ -37,6 +40,15 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
 
   if (!error) {
     totals["shipping"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>
+        SHIPPING_COORDINATOR_PROCESS_TASKS.includes(key as any),
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
+    totals["shippingv2"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>
+        SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any),
+      )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
     totals["picking"] = 0;

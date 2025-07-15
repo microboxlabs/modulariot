@@ -122,12 +122,26 @@ export type MonitorTripTaskOutcome =
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
+export type ConfirmArrivalTaskOutcome =
+  | "Confirmar Cierre del Monitoreo"
+  | "Monitorear viaje en curso"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type CloseMonitoringTaskOutcome =
+  | "Viaje Finalizado"
+  | "Monitorear viaje en curso"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
 export type TaskOutcomeV2 =
   | AssignDriverTaskOutcome
   | PresentDriverTaskOutcome
   | PrepareServiceTaskOutcome
   | MissionControlTaskOutcome
-  | MonitorTripTaskOutcome;
+  | ConfirmArrivalTaskOutcome
+  | MonitorTripTaskOutcome
+  | CloseMonitoringTaskOutcome;
 
 export type ShippingCoordinatorProcessTaskV2 =
   | "assignDriver"

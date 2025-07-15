@@ -59,6 +59,7 @@ import { CompactKanbanViewSwitcher } from "@/features/common/components/view-swi
 
 export default function PageContent({
   showFinishedTasks,
+  showV2Tasks = false,
   kanbanBoards,
   dict,
   lang,
@@ -73,16 +74,16 @@ export default function PageContent({
   const pageSize = 100;
 
   configureLocale(lang);
+  const columns = showV2Tasks
+    ? [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2]
+    : [...SHIPPING_COORDINATOR_PROCESS_TASKS];
 
   const {
     data: myTasksData,
     error: myTasksError,
     isLoading: _1,
   } = useMyTasks(
-    [
-      ...SHIPPING_COORDINATOR_PROCESS_TASKS,
-      ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
-    ],
+    [...columns],
     showFinishedTasks,
     page,
     pageSize,

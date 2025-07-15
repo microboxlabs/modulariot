@@ -23,7 +23,7 @@
   },
   {
     "id": 4,
-    "title": "missionControlTripInit",
+    "title": "missionControl",
     "finished": false,
     "state": "pending",
     "tasks": []
@@ -37,7 +37,7 @@
   },
   {
     "id": 6,
-    "title": "monitoringInCourseTrip",
+    "title": "monitorTrip",
     "finished": false,
     "state": "started",
     "tasks": []

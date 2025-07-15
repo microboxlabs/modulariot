@@ -157,12 +157,12 @@
         "presentDriverCompact": "Driver Presentation",
         "prepareService": "Prepare Service",
         "prepareServiceCompact": "Prepare Service",
-        "missionControlTripInit": "Mission Control: Start trip",
-        "missionControlTripInitCompact": "Mission Control",
+        "missionControl": "Mission Control: Start trip",
+        "missionControlCompact": "Mission Control",
         "overlordTripInit": "Overlord - Start Trip (Confirmation)",
         "overlordTripInitCompact": "Overlord - Start Trip",
-        "monitoringInCourseTrip": "Monitoring in course trip",
-        "monitoringInCourseTripCompact": "Trip Started",
+        "monitorTrip": "Monitoring in course trip",
+        "monitorTripCompact": "Trip Started",
         "confirmTripDestinationArrival": "Confirm trip destination arrival",
         "confirmTripDestinationArrivalCompact": "Confirm Arrival",
         "confirmTripDestinationDeparture": "Confirm trip destination departure",
@@ -438,7 +438,17 @@
         "authorizedWithoutGPS": "Authorized without GPS",
         "authorizedWithRepairs": "Authorized with Repairs",
         "canceledByOverlord": "Canceled by Overlord",
-        "annulledByOverlord": "Annulled by Overlord"
+        "annulledByOverlord": "Annulled by Overlord",
+
+        
+        "Presentar Conductor": "Present Driver",
+        "Preparar Servicio": "Prepare Service",
+        "Torre de Control: Iniciar Viaje": "Control Tower: Start Trip",
+        "Viaje Cancelado": "Trip Canceled",
+        "Viaje Anulado": "Trip Voided",
+        "Monitorear viaje en curso": "Monitor trip in progress",
+        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Confirmar Entrega": "Confirm Delivery"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

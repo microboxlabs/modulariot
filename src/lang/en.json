@@ -135,7 +135,7 @@
         "active": "Active",
         "completed": "Completed",
         "driverId": "Driver Rut",
-        "carrierId": "Carrier ID",
+        "carrierId": "Carrier Rut",
         "carrierName": "Carrier",
         "customerCode": "Customer"
       }

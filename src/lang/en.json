@@ -29,7 +29,7 @@
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
-        "shipping": "Shipping",
+        "shipping": "Shipping V1",
         "confirmDelivery": "Confirm delivery",
         "finished": "Finished"
       },
@@ -555,8 +555,8 @@
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
-        "shipping": "Shipping",
-        "shippingv2": "Shipping V2",
+        "shipping": "Shipping V1",
+        "shippingv2": "Shipping",
         "picking": "Picking",
         "delivery": "Delivery",
         "finished": "Finished",

@@ -29,7 +29,7 @@
    "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
-        "shipping": "Despachos",
+        "shipping": "Despachos V1",
         "confirmDelivery": "Confirmar entrega",
         "finished": "Finalizados"
       },
@@ -560,8 +560,8 @@
         "tasks": "Mis tareas",
         "werehouse": "Bodega",
         "logistics": "Logística",
-        "shipping": "Despachos",
-        "shippingv2": "Despachos V2",
+        "shipping": "Despachos V1",
+        "shippingv2": "Despachos",
         "picking": "Retiros",
         "delivery": "Entregas",
         "finished": "Finalizados",

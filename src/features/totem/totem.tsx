@@ -10,8 +10,8 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
   const [currentOption, setCurrentOption] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const searchParams = useSearchParams();
-  const deviceId = searchParams.get("deviceId");
-  const deviceLocation = searchParams.get("deviceLocation");
+  const deviceId = searchParams.get("deviceId") ?? "unknown";
+  const deviceLocation = searchParams.get("deviceLocation") ?? "unknown";
 
   useEffect(() => {
     if (deviceId && deviceLocation) {
@@ -44,7 +44,7 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center w-screen h-screen gap-10">
+    <div className="flex flex-col items-center justify-center gap-10 h-full">
       {currentOption < options.length && options[currentOption].interface}
     </div>
   );

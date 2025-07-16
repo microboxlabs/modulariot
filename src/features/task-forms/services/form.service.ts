@@ -5,6 +5,9 @@ import {
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
   OverlordTripInitOutcome,
+  ShippingCoordinatorProcessFormsV2,
+  ShippingCoordinatorProcessTaskV2,
+  TaskOutcomeV2,
 } from "./form.service.types";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
@@ -151,3 +154,108 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_CONFIRM_MONITORING_FINALIZATION,
     TASK_MONITORING_FINALIZATION,
   ];
+
+/* ------------------------------------------------------------- */
+/* Shipping Coordinator Process V2 */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:assignDriverTask";
+
+export const TYPE_WFSHIP2_PRESENT_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:presentDriverTask";
+
+export const TYPE_WFSHIP2_PREPARE_SERVICE_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:prepareServiceTask";
+
+export const TYPE_WFSHIP2_MISSION_CONTROL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:missionControlTask";
+
+export const TYPE_WFSHIP2_MONITOR_TRIP_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:monitorTripTask";
+
+export const TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:confirmArrivalTask";
+
+export const TYPE_WFSHIP2_CLOSE_MONITORING_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:closeMonitoringTask";
+
+export const TASK_ASSIGN_DRIVER: ShippingCoordinatorProcessTaskV2 =
+  "assignDriver";
+
+export const TASK_PRESENT_DRIVER: ShippingCoordinatorProcessTaskV2 =
+  "presentDriver";
+
+export const TASK_PREPARE_SERVICE: ShippingCoordinatorProcessTaskV2 =
+  "prepareService";
+
+export const TASK_MISSION_CONTROL: ShippingCoordinatorProcessTaskV2 =
+  "missionControl";
+
+export const TASK_MONITOR_TRIP: ShippingCoordinatorProcessTaskV2 =
+  "monitorTrip";
+
+export const TASK_CONFIRM_ARRIVAL: ShippingCoordinatorProcessTaskV2 =
+  "confirmArrival";
+
+export const TASK_CLOSE_MONITORING: ShippingCoordinatorProcessTaskV2 =
+  "closeMonitoring";
+
+export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTaskV2[] =
+  [
+    TASK_ASSIGN_DRIVER,
+    TASK_PRESENT_DRIVER,
+    TASK_PREPARE_SERVICE,
+    TASK_MISSION_CONTROL,
+    TASK_MONITOR_TRIP,
+    TASK_CONFIRM_ARRIVAL,
+    TASK_CLOSE_MONITORING,
+  ];
+
+export const OUTCOME_TO_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 =
+  "Asignar Conductor/Transporte";
+export const OUTCOME_TO_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Preparar Servicio";
+export const OUTCOME_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_TO_PREPARE_SERVICE_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje";
+export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 = "Preparar Servicio";
+export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
+  "Monitorear viaje en curso";
+export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje";
+export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
+  "Confirmar Arribo a Destino";
+export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
+  "Monitorear viaje en curso";
+export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
+  "Confirmar Cierre del Monitoreo";
+export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
+  "Confirmar Arribo a Destino";
+export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
+export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
+export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
+
+export const getTransitionIdV2 = (
+  taskType: ShippingCoordinatorProcessFormsV2,
+  outcome: TaskOutcomeV2,
+): TaskOutcomeV2 => {
+  switch (taskType) {
+    case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
+      return OUTCOME_TO_ASSIGN_DRIVER_V2;
+    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
+      return OUTCOME_TO_PRESENT_DRIVER_V2;
+    case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
+      return OUTCOME_TO_PREPARE_SERVICE_V2;
+    case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
+      return OUTCOME_TO_MISSION_CONTROL_V2;
+    case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
+      return OUTCOME_TO_MONITOR_TRIP_V2;
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
+      return OUTCOME_TO_CONFIRM_ARRIVAL_V2;
+    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+      return OUTCOME_TO_CLOSE_MONITORING_V2;
+    default:
+      return outcome;
+  }
+};

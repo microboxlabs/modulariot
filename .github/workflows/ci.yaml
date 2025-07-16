@@ -77,11 +77,11 @@ jobs:
           CLEAN_BRANCH_NAME=${BRANCH_NAME#refs/heads/}
           # Check if it starts with based/
           if [[ "$CLEAN_BRANCH_NAME" =~ ^based/ ]]; then
-            NEXT_PUBLIC_ECM_API_URL=${{ env.DEV_NEXT_PUBLIC_ECM_API_URL }}
-            NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW=true
+            export NEXT_PUBLIC_ECM_API_URL=${{ env.DEV_NEXT_PUBLIC_ECM_API_URL }}
+            export NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW=true
           else
-            NEXT_PUBLIC_ECM_API_URL=${{ env.PROD_NEXT_PUBLIC_ECM_API_URL }}
-            NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW=false
+            export NEXT_PUBLIC_ECM_API_URL=${{ env.PROD_NEXT_PUBLIC_ECM_API_URL }}
+            export NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW=false
           fi
           echo "Branch name: $BRANCH_NAME"
           echo "Clean branch name: $CLEAN_BRANCH_NAME"

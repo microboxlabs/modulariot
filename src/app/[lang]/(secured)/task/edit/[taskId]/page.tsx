@@ -65,6 +65,7 @@ export default async function TaskEditPage({
       </div>
     );
   } catch (e: any) {
+    console.error(e);
     if (e?.status !== 401) {
       return <ErrorTripView lang={lang} />;
     }

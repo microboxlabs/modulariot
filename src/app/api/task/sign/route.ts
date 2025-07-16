@@ -6,7 +6,7 @@ import {
 } from "@/features/common/providers/5cap-api/5cap-api.provider";
 import { ContentRequest } from "@/features/common/providers/5cap-api/5cap-api.provider.types";
 import {
-  endTask,
+  //endTask,
   getContentByTaskId,
   uploadNodeContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
       bpmPackage: string;
       taskType: string;
       transitionId: string;
+      documentName: string;
     };
 
-    let documentName = "ho-sin-firma.pdf";
+    let documentName = json.documentName ?? "ho-sin-firma.pdf";
     let uploadFileName = "ho-firmado.pdf";
     let targetRole = dispatcherRole;
     let requireInternalSign = true;
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       signersType.push(0);
       signersOrder.push(1);
       signersNotify.push(2);
-      signersAudit.push(json.auditNumbers[index]);
+      signersAudit.push(json.auditNumbers[index]); //
     });
 
     // last signer is the dispatcher
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
       ...createContentRequest,
       file: "<...binary data...>",
     }); */
+    console.log("createContentRequest", createContentRequest);
     const response = await createContentSign(createContentRequest);
     //console.log({ ...response.result, file: "<...binary data...>" });
     if (response.status !== 200) {
@@ -182,13 +184,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const endTaskResult = await endTask(
+    /*  const endTaskResult = await endTask(
       session.user.ticket,
       json.taskId,
       json.transitionId,
     );
 
-    console.log(endTaskResult);
+    console.log(endTaskResult); */
 
     // {
     //   type_code,

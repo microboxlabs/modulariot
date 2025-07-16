@@ -25,6 +25,7 @@ export type CallbackParams = {
 export type AutentiaParamsGet = {
   Erc: number;
   ercText: string;
-  NroAudit: string;
+  NroAudit?: string;
   Rut: string;
+  SerialNumber?: string;
 };

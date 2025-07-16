@@ -1,64 +1,59 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapPosition } from "../types/map";
 
 export function useTripPositions(tripId: string, assetId: string) {
   const [positions, setPositions] = useState<MapPosition[]>([]);
   const [error, _setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const positionBuffer: MapPosition[] = [];
+  const eventSourceRef = useRef<EventSource | null>(null);
+
   useEffect(() => {
-    async function createPositionStream(tripId: string, assetId: string) {
-      let eventSource: EventSource;
-      let size = 0;
+    const positionBuffer: MapPosition[] = [];
+    let size = 0;
 
-      return new ReadableStream({
-        async start(_controller) {
-          eventSource = new EventSource(
-            `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
-          );
+    eventSourceRef.current = new EventSource(
+      `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
+    );
 
-          eventSource.onopen = () => {
-            setIsLoading(true);
-          };
+    const eventSource = eventSourceRef.current;
 
-          eventSource.onmessage = (event) => {
-            try {
-              const position = JSON.parse(event.data as string) as MapPosition;
-              positionBuffer[size++] = position;
-              if (size % 2 === 0 && size > 1) {
-                setPositions((_prev) => [...positionBuffer.slice()]);
-              } else {
-                setPositions((_prev) => [...positionBuffer.slice()]);
-              }
-            } catch (err) {
-              // TODO: Check if this is the correct way to handle the error Ignore some common errors
-            }
-          };
+    eventSource.onopen = () => {
+      setIsLoading(true);
+    };
 
-          eventSource.onerror = (_error) => {
-            if (eventSource.readyState === 2) {
-              eventSource.close();
-              setIsLoading(false);
-            }
-            if (eventSource.readyState === 0) {
-              eventSource.close();
-              setIsLoading(false);
-            }
-          };
-        },
-        cancel() {
-          if (eventSource) {
-            eventSource.close();
-            setIsLoading(false);
-          }
-        },
-      });
-    }
+    eventSource.onmessage = (event) => {
+      try {
+        const position = JSON.parse(event.data as string) as MapPosition;
+        positionBuffer[size++] = position;
 
-    createPositionStream(tripId, assetId);
+        // Update positions immediately
+        /* setTimeout(() => {
+          setPositions([...positionBuffer.slice()]);
+        }, 500); */
+      } catch (err) {
+        // TODO: Check
+        console.error(err);
+      }
+    };
 
+    eventSource.onerror = (_error) => {
+      setPositions([...positionBuffer.slice()]);
+      if (eventSource.readyState === 2) {
+        eventSource.close();
+        setIsLoading(false);
+      }
+      if (eventSource.readyState === 0) {
+        eventSource.close();
+        setIsLoading(false);
+      }
+    };
+    // Cleanup function
     return () => {
-      // setIsLoading(false);
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        setIsLoading(false);
+      }
+      setPositions([...positionBuffer.slice()]);
     };
   }, [tripId, assetId]);
 

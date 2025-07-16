@@ -1,8 +1,11 @@
-import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import {
+  ShippingCoordinatorProcessForms,
+  ShippingCoordinatorProcessFormsV2,
+} from "../../services/form.service.types";
 
 export type TaskActionsProps = {
   taskId: string;
-  taskType: ShippingCoordinatorProcessForms;
+  taskType: ShippingCoordinatorProcessForms | ShippingCoordinatorProcessFormsV2;
   lang: string;
   fluid?: boolean;
   extraData?: Record<string, any>;

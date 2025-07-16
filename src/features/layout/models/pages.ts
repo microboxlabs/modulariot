@@ -25,9 +25,19 @@ export const pages: SidebarItem[] = [
       //   label: "logistics",
       //   totals: {},
       // },
+      /*  {
+        href: "/picking",
+        label: "picking",
+        totals: {},
+      }, */
       {
         href: "/shipping",
         label: "shipping",
+        totals: {},
+      },
+      {
+        href: "/shippingv1",
+        label: "shippingv1",
         totals: {},
         requiredGroups: [],
       },
@@ -51,15 +61,13 @@ export const pages: SidebarItem[] = [
     icon: ChartMixedIcon,
     label: "controlTower",
     /* eslint-disable */
-    items: [
-      ...(process.env.NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW == "TRUE"
-        ? [
+    items: [       
           {
             href: "/geographic-view",
             label: "geographicView",
             totals: {},
             requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
-            blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
+            blockedGroups: [], // Hide from revisors
           },
           {
             href: "/symptoms",
@@ -67,14 +75,12 @@ export const pages: SidebarItem[] = [
             totals: {},
             requiredGroups: [],
             blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
-          },
-        ]
-        : []),
+          },       
     ],
     /* eslint-enable */
 
     totals: {},
     requiredGroups: [],
-    blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide reports section from revisors
+    blockedGroups: [], // Hide reports section from revisors
   },
 ];

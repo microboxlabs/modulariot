@@ -21,8 +21,12 @@ export default function RootLayout({
     <html lang="es" className={theme}>
       <body className="dark:bg-gray-900">
         <ThemeDetector>{children}</ThemeDetector>
-
-        <Toaster position="bottom-center" richColors />
+        <Toaster
+          position="bottom-center"
+          richColors
+          toastOptions={{ className: "bg-white dark:bg-gray-800" }}
+          closeButton
+        />
       </body>
     </html>
   );

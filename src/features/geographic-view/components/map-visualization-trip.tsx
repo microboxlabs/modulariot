@@ -4,8 +4,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
 import DeckGL, { FlyToInterpolator, LinearInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
-import { PinLayer } from "./pin_layer_clustered";
-import { PulsePinLayer } from "./pulse";
+import { PinLayer } from "./layers/pin_layer";
+import { PulsePinLayer } from "./layers/pulse";
 import Map from "react-map-gl";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
@@ -213,11 +213,6 @@ export default function MapVisualizationTrip({
     }
   }, [positions?.length]);
 
-  const handleViewStateChange = useCallback((e: any) => {
-    if (e.viewState) {
-      setViewState(e.viewState);
-    }
-  }, []);
   const [showStops, setShowStops] = useState(true);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
@@ -273,6 +268,7 @@ export default function MapVisualizationTrip({
 
     // Create a set of matching position indices
     const matchingIndices = new Set<number>();
+
     if (filteredLocationData && positions) {
       filteredLocationData.features.forEach((filteredItem) => {
         // Find matching position index
@@ -286,7 +282,9 @@ export default function MapVisualizationTrip({
         }
       });
     }
+
     setSelectedPulse(Array.from(matchingIndices));
+
     if (matchingIndices.size > 0) {
       setHoverInfo({
         x: 10,
@@ -448,21 +446,21 @@ export default function MapVisualizationTrip({
               ...info,
               object: {
                 properties: {
-                  icu_code: info.object?.properties.icu_code ?? 0,
-                  asset_id: info.object?.properties.assetid,
-                  rotation: info.object?.properties.heading * (180 / Math.PI),
-                  latitude: info.object?.properties.latitude,
-                  longitude: info.object?.properties.longitude,
-                  speed: info.object?.properties.speed,
-                  timestamp: info.object?.properties.timestamp,
+                  icu_code: info.object?.properties?.icu_code ?? 0,
+                  asset_id: info.object?.assetid,
+                  rotation: info.object?.heading * (180 / Math.PI),
+                  latitude: info.object?.latitude,
+                  longitude: info.object?.longitude,
+                  speed: info.object?.speed,
+                  timestamp: info.object?.timestamp,
                 },
               },
             };
 
             setHoverInfo(formattedInfo as any);
             zoom_on_pin(
-              info.object?.properties.longitude,
-              info.object?.properties.latitude,
+              info.object?.longitude,
+              info.object?.latitude,
               false,
               setViewState,
               viewState,
@@ -502,6 +500,10 @@ export default function MapVisualizationTrip({
       console.log("Loading geofences...");
     }
   }, [geofence_error, geofence_isLoading]);
+
+  const handleViewStateChange = useCallback((e: any) => {
+    setViewState(e.viewState);
+  }, []);
 
   return (
     <div className="h-full w-full relative overflow-hidden">

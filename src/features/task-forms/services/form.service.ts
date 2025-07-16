@@ -213,13 +213,13 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTa
   ];
 
 export const OUTCOME_TO_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
-export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Asignar Conductor/Transporte";
+export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 =
+  "Asignar Conductor/Transporte";
 export const OUTCOME_TO_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Preparar Servicio";
 export const OUTCOME_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
 export const OUTCOME_TO_PREPARE_SERVICE_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
-export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 =
-  "Preparar Servicio";
+export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 = "Preparar Servicio";
 export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =

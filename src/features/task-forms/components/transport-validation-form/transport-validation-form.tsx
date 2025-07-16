@@ -5,9 +5,9 @@ import { TaskFormProps } from "../task-form/task-form.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSearchParams } from "next/navigation";
 import DriverVerificationCard from "../driver-verification-card/driver-verification-card";
-import DriverVerifiedCard from "../driver-verified-card/driver-verified-card";
 import { Button } from "flowbite-react";
 import Link from "next/link";
+import Bento from "../task-bento-form/bento";
 // import {
 //   useGetEntityInfo,
 //   useGetServiceValidation,
@@ -49,11 +49,12 @@ export default function TransportValidationForm({
       )}
       {
         currentStep === "step2" && (
-          <DriverVerifiedCard
+          <Bento
             lang={lang}
-            msg={msg as I18nRecord}
-            task={task}
+            task={task as any}
             userGroups={userGroups}
+            msg={msg as I18nRecord}
+            enableActions={false}
           />
         )
         // this elements where taken off the Driver verified card (from step 2), because they where generating a error on the build

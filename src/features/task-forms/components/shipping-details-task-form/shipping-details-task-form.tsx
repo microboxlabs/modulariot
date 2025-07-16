@@ -76,10 +76,7 @@ export default async function ShippingDetailsTaskForm({
                 taskId={task.id}
                 taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
                 lang={lang}
-                dict={
-                  (dictionary.pages as I18nRecord)
-                    .shippingDetailsTaskForm as I18nRecord
-                }
+                dict={dictionary as I18nRecord}
               />
               <Validations
                 task={task}

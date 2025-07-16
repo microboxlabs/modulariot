@@ -1,0 +1,232 @@
+"use client";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import TripInformation from "./components/trip-information/trip-information";
+import { Button, Tooltip } from "flowbite-react";
+import { GoClockFill } from "react-icons/go";
+import DriverInfo from "./components/driver/driver";
+import Conditions from "./components/side-data/conditions";
+import Geographic from "@/features/shipping/components/geographic";
+import HistoricLoads from "@/features/shipping/components/historic-loads";
+import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
+import { useState } from "react";
+import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
+import TaskActions from "../task-actions/task-actions";
+import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { useGetConditions } from "./hooks/use-get-conditions";
+
+export default function Bento({
+  lang,
+  task,
+  userGroups,
+  msg,
+  active = true,
+  enableActions = false,
+  showActions = true,
+}: {
+  lang: string;
+  task: TaskResponse;
+  userGroups: string[];
+  msg: I18nRecord;
+  active?: boolean;
+  enableActions?: boolean;
+  showActions?: boolean;
+}) {
+  const [selectedImage, setSelectedImage] = useState<number | null>(null);
+
+  const testImages = [
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
+  ];
+
+  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
+    task.id,
+  );
+
+  console.log(task);
+
+  return (
+    <div className="flex flex-col w-full h-full ">
+      {/* Head */}
+      <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap justify-between">
+        <div>
+          <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
+            Asignar Conductor/Transporte
+          </h1>
+          <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+            Estado de Proceso: Planificado
+          </h2>
+        </div>
+        <div className="flex flex-row gap-1 w-full sm:w-auto">
+          {/*          
+          <Button
+            color="gray"
+            className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-fit hover:text-gray-500 portrait:hidden"
+          >
+            <div className="flex flex-row gap-2 items-center">
+              <MdWindow className="w-5 h-5" width={30} height={30} />
+            </div>
+          </Button>
+          */}
+          <Tooltip content={(msg.bento as I18nRecord).trip_duration as string}>
+            <Button
+              color="gray"
+              className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-fit hover:text-gray-500"
+            >
+              <div className="flex flex-row gap-2 items-center">
+                <GoClockFill className="w-5 h-5" width={30} height={30} />
+                <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
+                  {(() => {
+                    const creationDate = new Date(
+                      task.mintral_creationDate as string,
+                    );
+                    const now = new Date();
+                    const diffInMs = now.getTime() - creationDate.getTime();
+
+                    const years = Math.floor(
+                      diffInMs / (1000 * 60 * 60 * 24 * 365),
+                    );
+                    const months = Math.floor(
+                      (diffInMs % (1000 * 60 * 60 * 24 * 365)) /
+                        (1000 * 60 * 60 * 24 * 30),
+                    );
+                    const days = Math.floor(
+                      (diffInMs % (1000 * 60 * 60 * 24 * 30)) /
+                        (1000 * 60 * 60 * 24),
+                    );
+                    const hours = Math.floor(
+                      (diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+                    );
+                    const minutes = Math.floor(
+                      (diffInMs % (1000 * 60 * 60)) / (1000 * 60),
+                    );
+                    const seconds = Math.floor((diffInMs % (1000 * 60)) / 1000);
+
+                    const parts = [];
+                    if (years > 0) parts.push(`${years}y`);
+                    if (months > 0) parts.push(`${months}m`);
+                    if (days > 0) parts.push(`${days}d`);
+                    if (hours > 0) parts.push(`${hours}h`);
+                    if (minutes > 0) parts.push(`${minutes}m`);
+                    if (seconds > 0) parts.push(`${seconds}s`);
+
+                    return parts.length > 0 ? parts.join(" ") : "0s";
+                  })()}
+                </p>
+              </div>
+            </Button>
+          </Tooltip>
+
+          {task.mintral_hoReference && (
+            <DownloadSignedDocument
+              documentId={task.mintral_hoReference}
+              asLink
+              name="Carta Porte"
+            />
+          )}
+
+          {showActions && (
+            <TaskActions
+              taskId={task.id}
+              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+              lang={lang}
+              dict={msg as I18nRecord}
+              fluid={true}
+              enableActions={enableActions}
+            />
+          )}
+        </div>
+      </div>
+      {/* Head */}
+
+      {/* Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 bg-gray-50 dark:bg-gray-900">
+        {/* Trip Information and Driver Info - side by side on portrait, separate on landscape */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+          {/* Trip Information */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+            <TripInformation
+              task={task}
+              msg={msg}
+              lang={lang}
+              userGroups={userGroups}
+            />
+          </div>
+
+          {/* Driver Info */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+            <DriverInfo task={task} msg={msg} />
+          </div>
+        </div>
+
+        {/* Conditions */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+          <Conditions
+            dict={msg as I18nRecord}
+            conditions={conditions}
+            isLoading={isLoadingConditions}
+          />
+        </div>
+
+        {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}
+        <div className="lg:col-span-3 h-[500px] bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit">
+          <div className="h-full w-full hidden sm:flex">
+            <Geographic
+              task={task}
+              dictionary={msg as unknown as Record<string, string>}
+            />
+          </div>
+          {/*
+          <div className="rounded-lg overflow-hidden sm:hidden bg-white dark:bg-gray-800">
+            <Button className="w-full h-full" color="gray">
+              <div className="flex flex-row gap-2 items-center">
+                <FaMapPin />
+                Abrir mapa
+              </div>
+            </Button>
+          </div>
+          */}
+        </div>
+
+        {/* File Images */}
+        {/*
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+            <FileImages
+              images={testImages.slice(0, 4)}
+              setSelectedImage={setSelectedImage}
+            />
+          </div>
+        */}
+
+        {/* Historic Loads - spans full width */}
+        <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg min-h-[343px]">
+          <HistoricLoads
+            task={task}
+            dictionary={msg as unknown as Record<string, string>}
+            active={active}
+          />
+        </div>
+
+        {/* Forum */}
+        {/*
+          <div className=" bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
+            <div className="flex flex-col items-center justify-center h-full scale-90">
+              <EmptyAnimation />
+            </div>
+          </div>
+        */}
+      </div>
+      {/* Content */}
+
+      {/* Image Viewer */}
+      <ImageViewer
+        images={testImages}
+        selected={selectedImage}
+        setSelected={setSelectedImage}
+      />
+    </div>
+  );
+}

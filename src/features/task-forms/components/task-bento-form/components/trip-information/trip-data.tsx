@@ -1,0 +1,114 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { fromString } from "@/features/common/services/days.service";
+
+export default function TripData({
+  task,
+  msg,
+}: {
+  task: TaskResponse;
+  msg: I18nRecord;
+}) {
+  const eta = fromString(
+    task.mintral_arrivalDate
+      ? (task.mintral_arrivalDate as string)
+      : task.mintral_estimatedArrivalDate
+        ? (task.mintral_estimatedArrivalDate as string)
+        : "",
+  );
+  const etd = fromString(
+    task.mintral_departureDate
+      ? (task.mintral_departureDate as string)
+      : task.mintral_expectedDepartureDate
+        ? (task.mintral_expectedDepartureDate as string)
+        : (task.mintral_estimatedDepartureDate as string),
+  );
+
+  const executionType =
+    task.mintral_executionType === "T"
+      ? "Troncal"
+      : task.mintral_executionType === "F"
+        ? "Faena"
+        : task.mintral_executionType;
+
+  const priority =
+    task.mintral_priorityCode === "UR"
+      ? "URGENTE"
+      : task.mintral_priorityCode === "RG"
+        ? "REGULARIZACIÓN"
+        : task.mintral_priorityCode;
+
+  return (
+    <div className="flex flex-col whitespace-nowrap w-fit">
+      <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col gap-1 font-light h-full ">
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).patente as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {(task.mintral_truckLicensePlate as string) ?? "-"}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {(task.mintral_serviceCode as string) ?? "-"}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).clientCode as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {(task.mintral_clientCode as string) ?? "-"}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).origin as string}-
+          {(msg!.cards as I18nRecord).destination as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {task.mintral_originDelegateCode as string}-
+            {task.mintral_destinationDelegateCode as string}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).scheduling as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
+          </span>
+        </span>
+
+        {typeof task.mintral_priorityCode === "string" &&
+          task.mintral_priorityCode && (
+            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+              {(msg!.cards as I18nRecord).priorityCode as string}:{" "}
+              <span className="text-gray-800 dark:text-gray-200  text-xs">
+                {`${priority}`}
+              </span>
+            </span>
+          )}
+
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {(task.mintral_serviceCode as string) ?? "-"}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).executionType as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {`${executionType}`}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).serviceKind as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {`${task.mintral_serviceKind ? (task.mintral_serviceKind as string).toUpperCase() : "-"}`}
+          </span>
+        </span>
+        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
+          {(msg!.cards as I18nRecord).transportNumberCode as string}:{" "}
+          <span className="text-gray-800 dark:text-gray-200  text-xs">
+            {(task.mintral_servicePrincipalNumber as string) ?? "-"}
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}

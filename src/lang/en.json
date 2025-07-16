@@ -929,6 +929,18 @@
     "service_type": "Service type",
     "reason": "Reason",
     "reject_reason": "Reject reason",
-    "service": "Service"
+    "service": "Service",
+    "reject_reason": "Reject reason"
+  },
+  "bento": {
+    "trip_information": "Trip information",
+    "symptoms_present_in_the_trip": "Symptoms present in the trip",
+    "totals": "Totals",
+    "detected_symptoms": "Detected symptoms",
+    "successfully_treated": "Successfully treated",
+    "biometric_verification": "Biometric verification",
+    "verified": "Verified",
+    "not_verified": "Not verified",
+    "trip_duration": "Trip duration"
   }
 }

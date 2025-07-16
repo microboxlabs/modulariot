@@ -11,7 +11,6 @@ export default function Loads({
 }) {
   const { data: task_loads, error, isLoading } = useLoadTable(trip_id);
 
-  console.log(task_loads);
   return (
     <div
       className={`flex-1 w-0 min-w-full overflow-x-auto h-full transition-all duration-300 ${isLoading ? "bg-gray-300 dark:bg-gray-600 animate-pulse" : "animate-none"}`}

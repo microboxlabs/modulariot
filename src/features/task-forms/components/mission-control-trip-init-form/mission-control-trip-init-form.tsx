@@ -47,7 +47,8 @@ export default async function MissionControlTripInitForm({
         lang={lang}
         task={task as any}
         userGroups={userGroups}
-        msg={msg as I18nRecord}
+        dict={dictionary as I18nRecord}
+        msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
         enableActions={true}
       />
     </div>

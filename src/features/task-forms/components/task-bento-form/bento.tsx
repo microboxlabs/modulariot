@@ -14,12 +14,14 @@ import DownloadSignedDocument from "@/features/shipping/components/download-sign
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import { useGetConditions } from "./hooks/use-get-conditions";
+import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 
 export default function Bento({
   lang,
   task,
   userGroups,
-  msg,
+  dict, // this is the general dictionary to base all our code
+  msg, // this is a relative dictionary for the current task
   active = true,
   enableActions = false,
   showActions = true,
@@ -27,6 +29,7 @@ export default function Bento({
   lang: string;
   task: TaskResponse;
   userGroups: string[];
+  dict: I18nRecord;
   msg: I18nRecord;
   active?: boolean;
   enableActions?: boolean;
@@ -46,7 +49,12 @@ export default function Bento({
     task.id,
   );
 
-  console.log(task);
+  const task_name_identifier =
+    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
+  const writable_dict = (
+    (dict.pages as unknown as I18nRecord).shipping as I18nRecord
+  ).kanban as I18nRecord;
+  const task_name = writable_dict[task_name_identifier];
 
   return (
     <div className="flex flex-col w-full h-full ">
@@ -54,11 +62,13 @@ export default function Bento({
       <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap justify-between">
         <div>
           <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
-            Asignar Conductor/Transporte
+            {task_name as string}
           </h1>
-          <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-            Estado de Proceso: Planificado
-          </h2>
+          {/*
+            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+              Estado de Proceso: Planificado
+            </h2>
+          */}
         </div>
         <div className="flex flex-row gap-1 w-full sm:w-auto">
           {/*          
@@ -71,7 +81,7 @@ export default function Bento({
             </div>
           </Button>
           */}
-          <Tooltip content={(msg.bento as I18nRecord).trip_duration as string}>
+          <Tooltip content={(dict.bento as I18nRecord).trip_duration as string}>
             <Button
               color="gray"
               className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-fit hover:text-gray-500"
@@ -133,7 +143,7 @@ export default function Bento({
               taskId={task.id}
               taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
               lang={lang}
-              dict={msg as I18nRecord}
+              dict={msg}
               fluid={true}
               enableActions={enableActions}
             />
@@ -150,7 +160,7 @@ export default function Bento({
           <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
             <TripInformation
               task={task}
-              msg={msg}
+              msg={dict}
               lang={lang}
               userGroups={userGroups}
             />
@@ -158,36 +168,36 @@ export default function Bento({
 
           {/* Driver Info */}
           <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-            <DriverInfo task={task} msg={msg} />
+            <DriverInfo task={task} msg={dict} />
           </div>
         </div>
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
           <Conditions
-            dict={msg as I18nRecord}
+            dict={dict as I18nRecord}
             conditions={conditions}
             isLoading={isLoadingConditions}
           />
         </div>
 
         {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}
-        <div className="lg:col-span-3 h-[500px] bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit">
+        <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg overflow-hidden sm:border border-gray-300 dark:border-gray-700 sm:min-h-[343px] min-h-fit">
           <div className="h-full w-full hidden sm:flex">
             <Geographic
               task={task}
-              dictionary={msg as unknown as Record<string, string>}
+              dictionary={dict as unknown as Record<string, string>}
             />
           </div>
           {/*
-          <div className="rounded-lg overflow-hidden sm:hidden bg-white dark:bg-gray-800">
-            <Button className="w-full h-full" color="gray">
-              <div className="flex flex-row gap-2 items-center">
-                <FaMapPin />
-                Abrir mapa
-              </div>
-            </Button>
-          </div>
+            <div className="rounded-lg overflow-hidden sm:hidden bg-white dark:bg-gray-800">
+              <Button className="w-full h-full" color="gray">
+                <div className="flex flex-row gap-2 items-center">
+                  <FaMapPin />
+                  Abrir mapa
+                </div>
+              </Button>
+            </div>
           */}
         </div>
 
@@ -205,7 +215,7 @@ export default function Bento({
         <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg min-h-[343px]">
           <HistoricLoads
             task={task}
-            dictionary={msg as unknown as Record<string, string>}
+            dictionary={dict as unknown as Record<string, string>}
             active={active}
           />
         </div>

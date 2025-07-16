@@ -61,6 +61,7 @@ export type TaskResponse = {
   mintral_hoReference?: string;
   [key: string]: unknown;
   mintral_serviceCode: string;
+  bpm_outcome: string;
 };
 
 export type Task = {

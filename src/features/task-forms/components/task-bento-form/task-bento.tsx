@@ -121,7 +121,7 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as any}
           userGroups={userGroups}
-          msg={dictionary as I18nRecord}
+          msg={dictionary}
           active={active}
         />
       );
@@ -134,7 +134,10 @@ export async function TaskBentoForm({
             task={task as TaskResponse}
             user={user}
             userGroups={userGroups}
-            msg={dictionary as I18nRecord}
+            msg={
+              (dictionary.pages as I18nRecord)
+                .sovosVerificationForm as I18nRecord
+            }
           />
         );
       }

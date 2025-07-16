@@ -133,7 +133,7 @@ export default function Bento({
               taskId={task.id}
               taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
               lang={lang}
-              dict={msg as I18nRecord}
+              dict={msg}
               fluid={true}
               enableActions={enableActions}
             />

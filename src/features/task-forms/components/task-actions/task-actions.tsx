@@ -96,6 +96,9 @@ export default function TaskActions({
     {},
   );
   const router = useRouter();
+  dict = dict["outcome"]
+    ? dict
+    : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);
   useEffect(() => {
     if (state?.success) {
       router.replace(`/${lang}/shipping`);
@@ -152,43 +155,23 @@ export default function TaskActions({
             userGroups={userGroups}
           >
             <Button.Group className="w-full">
-              <OtherOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
-                handleSelection={handleSelection}
-              />
+              <OtherOptions dict={dict} handleSelection={handleSelection} />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_NORMAL_INITIATION}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_NORMAL_INITIATION,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).normalInitiation as string,
+                    (dict.outcome as I18nRecord).normalInitiation as string,
                   )
                 }
               />
             </Button.Group>
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               taskType={taskType}
               outcome={outcome!}
@@ -306,33 +289,19 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).confirmTripDestinationArrival as string,
+                    (dict.outcome as I18nRecord)
+                      .confirmTripDestinationArrival as string,
                   )
                 }
               />
@@ -340,9 +309,7 @@ export default function TaskActions({
 
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -516,33 +483,19 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_MONITORING_FINALIZATION}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_MONITORING_FINALIZATION,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).monitoringFinalization as string,
+                    (dict.outcome as I18nRecord)
+                      .monitoringFinalization as string,
                   )
                 }
               />
@@ -550,9 +503,7 @@ export default function TaskActions({
 
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -633,7 +584,7 @@ export default function TaskActions({
               taskId={taskId}
               taskType={taskType}
               lang={lang}
-              dict={dict as I18nRecord}
+              dict={dict.shippingDetailsTaskForm as I18nRecord}
               fluid={true}
               extraData={extraData}
             />
@@ -669,13 +620,16 @@ export default function TaskActions({
          */
 
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+        console.log("dict", dict);
+        const label =
+          (dict?.outcome as I18nRecord) ??
+          (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)
+            .outcome as I18nRecord);
         otherOptions.push(
           ...[
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_ASSIGN_DRIVER_V2
-              ] as string,
+              label: label[OUTCOME_ASSIGN_DRIVER_V2] as string,
               icon: HiOutlineArrowLeft,
             },
           ],

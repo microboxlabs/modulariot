@@ -138,11 +138,7 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as any}
           userGroups={userGroups}
-          dict={dictionary as I18nRecord}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          msg={dictionary}
           active={active}
         />
       );

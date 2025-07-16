@@ -27,13 +27,17 @@ export function useTripPositions(tripId: string, assetId: string) {
         positionBuffer[size++] = position;
 
         // Update positions immediately
-        setPositions([...positionBuffer.slice()]);
+        /* setTimeout(() => {
+          setPositions([...positionBuffer.slice()]);
+        }, 500); */
       } catch (err) {
         // TODO: Check
+        console.error(err);
       }
     };
 
     eventSource.onerror = (_error) => {
+      setPositions([...positionBuffer.slice()]);
       if (eventSource.readyState === 2) {
         eventSource.close();
         setIsLoading(false);
@@ -43,13 +47,14 @@ export function useTripPositions(tripId: string, assetId: string) {
         setIsLoading(false);
       }
     };
-
     // Cleanup function
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         setIsLoading(false);
       }
+      console.log("cleanup");
+      setPositions([...positionBuffer.slice()]);
     };
   }, [tripId, assetId]);
 

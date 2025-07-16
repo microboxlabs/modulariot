@@ -33,7 +33,7 @@ import {
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
-  getTransitionIdV2,  
+  getTransitionIdV2,
   OUTCOME_OVERLORD_ANULLED_V2,
   OUTCOME_OVERLORD_CANCELED_V2,
   OUTCOME_TO_ASSIGN_DRIVER_V2,
@@ -99,7 +99,6 @@ export default function TaskActions({
       outcome !== OUTCOME_CONFIRM_MONITORING_FINALIZATION &&
       outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
       outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS &&
-
       /* V2 Tasks */
       outcome !== OUTCOME_TO_ASSIGN_DRIVER_V2 &&
       outcome !== OUTCOME_TO_PRESENT_DRIVER_V2 &&
@@ -418,7 +417,7 @@ export default function TaskActions({
         taskType as ShippingCoordinatorProcessFormsV2,
         outcome as TaskOutcomeV2,
       );
-      const otherOptions = []
+      const otherOptions = [];
 
       /*
       {
@@ -435,53 +434,75 @@ export default function TaskActions({
         },
          */
 
-        if(taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
-          otherOptions.push(...[        
+      if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+        otherOptions.push(
+          ...[
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_ASSIGN_DRIVER_V2
+              ] as string,
               icon: HiOutlineArrowLeft,
             },
-          ]);
-        }else 
-        if(taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
-          otherOptions.push(...[        
+          ],
+        );
+      } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
+        otherOptions.push(
+          ...[
             {
               id: OUTCOME_PRESENT_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PRESENT_DRIVER_V2
+              ] as string,
               icon: HiOutlineArrowLeft,
             },
-          ]);
-        }else         
-        if(taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
-          otherOptions.push(...[        
+          ],
+        );
+      } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
+        otherOptions.push(
+          ...[
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_ASSIGN_DRIVER_V2
+              ] as string,
               icon: HiOutlineArrowLeft,
             },
             {
               id: OUTCOME_PRESENT_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PRESENT_DRIVER_V2
+              ] as string,
               icon: HiOutlineArrowLeft,
             },
             {
               id: OUTCOME_PREPARE_SERVICE_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_PREPARE_SERVICE_V2] as string,
-              icon: HiOutlineArrowLeft,
-            }            
-          ]);
-        }else
-        if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK || taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK || taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
-          otherOptions.push(...[        
-            {
-              id: OUTCOME_MISSION_CONTROL_V2,
-              label: (dict.outcome as I18nRecord)[OUTCOME_MISSION_CONTROL_V2] as string,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PREPARE_SERVICE_V2
+              ] as string,
               icon: HiOutlineArrowLeft,
             },
-          ]);
-        }
-        otherOptions.push(...[        
+          ],
+        );
+      } else if (
+        taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
+        taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK ||
+        taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK
+      ) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_MISSION_CONTROL_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_MISSION_CONTROL_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      }
+      otherOptions.push(
+        ...[
           {
             id: OUTCOME_OVERLORD_CANCELED_V2,
             label: (dict.outcome as I18nRecord).canceled as string,
@@ -492,8 +513,9 @@ export default function TaskActions({
             label: (dict.outcome as I18nRecord).annulled as string,
             icon: HiTrash,
           },
-        ]);
-                
+        ],
+      );
+
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <GroupAllowed
@@ -501,11 +523,11 @@ export default function TaskActions({
             userGroups={userGroups}
           >
             <Button.Group className="w-full">
-            <GroupButtonOptions
+              <GroupButtonOptions
                 dict={dict}
                 handleSelection={handleSelection}
                 otherOptions={otherOptions}
-              />              
+              />
               <TaskActionButton
                 fluid={fluid}
                 label={(dict.outcome as I18nRecord).continue as string}

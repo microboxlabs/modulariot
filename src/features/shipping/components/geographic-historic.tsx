@@ -40,7 +40,7 @@ export function GeographicHistoric({
               ).kanban_movements as unknown as string
             }
           </div>
-        </Button>
+        </div>
       </div>
       <div className="h-1/3 w-full overflow-hidden flex flex-col portrait:h-full">
         {/* Mobile selector */}

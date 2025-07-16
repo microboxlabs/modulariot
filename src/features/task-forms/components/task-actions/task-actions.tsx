@@ -74,7 +74,7 @@ import { useFormState } from "react-dom";
 import { useRouter } from "next/navigation";
 import { taskNextAction } from "../../services/client-form.service";
 import GroupButtonOptions from "./group-button-options";
-   
+
 export default function TaskActions({
   lang,
   taskId,

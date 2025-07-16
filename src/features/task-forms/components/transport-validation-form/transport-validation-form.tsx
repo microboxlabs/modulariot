@@ -54,6 +54,7 @@ export default function TransportValidationForm({
             task={task as any}
             userGroups={userGroups}
             msg={msg as I18nRecord}
+            dict={msg as I18nRecord}
             enableActions={false}
           />
         )

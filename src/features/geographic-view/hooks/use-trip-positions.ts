@@ -53,7 +53,6 @@ export function useTripPositions(tripId: string, assetId: string) {
         eventSourceRef.current.close();
         setIsLoading(false);
       }
-      console.log("cleanup");
       setPositions([...positionBuffer.slice()]);
     };
   }, [tripId, assetId]);

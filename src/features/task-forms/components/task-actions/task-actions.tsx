@@ -101,6 +101,7 @@ export default function TaskActions({
       outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
       outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS &&
       /* V2 Tasks */
+      outcome !== OUTCOME_ASSIGN_DRIVER_V2 &&
       outcome !== OUTCOME_TO_ASSIGN_DRIVER_V2 &&
       outcome !== OUTCOME_TO_PRESENT_DRIVER_V2 &&
       outcome !== OUTCOME_TO_PREPARE_SERVICE_V2 &&

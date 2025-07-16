@@ -18,7 +18,7 @@ export default function TripInformation({
     <div className="flex flex-col flex-grow rounded-lg gap-2 dark:border-gray-700 portrait:w-full">
       <div className="flex flex-wrap gap-2">
         <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit">
-          Trip Information
+          {(msg.bento as I18nRecord).trip_information as string}
         </h1>
         <h2 className="text-sm flex font-normal items-end text-gray-600  dark:text-gray-400 w-fit">
           {task.mintral_serviceCode + "-V"}

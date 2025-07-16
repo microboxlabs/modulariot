@@ -74,7 +74,7 @@ export default function ImageViewer({
               <div className="flex gap-2">
                 <Button
                   color="blue"
-                  onClick={(e) => {
+                  onClick={(e: any) => {
                     e.stopPropagation();
                     if (!selected) return;
                     const link = document.createElement("a");
@@ -89,7 +89,7 @@ export default function ImageViewer({
                 </Button>
                 <Button
                   color="blue"
-                  onClick={(e) => {
+                  onClick={(e: any) => {
                     e.stopPropagation();
                     handleShare();
                   }}

@@ -16,7 +16,7 @@ export default function DriverInfo({
     phone: (task.mintral_driver1Phone as string) ?? "-",
     rut: (task.mintral_driver1Rut as string) ?? "-",
     status: "verified",
-    varName: "Driver 1",
+    varName: "driver1",
   };
   let driver2: Driver | undefined;
   const driver2Name = task.mintral_driver2Name as string;
@@ -27,7 +27,7 @@ export default function DriverInfo({
       phone: (task.mintral_driver2Phone as string) ?? "-",
       rut: (task.mintral_driver2Rut as string) ?? "-",
       status: "verified",
-      varName: "Driver 2",
+      varName: "driver2",
     };
   }
 

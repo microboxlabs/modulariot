@@ -3,10 +3,6 @@
 import { useGetServiceValidation } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import CheckCircleIcon from "@/features/icons/check-circle";
-import ExclamationIcon from "@/features/icons/exclamation";
-import ErrorCircleIcon from "@/features/icons/error-circle";
-import EllipseIcon from "@/features/icons/ellipse";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
@@ -36,13 +32,13 @@ export default function TripVerifications({
     value?.v_02eval == -1 ||
     value?.v_03eval == -1;
 
-  const executionType =
+  const _executionType =
     task.mintral_executionType === "T"
       ? "Troncal"
       : task.mintral_executionType === "F"
         ? "Faena"
         : task.mintral_executionType;
-  const priority =
+  const _priority =
     task.mintral_priorityCode === "UR"
       ? "URGENTE"
       : task.mintral_priorityCode === "RG"
@@ -95,14 +91,6 @@ export function Ellipse() {
     <div className="w-5 h-5 bg-white border border-gray-400 rounded-full flex-shrink-0" />
   );
 }
-
-/**
- <FaCheck />
-<GoCheck />
-<GoX />
-<TbExclamationMark />
- 
- */
 
 export function CheckCircle() {
   return (

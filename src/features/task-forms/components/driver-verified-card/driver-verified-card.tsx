@@ -206,7 +206,7 @@ export default function DriverVerifiedCard({
               defaultValue={task.mintral_driverObservations as string}
             /> */}
             {getComments(task as ExtendedTaskResponse)}
-            {!enableActions && (
+            {!enableActions ? (
               <GroupAllowed
                 userGroups={userGroups}
                 notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
@@ -265,16 +265,12 @@ export default function DriverVerifiedCard({
                   />
                 </div>
               </GroupAllowed>
-            )}
-            {enableActions && (
+            ) : (
               <TaskActions
                 taskId={task.id}
                 taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
                 lang={lang}
-                dict={
-                  (msg!.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={msg as I18nRecord}
                 fluid={true}
                 extraData={buildExtraData()}
               />

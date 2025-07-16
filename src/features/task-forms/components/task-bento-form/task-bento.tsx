@@ -18,7 +18,6 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { getUserProfile } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import Bento from "./bento";
-import { GeneralTripView } from "@/features/shipping/components/general-trip-view/general-trip-view";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import SovosVerificationForm from "../sovos-verification-form/sovos-verification-form";
@@ -59,10 +58,10 @@ export async function TaskBentoForm({
           <Bento
             lang={lang ?? defaultLocale}
             task={task as any}
-            user={user}
             userGroups={userGroups}
             msg={dictionary as I18nRecord}
             active={active}
+            showActions={false}
           />
         );
     }
@@ -118,15 +117,12 @@ export async function TaskBentoForm({
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
     case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
       return (
-        <NextCancelTripView
+        <Bento
           lang={lang ?? defaultLocale}
-          task={task}
-          user={user}
+          task={task as any}
           userGroups={userGroups}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          msg={dictionary as I18nRecord}
+          active={active}
         />
       );
 
@@ -138,10 +134,7 @@ export async function TaskBentoForm({
             task={task as TaskResponse}
             user={user}
             userGroups={userGroups}
-            msg={
-              (dictionary.pages as I18nRecord)
-                .sovosVerificationForm as I18nRecord
-            }
+            msg={dictionary as I18nRecord}
           />
         );
       }
@@ -152,10 +145,7 @@ export async function TaskBentoForm({
           task={task}
           user={user}
           userGroups={userGroups}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          msg={dictionary as I18nRecord}
         />
       );
     default:
@@ -163,7 +153,6 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as any}
-          user={user}
           userGroups={userGroups}
           msg={dictionary as I18nRecord}
           active={active}

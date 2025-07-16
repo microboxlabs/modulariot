@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { TaskFormProps } from "../task-form/task-form.types";
 import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";
 import { getEntityInfo } from "@/features/common/providers/client-api.provider";
-import CheckCircleIcon from "@/features/icons/check-circle";
 import { calcGpsValidationType } from "../../services/client-form.service";
-import ErrorCircleIcon from "@/features/icons/error-circle";
-import ExclamationIcon from "@/features/icons/exclamation";
-import EllipseIcon from "@/features/icons/ellipse";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 import { Spinner } from "flowbite-react";
-import { CheckCircle, Exclamation, ErrorCircle, Ellipse } from "../task-bento-form/components/trip-information/trip-verifications";
+import {
+  CheckCircle,
+  Exclamation,
+  ErrorCircle,
+  Ellipse,
+} from "../task-bento-form/components/trip-information/trip-verifications";
 
 export default function GpsValidationItem({
   task,
@@ -65,7 +66,8 @@ export default function GpsValidationItem({
     <small className="flex items-center">
       {loading && (
         <div className="flex items-center">
-          <Spinner className="w-5 h-5" /> <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
+          <Spinner className="w-5 h-5" />{" "}
+          <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
         </div>
       )}
       {!loading && !error && (

@@ -5,10 +5,10 @@ import { Driver } from "@/features/task-forms/components/driver-contact-info/dri
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function DriverValidations({
-  driver,
+  _driver,
   msg,
 }: {
-  driver: Driver;
+  _driver: Driver;
   msg: I18nRecord;
 }) {
   return (

@@ -21,9 +21,11 @@ export default function DriverData({
             style="auto"
             content={
               <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light">
-                Estado:{" "}
+                {(msg.bento as I18nRecord).biometric_verification as string}:{" "}
                 <span className="text-gray-800 dark:text-gray-100 text-sm">
-                  {driver.status}
+                  {driver.status === "verified"
+                    ? ((msg.bento as I18nRecord).verified as string)
+                    : ((msg.bento as I18nRecord).not_verified as string)}
                 </span>
               </div>
             }
@@ -41,7 +43,11 @@ export default function DriverData({
           </Tooltip>
         </h1>
         <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
-          {driver.varName}
+          {
+            ((msg.pages as I18nRecord).shippingDetailsTaskForm as I18nRecord)[
+              driver.varName as string
+            ] as string
+          }
         </h2>
       </div>
 
@@ -50,9 +56,9 @@ export default function DriverData({
         <div className="flex flex-col">
           <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col font-light h-full justify-center gap-1">
             <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              <IoIosMail className="w-3 h-3 inline-block" />
+              <FaIdCard className="w-3 h-3 inline-block" />
               <span className="text-gray-800 dark:text-gray-200 text-xs">
-                {driver.email}
+                {driver.rut}
               </span>
             </span>
             <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
@@ -62,16 +68,16 @@ export default function DriverData({
               </span>
             </span>
             <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              <FaIdCard className="w-3 h-3 inline-block" />
+              <IoIosMail className="w-3 h-3 inline-block" />
               <span className="text-gray-800 dark:text-gray-200 text-xs">
-                {driver.rut}
+                {driver.email}
               </span>
             </span>
           </div>
         </div>
         <div className="flex flex-col">
           <DriverValidations
-            driver={driver}
+            _driver={driver}
             msg={
               (msg.pages as I18nRecord).transportValidationForm as I18nRecord
             }

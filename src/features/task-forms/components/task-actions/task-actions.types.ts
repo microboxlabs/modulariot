@@ -6,4 +6,5 @@ export type TaskActionsProps = {
   lang: string;
   fluid?: boolean;
   extraData?: Record<string, any>;
+  enableActions?: boolean;
 };

@@ -2,8 +2,6 @@
 
 import Geographic from "./geographic";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { Button } from "flowbite-react";
-import { FaMapPin } from "react-icons/fa";
 import HistoricLoads from "./historic-loads";
 
 export function GeographicHistoric({

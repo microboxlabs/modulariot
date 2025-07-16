@@ -641,9 +641,6 @@ export default function TaskActions({
           </form>
         );
       }
-    default:
-      return null;
-
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
     case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:

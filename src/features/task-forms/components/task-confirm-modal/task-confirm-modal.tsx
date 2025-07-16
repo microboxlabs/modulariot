@@ -104,8 +104,6 @@ export default function TaskConfirmModal({
     setOpenModal(false);
   }
 
-  console.log(dict);
-
   return (
     <Modal dismissible show={openModal} onClose={onClose} size="4xl">
       <form onSubmit={handleConfirm}>

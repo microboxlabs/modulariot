@@ -96,6 +96,9 @@ export default function TaskActions({
     {},
   );
   const router = useRouter();
+  dict = dict["outcome"]
+    ? dict
+    : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);
   useEffect(() => {
     if (state?.success) {
       router.replace(`/${lang}/shipping`);
@@ -252,7 +255,7 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledOptions
-                dict={dict as I18nRecord}
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
@@ -491,7 +494,7 @@ export default function TaskActions({
               taskId={taskId}
               taskType={taskType}
               lang={lang}
-              dict={dict as I18nRecord}
+              dict={dict.shippingDetailsTaskForm as I18nRecord}
               fluid={true}
               extraData={extraData}
             />
@@ -527,13 +530,16 @@ export default function TaskActions({
          */
 
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+        console.log("dict", dict);
+        const label =
+          (dict?.outcome as I18nRecord) ??
+          (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)
+            .outcome as I18nRecord);
         otherOptions.push(
           ...[
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_ASSIGN_DRIVER_V2
-              ] as string,
+              label: label[OUTCOME_ASSIGN_DRIVER_V2] as string,
               icon: HiOutlineArrowLeft,
             },
           ],

@@ -47,6 +47,7 @@ import {
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_MISSION_CONTROL_V2,
+  OUTCOME_MONITOR_TRIP_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -484,17 +485,28 @@ export default function TaskActions({
             },
           ],
         );
-      } else if (
-        taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
-        taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK ||
-        taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK
-      ) {
+      } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
         otherOptions.push(
           ...[
             {
               id: OUTCOME_MISSION_CONTROL_V2,
               label: (dict.outcome as I18nRecord)[
                 OUTCOME_MISSION_CONTROL_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      } else if (
+        taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
+        taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
+      ) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_MONITOR_TRIP_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_MONITOR_TRIP_V2
               ] as string,
               icon: HiOutlineArrowLeft,
             },

@@ -138,7 +138,8 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as any}
           userGroups={userGroups}
-          msg={dictionary}
+          dict={dictionary as I18nRecord}
+          msg={dictionary as I18nRecord}
           active={active}
         />
       );

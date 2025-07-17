@@ -233,6 +233,8 @@ export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
 export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
   "Confirmar Arribo a Destino";
 export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
+export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
+  "Confirmar Cierre del Monitoreo";
 export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 

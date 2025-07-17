@@ -151,3 +151,39 @@ export type ShippingCoordinatorProcessTaskV2 =
   | "monitorTrip"
   | "confirmArrival"
   | "closeMonitoring";
+
+/* ------------------------------------------------------------- */
+/* Delivery Process */
+/* ------------------------------------------------------------- */
+
+export type DeliveryProcess = "delivery_coordination";
+
+export type DeliveryProcessForms =
+  | "wfship2:confirmDelivery"
+  | "wfship2:receiveDelivery"
+  | "wfship2:notifyTMSArrival"
+  | "wfship2:notifyTMSDelivery";
+
+export type ConfirmDeliveryOutcome = "Recibir Entrega";
+
+export type ReceiveDeliveryOutcome =
+  | "Confirmar Entrega"
+  | "Notificar TMS Arribo";
+
+export type NotifyTMSArrivalOutcome =
+  | "Recibir Entrega"
+  | "Notificar TMS Entrega";
+
+export type NotifyTMSDeliveryOutcome = "Notificar TMS Entrega" | "To define";
+
+export type TaskOutcomeDelivery =
+  | ConfirmDeliveryOutcome
+  | ReceiveDeliveryOutcome
+  | NotifyTMSArrivalOutcome
+  | NotifyTMSDeliveryOutcome;
+
+export type DeliveryProcessTask =
+  | "confirmDelivery"
+  | "receiveDelivery"
+  | "notifyTMSArrival"
+  | "notifyTMSDelivery";

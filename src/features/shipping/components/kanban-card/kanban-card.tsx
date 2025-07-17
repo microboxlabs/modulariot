@@ -141,11 +141,13 @@ export default function KanbanCard({
             <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
               <Tooltip style="auto" content={task.mintral_supplierName || "-"}>
                 <strong>
-                  {task?.mintral_supplierName?.substring(0, 22) +
-                    (task?.mintral_supplierName?.length &&
-                    task?.mintral_supplierName?.length > 22
-                      ? "..."
-                      : "") || "-"}
+                  {task?.mintral_supplierName
+                    ? task?.mintral_supplierName?.substring(0, 22) +
+                      (task?.mintral_supplierName?.length &&
+                      task?.mintral_supplierName?.length > 22
+                        ? "..."
+                        : "")
+                    : tr("card.withoutDriver", dict)}
                 </strong>
               </Tooltip>
             </div>

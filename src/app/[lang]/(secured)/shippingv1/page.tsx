@@ -11,12 +11,11 @@ import {
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 
-export default async function FinishedPage({
+export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
-
   // let tasks;
   try {
     // tasks = await getUserTasks(session!.user.ticket);
@@ -30,15 +29,15 @@ export default async function FinishedPage({
     //   };
     // });
     return (
-      <div className="h-full w-full overflow-auto">
+      <>
         <SseListener dictionary={dictionary} tenantId={session!.user.email} />
         <PageContent
-          showFinishedTasks={true}
+          showFinishedTasks={false}
           kanbanBoards={staticData}
           lang={lang}
-          dict={(dictionary.pages as I18nRecord)?.shipping as I18nRecord}
+          dict={(dictionary.pages as I18nRecord)?.shippingv1 as I18nRecord}
         />
-      </div>
+      </>
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {

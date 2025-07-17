@@ -3,6 +3,7 @@ import dayjs, { Dayjs } from "dayjs";
 import { twMerge } from "tailwind-merge";
 import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
+import kanbanBoardsV2 from "../../model/kanban-shipping-v2.json";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 const color_mapping = {
@@ -56,6 +57,7 @@ export default function DepartureDateShip({
   // const humanizeDate = humanizeFrom(date);
 
   const board = kanbanBoards.find((board) => board.title === table_name);
+  const boardV2 = kanbanBoardsV2.find((board) => board.title === table_name);
   const color = shipBgColor(dayjs(date), table_name);
   const fixed_date = dayjs(date).format("DD/MM/YYYY");
 
@@ -64,15 +66,22 @@ export default function DepartureDateShip({
       className={twMerge(
         "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7 gap-1",
         color?.bg + " " + color?.text,
+        "dark:text-white",
       )}
     >
-      {board?.state === "done" || board?.state === "started" ? (
+      {board?.state === "done" ||
+      board?.state === "started" ||
+      boardV2?.state === "done" ||
+      boardV2?.state === "started" ? (
         <FaCalendarCheck className={"h-3 w-3 " + color?.text} />
       ) : (
         <FaCalendarAlt className={"h-3 w-3 " + color?.text} />
       )}
       <p className={`whitespace-nowrap ${compact ? "hidden" : ""}`}>
-        {board?.state === "pending" || board?.state === "started"
+        {board?.state === "pending" ||
+        board?.state === "started" ||
+        boardV2?.state === "pending" ||
+        boardV2?.state === "started"
           ? (dict.kanban as I18nRecord).departure + " " + fixed_date
           : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
       </p>

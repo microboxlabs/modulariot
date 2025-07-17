@@ -36,18 +36,14 @@ import {
   getTransitionIdV2,
   OUTCOME_OVERLORD_ANULLED_V2,
   OUTCOME_OVERLORD_CANCELED_V2,
-  OUTCOME_TO_ASSIGN_DRIVER_V2,
-  OUTCOME_TO_PRESENT_DRIVER_V2,
-  OUTCOME_TO_PREPARE_SERVICE_V2,
-  OUTCOME_TO_MISSION_CONTROL_V2,
-  OUTCOME_TO_MONITOR_TRIP_V2,
-  OUTCOME_TO_CONFIRM_ARRIVAL_V2,
   OUTCOME_TO_CLOSE_MONITORING_V2,
   OUTCOME_ASSIGN_DRIVER_V2,
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_MISSION_CONTROL_V2,
   OUTCOME_MONITOR_TRIP_V2,
+  OUTCOME_CONFIRM_ARRIVAL_V2,
+  OUTCOME_CLOSE_MONITORING_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -90,7 +86,33 @@ export default function TaskActions({
     setOpenModal(true);
   };
 
-  const isCommentsFieldEnabled = (outcome: TaskOutcome | TaskOutcomeV2) => {
+  const isCommentsFieldEnabled = (
+    outcome: TaskOutcome | TaskOutcomeV2,
+    taskType?: ShippingCoordinatorProcessFormsV2,
+  ) => {
+    if (taskType) {
+      /* V2 Tasks */
+      switch (outcome) {
+        case OUTCOME_PRESENT_DRIVER_V2:
+          return taskType !== TYPE_WFSHIP2_ASSIGN_DRIVER_TASK;
+        case OUTCOME_PREPARE_SERVICE_V2:
+          return taskType !== TYPE_WFSHIP2_PRESENT_DRIVER_TASK;
+        case OUTCOME_MISSION_CONTROL_V2:
+          return taskType !== TYPE_WFSHIP2_PREPARE_SERVICE_TASK;
+        case OUTCOME_MONITOR_TRIP_V2:
+          return taskType !== TYPE_WFSHIP2_MISSION_CONTROL_TASK;
+        case OUTCOME_CONFIRM_ARRIVAL_V2:
+          return taskType !== TYPE_WFSHIP2_MONITOR_TRIP_TASK;
+        case OUTCOME_CLOSE_MONITORING_V2:
+          return taskType !== TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK;
+        case OUTCOME_TO_CLOSE_MONITORING_V2:
+          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK;
+
+        default:
+          return true;
+      }
+    }
+
     return (
       outcome !== OUTCOME_NORMAL_INITIATION &&
       outcome !== OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION &&
@@ -99,16 +121,7 @@ export default function TaskActions({
       outcome !== OUTCOME_MONITORING_FINALIZATION &&
       outcome !== OUTCOME_CONFIRM_MONITORING_FINALIZATION &&
       outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
-      outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS &&
-      /* V2 Tasks */
-      outcome !== OUTCOME_ASSIGN_DRIVER_V2 &&
-      outcome !== OUTCOME_TO_ASSIGN_DRIVER_V2 &&
-      outcome !== OUTCOME_TO_PRESENT_DRIVER_V2 &&
-      outcome !== OUTCOME_TO_PREPARE_SERVICE_V2 &&
-      outcome !== OUTCOME_TO_MISSION_CONTROL_V2 &&
-      outcome !== OUTCOME_TO_MONITOR_TRIP_V2 &&
-      outcome !== OUTCOME_TO_CONFIRM_ARRIVAL_V2 &&
-      outcome !== OUTCOME_TO_CLOSE_MONITORING_V2
+      outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS
     );
   };
 
@@ -420,22 +433,6 @@ export default function TaskActions({
         outcome as TaskOutcomeV2,
       );
       const otherOptions = [];
-
-      /*
-      {
-          id: OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-          label: (dict.outcome as I18nRecord)
-            .redirectToMissionControl as string,
-          icon: HiOutlineArrowRight,
-        },
-        {
-          id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-          label: (dict.outcome as I18nRecord)
-            .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
-          icon: HiCheck,
-        },
-         */
-
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
         otherOptions.push(
           ...[
@@ -556,7 +553,7 @@ export default function TaskActions({
             </Button.Group>
 
             <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+              commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}
               dict={dict}
               taskId={taskId}
               taskType={taskType}

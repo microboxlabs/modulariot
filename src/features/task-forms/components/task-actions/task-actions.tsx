@@ -26,6 +26,24 @@ import {
   OUTCOME_OVERLORD_CANCELED,
   OUTCOME_OVERLORD_ANULLED,
   OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+  TYPE_WFSHIP2_ASSIGN_DRIVER_TASK,
+  TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
+  TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
+  TYPE_WFSHIP2_PREPARE_SERVICE_TASK,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFSHIP2_MONITOR_TRIP_TASK,
+  TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
+  getTransitionIdV2,
+  OUTCOME_OVERLORD_ANULLED_V2,
+  OUTCOME_OVERLORD_CANCELED_V2,
+  OUTCOME_TO_CLOSE_MONITORING_V2,
+  OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_PRESENT_DRIVER_V2,
+  OUTCOME_PREPARE_SERVICE_V2,
+  OUTCOME_MISSION_CONTROL_V2,
+  OUTCOME_MONITOR_TRIP_V2,
+  OUTCOME_CONFIRM_ARRIVAL_V2,
+  OUTCOME_CLOSE_MONITORING_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -33,13 +51,18 @@ import {
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
-import { TaskOutcome } from "../../services/form.service.types";
+import {
+  ShippingCoordinatorProcessFormsV2,
+  TaskOutcome,
+  TaskOutcomeV2,
+} from "../../services/form.service.types";
 import OtherOptions from "./other-options";
 import CanceledAnnulledOptions from "./canceled-annulled-options";
 import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
 import CanceledAnnulledAndOptions from "./canceled-annulled-and-options";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
+import GroupButtonOptions from "./group-button-options";
 export default function TaskActions({
   taskId,
   taskType,
@@ -48,17 +71,48 @@ export default function TaskActions({
   extraData,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
-  const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
+  const [outcome, setOutcome] = useState<
+    TaskOutcome | TaskOutcomeV2 | undefined
+  >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
 
-  const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
+  const handleSelection = (
+    outcome: TaskOutcome | TaskOutcomeV2,
+    outcomeLabel: string,
+  ) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
     setOpenModal(true);
   };
 
-  const isCommentsFieldEnabled = (outcome: TaskOutcome) => {
+  const isCommentsFieldEnabled = (
+    outcome: TaskOutcome | TaskOutcomeV2,
+    taskType?: ShippingCoordinatorProcessFormsV2,
+  ) => {
+    if (taskType) {
+      /* V2 Tasks */
+      switch (outcome) {
+        case OUTCOME_PRESENT_DRIVER_V2:
+          return taskType !== TYPE_WFSHIP2_ASSIGN_DRIVER_TASK;
+        case OUTCOME_PREPARE_SERVICE_V2:
+          return taskType !== TYPE_WFSHIP2_PRESENT_DRIVER_TASK;
+        case OUTCOME_MISSION_CONTROL_V2:
+          return taskType !== TYPE_WFSHIP2_PREPARE_SERVICE_TASK;
+        case OUTCOME_MONITOR_TRIP_V2:
+          return taskType !== TYPE_WFSHIP2_MISSION_CONTROL_TASK;
+        case OUTCOME_CONFIRM_ARRIVAL_V2:
+          return taskType !== TYPE_WFSHIP2_MONITOR_TRIP_TASK;
+        case OUTCOME_CLOSE_MONITORING_V2:
+          return taskType !== TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK;
+        case OUTCOME_TO_CLOSE_MONITORING_V2:
+          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK;
+
+        default:
+          return true;
+      }
+    }
+
     return (
       outcome !== OUTCOME_NORMAL_INITIATION &&
       outcome !== OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION &&
@@ -366,14 +420,153 @@ export default function TaskActions({
           </GroupAllowed>
         </div>
       );
-    default:
+
+    case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
+    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
+    case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
+    case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
+    case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
+    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK: {
+      const transitionId = getTransitionIdV2(
+        taskType as ShippingCoordinatorProcessFormsV2,
+        outcome as TaskOutcomeV2,
+      );
+      const otherOptions = [];
+      if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_ASSIGN_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_ASSIGN_DRIVER_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_PRESENT_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PRESENT_DRIVER_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_ASSIGN_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_ASSIGN_DRIVER_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+            {
+              id: OUTCOME_PRESENT_DRIVER_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PRESENT_DRIVER_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+            {
+              id: OUTCOME_PREPARE_SERVICE_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_PREPARE_SERVICE_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_MISSION_CONTROL_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_MISSION_CONTROL_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      } else if (
+        taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
+        taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
+      ) {
+        otherOptions.push(
+          ...[
+            {
+              id: OUTCOME_MONITOR_TRIP_V2,
+              label: (dict.outcome as I18nRecord)[
+                OUTCOME_MONITOR_TRIP_V2
+              ] as string,
+              icon: HiOutlineArrowLeft,
+            },
+          ],
+        );
+      }
+      otherOptions.push(
+        ...[
+          {
+            id: OUTCOME_OVERLORD_CANCELED_V2,
+            label: (dict.outcome as I18nRecord).canceled as string,
+            icon: HiOutlineArrowLeft,
+          },
+          {
+            id: OUTCOME_OVERLORD_ANULLED_V2,
+            label: (dict.outcome as I18nRecord).annulled as string,
+            icon: HiTrash,
+          },
+        ],
+      );
+
       return (
-        <div className="">
-          <Button size="md" color="blue">
-            Choose plan
-            <HiOutlineArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+          <GroupAllowed
+            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+            userGroups={userGroups}
+          >
+            <Button.Group className="w-full">
+              <GroupButtonOptions
+                dict={dict}
+                handleSelection={handleSelection}
+                otherOptions={otherOptions}
+              />
+              <TaskActionButton
+                fluid={fluid}
+                label={(dict.outcome as I18nRecord).continue as string}
+                taskId={taskId}
+                transitionId={transitionId}
+                onClick={() =>
+                  handleSelection(
+                    transitionId,
+                    (dict.outcome as I18nRecord)[transitionId] as string,
+                  )
+                }
+              />
+            </Button.Group>
+
+            <TaskConfirmModal
+              commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}
+              dict={dict}
+              taskId={taskId}
+              taskType={taskType}
+              outcome={outcome!}
+              outcomeLabel={outcomeLabel!}
+              openModal={openModal}
+              setOpenModal={setOpenModal}
+            />
+          </GroupAllowed>
         </div>
       );
+    }
+    default:
+      return <div className="">{/* TODO: Add task actions*/}</div>;
   }
 }

@@ -572,7 +572,8 @@
         "returnToOverlord": "Return to Overlord",
         "tripInitiated": "Trip initiated",
         "tripCanceled": "Trip canceled",
-        "tripAnnulled": "Trip annulled"
+        "tripAnnulled": "Trip annulled",
+        "assignDriver": "Return to Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

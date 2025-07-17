@@ -578,7 +578,8 @@
         "returnToOverlord": "Devolver a Overlord",
         "tripInitiated": "Viaje Iniciado",
         "tripCanceled": "Viaje Cancelado",
-        "tripAnnulled": "Viaje Anulado"
+        "tripAnnulled": "Viaje Anulado",
+        "assignDriver": "Devolver a Asignar Conductor/Transporte"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

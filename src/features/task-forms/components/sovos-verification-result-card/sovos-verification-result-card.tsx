@@ -4,10 +4,12 @@ import { Button, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "../sovos-start-verification-card/sovos-start-verification-card.types";
 import { useSession } from "next-auth/react";
 import FingerprintIcon from "@/features/icons/figerprint";
-import { TaskOutcome } from "../../services/form.service.types";
+import { TaskOutcome, TaskOutcomeV2 } from "../../services/form.service.types";
 import {
+  OUTCOME_ASSIGN_DRIVER_V2,
   OUTCOME_CONFIRM_MONITORING_FINALIZATION,
   OUTCOME_RETURN_TO_MISSION_CONTROL,
+  TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
 } from "../../services/form.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiOutlineArrowLeft, HiOutlineArrowRight } from "react-icons/hi";
@@ -28,7 +30,9 @@ export default function SovosVerificationResultCard({
 }: SovosVerificationCardProps) {
   const { data: session } = useSession();
   const [openModal, setOpenModal] = useState(false);
-  const [outcome, setOutcome] = useState<TaskOutcome | undefined>(undefined);
+  const [outcome, setOutcome] = useState<
+    TaskOutcome | TaskOutcomeV2 | undefined
+  >(undefined);
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>(
     undefined,
   );
@@ -71,7 +75,10 @@ export default function SovosVerificationResultCard({
     return userObj?.entry.jobTitle ?? "";
   }
 
-  const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {
+  const handleSelection = (
+    outcome: TaskOutcome | TaskOutcomeV2,
+    outcomeLabel: string,
+  ) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
     setOpenModal(true);
@@ -108,21 +115,37 @@ export default function SovosVerificationResultCard({
                   dict={msg as I18nRecord}
                   options={
                     isSovosVerification
-                      ? [
-                          {
-                            id: 1,
-                            label: (msg?.outcome as I18nRecord)
-                              .returnToMissionControl as string,
-                            icon: HiOutlineArrowLeft,
-                            function: () => {
-                              handleSelection(
-                                OUTCOME_RETURN_TO_MISSION_CONTROL,
-                                (msg?.outcome as I18nRecord)
-                                  .returnToMissionControl as string,
-                              );
+                      ? task.taskFormKey !== TYPE_WFSHIP2_PRESENT_DRIVER_TASK
+                        ? [
+                            {
+                              id: 1,
+                              label: (msg?.outcome as I18nRecord)
+                                .returnToMissionControl as string,
+                              icon: HiOutlineArrowLeft,
+                              function: () => {
+                                handleSelection(
+                                  OUTCOME_RETURN_TO_MISSION_CONTROL,
+                                  (msg?.outcome as I18nRecord)
+                                    .returnToMissionControl as string,
+                                );
+                              },
                             },
-                          },
-                        ]
+                          ]
+                        : [
+                            {
+                              id: 1,
+                              label: (msg?.outcome as I18nRecord)
+                                .assignDriver as string,
+                              icon: HiOutlineArrowLeft,
+                              function: () => {
+                                handleSelection(
+                                  OUTCOME_ASSIGN_DRIVER_V2,
+                                  (msg?.outcome as I18nRecord)
+                                    .assignDriver as string,
+                                );
+                              },
+                            },
+                          ]
                       : [
                           {
                             id: 1,

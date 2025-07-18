@@ -18,6 +18,7 @@ import {
   useSymptoms,
 } from "@/features/common/providers/client-api.provider";
 import {
+  DELIVERY_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
@@ -51,8 +52,13 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
-    totals["picking"] = 0;
-    totals["delivery"] = 0;
+
+    totals["delivery"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>
+        DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as any),
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
   } else if (error.status === 403 || error.status === 401) {
     router.push("/sign-in");
   }

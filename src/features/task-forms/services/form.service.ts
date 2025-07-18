@@ -8,6 +8,8 @@ import {
   ShippingCoordinatorProcessFormsV2,
   ShippingCoordinatorProcessTaskV2,
   TaskOutcomeV2,
+  DeliveryProcessForms,
+  DeliveryProcessTask,
 } from "./form.service.types";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
@@ -261,3 +263,35 @@ export const getTransitionIdV2 = (
       return outcome;
   }
 };
+
+/* ------------------------------------------------------------- */
+/* Delivery Process */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:confirmDelivery";
+
+export const TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:receiveDelivery";
+
+export const TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK: DeliveryProcessForms =
+  "wfship2:notifyTMSArrival";
+
+export const TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:notifyTMSDelivery";
+
+export const TASK_CONFIRM_DELIVERY_V2: DeliveryProcessTask = "confirmDelivery";
+
+export const TASK_RECEIVE_DELIVERY: DeliveryProcessTask = "receiveDelivery";
+
+export const TASK_NOTIFY_TMS_ARRIVAL: DeliveryProcessTask = "notifyTMSArrival";
+
+export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
+  "notifyTMSDelivery";
+
+export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
+  TASK_CONFIRM_DELIVERY_V2,
+  TASK_RECEIVE_DELIVERY,
+  TASK_NOTIFY_TMS_ARRIVAL,
+  TASK_NOTIFY_TMS_DELIVERY,
+];

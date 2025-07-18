@@ -135,7 +135,7 @@ export default function PageContent({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-auto">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb

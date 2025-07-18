@@ -217,7 +217,9 @@
         "load_table": "Tabla de cargas",
         "length": "Largo",
         "width": "Ancho",
-        "height": "Alto"
+        "height": "Alto",
+        "finished": "Finalizado",
+        "finished_process": "Proceso Terminado"
       },
       "card": {
         "origin": "Origen",
@@ -942,6 +944,30 @@
     "service_type": "Tipo de servicio",
     "reason": "Motivo",
     "reject_reason": "Motivo de rechazo",
-    "service": "Servicio"
+    "service": "Servicio",
+    "reject_reason": "Motivo de rechazo"
+  },
+  "bento": {
+    "trip_information": "Información del viaje",
+    "symptoms_present_in_the_trip": "Síntomas presentes en el viaje",
+    "totals": "Totales",
+    "detected_symptoms": "Síntomas detectados",
+    "successfully_treated": "Tratados con éxito",
+    "biometric_verification": "Verificación biométrica",
+    "verified": "Verificado",
+    "not_verified": "No verificado",
+    "trip_duration": "Tiempo de viaje",
+    "process_state": "Estado de proceso",
+    "Planificado": "Planificado",
+    "asignado": "Asignado",
+    "en_preparacion": "En Preparación",
+    "preparado": "Preparado",
+    "iniciado": "Iniciado",
+    "arrivado_sp": "Arrivado SP",
+    "arribado_cp": "Arribado CP"
+  },
+  "comments": {
+    "title": "Comentarios",
+    "subtitle": "Aquí podrás visualizar los comentarios ingresados."
   }
 }

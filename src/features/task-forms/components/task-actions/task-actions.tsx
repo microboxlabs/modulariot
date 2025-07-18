@@ -5,6 +5,7 @@ import {
   HiTrash,
   HiOutlineArrowRight,
   HiCheck,
+  HiOutlineHand,
 } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
@@ -26,6 +27,8 @@ import {
   OUTCOME_OVERLORD_CANCELED,
   OUTCOME_OVERLORD_ANULLED,
   OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
+  TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK,
+  OUTCOME_OVERLORD_REQUIRED,
   TYPE_WFSHIP2_ASSIGN_DRIVER_TASK,
   TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
   TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
@@ -50,8 +53,9 @@ import {
   I18nRecord,
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  TaskNextActionState,
   ShippingCoordinatorProcessFormsV2,
   TaskOutcome,
   TaskOutcomeV2,
@@ -62,13 +66,19 @@ import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
 import CanceledAnnulledAndOptions from "./canceled-annulled-and-options";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
+import { useFormState } from "react-dom";
+import { useRouter } from "next/navigation";
+import { taskNextAction } from "../../services/client-form.service";
 import GroupButtonOptions from "./group-button-options";
+
 export default function TaskActions({
+  lang,
   taskId,
   taskType,
   dict,
   fluid = false,
   extraData,
+  enableActions = true,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
@@ -76,6 +86,23 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
+  const [isLoading, setIsLoading] = useState(false);
+  const [state, formAction] = useFormState<TaskNextActionState, FormData>(
+    taskNextAction,
+    {},
+  );
+  const router = useRouter();
+  dict = dict["outcome"]
+    ? dict
+    : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);
+  useEffect(() => {
+    if (state?.success) {
+      router.replace(`/${lang}/shipping`);
+    }
+    if (state?.error) {
+      setIsLoading(false);
+    }
+  }, [state]);
 
   const handleSelection = (
     outcome: TaskOutcome | TaskOutcomeV2,
@@ -123,6 +150,13 @@ export default function TaskActions({
       outcome !== OUTCOME_REDIRECT_TO_MISSION_CONTROL &&
       outcome !== OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS
     );
+  };
+
+  const formActionWrapper = async (formData: FormData) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      formAction(formData);
+    }, 100);
   };
 
   switch (taskType) {
@@ -420,7 +454,66 @@ export default function TaskActions({
           </GroupAllowed>
         </div>
       );
+    case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
+      if (!enableActions) {
+        return (
+          <form action={formActionWrapper} className="flex flex-col gap-2">
+            <GroupAllowed
+              userGroups={userGroups}
+              notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+            >
+              <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+                <Button.Group className="w-full">
+                  <CanceledAnnulledAndOptions
+                    dict={dict}
+                    handleSelection={handleSelection}
+                    otherOptions={[
+                      {
+                        id: OUTCOME_OVERLORD_REQUIRED,
+                        label: (dict.outcome as I18nRecord)
+                          .requiresOverlord as string,
+                        icon: HiOutlineHand,
+                      },
+                    ]}
+                  />
+                  <Button
+                    color="blue"
+                    type="submit"
+                    theme={{ inner: { base: "px-5 py-3" } }}
+                    isProcessing={isLoading}
+                    className="w-full px-0 py-px"
+                  >
+                    {(dict.buttons as I18nRecord).submit as string}
+                  </Button>
+                </Button.Group>
 
+                <TaskConfirmModal
+                  commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
+                  dict={dict}
+                  taskId={taskId}
+                  outcome={outcome!}
+                  outcomeLabel={outcomeLabel!}
+                  openModal={openModal}
+                  setOpenModal={setOpenModal}
+                />
+              </div>
+            </GroupAllowed>
+          </form>
+        );
+      } else {
+        return (
+          <form action={formActionWrapper} className="flex flex-col gap-2">
+            <TaskActions
+              taskId={taskId}
+              taskType={taskType}
+              lang={lang}
+              dict={dict.shippingDetailsTaskForm as I18nRecord}
+              fluid={true}
+              extraData={extraData}
+            />
+          </form>
+        );
+      }
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
     case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
@@ -434,13 +527,15 @@ export default function TaskActions({
       );
       const otherOptions = [];
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+        const label =
+          (dict?.outcome as I18nRecord) ??
+          (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)
+            .outcome as I18nRecord);
         otherOptions.push(
           ...[
             {
               id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_ASSIGN_DRIVER_V2
-              ] as string,
+              label: label[OUTCOME_ASSIGN_DRIVER_V2] as string,
               icon: HiOutlineArrowLeft,
             },
           ],

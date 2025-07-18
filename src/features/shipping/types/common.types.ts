@@ -47,7 +47,7 @@ export type KanbanBoardTaskMember = {
 
 export type KanbanPageData = {
   showFinishedTasks: boolean;
-  showV2Tasks?: boolean;
+  showWorkflowTasks?: string;
   kanbanBoards: KanbanBoard[];
   lang: string;
   // tasks: any;

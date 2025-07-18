@@ -33,7 +33,7 @@ export default async function ShippingPage({
         <SseListener dictionary={dictionary} tenantId={session!.user.email} />
         <PageContent
           showFinishedTasks={false}
-          showV2Tasks={true}
+          showWorkflowTasks="delivery"
           kanbanBoards={staticData}
           lang={lang}
           dict={(dictionary.pages as I18nRecord)?.delivery as I18nRecord}

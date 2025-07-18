@@ -18,6 +18,10 @@ import {
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+  TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK,
+  TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK,
 } from "../../services/form.service";
 import TransportValidationForm from "../transport-validation-form/transport-validation-form";
 import { ExtendedTaskViewProps } from "./task-form.types";
@@ -121,6 +125,10 @@ export async function TaskForm({
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
     case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK: /* Delivery Process */
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
+    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
       return (
         <NextCancelTripView
           lang={lang ?? defaultLocale}

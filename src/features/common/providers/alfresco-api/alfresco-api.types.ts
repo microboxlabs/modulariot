@@ -62,6 +62,7 @@ export type TaskResponse = {
   [key: string]: unknown;
   mintral_serviceCode: string;
   bpm_outcome: string;
+  persistentState: PersistentState;
 };
 
 export type Task = {

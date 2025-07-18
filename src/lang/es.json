@@ -217,7 +217,9 @@
         "load_table": "Tabla de cargas",
         "length": "Largo",
         "width": "Ancho",
-        "height": "Alto"
+        "height": "Alto",
+        "finished": "Finalizado",
+        "finished_process": "Proceso Terminado"
       },
       "card": {
         "origin": "Origen",
@@ -954,6 +956,18 @@
     "biometric_verification": "Verificación biométrica",
     "verified": "Verificado",
     "not_verified": "No verificado",
-    "trip_duration": "Tiempo de viaje"
+    "trip_duration": "Tiempo de viaje",
+    "process_state": "Estado de proceso",
+    "Planificado": "Planificado",
+    "asignado": "Asignado",
+    "en_preparacion": "En Preparación",
+    "preparado": "Preparado",
+    "iniciado": "Iniciado",
+    "arrivado_sp": "Arrivado SP",
+    "arribado_cp": "Arribado CP"
+  },
+  "comments": {
+    "title": "Comentarios",
+    "subtitle": "Aquí podrás visualizar los comentarios ingresados."
   }
 }

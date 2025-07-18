@@ -139,7 +139,10 @@ export async function TaskBentoForm({
           task={task as any}
           userGroups={userGroups}
           dict={dictionary as I18nRecord}
-          msg={dictionary as I18nRecord}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .shippingDetailsTaskForm as I18nRecord
+          }
           active={active}
         />
       );

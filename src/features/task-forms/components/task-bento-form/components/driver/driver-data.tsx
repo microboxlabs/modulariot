@@ -15,12 +15,12 @@ export default function DriverData({
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex flex-col">
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 items-center whitespace-normal">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center">
           {driver.name}
           <Tooltip
             style="auto"
             content={
-              <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light">
+              <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light whitespace-nowrap">
                 {(msg.bento as I18nRecord).biometric_verification as string}:{" "}
                 <span className="text-gray-800 dark:text-gray-100 text-sm">
                   {driver.status === "verified"
@@ -52,24 +52,24 @@ export default function DriverData({
       </div>
 
       {/* Trip specific data */}
-      <div className="flex flex-wrap gap-2 items-stretch h-full">
+      <div className="flex flex-row gap-2 items-stretch h-full">
         <div className="flex flex-col">
           <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col font-light h-full justify-center gap-1">
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              <FaIdCard className="w-3 h-3 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-xs">
+            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
+              <FaIdCard className="w-4 h-4 inline-block" />
+              <span className="text-gray-800 dark:text-gray-200 text-sm">
                 {driver.rut}
               </span>
             </span>
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              <FaPhoneAlt className="w-3 h-3 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-xs">
+            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
+              <FaPhoneAlt className="w-4 h-4 inline-block" />
+              <span className="text-gray-800 dark:text-gray-200 text-sm">
                 {driver.phone}
               </span>
             </span>
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              <IoIosMail className="w-3 h-3 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-xs">
+            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
+              <IoIosMail className="w-4 h-4 inline-block" />
+              <span className="text-gray-800 dark:text-gray-200 text-sm">
                 {driver.email}
               </span>
             </span>

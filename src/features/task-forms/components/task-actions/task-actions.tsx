@@ -530,7 +530,6 @@ export default function TaskActions({
          */
 
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
-        console.log("dict", dict);
         const label =
           (dict?.outcome as I18nRecord) ??
           (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)

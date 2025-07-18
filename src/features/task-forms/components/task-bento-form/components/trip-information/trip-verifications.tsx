@@ -46,8 +46,8 @@ export default function TripVerifications({
         : task.mintral_priorityCode;
 
   return (
-    <div className="flex-1 flex flex-col gap-1 whitespace-nowrap w-full h-fit justify-center">
-      <div className="flex gap-2 items-center">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 rounded-b-lg w-full">
+      <div className="flex gap-2 items-center p-1 border-0 border-gray-200 dark:border-gray-500">
         {isError(serviceValidation?.v_01) && <Ellipse />}
         {serviceValidation?.v_01?.v_01eval === 1 && <CheckCircle />}
         {serviceValidation?.v_01?.v_01eval === 2 && <Exclamation />}
@@ -56,7 +56,7 @@ export default function TripVerifications({
           {(msg!.cards as I18nRecord).consolidation as string}
         </span>
       </div>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center p-1 border-0 border-gray-200 dark:border-gray-500">
         {isError(serviceValidation?.v_02) && <Ellipse />}
         {serviceValidation?.v_02?.v_02eval === 1 && <CheckCircle />}
         {serviceValidation?.v_02?.v_02eval === 2 && <Exclamation />}
@@ -65,7 +65,7 @@ export default function TripVerifications({
           {(msg!.cards as I18nRecord).documentSeparation as string}
         </span>
       </div>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center p-1 border-0 border-gray-200 dark:border-gray-500 rounded-bl-lg">
         {isError(serviceValidation?.v_03) && <Ellipse />}
         {serviceValidation?.v_03?.v_03eval === 1 && <CheckCircle />}
         {serviceValidation?.v_03?.v_03eval === 2 && <Exclamation />}
@@ -74,7 +74,7 @@ export default function TripVerifications({
           {(msg!.cards as I18nRecord).clientSystemValidation as string}
         </span>
       </div>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center p-1 border-0 border-gray-200 dark:border-gray-500 rounded-br-lg">
         <GpsValidationItem
           msg={msg}
           lang={lang}

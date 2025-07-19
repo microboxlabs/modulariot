@@ -39,6 +39,10 @@ export const taskShippingBoardMap: Record<string, string> = {
   "wfship2:monitorTripTask": "monitorTrip",
   "wfship2:confirmArrivalTask": "confirmArrival",
   "wfship2:closeMonitoringTask": "closeMonitoring",
+  "wfship2:confirmDelivery": "confirmDelivery",
+  "wfship2:receiveDelivery": "receiveDelivery",
+  "wfship2:notifyTMSArrival": "notifyTMSArrival",
+  "wfship2:notifyTMSDelivery": "notifyTMSDelivery",
 };
 
 function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {

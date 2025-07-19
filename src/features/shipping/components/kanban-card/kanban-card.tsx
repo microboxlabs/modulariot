@@ -139,12 +139,16 @@ export default function KanbanCard({
               <strong>{task.mintral_truckLicensePlate || "-"}</strong>
             </div>
             <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-              <Tooltip style="auto" content={task.mintral_supplierName || "-"}>
+              <Tooltip
+                style="auto"
+                content={task.mintral_supplierName || "-"}
+                placement="top"
+              >
                 <strong>
                   {task?.mintral_supplierName
-                    ? task?.mintral_supplierName?.substring(0, 22) +
+                    ? task?.mintral_supplierName?.substring(0, 21) +
                       (task?.mintral_supplierName?.length &&
-                      task?.mintral_supplierName?.length > 22
+                      task?.mintral_supplierName?.length > 21
                         ? "..."
                         : "")
                     : tr("card.withoutDriver", dict)}

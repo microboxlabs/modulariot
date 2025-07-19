@@ -1,3 +1,4 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   MissionControlValidationOutcome,
   MonitoringInCourseTripOutcome,
@@ -12,6 +13,8 @@ import {
   DeliveryProcessTask,
   TaskOutcomeDelivery,
 } from "./form.service.types";
+import { HiOutlineArrowLeft, HiTrash } from "react-icons/hi";
+import { ElementType } from "react";
 
 export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
   "wfship:transportValidationTask";
@@ -228,13 +231,13 @@ export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
 export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
 export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
-  "Confirmar Arribo a Destino";
+  "Confirmar Arribo / Entrega";
 export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";
 export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
-  "Confirmar Arribo a Destino";
+  "Confirmar Arribo / Entrega";
 export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
 export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";
@@ -242,9 +245,9 @@ export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 
 export const getTransitionIdV2 = (
-  taskType: ShippingCoordinatorProcessFormsV2,
+  taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
   outcome: TaskOutcomeV2,
-): TaskOutcomeV2 => {
+): TaskOutcomeV2 | TaskOutcomeDelivery => {
   switch (taskType) {
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
       return OUTCOME_TO_ASSIGN_DRIVER_V2;
@@ -260,9 +263,121 @@ export const getTransitionIdV2 = (
       return OUTCOME_TO_CONFIRM_ARRIVAL_V2;
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
       return OUTCOME_TO_CLOSE_MONITORING_V2;
+    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
+      return OUTCOME_TO_CONFIRM_DELIVERY_V2;
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+      return OUTCOME_TO_RECEIVE_DELIVERY_V2;
+    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
+      return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
+    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
+      return OUTCOME_CLOSE_MONITORING_V2;
     default:
       return outcome;
   }
+};
+
+export const getSecondaryTransitionIdV2 = (
+  taskType: ShippingCoordinatorProcessFormsV2,
+  dict: I18nRecord,
+): {
+  id: TaskOutcomeV2;
+  label: string;
+  icon: ElementType;
+}[] => {
+  const otherOptions = [];
+  if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_ASSIGN_DRIVER_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_ASSIGN_DRIVER_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_PRESENT_DRIVER_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_PRESENT_DRIVER_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_ASSIGN_DRIVER_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_ASSIGN_DRIVER_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+        {
+          id: OUTCOME_PRESENT_DRIVER_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_PRESENT_DRIVER_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+        {
+          id: OUTCOME_PREPARE_SERVICE_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_PREPARE_SERVICE_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_MISSION_CONTROL_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_MISSION_CONTROL_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (
+    taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
+    taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
+  ) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_MONITOR_TRIP_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_MONITOR_TRIP_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  }
+  otherOptions.push(
+    ...[
+      {
+        id: OUTCOME_OVERLORD_CANCELED_V2,
+        label: (dict.outcome as I18nRecord).canceled as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_OVERLORD_ANULLED_V2,
+        label: (dict.outcome as I18nRecord).annulled as string,
+        icon: HiTrash,
+      },
+    ],
+  );
+  return otherOptions;
 };
 
 /* ------------------------------------------------------------- */
@@ -291,16 +406,16 @@ export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
   "notifyTMSDelivery";
 
 export const OUTCOME_TO_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
-  "Confirmar Entrega";
+  "Recibir Entrega";
 
 export const OUTCOME_TO_RECEIVE_DELIVERY_V2: TaskOutcomeDelivery =
-  "Notificar TMS Arribo";
+  "Notificar Arribo (4.7)";
 
 export const OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2: TaskOutcomeDelivery =
-  "Notificar TMS Entrega";
+  "Notificar Arribo (4.7)";
 
 export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =
-  "Notificar TMS Entrega";
+  "Notificar Entrega (5.11)";
 
 export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_CONFIRM_DELIVERY_V2,
@@ -308,21 +423,3 @@ export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_NOTIFY_TMS_ARRIVAL,
   TASK_NOTIFY_TMS_DELIVERY,
 ];
-
-export const getTransitionIdDelivery = (
-  taskType: DeliveryProcessForms,
-  outcome: TaskOutcomeDelivery,
-): TaskOutcomeDelivery | TaskOutcomeV2 => {
-  switch (taskType) {
-    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
-      return OUTCOME_TO_CONFIRM_DELIVERY_V2;
-    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
-      return OUTCOME_TO_RECEIVE_DELIVERY_V2;
-    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
-      return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
-    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
-      return OUTCOME_CLOSE_MONITORING_V2;
-    default:
-      return outcome;
-  }
-};

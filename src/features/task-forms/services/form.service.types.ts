@@ -117,7 +117,7 @@ export type MissionControlTaskOutcome =
   | "Viaje Anulado";
 
 export type MonitorTripTaskOutcome =
-  | "Confirmar Arribo a Destino"
+  | "Confirmar Arribo / Entrega"
   | "Torre de Control: Iniciar Viaje"
   | "Viaje Cancelado"
   | "Viaje Anulado";
@@ -168,13 +168,15 @@ export type ConfirmDeliveryOutcome = "Recibir Entrega";
 
 export type ReceiveDeliveryOutcome =
   | "Confirmar Entrega"
-  | "Notificar TMS Arribo";
+  | "Notificar Arribo (4.7)";
 
 export type NotifyTMSArrivalOutcome =
   | "Recibir Entrega"
-  | "Notificar TMS Entrega";
+  | "Notificar Entrega (5.11)";
 
-export type NotifyTMSDeliveryOutcome = "Notificar TMS Entrega" | "To define";
+export type NotifyTMSDeliveryOutcome =
+  | "Notificar Entrega (5.11)"
+  | "Viaje Finalizado";
 
 export type TaskOutcomeDelivery =
   | ConfirmDeliveryOutcome

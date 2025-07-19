@@ -44,6 +44,7 @@ export default function Geographic({
         filteredLocationData={null}
         dict={dictionary}
         selectedTreatmentIndex={null}
+        minimized={true}
       />
     </div>
   );

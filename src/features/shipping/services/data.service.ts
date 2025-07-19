@@ -8,7 +8,7 @@ import {
   PersistentState,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-const taskShippingBoardMap: Record<string, string> = {
+export const taskShippingBoardMap: Record<string, string> = {
   // "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
   "wfship:tripOutsideInitiatedTask": "monitoringFinalization",
   "wfship:transportValidationTask": "transportValidation",

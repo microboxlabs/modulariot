@@ -37,16 +37,14 @@ import {
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   getTransitionIdV2,
-  OUTCOME_OVERLORD_ANULLED_V2,
-  OUTCOME_OVERLORD_CANCELED_V2,
-  OUTCOME_TO_CLOSE_MONITORING_V2,
-  OUTCOME_ASSIGN_DRIVER_V2,
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_MISSION_CONTROL_V2,
+  getSecondaryTransitionIdV2,
   OUTCOME_MONITOR_TRIP_V2,
   OUTCOME_CONFIRM_ARRIVAL_V2,
   OUTCOME_CLOSE_MONITORING_V2,
+  OUTCOME_TO_CLOSE_MONITORING_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -58,6 +56,7 @@ import {
   TaskNextActionState,
   ShippingCoordinatorProcessFormsV2,
   TaskOutcome,
+  TaskOutcomeDelivery,
   TaskOutcomeV2,
 } from "../../services/form.service.types";
 import OtherOptions from "./other-options";
@@ -82,7 +81,7 @@ export default function TaskActions({
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
-    TaskOutcome | TaskOutcomeV2 | undefined
+    TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery | undefined
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
@@ -105,7 +104,7 @@ export default function TaskActions({
   }, [state]);
 
   const handleSelection = (
-    outcome: TaskOutcome | TaskOutcomeV2,
+    outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
     outcomeLabel: string,
   ) => {
     setOutcome(outcome);
@@ -114,7 +113,7 @@ export default function TaskActions({
   };
 
   const isCommentsFieldEnabled = (
-    outcome: TaskOutcome | TaskOutcomeV2,
+    outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
     taskType?: ShippingCoordinatorProcessFormsV2,
   ) => {
     if (taskType) {
@@ -525,100 +524,9 @@ export default function TaskActions({
         taskType as ShippingCoordinatorProcessFormsV2,
         outcome as TaskOutcomeV2,
       );
-      const otherOptions = [];
-      if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
-        const label =
-          (dict?.outcome as I18nRecord) ??
-          (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)
-            .outcome as I18nRecord);
-        otherOptions.push(
-          ...[
-            {
-              id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: label[OUTCOME_ASSIGN_DRIVER_V2] as string,
-              icon: HiOutlineArrowLeft,
-            },
-          ],
-        );
-      } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
-        otherOptions.push(
-          ...[
-            {
-              id: OUTCOME_PRESENT_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_PRESENT_DRIVER_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-          ],
-        );
-      } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
-        otherOptions.push(
-          ...[
-            {
-              id: OUTCOME_ASSIGN_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_ASSIGN_DRIVER_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-            {
-              id: OUTCOME_PRESENT_DRIVER_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_PRESENT_DRIVER_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-            {
-              id: OUTCOME_PREPARE_SERVICE_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_PREPARE_SERVICE_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-          ],
-        );
-      } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
-        otherOptions.push(
-          ...[
-            {
-              id: OUTCOME_MISSION_CONTROL_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_MISSION_CONTROL_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-          ],
-        );
-      } else if (
-        taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
-        taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
-      ) {
-        otherOptions.push(
-          ...[
-            {
-              id: OUTCOME_MONITOR_TRIP_V2,
-              label: (dict.outcome as I18nRecord)[
-                OUTCOME_MONITOR_TRIP_V2
-              ] as string,
-              icon: HiOutlineArrowLeft,
-            },
-          ],
-        );
-      }
-      otherOptions.push(
-        ...[
-          {
-            id: OUTCOME_OVERLORD_CANCELED_V2,
-            label: (dict.outcome as I18nRecord).canceled as string,
-            icon: HiOutlineArrowLeft,
-          },
-          {
-            id: OUTCOME_OVERLORD_ANULLED_V2,
-            label: (dict.outcome as I18nRecord).annulled as string,
-            icon: HiTrash,
-          },
-        ],
+      const otherOptions = getSecondaryTransitionIdV2(
+        taskType as ShippingCoordinatorProcessFormsV2,
+        dict,
       );
 
       return (

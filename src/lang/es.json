@@ -277,6 +277,8 @@
         "notifyTMSArrivalCompact": "Notificar Arribo",
         "notifyTMSDelivery": "Notificar Entrega (5.11)",
         "notifyTMSDeliveryCompact": "Notificar Entrega",
+        "departure": "Salida: ",
+        "arrival": "Llegada: ",
         "compact": "Compactar",
         "expand": "Expandir",
         "weight": "Peso",

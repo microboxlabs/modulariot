@@ -39,10 +39,10 @@ export const taskShippingBoardMap: Record<string, string> = {
   "wfship2:monitorTripTask": "monitorTrip",
   "wfship2:confirmArrivalTask": "confirmArrival",
   "wfship2:closeMonitoringTask": "closeMonitoring",
-  "wfship2:confirmDelivery": "confirmDelivery",
-  "wfship2:receiveDelivery": "receiveDelivery",
-  "wfship2:notifyTMSArrival": "notifyTMSArrival",
-  "wfship2:notifyTMSDelivery": "notifyTMSDelivery",
+  "wfship2:confirmDeliveryTask": "confirmDelivery",
+  "wfship2:receiveDeliveryTask": "receiveDelivery",
+  "wfship2:notifyTMSArrivalTask": "notifyTMSArrival",
+  "wfship2:notifyTMSDeliveryTask": "notifyTMSDelivery",
 };
 
 function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
@@ -101,7 +101,7 @@ export function toShippingKanban(
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const taskFormKey =
         task.persistentState?.endStateName ?? (task.taskFormKey as string);
-      const boardKey = taskShippingBoardMap[taskFormKey];
+      const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
       index[boardKey] = index[boardKey] || {
         id: boardKey,
         title: boardKey,

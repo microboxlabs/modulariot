@@ -104,9 +104,11 @@ export default function OtherOptions({
             className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
           >
             <div className="flex items-center gap-2">
+              {/* 
               <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
                 {(dict.outcome as I18nRecord).moreOptions as string}
               </p>
+              */}
               <HiChevronUp
                 className={`text-gray-900 dark:text-gray-100 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
               />

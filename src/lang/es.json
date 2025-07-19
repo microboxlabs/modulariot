@@ -217,6 +217,78 @@
         "load_table": "Tabla de cargas",
         "length": "Largo",
         "width": "Ancho",
+        "height": "Alto",
+        "finished": "Finalizado",
+        "finished_process": "Proceso Terminado"
+      },
+      "card": {
+        "origin": "Origen",
+        "destination": "Destino",
+        "service": "Servicio Nº",
+        "clientCode": "Código cliente",
+        "clientName": "Cliente",
+        "departureDate": "Fecha de salida",
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje",
+        "patente": "Patente",
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente"  ,
+        "withoutDriver": "Sin Asignación"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Servicio",
+        "departureDateTime": "Fecha y hora de salida",
+        "serviceKind": "Tipo de servicio",
+        "validations": "Validaciones",
+        "status": "Estado",
+        "stage": "Etapa",
+        "licensePlate": "Patente",
+        "origin": "Origen",
+        "destination": "Destino",
+        "active": "Activo",
+        "completed": "Completado",
+        "driverId": "RUT Conductor",
+        "carrierId": "ID Transportista",
+        "carrierName": "Transportista",
+        "customerCode": "Cliente"
+      }
+    }, 
+    "delivery": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Despachos",
+        "confirmDelivery": "Confirmar entrega",
+        "finished": "Finalizados"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "confirmDelivery": "Confirmar Entrega",
+        "confirmDeliveryCompact": "Confirmar Entrega",
+        "receiveDelivery": "Recibir Entrega",
+        "receiveDeliveryCompact": "Recibir Entrega",
+        "notifyTMSArrival": "Notificar Arribo (4.7)",
+        "notifyTMSArrivalCompact": "Notificar Arribo",
+        "notifyTMSDelivery": "Notificar Entrega (5.11)",
+        "notifyTMSDeliveryCompact": "Notificar Entrega",
+        "compact": "Compactar",
+        "expand": "Expandir",
+        "weight": "Peso",
+        "loads": "Bultos",
+        "volume": "Volumen",
+        "expeditionNumber": "N° de expedición",
+        "code": "Código",
+        "noLoads": "No hay cargas",
+        "kanban_movements": "Movimientos de Kanban",
+        "load_table": "Tabla de cargas",
+        "length": "Largo",
+        "width": "Ancho",
         "height": "Alto"
       },
       "card": {
@@ -255,7 +327,7 @@
         "carrierName": "Transportista",
         "customerCode": "Cliente"
       }
-    },   
+    },  
     "notFound": {
       "supportingText": "Error 404",
       "supportingTextMobile": "404",
@@ -508,7 +580,8 @@
         "returnToOverlord": "Devolver a Overlord",
         "tripInitiated": "Viaje Iniciado",
         "tripCanceled": "Viaje Cancelado",
-        "tripAnnulled": "Viaje Anulado"
+        "tripAnnulled": "Viaje Anulado",
+        "assignDriver": "Devolver a Asignar Conductor/Transporte"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -954,6 +1027,18 @@
     "biometric_verification": "Verificación biométrica",
     "verified": "Verificado",
     "not_verified": "No verificado",
-    "trip_duration": "Tiempo de viaje"
+    "trip_duration": "Tiempo de viaje",
+    "process_state": "Estado de proceso",
+    "Planificado": "Planificado",
+    "asignado": "Asignado",
+    "en_preparacion": "En Preparación",
+    "preparado": "Preparado",
+    "iniciado": "Iniciado",
+    "arrivado_sp": "Arrivado SP",
+    "arribado_cp": "Arribado CP"
+  },
+  "comments": {
+    "title": "Comentarios",
+    "subtitle": "Aquí podrás visualizar los comentarios ingresados."
   }
 }

@@ -217,6 +217,78 @@
         "load_table": "Load Table",
         "length": "Length",
         "width": "Width",
+        "height": "Height",
+        "finished": "Finished",
+        "finished_process": "Process Finished"
+      },
+      "card": {
+        "origin": "Origin",
+        "destination": "Dest",
+        "service": "Service #",
+        "clientCode": "Client Code",
+        "clientName": "Client",
+        "departureDate": "Departure Date",
+        "serviceKind": "Service Type",
+        "executionType": "Execution Type",
+        "tripInformation": "Trip Information",
+        "patente": "License Plate",
+        "transportNumberCode": "Transport Number",
+        "truckLicensePlate": "License",
+        "withoutDriver": "No Assignment"
+      },
+      "views": {
+        "table": "Table",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Service",
+        "departureDateTime": "Date and time departure",
+        "serviceKind": "Service Kind",
+        "validations": "Validations",
+        "status": "Status",
+        "stage": "Stage",
+        "origin": "Origin",
+        "destination": "Destination",
+        "licensePlate": "License Plate",
+        "active": "Active",
+        "completed": "Completed",
+        "driverId": "Driver Rut",
+        "carrierId": "Carrier ID",
+        "carrierName": "Carrier",
+        "customerCode": "Customer"
+      }
+    },
+    "delivery": {
+      "breadcrumb": {
+        "tasks": "My tasks",
+        "shipping": "Deliveries",
+        "confirmDelivery": "Confirm delivery",
+        "finished": "Finished"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "confirmDelivery": "Confirm delivery",
+        "confirmDeliveryCompact": "Confirm delivery",
+        "receiveDelivery": "Receive delivery",
+        "receiveDeliveryCompact": "Receive delivery",
+        "notifyTMSArrival": "Notify Arrival",
+        "notifyTMSArrivalCompact": "Notify Arrival",
+        "notifyTMSDelivery": "Notify Delivery",
+        "notifyTMSDeliveryCompact": "Notify Delivery",
+        "compact": "Compact",
+        "expand": "Expand",
+        "weight": "Weight",
+        "loads": "Loads",
+        "volume": "Volume",
+        "expeditionNumber": "Expedition Number",
+        "code": "Code",
+        "noLoads": "No loads",
+        "kanban_movements": "Kanban Movements",
+        "load_table": "Load Table",
+        "length": "Length",
+        "width": "Width",
         "height": "Height"
       },
       "card": {
@@ -255,7 +327,7 @@
         "carrierName": "Carrier",
         "customerCode": "Customer"
       }
-    },   
+    }, 
     "notFound": {
       "supportingText": "Error 404",
       "supportingTextMobile": "404",
@@ -502,7 +574,8 @@
         "returnToOverlord": "Return to Overlord",
         "tripInitiated": "Trip initiated",
         "tripCanceled": "Trip canceled",
-        "tripAnnulled": "Trip annulled"
+        "tripAnnulled": "Trip annulled",
+        "assignDriver": "Return to Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -570,7 +643,7 @@
         "shipping": "Shipping",
         "shippingv1": "Shipping V1",
         "picking": "Picking",
-        "delivery": "Delivery",
+        "delivery": "Deliveries",
         "finished": "Finished",
         "others": "Others",
         "reports": "Reports",
@@ -941,6 +1014,18 @@
     "biometric_verification": "Biometric verification",
     "verified": "Verified",
     "not_verified": "Not verified",
-    "trip_duration": "Trip duration"
+    "trip_duration": "Trip duration",
+    "process_state": "Process state",
+    "Planificado": "Planified",
+    "asignado": "Assigned",
+    "en_preparacion": "In preparation",
+    "preparado": "Prepared",
+    "iniciado": "Started",
+    "arrivado_sp": "Arrived SP",
+    "arribado_cp": "Arrived CP"
+  },
+  "comments": {
+    "title": "Comments",
+    "subtitle": "Here you can view the comments entered."
   }
 }

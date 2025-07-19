@@ -46,6 +46,7 @@ import {
 import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  DELIVERY_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
@@ -59,7 +60,7 @@ import { CompactKanbanViewSwitcher } from "@/features/common/components/view-swi
 
 export default function PageContent({
   showFinishedTasks,
-  showV2Tasks = false,
+  showWorkflowTasks,
   kanbanBoards,
   dict,
   lang,
@@ -74,8 +75,12 @@ export default function PageContent({
   const pageSize = 100;
 
   configureLocale(lang);
-  const columns = showV2Tasks
-    ? [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2]
+  const columns = showWorkflowTasks
+    ? showWorkflowTasks === "shipping"
+      ? [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2]
+      : showWorkflowTasks === "delivery"
+        ? [...DELIVERY_COORDINATOR_PROCESS_TASKS]
+        : []
     : [...SHIPPING_COORDINATOR_PROCESS_TASKS];
 
   const {
@@ -135,7 +140,7 @@ export default function PageContent({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-auto">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="inline-block align-middle relative">
         <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
           <ClientBreadcrumb

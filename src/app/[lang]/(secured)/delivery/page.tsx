@@ -5,7 +5,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import PageContent from "@/features/shipping/components/content";
 import {
-  getStaticShippingV2Data,
+  getStaticDeliverData,
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
@@ -21,7 +21,7 @@ export default async function ShippingPage({
     // tasks = await getUserTasks(session!.user.ticket);
     // const data = await toShippingKanban(tasks);
     // const data = [];
-    const staticData = await getStaticShippingV2Data();
+    const staticData = await getStaticDeliverData();
     // const boards = staticData.map((board) => {
     //   return {
     //     ...board,
@@ -33,10 +33,10 @@ export default async function ShippingPage({
         <SseListener dictionary={dictionary} tenantId={session!.user.email} />
         <PageContent
           showFinishedTasks={false}
-          showWorkflowTasks="shipping"
+          showWorkflowTasks="delivery"
           kanbanBoards={staticData}
           lang={lang}
-          dict={(dictionary.pages as I18nRecord)?.shipping as I18nRecord}
+          dict={(dictionary.pages as I18nRecord)?.delivery as I18nRecord}
         />
       </>
     );

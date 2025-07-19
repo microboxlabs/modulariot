@@ -90,6 +90,7 @@ export async function TaskBentoForm({
       );
 
     case TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE:
+    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
       return (
         <SovosVerificationForm
           lang={lang}
@@ -127,7 +128,6 @@ export async function TaskBentoForm({
     case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
     case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
-    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:

@@ -58,6 +58,10 @@ export default function DepartureDateShip({
 
   const board = kanbanBoards.find((board) => board.title === table_name);
   const boardV2 = kanbanBoardsV2.find((board) => board.title === table_name);
+  const boardDelivery = kanbanBoardsV2.find(
+    (board) => board.title === table_name,
+  );
+
   const color = shipBgColor(dayjs(date), table_name);
   const fixed_date = dayjs(date).format("DD/MM/YYYY");
 
@@ -72,7 +76,9 @@ export default function DepartureDateShip({
       {board?.state === "done" ||
       board?.state === "started" ||
       boardV2?.state === "done" ||
-      boardV2?.state === "started" ? (
+      boardV2?.state === "started" ||
+      boardDelivery?.state === "done" ||
+      boardDelivery?.state === "started" ? (
         <FaCalendarCheck className={"h-3 w-3 " + color?.text} />
       ) : (
         <FaCalendarAlt className={"h-3 w-3 " + color?.text} />
@@ -81,7 +87,9 @@ export default function DepartureDateShip({
         {board?.state === "pending" ||
         board?.state === "started" ||
         boardV2?.state === "pending" ||
-        boardV2?.state === "started"
+        boardV2?.state === "started" ||
+        boardDelivery?.state === "pending" ||
+        boardDelivery?.state === "started"
           ? (dict.kanban as I18nRecord).departure + " " + fixed_date
           : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
       </p>

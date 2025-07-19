@@ -15,16 +15,16 @@ export default function TripInformation({
   userGroups: string[];
 }) {
   return (
-    <div className="flex flex-col flex-grow rounded-lg gap-2 dark:border-gray-700 portrait:w-full">
+    <div className="flex flex-col flex-grow rounded-lg gap-2 dark:border-gray-700 w-fit">
       <div className="flex flex-wrap gap-2">
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 w-fit block">
           {(msg.bento as I18nRecord).trip_information as string}
         </h1>
         <h2 className="text-sm flex font-normal items-end text-gray-600  dark:text-gray-400 w-fit">
           {task.mintral_serviceCode + "-V"}
         </h2>
       </div>
-      <div className="flex flex-wrap gap-2 w-fit">
+      <div className="flex flex-col w-fit gap-1">
         <TripData
           task={task}
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}

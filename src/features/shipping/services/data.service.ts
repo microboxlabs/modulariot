@@ -2,12 +2,13 @@ import { KanbanBoard, KanbanBoardTask } from "../types/common.types";
 import kanbanBoards from "../model/kanban.json";
 import kanbanPickingBoards from "../model/picking-kanban.json";
 import kanbanShippingV2Boards from "../model/kanban-shipping-v2.json";
+import kanbanDeliverBoards from "../model/kanban-deliver.json";
 import {
   FastTasksResponse,
   PersistentState,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-const taskShippingBoardMap: Record<string, string> = {
+export const taskShippingBoardMap: Record<string, string> = {
   // "wfship:tripOutsideInitiatedTask": "tripInitiatedOutside",
   "wfship:tripOutsideInitiatedTask": "monitoringFinalization",
   "wfship:transportValidationTask": "transportValidation",
@@ -82,6 +83,9 @@ export function getStaticPickingData(): KanbanBoard[] {
 }
 export function getStaticShippingV2Data(): KanbanBoard[] {
   return kanbanShippingV2Boards as unknown as KanbanBoard[];
+}
+export function getStaticDeliverData(): KanbanBoard[] {
+  return kanbanDeliverBoards as unknown as KanbanBoard[];
 }
 
 export function toShippingKanban(

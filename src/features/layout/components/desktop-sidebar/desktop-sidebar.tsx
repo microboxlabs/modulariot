@@ -18,14 +18,14 @@ import {
   useSymptoms,
 } from "@/features/common/providers/client-api.provider";
 import {
+  DELIVERY_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
-  const { isCollapsed, setCollapsed } = useSidebarContext().desktop;
-  const [isPreview, setIsPreview] = useState(isCollapsed);
+  const { isCollapsed } = useSidebarContext().desktop;
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
   const { data: finishedTasks } = useMyTasks(
@@ -51,8 +51,13 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
-    totals["picking"] = 0;
-    totals["delivery"] = 0;
+
+    totals["delivery"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>
+        DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as any),
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
   } else if (error.status === 403 || error.status === 401) {
     router.push("/sign-in");
   }
@@ -65,56 +70,43 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     setTotals(newTotals);
   }, [mapCount, symptomsCount, finishedTasks]);
 
-  useEffect(() => {
-    if (isCollapsed) setIsPreview(false);
-  }, [isCollapsed]);
-
-  const preview = {
-    enable() {
-      if (!isCollapsed) return;
-
-      setIsPreview(true);
-      setCollapsed(false);
-    },
-    disable() {
-      if (!isPreview) return;
-
-      setCollapsed(true);
-    },
-  };
   return (
-    <Sidebar
-      onMouseEnter={preview.enable}
-      onMouseLeave={preview.disable}
-      aria-label="Sidebar with multi-level dropdown example"
-      collapsed={isCollapsed}
-      theme={sideBarTheme}
+    <div
       className={twMerge(
-        "fixed inset-y-0 left-0 z-20 flex h-full bg-white shrink-0 flex-col border-gray-200 pt-16 duration-75 lg:flex dark:border-gray-700",
-        isCollapsed && "hidden w-16",
+        "transition-all duration-200 ease-in-out overflow-hidden h-full",
+        isCollapsed ? "w-0" : "w-64",
       )}
-      id="sidebar"
     >
-      <div className="flex h-full flex-col justify-between  dark:border-gray-700">
-        <div className="py-2">
-          <SidebarItems>
-            <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
-              {pages.map((item) => (
-                <SidebarItem
-                  key={item.label}
-                  {...item}
-                  pathname={pathname}
-                  label={tr(item.label, dict)}
-                  dict={dict}
-                  icon={item.icon}
-                  totals={totals}
-                />
-              ))}
-            </SidebarItemGroup>
-          </SidebarItems>
+      <Sidebar
+        aria-label="Sidebar with multi-level dropdown example"
+        theme={sideBarTheme}
+        id="sidebar"
+      >
+        <div className="flex h-full flex-col justify-between dark:border-gray-700">
+          <div className="py-2">
+            <SidebarItems>
+              <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
+                {pages.map((item) => (
+                  <SidebarItem
+                    key={item.label}
+                    {...item}
+                    pathname={pathname}
+                    label={tr(item.label, dict)}
+                    dict={dict}
+                    icon={item.icon}
+                    totals={totals}
+                  />
+                ))}
+              </SidebarItemGroup>
+            </SidebarItems>
+          </div>
+          <BottomMenu
+            isCollapsed={isCollapsed}
+            dict={dict}
+            pathname={pathname}
+          />
         </div>
-        <BottomMenu isCollapsed={isCollapsed} dict={dict} pathname={pathname} />
-      </div>
-    </Sidebar>
+      </Sidebar>
+    </div>
   );
 }

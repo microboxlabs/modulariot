@@ -205,84 +205,50 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledAndOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
                 otherOptions={[
                   {
                     id: OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-                    label: (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).redirectToMissionControl as string,
+                    label: (dict.outcome as I18nRecord)
+                      .redirectToMissionControl as string,
                     icon: HiOutlineArrowRight,
                   },
                   {
                     id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                    label: (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
+                    label: (dict.outcome as I18nRecord)
+                      .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
                     icon: HiCheck,
                   },
                   {
                     id: OUTCOME_OVERLORD_CANCELED,
-                    label: (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).canceled as string,
+                    label: (dict.outcome as I18nRecord).canceled as string,
                     icon: HiOutlineArrowLeft,
                   },
                   {
                     id: OUTCOME_OVERLORD_ANULLED,
-                    label: (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).annulled as string,
+                    label: (dict.outcome as I18nRecord).annulled as string,
                     icon: HiTrash,
                   },
                 ]}
               />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).authorizedWithRepairs as string,
+                    (dict.outcome as I18nRecord)
+                      .authorizedWithRepairs as string,
                   )
                 }
               />
             </Button.Group>
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -342,33 +308,18 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledEndOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_CONFIRM_DELIVERY}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_CONFIRM_DELIVERY,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).confirmDelivery as string,
+                    (dict.outcome as I18nRecord).confirmDelivery as string,
                   )
                 }
               />
@@ -376,9 +327,7 @@ export default function TaskActions({
 
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -397,10 +346,7 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledEndOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
@@ -420,9 +366,7 @@ export default function TaskActions({
 
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -441,33 +385,19 @@ export default function TaskActions({
           >
             <Button.Group className="w-full">
               <CanceledAnnulledOptions
-                dict={
-                  (dict.pages as I18nRecord)
-                    .transportValidationForm as I18nRecord
-                }
+                dict={dict}
                 handleSelection={handleSelection}
               />
               <TaskActionButton
                 fluid={fluid}
-                label={
-                  (
-                    (
-                      (dict.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    ).outcome as I18nRecord
-                  ).continue as string
-                }
+                label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}
                 transitionId={OUTCOME_CONFIRM_MONITORING_FINALIZATION}
                 onClick={() =>
                   handleSelection(
                     OUTCOME_CONFIRM_MONITORING_FINALIZATION,
-                    (
-                      (
-                        (dict.pages as I18nRecord)
-                          .transportValidationForm as I18nRecord
-                      ).outcome as I18nRecord
-                    ).confirmMonitoringFinalization as string,
+                    (dict.outcome as I18nRecord)
+                      .confirmMonitoringFinalization as string,
                   )
                 }
               />
@@ -475,9 +405,7 @@ export default function TaskActions({
 
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={
-                (dict.pages as I18nRecord).transportValidationForm as I18nRecord
-              }
+              dict={dict}
               taskId={taskId}
               outcome={outcome!}
               outcomeLabel={outcomeLabel!}
@@ -537,21 +465,13 @@ export default function TaskActions({
               <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
                 <Button.Group className="w-full">
                   <CanceledAnnulledAndOptions
-                    dict={
-                      (dict!.pages as I18nRecord)
-                        .transportValidationForm as I18nRecord
-                    }
+                    dict={dict}
                     handleSelection={handleSelection}
                     otherOptions={[
                       {
                         id: OUTCOME_OVERLORD_REQUIRED,
-                        label:
-                          ((
-                            (
-                              (dict!.pages as I18nRecord)
-                                .transportValidationForm as I18nRecord
-                            )?.outcome as I18nRecord
-                          )?.requiresOverlord as string) ?? "",
+                        label: (dict.outcome as I18nRecord)
+                          .requiresOverlord as string,
                         icon: HiOutlineHand,
                       },
                     ]}
@@ -563,23 +483,13 @@ export default function TaskActions({
                     isProcessing={isLoading}
                     className="w-full px-0 py-px"
                   >
-                    {
-                      (
-                        (
-                          (dict!.pages as I18nRecord)
-                            .transportValidationForm as I18nRecord
-                        ).buttons as I18nRecord
-                      ).submit as string
-                    }
+                    {(dict.buttons as I18nRecord).submit as string}
                   </Button>
                 </Button.Group>
 
                 <TaskConfirmModal
                   commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-                  dict={
-                    (dict!.pages as I18nRecord)
-                      .transportValidationForm as I18nRecord
-                  }
+                  dict={dict}
                   taskId={taskId}
                   outcome={outcome!}
                   outcomeLabel={outcomeLabel!}
@@ -617,7 +527,6 @@ export default function TaskActions({
       );
       const otherOptions = [];
       if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
-        console.log("dict", dict);
         const label =
           (dict?.outcome as I18nRecord) ??
           (((dict.pages as I18nRecord).transportValidationForm as I18nRecord)

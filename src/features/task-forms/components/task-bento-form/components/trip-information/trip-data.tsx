@@ -38,77 +38,66 @@ export default function TripData({
         ? "REGULARIZACIÓN"
         : task.mintral_priorityCode;
 
+  const data = [
+    {
+      label: (msg!.cards as I18nRecord).patente as string,
+      value: (task.mintral_truckLicensePlate as string) ?? "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).serviceCode as string,
+      value: (task.mintral_serviceCode as string) ?? "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).clientCode as string,
+      value: (task.mintral_clientCode as string) ?? "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).origin as string,
+      value: (task.mintral_originDelegateCode as string) ?? "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).destination as string,
+      value: (task.mintral_destinationDelegateCode as string) ?? "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).scheduling as string,
+      value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
+    },
+    {
+      label: (msg!.cards as I18nRecord).priorityCode as string,
+      value: priority,
+    },
+    {
+      label: (msg!.cards as I18nRecord).executionType as string,
+      value: executionType,
+    },
+    {
+      label: (msg!.cards as I18nRecord).serviceKind as string,
+      value: task.mintral_serviceKind
+        ? (task.mintral_serviceKind as string).toUpperCase()
+        : "-",
+    },
+    {
+      label: (msg!.cards as I18nRecord).transportNumberCode as string,
+      value: (task.mintral_servicePrincipalNumber as string) ?? "-",
+    },
+  ];
+
   return (
-    <div className="flex flex-col whitespace-nowrap w-fit">
-      <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col gap-1 font-light h-full ">
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).patente as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {(task.mintral_truckLicensePlate as string) ?? "-"}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {(task.mintral_serviceCode as string) ?? "-"}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).clientCode as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {(task.mintral_clientCode as string) ?? "-"}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).origin as string}-
-          {(msg!.cards as I18nRecord).destination as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {task.mintral_originDelegateCode as string}-
-            {task.mintral_destinationDelegateCode as string}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).scheduling as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {etd.format("DD/MM/YYYY HH:mm")} - {eta.format("DD/MM/YYYY HH:mm")}
-          </span>
-        </span>
-
-        {typeof task.mintral_priorityCode === "string" &&
-          task.mintral_priorityCode && (
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-              {(msg!.cards as I18nRecord).priorityCode as string}:{" "}
-              <span className="text-gray-800 dark:text-gray-200  text-xs">
-                {`${priority}`}
-              </span>
+    <div className="grid grid-cols-1 md:grid-cols-2 rounded-t-lg overflow-hidden gap-1 w-fit">
+      {data.map((item, index) => (
+        <div
+          className="flex flex-col sm:flex-row p-1 text-sm font-light text-gray-100 w-fit"
+          key={index}
+        >
+          <label className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit">
+            {item.label}:
+            <span className="text-gray-800 dark:text-gray-200 ml-1 whitespace-nowrap">
+              {item.value as string}
             </span>
-          )}
-
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).serviceCode as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {(task.mintral_serviceCode as string) ?? "-"}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).executionType as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {`${executionType}`}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).serviceKind as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {`${task.mintral_serviceKind ? (task.mintral_serviceKind as string).toUpperCase() : "-"}`}
-          </span>
-        </span>
-        <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-lg py-[0.15rem] px-1 flex gap-1 items-center w-fit">
-          {(msg!.cards as I18nRecord).transportNumberCode as string}:{" "}
-          <span className="text-gray-800 dark:text-gray-200  text-xs">
-            {(task.mintral_servicePrincipalNumber as string) ?? "-"}
-          </span>
-        </span>
-      </div>
+          </label>
+        </div>
+      ))}
     </div>
   );
 }

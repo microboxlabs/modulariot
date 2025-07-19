@@ -37,70 +37,66 @@ export default function Conditions({
           </h1>
         </div>
         {/* Critical condition */}
-        <div className="flex flex-row gap-1 w-full">
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="critic"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {(dict.symptoms as I18nRecord).critical_condition as string}
-              </p>
-            </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
-              {conditions["Critical condition"] || 0}
-            </h1>
+        <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
+          <div className="flex flex-row gap-2 items-center w-full">
+            <ConditionIcon
+              condition="critic"
+              size="h-7 w-7"
+              dict={dict as unknown as I18nRecord}
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(dict.symptoms as I18nRecord).critical_condition as string}
+            </p>
           </div>
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="compromised"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {(dict.symptoms as I18nRecord).compromised_condition as string}
-              </p>
-            </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
-              {conditions["Compromised condition"] || 0}
-            </h1>
+          <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+            {conditions["Critical condition"] || 0}
+          </h1>
+        </div>
+        <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
+          <div className="flex flex-row gap-2 items-center w-full">
+            <ConditionIcon
+              condition="compromised"
+              size="h-7 w-7"
+              dict={dict as unknown as I18nRecord}
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(dict.symptoms as I18nRecord).compromised_condition as string}
+            </p>
           </div>
+          <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+            {conditions["Compromised condition"] || 0}
+          </h1>
         </div>
         {/* Treatment and observation */}
-        <div className="flex flex-row gap-1 w-full">
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="treatment"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {(dict.symptoms as I18nRecord).in_treatment as string}
-              </p>
-            </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
-              {conditions["Under Treatment"] || 0}
-            </h1>
+        <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
+          <div className="flex flex-row gap-2 items-center w-full">
+            <ConditionIcon
+              condition="treatment"
+              size="h-7 w-7"
+              dict={dict as unknown as I18nRecord}
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(dict.symptoms as I18nRecord).in_treatment as string}
+            </p>
           </div>
-          <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
-            <div className="flex flex-row gap-2 items-center w-full">
-              <ConditionIcon
-                condition="observation"
-                size="h-7 w-7"
-                dict={dict as unknown as I18nRecord}
-              />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {(dict.symptoms as I18nRecord).in_observation as string}
-              </p>
-            </div>
-            <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
-              {conditions["Under Observation"] || 0}
-            </h1>
+          <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+            {conditions["Under Treatment"] || 0}
+          </h1>
+        </div>
+        <div className="w-full flex flex-row gap-2 justify-between items-center border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1">
+          <div className="flex flex-row gap-2 items-center w-full">
+            <ConditionIcon
+              condition="observation"
+              size="h-7 w-7"
+              dict={dict as unknown as I18nRecord}
+            />
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {(dict.symptoms as I18nRecord).in_observation as string}
+            </p>
           </div>
+          <h1 className="text-md text-gray-800 dark:text-gray-200 h-full flex items-center justify-center">
+            {conditions["Under Observation"] || 0}
+          </h1>
         </div>
       </div>
       <h2 className="text-sm text-gray-800 dark:text-gray-200 font-light">

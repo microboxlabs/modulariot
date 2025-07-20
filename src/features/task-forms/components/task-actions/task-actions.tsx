@@ -45,6 +45,15 @@ import {
   OUTCOME_CONFIRM_ARRIVAL_V2,
   OUTCOME_CLOSE_MONITORING_V2,
   OUTCOME_TO_CLOSE_MONITORING_V2,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+  TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK,
+  TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK,
+  OUTCOME_TO_CONFIRM_DELIVERY_V2,
+  OUTCOME_TO_RECEIVE_DELIVERY_V2,
+  OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2,
+  OUTCOME_RECEIVE_DELIVERY_V2,
+  OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -58,6 +67,7 @@ import {
   TaskOutcome,
   TaskOutcomeDelivery,
   TaskOutcomeV2,
+  DeliveryProcessForms,
 } from "../../services/form.service.types";
 import OtherOptions from "./other-options";
 import CanceledAnnulledOptions from "./canceled-annulled-options";
@@ -114,7 +124,7 @@ export default function TaskActions({
 
   const isCommentsFieldEnabled = (
     outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
-    taskType?: ShippingCoordinatorProcessFormsV2,
+    taskType?: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
   ) => {
     if (taskType) {
       /* V2 Tasks */
@@ -132,8 +142,11 @@ export default function TaskActions({
         case OUTCOME_CLOSE_MONITORING_V2:
           return taskType !== TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK;
         case OUTCOME_TO_CLOSE_MONITORING_V2:
-          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK;
-
+          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK;        
+        case OUTCOME_RECEIVE_DELIVERY_V2:
+          return taskType !== TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK;
+        case OUTCOME_NOTIFY_TMS_ARRIVAL_V2:
+          return taskType !== TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK;        
         default:
           return true;
       }
@@ -156,7 +169,7 @@ export default function TaskActions({
     setTimeout(() => {
       formAction(formData);
     }, 100);
-  };
+  };  
 
   switch (taskType) {
     case "wfship:missionControlTripInitTask":
@@ -519,7 +532,11 @@ export default function TaskActions({
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
     case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
-    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK: {
+    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
+    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: {
       const transitionId = getTransitionIdV2(
         taskType as ShippingCoordinatorProcessFormsV2,
         outcome as TaskOutcomeV2,
@@ -528,6 +545,10 @@ export default function TaskActions({
         taskType as ShippingCoordinatorProcessFormsV2,
         dict,
       );
+
+      console.log("outcome", dict.outcome);
+      console.log("transitionId", transitionId);
+      console.log("otherOptions", otherOptions);
 
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">

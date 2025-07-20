@@ -284,6 +284,10 @@
         "weight": "Weight",
         "loads": "Loads",
         "volume": "Volume",
+        "Confirmar Entrega": "Confirm delivery",
+        "Recibir Entrega": "Receive delivery",
+        "Notificar Arribo (4.7)": "Notify Arrival",
+        "Notificar Entrega (5.11)": "Notify Delivery",
         "expeditionNumber": "Expedition Number",
         "code": "Code",
         "noLoads": "No loads",
@@ -436,7 +440,12 @@
         "authorizedWithoutGPS": "Authorized without GPS",
         "authorizedWithRepairs": "Authorized with Repairs",
         "canceledByOverlord": "Canceled by Overlord",
-        "annulledByOverlord": "Annulled by Overlord"
+        "annulledByOverlord": "Annulled by Overlord",
+
+        "Confirmar Asignar/ Entregar": "Confirm Assign/ Deliver",
+        "Recibir Entrega": "Receive Delivery",
+        "Notificar Arribo (4.7)": "Notify Arrival",
+        "Notificar Entrega (5.11)": "Notify Delivery"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -524,7 +533,11 @@
         "Monitorear viaje en curso": "Monitor trip in progress",
         "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
         "Confirmar Arribo a Destino": "Confirm Destination Arrival",
-        "Confirmar Entrega": "Confirm Delivery"
+        "Confirmar Entrega": "Confirm Delivery",
+        "Confirmar Asignar/ Entregar": "Confirm Assign/ Deliver",
+        "Recibir Entrega": "Receive Delivery",
+        "Notificar Arribo (4.7)": "Notify Arrival",
+        "Notificar Entrega (5.11)": "Notify Delivery"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

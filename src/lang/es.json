@@ -276,11 +276,15 @@
         "notifyTMSArrival": "Notificar Arribo (4.7)",
         "notifyTMSArrivalCompact": "Notificar Arribo",
         "notifyTMSDelivery": "Notificar Entrega (5.11)",
-        "notifyTMSDeliveryCompact": "Notificar Entrega",
+        "notifyTMSDeliveryCompact": "Notificar Entrega",        
         "departure": "Salida: ",
         "arrival": "Llegada: ",
         "compact": "Compactar",
         "expand": "Expandir",
+        "Confirmar Entrega": "Confirmar Entrega",
+        "Recibir Entrega": "Recibir Entrega",
+        "Notificar Arribo (4.7)": "Notificar Arribo",
+        "Notificar Entrega (5.11)": "Notificar Entrega",
         "weight": "Peso",
         "loads": "Bultos",
         "volume": "Volumen",
@@ -438,7 +442,12 @@
         "authorizedWithoutGPS": "Autorizado sin GPS",
         "authorizedWithRepairs": "Autorizado con reparos",
         "canceledByOverlord": "Cancelado por Overlord",
-        "annulledByOverlord": "Anulado por Overlord"
+        "annulledByOverlord": "Anulado por Overlord",
+
+        "Confirmar Asignar/ Entregar": "Confirmar Asignar/ Entregar",
+        "Recibir Entrega": "Recibir Entrega",
+        "Notificar Arribo (4.7)": "Notificar Arribo",
+        "Notificar Entrega (5.11)": "Notificar Entrega"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -529,7 +538,11 @@
         "Confirmar Arribo a Destino": "Confirmar Arribo a Destino",
         "Confirmar Salida de Destino": "Confirmar Salida de Destino",
         "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
-        "Confirmar Entrega": "Confirmar Entrega"
+        "Confirmar Entrega": "Confirmar Entrega",
+        "Confirmar Asignar/ Entregar": "Confirmar Asignar/ Entregar",
+        "Recibir Entrega": "Recibir Entrega",
+        "Notificar Arribo (4.7)": "Notificar Arribo",
+        "Notificar Entrega (5.11)": "Notificar Entrega"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

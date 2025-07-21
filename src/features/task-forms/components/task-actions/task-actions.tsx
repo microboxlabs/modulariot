@@ -51,6 +51,7 @@ import {
   TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK,
   OUTCOME_RECEIVE_DELIVERY_V2,
   OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
+  OUTCOME_NOTIFY_TMS_DELIVERY_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -144,6 +145,8 @@ export default function TaskActions({
           return taskType !== TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK;
         case OUTCOME_NOTIFY_TMS_ARRIVAL_V2:
           return taskType !== TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK;
+        case OUTCOME_NOTIFY_TMS_DELIVERY_V2:
+          return taskType !== TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK;
         default:
           return true;
       }

@@ -63,6 +63,7 @@ export type TaskResponse = {
   mintral_serviceCode: string;
   bpm_outcome: string;
   persistentState: PersistentState;
+  isEditable: boolean;
 };
 
 export type Task = {

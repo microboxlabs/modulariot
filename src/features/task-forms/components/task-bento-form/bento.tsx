@@ -130,7 +130,7 @@ export default function Bento({
             />
           )}
 
-          {showActions && (
+          {showActions && task.isEditable && (
             <TaskActions
               taskId={task.id}
               taskType={task.taskFormKey as ShippingCoordinatorProcessForms}

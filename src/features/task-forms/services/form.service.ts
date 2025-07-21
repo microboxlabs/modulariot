@@ -270,14 +270,14 @@ export const getTransitionIdV2 = (
     case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
       return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
-      return OUTCOME_CLOSE_MONITORING_V2;
+      return OUTCOME_TO_CLOSE_MONITORING_V2;
     default:
       return outcome;
   }
 };
 
 export const getSecondaryTransitionIdV2 = (
-  taskType: ShippingCoordinatorProcessFormsV2,
+  taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
   dict: I18nRecord,
 ): {
   id: TaskOutcomeV2;
@@ -362,7 +362,31 @@ export const getSecondaryTransitionIdV2 = (
         },
       ],
     );
-  }
+  } /* else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_CONFIRM_DELIVERY_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_RECEIVE_DELIVERY_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_NOTIFY_TMS_ARRIVAL_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } */
   otherOptions.push(
     ...[
       {
@@ -385,16 +409,16 @@ export const getSecondaryTransitionIdV2 = (
 /* ------------------------------------------------------------- */
 
 export const TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK: DeliveryProcessForms =
-  "wfship2:confirmDelivery";
+  "wfship2:confirmDeliveryTask";
 
 export const TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK: DeliveryProcessForms =
-  "wfship2:receiveDelivery";
+  "wfship2:receiveDeliveryTask";
 
 export const TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK: DeliveryProcessForms =
-  "wfship2:notifyTMSArrival";
+  "wfship2:notifyTMSArrivalTask";
 
 export const TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: DeliveryProcessForms =
-  "wfship2:notifyTMSDelivery";
+  "wfship2:notifyTMSDeliveryTask";
 
 export const TASK_CONFIRM_DELIVERY_V2: DeliveryProcessTask = "confirmDelivery";
 
@@ -408,10 +432,19 @@ export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
 export const OUTCOME_TO_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
   "Recibir Entrega";
 
+export const OUTCOME_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
+  "Confirmar Entrega";
+
 export const OUTCOME_TO_RECEIVE_DELIVERY_V2: TaskOutcomeDelivery =
   "Notificar Arribo (4.7)";
 
+export const OUTCOME_RECEIVE_DELIVERY_V2: TaskOutcomeDelivery =
+  "Recibir Entrega";
+
 export const OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2: TaskOutcomeDelivery =
+  "Notificar Entrega (5.11)";
+
+export const OUTCOME_NOTIFY_TMS_ARRIVAL_V2: TaskOutcomeDelivery =
   "Notificar Arribo (4.7)";
 
 export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =

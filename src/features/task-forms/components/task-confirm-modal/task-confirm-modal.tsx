@@ -229,7 +229,7 @@ export default function TaskConfirmModal({
             color="blue"
             onClick={handleConfirm}
           >
-            {tr("modal.confirm", dict, { outcome: outcomeLabel ?? "outcome" })}
+            {tr("modal.confirm", dict, { outcome: outcomeLabel ?? "Next" })}
           </Button>
         </Modal.Footer>
       </form>

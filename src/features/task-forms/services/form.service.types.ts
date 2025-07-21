@@ -159,10 +159,10 @@ export type ShippingCoordinatorProcessTaskV2 =
 export type DeliveryProcess = "delivery_coordination";
 
 export type DeliveryProcessForms =
-  | "wfship2:confirmDelivery"
-  | "wfship2:receiveDelivery"
-  | "wfship2:notifyTMSArrival"
-  | "wfship2:notifyTMSDelivery";
+  | "wfship2:confirmDeliveryTask"
+  | "wfship2:receiveDeliveryTask"
+  | "wfship2:notifyTMSArrivalTask"
+  | "wfship2:notifyTMSDeliveryTask";
 
 export type ConfirmDeliveryOutcome = "Recibir Entrega";
 

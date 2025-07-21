@@ -38,7 +38,7 @@ export default function HistoricLoads({
         >
           <div className="w-4 h-full flex items-center justify-center">
             <KanbanViewSwitcherIcon
-              className={`w-4 h-4 flex items-center justify-center ${selected_table === 0 ? "!fill-white" : ""}`}
+              className={`w-4 h-4 flex items-center justify-center fill-gray-700 dark:fill-gray-300 ${selected_table === 0 ? "!fill-white" : ""}`}
             />
           </div>
           {

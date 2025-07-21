@@ -1,6 +1,12 @@
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 
 export function getComments(task: ExtendedTaskResponse) {
+  const comments = task.mintral_comments as string[];
+  return comments;
+}
+
+// deprecated
+export function getComments_deprecated(task: ExtendedTaskResponse) {
   return (
     task.mintral_comments
       ? typeof task.mintral_comments === "string"

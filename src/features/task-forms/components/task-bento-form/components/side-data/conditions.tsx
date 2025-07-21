@@ -3,7 +3,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function Conditions({
   dict,
-  conditions,
+  conditions = {},
   isLoading,
 }: {
   dict: I18nRecord;

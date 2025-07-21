@@ -110,6 +110,14 @@ export type PrepareServiceTaskOutcome =
 
 export type MissionControlTaskOutcome =
   | "Monitorear viaje en curso"
+  | "Torre de Control: Iniciar Viaje sin firma"
+  | "Preparar Servicio"
+  | "Presentar Conductor"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type MissionControlTaskOutcomeWithoutSignature =
   | "Preparar Servicio"
   | "Presentar Conductor"
   | "Asignar Conductor/Transporte"
@@ -139,6 +147,7 @@ export type TaskOutcomeV2 =
   | PresentDriverTaskOutcome
   | PrepareServiceTaskOutcome
   | MissionControlTaskOutcome
+  | MissionControlTaskOutcomeWithoutSignature
   | ConfirmArrivalTaskOutcome
   | MonitorTripTaskOutcome
   | CloseMonitoringTaskOutcome;

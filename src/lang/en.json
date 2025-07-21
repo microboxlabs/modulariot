@@ -219,7 +219,9 @@
         "width": "Width",
         "height": "Height",
         "finished": "Finished",
-        "finished_process": "Process Finished"
+        "finished_process": "Process Finished",
+        "taskType": "Task Type",
+        "taskAction": "Task Action"
       },
       "card": {
         "origin": "Origin",
@@ -1021,15 +1023,14 @@
     "message": "Message",
     "service_type": "Service type",
     "reason": "Reason",
-    "reject_reason": "Reject reason",
     "service": "Service",
     "reject_reason": "Reject reason"
   },
   "bento": {
     "trip_information": "Trip information",
-    "symptoms_present_in_the_trip": "Symptoms present in the trip",
+    "conditions_present_in_the_trip": "Conditions present in the trip",
     "totals": "Totals",
-    "detected_symptoms": "Detected symptoms",
+    "detected_conditions": "Detected conditions",
     "successfully_treated": "Successfully treated",
     "biometric_verification": "Biometric verification",
     "verified": "Verified",

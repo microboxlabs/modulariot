@@ -84,19 +84,17 @@ export default function TripData({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 rounded-t-lg overflow-hidden gap-1 w-fit">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-fit">
       {data.map((item, index) => (
-        <div
-          className="flex flex-col sm:flex-row p-1 text-sm font-light text-gray-100 w-fit"
+        <span
+          className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light"
           key={index}
         >
-          <label className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit">
-            {item.label}:
-            <span className="text-gray-800 dark:text-gray-200 ml-1 whitespace-nowrap">
-              {item.value as string}
-            </span>
-          </label>
-        </div>
+          {item.label}:
+          <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+            {item.value as string}
+          </span>
+        </span>
       ))}
     </div>
   );

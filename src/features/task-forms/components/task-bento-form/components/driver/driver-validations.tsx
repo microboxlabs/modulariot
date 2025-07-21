@@ -12,7 +12,7 @@ export default function DriverValidations({
   msg: I18nRecord;
 }) {
   return (
-    <div className="flex flex-col gap-1 h-full justify-center ">
+    <div className="grid grid-cols-1 gap-2 w-fit">
       <div className="flex gap-2 items-center flex-row">
         <Ellipse />
         <span className="text-gray-400 text-sm">

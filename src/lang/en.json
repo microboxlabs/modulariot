@@ -157,8 +157,8 @@
         "presentDriverCompact": "Driver Presentation",
         "prepareService": "Prepare Service",
         "prepareServiceCompact": "Prepare Service",
-        "missionControl": "Mission Control: Start trip",
-        "missionControlCompact": "Mission Control",
+        "missionControl": "Start trip",
+        "missionControlCompact": "Start trip",
         "overlordTripInit": "Overlord - Start Trip (Confirmation)",
         "overlordTripInitCompact": "Overlord - Start Trip",
         "monitorTrip": "Monitoring in course trip",
@@ -446,7 +446,8 @@
         "Confirmar Entrega": "Confirm Delivery",
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
-        "Notificar Entrega (5.11)": "Notify Delivery"
+        "Notificar Entrega (5.11)": "Notify Delivery",
+        "Viaje Finalizado": "Trip Finished"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -540,7 +541,8 @@
         "Confirmar Asignar/ Entregar": "Confirm Assign/ Deliver",
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
-        "Notificar Entrega (5.11)": "Notify Delivery"
+        "Notificar Entrega (5.11)": "Notify Delivery",
+        "Viaje Finalizado": "Trip Finished"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

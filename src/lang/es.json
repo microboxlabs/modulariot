@@ -158,7 +158,7 @@
         "prepareService": "Preparar Servicio",
         "prepareServiceCompact": "Preparar Servicio",
         "missionControl": "Iniciar viaje",
-        "missionControlCompact": "TC: Iniciar viaje",
+        "missionControlCompact": "Iniciar viaje",
         "overlordTripInit": "Overlord - Iniciar viaje (Confirmación)",
         "overlordTripInitCompact": "Overlord - Iniciar viaje",
         "monitorTrip": "Monitorear Viaje Iniciado",
@@ -448,7 +448,8 @@
         "Confirmar Entrega": "Confirmar Entrega",
         "Recibir Entrega": "Recibir Entrega",
         "Notificar Arribo (4.7)": "Notificar Arribo",
-        "Notificar Entrega (5.11)": "Notificar Entrega"
+        "Notificar Entrega (5.11)": "Notificar Entrega",
+        "Viaje Finalizado": "Viaje Finalizado"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -543,7 +544,8 @@
         "Confirmar Asignar/ Entregar": "Confirmar Asignar/ Entregar",
         "Recibir Entrega": "Recibir Entrega",
         "Notificar Arribo (4.7)": "Notificar Arribo",
-        "Notificar Entrega (5.11)": "Notificar Entrega"
+        "Notificar Entrega (5.11)": "Notificar Entrega",
+        "Viaje Finalizado": "Viaje Finalizado"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

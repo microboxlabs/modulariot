@@ -543,10 +543,6 @@ export default function TaskActions({
         dict,
       );
 
-      console.log("outcome", dict.outcome);
-      console.log("transitionId", transitionId);
-      console.log("otherOptions", otherOptions);
-
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <GroupAllowed

@@ -280,7 +280,7 @@ export const getSecondaryTransitionIdV2 = (
   taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
   dict: I18nRecord,
 ): {
-  id: TaskOutcomeV2;
+  id: TaskOutcomeV2 | TaskOutcomeDelivery;
   label: string;
   icon: ElementType;
 }[] => {
@@ -362,11 +362,23 @@ export const getSecondaryTransitionIdV2 = (
         },
       ],
     );
-  } /* else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
+  } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
     otherOptions.push(
       ...[
         {
           id: OUTCOME_CONFIRM_DELIVERY_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_CONFIRM_DELIVERY_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+      ],
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
+    otherOptions.push(
+      ...[
+        {
+          id: OUTCOME_RECEIVE_DELIVERY_V2,
           label: (dict.outcome as I18nRecord)[
             OUTCOME_RECEIVE_DELIVERY_V2
           ] as string,
@@ -374,7 +386,7 @@ export const getSecondaryTransitionIdV2 = (
         },
       ],
     );
-  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
     otherOptions.push(
       ...[
         {
@@ -386,7 +398,7 @@ export const getSecondaryTransitionIdV2 = (
         },
       ],
     );
-  } */
+  }
   otherOptions.push(
     ...[
       {

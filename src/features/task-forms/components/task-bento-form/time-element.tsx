@@ -7,9 +7,11 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 export default function TimeElement({
   task,
   dict,
+  endTime,
 }: {
   task: TaskResponse;
   dict: I18nRecord;
+  endTime: string;
 }) {
   const [_currentTime, setCurrentTime] = useState(new Date());
   let timeDifference = getTimeDifference(task);
@@ -21,6 +23,10 @@ export default function TimeElement({
 
     return () => clearInterval(timer);
   }, []);
+
+  if (endTime) {
+    return null;
+  }
 
   return (
     <Tooltip
@@ -50,7 +56,8 @@ export default function TimeElement({
 function getTimeDifference(task: TaskResponse) {
   const creationDate = new Date(task.cm_created as string);
   const now = new Date();
-  const diffInMs = now.getTime() - creationDate.getTime();
+
+  const diffInMs = Math.abs(now.getTime() - creationDate.getTime());
 
   const years = Math.floor(diffInMs / (1000 * 60 * 60 * 24 * 365));
   const months = Math.floor(

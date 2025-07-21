@@ -59,8 +59,6 @@ export default function SseListener({
     const handler = (event: any) => {
       const parsed_event = JSON.parse(event.data);
 
-      console.log(parsed_event);
-
       if (parsed_event.eventType === "internalNotifications") {
         // Create a unique identifier for this notification
         const notificationId = `${parsed_event.payload.message}-${parsed_event.payload.timestamp}`;

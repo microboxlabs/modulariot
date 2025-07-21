@@ -2,6 +2,7 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import DriverData from "./driver-data";
 import { Driver } from "@/features/task-forms/components/driver-contact-info/driver-contact-info.type";
+import CustomCard from "@/features/common/components/custom-card/custom-card";
 
 export default function DriverInfo({
   task,
@@ -32,14 +33,16 @@ export default function DriverInfo({
   }
 
   return (
-    <div className="flex flex-col flex-grow rounded-lg whitespace-nowrap relative">
-      <DriverData driver={driver1} msg={msg} />
-      {driver2 && (
-        <>
-          <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
-          <DriverData driver={driver2} msg={msg} />
-        </>
-      )}
-    </div>
+    <CustomCard title={null} subtitle={null}>
+      <div className="flex flex-col flex-grow rounded-lg whitespace-nowrap relative">
+        <DriverData driver={driver1} msg={msg} />
+        {driver2 && (
+          <>
+            <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
+            <DriverData driver={driver2} msg={msg} />
+          </>
+        )}
+      </div>
+    </CustomCard>
   );
 }

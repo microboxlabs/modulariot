@@ -81,8 +81,6 @@ export default function CallDriver({
       text: (dict.symptoms as I18nRecord).save_treatment,
       function: async () => {
         const response = await requestTreatment(treatmentRequest);
-        console.log(treatmentRequest);
-        console.log(response.treatment_id);
 
         setTreatmentRequest({
           ...treatmentRequest,

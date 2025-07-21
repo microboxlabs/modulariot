@@ -151,6 +151,19 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
+        "transportValidation": "Validación de Conductor / transporte",
+        "transportValidationCompact": "Validación transporte",
+        "missionControlTripInit": "Iniciar viaje",
+        "missionControlTripInitCompact": "TC: Iniciar viaje",
+        "sovosDigitalSignature": "Firma Digital de SOVOS",
+        "tripInitiatedOutside": "Viajes iniciados sin coordinación",
+        "tripInitiatedOutsideCompact": "Viajes iniciados",
+        "monitoringInCourseTrip": "Monitorear Viaje Iniciado",
+        "monitoringInCourseTripCompact": "Viaje Iniciado",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationArrivalCompact": "Confirmar Arribo",
+        "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "confirmMonitoringFinalizationCompact": "Confirmar Cierre",
         "assignDriver": "Asignar Conductor y Transporte",
         "assignDriverCompact": "Asignar Conductor y Transporte",
         "presentDriver": "Presentar Conductor",
@@ -219,7 +232,9 @@
         "width": "Ancho",
         "height": "Alto",
         "finished": "Finalizado",
-        "finished_process": "Proceso Terminado"
+        "finished_process": "Proceso Terminado",
+        "taskType": "Tipo de tarea",
+        "taskAction": "Acción de la tarea"
       },
       "card": {
         "origin": "Origen",
@@ -1014,15 +1029,14 @@
     "message": "Mensaje",
     "service_type": "Tipo de servicio",
     "reason": "Motivo",
-    "reject_reason": "Motivo de rechazo",
     "service": "Servicio",
     "reject_reason": "Motivo de rechazo"
   },
   "bento": {
     "trip_information": "Información del viaje",
-    "symptoms_present_in_the_trip": "Síntomas presentes en el viaje",
+    "conditions_present_in_the_trip": "Condiciones presentes en el viaje",
     "totals": "Totales",
-    "detected_symptoms": "Síntomas detectados",
+    "detected_conditions": "Condiciones detectadas",
     "successfully_treated": "Tratados con éxito",
     "biometric_verification": "Verificación biométrica",
     "verified": "Verificado",

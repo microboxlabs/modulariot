@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "flowbite-react";
+import { Button, TextInput } from "flowbite-react";
 import {
   HiOutlineArrowLeft,
   HiTrash,
@@ -455,9 +455,16 @@ export default function TaskActions({
         </div>
       );
     case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
-      if (!enableActions) {
-        return (
-          <form action={formActionWrapper} className="flex flex-col gap-2">
+      return (
+        <form action={formActionWrapper} className="flex flex-col">
+          <TextInput
+            id="taskId"
+            name="taskId"
+            type="hidden"
+            defaultValue={taskId}
+          />
+
+          {!enableActions ? (
             <GroupAllowed
               userGroups={userGroups}
               notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
@@ -498,11 +505,7 @@ export default function TaskActions({
                 />
               </div>
             </GroupAllowed>
-          </form>
-        );
-      } else {
-        return (
-          <form action={formActionWrapper} className="flex flex-col gap-2">
+          ) : (
             <TaskActions
               taskId={taskId}
               taskType={taskType}
@@ -511,9 +514,9 @@ export default function TaskActions({
               fluid={true}
               extraData={extraData}
             />
-          </form>
-        );
-      }
+          )}
+        </form>
+      );
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
     case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:

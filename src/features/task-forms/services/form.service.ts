@@ -236,6 +236,12 @@ export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
 export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Confirmar Arribo / Entrega";
+
+export const OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje sin firma"; // TODO: this could change
+export const OUTCOME_TO__MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
+  "Confirmar Arribo / Entrega";
+
 export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
@@ -336,6 +342,13 @@ export const getSecondaryTransitionIdV2 = (
             OUTCOME_PREPARE_SERVICE_V2
           ] as string,
           icon: HiOutlineArrowLeft,
+        },
+        {
+          id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
+          ] as string,
+          icon: HiOutlineArrowRight,
         },
       ],
     );

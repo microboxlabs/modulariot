@@ -463,6 +463,8 @@
         "missionControlTripInitTaskReason2": "No consolidation documentation.",
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
+
+        "reason": "Reason",
         "confirm": "Confirm move to {outcome}"
       }
     },

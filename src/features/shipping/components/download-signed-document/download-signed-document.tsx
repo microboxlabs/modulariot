@@ -27,7 +27,7 @@ export default function DownloadSignedDocument({
     return (
       <Button
         color="gray"
-        className="h-10 transition-all duration-100 z-20 gap-2 w-fit"
+        className="h-10 transition-all duration-100 z-10 gap-2 w-fit"
         as={Link}
         href={href}
       >

@@ -1,6 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Tooltip } from "flowbite-react";
-import { FaCheck, FaIdCard, FaPhoneAlt, FaTimes } from "react-icons/fa";
+import { FaIdCard, FaPhoneAlt } from "react-icons/fa";
 import { IoIosMail } from "react-icons/io";
 import { Driver } from "../../../driver-contact-info/driver-contact-info.type";
 import DriverValidations from "./driver-validations";
@@ -12,11 +11,27 @@ export default function DriverData({
   driver: Driver;
   msg: I18nRecord;
 }) {
+  const data = [
+    {
+      icon: <FaIdCard className="w-4 h-4 inline-block" />,
+      value: driver.rut,
+    },
+    {
+      icon: <FaPhoneAlt className="w-4 h-4 inline-block" />,
+      value: driver.phone,
+    },
+    {
+      icon: <IoIosMail className="w-4 h-4 inline-block" />,
+      value: driver.email,
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex flex-col">
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
           {driver.name}
+          {/*
           <Tooltip
             style="auto"
             content={
@@ -41,6 +56,7 @@ export default function DriverData({
               </div>
             )}
           </Tooltip>
+          */}
         </h1>
         <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
           {
@@ -52,37 +68,26 @@ export default function DriverData({
       </div>
 
       {/* Trip specific data */}
-      <div className="flex flex-row gap-2 items-stretch h-full">
+      <div className="flex flex-row gap-4 items-stretch">
         <div className="flex flex-col">
-          <div className="flex text-sm text-gray-500 dark:text-gray-400 flex-col font-light h-full justify-center gap-1">
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
-              <FaIdCard className="w-4 h-4 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-sm">
-                {driver.rut}
+          <div className="grid grid-cols-1 gap-2 w-fit">
+            {data.map((item, index) => (
+              <span
+                className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light gap-1"
+                key={index}
+              >
+                {item.icon}
+                <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                  {item.value}
+                </span>
               </span>
-            </span>
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
-              <FaPhoneAlt className="w-4 h-4 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-sm">
-                {driver.phone}
-              </span>
-            </span>
-            <span className="text-gray-600 dark:text-gray-400 text-xs bg-gray-200 dark:bg-gray-700 rounded-md py-[0.15rem] px-1 flex gap-2 items-center w-fit">
-              <IoIosMail className="w-4 h-4 inline-block" />
-              <span className="text-gray-800 dark:text-gray-200 text-sm">
-                {driver.email}
-              </span>
-            </span>
+            ))}
           </div>
         </div>
-        <div className="flex flex-col">
-          <DriverValidations
-            _driver={driver}
-            msg={
-              (msg.pages as I18nRecord).transportValidationForm as I18nRecord
-            }
-          />
-        </div>
+        <DriverValidations
+          _driver={driver}
+          msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+        />
       </div>
     </div>
   );

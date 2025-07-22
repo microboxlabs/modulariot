@@ -1048,6 +1048,7 @@
   },
   "comments": {
     "title": "Comments",
-    "subtitle": "Here you can view the comments entered."
+    "subtitle": "Here you can view the comments entered.",
+    "no_comments": "No comments"
   }
 }

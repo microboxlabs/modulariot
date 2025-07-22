@@ -1054,8 +1054,9 @@
     "en_preparacion": "In preparation",
     "preparado": "Prepared",
     "iniciado": "Started",
-    "arrivado_sp": "Arrived SP",
-    "arribado_cp": "Arrived CP"
+    "arribado_sp": "Arrived SP",
+    "arribado_cp": "Arrived CP",
+    "recepcionado": "Received"
   },
   "comments": {
     "title": "Comments",

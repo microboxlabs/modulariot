@@ -270,7 +270,8 @@
         "driverId": "RUT Conductor",
         "carrierId": "ID Transportista",
         "carrierName": "Transportista",
-        "customerCode": "Cliente"
+        "customerCode": "Código Cliente",
+        "customer": "Cliente"
       }
     }, 
     "delivery": {

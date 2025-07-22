@@ -1,0 +1,141 @@
+# 🧾 Release Notes – v1.15.0 – Plataforma MBL
+## Fecha de entrega: 18 de Julio
+
+**Objetivo general**: Esta versión tuvo como foco principal la
+transformación completa del formulario de viaje dentro del tablero Kanban, mediante la
+implementación de una nueva interfaz modular basada en una estructura Bentobox. Este rediseño
+permite reorganizar de manera visual, jerárquica y funcional toda la información del viaje, consolidando
+elementos ya existentes y habilitando nuevas formas de interacción más claras y eficientes.
+
+---
+
+# 🧬 Evolutivos – Nuevas funcionalidades implementadas
+## 🗂️ Rediseño del Formulario a Expediente tipo Bentobox
+
+El nuevo diseño estructurado en formato Bentobox permite visualizar la información de un viaje a
+través de un sistema de cajas distribuidas en una grilla organizada, donde cada bloque cumple una
+función específica. A continuación, se detalla la nueva disposición y contenido del expediente:
+
+### 📦 Caja 1 – Información del Viaje
+
+Contiene los datos esenciales del servicio:
+  - Patente
+  - Código servicio
+  - Código cliente
+  - Origen
+  - Destino
+  - Horario
+  - Prioridad
+  - Tipo de ejecución
+  - Tipo de servicio
+  - N° de transporte
+  - Validaciones asociadas al viaje:
+  - Consolidación
+  - eparación Documental
+  - Validación Sistema Cliente
+  - Validación GPS
+
+### 📦 Caja 2 – Información del Conductor
+
+Ubicada a la derecha de la caja 1. Incluye:
+  - Nombre
+  - Rol
+  - RUT
+  - Teléfono
+  - Empresa asociada
+  - Validaciones realizadas al conductor:
+  - Test de alcoholemia
+  - Test de drogas
+  - Test de somnolencia
+
+### 🗨️ Caja 3 – Comentarios del Viaje
+
+Esta sección permite la lectura de comentarios ingresados por los distintos actores a lo largo del
+proceso al devolver a una etapa anterior.
+
+Este espacio recoge observaciones o seguimientos relevantes realizados durante el desarrollo del servicio.
+
+### 🗺️ Caja 4 – Mapa del Recorrido
+Caja ubicada en la segunda fila, que muestra el mapa interactivo con el recorrido completo del viaje.
+
+### ♻️ Caja 5 – Condiciones del Viaje (Síntomas)
+Sección que reutiliza componentes existentes para mostrar las condiciones registradas durante el viaje:
+- Código negro
+- Condición crítica
+- Condición comprometida
+- Condición en observación 
+- Condición en tratamiento
+
+### 📊 Caja 6 – Tabla con Pestañas Dinámicas (Movimientos / Cargas)
+
+Caja inferior que incluye una tabla con dos pestañas intercambiables:
+
+- Movimientos Kanban: por defecto se visualizan los movimientos de la card dentro del kanban.
+- Tabla de Cargas: al cambiar de pestaña, se muestra la información asociada a las cargas del viaje.
+
+Ambas comparten el mismo espacio y lógica de navegación.
+
+---
+
+## 🔄 Cambios en el Proceso de Coordinación de Viajes
+Con el objetivo de mejorar la trazabilidad y alinear el flujo con nuevos puntos de control (huellero,
+tótem y Kausana), se incorporaron etapas iniciales y un proceso paralelo al momento de la llegada:
+
+- **Nuevas etapas del flujo:**
+  - **Asignar Conductor/Transporte**:
+    - **Estado de proceso**: Planificado
+    - **Descripción**: Sincroniza la base de servicios, incluso sin asignación aún
+
+  - **Presentar Conductor**:
+    - **Estado de proceso**: Asignado
+    - **Descripción**: Validación de presentación mediante tótem
+
+  - **Controlar Servicio**:
+    - **Estado de proceso**: En Preparación
+    - **Descripción**: Firma automática de carta de porte desde huella del tótem
+
+  - **Torre de Control: Iniciar Viaje**:
+    - **Estado de proceso**: Preparado
+    - **Descripción**: Firma automática de carta de porte desde huella del tótem
+
+  - **Monitorear Viaje**:
+    - **Estado de proceso**: Iniciado
+    - **Descripción**: Se mantiene sin cambios
+
+  - **Confirmar Arribo a Destino**:
+    - **Estado de proceso**: Arribado sin presentacion
+    - **Descripción**: Igual a proceso actual
+
+  - **Confirmar Cierre del Monitoreo**:
+    - **Estado de proceso**: Arribado con presentacion
+    - **Descripción**: Igual a proceso actual
+
+  - **Proceso Terminado**:
+    - **Estado de proceso**: Finalizado
+    - **Descripción**: Estado final sin variaciones
+
+---
+
+- **Proceso paralelo al arribo: Al dispararse “Confirmar Arribo a Destino”, se ejecutan en paralelo las siguientes tareas:**
+  - **Tarea paralela**: Confirmar Entrega
+    - **Responsable**: Conductor (Kausana)
+    - **Descripción**: Registro de entrega desde la app del conductor.
+
+  - **Tarea paralela**: Recibir Entrega
+    - **Responsable**: Supervisor de sede
+    - **Descripción**: Firma con huellero (troncal) o confirmación simple (faenas).
+
+  - **Tarea paralela**: Notificar Arribo (4.7)
+    - **Responsable**: Sistema
+    - **Descripción**: Evento desacoplado para alertas externas.
+
+  - **Tarea paralela**: Notificar Entrega (5.11)
+    - **Responsable**: Sistema
+    - **Descripción**: Evento desacoplado para alertas externas.
+
+---
+
+- **Impacto y próximos pasos**
+  - Mayor visibilidad: Etapas iniciales permiten seguimiento desde el origen.
+  - Trazabilidad automática: Firma automática de carta de porte al iniciar viaje.
+  - Operación paralela: El arribo activa múltiples tareas independientes sin bloquear el flujo.

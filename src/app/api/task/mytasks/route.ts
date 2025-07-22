@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
   const destination = url.searchParams.get("destination");
   const customerCode = url.searchParams.get("customerCode");
 
+  console.log(customerCode);
+
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 

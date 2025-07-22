@@ -2,6 +2,7 @@ import { getComments } from "@/utils/comments";
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
+import { MdOutlineCommentsDisabled } from "react-icons/md";
 
 export default function Comment({
   task,
@@ -21,7 +22,8 @@ export default function Comment({
         {comments?.length > 0 ? (
           comments?.map((comment, index) => <div key={index}>{comment}</div>)
         ) : (
-          <div className="text-gray-500 dark:text-gray-400 w-full h-full flex items-center justify-center">
+          <div className="text-gray-500 dark:text-gray-400 w-full h-full flex items-center justify-center flex-col">
+            <MdOutlineCommentsDisabled className="w-8 h-8" />
             {(dict.comments as I18nRecord).no_comments as string}
           </div>
         )}

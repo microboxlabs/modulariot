@@ -92,7 +92,8 @@ export default function TripData({
           className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light"
           key={index}
         >
-          {item.label}:
+          {item.label}
+          <span className="mr-1">:</span>
           <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
             {item.value as string}
           </span>

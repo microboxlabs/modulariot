@@ -69,8 +69,6 @@ export default function PageContent({
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   const router = useRouter();
   const searchParams = useSearchParams();
-  console.log(searchParams);
-
   const [page, setPage] = useState(1);
   const [compactKanbanView, setCompactKanbanView] = useState(false);
   const pageSize = 100;

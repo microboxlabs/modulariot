@@ -449,7 +449,18 @@
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
-        "Viaje Finalizado": "Trip Finished"
+        "Viaje Finalizado": "Trip Finished",
+
+        "Asignar Conductor/Transporte": "Assign Driver/Transport",
+        "Presentar Conductor": "Present Driver",
+        "Preparar Servicio": "Service Control",
+        "Torre de Control: Iniciar Viaje": "Start Trip",
+        "Torre de Control: Iniciar Viaje sin firma": "Start Trip without signature",
+        "Viaje Cancelado": "Trip Canceled",
+        "Viaje Anulado": "Trip Voided",
+        "Monitorear viaje en curso": "Monitor trip in progress",
+        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Confirmar Arribo a Destino": "Confirm Destination Arrival"       
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -562,7 +573,7 @@
         "missionControlTripInitTaskReason2": "No consolidation documentation.",
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
-        "confirm": "Confirm move to Overlord",
+        "confirm": "Confirm move to {outcome}",
         "reason": "Reason"
       }
     },

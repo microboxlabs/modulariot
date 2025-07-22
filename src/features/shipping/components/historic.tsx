@@ -51,18 +51,14 @@ export default function Historic({
             return (
               <Table.Row key={index}>
                 <Table.Cell className="whitespace-nowrap">
-                  {
-                    (dict.kanban as I18nRecord)[
-                      item.activityId as string
-                    ] as string
-                  }
+                  {((dict.kanban as I18nRecord)[
+                    item.activityId as string
+                  ] as string) ?? item.activityName}
                 </Table.Cell>
                 <Table.Cell className="whitespace-nowrap">
-                  {
-                    (dict.kanban as I18nRecord)[
-                      item.taskResult as string
-                    ] as string
-                  }
+                  {((dict.kanban as I18nRecord)[
+                    item.taskResult as string
+                  ] as string) ?? item.taskResult}
                 </Table.Cell>
                 <Table.Cell className="whitespace-nowrap">
                   {formattedDate}

@@ -1068,8 +1068,9 @@
     "en_preparacion": "En Preparación",
     "preparado": "Preparado",
     "iniciado": "Iniciado",
-    "arrivado_sp": "Arrivado SP",
-    "arribado_cp": "Arribado CP"
+    "arribado_sp": "Arribado SP",
+    "arribado_cp": "Arribado CP",
+    "recepcionado": "Recepcionado"
   },
   "comments": {
     "title": "Comentarios",

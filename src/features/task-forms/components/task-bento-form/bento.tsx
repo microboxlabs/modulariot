@@ -23,8 +23,12 @@ const task_states = {
   prepareService: "en_preparacion",
   missionControl: "preparado",
   monitorTrip: "iniciado",
-  confirmArrival: "arrivado_sp",
+  confirmArrival: "arribado_sp",
   closeMonitoring: "arribado_cp",
+  confirmDelivery: "arribado_sp",
+  receiveDelivery: "arribado_cp",
+  notifyTMSArrival: "recepcionado",
+  notifyTMSDelivery: "recepcionado",
 };
 
 /*
@@ -75,6 +79,7 @@ export default function Bento({
   const writable_dict = (
     (dict.pages as unknown as I18nRecord).shipping as I18nRecord
   ).kanban as I18nRecord;
+
   const task_name = writable_dict[task_name_identifier];
   const title = task?.persistentState?.endTime
     ? ((
@@ -94,17 +99,19 @@ export default function Bento({
   return (
     <div className="flex flex-col w-full h-full ">
       {/* Head */}
-      <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap justify-between">
+      <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-between">
         <div>
           <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
             {title as string}
           </h1>
-          <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-            {(dict.bento as I18nRecord).process_state as string}:{" "}
-            <span className="font-normal text-gray-800 dark:text-gray-200">
-              {subtitle as string}
-            </span>
-          </h2>
+          {subtitle && (
+            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+              {(dict.bento as I18nRecord).process_state as string}:{" "}
+              <span className="font-normal text-gray-800 dark:text-gray-200">
+                {subtitle as string}
+              </span>
+            </h2>
+          )}
         </div>
         <div className="flex flex-row gap-1 w-full sm:w-auto">
           {/*          

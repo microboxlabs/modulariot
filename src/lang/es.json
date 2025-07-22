@@ -1072,6 +1072,7 @@
   },
   "comments": {
     "title": "Comentarios",
-    "subtitle": "Aquí podrás visualizar los comentarios ingresados."
+    "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
+    "no_comments": "No hay comentarios"
   }
 }

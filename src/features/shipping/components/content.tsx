@@ -69,7 +69,6 @@ export default function PageContent({
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [page, setPage] = useState(1);
   const [compactKanbanView, setCompactKanbanView] = useState(false);
   const pageSize = 100;
@@ -107,13 +106,23 @@ export default function PageContent({
     if (searchTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
-        tasks: searchTasksData.data[board.title]?.tasks ?? [],
+        tasks: board.title2
+          ? [
+              ...(searchTasksData.data[board.title]?.tasks ?? []),
+              ...(searchTasksData.data[board.title2]?.tasks ?? []),
+            ]
+          : (searchTasksData.data[board.title]?.tasks ?? []),
       }));
       setList(newBoards);
     } else if (myTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
-        tasks: myTasksData.data[board.title]?.tasks ?? [],
+        tasks: board.title2
+          ? [
+              ...(myTasksData.data[board.title]?.tasks ?? []),
+              ...(myTasksData.data[board.title2]?.tasks ?? []),
+            ]
+          : (myTasksData.data[board.title]?.tasks ?? []),
       }));
 
       setList(newBoards);

@@ -49,7 +49,7 @@ export default function TripData({
     },
     {
       label: (msg!.cards as I18nRecord).clientCode as string,
-      value: (task.mintral_clientCode as string) ?? "-",
+      value: (task.mintral_customerCode as string) ?? "-",
     },
     {
       label: (msg!.cards as I18nRecord).origin as string,
@@ -90,7 +90,8 @@ export default function TripData({
           className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light"
           key={index}
         >
-          {item.label}:
+          {item.label}
+          <span className="mr-1">:</span>
           <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
             {item.value as string}
           </span>

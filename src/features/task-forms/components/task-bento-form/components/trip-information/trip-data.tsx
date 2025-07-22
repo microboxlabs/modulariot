@@ -38,8 +38,6 @@ export default function TripData({
         ? "REGULARIZACIÓN"
         : task.mintral_priorityCode;
 
-  console.log(task);
-
   const data = [
     {
       label: (msg!.cards as I18nRecord).patente as string,

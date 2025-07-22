@@ -257,7 +257,8 @@
         "driverId": "Driver Rut",
         "carrierId": "Carrier ID",
         "carrierName": "Carrier",
-        "customerCode": "Customer"
+        "customerCode": "Customer Code",
+        "customer": "Customer"
       }
     },
     "delivery": {

@@ -54,9 +54,23 @@ export default function TimeElement({
 }
 
 function getTimeDifference(task: TaskResponse) {
-  const creationDate = new Date(task.cm_created as string);
-  const now = new Date();
+  // Handle different date formats and ensure proper timezone handling
+  let creationDate: Date;
+  const dateString = task.cm_created as string;
 
+  if (!dateString) {
+    return "0s";
+  }
+
+  // If the date string already has timezone info (ends with Z or has +), use it as is
+  if (dateString.endsWith("Z") || dateString.includes("+")) {
+    creationDate = new Date(dateString);
+  } else {
+    // If no timezone info, assume it's UTC and add Z suffix
+    creationDate = new Date(dateString + "Z");
+  }
+
+  const now = new Date();
   const diffInMs = Math.abs(now.getTime() - creationDate.getTime());
 
   const years = Math.floor(diffInMs / (1000 * 60 * 60 * 24 * 365));

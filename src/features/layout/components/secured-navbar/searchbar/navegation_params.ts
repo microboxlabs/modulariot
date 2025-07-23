@@ -1,58 +1,44 @@
 "use client";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 export function getNavegationParams(dict: I18nRecord) {
   return {
     finished: [
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).service as string,
+        label: tr("service", dict.searchbar as I18nRecord),
         param: "service",
       },
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).licensePlate as string,
+        label: tr("licensePlate", dict.searchbar as I18nRecord),
         param: "licensePlate",
       },
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).driverId as string,
+        label: tr("driverId", dict.searchbar as I18nRecord),
         param: "driverId",
       },
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).carrierId as string,
+        label: tr("carrierId", dict.searchbar as I18nRecord),
         param: "carrierId",
       },
+      /*
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).origin as string,
+        label: tr("carrierName", (dict.searchbar as I18nRecord)),
+        param: "carrierName",
+      },
+      */
+      {
+        label: tr("origin", dict.searchbar as I18nRecord),
         param: "origin",
       },
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).destination as string,
+        label: tr("destination", dict.searchbar as I18nRecord),
         param: "destination",
       },
       {
-        label: (
-          ((dict.pages as I18nRecord).shipping as I18nRecord)
-            .table as I18nRecord
-        ).customerCode as string,
-        param: "customerCode",
+        label: tr("customer", dict.searchbar as I18nRecord),
+        param: "customer",
       },
     ],
   };

@@ -33,9 +33,7 @@ export async function GET(req: NextRequest) {
   const carrierName = url.searchParams.get("carrierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
-  const customerCode = url.searchParams.get("customerCode");
-
-  console.log(customerCode);
+  const customerCode = url.searchParams.get("customerCode");  
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;

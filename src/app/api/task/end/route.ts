@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
           reason;
       }
     }
-    
     await updateTask(
       session.user.ticket,
       "activiti$" + taskId,

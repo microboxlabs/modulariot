@@ -61,7 +61,7 @@ async function streamPositions(
   writable: WritableStream,
 ) {
   const writer = writable.getWriter();
-  const token = await authToken.getToken();  
+  const token = await authToken.getToken();
 
   try {
     const response = await fetch(
@@ -79,7 +79,6 @@ async function streamPositions(
 
     // Read the entire response as text first, then create a readable stream
     const responseText = await response.text();
-    
     const csvStream = Readable.from([responseText]);
     const parser = parse({
       columns: (headers: string[]) =>

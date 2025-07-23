@@ -136,7 +136,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    
     const documentCode = response.result.code!;
     const signIdCardRequest: SignIdCardRequest = {
       user_rut: json.signerRuts,
@@ -146,7 +145,7 @@ export async function POST(request: NextRequest) {
       code: documentCode,
       session_id: sessionId,
     };
-    
+
     const signIdCardResponse = await signIdCard(signIdCardRequest);
     if (signIdCardResponse.status !== 200) {
       return NextResponse.json({

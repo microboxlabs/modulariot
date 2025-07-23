@@ -39,12 +39,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
   if (!error) {
-    totals["shippingv1"] = Object.entries(data?.totals ?? {})
+    /* totals["shippingv1"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         SHIPPING_COORDINATOR_PROCESS_TASKS.includes(key as any),
       )
       .map(([_, value]) => value as number)
-      .reduce((a, b) => a + b, 0);
+      .reduce((a, b) => a + b, 0); */
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any),

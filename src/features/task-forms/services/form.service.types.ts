@@ -59,7 +59,8 @@ export type ShippingCoordinatorProcessTask =
   | "confirmTripDestinationDeparture"
   | "confirmDelivery"
   | "confirmMonitoringFinalization"
-  | "monitoringFinalization";
+  | "monitoringFinalization"
+  | "finished";
 
 export type OverlordTripInitOutcome =
   | "Autorizado Sin GPS"
@@ -159,7 +160,8 @@ export type ShippingCoordinatorProcessTaskV2 =
   | "missionControl"
   | "monitorTrip"
   | "confirmArrival"
-  | "closeMonitoring";
+  | "closeMonitoring"
+  | "finished";
 
 /* ------------------------------------------------------------- */
 /* Delivery Process */

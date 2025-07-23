@@ -9,6 +9,7 @@ export type TaskHistory = {
   assignee: string;
   startTime: string;
   taskResult: string;
+  activityName: string;
 };
 
 export function useTaskHistory(taskId: string, active: boolean = true) {

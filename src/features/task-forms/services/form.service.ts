@@ -132,6 +132,8 @@ export const TASK_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessTas
 export const TASK_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
   "monitoringFinalization";
 
+export const TASK_FINISHED = "finished";
+
 export const OUTCOME_RETURN_TO_MISSION_CONTROL: SovosDigitalSignatureOutcome =
   "Devolver a Torre de Control";
 
@@ -159,10 +161,11 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_TRIP_OUTSIDE_INITIATED,
     TASK_MONITORING_IN_COURSE_TRIP,
     TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL,
-    TASK_CONFIRM_DELIVERY,
+    //TASK_CONFIRM_DELIVERY,
     TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
     TASK_CONFIRM_MONITORING_FINALIZATION,
     TASK_MONITORING_FINALIZATION,
+    TASK_FINISHED,
   ];
 
 /* ------------------------------------------------------------- */
@@ -220,6 +223,7 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTa
     TASK_MONITOR_TRIP,
     TASK_CONFIRM_ARRIVAL,
     TASK_CLOSE_MONITORING,
+    TASK_FINISHED,
   ];
 
 export const OUTCOME_TO_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";

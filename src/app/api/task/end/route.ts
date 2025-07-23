@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
           reason;
       }
     }
-    // console.log("updateTaskPayload", updateTaskPayload);
+    
     await updateTask(
       session.user.ticket,
       "activiti$" + taskId,

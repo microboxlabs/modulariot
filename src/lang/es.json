@@ -1072,6 +1072,7 @@
     "arrivado_sp": "Arrivado SP",
     "arribado_cp": "Arribado CP",
     "recepcionado": "Recepcionado",
+    "taken_by": "Tomada por"
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",

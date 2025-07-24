@@ -183,7 +183,7 @@ export type FinishedWorkflowsRequest = {
     origin?: string;
     destination?: string;
     customerCode?: string;
-    customer?: string;
+    clientAbbreviation?: string;
   };
 };
 

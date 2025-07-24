@@ -98,7 +98,7 @@ export default function TaskConfirmModal({
         } else if (taskType && taskType.startsWith("wfship2:")) {
           router.push(`/delivery`);
         } else {
-          router.push(`/shippingv1`);
+          router.push(`/shipping`);
         }
         return;
       }

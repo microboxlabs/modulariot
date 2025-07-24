@@ -11,7 +11,7 @@ import {
 import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi } from "@alfresco/js-api";
 import { signIn } from "@/auth";
-import { redirectWithLang } from "./navigation.service";
+//import { redirectWithLang } from "./navigation.service";
 
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,
@@ -58,19 +58,17 @@ export async function authenticateAction(
       };
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const result = await signIn("credentials", {
+    await signIn("credentials", {
       email: formData.get("email") as string,
       password: formData.get("password") as string,
       redirect: false,
     });
-    if (result?.error) {
-      return {
-        success: false,
-        message: result.error,
-        status: 403,
-      };
-    }
-    redirectWithLang("/shipping");
+    //redirectWithLang("/shipping");
+    return {
+      success: true,
+      message: "Authentication successful",
+      status: 200,
+    };
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

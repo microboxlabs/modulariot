@@ -65,6 +65,7 @@
   {
     "id": 11,
     "title": "monitoringFinalization",
+    "title2": "finished",
     "finished": true,
     "state": "done",
     "tasks": []

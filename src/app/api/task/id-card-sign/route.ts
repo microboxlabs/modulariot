@@ -136,7 +136,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(JSON.stringify(response));
     const documentCode = response.result.code!;
     const signIdCardRequest: SignIdCardRequest = {
       user_rut: json.signerRuts,
@@ -147,7 +146,6 @@ export async function POST(request: NextRequest) {
       session_id: sessionId,
     };
 
-    console.log(JSON.stringify(signIdCardRequest));
     const signIdCardResponse = await signIdCard(signIdCardRequest);
     if (signIdCardResponse.status !== 200) {
       return NextResponse.json({
@@ -173,8 +171,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    /* const response = await createContentSign(createContentRequest);
-    //console.log({ ...response.result, file: "<...binary data...>" });
+    /* const response = await createContentSign(createContentRequest);    
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -234,7 +231,7 @@ export async function POST(request: NextRequest) {
       json.transitionId,
     );
 
-    console.log(endTaskResult); */
+     */
 
     return NextResponse.json({
       success: true,
@@ -242,7 +239,7 @@ export async function POST(request: NextRequest) {
       response,
     });
   } catch (error: any) {
-    console.error(JSON.stringify(error));
+    console.error(error);
     return NextResponse.json({
       success: false,
       status: 500,

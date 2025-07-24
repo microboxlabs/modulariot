@@ -270,7 +270,8 @@
         "driverId": "RUT Conductor",
         "carrierId": "ID Transportista",
         "carrierName": "Transportista",
-        "customerCode": "Cliente"
+        "customerCode": "Código Cliente",
+        "customer": "Cliente"
       }
     }, 
     "delivery": {
@@ -1070,6 +1071,7 @@
     "iniciado": "Iniciado",
     "arrivado_sp": "Arrivado SP",
     "arribado_cp": "Arribado CP",
+    "recepcionado": "Recepcionado",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",
@@ -1109,6 +1111,7 @@
   },
   "comments": {
     "title": "Comentarios",
-    "subtitle": "Aquí podrás visualizar los comentarios ingresados."
+    "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
+    "no_comments": "No hay comentarios"
   }
 }

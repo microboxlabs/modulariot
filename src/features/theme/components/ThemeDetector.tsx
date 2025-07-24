@@ -50,7 +50,7 @@ export default function ClientThemeDetector({
       try {
         await applyOrCreateSavedTheme();
       } catch (error) {
-        console.error("ups: ", error);
+        console.error(error);
       } finally {
         setIsLoading(false);
       }

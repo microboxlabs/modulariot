@@ -104,14 +104,24 @@ export default function Bento({
           <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
             {title as string}
           </h1>
-          {subtitle && (
-            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-              {(dict.bento as I18nRecord).process_state as string}:{" "}
-              <span className="font-normal text-gray-800 dark:text-gray-200">
-                {subtitle as string}
-              </span>
-            </h2>
-          )}
+          <div className="flex flex-row gap-2">
+            {subtitle && (
+              <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+                {(dict.bento as I18nRecord).process_state as string}:{" "}
+                <span className="font-normal text-gray-800 dark:text-gray-200">
+                  {subtitle as string}
+                </span>
+              </h2>
+            )}
+            {task.takenBy && (
+              <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+                {(dict.bento as I18nRecord).taken_by as string}:{" "}
+                <span className="font-normal text-gray-800 dark:text-gray-200">
+                  {task.takenBy as string}
+                </span>
+              </h2>
+            )}
+          </div>
         </div>
         <div className="flex flex-row gap-1 w-full sm:w-auto">
           {/*          

@@ -1070,7 +1070,8 @@
     "iniciado": "Iniciado",
     "arribado_sp": "Arribado SP",
     "arribado_cp": "Arribado CP",
-    "recepcionado": "Recepcionado"
+    "recepcionado": "Recepcionado",
+    "taken_by": "Tomada por"
   },
   "comments": {
     "title": "Comentarios",

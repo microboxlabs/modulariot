@@ -4,6 +4,7 @@ import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 import Image from "next/image";
 import exclamationIcon from "@assets/wired-flat-1140-error-in-reveal.gif";
 import { Button } from "flowbite-react";
+import { logger } from "@/lib/logger";
 
 export default function TripInformation({
   setCurrentStep,
@@ -31,10 +32,6 @@ export default function TripInformation({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Use biometricResult for debugging or further logic
-  /* if (biometricResult) {
-    console.log("biometricResult in TripInformation:", biometricResult);
-  } */
   const hasRun = useRef(false);
   useEffect(() => {
     if (hasRun.current) return;
@@ -64,7 +61,7 @@ export default function TripInformation({
         });
         if (!response.ok) {
           const errorData = await response.json();
-          console.log("errorData", errorData);
+          logger.info("errorData", errorData);
           if (errorData?.error?.code === "multiple_tasks") {
             setError((dict.totem as I18nRecord).multiple_tasks as string);
             return;

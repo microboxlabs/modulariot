@@ -159,7 +159,7 @@ export default function TripInformation({
           });
         }
       } catch (err) {
-        console.log(err);
+        console.error(err);
         //setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);

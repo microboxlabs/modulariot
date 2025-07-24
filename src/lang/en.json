@@ -1057,7 +1057,8 @@
     "iniciado": "Started",
     "arribado_sp": "Arrived SP",
     "arribado_cp": "Arrived CP",
-    "recepcionado": "Received"
+    "recepcionado": "Received",
+    "taken_by": "Taken by"
   },
   "comments": {
     "title": "Comments",

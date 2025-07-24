@@ -64,6 +64,7 @@ export type TaskResponse = {
   bpm_outcome: string;
   persistentState: PersistentState;
   isEditable: boolean;
+  takenBy?: string;
 };
 
 export type Task = {

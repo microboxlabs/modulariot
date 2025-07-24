@@ -4,13 +4,15 @@ import { authenticateAction } from "@/features/auth/services/auth.service";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
+import { useRouter } from "next/navigation";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
+  const router = useRouter();
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "" },
@@ -20,11 +22,17 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   const [_state, formAction] = useFormState(authenticateAction, {});
   const [pending, setPending] = useState(false);
 
+  useEffect(() => {
+    if (_state?.success) {
+      setPending(false);
+      router.push("/shipping");
+    }
+  }, [_state]);
+
   const onSubmitForm = async function (e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     setPending(true);
     await e.currentTarget.form?.requestSubmit();
-    //setPending(false);
   };
 
   const getMessages = function (message = "") {
@@ -79,7 +87,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           {msg.forgotPasswordLabel}
         </Link>
       </div>
-      {_state?.message && (
+      {_state?.message && !_state?.success && (
         <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
       )}
       {/* <div>

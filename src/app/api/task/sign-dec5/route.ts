@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { ecmSovosDec5 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -19,12 +20,12 @@ export async function POST(request: NextRequest) {
       status: 200,
       ...response,
     });
-  } catch (_error: any) {
-    console.log(_error);
+  } catch (error: any) {
+    logger.error(error);
     return NextResponse.json({
       success: false,
       status: 500,
-      error: (_error?.message as string) ?? "Unknown error",
+      error: (error?.message as string) ?? "Unknown error",
     });
   }
 }

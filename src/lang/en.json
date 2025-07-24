@@ -270,7 +270,8 @@
         "driverId": "Driver Rut",
         "carrierId": "Carrier ID",
         "carrierName": "Carrier",
-        "customerCode": "Customer"
+        "customerCode": "Customer Code",
+        "customer": "Customer"
       }
     },
     "delivery": {
@@ -463,7 +464,18 @@
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
-        "Viaje Finalizado": "Trip Finished"
+        "Viaje Finalizado": "Trip Finished",
+
+        "Asignar Conductor/Transporte": "Assign Driver/Transport",
+        "Presentar Conductor": "Present Driver",
+        "Preparar Servicio": "Service Control",
+        "Torre de Control: Iniciar Viaje": "Start Trip",
+        "Torre de Control: Iniciar Viaje sin firma": "Start Trip without signature",
+        "Viaje Cancelado": "Trip Canceled",
+        "Viaje Anulado": "Trip Voided",
+        "Monitorear viaje en curso": "Monitor trip in progress",
+        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Confirmar Arribo a Destino": "Confirm Destination Arrival"       
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -576,7 +588,7 @@
         "missionControlTripInitTaskReason2": "No consolidation documentation.",
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
-        "confirm": "Confirm move to Overlord",
+        "confirm": "Confirm move to {outcome}",
         "reason": "Reason"
       }
     },
@@ -1059,6 +1071,7 @@
     "iniciado": "Started",
     "arrivado_sp": "Arrived SP",
     "arribado_cp": "Arrived CP",
+    "recepcionado": "Received",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",
@@ -1098,6 +1111,7 @@
   },
   "comments": {
     "title": "Comments",
-    "subtitle": "Here you can view the comments entered."
+    "subtitle": "Here you can view the comments entered.",
+    "no_comments": "No comments"
   }
 }

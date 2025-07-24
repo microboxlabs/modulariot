@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Stepped from "./stepped-elements";
 import Welcome from "./welcome";
 import { I18nRecord } from "../i18n/i18n.service.types";
@@ -12,13 +12,6 @@ export default function Totem({ dict }: { dict: I18nRecord }) {
   const searchParams = useSearchParams();
   const deviceId = searchParams.get("deviceId") ?? "unknown";
   const deviceLocation = searchParams.get("deviceLocation") ?? "unknown";
-
-  useEffect(() => {
-    if (deviceId && deviceLocation) {
-      console.log("Device ID:", deviceId);
-      console.log("Device Location:", deviceLocation);
-    }
-  }, [deviceId, deviceLocation]);
 
   const options = [
     {

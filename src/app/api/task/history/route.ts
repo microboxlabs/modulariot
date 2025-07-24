@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(taskHistory);
   } catch (error: any) {
-    console.error(error.message);
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

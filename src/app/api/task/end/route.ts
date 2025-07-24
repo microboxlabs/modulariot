@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
           reason;
       }
     }
-    // console.log("updateTaskPayload", updateTaskPayload);
     await updateTask(
       session.user.ticket,
       "activiti$" + taskId,
@@ -65,6 +64,7 @@ export async function POST(request: NextRequest) {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (_error: any) {
+    console.error("error", _error);
     if (_error instanceof Error) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const error = parseErrorAsJson(_error);

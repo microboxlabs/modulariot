@@ -15,9 +15,13 @@ import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import {
+  OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_PREPARE_SERVICE_V2,
+  OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
 import { useState } from "react";
 import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.types";
@@ -94,7 +98,7 @@ export default function TaskConfirmModal({
         } else if (taskType && taskType.startsWith("wfship2:")) {
           router.push(`/delivery`);
         } else {
-          router.push(`/shippingv1`);
+          router.push(`/shipping`);
         }
         return;
       }
@@ -161,45 +165,49 @@ export default function TaskConfirmModal({
                   </Select>
                 </>
               )}
-            {taskType === "wfship:missionControlTripInitTask" &&
-              outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION && (
-                <>
-                  <Label className="mt-4">
-                    {(dict.modal as I18nRecord).title2 as string}
-                  </Label>
-                  <Select
-                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                    defaultValue="NO_GPS_VALIDATION"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
-                    <option value="NO_GPS_VALIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason1 as string
-                      }
-                    </option>
-                    <option value="NO_DOCUMENT_CONSOLIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason2 as string
-                      }
-                    </option>
-                    <option value="NO_CLIENT_SYSTEM_VALIDATION">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason3 as string
-                      }
-                    </option>
-                    <option value="OTHER">
-                      {
-                        (dict.modal as I18nRecord)
-                          .missionControlTripInitTaskReason4 as string
-                      }
-                    </option>
-                  </Select>
-                </>
-              )}
+            {(taskType === "wfship:missionControlTripInitTask" &&
+              outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION) ||
+              (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK &&
+                (outcome === OUTCOME_ASSIGN_DRIVER_V2 ||
+                  outcome === OUTCOME_PRESENT_DRIVER_V2 ||
+                  outcome === OUTCOME_PREPARE_SERVICE_V2) && (
+                  <>
+                    <Label className="mt-4">
+                      {(dict.modal as I18nRecord).title2 as string}
+                    </Label>
+                    <Select
+                      /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                      defaultValue="NO_GPS_VALIDATION"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                    >
+                      <option value="NO_GPS_VALIDATION">
+                        {
+                          (dict.modal as I18nRecord)
+                            .missionControlTripInitTaskReason1 as string
+                        }
+                      </option>
+                      <option value="NO_DOCUMENT_CONSOLIDATION">
+                        {
+                          (dict.modal as I18nRecord)
+                            .missionControlTripInitTaskReason2 as string
+                        }
+                      </option>
+                      <option value="NO_CLIENT_SYSTEM_VALIDATION">
+                        {
+                          (dict.modal as I18nRecord)
+                            .missionControlTripInitTaskReason3 as string
+                        }
+                      </option>
+                      <option value="OTHER">
+                        {
+                          (dict.modal as I18nRecord)
+                            .missionControlTripInitTaskReason4 as string
+                        }
+                      </option>
+                    </Select>
+                  </>
+                ))}
 
             <div className="flex items-center justify-center mt-4">
               {!commentsFieldEnabled && <KanbanMove />}

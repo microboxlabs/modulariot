@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "./auth";
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
+import { logger } from "./lib/logger";
 //import { getRoutePermissions } from "@/features/auth/config/route-permissions";
 //import type { JWT } from "next-auth/jwt";
 
@@ -31,6 +32,15 @@ export default auth(async function middleware(request: NextRequest) {
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
     pathname = "/shipping";
   }
+
+  logger.info(
+    {
+      method: request.method,
+      url: request.url,
+      context: "middleware",
+    },
+    `Request completed: ${request.method} ${request.url}`,
+  );
 
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}`) || pathname === `/${locale}`,

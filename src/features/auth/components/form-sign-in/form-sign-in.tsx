@@ -9,10 +9,10 @@ import { useFormState } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
-import { useRouter } from "next/navigation";
+//import { useRouter } from "next/navigation";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  const router = useRouter();
+  //const router = useRouter();
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "" },
@@ -25,7 +25,6 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   useEffect(() => {
     if (_state?.success) {
       setPending(false);
-      router.push("/shipping");
     }
   }, [_state]);
 

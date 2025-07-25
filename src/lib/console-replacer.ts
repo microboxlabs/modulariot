@@ -24,13 +24,7 @@ export const consoleReplacer = {
 
 // Function to replace console methods globally (use with caution)
 export const replaceConsoleGlobally = () => {
-  if (typeof window !== "undefined") {
-    // Client-side replacement
-    Object.assign(console, consoleReplacer);
-  } else {
-    // Server-side replacement
-    Object.assign(console, consoleReplacer);
-  }
+  Object.assign(console, consoleReplacer);
 };
 
 // Create context-specific console replacements

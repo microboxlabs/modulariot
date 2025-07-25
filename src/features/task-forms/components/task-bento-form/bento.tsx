@@ -6,8 +6,6 @@ import DriverInfo from "./components/driver/driver";
 import Conditions from "./components/side-data/conditions";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
-import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
-import { useState } from "react";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
@@ -17,6 +15,8 @@ import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
+import FileImages from "./components/side-data/file-images";
+import Forum from "./components/forum/forum";
 
 const task_states = {
   assignDriver: "planificado",
@@ -61,16 +61,6 @@ export default function Bento({
   enableActions?: boolean;
   showActions?: boolean;
 }) {
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
-
-  const testImages = [
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-  ];
-
   const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
     task.id,
   );
@@ -85,7 +75,10 @@ export default function Bento({
 
   const title = task?.persistentState?.endTime
     ? tr("finished_process", (dict.bento as I18nRecord).titles as I18nRecord)
-    : tr(task_name as string, (dict.bento as I18nRecord).titles as I18nRecord);
+    : tr(
+        (task_name as string) ?? "",
+        (dict.bento as I18nRecord).titles as I18nRecord,
+      );
 
   const subtitle = task?.persistentState?.endTime
     ? tr("finished", (dict.bento as I18nRecord).titles as I18nRecord)
@@ -211,6 +204,20 @@ export default function Bento({
           */}
         </div>
 
+        {/* File Images */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          <FileImages />
+        </div>
+
+        {/* Historic Loads - spans full width */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[300px]">
+          <HistoricLoads
+            task={task}
+            dictionary={dict as unknown as Record<string, string>}
+            active={active}
+          />
+        </div>
+
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
           <Conditions
@@ -220,42 +227,12 @@ export default function Bento({
           />
         </div>
 
-        {/* File Images */}
-        {/*
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-            <FileImages
-              images={testImages.slice(0, 4)}
-              setSelectedImage={setSelectedImage}
-            />
-          </div>
-        */}
-
-        {/* Historic Loads - spans full width */}
-        <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg min-h-[300px]">
-          <HistoricLoads
-            task={task}
-            dictionary={dict as unknown as Record<string, string>}
-            active={active}
-          />
-        </div>
-
         {/* Forum */}
-        {/*
-          <div className=" bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700">
-            <div className="flex flex-col items-center justify-center h-full scale-90">
-              <EmptyAnimation />
-            </div>
-          </div>
-        */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
+          <Forum dict={dict as I18nRecord} />
+        </div>
       </div>
       {/* Content */}
-
-      {/* Image Viewer */}
-      <ImageViewer
-        images={testImages}
-        selected={selectedImage}
-        setSelected={setSelectedImage}
-      />
     </div>
   );
 }

@@ -1073,6 +1073,8 @@
     "arribado_cp": "Arrived CP",
     "recepcionado": "Received",
     "taken_by": "Taken by",
+    "forum": "Forum",
+    "forum_subtitle": "Here you can view the comments entered.",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",

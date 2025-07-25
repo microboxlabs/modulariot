@@ -1073,6 +1073,8 @@
     "arribado_cp": "Arribado CP",
     "recepcionado": "Recepcionado",
     "taken_by": "Tomada por",
+    "forum": "Foro",
+    "forum_subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",

@@ -53,8 +53,6 @@ export async function POST(request: Request) {
 
     const responseData = (await response.json()) as TreatmentsResponse;
 
-    //console.log(responseData);
-
     if (responseData.status === 200) {
       return NextResponse.json(responseData.data, {
         status: 200,

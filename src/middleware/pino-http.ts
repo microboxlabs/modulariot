@@ -1,5 +1,6 @@
 import pinoHttp from "pino-http";
 import { logger } from "@/lib/logger";
+import hexoid from "hexoid";
 
 // Create Pino HTTP middleware
 export const pinoHttpMiddleware = pinoHttp({
@@ -56,11 +57,7 @@ export const pinoHttpMiddleware = pinoHttp({
   },
   // Custom request ID generation
   genReqId: (req) => {
-    return (
-      req.headers["x-request-id"] ||
-      req.id ||
-      Math.random().toString(36).substring(2, 15)
-    );
+    return req.headers["x-request-id"] || req.id || hexoid();
   },
 });
 

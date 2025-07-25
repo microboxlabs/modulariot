@@ -43,9 +43,6 @@ export default function IgnoreCondition({
           v_symptom_treatment_time: duration,
           status: "active",
         });
-        /* console.log("duration", duration);
-        console.log("treatmentRequest", treatmentRequest);
-        console.log("scope", scope); */
         await requestTreatment({
           ...treatmentRequest,
           status: "active",

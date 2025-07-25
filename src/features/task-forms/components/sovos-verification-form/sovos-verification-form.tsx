@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { AutentiaParamsGet } from "@/features/sovos-fingerprint/services/autentia.types";
 import { TaskOutcome } from "../../services/form.service.types";
 import { signDec5 } from "@/features/common/providers/client-api.provider";
+import { logger } from "@/lib/logger";
 // import { useSession } from "next-auth/react";
 
 export default function SovosVerificationForm({
@@ -37,7 +38,7 @@ export default function SovosVerificationForm({
   
   const handleSignDocument = async () => {
     setLoading(true);    
-    console.log(audits);
+    logger.info(audits);
     /* let pos = 0;
     let results = [];
     for (const audit of audits) {

@@ -51,7 +51,7 @@ export const pinoHttpMiddleware = pinoHttp({
     return {
       context: "http",
       userAgent: req.headers["user-agent"],
-      ip: (req as any).ip || req.connection?.remoteAddress,
+      remoteAddress: req.connection?.remoteAddress,
     };
   },
   // Custom request ID generation

@@ -33,10 +33,7 @@ export async function GET(req: NextRequest) {
   const carrierName = url.searchParams.get("carrierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
-  const customerCode = url.searchParams.get("customerCode");
-
-  console.log(customerCode);
-
+  const customer = url.searchParams.get("customer");
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
@@ -62,7 +59,7 @@ export async function GET(req: NextRequest) {
             carrierName: carrierName ? carrierName : undefined,
             origin: origin ? origin.toUpperCase() : undefined,
             destination: destination ? destination.toUpperCase() : undefined,
-            customerCode: customerCode ? customerCode : undefined,
+            clientAbbreviation: customer ? customer : undefined,
           },
         }).then((res) => ({
           tasks: res.workflows,

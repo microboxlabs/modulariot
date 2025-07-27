@@ -10,7 +10,7 @@ import {
 } from "./auth.service.types";
 import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi } from "@alfresco/js-api";
-import { signIn } from "@/auth";
+import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
 
 export async function signInWithCredentials(
@@ -63,6 +63,7 @@ export async function authenticateAction(
       password: formData.get("password") as string,
       redirect: false,
     });
+    console.log("signIn--------------------------------", result);
     if (result?.error) {
       return {
         success: false,
@@ -70,7 +71,14 @@ export async function authenticateAction(
         status: 403,
       };
     }
+    const session = await auth();
+    console.log("session--------------------------------", session);
     redirectWithLang("/shipping");
+    /*return {
+      success: true,
+      message: "Authentication successful",
+      status: 200,
+    };*/
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

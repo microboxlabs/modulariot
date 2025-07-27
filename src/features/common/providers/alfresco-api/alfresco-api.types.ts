@@ -64,6 +64,7 @@ export type TaskResponse = {
   bpm_outcome: string;
   persistentState: PersistentState;
   isEditable: boolean;
+  takenBy?: string;
 };
 
 export type Task = {
@@ -182,7 +183,7 @@ export type FinishedWorkflowsRequest = {
     origin?: string;
     destination?: string;
     customerCode?: string;
-    customer?: string;
+    clientAbbreviation?: string;
   };
 };
 

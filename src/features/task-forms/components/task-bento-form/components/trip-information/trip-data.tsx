@@ -48,8 +48,8 @@ export default function TripData({
       value: (task.mintral_serviceCode as string) ?? "-",
     },
     {
-      label: (msg!.cards as I18nRecord).clientCode as string,
-      value: (task.mintral_customerCode as string) ?? "-",
+      label: (msg!.cards as I18nRecord).clientName as string,
+      value: (task.mintral_clientAbbreviation as string) ?? "-",
     },
     {
       label: (msg!.cards as I18nRecord).origin as string,

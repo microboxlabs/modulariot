@@ -81,11 +81,6 @@ export default function TaskConfirmModal({
       if (response.success) {
         setIsProcessing(false);
         setOpenModal(false);
-        console.log("taskType", taskType);
-        console.log(
-          "SHIPPING_COORDINATOR_PROCESS_TASKS_V2",
-          SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
-        );
         if (
           taskType &&
           SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
@@ -98,7 +93,7 @@ export default function TaskConfirmModal({
         } else if (taskType && taskType.startsWith("wfship2:")) {
           router.push(`/delivery`);
         } else {
-          router.push(`/shippingv1`);
+          router.push(`/shipping`);
         }
         return;
       }

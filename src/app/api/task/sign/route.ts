@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
 
     // const documentTypes = await getDocumentTypes(institutionId, sessionId);
     // const docType = documentTypes.result.document_types.filter(dt => dt.name == targetContentType )[0];
-    // console.log(documentTypes);
 
     let signersRoles: string[] = [];
     let signersInstitutions: string[] = [];
@@ -124,13 +123,7 @@ export async function POST(request: NextRequest) {
       file_mime: "application/pdf",
       return_file: 1,
     };
-    /* console.log("createContentRequest", {
-      ...createContentRequest,
-      file: "<...binary data...>",
-    }); */
-    console.log("createContentRequest", createContentRequest);
     const response = await createContentSign(createContentRequest);
-    //console.log({ ...response.result, file: "<...binary data...>" });
     if (response.status !== 200) {
       return NextResponse.json({
         success: false,
@@ -190,7 +183,7 @@ export async function POST(request: NextRequest) {
       json.transitionId,
     );
 
-    console.log(endTaskResult); */
+     */
 
     // {
     //   type_code,
@@ -216,7 +209,7 @@ export async function POST(request: NextRequest) {
       response,
     });
   } catch (error: any) {
-    console.error(JSON.stringify(error));
+    console.error(error);
     return NextResponse.json({
       success: false,
       status: 500,

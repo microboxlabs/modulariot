@@ -17,6 +17,7 @@ import {
   useUserGroups,
 } from "@/features/common/providers/client-api.provider";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+import { logger } from "@/lib/logger";
 
 type FingerprintReuseResponse = {
   fingerprintReuse?: {
@@ -80,8 +81,8 @@ export default function SovosStartVerificationCard({
               ? "idCard"
               : "none";
 
-          console.log(verifyID);
-          console.log(signatureType);
+          logger.info(verifyID);
+          logger.info(signatureType);
           if (
             result?.fingerprintReuse?.tripFound &&
             (result?.fingerprintReuse?.fingerprintFound?.verifiedIntent ||
@@ -124,11 +125,11 @@ export default function SovosStartVerificationCard({
           setFingerprintLoading(false);
         })
         .catch((error) => {
-          console.log(error);
+          logger.error(error);
           setFingerprintLoading(false);
         });
     } catch (error) {
-      console.log(error);
+      logger.error(error);
       //ignore error
       setFingerprintLoading(false);
     }
@@ -148,7 +149,6 @@ export default function SovosStartVerificationCard({
     validator(getRut())
       .then((result) => {
         if (result) {
-          //console.log(result);
           biometricVerify(
             getRut(),
             "coordinador-web",

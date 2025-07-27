@@ -12,6 +12,7 @@ export default function Comment({
   dict: I18nRecord;
 }) {
   const comments = getComments(task);
+  console.log(task);
 
   return (
     <CustomCard

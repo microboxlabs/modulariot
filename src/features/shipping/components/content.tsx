@@ -70,7 +70,7 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [compactKanbanView, setCompactKanbanView] = useState(false);
+  const [compactKanbanView, setCompactKanbanView] = useState(true);
   const pageSize = 100;
 
   configureLocale(lang);

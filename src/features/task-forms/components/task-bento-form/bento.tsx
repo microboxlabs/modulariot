@@ -3,7 +3,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
-import Conditions from "./components/side-data/conditions";
+//import Conditions from "./components/side-data/conditions";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
 import ImageViewer from "@/features/geographic-view/components/image-viewer/image-viewer";
@@ -11,12 +11,14 @@ import { useState } from "react";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
-import { useGetConditions } from "./hooks/use-get-conditions";
+//import { useGetConditions } from "./hooks/use-get-conditions";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
+import SymptomsCard from "./components/side-data/symptoms-card";
+import { useTreatmentsGeneral } from "@/features/symptoms/hooks/use-treatments-general";
 
 const task_states = {
   assignDriver: "planificado",
@@ -71,9 +73,15 @@ export default function Bento({
     "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
   ];
 
-  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
+  /*  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
     task.id,
-  );
+  ); */
+
+  const {
+    treatmentData,
+    loading: isLoading,
+    error: errorTreatments,
+  } = useTreatmentsGeneral(task.id);
 
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
@@ -213,10 +221,16 @@ export default function Bento({
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <Conditions
+          {/* <Conditions
             dict={dict as I18nRecord}
             conditions={conditions}
             isLoading={isLoadingConditions}
+          /> */}
+          <SymptomsCard
+            dict={dict as I18nRecord}
+            symptoms={treatmentData}
+            isLoading={isLoading}
+            error={errorTreatments}
           />
         </div>
 

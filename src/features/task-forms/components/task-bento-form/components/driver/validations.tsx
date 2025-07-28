@@ -71,6 +71,9 @@ export default function ValidationsInfo({
     task.mintral_serviceCode as string,
   );
 
+  console.log(_serviceValidation);
+  console.log("--------------------------------");
+  console.log(task);
   // Helper function to determine validation status based on service validation data
   const getValidationStatus = (validationKey: string): ValidationStatus => {
     // For now, we'll use mock data. In a real implementation,
@@ -158,12 +161,12 @@ export default function ValidationsInfo({
   ];
 
   return (
-    <CustomCard title={null} subtitle={null}>
+    <CustomCard
+      title={(msg.bento as I18nRecord).validations as string}
+      subtitle={null}
+    >
       <div className="flex flex-col flex-grow rounded-lg whitespace-nowrap relative">
-        <h1 className="text-lg font-bold dark:text-white pl-4">
-          {(msg.bento as I18nRecord).validations as string}
-        </h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1">
           {validations.map((validation) => (
             <ValidationItemComponent
               key={validation.key}

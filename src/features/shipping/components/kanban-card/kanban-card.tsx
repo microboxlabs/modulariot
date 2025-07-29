@@ -7,8 +7,12 @@ import { tr } from "@/features/i18n/tr.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
 import { Tooltip } from "flowbite-react";
+//import { FaCheck } from "react-icons/fa";
+//import { TbExclamationMark } from "react-icons/tb";
+//import { GoX } from "react-icons/go";
+//import { KanbanBoardTask } from "../../types/common.types";
 
-function formatDate(date: string) {
+/* function formatDate(date: string) {
   if (!date) return "";
   if (date.includes("T")) {
     return date.split("T")[0].replaceAll("-", "/");
@@ -17,7 +21,41 @@ function formatDate(date: string) {
     return date.split(" ")[0].replaceAll("-", "/");
   }
   return date.replaceAll("-", "/");
-}
+} */
+
+/* const ValidationIcon = ({ task }: { task: KanbanBoardTask }) => {
+  let status = "approved";
+
+  if (task.departureDate === null) {
+    status = "not_approved";
+  }
+
+  switch (status) {
+    case "approved":
+      return (
+        <div className="w-5 h-5 text-white bg-green-500 border border-gray-400 rounded-full flex items-center justify-center p-1">
+          <FaCheck className="w-full h-full" />
+        </div>
+      );
+    case "alert":
+      return (
+        <div className="w-5 h-5 text-white bg-yellow-300 border border-gray-400 rounded-full flex items-center justify-center">
+          <TbExclamationMark className="w-full h-full" />
+        </div>
+      );
+    case "not_approved":
+      return (
+        <div className="w-5 h-5 text-white bg-red-500 border border-gray-400 rounded-full flex items-center justify-center">
+          <GoX className="w-full h-full" />
+        </div>
+      );
+    case "pending":
+    default:
+      return (
+        <div className="w-5 h-5 bg-white border border-gray-400 rounded-full flex-shrink-0" />
+      );
+  }
+}; */
 
 export default function KanbanCard({
   task,
@@ -36,9 +74,10 @@ export default function KanbanCard({
     <div
       key={task.id}
       className={`rounded-lg hover:shadow-lg ${
-        compactKanbanView ? "p-3 mb-2" : "p-5 mb-4 w-full"
+        compactKanbanView ? "p-1 mb-1" : "p-5 mb-4 w-full"
       }
       ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
+      ${!task.isEditable ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
       `}
     >
       {task.executionType === "F" && !compactKanbanView && (
@@ -48,20 +87,23 @@ export default function KanbanCard({
           </div>
         </div>
       )}
-      <div className="flex items-center justify-between pb-4 cursor-pointer">
+      <div className="flex items-center justify-between cursor-pointer">
         <Link href={`/task/edit/${task.id}`} className="w-full">
           <div className="text-base text-gray-900 dark:text-gray-200">
             {compactKanbanView ? (
               <div className="flex justify-between gap-2">
-                <div className="whitespace-nowrap">
-                  <strong>{task.name}</strong>
+                <div className="whitespace-nowrap flex items-center gap-2">
+                  {/*  <ValidationIcon task={task} /> */}
+                  <strong className={!task.isEditable ? "text-gray-400" : ""}>
+                    {task.name}
+                  </strong>
                   {task.executionType === "F" && (
                     <span className="inline-flex items-center justify-center w-5 h-5 ms-2 text-xs font-semibold text-white bg-red-500 rounded-full">
                       F
                     </span>
                   )}
                 </div>
-                <div className="flex justify-end gap-2">
+                {/* <div className="flex justify-end gap-2">
                   <DepartureDateShip
                     dict={dict}
                     table_name={table_name}
@@ -73,7 +115,7 @@ export default function KanbanCard({
                   {task.hoReference && (
                     <DownloadSignedDocument documentId={task.hoReference} />
                   )}
-                </div>
+                </div> */}
               </div>
             ) : (
               <strong>
@@ -97,16 +139,7 @@ export default function KanbanCard({
           }`}
         >
           {compactKanbanView ? (
-            <div className=" w-full flex justify-between">
-              <div className="">
-                <span>{task.origin}</span> - <span>{task.destination}</span>
-              </div>
-              <div className="text-right">
-                {formatDate(
-                  task.departureDate ?? task.expectedDepartureDate ?? "",
-                )}
-              </div>
-            </div>
+            <></>
           ) : (
             <>
               <div className="basis-1/2">

@@ -197,7 +197,7 @@ export default function PageContent({
                     className={`mb-4 text-gray-900 dark:text-gray-300 text-center flex flex-col ${compactKanbanView ? "text-base font-semibold gap-2" : "h-[4.5rem] text-base font-semibold"}`}
                     style={{
                       width: compactKanbanView ? "9rem" : "16rem",
-                      height: "3rem",
+                      height: compactKanbanView ? "4.5rem" : "3rem",
                     }}
                   >
                     <div className="flex-1">
@@ -233,6 +233,7 @@ export default function PageContent({
                           dict={dict}
                           table_name={board.title}
                           compactKanbanView={compactKanbanView}
+                          showFinishedTasks={showFinishedTasks}
                         />
                       ))}
                     </ReactSortable>

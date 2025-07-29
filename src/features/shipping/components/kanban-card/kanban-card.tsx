@@ -62,6 +62,7 @@ export default function KanbanCard({
   table_name,
   compactKanbanView,
   dict,
+  showFinishedTasks,
 }: PropsWithI18nDict<KanBanCardProps>) {
   /*  const executionType =
     task.executionType === "T"
@@ -77,7 +78,7 @@ export default function KanbanCard({
         compactKanbanView ? "p-1 mb-1" : "p-5 mb-4 w-full"
       }
       ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
-      ${!task.isEditable ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
+      ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
       `}
     >
       {task.executionType === "F" && !compactKanbanView && (
@@ -94,7 +95,13 @@ export default function KanbanCard({
               <div className="flex justify-between gap-2">
                 <div className="whitespace-nowrap flex items-center gap-2">
                   {/*  <ValidationIcon task={task} /> */}
-                  <strong className={!task.isEditable ? "text-gray-400" : ""}>
+                  <strong
+                    className={
+                      !showFinishedTasks && !task.isEditable
+                        ? "text-gray-400"
+                        : ""
+                    }
+                  >
                     {task.name}
                   </strong>
                   {task.executionType === "F" && (

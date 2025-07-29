@@ -131,7 +131,6 @@ export async function TaskBentoForm({
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
-    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
       return (
         <Bento
@@ -147,6 +146,35 @@ export async function TaskBentoForm({
         />
       );
 
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
+      if (task.mintral_executionType === "T") {
+        return (
+          <SovosVerificationForm
+            lang={lang}
+            task={task as TaskResponse}
+            user={user}
+            userGroups={userGroups}
+            msg={
+              (dictionary.pages as I18nRecord)
+                .sovosVerificationForm as I18nRecord
+            }
+          />
+        );
+      }
+
+      return (
+        <Bento
+          lang={lang ?? defaultLocale}
+          task={task as any}
+          userGroups={userGroups}
+          dict={dictionary as I18nRecord}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+          active={active}
+        />
+      );
     case TYPE_WFSHIP_CONFIRM_DELIVERY:
       if (task.mintral_executionType === "T") {
         return (

@@ -197,7 +197,7 @@ export default function PageContent({
                     className={`mb-4 text-gray-900 dark:text-gray-300 text-center flex flex-col ${compactKanbanView ? "text-base font-semibold gap-2" : "h-[4.5rem] text-base font-semibold"}`}
                     style={{
                       width: compactKanbanView ? "9rem" : "16rem",
-                      height: compactKanbanView ? "3rem" : "3rem",
+                      height: "3rem",
                     }}
                   >
                     <div className="flex-1">

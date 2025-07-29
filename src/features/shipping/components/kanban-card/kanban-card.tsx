@@ -93,7 +93,7 @@ export default function KanbanCard({
           <div className="text-base text-gray-900 dark:text-gray-200">
             {compactKanbanView ? (
               <div className="flex justify-between gap-2">
-                <div className="whitespace-nowrap flex items-center gap-2">
+                <div className="whitespace-nowrap flex items-center gap-2 pl-2 pr-2">
                   {/*  <ValidationIcon task={task} /> */}
                   <strong
                     className={
@@ -101,6 +101,7 @@ export default function KanbanCard({
                         ? "text-gray-400"
                         : ""
                     }
+                    style={{ fontVariantNumeric: "tabular-nums" }}
                   >
                     {task.name}
                   </strong>

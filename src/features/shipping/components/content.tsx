@@ -70,7 +70,7 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [compactKanbanView, setCompactKanbanView] = useState(false);
+  const [compactKanbanView, setCompactKanbanView] = useState(true);
   const pageSize = 100;
 
   configureLocale(lang);
@@ -196,7 +196,8 @@ export default function PageContent({
                   <div
                     className={`mb-4 text-gray-900 dark:text-gray-300 text-center flex flex-col ${compactKanbanView ? "text-base font-semibold gap-2" : "h-[4.5rem] text-base font-semibold"}`}
                     style={{
-                      width: compactKanbanView ? "12rem" : "16rem",
+                      width: compactKanbanView ? "9rem" : "16rem",
+                      height: "3rem",
                     }}
                   >
                     <div className="flex-1">

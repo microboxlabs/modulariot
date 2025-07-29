@@ -38,6 +38,7 @@ export type KanbanBoardTask = {
   mintral_truckLicensePlate?: string;
   mintral_supplierName?: string;
   mintral_priorityCode?: string;
+  isEditable: boolean;
 };
 
 export type KanbanBoardTaskMember = {

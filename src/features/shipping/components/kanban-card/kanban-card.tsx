@@ -68,9 +68,7 @@ export default function KanbanCard({
       ? "Troncal"
       : task.executionType === "F"
         ? "Faena"
-        : task.executionType; */
-
-  //console.log(task);
+        : task.executionType; */  
 
   return (
     <div
@@ -79,6 +77,7 @@ export default function KanbanCard({
         compactKanbanView ? "p-1 mb-1" : "p-5 mb-4 w-full"
       }
       ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
+      ${!task.isEditable ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
       `}
     >
       {task.executionType === "F" && !compactKanbanView && (
@@ -95,7 +94,7 @@ export default function KanbanCard({
               <div className="flex justify-between gap-2">
                 <div className="whitespace-nowrap flex items-center gap-2">
                   {/*  <ValidationIcon task={task} /> */}
-                  <strong>{task.name}</strong>
+                  <strong className={!task.isEditable ? "text-gray-400" : ""}>{task.name}</strong>
                   {task.executionType === "F" && (
                     <span className="inline-flex items-center justify-center w-5 h-5 ms-2 text-xs font-semibold text-white bg-red-500 rounded-full">
                       F

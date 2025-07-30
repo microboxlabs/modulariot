@@ -110,6 +110,9 @@ export default function PageContent({
           ? [
               ...(searchTasksData.data[board.title]?.tasks ?? []),
               ...(searchTasksData.data[board.title2]?.tasks ?? []),
+              ...(board.title3
+                ? (searchTasksData.data[board.title3]?.tasks ?? [])
+                : []),
             ]
           : (searchTasksData.data[board.title]?.tasks ?? []),
       }));
@@ -117,12 +120,15 @@ export default function PageContent({
     } else if (myTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
-        tasks: board.title2
-          ? [
-              ...(myTasksData.data[board.title]?.tasks ?? []),
-              ...(myTasksData.data[board.title2]?.tasks ?? []),
-            ]
-          : (myTasksData.data[board.title]?.tasks ?? []),
+        tasks: [
+          ...(myTasksData.data[board.title]?.tasks ?? []),
+          ...(board.title2
+            ? (myTasksData.data[board.title2]?.tasks ?? [])
+            : []),
+          ...(board.title3
+            ? (myTasksData.data[board.title3]?.tasks ?? [])
+            : []),
+        ],
       }));
 
       setList(newBoards);

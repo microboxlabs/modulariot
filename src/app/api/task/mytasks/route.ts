@@ -44,13 +44,32 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse;
+    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse; //[];
     if (show_finished) {
       taskResponses = await Promise.all([
+        /*TODO:Refactor columns to getFinishedWorkflows: ...columns.map((column) => {
+          return getFinishedWorkflows(session.user.ticket, {
+            from: from ? parseInt(from) : 0,
+            size: size ? parseInt(size) : 10,
+            definitionKey: column,
+            filter: {
+              mintralKey: serviceCode ? `v${serviceCode}` : undefined,
+              licensePlate: licensePlate
+                ? licensePlate.toUpperCase()
+                : undefined,
+              driverId: driverId ? driverId : undefined,
+              carrierId: carrierId ? carrierId : undefined,
+              carrierName: carrierName ? carrierName : undefined,
+              origin: origin ? origin.toUpperCase() : undefined,
+              destination: destination ? destination.toUpperCase() : undefined,
+              clientAbbreviation: customer ? customer : undefined,
+            },
+          });
+        }), */
         getFinishedWorkflows(session.user.ticket, {
           from: from ? parseInt(from) : 0,
           size: size ? parseInt(size) : 10,
-          definitionKey: "shippingCoordinatorProcess",
+          //definitionKey: "shippingCoordinatorProcess",
           filter: {
             mintralKey: serviceCode ? `v${serviceCode}` : undefined,
             licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,

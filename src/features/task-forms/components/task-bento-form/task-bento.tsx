@@ -18,6 +18,7 @@ import {
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
 } from "../../services/form.service";
 import { ExtendedTaskViewProps } from "../task-form/task-form.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -132,6 +133,7 @@ export async function TaskBentoForm({
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
       return (
         <Bento
           lang={lang ?? defaultLocale}
@@ -146,8 +148,8 @@ export async function TaskBentoForm({
         />
       );
 
-    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
-      if (task.mintral_executionType === "T") {
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+      /* if (task.mintral_executionType === "T") {
         return (
           <SovosVerificationForm
             lang={lang}
@@ -160,7 +162,7 @@ export async function TaskBentoForm({
             }
           />
         );
-      }
+      } */
 
       return (
         <Bento

@@ -149,7 +149,7 @@ export async function TaskBentoForm({
       );
 
     case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
-      if (task.mintral_executionType === "T") {
+      /* if (task.mintral_executionType === "T") {
         return (
           <SovosVerificationForm
             lang={lang}
@@ -162,7 +162,7 @@ export async function TaskBentoForm({
             }
           />
         );
-      }
+      } */
 
       return (
         <Bento

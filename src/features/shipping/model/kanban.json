@@ -73,6 +73,8 @@
   {
     "id": 12,
     "title": "tripNullified",
+    "title2": "tripNullifiedByOverlord",
+    "title3": "nullified",
     "finished": true,
     "state": "doneNotFinished",
     "tasks": []
@@ -80,6 +82,8 @@
   {
     "id": 13,
     "title": "tripCancelled",
+    "title2": "tripCanceledByOverlord",
+    "title3": "canceled",
     "finished": true,
     "state": "doneNotFinished",
     "tasks": []

@@ -62,6 +62,16 @@ export type ShippingCoordinatorProcessTask =
   | "monitoringFinalization"
   | "finished";
 
+export type ShippingFinishedCoordinatorProcessTask =
+  | "monitoringFinalization"
+  | "finished"
+  | "tripCancelled"
+  | "tripCanceledByOverlord"
+  | "canceled"
+  | "tripNullified"
+  | "tripNullifiedByOverlord"
+  | "nullified";
+
 export type OverlordTripInitOutcome =
   | "Autorizado Sin GPS"
   | "Autorizado Con Reparos"

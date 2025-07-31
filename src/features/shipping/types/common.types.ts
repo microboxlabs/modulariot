@@ -2,6 +2,7 @@ export type KanbanBoard = {
   id: number;
   title: string;
   title2?: string;
+  title3?: string;
   tasks: KanbanBoardTask[];
   finished: boolean;
 };
@@ -38,6 +39,7 @@ export type KanbanBoardTask = {
   mintral_truckLicensePlate?: string;
   mintral_supplierName?: string;
   mintral_priorityCode?: string;
+  isEditable: boolean;
 };
 
 export type KanbanBoardTaskMember = {

@@ -47,8 +47,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
-  SHIPPING_COORDINATOR_PROCESS_TASKS,
+  // SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
 } from "@/features/task-forms/services/form.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
@@ -57,6 +58,7 @@ import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
 import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
+//import { logger } from "@/lib/logger";
 
 export default function PageContent({
   showFinishedTasks,
@@ -70,7 +72,7 @@ export default function PageContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
-  const [compactKanbanView, setCompactKanbanView] = useState(false);
+  const [compactKanbanView, setCompactKanbanView] = useState(true);
   const pageSize = 100;
 
   configureLocale(lang);
@@ -80,7 +82,7 @@ export default function PageContent({
       : showWorkflowTasks === "delivery"
         ? [...DELIVERY_COORDINATOR_PROCESS_TASKS]
         : []
-    : [...SHIPPING_COORDINATOR_PROCESS_TASKS];
+    : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
 
   const {
     data: myTasksData,
@@ -110,6 +112,9 @@ export default function PageContent({
           ? [
               ...(searchTasksData.data[board.title]?.tasks ?? []),
               ...(searchTasksData.data[board.title2]?.tasks ?? []),
+              ...(board.title3
+                ? (searchTasksData.data[board.title3]?.tasks ?? [])
+                : []),
             ]
           : (searchTasksData.data[board.title]?.tasks ?? []),
       }));
@@ -117,12 +122,15 @@ export default function PageContent({
     } else if (myTasksData) {
       const newBoards = list.map((board) => ({
         ...board,
-        tasks: board.title2
-          ? [
-              ...(myTasksData.data[board.title]?.tasks ?? []),
-              ...(myTasksData.data[board.title2]?.tasks ?? []),
-            ]
-          : (myTasksData.data[board.title]?.tasks ?? []),
+        tasks: [
+          ...(myTasksData.data[board.title]?.tasks ?? []),
+          ...(board.title2
+            ? (myTasksData.data[board.title2]?.tasks ?? [])
+            : []),
+          ...(board.title3
+            ? (myTasksData.data[board.title3]?.tasks ?? [])
+            : []),
+        ],
       }));
 
       setList(newBoards);
@@ -196,7 +204,8 @@ export default function PageContent({
                   <div
                     className={`mb-4 text-gray-900 dark:text-gray-300 text-center flex flex-col ${compactKanbanView ? "text-base font-semibold gap-2" : "h-[4.5rem] text-base font-semibold"}`}
                     style={{
-                      width: compactKanbanView ? "12rem" : "16rem",
+                      width: compactKanbanView ? "9rem" : "16rem",
+                      height: compactKanbanView ? "5rem" : "3rem",
                     }}
                   >
                     <div className="flex-1">
@@ -232,6 +241,7 @@ export default function PageContent({
                           dict={dict}
                           table_name={board.title}
                           compactKanbanView={compactKanbanView}
+                          showFinishedTasks={showFinishedTasks}
                         />
                       ))}
                     </ReactSortable>

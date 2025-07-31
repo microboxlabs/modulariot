@@ -1,4 +1,6 @@
 import { MapPosition } from "../types/map";
+import { mapLogger } from "@/lib/logger";
+
 export class MapService {
   static async getPositions(): Promise<MapPosition[]> {
     const response = await fetch("/app/api/map");
@@ -29,8 +31,10 @@ export class MapService {
 
       return [longitude, latitude];
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Error parsing WKB point:", error);
+      mapLogger.error(
+        { err: error as Error, wkbPoint },
+        "Error parsing WKB point",
+      );
       return [-70.668505, -33.439764]; // Santiago, Chile
     }
   }

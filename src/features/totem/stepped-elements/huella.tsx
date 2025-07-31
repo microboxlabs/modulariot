@@ -89,7 +89,6 @@ export default function Huella({
   }, [count]);
 
   useEffect(() => {
-    console.log("idCardLoading", idCardLoading);
     if (idCardLoading && qrRef.current) {
       import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         const html5QrCode = new Html5Qrcode("html5qr-code");

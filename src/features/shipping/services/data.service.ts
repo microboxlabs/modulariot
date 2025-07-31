@@ -5,6 +5,7 @@ import kanbanShippingV2Boards from "../model/kanban-shipping-v2.json";
 import kanbanDeliverBoards from "../model/kanban-deliver.json";
 import {
   FastTasksResponse,
+  FinishedWorkflowsResponse,
   PersistentState,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
@@ -94,23 +95,42 @@ export function getStaticDeliverData(): KanbanBoard[] {
 }
 
 export function toShippingKanban(
-  tasks: FastTasksResponse,
+  tasks: FastTasksResponse | FinishedWorkflowsResponse,
   index: Record<string, KanbanBoard>,
 ): Record<string, KanbanBoard> {
-  tasks.tasks.forEach(
-    (task: { persistentState?: PersistentState } & Record<string, unknown>) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const taskFormKey =
-        task.persistentState?.endStateName ?? (task.taskFormKey as string);
-      const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
-      index[boardKey] = index[boardKey] || {
-        id: boardKey,
-        title: boardKey,
-        tasks: [],
-      };
-      index[boardKey].tasks.push(toKanbanBoardTask(task));
-    },
-  );
-
+  if ("tasks" in tasks) {
+    tasks.tasks.forEach(
+      (
+        task: { persistentState?: PersistentState } & Record<string, unknown>,
+      ) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const taskFormKey =
+          task.persistentState?.endStateName ?? (task.taskFormKey as string);
+        const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
+        index[boardKey] = index[boardKey] || {
+          id: boardKey,
+          title: boardKey,
+          tasks: [],
+        };
+        index[boardKey].tasks.push(toKanbanBoardTask(task));
+      },
+    );
+  } else {
+    tasks.workflows.forEach(
+      (
+        task: { persistentState?: PersistentState } & Record<string, unknown>,
+      ) => {
+        const taskFormKey =
+          task.persistentState?.endStateName ?? (task.taskFormKey as string);
+        const boardKey = taskShippingBoardMap[taskFormKey] ?? taskFormKey;
+        index[boardKey] = index[boardKey] || {
+          id: boardKey,
+          title: boardKey,
+          tasks: [],
+        };
+        index[boardKey].tasks.push(toKanbanBoardTask(task));
+      },
+    );
+  }
   return index;
 }

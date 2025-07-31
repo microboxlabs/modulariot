@@ -27,6 +27,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 // import { BsSignStop } from "react-icons/bs";
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
+import { logger } from "@/lib/logger";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -332,7 +333,7 @@ export default function MapVisualizationTrip({
         features,
       };
     } catch (error) {
-      console.error("Error processing geofence data:", error);
+      logger.error("Error processing geofence data:", error);
       return null;
     }
   }, [geofence_data]);
@@ -493,11 +494,11 @@ export default function MapVisualizationTrip({
   // Handle errors and loading states
   React.useEffect(() => {
     if (geofence_error) {
-      console.error("Error loading geofences:", geofence_error);
+      logger.error("Error loading geofences:", geofence_error);
     }
 
     if (geofence_isLoading) {
-      console.log("Loading geofences...");
+      logger.info("Loading geofences...");
     }
   }, [geofence_error, geofence_isLoading]);
 

@@ -3,6 +3,7 @@ import { CiCircleCheck } from "react-icons/ci";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Checkbox, Label } from "flowbite-react";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
+import { logger } from "@/lib/logger";
 
 export default function EndTreatment({
   dict,
@@ -14,7 +15,7 @@ export default function EndTreatment({
   setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void;
 }) {
   useEffect(() => {
-    console.log("isTeamsNotificationOn changed to:", isTeamsNotificationOn);
+    logger.info("isTeamsNotificationOn changed to:", isTeamsNotificationOn);
   }, [isTeamsNotificationOn]);
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {

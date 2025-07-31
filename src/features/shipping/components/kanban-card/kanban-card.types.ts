@@ -4,4 +4,5 @@ export type KanBanCardProps = {
   task: KanbanBoardTask;
   table_name: string;
   compactKanbanView: boolean;
+  showFinishedTasks?: boolean;
 };

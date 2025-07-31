@@ -1,0 +1,1091 @@
+{
+  "summary": {
+    "totalFiles": 35,
+    "totalStatements": 73,
+    "contexts": [
+      "map",
+      "task",
+      "general",
+      "api"
+    ]
+  },
+  "files": [
+    {
+      "filePath": "src/utils/map-conversion.ts",
+      "context": "map",
+      "statements": [
+        {
+          "line": 14,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(\"Error parsing WKB point:\", error);",
+          "filePath": "src/utils/map-conversion.ts",
+          "replacement": {
+            "original": "console.error(\"Error parsing WKB point:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error parsing WKB point:\", error);\n// mapLogger.error({ err: \"Error parsing WKB point:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error parsing WKB point:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/totem/stepped-elements/trip-information.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 36,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(\"biometricResult in TripInformation:\", biometricResult);",
+          "filePath": "src/features/totem/stepped-elements/trip-information.tsx",
+          "replacement": {
+            "original": "console.log(\"biometricResult in TripInformation:\", biometricResult);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"biometricResult in TripInformation:\", biometricResult);\n// taskLogger.info({ data: \"biometricResult in TripInformation:\", biometricResult }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: \"biometricResult in TripInformation:\", biometricResult }, \"Log\")"
+          }
+        },
+        {
+          "line": 67,
+          "column": 11,
+          "method": "log",
+          "originalLine": "console.log(\"errorData\", errorData);",
+          "filePath": "src/features/totem/stepped-elements/trip-information.tsx",
+          "replacement": {
+            "original": "console.log(\"errorData\", errorData);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"errorData\", errorData);\n// taskLogger.info({ data: \"errorData\", errorData }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: \"errorData\", errorData }, \"Log\")"
+          }
+        },
+        {
+          "line": 162,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(err);",
+          "filePath": "src/features/totem/stepped-elements/trip-information.tsx",
+          "replacement": {
+            "original": "console.error(err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(err);\n// taskLogger.error({ err: err }, \"Error occurred\")",
+            "suggestedReplacement": "taskLogger.error({ err: err }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/totem/stepped-elements/huella.tsx",
+      "context": "general",
+      "statements": [
+        {
+          "line": 92,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(\"idCardLoading\", idCardLoading);",
+          "filePath": "src/features/totem/stepped-elements/huella.tsx",
+          "replacement": {
+            "original": "console.log(\"idCardLoading\", idCardLoading);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"idCardLoading\", idCardLoading);\n// logger.info({ data: \"idCardLoading\", idCardLoading }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"idCardLoading\", idCardLoading }, \"Log\")"
+          }
+        },
+        {
+          "line": 125,
+          "column": 15,
+          "method": "error",
+          "originalLine": "//console.error(\"QR Code error:\", errorMessage);",
+          "filePath": "src/features/totem/stepped-elements/huella.tsx",
+          "replacement": {
+            "original": "//console.error(\"QR Code error:\", errorMessage);",
+            "replacement": "// TODO: Replace with proper logging\n// //console.error(\"QR Code error:\", errorMessage);\n// logger.error({ err: \"QR Code error:\", errorMessage }, \"Error occurred\")",
+            "suggestedReplacement": "logger.error({ err: \"QR Code error:\", errorMessage }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/theme/components/ThemeDetector.tsx",
+      "context": "general",
+      "statements": [
+        {
+          "line": 53,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/features/theme/components/ThemeDetector.tsx",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// logger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "logger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/task-forms/components/task-confirm-modal/task-confirm-modal.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 84,
+          "column": 9,
+          "method": "log",
+          "originalLine": "console.log(\"taskType\", taskType);",
+          "filePath": "src/features/task-forms/components/task-confirm-modal/task-confirm-modal.tsx",
+          "replacement": {
+            "original": "console.log(\"taskType\", taskType);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"taskType\", taskType);\n// taskLogger.info({ data: \"taskType\", taskType }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: \"taskType\", taskType }, \"Log\")"
+          }
+        },
+        {
+          "line": 85,
+          "column": 9,
+          "method": "log",
+          "originalLine": "console.log(",
+          "filePath": "src/features/task-forms/components/task-confirm-modal/task-confirm-modal.tsx",
+          "replacement": null
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/task-forms/components/sovos-verification-form/sovos-verification-form.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 40,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(audits);",
+          "filePath": "src/features/task-forms/components/sovos-verification-form/sovos-verification-form.tsx",
+          "replacement": {
+            "original": "console.log(audits);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(audits);\n// taskLogger.info({ data: audits }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: audits }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 83,
+          "column": 11,
+          "method": "log",
+          "originalLine": "console.log(verifyID);",
+          "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+          "replacement": {
+            "original": "console.log(verifyID);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(verifyID);\n// taskLogger.info({ data: verifyID }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: verifyID }, \"Log\")"
+          }
+        },
+        {
+          "line": 84,
+          "column": 11,
+          "method": "log",
+          "originalLine": "console.log(signatureType);",
+          "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+          "replacement": {
+            "original": "console.log(signatureType);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(signatureType);\n// taskLogger.info({ data: signatureType }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: signatureType }, \"Log\")"
+          }
+        },
+        {
+          "line": 127,
+          "column": 11,
+          "method": "log",
+          "originalLine": "console.log(error);",
+          "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+          "replacement": {
+            "original": "console.log(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(error);\n// taskLogger.info({ data: error }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: error }, \"Log\")"
+          }
+        },
+        {
+          "line": 131,
+          "column": 7,
+          "method": "log",
+          "originalLine": "console.log(error);",
+          "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+          "replacement": {
+            "original": "console.log(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(error);\n// taskLogger.info({ data: error }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: error }, \"Log\")"
+          }
+        },
+        {
+          "line": 151,
+          "column": 13,
+          "method": "log",
+          "originalLine": "//console.log(result);",
+          "filePath": "src/features/task-forms/components/sovos-start-verification-card/sovos-start-verification-card.tsx",
+          "replacement": {
+            "original": "//console.log(result);",
+            "replacement": "// TODO: Replace with proper logging\n// //console.log(result);\n// taskLogger.info({ data: result }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: result }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/task-forms/components/sovos-deps/sovos-deps.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 49,
+          "column": 12,
+          "method": "log",
+          "originalLine": "// console.log(\"allDepsLoaded\", allDepsLoaded);",
+          "filePath": "src/features/task-forms/components/sovos-deps/sovos-deps.tsx",
+          "replacement": {
+            "original": "// console.log(\"allDepsLoaded\", allDepsLoaded);",
+            "replacement": "// TODO: Replace with proper logging\n// // console.log(\"allDepsLoaded\", allDepsLoaded);\n// taskLogger.info({ data: \"allDepsLoaded\", allDepsLoaded }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: \"allDepsLoaded\", allDepsLoaded }, \"Log\")"
+          }
+        },
+        {
+          "line": 78,
+          "column": 12,
+          "method": "log",
+          "originalLine": "// console.log(\"depsIndex\", depsIndex, \"dep\", dep);",
+          "filePath": "src/features/task-forms/components/sovos-deps/sovos-deps.tsx",
+          "replacement": {
+            "original": "// console.log(\"depsIndex\", depsIndex, \"dep\", dep);",
+            "replacement": "// TODO: Replace with proper logging\n// // console.log(\"depsIndex\", depsIndex, \"dep\", dep);\n// taskLogger.info({ data: \"depsIndex\", depsIndex, \"dep\", dep }, \"Log\")",
+            "suggestedReplacement": "taskLogger.info({ data: \"depsIndex\", depsIndex, \"dep\", dep }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/task-forms/components/gps-validation-item/gps-validation-item.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 43,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/features/task-forms/components/gps-validation-item/gps-validation-item.tsx",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// taskLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "taskLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/symptoms/components/blurrable-stepped-menu/end-treatment.tsx",
+      "context": "general",
+      "statements": [
+        {
+          "line": 17,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(\"isTeamsNotificationOn changed to:\", isTeamsNotificationOn);",
+          "filePath": "src/features/symptoms/components/blurrable-stepped-menu/end-treatment.tsx",
+          "replacement": {
+            "original": "console.log(\"isTeamsNotificationOn changed to:\", isTeamsNotificationOn);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"isTeamsNotificationOn changed to:\", isTeamsNotificationOn);\n// logger.info({ data: \"isTeamsNotificationOn changed to:\", isTeamsNotificationOn }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"isTeamsNotificationOn changed to:\", isTeamsNotificationOn }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+      "context": "general",
+      "statements": [
+        {
+          "line": 46,
+          "column": 12,
+          "method": "log",
+          "originalLine": "/* console.log(\"duration\", duration);",
+          "filePath": "src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+          "replacement": {
+            "original": "/* console.log(\"duration\", duration);",
+            "replacement": "// TODO: Replace with proper logging\n// /* console.log(\"duration\", duration);\n// logger.info({ data: \"duration\", duration }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"duration\", duration }, \"Log\")"
+          }
+        },
+        {
+          "line": 47,
+          "column": 9,
+          "method": "log",
+          "originalLine": "console.log(\"treatmentRequest\", treatmentRequest);",
+          "filePath": "src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+          "replacement": {
+            "original": "console.log(\"treatmentRequest\", treatmentRequest);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"treatmentRequest\", treatmentRequest);\n// logger.info({ data: \"treatmentRequest\", treatmentRequest }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"treatmentRequest\", treatmentRequest }, \"Log\")"
+          }
+        },
+        {
+          "line": 48,
+          "column": 9,
+          "method": "log",
+          "originalLine": "console.log(\"scope\", scope); */",
+          "filePath": "src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+          "replacement": {
+            "original": "console.log(\"scope\", scope); */",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"scope\", scope); */\n// logger.info({ data: \"scope\", scope }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"scope\", scope }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/layout/components/release-view/release-notes.tsx",
+      "context": "general",
+      "statements": [
+        {
+          "line": 19,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(",
+          "filePath": "src/features/layout/components/release-view/release-notes.tsx",
+          "replacement": null
+        },
+        {
+          "line": 31,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Fallback also failed:\", fallbackError);",
+          "filePath": "src/features/layout/components/release-view/release-notes.tsx",
+          "replacement": {
+            "original": "console.error(\"Fallback also failed:\", fallbackError);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Fallback also failed:\", fallbackError);\n// logger.error({ err: \"Fallback also failed:\", fallbackError }, \"Error occurred\")",
+            "suggestedReplacement": "logger.error({ err: \"Fallback also failed:\", fallbackError }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+      "context": "map",
+      "statements": [
+        {
+          "line": 39,
+          "column": 7,
+          "method": "log",
+          "originalLine": "console.log(\"Canvas elements found:\", { mapboxCanvas, deckGLCanvas });",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.log(\"Canvas elements found:\", { mapboxCanvas, deckGLCanvas });",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"Canvas elements found:\", { mapboxCanvas, deckGLCanvas });\n// mapLogger.info({ data: \"Canvas elements found:\", { mapboxCanvas, deckGLCanvas } }, \"Log\")",
+            "suggestedReplacement": "mapLogger.info({ data: \"Canvas elements found:\", { mapboxCanvas, deckGLCanvas } }, \"Log\")"
+          }
+        },
+        {
+          "line": 72,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Error combining canvases:\", err);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.error(\"Error combining canvases:\", err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error combining canvases:\", err);\n// mapLogger.error({ err: \"Error combining canvases:\", err }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error combining canvases:\", err }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 90,
+          "column": 7,
+          "method": "log",
+          "originalLine": "console.log(\"Map instances:\", { mapboxMap, deckGL });",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.log(\"Map instances:\", { mapboxMap, deckGL });",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"Map instances:\", { mapboxMap, deckGL });\n// mapLogger.info({ data: \"Map instances:\", { mapboxMap, deckGL } }, \"Log\")",
+            "suggestedReplacement": "mapLogger.info({ data: \"Map instances:\", { mapboxMap, deckGL } }, \"Log\")"
+          }
+        },
+        {
+          "line": 139,
+          "column": 7,
+          "method": "log",
+          "originalLine": "console.log(\"Found map canvases:\", mapCanvases);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.log(\"Found map canvases:\", mapCanvases);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"Found map canvases:\", mapCanvases);\n// mapLogger.info({ data: \"Found map canvases:\", mapCanvases }, \"Log\")",
+            "suggestedReplacement": "mapLogger.info({ data: \"Found map canvases:\", mapCanvases }, \"Log\")"
+          }
+        },
+        {
+          "line": 165,
+          "column": 17,
+          "method": "log",
+          "originalLine": "console.log(",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": null
+        },
+        {
+          "line": 171,
+          "column": 17,
+          "method": "warn",
+          "originalLine": "console.warn(`Failed to draw canvas ${index}:`, e);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.warn(`Failed to draw canvas ${index}:`, e);",
+            "replacement": "// TODO: Replace with proper logging\n// console.warn(`Failed to draw canvas ${index}:`, e);\n// mapLogger.warn({ data: `Failed to draw canvas ${index}:`, e }, \"Warning\")",
+            "suggestedReplacement": "mapLogger.warn({ data: `Failed to draw canvas ${index}:`, e }, \"Warning\")"
+          }
+        },
+        {
+          "line": 183,
+          "column": 13,
+          "method": "error",
+          "originalLine": "console.error(\"Error combining multiple canvases:\", err);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.error(\"Error combining multiple canvases:\", err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error combining multiple canvases:\", err);\n// mapLogger.error({ err: \"Error combining multiple canvases:\", err }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error combining multiple canvases:\", err }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 200,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Error capturing canvas:\", err);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.error(\"Error capturing canvas:\", err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error capturing canvas:\", err);\n// mapLogger.error({ err: \"Error capturing canvas:\", err }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error capturing canvas:\", err }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 230,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(\"Error capturing map:\", err);",
+          "filePath": "src/features/geographic-view/utils/map-screenshot.ts",
+          "replacement": {
+            "original": "console.error(\"Error capturing map:\", err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error capturing map:\", err);\n// mapLogger.error({ err: \"Error capturing map:\", err }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error capturing map:\", err }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/services/map.service.ts",
+      "context": "map",
+      "statements": [
+        {
+          "line": 33,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Error parsing WKB point:\", error);",
+          "filePath": "src/features/geographic-view/services/map.service.ts",
+          "replacement": {
+            "original": "console.error(\"Error parsing WKB point:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error parsing WKB point:\", error);\n// mapLogger.error({ err: \"Error parsing WKB point:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error parsing WKB point:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/hooks/use-trip-positions.ts",
+      "context": "map",
+      "statements": [
+        {
+          "line": 35,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(err);",
+          "filePath": "src/features/geographic-view/hooks/use-trip-positions.ts",
+          "replacement": {
+            "original": "console.error(err);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(err);\n// mapLogger.error({ err: err }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: err }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/components/map-visualization-trip.tsx",
+      "context": "map",
+      "statements": [
+        {
+          "line": 335,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Error processing geofence data:\", error);",
+          "filePath": "src/features/geographic-view/components/map-visualization-trip.tsx",
+          "replacement": {
+            "original": "console.error(\"Error processing geofence data:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error processing geofence data:\", error);\n// mapLogger.error({ err: \"Error processing geofence data:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error processing geofence data:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 496,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Error loading geofences:\", geofence_error);",
+          "filePath": "src/features/geographic-view/components/map-visualization-trip.tsx",
+          "replacement": {
+            "original": "console.error(\"Error loading geofences:\", geofence_error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error loading geofences:\", geofence_error);\n// mapLogger.error({ err: \"Error loading geofences:\", geofence_error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Error loading geofences:\", geofence_error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 500,
+          "column": 7,
+          "method": "log",
+          "originalLine": "console.log(\"Loading geofences...\");",
+          "filePath": "src/features/geographic-view/components/map-visualization-trip.tsx",
+          "replacement": {
+            "original": "console.log(\"Loading geofences...\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"Loading geofences...\");\n// mapLogger.info({ data: \"Loading geofences...\" }, \"Log\")",
+            "suggestedReplacement": "mapLogger.info({ data: \"Loading geofences...\" }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/components/client-map-starter.tsx",
+      "context": "map",
+      "statements": [
+        {
+          "line": 32,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(\"Map error:\", error);",
+          "filePath": "src/features/geographic-view/components/client-map-starter.tsx",
+          "replacement": {
+            "original": "console.error(\"Map error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Map error:\", error);\n// mapLogger.error({ err: \"Map error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Map error:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+      "context": "map",
+      "statements": [
+        {
+          "line": 58,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot preview error:\", error);",
+          "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot preview error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot preview error:\", error);\n// mapLogger.error({ err: \"Screenshot preview error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot preview error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 87,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Share error:\", error);",
+          "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+          "replacement": {
+            "original": "console.error(\"Share error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Share error:\", error);\n// mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 91,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Sharing is not supported on this device/browser\");",
+          "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+          "replacement": {
+            "original": "console.error(\"Sharing is not supported on this device/browser\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Sharing is not supported on this device/browser\");\n// mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 112,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot capture failed\");",
+          "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot capture failed\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot capture failed\");\n// mapLogger.error({ err: \"Screenshot capture failed\" }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot capture failed\" }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 119,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot error:\", error);",
+          "filePath": "src/features/geographic-view/components/tool-bar/screenshot.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot error:\", error);\n// mapLogger.error({ err: \"Screenshot error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot error:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+      "context": "map",
+      "statements": [
+        {
+          "line": 66,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot preview error:\", error);",
+          "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot preview error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot preview error:\", error);\n// mapLogger.error({ err: \"Screenshot preview error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot preview error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 92,
+          "column": 9,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot capture failed\");",
+          "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot capture failed\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot capture failed\");\n// mapLogger.error({ err: \"Screenshot capture failed\" }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot capture failed\" }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 99,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Screenshot error:\", error);",
+          "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+          "replacement": {
+            "original": "console.error(\"Screenshot error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Screenshot error:\", error);\n// mapLogger.error({ err: \"Screenshot error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Screenshot error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 143,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Share error:\", error);",
+          "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+          "replacement": {
+            "original": "console.error(\"Share error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Share error:\", error);\n// mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 147,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Sharing is not supported on this device/browser\");",
+          "filePath": "src/features/geographic-view/components/side-bar/inner-menu/download.tsx",
+          "replacement": {
+            "original": "console.error(\"Sharing is not supported on this device/browser\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Sharing is not supported on this device/browser\");\n// mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/geographic-view/components/image-viewer/image-viewer.tsx",
+      "context": "map",
+      "statements": [
+        {
+          "line": 30,
+          "column": 11,
+          "method": "error",
+          "originalLine": "console.error(\"Share error:\", error);",
+          "filePath": "src/features/geographic-view/components/image-viewer/image-viewer.tsx",
+          "replacement": {
+            "original": "console.error(\"Share error:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Share error:\", error);\n// mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Share error:\", error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 34,
+          "column": 7,
+          "method": "error",
+          "originalLine": "console.error(\"Sharing is not supported on this device/browser\");",
+          "filePath": "src/features/geographic-view/components/image-viewer/image-viewer.tsx",
+          "replacement": {
+            "original": "console.error(\"Sharing is not supported on this device/browser\");",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Sharing is not supported on this device/browser\");\n// mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")",
+            "suggestedReplacement": "mapLogger.error({ err: \"Sharing is not supported on this device/browser\" }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/features/common/hooks/use-device-detection.ts",
+      "context": "general",
+      "statements": [
+        {
+          "line": 294,
+          "column": 3,
+          "method": "log",
+          "originalLine": "console.log(\"platform\", platform);",
+          "filePath": "src/features/common/hooks/use-device-detection.ts",
+          "replacement": {
+            "original": "console.log(\"platform\", platform);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"platform\", platform);\n// logger.info({ data: \"platform\", platform }, \"Log\")",
+            "suggestedReplacement": "logger.info({ data: \"platform\", platform }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/treatments/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 56,
+          "column": 7,
+          "method": "log",
+          "originalLine": "//console.log(responseData);",
+          "filePath": "src/app/api/treatments/route.ts",
+          "replacement": {
+            "original": "//console.log(responseData);",
+            "replacement": "// TODO: Replace with proper logging\n// //console.log(responseData);\n// apiLogger.info({ data: responseData }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: responseData }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/treatments/general/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 50,
+          "column": 7,
+          "method": "log",
+          "originalLine": "//console.log(JSON.stringify(await response.json()));",
+          "filePath": "src/app/api/treatments/general/route.ts",
+          "replacement": {
+            "original": "//console.log(JSON.stringify(await response.json()));",
+            "replacement": "// TODO: Replace with proper logging\n// //console.log(JSON.stringify(await response.json()));\n// apiLogger.info({ data: JSON.stringify(await response.json()) }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: JSON.stringify(await response.json()) }, \"Log\")"
+          }
+        },
+        {
+          "line": 51,
+          "column": 7,
+          "method": "log",
+          "originalLine": "//console.log((await response.json()).data.timeline)",
+          "filePath": "src/app/api/treatments/general/route.ts",
+          "replacement": {
+            "original": "//console.log((await response.json()).data.timeline)",
+            "replacement": "// TODO: Replace with proper logging\n// //console.log((await response.json()).data.timeline)\n// apiLogger.info({ data: (await response.json()).data.timeline }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: (await response.json()).data.timeline }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/task/validate-id-card/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 124,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/task/validate-id-card/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/task/sign-dec5/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 23,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(_error);",
+          "filePath": "src/app/api/task/sign-dec5/route.ts",
+          "replacement": {
+            "original": "console.log(_error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(_error);\n// apiLogger.info({ data: _error }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: _error }, \"Log\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/task/sign/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 72,
+          "column": 8,
+          "method": "log",
+          "originalLine": "// console.log(documentTypes);",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": {
+            "original": "// console.log(documentTypes);",
+            "replacement": "// TODO: Replace with proper logging\n// // console.log(documentTypes);\n// apiLogger.info({ data: documentTypes }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: documentTypes }, \"Log\")"
+          }
+        },
+        {
+          "line": 127,
+          "column": 8,
+          "method": "log",
+          "originalLine": "/* console.log(\"createContentRequest\", {",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": null
+        },
+        {
+          "line": 131,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(\"createContentRequest\", createContentRequest);",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": {
+            "original": "console.log(\"createContentRequest\", createContentRequest);",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(\"createContentRequest\", createContentRequest);\n// apiLogger.info({ data: \"createContentRequest\", createContentRequest }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: \"createContentRequest\", createContentRequest }, \"Log\")"
+          }
+        },
+        {
+          "line": 133,
+          "column": 7,
+          "method": "log",
+          "originalLine": "//console.log({ ...response.result, file: \"<...binary data...>\" });",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": {
+            "original": "//console.log({ ...response.result, file: \"<...binary data...>\" });",
+            "replacement": "// TODO: Replace with proper logging\n// //console.log({ ...response.result, file: \"<...binary data...>\" });\n// apiLogger.info({ data: { ...response.result, file: \"<...binary data...>\" } }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: { ...response.result, file: \"<...binary data...>\" } }, \"Log\")"
+          }
+        },
+        {
+          "line": 193,
+          "column": 5,
+          "method": "log",
+          "originalLine": "console.log(endTaskResult); */",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": {
+            "original": "console.log(endTaskResult); */",
+            "replacement": "// TODO: Replace with proper logging\n// console.log(endTaskResult); */\n// apiLogger.info({ data: endTaskResult }, \"Log\")",
+            "suggestedReplacement": "apiLogger.info({ data: endTaskResult }, \"Log\")"
+          }
+        },
+        {
+          "line": 219,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/task/sign/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/task/id-card-sign/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 242,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/task/id-card-sign/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/task/history/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 37,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/task/history/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/symptoms/table/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 84,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/symptoms/table/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/sovos/fingerprint-reuse/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 38,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/sovos/fingerprint-reuse/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/releases/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 13,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(\"Error reading releases directory:\", error);",
+          "filePath": "src/app/api/releases/route.ts",
+          "replacement": {
+            "original": "console.error(\"Error reading releases directory:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(\"Error reading releases directory:\", error);\n// apiLogger.error({ err: \"Error reading releases directory:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: \"Error reading releases directory:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/map/trip/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 44,
+          "column": 7,
+          "method": "error",
+          "originalLine": "//console.error(\"Error streaming positions:\", _error);",
+          "filePath": "src/app/api/map/trip/route.ts",
+          "replacement": {
+            "original": "//console.error(\"Error streaming positions:\", _error);",
+            "replacement": "// TODO: Replace with proper logging\n// //console.error(\"Error streaming positions:\", _error);\n// apiLogger.error({ err: \"Error streaming positions:\", _error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: \"Error streaming positions:\", _error }, \"Error occurred\")"
+          }
+        },
+        {
+          "line": 107,
+          "column": 7,
+          "method": "error",
+          "originalLine": "//console.error(\"Error streaming positions:\", error);",
+          "filePath": "src/app/api/map/trip/route.ts",
+          "replacement": {
+            "original": "//console.error(\"Error streaming positions:\", error);",
+            "replacement": "// TODO: Replace with proper logging\n// //console.error(\"Error streaming positions:\", error);\n// apiLogger.error({ err: \"Error streaming positions:\", error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: \"Error streaming positions:\", error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/entity/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 26,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/entity/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/api/biometric/verify/route.ts",
+      "context": "api",
+      "statements": [
+        {
+          "line": 10,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(error);",
+          "filePath": "src/app/api/biometric/verify/route.ts",
+          "replacement": {
+            "original": "console.error(error);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(error);\n// apiLogger.error({ err: error }, \"Error occurred\")",
+            "suggestedReplacement": "apiLogger.error({ err: error }, \"Error occurred\")"
+          }
+        }
+      ]
+    },
+    {
+      "filePath": "src/app/[lang]/(secured)/task/edit/[taskId]/page.tsx",
+      "context": "task",
+      "statements": [
+        {
+          "line": 67,
+          "column": 5,
+          "method": "error",
+          "originalLine": "console.error(e);",
+          "filePath": "src/app/[lang]/(secured)/task/edit/[taskId]/page.tsx",
+          "replacement": {
+            "original": "console.error(e);",
+            "replacement": "// TODO: Replace with proper logging\n// console.error(e);\n// taskLogger.error({ err: e }, \"Error occurred\")",
+            "suggestedReplacement": "taskLogger.error({ err: e }, \"Error occurred\")"
+          }
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    "1. Review each console statement and replace with appropriate logger",
+    "2. Use context-specific loggers (authLogger, apiLogger, etc.)",
+    "3. Add structured data instead of simple strings",
+    "4. Use appropriate log levels (debug, info, warn, error)",
+    "5. Remove console statements after migration"
+  ]
+}

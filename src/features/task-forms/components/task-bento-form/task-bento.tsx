@@ -18,6 +18,7 @@ import {
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK,
   TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
 } from "../../services/form.service";
 import { ExtendedTaskViewProps } from "../task-form/task-form.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -131,8 +132,8 @@ export async function TaskBentoForm({
     case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
     case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
     case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
-    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
     case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
       return (
         <Bento
           lang={lang ?? defaultLocale}
@@ -147,6 +148,21 @@ export async function TaskBentoForm({
         />
       );
 
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+      //TODO: Add task.mintral_executionType === "T"
+      return (
+        <Bento
+          lang={lang ?? defaultLocale}
+          task={task as any}
+          userGroups={userGroups}
+          dict={dictionary as I18nRecord}
+          msg={
+            (dictionary.pages as I18nRecord)
+              .transportValidationForm as I18nRecord
+          }
+          active={active}
+        />
+      );
     case TYPE_WFSHIP_CONFIRM_DELIVERY:
       if (task.mintral_executionType === "T") {
         return (

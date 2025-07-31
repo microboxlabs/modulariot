@@ -12,6 +12,7 @@ import {
   DeliveryProcessForms,
   DeliveryProcessTask,
   TaskOutcomeDelivery,
+  ShippingFinishedCoordinatorProcessTask,
 } from "./form.service.types";
 import {
   HiOutlineArrowLeft,
@@ -166,6 +167,39 @@ export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[
     TASK_CONFIRM_MONITORING_FINALIZATION,
     TASK_MONITORING_FINALIZATION,
     TASK_FINISHED,
+  ];
+
+/* ------------------------------------------------------------- */
+/* Shipping Finished Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export const TASK_CANCELED: ShippingFinishedCoordinatorProcessTask = "canceled";
+
+export const TASK_TRIP_CANCELED: ShippingFinishedCoordinatorProcessTask =
+  "tripCancelled";
+
+export const TASK_TRIP_NULLIFIED: ShippingFinishedCoordinatorProcessTask =
+  "tripNullified";
+
+export const TASK_TRIP_NULLIFIED_BY_OVERLORD: ShippingFinishedCoordinatorProcessTask =
+  "tripNullifiedByOverlord";
+
+export const TASK_TRIP_CANCELED_BY_OVERLORD: ShippingFinishedCoordinatorProcessTask =
+  "tripCanceledByOverlord";
+
+export const TASK_NULLIFIED: ShippingFinishedCoordinatorProcessTask =
+  "nullified";
+
+export const SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS: ShippingFinishedCoordinatorProcessTask[] =
+  [
+    TASK_FINISHED,
+    TASK_MONITORING_FINALIZATION,
+    TASK_CANCELED,
+    TASK_TRIP_CANCELED,
+    TASK_TRIP_CANCELED_BY_OVERLORD,
+    TASK_NULLIFIED,
+    TASK_TRIP_NULLIFIED,
+    TASK_TRIP_NULLIFIED_BY_OVERLORD,
   ];
 
 /* ------------------------------------------------------------- */

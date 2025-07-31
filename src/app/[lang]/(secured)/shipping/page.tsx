@@ -10,7 +10,6 @@ import {
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
-
 export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
@@ -43,6 +42,7 @@ export default async function ShippingPage({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    console.error(e);
     if (e?.status === 401) {
       redirectWithLang(`/sign-in`);
     }

@@ -172,7 +172,7 @@ export type FinishedWorkflowsResponse = {
 export type FinishedWorkflowsRequest = {
   from: number;
   size: number;
-  definitionKey: string;
+  definitionKey?: string;
   filter: {
     mintralKey?: string;
     licensePlate?: string;

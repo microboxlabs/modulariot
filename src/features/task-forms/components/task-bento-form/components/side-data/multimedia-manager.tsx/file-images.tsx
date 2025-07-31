@@ -233,7 +233,6 @@ export default function FileImages({
         <ClasificationForm
           setIsOpen={setIsClasificationFormOpen}
           uploadableFiles={uploadableFiles}
-          setUploadableFiles={setUploadableFiles}
           dictionary={dictionary}
         />
       )}

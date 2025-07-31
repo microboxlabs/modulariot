@@ -1100,6 +1100,14 @@
       "notifyTMSDelivery": "Notificar Entrega (5.11)",
       "finished_process": "Proceso finalizado",
       "finished": "Finalizado"
+    },
+    "multimedia": {
+      "categories": {
+        "PROOF_OF_DELIVERY": "Prueba de Entrega",
+        "PROOF_OF_PICKUP": "Prueba de Retiro",
+        "CARGO_MANIFEST": "Carta de Porte",
+        "OTHER": "Otro"
+      }
     }
   },
   "searchbar": {

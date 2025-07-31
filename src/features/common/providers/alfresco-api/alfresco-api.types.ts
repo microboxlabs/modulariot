@@ -262,3 +262,21 @@ export type SympthomTemplate = {
 export type UserGroupsResponse = {
   data: string[];
 };
+
+export type NodesIncludeQuery = {
+  include?: string[];
+  fields?: string[];
+};
+
+export type ContentPagingQuery = {
+  skipCount?: number;
+  maxItems?: number;
+};
+
+export type NodeChildrenRequest = {
+  orderBy?: string[];
+  where?: string;
+  relativePath?: string;
+  includeSource?: boolean;
+} & NodesIncludeQuery &
+  ContentPagingQuery;

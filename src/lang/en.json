@@ -1100,6 +1100,14 @@
       "notifyTMSDelivery": "Notify delivery (5.11)",
       "finished_process": "Finished process",
       "finished": "Finished"
+    },
+    "multimedia": {
+      "categories": {
+        "PROOF_OF_DELIVERY": "Proof of delivery",
+        "PROOF_OF_PICKUP": "Proof of pickup",
+        "CARGO_MANIFEST": "Cargo manifest",
+        "OTHER": "Other"
+      }
     }
   },
   "searchbar": {

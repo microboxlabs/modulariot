@@ -14,6 +14,7 @@ import {
   FaTimes,
   FaPlus,
 } from "react-icons/fa";
+import { logger } from "@/lib/logger";
 
 // Symptom data structure
 interface SymptomData {
@@ -64,6 +65,7 @@ export default function SymptomsCard({
   isLoading: boolean;
   error: Error | null;
 }) {
+  logger.info("symptoms", symptoms);
   if (error) {
     return <div>Error: {error.message}</div>;
   }

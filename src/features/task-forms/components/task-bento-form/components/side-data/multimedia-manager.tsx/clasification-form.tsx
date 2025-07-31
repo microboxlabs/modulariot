@@ -20,7 +20,6 @@ export default function ClasificationForm({
 }: {
   setIsOpen: (isOpen: boolean) => void;
   uploadableFiles: any[];
-  setUploadableFiles: (files: any[]) => void;
   dictionary: I18nRecord;
 }) {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);

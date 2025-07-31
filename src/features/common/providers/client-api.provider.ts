@@ -523,3 +523,47 @@ export function signDec5(taskId: string): Promise<any> {
     }),
   });
 }
+
+export function useGetNodeChildren(nodeId: string) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/bento/multimedia?nodeId=${nodeId}`,
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useGetNodeContent(nodeId: string) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    nodeId ? `/app/api/bento/document?nodeId=${nodeId}` : null,
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useGetNodeThumbnail(nodeId: string) {
+  const { data, error, isLoading } = useSWR<any, Error>(
+    `/app/api/bento/thumbnails?nodeId=${nodeId}`,
+    async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch thumbnail");
+      // Return the response as blob for binary data
+      return response.blob();
+    },
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}

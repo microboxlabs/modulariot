@@ -13,6 +13,7 @@ import type {
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
   HistoricalWorkflow,
+  NodeChildrenRequest,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
@@ -179,12 +180,11 @@ export async function uploadNodeContent(
 export async function getChildrenNodes(
   ticket: string,
   nodeId: string,
+  options: NodeChildrenRequest,
 ): Promise<NodeChildAssociationPaging> {
   alfrescoApi.setTicket(ticket, "");
   const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const children = await nodesApi.listNodeChildren(nodeId, {
-    where: "(isFile=true)",
-  });
+  const children = await nodesApi.listNodeChildren(nodeId, options);
   return children;
 }
 

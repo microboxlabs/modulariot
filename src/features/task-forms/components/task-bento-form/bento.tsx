@@ -15,8 +15,8 @@ import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
-import FileImages from "./components/side-data/file-images";
-import Forum from "./components/forum/forum";
+import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
+// import Forum from "./components/forum/forum";
 
 const task_states = {
   assignDriver: "planificado",
@@ -206,7 +206,7 @@ export default function Bento({
 
         {/* File Images */}
         <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-          <FileImages />
+          <FileImages task={task} dictionary={dict as I18nRecord} />
         </div>
 
         {/* Historic Loads - spans full width */}
@@ -228,9 +228,11 @@ export default function Bento({
         </div>
 
         {/* Forum */}
+        {/*
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
           <Forum dict={dict as I18nRecord} />
         </div>
+        */}
       </div>
       {/* Content */}
     </div>

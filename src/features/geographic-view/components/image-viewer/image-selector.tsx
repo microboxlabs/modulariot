@@ -87,15 +87,23 @@ export function ImageComponent({
   setSelected,
   setSize = "h-40 w-40",
   stepped = true,
+  loading = false,
 }: {
   image: string | null;
   index: number;
   setSelected: (index: number) => void;
   setSize?: string;
   stepped?: boolean;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 w-full h-40 animate-pulse"></div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600">
+    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 h-40">
       <div
         className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}
       >

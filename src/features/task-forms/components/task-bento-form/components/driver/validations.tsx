@@ -121,14 +121,12 @@ export default function ValidationsInfo({
   task,
   msg,
 }: {
-  task: TaskResponse;
-  msg: I18nRecord;
+  readonly task: TaskResponse;
+  readonly msg: I18nRecord;
 }) {
   const { data: serviceValidation } = useGetValidationByServiceCode(
-    task.mintral_serviceCode as string,
+    task.mintral_serviceCode,
   );
-
-  console.log(serviceValidation);
 
   // Process the serviceValidation data
   const processValidations = (): ValidationItem[] => {

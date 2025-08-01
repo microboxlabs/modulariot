@@ -1,37 +1,37 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import React from "react";
-import {
-  FaExchangeAlt,
-  FaTachometerAlt,
-  FaExclamationTriangle,
-  FaMoon,
-  FaClock,
-  FaRoute,
-  FaBed,
-  FaWifi,
-  FaTruck,
-  FaTimes,
-  FaPlus,
-} from "react-icons/fa";
-import { logger } from "@/lib/logger";
+import SymptomIcon from "@/features/symptoms/components/symtom-icon";
 
 // Symptom data structure
 interface SymptomData {
   key: string;
-  icon: React.ReactNode;
+  icon: string;
   label: string;
   count: number;
   severity: number; // 0-4 severity levels
 }
 
 // Symptom card component
-const SymptomCard = ({ symptom }: { symptom: SymptomData }) => {
+const SymptomCard = ({
+  symptom,
+  dict,
+}: {
+  symptom: SymptomData;
+  dict: I18nRecord;
+}) => {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="text-gray-600 text-lg">{symptom.icon}</div>
+          <div className="text-gray-600 text-lg">
+            {/* {symptom.icon} */}
+            <SymptomIcon
+              type={symptom.icon as string}
+              size="h-6 w-6"
+              dict={dict}
+            />
+          </div>
           <span className="text-sm text-gray-700 font-medium">
             {symptom.label}
           </span>
@@ -65,7 +65,6 @@ export default function SymptomsCard({
   isLoading: boolean;
   error: Error | null;
 }) {
-  logger.info("symptoms", symptoms);
   if (error) {
     return <div>Error: {error.message}</div>;
   }
@@ -93,84 +92,84 @@ export default function SymptomsCard({
   const allSymptoms: SymptomData[] = [
     {
       key: "driver_change",
-      icon: <FaExchangeAlt />,
+      icon: "DOUBLE DRIVER ROTATION CHECK",
       label: (dict.symptoms as I18nRecord).driver_change as string,
       count: symptoms.driver_change || 0,
       severity: symptoms.driver_change_severity || 0,
     },
     {
       key: "speed_limit",
-      icon: <FaTachometerAlt />,
+      icon: "SPEED LIMIT STANDARD",
       label: (dict.symptoms as I18nRecord).speed_limit as string,
       count: symptoms.speed_limit || 0,
       severity: symptoms.speed_limit_severity || 0,
     },
     {
       key: "speed_limit_custom",
-      icon: <FaTachometerAlt />,
+      icon: "SPEED LIMIT CUSTOM",
       label: (dict.symptoms as I18nRecord).speed_limit_custom as string,
       count: symptoms.speed_limit_custom || 0,
       severity: symptoms.speed_limit_custom_severity || 0,
     },
     {
       key: "stay_risk",
-      icon: <FaExclamationTriangle />,
+      icon: "STAY RISK",
       label: (dict.symptoms as I18nRecord).stay_risk as string,
       count: symptoms.stay_risk || 0,
       severity: symptoms.stay_risk_severity || 0,
     },
     {
       key: "night_stay_risk",
-      icon: <FaMoon />,
+      icon: "NIGHT STAY RISK",
       label: (dict.symptoms as I18nRecord).night_stay_risk as string,
       count: symptoms.night_stay_risk || 0,
       severity: symptoms.night_stay_risk_severity || 0,
     },
     {
       key: "off_hours_driving",
-      icon: <FaClock />,
+      icon: "OFF HOURS DRIVING",
       label: (dict.symptoms as I18nRecord).off_hours_driving as string,
       count: symptoms.off_hours_driving || 0,
       severity: symptoms.off_hours_driving_severity || 0,
     },
     {
       key: "continuous_driving",
-      icon: <FaRoute />,
+      icon: "CONTINUOUS DRIVE CHECK",
       label: (dict.symptoms as I18nRecord).continuous_driving as string,
       count: symptoms.continuous_driving || 0,
       severity: symptoms.continuous_driving_severity || 0,
     },
     {
       key: "continuous_resting",
-      icon: <FaBed />,
+      icon: "CONTINUOUS RESTING CHECK",
       label: (dict.symptoms as I18nRecord).continuous_resting as string,
       count: symptoms.continuous_resting || 0,
       severity: symptoms.continuous_resting_severity || 0,
     },
     {
       key: "signal_loss",
-      icon: <FaWifi />,
+      icon: "LOST SIGNAL",
       label: (dict.symptoms as I18nRecord).signal_loss as string,
       count: symptoms.signal_loss || 0,
       severity: symptoms.signal_loss_severity || 0,
     },
     {
       key: "deficient_cargo_securing",
-      icon: <FaTruck />,
+      icon: "DEFICIENT CARGO SECURING",
       label: (dict.symptoms as I18nRecord).deficient_cargo_securing as string,
       count: symptoms.deficient_cargo_securing || 0,
       severity: symptoms.deficient_cargo_securing_severity || 0,
     },
     {
       key: "absence_cargo_securing",
-      icon: <FaTimes />,
+      icon: "NO CARGO SECURING",
       label: (dict.symptoms as I18nRecord).absence_cargo_securing as string,
       count: symptoms.absence_cargo_securing || 0,
       severity: symptoms.absence_cargo_securing_severity || 0,
     },
     {
       key: "movement_with_cargo",
-      icon: <FaPlus />,
+      icon: "MOVEMENT WITH CARGO",
       label: (dict.symptoms as I18nRecord).movement_with_cargo as string,
       count: symptoms.movement_with_cargo || 0,
       severity: symptoms.movement_with_cargo_severity || 0,
@@ -186,7 +185,7 @@ export default function SymptomsCard({
     >
       <div className="grid grid-cols-3 gap-3 p-4">
         {allSymptoms.map((symptom) => (
-          <SymptomCard key={symptom.key} symptom={symptom} />
+          <SymptomCard key={symptom.key} symptom={symptom} dict={dict} />
         ))}
       </div>
     </CustomCard>

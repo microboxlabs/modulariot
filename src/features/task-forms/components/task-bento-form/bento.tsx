@@ -18,7 +18,7 @@ import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
 import SymptomsCard from "./components/side-data/symptoms-card";
-import { useTreatmentsGeneral } from "@/features/symptoms/hooks/use-treatments-general";
+import { useTreatmentsTrip } from "@/features/symptoms/hooks/use-treatments-trip";
 import { logger } from "@/lib/logger";
 
 const task_states = {
@@ -82,7 +82,7 @@ export default function Bento({
     treatmentData,
     loading: isLoading,
     error: errorTreatments,
-  } = useTreatmentsGeneral(task.id);
+  } = useTreatmentsTrip(task.id);
 
   logger.info("treatmentData", treatmentData);
 

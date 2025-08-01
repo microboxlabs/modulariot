@@ -54,7 +54,7 @@ const ValidationItemComponent = ({
           isError ? "text-red-500" : "text-gray-600 dark:text-gray-300"
         }`}
       >
-        {(msg.bento as I18nRecord)[item.key] as string}
+        {((msg.bento as I18nRecord)[item.key] as string) || item.label}
       </span>
     </div>
   );
@@ -113,6 +113,7 @@ const mapValidationNameToKey = (name: string): string => {
     GENERAL_SLEEP_TEST: "generalDrowsinessTest",
     GENERAL_DRIVER_APP: "driverApp",
     BIOMETRIC_VERIFICATION: "biometricValidation",
+    GENERAL_BIOMETRIC_VERIFICATION: "biometricValidation",
   };
   return nameToKeyMap[name] || name.toLowerCase();
 };
@@ -128,47 +129,18 @@ export default function ValidationsInfo({
     task.mintral_serviceCode,
   );
 
-  // Process the serviceValidation data
-  const processValidations = (): ValidationItem[] => {
-    if (!serviceValidation) {
-      return [];
-    }
+  let validationData: ServiceValidationData | null = null;
 
-    // Try to parse the serviceValidation as JSON if it's a string
-    let validationData: ServiceValidationData | null = null;
-
-    validationData = serviceValidation as ServiceValidationData;
-
-    if (!validationData?.validations) {
-      return [];
-    }
-
-    const allValidations: ValidationItem[] = [];
-
-    validationData.validations.forEach((group) => {
-      if (group.validations && Array.isArray(group.validations)) {
-        group.validations.forEach((validation) => {
-          allValidations.push({
-            key: mapValidationNameToKey(validation.name),
-            status: mapValidationValueToStatus(validation.value),
-            label: validation.name,
-            group: group.group,
-          });
-        });
-      }
-    });
-
-    return allValidations;
-  };
-
-  const allValidations = processValidations();
+  validationData = serviceValidation as ServiceValidationData;
 
   // Group validations by category
-  const equipmentValidations = allValidations.filter(
-    (v) => v.group === "DEVICES",
-  );
-  const cargoValidations = allValidations.filter((v) => v.group === "PAYLOAD");
-  const driverValidations = allValidations.filter((v) => v.group === "DRIVERS");
+  const principalValidations = validationData?.validations[0];
+
+  const pairs = [];
+  for (let i = 1; i < validationData?.validations.length; i += 2) {
+    const pair = validationData?.validations.slice(i, i + 2);
+    pairs.push(pair);
+  }
 
   return (
     <CustomCard
@@ -177,31 +149,64 @@ export default function ValidationsInfo({
     >
       <div className="space-y-6">
         {/* Equipment category - full width */}
-        {equipmentValidations.length > 0 && (
+        {principalValidations && (
           <ValidationCategory
-            title="Equipo"
-            items={equipmentValidations}
+            title={
+              ((msg.bento as I18nRecord)[
+                principalValidations.group
+              ] as string) || principalValidations.group
+            }
+            items={principalValidations.validations.map((validation) => ({
+              key: mapValidationNameToKey(validation.name),
+              status: mapValidationValueToStatus(validation.value),
+              label: validation.name,
+              group: principalValidations.group,
+            }))}
             msg={msg}
           />
         )}
 
         {/* Cargo and Driver categories - side by side */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {cargoValidations.length > 0 && (
-            <ValidationCategory
-              title="Carga"
-              items={cargoValidations}
-              msg={msg}
-            />
-          )}
-          {driverValidations.length > 0 && (
-            <ValidationCategory
-              title="Conductor"
-              items={driverValidations}
-              msg={msg}
-            />
-          )}
-        </div>
+        {pairs.length > 0 &&
+          pairs.map((pair, index) => (
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              key={"pair-" + index}
+            >
+              {pair[0] && (
+                <ValidationCategory
+                  key={index}
+                  title={
+                    ((msg.bento as I18nRecord)[pair[0].group] as string) ||
+                    pair[0].group
+                  }
+                  items={pair[0].validations.map((validation) => ({
+                    key: mapValidationNameToKey(validation.name),
+                    status: mapValidationValueToStatus(validation.value),
+                    label: validation.name,
+                    group: pair[0].group,
+                  }))}
+                  msg={msg}
+                />
+              )}
+              {pair[1] && (
+                <ValidationCategory
+                  key={index}
+                  title={
+                    ((msg.bento as I18nRecord)[pair[1].group] as string) ||
+                    pair[1].group
+                  }
+                  items={pair[1].validations.map((validation) => ({
+                    key: mapValidationNameToKey(validation.name),
+                    status: mapValidationValueToStatus(validation.value),
+                    label: validation.name,
+                    group: pair[1].group,
+                  }))}
+                  msg={msg}
+                />
+              )}
+            </div>
+          ))}
       </div>
     </CustomCard>
   );

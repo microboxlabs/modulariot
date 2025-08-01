@@ -1087,6 +1087,9 @@
     "driverApp": "APP Conductor",
     "biometricValidation": "Validación Biométrica",
     "validations": "Validaciones",
+    "DEVICES": "Equipo",
+    "PAYLOAD": "Carga",
+    "DRIVERS": "Conductor",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",

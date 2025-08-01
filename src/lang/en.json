@@ -1087,6 +1087,9 @@
     "driverApp": "Driver App",
     "biometricValidation": "Biometric Validation",
     "validations": "Validations",
+    "DEVICES": "Devices",
+    "PAYLOAD": "Payload",
+    "DRIVERS": "Drivers",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",

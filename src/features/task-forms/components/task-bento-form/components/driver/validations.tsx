@@ -8,7 +8,6 @@ import {
 import { useGetValidationByServiceCode } from "@/features/common/providers/client-api.provider";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
-import { GoX } from "react-icons/go";
 
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 
@@ -30,8 +29,8 @@ const ValidationIcon = ({ status }: { status: ValidationStatus }) => {
     case "error":
     default:
       return (
-        <div className="w-5 h-5 text-white bg-red-500 rounded-full flex items-center justify-center">
-          <GoX className="w-4 h-4" />
+        <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
+          <TbExclamationMark className="w-4 h-4" />
         </div>
       );
   }
@@ -45,15 +44,10 @@ const ValidationItemComponent = ({
   item: ValidationItem;
   msg: I18nRecord;
 }) => {
-  const isError = item.status === "error";
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-1 items-center">
       <ValidationIcon status={item.status} />
-      <span
-        className={`text-sm ${
-          isError ? "text-red-500" : "text-gray-600 dark:text-gray-300"
-        }`}
-      >
+      <span className="text-sm  text-gray-600 dark:text-gray-300">
         {((msg.bento as I18nRecord)[item.key] as string) || item.label}
       </span>
     </div>
@@ -133,15 +127,6 @@ export default function ValidationsInfo({
 
   validationData = serviceValidation as ServiceValidationData;
 
-  // Group validations by category
-  const principalValidations = validationData?.validations[0];
-
-  const pairs = [];
-  for (let i = 1; i < validationData?.validations.length; i += 2) {
-    const pair = validationData?.validations.slice(i, i + 2);
-    pairs.push(pair);
-  }
-
   return (
     <CustomCard
       title={(msg.bento as I18nRecord).validations as string}
@@ -149,63 +134,22 @@ export default function ValidationsInfo({
     >
       <div className="space-y-6">
         {/* Equipment category - full width */}
-        {principalValidations && (
-          <ValidationCategory
-            title={
-              ((msg.bento as I18nRecord)[
-                principalValidations.group
-              ] as string) || principalValidations.group
-            }
-            items={principalValidations.validations.map((validation) => ({
-              key: mapValidationNameToKey(validation.name),
-              status: mapValidationValueToStatus(validation.value),
-              label: validation.name,
-              group: principalValidations.group,
-            }))}
-            msg={msg}
-          />
-        )}
-
-        {/* Cargo and Driver categories - side by side */}
-        {pairs.length > 0 &&
-          pairs.map((pair, index) => (
-            <div
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              key={"pair-" + index}
-            >
-              {pair[0] && (
-                <ValidationCategory
-                  key={index}
-                  title={
-                    ((msg.bento as I18nRecord)[pair[0].group] as string) ||
-                    pair[0].group
-                  }
-                  items={pair[0].validations.map((validation) => ({
-                    key: mapValidationNameToKey(validation.name),
-                    status: mapValidationValueToStatus(validation.value),
-                    label: validation.name,
-                    group: pair[0].group,
-                  }))}
-                  msg={msg}
-                />
-              )}
-              {pair[1] && (
-                <ValidationCategory
-                  key={index}
-                  title={
-                    ((msg.bento as I18nRecord)[pair[1].group] as string) ||
-                    pair[1].group
-                  }
-                  items={pair[1].validations.map((validation) => ({
-                    key: mapValidationNameToKey(validation.name),
-                    status: mapValidationValueToStatus(validation.value),
-                    label: validation.name,
-                    group: pair[1].group,
-                  }))}
-                  msg={msg}
-                />
-              )}
-            </div>
+        {validationData?.validations &&
+          validationData?.validations.map((validation) => (
+            <ValidationCategory
+              key={validation.group}
+              title={
+                ((msg.bento as I18nRecord)[validation.group] as string) ||
+                validation.group
+              }
+              items={validation.validations.map((validation) => ({
+                key: mapValidationNameToKey(validation.name),
+                status: mapValidationValueToStatus(validation.value),
+                label: validation.name,
+                group: validation.group,
+              }))}
+              msg={msg}
+            />
           ))}
       </div>
     </CustomCard>

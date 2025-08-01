@@ -17,6 +17,7 @@ export interface ValidationData {
   description: string;
   value: number;
   name: string;
+  group: string;
 }
 
 export interface ValidationGroup {

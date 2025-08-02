@@ -6,10 +6,12 @@ export default function SelectorDropdown({
   categories,
   selectCategory = () => {},
   baseCategory = null,
+  disabled = false,
 }: {
   categories: { value: string; label: string }[];
   selectCategory?: (category: string) => void;
   baseCategory?: string | null;
+  disabled?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -62,13 +64,20 @@ export default function SelectorDropdown({
             }}
             color="gray"
             className="flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer w-full border border-gray-200 dark:border-gray-500 hover"
+            disabled={disabled}
           >
             <div
               className="flex flex-row items-center justify-center gap-2"
               onClick={() => setIsOpen(!isOpen)}
             >
               {selectedCategory ? (
-                <span className="text-sm font-light">{selectedCategory}</span>
+                <span className="text-sm font-light">
+                  {
+                    categories.find(
+                      (category) => category.value === selectedCategory,
+                    )?.label
+                  }
+                </span>
               ) : (
                 <span className="text-sm font-light">
                   Selecciona una categoría

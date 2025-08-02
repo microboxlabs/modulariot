@@ -161,6 +161,12 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
   if (request.createdDirectory) {
     formdata.append("createdDirectory", request.createdDirectory.toString());
   }
+  if (request.prop_mintral_contentType) {
+    formdata.append(
+      "prop_mintral_contentType",
+      request.prop_mintral_contentType,
+    );
+  }
   return formdata;
 }
 

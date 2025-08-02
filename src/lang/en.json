@@ -1107,7 +1107,16 @@
         "PROOF_OF_PICKUP": "Proof of pickup",
         "CARGO_MANIFEST": "Cargo manifest",
         "OTHER": "Other"
-      }
+      },
+      "title": "Multimedia",
+      "subtitle": "Drag and drop a file here or",
+      "upload": "Upload document",
+      "gallery": "Gallery",
+      "elements": "elements",
+      "viewMore": "View more",
+      "noImages": "No images",
+      "documents": "Documents",
+      "noDocuments": "No documents"
     }
   },
   "searchbar": {

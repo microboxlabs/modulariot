@@ -1,6 +1,5 @@
 import InnerContainer from "./inner-container";
 import Document from "../document";
-import { AlfrescoFileEntry } from "./image.types";
 
 export default function DocumentList({
   setIsOpen,
@@ -13,11 +12,11 @@ export default function DocumentList({
 }) {
   return (
     <InnerContainer setIsOpen={setIsOpen} title="Documentos">
-      <div className="flex flex-col gap-2 flex-grow overflow-y-auto">
-        {documents.slice(0, 4).map((file: AlfrescoFileEntry) => (
+      <div className="grid grid-cols-1 gap-2 transition-all duration-300 rounded-lg overflow-y-auto relative h-fit">
+        {documents.map((document: any) => (
           <Document
-            key={file.entry.id}
-            file={file}
+            key={document.file.entry.id}
+            document={document}
             setSelected={setSelectedDocument}
           />
         ))}

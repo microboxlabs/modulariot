@@ -1,3 +1,5 @@
+"use client";
+
 import Historic from "./historic";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiChevronDown, HiTruck } from "react-icons/hi";

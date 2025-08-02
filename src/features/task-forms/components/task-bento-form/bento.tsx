@@ -1,4 +1,3 @@
-"use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripInformation from "./components/trip-information/trip-information";
@@ -9,7 +8,6 @@ import HistoricLoads from "@/features/shipping/components/historic-loads";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
-import { useGetConditions } from "./hooks/use-get-conditions";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
@@ -32,16 +30,6 @@ const task_states = {
   notifyTMSDelivery: "recepcionado",
 };
 
-/*
-"assignDriver": "Asignar Conductor y Transporte",
-"presentDriver": "Presentar Conductor",
-"prepareService": "Preparar Servicio",
-"missionControl": "Iniciar viaje"
-"monitorTrip": "Monitorear Viaje Iniciado",
-"confirmArrival": "Confirmar Arribo a Destino",
-"closeMonitoring": "Confirmar Cierre de Monitoreo",
-*/
-
 export default function Bento({
   lang,
   task,
@@ -61,10 +49,6 @@ export default function Bento({
   enableActions?: boolean;
   showActions?: boolean;
 }) {
-  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
-    task.id,
-  );
-
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
   const writable_dict = (
@@ -220,11 +204,7 @@ export default function Bento({
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <Conditions
-            dict={dict as I18nRecord}
-            conditions={conditions}
-            isLoading={isLoadingConditions}
-          />
+          <Conditions dict={dict as I18nRecord} task={task} />
         </div>
 
         {/* Forum */}

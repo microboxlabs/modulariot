@@ -162,6 +162,7 @@ export type UploadNodeRequest = {
   thumbnails?: string[];
   updateNameAndMimetype?: boolean;
   createdDirectory?: boolean;
+  prop_mintral_contentType?: string;
 };
 
 export type FinishedWorkflowsResponse = {

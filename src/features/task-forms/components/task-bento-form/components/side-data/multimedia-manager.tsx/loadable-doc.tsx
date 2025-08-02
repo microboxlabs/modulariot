@@ -7,17 +7,28 @@ export default function LoadableDoc({
   setSelectedDocs,
   categories,
   file,
+  error,
+  selectCategory,
+  uploading,
 }: {
   selectedDocs: string[];
   setSelectedDocs: (docs: string[]) => void;
   categories: { value: string; label: string }[];
   file: FileType;
+  error: boolean;
+  selectCategory: (category: string) => void;
+  uploading: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-2 w-full border border-gray-200 dark:border-gray-700">
+    <div
+      className={`flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-2 w-full border transition-all duration-300 ${
+        error ? "border-red-500" : "border-gray-200 dark:border-gray-700"
+      }`}
+    >
       <div className="text-sm text-gray-500 dark:text-gray-400 flex flex-row items-center justify-between">
         <div className="flex flex-row items-center gap-2">
           <Checkbox
+            disabled={uploading}
             checked={selectedDocs.includes(file.name + "-" + file.lastModified)}
             onChange={(e) => {
               if (!e.target.checked) {
@@ -42,7 +53,12 @@ export default function LoadableDoc({
           </div>
         */}
       </div>
-      <SelectorDropdown categories={categories} baseCategory={file.category} />
+      <SelectorDropdown
+        categories={categories}
+        baseCategory={file.category}
+        selectCategory={selectCategory}
+        disabled={uploading}
+      />
     </div>
   );
 }

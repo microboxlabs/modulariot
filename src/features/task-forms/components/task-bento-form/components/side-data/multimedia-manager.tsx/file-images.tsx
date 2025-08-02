@@ -281,18 +281,22 @@ export default function FileImages({
               )}
               )
             </p>
-            <div
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsDocumentListOpen(true);
+              }}
               className={`${
                 documents.length == 0 ? "hidden" : "block"
               } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
-              onClick={() => setIsDocumentListOpen(true)}
             >
               {tr(
                 "viewMore",
                 ((dictionary as I18nRecord).bento as I18nRecord)
                   .multimedia as I18nRecord,
               )}
-            </div>
+            </a>
           </div>
           {documents.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative h-40">

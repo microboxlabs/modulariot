@@ -16,12 +16,13 @@ export default function InnerContainer({
         <div className="flex flex-row items-center gap-2 p-2 text-lg text-gray-900 dark:text-white">
           {title}
         </div>
-        <div
+        <a
+          href="#"
           onClick={() => setIsOpen(false)}
           className="flex h-fit w-fit text-gray-500 items-center gap-2 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 cursor-pointer"
         >
           <IoClose className="h-7 w-7" />
-        </div>
+        </a>
       </div>
       <div className="flex flex-col gap-2 flex-grow overflow-y-auto">
         {children}

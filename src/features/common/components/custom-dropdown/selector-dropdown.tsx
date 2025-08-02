@@ -66,9 +66,13 @@ export default function SelectorDropdown({
             className="flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer w-full border border-gray-200 dark:border-gray-500 hover"
             disabled={disabled}
           >
-            <div
+            <a
+              href="#"
               className="flex flex-row items-center justify-center gap-2"
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsOpen(!isOpen);
+              }}
             >
               {selectedCategory ? (
                 <span className="text-sm font-light">
@@ -86,7 +90,7 @@ export default function SelectorDropdown({
               <HiChevronDown
                 className={`w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
               />
-            </div>
+            </a>
           </Button>
         )}
         className="w-full"

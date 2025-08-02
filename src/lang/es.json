@@ -1107,7 +1107,16 @@
         "PROOF_OF_PICKUP": "Prueba de Retiro",
         "CARGO_MANIFEST": "Carta de Porte",
         "OTHER": "Otro"
-      }
+      },
+      "title": "Multimedia",
+      "subtitle": "Arrastre y suelte un archivo aquí o",
+      "upload": "Subir documento",
+      "gallery": "Galería",
+      "elements": "elementos",
+      "viewMore": "Ver más",
+      "noImages": "No hay imágenes",
+      "documents": "Documentos",
+      "noDocuments": "No hay documentos"
     }
   },
   "searchbar": {

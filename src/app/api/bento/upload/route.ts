@@ -1,19 +1,76 @@
 import "server-only";
 import { auth } from "@/auth";
+import { uploadNodeContent } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
+import { UploadNodeRequest } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get the data from the request
-
   try {
-    // Create the message and send the post
+    // Parse the multipart form data
+    const formData = await request.formData();
+
+    // Extract form fields
+    const file = formData.get("filedata") as File;
+    const contentType = formData.get("prop_mintral_contentType") as string;
+    const fileName = formData.get("prop_cm_name") as string;
+    const mimeType = formData.get("prop_mimetype") as string;
+    const destination = formData.get("alf_destination") as string;
+
+    if (!file || !contentType || !fileName || !mimeType || !destination) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    let alfrescoResponse;
+    let currentFileName = fileName;
+
+    alfrescoResponse = await uploadFile(
+      file,
+      contentType,
+      destination,
+      currentFileName,
+      session.user.ticket,
+    );
+    return NextResponse.json({
+      success: true,
+      message: "File uploaded successfully",
+      data: alfrescoResponse,
+      filename: currentFileName, // Return the actual filename used
+    });
   } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error.message || "Upload failed",
+        details: error.info || null,
+      },
+      { status: 500 },
+    );
   }
+}
+
+async function uploadFile(
+  file: File,
+  contentType: string,
+  destination: string,
+  fileName: string,
+  ticket: string,
+) {
+  const formData: UploadNodeRequest = {
+    filedata: file,
+    prop_mintral_contentType: contentType,
+    filename: fileName,
+    destination,
+    contentType: "mintral:content",
+    thumbnails: ["doclib"],
+  };
+
+  return uploadNodeContent(ticket, formData);
 }

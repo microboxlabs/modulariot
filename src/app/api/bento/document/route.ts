@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const nodeId = url.searchParams.get("nodeId");
+  const nodeIds = url.searchParams.get("nodeIds");
 
-  if (!nodeId) {
+  if (!nodeIds) {
     return NextResponse.json({
       error: "Node ID is required",
       status: 400,
@@ -22,10 +22,23 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const taskResponses = await getContentNode(session.user.ticket, nodeId);
+    const nodeIdsArray = nodeIds.split(",");
+    const responses = await Promise.all(
+      nodeIdsArray.map(async (nodeId) => {
+        try {
+          const result = await getContentNode(session.user.ticket, nodeId);
+          return result;
+        } catch (nodeError: any) {
+          return {
+            error: `Failed to fetch node ${nodeId}`,
+            details: nodeError.message,
+          };
+        }
+      }),
+    );
 
     return NextResponse.json({
-      data: taskResponses,
+      data: responses,
     });
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

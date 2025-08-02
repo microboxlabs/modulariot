@@ -1,35 +1,38 @@
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import { ImageComponent } from "@/features/geographic-view/components/image-viewer/image-selector";
-import { AlfrescoFileEntry } from "./image.types";
+import { useState } from "react";
 
 export default function ImageElement({
   file,
   index,
   setSelectedImage,
-  isLoading,
 }: {
-  file: AlfrescoFileEntry;
+  file: any;
   index: number;
   setSelectedImage: (index: number) => void;
-  isLoading: boolean;
 }) {
-  const {
-    data: thumbnail,
-    error: _thumbnailError,
-    isLoading: _thumbnailIsLoading,
-  } = useGetNodeThumbnail(file.entry.id);
+  const [thumbnail, setThumbnail] = useState<any>(null);
+  const [_thumbnailError, setThumbnailError] = useState<boolean>(false);
+  const [_thumbnailIsLoading, setThumbnailIsLoading] = useState<boolean>(true);
 
-  const thumbnailUrl = thumbnail ? URL.createObjectURL(thumbnail) : null;
+  useGetNodeThumbnail(file.entry.id)
+    .then((res: any) => {
+      setThumbnail(res);
+      setThumbnailIsLoading(false);
+    })
+    .catch((_err: any) => {
+      setThumbnailError(true);
+      setThumbnailIsLoading(false);
+    });
 
   return (
     <ImageComponent
       key={file.entry.id}
-      image={thumbnailUrl} // Use the constructed image URL
+      image={thumbnail} // Use the constructed image URL
       index={index}
       setSelected={setSelectedImage}
       setSize="h-40 w-full"
       stepped={false}
-      loading={isLoading}
     />
   );
 }

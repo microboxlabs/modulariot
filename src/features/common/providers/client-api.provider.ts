@@ -29,6 +29,7 @@ import {
   SignIdCardRequest,
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
+import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -524,22 +525,27 @@ export function signDec5(taskId: string): Promise<any> {
   });
 }
 
-export function useGetNodeChildren(nodeId: string) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
-    `/app/api/bento/multimedia?nodeId=${nodeId}`,
+export function useGetNodeChildren(nodeId: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
+    nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,
     fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
   );
 
   return {
     data,
     error,
     isLoading,
+    mutate,
   };
 }
 
-export function useGetNodeContent(nodeId: string) {
+export function useGetNodeContents(nodeIds: string[]) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
-    nodeId ? `/app/api/bento/document?nodeId=${nodeId}` : null,
+    nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
     fetcher,
   );
 
@@ -551,19 +557,25 @@ export function useGetNodeContent(nodeId: string) {
 }
 
 export function useGetNodeThumbnail(nodeId: string) {
-  const { data, error, isLoading } = useSWR<any, Error>(
-    `/app/api/bento/thumbnails?nodeId=${nodeId}`,
-    async (url: string) => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch thumbnail");
-      // Return the response as blob for binary data
-      return response.blob();
-    },
-  );
+  return fetcher(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+}
 
-  return {
-    data,
-    error,
-    isLoading,
-  };
+export function postBentoMultimedia(sendableFile: SendableFile) {
+  const url = "/app/api/bento/upload";
+
+  // Create FormData for file upload
+  const formData = new FormData();
+  formData.append("filedata", sendableFile.filedata);
+  formData.append(
+    "prop_mintral_contentType",
+    sendableFile.prop_mintral_contentType,
+  );
+  formData.append("prop_cm_name", sendableFile.prop_cm_name);
+  formData.append("prop_mimetype", sendableFile.prop_mimetype);
+  formData.append("alf_destination", sendableFile.alf_destination);
+
+  return fetcher(url, {
+    method: "POST",
+    body: formData,
+  });
 }

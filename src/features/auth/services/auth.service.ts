@@ -64,12 +64,14 @@ export async function authenticateAction(
       password: formData.get("password") as string,
       redirect: false,
     });
-    logger.info("signIn--------------------------------", result);
+    logger.info("result--------------------------------");
+    logger.info(result);
     if (result?.error) {
       logger.error(result.error);
     }
     const session = await auth();
-    logger.info("session--------------------------------", session);
+    logger.info("session--------------------------------");
+    logger.info(session);
     redirectWithLang("/shipping");
   } catch (error) {
     if (error instanceof AuthError) {

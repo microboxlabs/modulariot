@@ -13,6 +13,7 @@ import type {
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
   HistoricalWorkflow,
+  NodeChildrenRequest,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
@@ -160,6 +161,12 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
   if (request.createdDirectory) {
     formdata.append("createdDirectory", request.createdDirectory.toString());
   }
+  if (request.prop_mintral_contentType) {
+    formdata.append(
+      "prop_mintral_contentType",
+      request.prop_mintral_contentType,
+    );
+  }
   return formdata;
 }
 
@@ -179,12 +186,11 @@ export async function uploadNodeContent(
 export async function getChildrenNodes(
   ticket: string,
   nodeId: string,
+  options: NodeChildrenRequest,
 ): Promise<NodeChildAssociationPaging> {
   alfrescoApi.setTicket(ticket, "");
   const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const children = await nodesApi.listNodeChildren(nodeId, {
-    where: "(isFile=true)",
-  });
+  const children = await nodesApi.listNodeChildren(nodeId, options);
   return children;
 }
 

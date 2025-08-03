@@ -16,11 +16,13 @@ import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
 import { useState } from "react";
@@ -125,6 +127,41 @@ export default function TaskConfirmModal({
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
+            {taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK &&
+              outcome === OUTCOME_OVERLORD_CANCELED_SOVOS_V2 && (
+                <>
+                  <Label className="mt-4">
+                    {(dict.modal as I18nRecord).title2 as string}
+                  </Label>
+                  <Select
+                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    <option value="FINGERPRINT_DEVICES_TECH_ISSUES">
+                      {(dict.modal as I18nRecord).reason1 as string}
+                    </option>
+                    <option value="COMPUTER_TECH_ISSUES">
+                      {(dict.modal as I18nRecord).reason2 as string}
+                    </option>
+                    <option value="DRIVER_FINGERPRINT_NOT_RECOGNIZED">
+                      {(dict.modal as I18nRecord).reason3 as string}
+                    </option>
+                    <option value="DISPATCHER_NOT_ENROLLED">
+                      {(dict.modal as I18nRecord).reason4 as string}
+                    </option>
+                    <option value="DISPATCHER_FINGERPRINT_NOT_RECOGNIZED">
+                      {(dict.modal as I18nRecord).reason5 as string}
+                    </option>
+                    <option value="AUTHORIZED_BY_TRANSPORT_OVERLORD">
+                      {(dict.modal as I18nRecord).reason6 as string}
+                    </option>
+                    <option value="OTHER">
+                      {(dict.modal as I18nRecord).reason7 as string}
+                    </option>
+                  </Select>
+                </>
+              )}
             {taskType === "wfship:sovosDigitalSignature" &&
               outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL && (
                 <>

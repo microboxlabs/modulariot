@@ -453,7 +453,6 @@ export default function TaskActions({
                 }
               />
             </Button.Group>
-
             <TaskConfirmModal
               commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
               dict={dict}

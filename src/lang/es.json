@@ -1081,6 +1081,8 @@
     "arribado_cp": "Arribado CP",
     "recepcionado": "Recepcionado",
     "taken_by": "Tomada por",
+    "forum": "Foro",
+    "forum_subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",
@@ -1106,6 +1108,23 @@
       "notifyTMSDelivery": "Notificar Entrega (5.11)",
       "finished_process": "Proceso finalizado",
       "finished": "Finalizado"
+    },
+    "multimedia": {
+      "categories": {
+        "PROOF_OF_DELIVERY": "Prueba de Entrega",
+        "PROOF_OF_PICKUP": "Prueba de Retiro",
+        "CARGO_MANIFEST": "Carta de Porte",
+        "OTHER": "Otro"
+      },
+      "title": "Multimedia",
+      "subtitle": "Arrastre y suelte un archivo aquí o",
+      "upload": "Subir documento",
+      "gallery": "Galería",
+      "elements": "elementos",
+      "viewMore": "Ver más",
+      "noImages": "No hay imágenes",
+      "documents": "Documentos",
+      "noDocuments": "No hay documentos"
     }
   },
   "searchbar": {

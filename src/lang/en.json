@@ -1080,6 +1080,8 @@
     "arribado_cp": "Arrived CP",
     "recepcionado": "Received",
     "taken_by": "Taken by",
+    "forum": "Forum",
+    "forum_subtitle": "Here you can view the comments entered.",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",
@@ -1105,6 +1107,23 @@
       "notifyTMSDelivery": "Notify delivery (5.11)",
       "finished_process": "Finished process",
       "finished": "Finished"
+    },
+    "multimedia": {
+      "categories": {
+        "PROOF_OF_DELIVERY": "Proof of delivery",
+        "PROOF_OF_PICKUP": "Proof of pickup",
+        "CARGO_MANIFEST": "Cargo manifest",
+        "OTHER": "Other"
+      },
+      "title": "Multimedia",
+      "subtitle": "Drag and drop a file here or",
+      "upload": "Upload document",
+      "gallery": "Gallery",
+      "elements": "elements",
+      "viewMore": "View more",
+      "noImages": "No images",
+      "documents": "Documents",
+      "noDocuments": "No documents"
     }
   },
   "searchbar": {

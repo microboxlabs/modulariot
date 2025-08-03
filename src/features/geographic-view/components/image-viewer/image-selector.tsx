@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FaChevronRight } from "react-icons/fa";
+import { FaChevronRight, FaImage } from "react-icons/fa";
 import { MdOutlineFileDownload, MdOutlineRemoveRedEye } from "react-icons/md";
 import Image from "next/image";
 import ImageViewer from "./image-viewer";
@@ -87,15 +87,23 @@ export function ImageComponent({
   setSelected,
   setSize = "h-40 w-40",
   stepped = true,
+  loading = false,
 }: {
   image: string | null;
   index: number;
   setSelected: (index: number) => void;
   setSize?: string;
   stepped?: boolean;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 w-full h-40 animate-pulse"></div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600">
+    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 h-40">
       <div
         className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}
       >
@@ -108,7 +116,10 @@ export function ImageComponent({
             className="object-cover w-full h-full"
           />
         ) : (
-          <div className="w-full h-full bg-gray-300 dark:bg-gray-600 overflow-hidden"></div>
+          <div className="w-full h-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center">
+            {" "}
+            <FaImage className="w-8 h-8 object-cover text-gray-500 dark:text-gray-400" />{" "}
+          </div>
         )}
         <div className="absolute top-0 right-0 left-0 bottom-0 opacity-0 flex justify-center items-center text-white transition-all duration-300 hover:opacity-100 visible backdrop-blur-[10px] bg-black/30 gap-2">
           <div

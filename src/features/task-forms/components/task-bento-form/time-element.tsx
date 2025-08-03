@@ -1,3 +1,5 @@
+"use client";
+
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { useEffect, useState } from "react";
 import { GoClockFill } from "react-icons/go";

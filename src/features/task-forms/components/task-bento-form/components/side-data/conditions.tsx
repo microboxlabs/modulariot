@@ -1,17 +1,23 @@
+"use client";
+
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
+import useGetConditions from "../../hooks/use-get-conditions";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 export default function Conditions({
   dict,
-  conditions = {},
-  isLoading,
+  task,
 }: {
   dict: I18nRecord;
-  conditions: any;
-  isLoading: boolean;
+  task: TaskResponse;
 }) {
-  if (isLoading) {
+  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
+    task.id,
+  );
+
+  if (isLoadingConditions) {
     return <div className="w-full h-full bg-gray-500 animate-pulse"></div>;
   }
 

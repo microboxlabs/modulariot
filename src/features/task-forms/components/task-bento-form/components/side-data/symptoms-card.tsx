@@ -2,14 +2,37 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import React from "react";
 import SymptomIcon from "@/features/symptoms/components/symtom-icon";
+//import { logger } from "@/lib/logger";
+import ConditionIcon from "@/features/symptoms/components/condition-icon";
+import { logger } from "@/lib/logger";
 
 // Symptom data structure
 interface SymptomData {
+  id: string;
   key: string;
   icon: string;
   label: string;
   count: number;
   severity: number; // 0-4 severity levels
+  conditions: string[];
+}
+
+function getSymptom(symptoms: any[], id: string) {
+  return symptoms.filter((e) => e[id]);
+}
+
+function getTotalSymptoms(symptoms: any[], id: string) {
+  const existingElement = getSymptom(symptoms, id);
+  return existingElement.length > 0 ? existingElement[0][id].total_symptoms : 0;
+}
+
+function getConditions(symptoms: any[], id: string): string[] {
+  const existingElement = getSymptom(symptoms, id);
+  return existingElement.length > 0
+    ? Object.keys(existingElement[0][id])
+        .filter((e) => e !== "total_symptoms")
+        .map((e: any) => e.toLowerCase())
+    : [];
 }
 
 // Symptom card component
@@ -32,7 +55,7 @@ const SymptomCard = ({
               dict={dict}
             />
           </div>
-          <span className="text-sm text-gray-700 font-medium">
+          <span className="text-sm text-gray-700 font-light">
             {symptom.label}
           </span>
         </div>
@@ -41,14 +64,24 @@ const SymptomCard = ({
         </div>
       </div>
       <div className="flex gap-1">
-        {Array.from({ length: 4 }, (_, index) => (
+        {/* {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
             className={`w-2 h-2 transform rotate-45 ${
               index < symptom.severity ? "bg-red-500" : "bg-gray-300"
             }`}
           />
-        ))}
+        ))} */}
+        <div className="flex -space-x-2.5 transition-all duration-[0.5s] animate-show-flex">
+          {Array.from(symptom.conditions).map((condition, index) => (
+            <ConditionIcon
+              key={index}
+              condition={condition ?? ""}
+              size="h-6 w-6"
+              dict={dict}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -56,15 +89,17 @@ const SymptomCard = ({
 
 export default function SymptomsCard({
   dict,
-  symptoms = {},
+  symptoms = [],
   isLoading,
   error,
 }: {
   dict: I18nRecord;
-  symptoms: any;
+  symptoms: any[];
   isLoading: boolean;
   error: Error | null;
 }) {
+  logger.info(symptoms);
+
   if (error) {
     return <div>Error: {error.message}</div>;
   }
@@ -77,7 +112,7 @@ export default function SymptomsCard({
         subtitle={null}
       >
         <div className="grid grid-cols-3 gap-3 p-4">
-          {Array.from({ length: 12 }, (_, i) => (
+          {symptoms.map((symptom, i) => (
             <div
               key={i}
               className="bg-gray-200 animate-pulse rounded-lg h-20"
@@ -93,86 +128,115 @@ export default function SymptomsCard({
     {
       key: "driver_change",
       icon: "DOUBLE DRIVER ROTATION CHECK",
-      label: (dict.symptoms as I18nRecord).driver_change as string,
-      count: symptoms.driver_change || 0,
-      severity: symptoms.driver_change_severity || 0,
+      id: "Double Driver Rotation Check",
+      label: (dict.symptoms as I18nRecord)
+        .double_driver_rotation_check as string,
+      count: getTotalSymptoms(symptoms, "Double Driver Rotation Check") || 0,
+      severity: getTotalSymptoms(symptoms, "Double Driver Rotation Check") || 0,
+      conditions: getConditions(symptoms, "Double Driver Rotation Check") || [
+        "",
+      ],
     },
     {
       key: "speed_limit",
       icon: "SPEED LIMIT STANDARD",
-      label: (dict.symptoms as I18nRecord).speed_limit as string,
-      count: symptoms.speed_limit || 0,
-      severity: symptoms.speed_limit_severity || 0,
+      id: "Speed Limit standard",
+      label: (dict.symptoms as I18nRecord)["speed limit"] as string,
+      count: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
+      severity: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
+      conditions: getConditions(symptoms, "Speed Limit Standard") || [""],
     },
     {
       key: "speed_limit_custom",
       icon: "SPEED LIMIT CUSTOM",
-      label: (dict.symptoms as I18nRecord).speed_limit_custom as string,
-      count: symptoms.speed_limit_custom || 0,
-      severity: symptoms.speed_limit_custom_severity || 0,
+      id: "Speed Limit Custom",
+      label: (dict.symptoms as I18nRecord)["Speed Limit Custom"] as string,
+      count: getTotalSymptoms(symptoms, "Speed Limit Custom") || 0,
+      severity: getTotalSymptoms(symptoms, "Speed Limit Custom") || 0,
+      conditions: getConditions(symptoms, "Speed Limit Custom") || [""],
     },
     {
       key: "stay_risk",
       icon: "STAY RISK",
-      label: (dict.symptoms as I18nRecord).stay_risk as string,
-      count: symptoms.stay_risk || 0,
-      severity: symptoms.stay_risk_severity || 0,
+      id: "Stay Risk",
+      label: (dict.symptoms as I18nRecord)["RISK ZONE STOP"] as string,
+      count: getTotalSymptoms(symptoms, "Stay Risk") || 0,
+      severity: getTotalSymptoms(symptoms, "Stay Risk") || 0,
+      conditions: getConditions(symptoms, "Stay Risk") || [""],
     },
     {
       key: "night_stay_risk",
       icon: "NIGHT STAY RISK",
-      label: (dict.symptoms as I18nRecord).night_stay_risk as string,
-      count: symptoms.night_stay_risk || 0,
-      severity: symptoms.night_stay_risk_severity || 0,
+      id: "Night Stay Risk",
+      label: (dict.symptoms as I18nRecord)["RISK ZONE SLEEP"] as string,
+      count: getTotalSymptoms(symptoms, "Night Stay Risk") || 0,
+      severity: getTotalSymptoms(symptoms, "Night Stay Risk") || 0,
+      conditions: getConditions(symptoms, "Night Stay Risk") || [""],
     },
     {
       key: "off_hours_driving",
       icon: "OFF HOURS DRIVING",
-      label: (dict.symptoms as I18nRecord).off_hours_driving as string,
-      count: symptoms.off_hours_driving || 0,
-      severity: symptoms.off_hours_driving_severity || 0,
+      id: "Off Hours Driving",
+      label: (dict.symptoms as I18nRecord)["OFF HOURS DRIVING"] as string,
+      count: getTotalSymptoms(symptoms, "Off Hours Driving") || 0,
+      severity: getTotalSymptoms(symptoms, "Off Hours Driving") || 0,
+      conditions: getConditions(symptoms, "Off Hours Driving") || [""],
     },
     {
       key: "continuous_driving",
       icon: "CONTINUOUS DRIVE CHECK",
-      label: (dict.symptoms as I18nRecord).continuous_driving as string,
-      count: symptoms.continuous_driving || 0,
-      severity: symptoms.continuous_driving_severity || 0,
+      id: "Continuous Drive Check",
+      label: (dict.symptoms as I18nRecord)["CONTINUOUS DRIVE CHECK"] as string,
+      count: getTotalSymptoms(symptoms, "Continuous Drive Check") || 0,
+      severity: getTotalSymptoms(symptoms, "Continuous Drive Check") || 0,
+      conditions: getConditions(symptoms, "Continuous Drive Check") || [""],
     },
     {
       key: "continuous_resting",
       icon: "CONTINUOUS RESTING CHECK",
-      label: (dict.symptoms as I18nRecord).continuous_resting as string,
-      count: symptoms.continuous_resting || 0,
-      severity: symptoms.continuous_resting_severity || 0,
+      id: "Continuous Resting Check",
+      label: (dict.symptoms as I18nRecord)[
+        "CONTINUOUS RESTING CHECK"
+      ] as string,
+      count: getTotalSymptoms(symptoms, "Continuous Resting Check") || 0,
+      severity: getTotalSymptoms(symptoms, "Continuous Resting Check") || 0,
+      conditions: getConditions(symptoms, "Continuous Resting Check") || [""],
     },
     {
       key: "signal_loss",
       icon: "LOST SIGNAL",
-      label: (dict.symptoms as I18nRecord).signal_loss as string,
-      count: symptoms.signal_loss || 0,
-      severity: symptoms.signal_loss_severity || 0,
+      id: "Lost Signal",
+      label: (dict.symptoms as I18nRecord)["LOST SIGNAL"] as string,
+      count: getTotalSymptoms(symptoms, "Lost Signal") || 0,
+      severity: getTotalSymptoms(symptoms, "Lost Signal") || 0,
+      conditions: getConditions(symptoms, "Lost Signal") || [""],
     },
     {
       key: "deficient_cargo_securing",
       icon: "DEFICIENT CARGO SECURING",
+      id: "Deficient Cargo Securing",
       label: (dict.symptoms as I18nRecord).deficient_cargo_securing as string,
-      count: symptoms.deficient_cargo_securing || 0,
-      severity: symptoms.deficient_cargo_securing_severity || 0,
+      count: getTotalSymptoms(symptoms, "Deficient Cargo Securing") || 0,
+      severity: getTotalSymptoms(symptoms, "Deficient Cargo Securing") || 0,
+      conditions: getConditions(symptoms, "Deficient Cargo Securing") || [""],
     },
     {
       key: "absence_cargo_securing",
       icon: "NO CARGO SECURING",
+      id: "No Cargo Securing",
       label: (dict.symptoms as I18nRecord).absence_cargo_securing as string,
-      count: symptoms.absence_cargo_securing || 0,
-      severity: symptoms.absence_cargo_securing_severity || 0,
+      count: getTotalSymptoms(symptoms, "No Cargo Securing") || 0,
+      severity: getTotalSymptoms(symptoms, "No Cargo Securing") || 0,
+      conditions: getConditions(symptoms, "No Cargo Securing") || [""],
     },
     {
       key: "movement_with_cargo",
       icon: "MOVEMENT WITH CARGO",
+      id: "Movement With Cargo",
       label: (dict.symptoms as I18nRecord).movement_with_cargo as string,
-      count: symptoms.movement_with_cargo || 0,
-      severity: symptoms.movement_with_cargo_severity || 0,
+      count: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
+      severity: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
+      conditions: getConditions(symptoms, "Movement With Cargo") || [""],
     },
   ];
 
@@ -183,10 +247,12 @@ export default function SymptomsCard({
       }
       subtitle={null}
     >
-      <div className="grid grid-cols-3 gap-3 p-4">
-        {allSymptoms.map((symptom) => (
-          <SymptomCard key={symptom.key} symptom={symptom} dict={dict} />
-        ))}
+      <div className="grid grid-cols-2 gap-2 p-1">
+        {allSymptoms
+          .filter((e) => e.count > 0)
+          .map((symptom) => (
+            <SymptomCard key={symptom.key} symptom={symptom} dict={dict} />
+          ))}
       </div>
     </CustomCard>
   );

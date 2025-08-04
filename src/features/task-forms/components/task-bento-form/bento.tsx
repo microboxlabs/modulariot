@@ -19,7 +19,6 @@ import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
 import SymptomsCard from "./components/side-data/symptoms-card";
 import { useTreatmentsTrip } from "@/features/symptoms/hooks/use-treatments-trip";
-import { logger } from "@/lib/logger";
 
 const task_states = {
   assignDriver: "planificado",
@@ -82,9 +81,7 @@ export default function Bento({
     treatmentData,
     loading: isLoading,
     error: errorTreatments,
-  } = useTreatmentsTrip(task.id);
-
-  logger.info("treatmentData", treatmentData);
+  } = useTreatmentsTrip(task.mintral_serviceCode);
 
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
@@ -231,7 +228,7 @@ export default function Bento({
           /> */}
           <SymptomsCard
             dict={dict as I18nRecord}
-            symptoms={task}
+            symptoms={treatmentData?.data ?? []}
             isLoading={isLoading}
             error={errorTreatments}
           />

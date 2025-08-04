@@ -991,7 +991,9 @@
     "hide_stops": "Ocultar paradas"
   },
   "release": {
-    "other_versions": "Otras versiones"
+    "other_versions": "Otras versiones",
+    "show_less": "Mostrar menos",
+    "show_more": "Mostrar más"
   },
   "totem": {
     "welcome": "Les damos la bienvenida",

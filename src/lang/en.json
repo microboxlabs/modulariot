@@ -993,7 +993,9 @@
     "hide_stops": "Hide stops"
   },
   "release": {
-    "other_versions": "Other Versions"
+    "other_versions": "Other Versions",
+    "show_less": "Show less",
+    "show_more": "Show more"
   },
   "totem": {
     "welcome": "Welcome",

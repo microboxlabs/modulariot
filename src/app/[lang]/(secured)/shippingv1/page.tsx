@@ -10,12 +10,14 @@ import {
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
+import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
+  const userGroups = await getGroupsForPerson(session!.user.ticket);
   // let tasks;
   try {
     // tasks = await getUserTasks(session!.user.ticket);
@@ -35,7 +37,11 @@ export default async function ShippingPage({
           showFinishedTasks={false}
           kanbanBoards={staticData}
           lang={lang}
-          dict={(dictionary.pages as I18nRecord)?.shippingv1 as I18nRecord}
+          dictionary={{
+            base: (dictionary.pages as I18nRecord)?.shippingv1 as I18nRecord,
+            general: dictionary,
+          }}
+          userGroups={userGroups}
         />
       </>
     );

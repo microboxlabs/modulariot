@@ -579,3 +579,16 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
     body: formData,
   });
 }
+
+export function useGetTaskData(taskId: string) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/task/mytasks/details?taskId=${taskId}`,
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}

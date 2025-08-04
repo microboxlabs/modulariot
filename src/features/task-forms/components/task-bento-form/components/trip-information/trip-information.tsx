@@ -3,6 +3,7 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import TripData from "./trip-data";
 import TripVerifications from "./trip-verifications";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TripInformation({
   task,
@@ -15,9 +16,11 @@ export default function TripInformation({
   lang: string;
   userGroups: string[];
 }) {
+  console.log(msg);
+
   return (
     <CustomCard
-      title={(msg.bento as I18nRecord).trip_information as string}
+      title={tr("trip_information", msg.bento as I18nRecord)}
       subtitle={task.mintral_serviceCode + "-V"}
     >
       <div className="flex flex-col w-fit gap-2">

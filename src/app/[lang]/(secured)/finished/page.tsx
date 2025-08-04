@@ -1,5 +1,6 @@
 import "server-only";
 import { auth } from "@/auth";
+import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
@@ -16,7 +17,7 @@ export default async function FinishedPage({
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
-
+  const userGroups = await getGroupsForPerson(session!.user.ticket);
   // let tasks;
   try {
     // tasks = await getUserTasks(session!.user.ticket);
@@ -36,7 +37,11 @@ export default async function FinishedPage({
           showFinishedTasks={true}
           kanbanBoards={staticData}
           lang={lang}
-          dict={(dictionary.pages as I18nRecord)?.shipping as I18nRecord}
+          dictionary={{
+            base: (dictionary.pages as I18nRecord)?.shipping as I18nRecord,
+            general: dictionary,
+          }}
+          userGroups={userGroups}
         />
       </div>
     );

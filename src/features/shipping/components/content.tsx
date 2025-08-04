@@ -39,10 +39,7 @@ import {
   Task,
 } from "../types/common.types";
 import KanbanCard from "./kanban-card/kanban-card";
-import {
-  I18nRecord,
-  PropsWithI18nDict,
-} from "@/features/i18n/i18n.service.types";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -58,22 +55,29 @@ import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
 import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
+import ModalTooltip from "./modal-tooltip";
 //import { logger } from "@/lib/logger";
 
 export default function PageContent({
   showFinishedTasks,
   showWorkflowTasks,
   kanbanBoards,
-  dict,
   lang,
-}: PropsWithI18nDict<KanbanPageData>) {
+  dictionary,
+  userGroups,
+}: KanbanPageData & {
+  userGroups: string[];
+}) {
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const [list, setList] = useState<KanbanBoard[]>(kanbanBoards);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [compactKanbanView, setCompactKanbanView] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<string | null>("2691936");
   const pageSize = 100;
+
+  console.log(dictionary);
 
   configureLocale(lang);
   const columns = showWorkflowTasks
@@ -167,19 +171,19 @@ export default function PageContent({
             ]}
             lang={lang}
             rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-            dict={dict}
+            dict={dictionary.base}
           />
           <div className="flex items-center gap-1">
             <CompactKanbanViewSwitcher
               kanbanView={activeView === "kanban"}
               activeView={compactKanbanView}
               onViewChange={setCompactKanbanView}
-              dict={dict}
+              dict={dictionary.base}
             />
             <ViewSwitcher
               activeView={activeView}
               onViewChange={handleViewChange}
-              dict={dict}
+              dict={dictionary.base}
             />
           </div>
         </div>
@@ -189,6 +193,13 @@ export default function PageContent({
           <div
             className={`flex items-start justify-start ${compactKanbanView ? "mx-2 gap-2" : "mx-4 gap-4"} `}
           >
+            <ModalTooltip
+              selectedTask={selectedTask}
+              setSelectedTask={setSelectedTask}
+              dict={dictionary.general}
+              lang={lang}
+              userGroups={userGroups}
+            />
             {list.map((board) => {
               if (showFinishedTasks) {
                 if (!board.finished) {
@@ -210,11 +221,14 @@ export default function PageContent({
                   >
                     <div className="flex-1">
                       {tr(
-                        `kanban.${board.title}${compactKanbanView && ((dict as I18nRecord).kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
-                        dict,
+                        `kanban.${board.title}${compactKanbanView && ((dictionary.base as I18nRecord).kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
+                        dictionary.base,
                       )}
                     </div>
-                    <TaskCounter count={countTasks(board.tasks)} dict={dict} />
+                    <TaskCounter
+                      count={countTasks(board.tasks)}
+                      dict={dictionary.base}
+                    />
                   </div>
                   <div className="mb-6 space-y-4">
                     <ReactSortable
@@ -238,7 +252,7 @@ export default function PageContent({
                         <KanbanCard
                           key={task.id}
                           task={task}
-                          dict={dict}
+                          dict={dictionary.base}
                           table_name={board.title}
                           compactKanbanView={compactKanbanView}
                           showFinishedTasks={showFinishedTasks}
@@ -266,7 +280,7 @@ export default function PageContent({
                   {} as Record<string, KanbanBoard>,
                 ),
               )}
-              dict={dict}
+              dict={dictionary.base}
               lang={lang}
               data_length={myTasksData?.total}
             />

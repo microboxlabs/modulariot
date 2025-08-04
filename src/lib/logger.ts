@@ -73,6 +73,7 @@ const createLoggerConfig = () => {
   if (isDevelopment) {
     return {
       ...baseConfig,
+      /*
       transport: {
         target: "pino-pretty",
         options: {
@@ -82,6 +83,7 @@ const createLoggerConfig = () => {
           messageFormat: "{msg} {req.method} {req.url} {responseTime}ms",
         },
       },
+      */
     };
   }
 

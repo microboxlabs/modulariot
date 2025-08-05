@@ -1,6 +1,5 @@
 "use client";
 
-import { logger } from "@/lib/logger";
 import { useState, useEffect } from "react";
 
 export function useTreatmentsTrip(id?: string) {

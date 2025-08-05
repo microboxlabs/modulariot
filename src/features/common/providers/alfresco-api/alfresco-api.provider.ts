@@ -494,3 +494,17 @@ export async function ecmSovosDec5(
 
   return result as any;
 }
+
+export async function getValidationByServiceCode(
+  ticket: string,
+  serviceCode: string,
+): Promise<TaskResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const result = await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/service/validation?serviceCode=${serviceCode}`,
+  );
+  return result as TaskResponse;
+}

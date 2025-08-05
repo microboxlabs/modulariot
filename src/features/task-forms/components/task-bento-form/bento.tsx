@@ -17,6 +17,7 @@ import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
+import ValidationsInfo from "./components/driver/validations";
 
 const task_states = {
   assignDriver: "planificado",
@@ -180,6 +181,11 @@ export default function Bento({
           {/* Driver Info */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
             <DriverInfo task={task} msg={dict} />
+          </div>
+
+          {/* Validations Info */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
+            <ValidationsInfo task={task} msg={dict} />
           </div>
         </div>
 

@@ -78,8 +78,8 @@ export default function Bento({
   ); */
 
   const {
-    treatmentData,
-    loading: isLoading,
+    treatmentsTripData,
+    isLoading,
     error: errorTreatments,
   } = useTreatmentsTrip(task.mintral_serviceCode);
 
@@ -228,7 +228,7 @@ export default function Bento({
           /> */}
           <SymptomsCard
             dict={dict as I18nRecord}
-            symptoms={treatmentData?.data ?? []}
+            symptoms={treatmentsTripData?.data ?? []}
             isLoading={isLoading}
             error={errorTreatments}
           />

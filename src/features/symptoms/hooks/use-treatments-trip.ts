@@ -1,36 +1,38 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import { useState, useEffect } from "react";
-//import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 
 export function useTreatmentsTrip(id?: string) {
-  const [treatmentData, setTreatmentData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [treatmentsTripData, setTreatmentsTripData] = useState<any | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    async function fetchTreatmentData() {
+    async function fetchTreatmentTrip() {
       try {
-        setLoading(true);
+        setIsLoading(true);
         const response = await fetch(`/app/api/symptoms/trip?id=${id}`);
 
-        if (!response.ok) throw new Error("Failed to fetch treatment data");
+        if (!response.ok) throw new Error("Failed to fetch treatment trip");
 
         const data = await response.json();
-        setTreatmentData(data);
+        setTreatmentsTripData(data);
       } catch (err) {
         setError(
           err instanceof Error
             ? err
-            : new Error("Failed to fetch treatment data"),
+            : new Error("Failed to fetch treatment trip data"),
         );
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
 
-    fetchTreatmentData();
+    fetchTreatmentTrip();
   }, [id]);
 
-  return { treatmentData, loading, error };
+  return { treatmentsTripData, isLoading, error };
 }

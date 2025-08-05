@@ -124,7 +124,29 @@ export default function FileImages({
         }
 
         setIsDragOver(false);
-        setUploadableFiles(Array.from(e.dataTransfer.files));
+        const files = Array.from(e.dataTransfer.files);
+        const allowedTypes = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "application/pdf",
+        ];
+        const validFiles = files.filter((file) =>
+          allowedTypes.includes(file.type),
+        );
+
+        if (validFiles.length !== files.length) {
+          alert(
+            tr(
+              "only_jpg_jpeg_png_pdf_allowed",
+              ((dictionary as I18nRecord).bento as I18nRecord)
+                .multimedia as I18nRecord,
+            ),
+          );
+          return;
+        }
+
+        setUploadableFiles(validFiles);
         setIsClasificationFormOpen(true);
       }}
     >
@@ -166,10 +188,33 @@ export default function FileImages({
               id="file-input"
               className="hidden"
               multiple
+              accept=".jpg,.jpeg,.png,.pdf"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
+                  const files = Array.from(e.target.files);
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/jpg",
+                    "image/png",
+                    "application/pdf",
+                  ];
+                  const validFiles = files.filter((file) =>
+                    allowedTypes.includes(file.type),
+                  );
+
+                  if (validFiles.length !== files.length) {
+                    alert(
+                      tr(
+                        "only_jpg_jpeg_png_pdf_allowed",
+                        ((dictionary as I18nRecord).bento as I18nRecord)
+                          .multimedia as I18nRecord,
+                      ),
+                    );
+                    return;
+                  }
+
                   setIsClasificationFormOpen(true);
-                  setUploadableFiles(Array.from(e.target.files));
+                  setUploadableFiles(validFiles);
                 }
               }}
             />

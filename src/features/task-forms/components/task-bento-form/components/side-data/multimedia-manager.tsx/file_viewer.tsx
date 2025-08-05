@@ -9,6 +9,27 @@ export default function FileViewer({
   setSelected: (selected: any) => void;
 }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if device is mobile
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent,
+        );
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice || isSmallScreen);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     if (selected && selected.startsWith("data:")) {
@@ -46,15 +67,27 @@ export default function FileViewer({
     };
   }, [blobUrl]);
 
+  const handleMobileOpen = () => {
+    if (blobUrl) {
+      window.open(blobUrl, "_blank");
+      setSelected(null); // Close the modal
+    }
+  };
+
+  if (blobUrl && isMobile) {
+    handleMobileOpen();
+    return null;
+  }
+
   return (
     <AbsoluteModal selected={selected} setSelected={setSelected}>
-      <div className="w-full h-full">
+      <div className="w-[80vw] h-[80vh]">
         {blobUrl ? (
           <iframe
             src={blobUrl}
             className="w-full h-full border-0"
             title="PDF Viewer"
-          />
+          ></iframe>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <p>Loading PDF...</p>

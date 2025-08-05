@@ -290,6 +290,7 @@ export default function FileImages({
                   file={image.file}
                   index={index}
                   setSelectedImage={setSelectedImage}
+                  dictionary={dictionary}
                 />
               ))}
             </div>
@@ -369,6 +370,7 @@ export default function FileImages({
           images={images}
           selected={selectedImage}
           setSelected={setSelectedImage}
+          dictionary={dictionary}
         />
 
         <FileViewer

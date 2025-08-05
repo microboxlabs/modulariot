@@ -1,6 +1,8 @@
 import { Checkbox } from "flowbite-react";
 import SelectorDropdown from "@/features/common/components/custom-dropdown/selector-dropdown";
 import { FileType } from "./clasification-form";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function LoadableDoc({
   selectedDocs,
@@ -10,6 +12,7 @@ export default function LoadableDoc({
   error,
   selectCategory,
   uploading,
+  dictionary,
 }: {
   selectedDocs: string[];
   setSelectedDocs: (docs: string[]) => void;
@@ -18,6 +21,7 @@ export default function LoadableDoc({
   error: boolean;
   selectCategory: (category: string) => void;
   uploading: boolean;
+  dictionary: I18nRecord;
 }) {
   return (
     <div
@@ -53,11 +57,17 @@ export default function LoadableDoc({
           </div>
         */}
       </div>
+      {error && (
+        <div className="text-red-500 text-xs font-light">
+          {tr("select_document_type_error", (dictionary.bento as I18nRecord).multimedia as I18nRecord)}
+        </div>
+      )}
       <SelectorDropdown
         categories={categories}
         baseCategory={file.category}
         selectCategory={selectCategory}
         disabled={uploading}
+        dictionary={dictionary}
       />
     </div>
   );

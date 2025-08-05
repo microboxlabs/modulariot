@@ -95,14 +95,25 @@ export default function Carousel({
           </div>
         ))}
         {/* indicators */}
+        
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-row gap-2 backdrop-blur-[10px] bg-white/50 p-2 rounded-full">
-          {images.map((image, index) => (
-            <div
-              key={index}
-              className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
-              onClick={() => setSelected(index)}
-            />
-          ))}
+          {
+            images.length < 8 ? (
+              <div className="w-full h-full flex flex-row gap-2">
+                {images.map((image, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
+                    onClick={() => setSelected(index)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-full">
+                {selected + 1}{" "}/{" "}{images.length}
+              </div>
+            )
+          }
         </div>
       </div>
     </div>

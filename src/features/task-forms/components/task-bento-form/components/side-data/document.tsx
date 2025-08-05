@@ -14,15 +14,17 @@ export default function Document({
   const [thumbnailError, setThumbnailError] = useState<boolean>(false);
   const [thumbnailIsLoading, setThumbnailIsLoading] = useState<boolean>(true);
 
-  useGetNodeThumbnail(document.file.entry.id)
-    .then((res: any) => {
-      setThumbnail(res);
+  const { data, error, isLoading } = useGetNodeThumbnail(document.file.entry.id);
+
+  useEffect(() => {
+    if (data) {
+      setThumbnail(data);
       setThumbnailIsLoading(false);
-    })
-    .catch((_err: any) => {
+    } else {
       setThumbnailError(true);
       setThumbnailIsLoading(false);
-    });
+    }
+  }, [data, error]);
 
   // Convert blob to URL for display
   const thumbnailUrl = thumbnail ? URL.createObjectURL(thumbnail) : null;

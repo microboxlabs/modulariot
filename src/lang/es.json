@@ -1110,6 +1110,9 @@
       "finished": "Finalizado"
     },
     "multimedia": {
+      "only_jpg_jpeg_png_pdf_allowed": "Solo se permiten archivos JPG, JPEG, PNG y PDF.",
+      "select_document_type": "Selecciona un Tipo de Documento",
+      "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
         "PROOF_OF_PICKUP": "Prueba de Retiro",

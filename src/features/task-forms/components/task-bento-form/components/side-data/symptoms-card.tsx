@@ -44,7 +44,8 @@ const SymptomCard = ({
   dict: I18nRecord;
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center gap-2 min-w-fit">
+    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center gap-2 w-[134px] h-[70px] p-2">
+      {/* min-w-fit */}
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
         <div className="text-gray-600">
@@ -72,7 +73,7 @@ const SymptomCard = ({
       </div>
 
       {/* Third column: Number */}
-      <div className="text-l font-bold text-gray-800 flex-shrink-0">
+      <div className="text-xl text-gray-800 flex-shrink-0">
         {symptom.count.toString().padStart(2, "0")}
       </div>
     </div>
@@ -238,8 +239,8 @@ export default function SymptomsCard({
         {allSymptoms
           .filter((e) => e.count > 0)
           .map((symptom) => (
-            <div key={symptom.key} className="flex-1 max-w-fit ">
-              {/* min-w-[49%] */}
+            <div key={symptom.key} className="flex-1">
+              {/* min-w-[49%] max-w-fit */}
               <SymptomCard symptom={symptom} dict={dict} />
             </div>
           ))}

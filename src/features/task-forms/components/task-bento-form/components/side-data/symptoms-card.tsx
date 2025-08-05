@@ -44,65 +44,6 @@ const SymptomCard = ({
   symptom: SymptomData;
   dict: I18nRecord;
 }) => {
-  /* return (
-    <div className="self-stretch p-2 bg-white rounded-lg shadow-[0px_2px_4px_-2px_rgba(0,0,0,0.05)] shadow-md outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex justify-start items-center gap-0.5 overflow-hidden">
-      <div className="inline-flex flex-col justify-center items-center gap-0.5">
-        <div className="flex flex-col justify-start items-start gap-2">
-          <div
-            data-symptoms="Double Driver Rotation Check"
-            className="w-7 h-7 relative overflow-hidden"
-          >
-            <div className="w-3.5 h-4 left-[13.95px] top-[8.56px] absolute bg-gray-700" />
-            <div className="w-4 h-4 left-0 top-[11.17px] absolute bg-gray-400" />
-            <div className="w-2 h-[5.19px] left-[15.80px] top-[9.96px] absolute origin-top-left rotate-180 bg-gray-400 outline outline-1 outline-offset-[-0.49px] outline-gray-700" />
-            <div className="w-2 h-[5.19px] left-[12.20px] top-[1.01px] absolute bg-white outline outline-1 outline-offset-[-0.49px] outline-gray-700" />
-          </div>
-        </div>
-        <div className="inline-flex justify-start items-center">
-          <div className="w-3 h-3 bg-gray-200 rounded-full outline outline-[0.37px] outline-offset-[-0.37px] outline-black flex justify-center items-center">
-            <div className="w-1.5 h-1.5 p-[1.25px] inline-flex flex-col justify-center items-center gap-[1.25px]">
-              <div className="w-0.5 h-1 origin-top-left -rotate-180 text-center justify-center text-white text-[4px] font-medium font-['Inter'] leading-[9px] tracking-tight">
-                !
-              </div>
-            </div>
-          </div>
-          <div className="w-3 h-3 bg-rose-100 rounded-full outline outline-[0.37px] outline-offset-[-0.37px] outline-rose-700 flex justify-center items-center">
-            <div className="w-3 h-3 flex justify-center items-center gap-[2.73px]">
-              <div className="w-[2.45px] h-[4.89px] text-center justify-center text-white text-[4.36px] font-medium font-['Inter'] leading-[9.82px] tracking-tight">
-                !
-              </div>
-            </div>
-          </div>
-          <div className="w-3 h-3 bg-rose-50 rounded-full outline outline-[0.37px] outline-offset-[-0.37px] outline-rose-700 flex justify-center items-center">
-            <div className="w-3 h-3 flex justify-center items-center gap-[2.73px]">
-              <div className="w-3 h-3 flex justify-center items-center gap-[2.73px]">
-                <div className="w-[2.45px] h-[4.89px] text-center justify-center text-rose-600 text-[4.36px] font-medium font-['Inter'] leading-[9.82px] tracking-tight">
-                  !
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="w-3 h-3 bg-white rounded-full outline outline-[0.37px] outline-offset-[-0.37px] outline-rose-700 flex justify-center items-center">
-            <div className="w-3 h-3 flex justify-center items-center gap-[2.73px]">
-              <div className="w-3 h-3 flex justify-center items-center gap-[2.73px]">
-                <div className="w-[2.45px] h-[4.89px] text-center justify-center text-rose-600 text-[4.36px] font-medium font-['Inter'] leading-[9.82px] tracking-tight">
-                  !
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex-1 h-3.5 justify-center text-gray-900 text-xs font-medium font-['Inter'] leading-3">
-        Cambio de conductor
-      </div>
-      <div className="w-6 flex justify-end items-center gap-2">
-        <div className="justify-start text-gray-500 text-base font-medium font-['Inter'] leading-normal">
-          02
-        </div>
-      </div>
-    </div>
-  ); */
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center gap-2">
       {/* First column: Icon and conditions */}
@@ -166,15 +107,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-          {symptoms &&
-            symptoms.map((_: any, i: number) => (
-              <div
-                key={i}
-                className="bg-gray-200 animate-pulse rounded-lg h-20"
-              />
-            ))}
-        </div>
+        <div className="bg-gray-200 animate-pulse rounded-lg h-20" />
       </CustomCard>
     );
   }

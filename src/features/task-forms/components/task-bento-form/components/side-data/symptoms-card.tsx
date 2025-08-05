@@ -44,7 +44,7 @@ const SymptomCard = ({
   dict: I18nRecord;
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center gap-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center gap-2 min-w-fit">
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
         <div className="text-gray-600">
@@ -107,7 +107,7 @@ export default function SymptomsCard({
     );
   }
 
-  if (symptoms && symptoms.length === 0) {
+  if (symptoms && (symptoms.length === 0 || symptoms.length === undefined)) {
     return (
       <CustomCard
         title={
@@ -139,7 +139,7 @@ export default function SymptomsCard({
       key: "speed_limit",
       icon: "SPEED LIMIT STANDARD",
       id: "Speed Limit standard",
-      label: (dict.symptoms as I18nRecord)["speed limit"] as string,
+      label: (dict.symptoms as I18nRecord)["Speed Limit Standard"] as string,
       count: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
       conditions: getConditions(symptoms, "Speed Limit Standard") || [""],
     },
@@ -234,11 +234,14 @@ export default function SymptomsCard({
       }
       subtitle={null}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      <div className="flex flex-wrap gap-2">
         {allSymptoms
           .filter((e) => e.count > 0)
           .map((symptom) => (
-            <SymptomCard key={symptom.key} symptom={symptom} dict={dict} />
+            <div key={symptom.key} className="flex-1 max-w-fit ">
+              {/* min-w-[49%] */}
+              <SymptomCard symptom={symptom} dict={dict} />
+            </div>
           ))}
       </div>
     </CustomCard>

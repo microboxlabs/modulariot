@@ -1,3 +1,4 @@
+"use client";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
@@ -5,11 +6,11 @@ import {
   ValidationStatus,
   ServiceValidationData,
 } from "./validations.types";
-import { useGetValidationByServiceCode } from "@/features/common/providers/client-api.provider";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
 
 import CustomCard from "@/features/common/components/custom-card/custom-card";
+import { useGetValidation } from "@/features/common/providers/client-api.provider";
 
 // Validation status icons
 const ValidationIcon = ({ status }: { status: ValidationStatus }) => {
@@ -119,13 +120,12 @@ export default function ValidationsInfo({
   readonly task: TaskResponse;
   readonly msg: I18nRecord;
 }) {
-  const { data: serviceValidation } = useGetValidationByServiceCode(
+  const { data: serviceValidation } = useGetValidation(
     task.mintral_serviceCode,
   );
 
-  let validationData: ServiceValidationData | null = null;
-
-  validationData = serviceValidation as ServiceValidationData;
+  const validationData: ServiceValidationData =
+    serviceValidation as ServiceValidationData;
 
   return (
     <CustomCard

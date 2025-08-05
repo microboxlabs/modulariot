@@ -139,9 +139,9 @@ export async function taskSignIdCardDocument(
 /**
  * Calcula el tipo de validación GPS basado en el último timestamp de la entidad.
  * La regla definida es:
- * - Menos de 2 minutos: "ok"
- * - Entre 2 y 5 minutos: "warning"
- * - Más de 5 minutos: "error"
+ * - Menos de 30 minutos: "ok"
+ * - Entre 30 y 60 minutos: "warning"
+ * - Más de 60 minutos: "error"
  * @param entityInfo Información de la entidad obtenida desde la API de Microboxlabs.
  * @returns El tipo de validación GPS ("ok", "warning", "error").
  */
@@ -153,8 +153,8 @@ export function calcGpsValidationType(
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - lastTimestamp.getTime());
   const diffSeconds = Math.round(diffTime / 1000);
-  if (diffSeconds < 120) return "ok";
-  if (diffSeconds >= 120 && diffSeconds < 300) return "warning";
+  if (diffSeconds < 1800) return "ok";
+  if (diffSeconds >= 1800 && diffSeconds < 3600) return "warning";
   return "error";
 }
 

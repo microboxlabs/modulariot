@@ -141,6 +141,52 @@ export default function ClasificationForm({
         />
       }
     >
+      <div className="flex flex-col gap-2">
+        <div
+          className={`${selectedDocs.length > 0 ? "block" : "hidden"} flex flex-col gap-2`}
+        >
+          <Button
+            className="w-full"
+            color="red"
+            onClick={() => {
+              setLoadableDocs(
+                loadableDocs.filter(
+                  (loadableDoc: any) =>
+                    !selectedDocs.includes(
+                      loadableDoc.name + "-" + loadableDoc.lastModified,
+                    ),
+                ),
+              );
+              setSelectedDocs([]);
+            }}
+          >
+            Eliminar Seleccionados
+          </Button>
+          <SelectorDropdown
+            dictionary={dictionary}
+            selectCategory={(category) => {
+              setLoadableDocs(
+                loadableDocs.map((loadableDoc) =>
+                  selectedDocs.includes(
+                    loadableDoc.name + "-" + loadableDoc.lastModified,
+                  )
+                    ? { ...loadableDoc, category }
+                    : loadableDoc,
+                ),
+              );
+            }}
+            categories={Object.values(categories)}
+          />
+        </div>
+        <Button
+          className="w-full"
+          color="blue"
+          onClick={handleUpload}
+          disabled={isUploading}
+        >
+          {isUploading ? "Subiendo..." : "Subir"}
+        </Button>
+      </div>
       <div
         className={`flex flex-col gap-2 flex-grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
         onDragEnter={(e) => {
@@ -217,52 +263,6 @@ export default function ClasificationForm({
             }}
           />
         ))}
-      </div>
-      <div className="flex flex-col gap-2">
-        <div
-          className={`${selectedDocs.length > 0 ? "block" : "hidden"} flex flex-col gap-2`}
-        >
-          <Button
-            className="w-full"
-            color="red"
-            onClick={() => {
-              setLoadableDocs(
-                loadableDocs.filter(
-                  (loadableDoc: any) =>
-                    !selectedDocs.includes(
-                      loadableDoc.name + "-" + loadableDoc.lastModified,
-                    ),
-                ),
-              );
-              setSelectedDocs([]);
-            }}
-          >
-            Eliminar Seleccionados
-          </Button>
-          <SelectorDropdown
-            dictionary={dictionary}
-            selectCategory={(category) => {
-              setLoadableDocs(
-                loadableDocs.map((loadableDoc) =>
-                  selectedDocs.includes(
-                    loadableDoc.name + "-" + loadableDoc.lastModified,
-                  )
-                    ? { ...loadableDoc, category }
-                    : loadableDoc,
-                ),
-              );
-            }}
-            categories={Object.values(categories)}
-          />
-        </div>
-        <Button
-          className="w-full"
-          color="blue"
-          onClick={handleUpload}
-          disabled={isUploading}
-        >
-          {isUploading ? "Subiendo..." : "Subir"}
-        </Button>
       </div>
     </InnerContainer>
   );

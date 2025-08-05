@@ -3,16 +3,22 @@ import { MdOutlineFileDownload } from "react-icons/md";
 import { FaShare } from "react-icons/fa";
 import Carousel from "../carousel";
 import { toast } from "sonner";
+import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 // This component is the general image displayer
 export default function ImageViewer({
   images,
   selected,
   setSelected,
+  tags = [],
+  dictionary,
 }: {
   images: string[];
   selected: number | null;
   setSelected: (index: number | null) => void;
+  tags?: string[];
+  dictionary: I18nRecord;
 }) {
   const handleShare = async () => {
     if (!navigator.share || selected === null) {
@@ -44,6 +50,10 @@ export default function ImageViewer({
         });
         toast.success("Imagen compartida");
       } catch (error) {
+        // Don't show error for user cancellation
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
         console.error("Share error:", error);
         toast.error("Error al compartir imagen");
       }
@@ -63,11 +73,17 @@ export default function ImageViewer({
 
         toast.success("Imagen compartida");
       } catch (error) {
+        // Don't show error for user cancellation
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
         console.error("Share error:", error);
         toast.error("Error al compartir imagen");
       }
     }
   };
+
+  const categories = getCategories(dictionary);
 
   return (
     <div
@@ -98,12 +114,18 @@ export default function ImageViewer({
           </div>
           {selected !== null && (
             <div className="w-full flex justify-between items-center text-white transition-all duration-300 gap-2 p-2">
-              <div className="text-gray-500 dark:text-gray-300 text-sm font-light">
-                {
-                  images[selected]?.split("/")[
-                    images[selected]?.split("/").length - 1
-                  ]
-                }
+              <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1">
+                <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full font-light truncate">
+                  {
+                    images[selected]?.split("/")[
+                      images[selected]?.split("/").length - 1
+                    ]
+                  }
+                </div>
+                <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1">
+                  {categories[tags[selected] as keyof typeof categories]
+                    ?.label || "Sin categoría"}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button

@@ -87,7 +87,9 @@ export default function Document({
         {document.file.entry.properties["mintral:contentType"] && (
           <div
             className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
-              modified ? "dark:bg-gray-700 dark:text-gray-400 bg-gray-200 text-gray-00" : "bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 "
+              modified
+                ? "dark:bg-gray-700 dark:text-gray-400 bg-gray-200 text-gray-00"
+                : "bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 "
             }`}
           >
             {

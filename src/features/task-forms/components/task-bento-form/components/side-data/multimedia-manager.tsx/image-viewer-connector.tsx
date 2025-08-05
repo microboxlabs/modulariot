@@ -25,7 +25,7 @@ export default function ImageViewerConnector({
 
   const imagesUrls = useMemo(() => {
     return images
-      .map((image: any, index: number) => {
+      .map((image: any) => {
         if (image.data) {
           return displayBase64Content(
             image.data,

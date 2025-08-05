@@ -116,9 +116,7 @@ export default function ImageViewer({
             <div className="w-full flex justify-between items-center text-white transition-all duration-300 gap-2 p-2">
               <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1">
                 <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
-                  {
-                    data[selected]?.name
-                  }
+                  {data[selected]?.name}
                 </div>
                 <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1">
                   {categories[data[selected]?.tag as keyof typeof categories]

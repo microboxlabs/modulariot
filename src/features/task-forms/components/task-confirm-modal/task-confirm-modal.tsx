@@ -17,6 +17,7 @@ import { ErrorAlert } from "../error-alert";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
   OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
+  OUTCOME_OVERLORD_REQUIRED_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
@@ -193,6 +194,7 @@ export default function TaskConfirmModal({
               (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK &&
                 (outcome === OUTCOME_ASSIGN_DRIVER_V2 ||
                   outcome === OUTCOME_PRESENT_DRIVER_V2 ||
+                  outcome === OUTCOME_OVERLORD_REQUIRED_V2 ||
                   outcome === OUTCOME_PREPARE_SERVICE_V2) && (
                   <>
                     <Label className="mt-4">

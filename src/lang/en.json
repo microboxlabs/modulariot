@@ -472,6 +472,7 @@
         "Notificar Entrega (5.11)": "Notify Delivery",
         "Viaje Finalizado": "Trip Finished",
         "Viaje Rechazado": "Trip Rejected POD",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -566,6 +567,7 @@
         "authorizedWithRepairs": "Authorized with Repairs",
         "canceledByOverlord": "Canceled by Overlord",
         "annulledByOverlord": "Annulled by Overlord",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",

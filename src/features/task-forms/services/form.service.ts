@@ -293,6 +293,8 @@ export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =
   "Viaje Rechazado";
+export const OUTCOME_OVERLORD_REQUIRED_V2: TaskOutcomeV2 =
+  "Requiere Overlord";
 
 export const getTransitionIdV2 = (
   taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
@@ -384,12 +386,19 @@ export const getSecondaryTransitionIdV2 = (
           icon: HiOutlineArrowLeft,
         },
         {
+          id: OUTCOME_OVERLORD_REQUIRED_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_OVERLORD_REQUIRED_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
+        },
+        {
           id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
           label: (dict.outcome as I18nRecord)[
             OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
           ] as string,
           icon: HiOutlineArrowRight,
-        },
+        },        
       ],
     );
   } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {

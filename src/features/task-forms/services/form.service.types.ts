@@ -185,7 +185,7 @@ export type DeliveryProcessForms =
   | "wfship2:notifyTMSArrivalTask"
   | "wfship2:notifyTMSDeliveryTask";
 
-export type ConfirmDeliveryOutcome = "Recibir Entrega";
+export type ConfirmDeliveryOutcome = "Recibir Entrega" | "Viaje Rechazado";
 
 export type ReceiveDeliveryOutcome =
   | "Confirmar Entrega"

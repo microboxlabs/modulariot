@@ -291,6 +291,8 @@ export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";
 export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
+export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =
+  "Viaje Rechazado";
 
 export const getTransitionIdV2 = (
   taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
@@ -426,6 +428,13 @@ export const getSecondaryTransitionIdV2 = (
             OUTCOME_TO_CLOSE_MONITORING_V2
           ] as string,
           icon: HiOutlineArrowRight,
+        },
+        {
+          id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
+          label: (dict.outcome as I18nRecord)[
+            OUTCOME_OVERLORD_CANCELED_SOVOS_V2
+          ] as string,
+          icon: HiOutlineArrowLeft,
         },
       ],
     );

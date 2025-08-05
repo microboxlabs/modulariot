@@ -29,6 +29,7 @@ import {
   SignIdCardRequest,
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
+import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -522,4 +523,71 @@ export function signDec5(taskId: string): Promise<any> {
       taskId,
     }),
   });
+}
+
+export function useGetNodeChildren(nodeId: string | undefined) {
+  const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
+    nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+export function useGetNodeContents(nodeIds: string[]) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
+    fetcher,
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useGetNodeThumbnail(nodeId: string) {
+  return fetcher(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+}
+
+export function postBentoMultimedia(sendableFile: SendableFile) {
+  const url = "/app/api/bento/upload";
+
+  // Create FormData for file upload
+  const formData = new FormData();
+  formData.append("filedata", sendableFile.filedata);
+  formData.append(
+    "prop_mintral_contentType",
+    sendableFile.prop_mintral_contentType,
+  );
+  formData.append("prop_cm_name", sendableFile.prop_cm_name);
+  formData.append("prop_mimetype", sendableFile.prop_mimetype);
+  formData.append("alf_destination", sendableFile.alf_destination);
+
+  return fetcher(url, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function useGetValidation(serviceCode: string) {
+  const { data, error, isLoading } = useSWR<
+    ServiceValidationResponse,
+    FetcherError
+  >(`/app/api/task/validation?serviceCode=${serviceCode}`, fetcher);
+  return {
+    data,
+    error,
+    isLoading,
+  };
 }

@@ -410,7 +410,7 @@
         "comments": "Comentarios",
         "consolidation": "Consolidación",
         "documentSeparation": "Separación Documental",
-        "clientSystemValidation": "Validación Sistema Cliente",
+        "clientSystemValidation": "Validación Sistema Cliente",       
         "gpsValidation": "Validación GPS",
         "gpsValidationError": "Error al cargar la validación GPS",
         "entity": "Patente",
@@ -473,7 +473,8 @@
         "Recibir Entrega": "Recibir Entrega",
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
-        "Viaje Finalizado": "Viaje Finalizado"
+        "Viaje Finalizado": "Viaje Finalizado",
+        "Viaje Rechazado": "Viaje Rechazado POD"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -490,6 +491,10 @@
         "missionControlTripInitTaskReason2": "No tiene consolidación documental.",
         "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
         "missionControlTripInitTaskReason4": "Otro.",
+        "PODReason1": "Documento no corresponde al servicio (se adjuntó un archivo sin relación con la carga).",
+        "PODReason2": "Falta identificación del receptor (timbre, nombre o RUT de quien recibió la carga).",
+        "PODReason3": "POD incompleto: sin autorización de cliente (el documento debe incluir el correo que avala la entrega).",
+        "PODReason4": "Otro.",
         
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
@@ -1084,6 +1089,25 @@
     "arribado_cp": "Arribado CP",
     "recepcionado": "Recepcionado",
     "taken_by": "Tomada por",
+
+    "gpsValidation": "Validación GPS",
+    "consolidation": "Consolidación",
+    "documentSeparation": "Separación Documental",
+    "clientSystemValidation": "Validación Sistema Cliente",
+    "assignedDepartureDate": "Fecha de salida asignada",
+    "assignedArrivalDate": "Fecha de llegada asignada",
+    "assignedDeliveryDate": "Fecha de entrega asignada",
+    "generalAlcoholTest": "Test de alcohol general",
+    "generalDrugTest": "Test de drogas general",
+    "generalDrowsinessTest": "Test de somnolencia general",
+    "driverApp": "APP Conductor",
+    "biometricValidation": "Validación Biométrica",
+    "validations": "Validaciones",
+    "DEVICES": "Equipo",
+    "PAYLOAD": "Carga",
+    "DRIVERS": "Conductor",
+    "forum": "Foro",
+    "forum_subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "driver_change": "Cambio de conductor",
     "speed_limit": "Limite de velocidad",
     "speed_limit_custom": "Limite de velocidad custom",
@@ -1121,6 +1145,23 @@
       "notifyTMSDelivery": "Notificar Entrega (5.11)",
       "finished_process": "Proceso finalizado",
       "finished": "Finalizado"
+    },
+    "multimedia": {
+      "categories": {
+        "PROOF_OF_DELIVERY": "Prueba de Entrega",
+        "PROOF_OF_PICKUP": "Prueba de Retiro",
+        "CARGO_MANIFEST": "Carta de Porte",
+        "OTHER": "Otro"
+      },
+      "title": "Multimedia",
+      "subtitle": "Arrastre y suelte un archivo aquí o",
+      "upload": "Subir documento",
+      "gallery": "Galería",
+      "elements": "elementos",
+      "viewMore": "Ver más",
+      "noImages": "No hay imágenes",
+      "documents": "Documentos",
+      "noDocuments": "No hay documentos"
     }
   },
   "searchbar": {

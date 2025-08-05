@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 
     const apiData = await response.json();
 
-    return NextResponse.json(apiData);
+    return NextResponse.json(apiData.data);
   } catch (error) {
     return NextResponse.json(
       {

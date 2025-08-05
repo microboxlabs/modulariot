@@ -1130,6 +1130,9 @@
       "finished": "Finished"
     },
     "multimedia": {
+      "only_jpg_jpeg_png_pdf_allowed": "Only JPG, JPEG, PNG and PDF files are allowed.",
+      "select_document_type": "Select a document type",
+      "select_document_type_error": "You must select a document type",
       "categories": {
         "PROOF_OF_DELIVERY": "Proof of delivery",
         "PROOF_OF_PICKUP": "Proof of pickup",

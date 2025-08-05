@@ -99,7 +99,6 @@ export default function SymptomsCard({
   error: Error | null;
 }) {
   logger.info(symptoms);
-
   if (error) {
     return <div>Error: {error.message}</div>;
   }

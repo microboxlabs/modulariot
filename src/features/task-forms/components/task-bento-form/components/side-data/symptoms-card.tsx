@@ -49,17 +49,13 @@ const SymptomCard = ({
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
         <div className="text-gray-600">
-          <SymptomIcon
-            type={symptom.icon as string}
-            size="h-6 w-6"
-            dict={dict}
-          />
+          <SymptomIcon type={symptom.icon} size="h-6 w-6" dict={dict} />
         </div>
         <div className="flex gap-1">
           <div className="flex -space-x-2.5 transition-all duration-[0.5s] animate-show-flex">
-            {Array.from(symptom.conditions).map((condition, index) => (
+            {Array.from(symptom.conditions).map((condition) => (
               <ConditionIcon
-                key={index}
+                key={condition}
                 condition={condition ?? ""}
                 size="h-4 w-4"
                 dict={dict}
@@ -88,8 +84,8 @@ export default function SymptomsCard({
   dict,
   task,
 }: {
-  dict: I18nRecord;
-  task: TaskResponse;
+  readonly dict: I18nRecord;
+  readonly task: TaskResponse;
 }) {
   const {
     treatmentsTripData: symptoms,

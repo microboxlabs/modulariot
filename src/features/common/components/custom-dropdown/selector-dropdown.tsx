@@ -18,8 +18,11 @@ export default function SelectorDropdown({
   dictionary: I18nRecord;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<{ value: string; label: string } | null>(
-    categories.find(category => category.value === baseCategory) || null,
+  const [selectedCategory, setSelectedCategory] = useState<{
+    value: string;
+    label: string;
+  } | null>(
+    categories.find((category) => category.value === baseCategory) || null,
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +43,9 @@ export default function SelectorDropdown({
   }, []);
 
   useEffect(() => {
-    setSelectedCategory(categories.find(category => category.value === baseCategory) || null);
+    setSelectedCategory(
+      categories.find((category) => category.value === baseCategory) || null,
+    );
   }, [baseCategory]);
 
   return (
@@ -80,13 +85,14 @@ export default function SelectorDropdown({
             >
               {selectedCategory ? (
                 <span className="text-sm font-light">
-                  {
-                    selectedCategory?.label
-                  }
+                  {selectedCategory?.label}
                 </span>
               ) : (
                 <span className="text-sm font-light">
-                  {tr("select_document_type", (dictionary.bento as I18nRecord).multimedia as I18nRecord)}
+                  {tr(
+                    "select_document_type",
+                    (dictionary.bento as I18nRecord).multimedia as I18nRecord,
+                  )}
                 </span>
               )}
               <HiChevronDown

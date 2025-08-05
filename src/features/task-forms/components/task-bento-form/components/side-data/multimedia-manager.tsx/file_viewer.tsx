@@ -15,16 +15,19 @@ export default function FileViewer({
     // Check if device is mobile
     const checkMobile = () => {
       const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent,
+        );
       const isSmallScreen = window.innerWidth <= 768;
       setIsMobile(isMobileDevice || isSmallScreen);
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
 
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener("resize", checkMobile);
     };
   }, []);
 
@@ -66,7 +69,7 @@ export default function FileViewer({
 
   const handleMobileOpen = () => {
     if (blobUrl) {
-      window.open(blobUrl, '_blank');
+      window.open(blobUrl, "_blank");
       setSelected(null); // Close the modal
     }
   };
@@ -80,11 +83,11 @@ export default function FileViewer({
     <AbsoluteModal selected={selected} setSelected={setSelected}>
       <div className="w-[80vw] h-[80vh]">
         {blobUrl ? (
-            <iframe
-              src={blobUrl}
-              className="w-full h-full border-0"
-              title="PDF Viewer"
-            ></iframe>
+          <iframe
+            src={blobUrl}
+            className="w-full h-full border-0"
+            title="PDF Viewer"
+          ></iframe>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <p>Loading PDF...</p>

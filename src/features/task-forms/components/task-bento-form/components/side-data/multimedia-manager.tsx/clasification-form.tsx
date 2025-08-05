@@ -171,18 +171,27 @@ export default function ClasificationForm({
           e.preventDefault();
           setIsDragOver(false);
           const files = Array.from(e.dataTransfer.files);
-          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-          const validFiles = files.filter(file => allowedTypes.includes(file.type));
-          
+          const allowedTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "application/pdf",
+          ];
+          const validFiles = files.filter((file) =>
+            allowedTypes.includes(file.type),
+          );
+
           if (validFiles.length !== files.length) {
-            alert(tr(
-              "only_jpg_jpeg_png_pdf_allowed",
-              ((dictionary as I18nRecord).bento as I18nRecord)
-                .multimedia as I18nRecord,
-            ));
+            alert(
+              tr(
+                "only_jpg_jpeg_png_pdf_allowed",
+                ((dictionary as I18nRecord).bento as I18nRecord)
+                  .multimedia as I18nRecord,
+              ),
+            );
             return;
           }
-          
+
           setUploadableFiles([...uploadableFiles, ...validFiles]);
         }}
       >

@@ -25,11 +25,11 @@ export default function ImageViewer({
       try {
         const url = new URL(urlString);
         // Check if it's a blob URL (starts with blob:)
-        if (url.protocol === 'blob:') {
+        if (url.protocol === "blob:") {
           return false;
         }
         // Check for common URL protocols
-        return ['http:', 'https:', 'ftp:', 'ftps:'].includes(url.protocol);
+        return ["http:", "https:", "ftp:", "ftps:"].includes(url.protocol);
       } catch {
         return false;
       }
@@ -51,14 +51,16 @@ export default function ImageViewer({
       try {
         const response = await fetch(images[selected]);
         const blob = await response.blob();
-        const newFile = new File([blob], "imagen.png", { type: blob.type || "image/png" });
+        const newFile = new File([blob], "imagen.png", {
+          type: blob.type || "image/png",
+        });
 
         await navigator.share({
           title: "Vista geográfica",
           text: "Compartir la vista geográfica",
-          files: [newFile]
+          files: [newFile],
         });
-        
+
         toast.success("Imagen compartida");
       } catch (error) {
         console.error("Share error:", error);

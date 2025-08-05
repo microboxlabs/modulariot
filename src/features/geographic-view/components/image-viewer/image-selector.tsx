@@ -115,7 +115,7 @@ export function ImageComponent({
   return (
     <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 h-40 relative">
       {tag && (
-        <div className="bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 px-2 py-1 text-xs w-full absolute top-0 left-0 z-10 flex items-center justify-center">
+        <div className="whitespace-nowrap bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 px-2 py-1 text-xs w-full absolute top-0 left-0 z-10 flex items-center justify-center">
           {tag}
         </div>
       )}

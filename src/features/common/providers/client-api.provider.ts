@@ -525,6 +525,18 @@ export function signDec5(taskId: string): Promise<any> {
   });
 }
 
+export function useGetValidationByServiceCode(serviceCode: string) {
+  const { data, error, isLoading } = useSWR<
+    ServiceValidationResponse,
+    FetcherError
+  >(`/app/api/task/validation?serviceCode=${serviceCode}`, fetcher);
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
 export function useGetNodeChildren(nodeId: string | undefined) {
   const { data, error, isLoading, mutate } = useSWR<any, FetcherError>(
     nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,

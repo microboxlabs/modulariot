@@ -474,7 +474,7 @@
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
         "Viaje Finalizado": "Viaje Finalizado",
-        "Viaje Rechazado": "Viaje Rechazado"
+        "Viaje Rechazado": "Viaje Rechazado POD"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -491,6 +491,10 @@
         "missionControlTripInitTaskReason2": "No tiene consolidación documental.",
         "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
         "missionControlTripInitTaskReason4": "Otro.",
+        "PODReason1": "Documento no corresponde al servicio (se adjuntó un archivo sin relación con la carga).",
+        "PODReason2": "Falta identificación del receptor (timbre, nombre o RUT de quien recibió la carga).",
+        "PODReason3": "POD incompleto: sin autorización de cliente (el documento debe incluir el correo que avala la entrega).",
+        "PODReason4": "Otro.",
         
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"

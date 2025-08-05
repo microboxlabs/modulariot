@@ -471,7 +471,7 @@
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
         "Viaje Finalizado": "Trip Finished",
-        "Viaje Rechazado": "Trip Sovos Canceled",
+        "Viaje Rechazado": "Trip Rejected POD",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -499,6 +499,10 @@
         "missionControlTripInitTaskReason2": "No consolidation documentation.",
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
+        "PODReason1": "Document not related to the service (an attachment was made without relation to the load).",
+        "PODReason2": "Missing identification of the receiver (stamp, name or RUT of who received the load).",
+        "PODReason3": "Incomplete POD: no client authorization (the document must include the email that vouches for the delivery).",
+        "PODReason4": "Other.",
 
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}"

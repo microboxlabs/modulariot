@@ -138,26 +138,17 @@ export default function TaskConfirmModal({
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   >
-                    <option value="FINGERPRINT_DEVICES_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason1 as string}
+                    <option value="NOT_VALID_DOCUMENT">
+                      {(dict.modal as I18nRecord).PODReason1 as string}
                     </option>
-                    <option value="COMPUTER_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason2 as string}
+                    <option value="ID_RECEPTOR_MISSING">
+                      {(dict.modal as I18nRecord).PODReason2 as string}
                     </option>
-                    <option value="DRIVER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason3 as string}
-                    </option>
-                    <option value="DISPATCHER_NOT_ENROLLED">
-                      {(dict.modal as I18nRecord).reason4 as string}
-                    </option>
-                    <option value="DISPATCHER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason5 as string}
-                    </option>
-                    <option value="AUTHORIZED_BY_TRANSPORT_OVERLORD">
-                      {(dict.modal as I18nRecord).reason6 as string}
+                    <option value="INCOMPLETE_POD">
+                      {(dict.modal as I18nRecord).PODReason3 as string}
                     </option>
                     <option value="OTHER">
-                      {(dict.modal as I18nRecord).reason7 as string}
+                      {(dict.modal as I18nRecord).PODReason4 as string}
                     </option>
                   </Select>
                 </>

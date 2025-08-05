@@ -15,7 +15,7 @@ export default function ImageElement({
   const [_thumbnailError, setThumbnailError] = useState<boolean>(false);
   const [_thumbnailIsLoading, setThumbnailIsLoading] = useState<boolean>(true);
 
-  const { data, error, isLoading } = useGetNodeThumbnail(file.entry.id);
+  const { data, error } = useGetNodeThumbnail(file.entry.id);
 
   useEffect(() => {
     if (data) {

@@ -561,17 +561,17 @@ export function useGetNodeThumbnail(nodeId: string) {
     nodeId ? `/app/api/bento/thumbnails?nodeId=${nodeId}` : null,
     async (url: string) => {
       const response = await fetch(url);
-      
+
       // Handle 404 gracefully - thumbnail doesn't exist
       if (response.status === 404) {
         // Return null instead of throwing error to prevent retries
         return null;
       }
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch thumbnail: ${response.statusText}`);
       }
-      
+
       // Return the blob directly
       return response.blob();
     },

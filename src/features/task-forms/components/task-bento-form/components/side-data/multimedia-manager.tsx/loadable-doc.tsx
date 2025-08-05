@@ -59,7 +59,10 @@ export default function LoadableDoc({
       </div>
       {error && (
         <div className="text-red-500 text-xs font-light">
-          {tr("select_document_type_error", (dictionary.bento as I18nRecord).multimedia as I18nRecord)}
+          {tr(
+            "select_document_type_error",
+            (dictionary.bento as I18nRecord).multimedia as I18nRecord,
+          )}
         </div>
       )}
       <SelectorDropdown

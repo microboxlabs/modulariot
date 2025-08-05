@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     if (response.status === 404) {
       return NextResponse.json(
         { error: "Thumbnail not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 

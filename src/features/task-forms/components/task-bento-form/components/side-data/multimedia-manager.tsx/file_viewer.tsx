@@ -87,23 +87,20 @@ export default function FileViewer({
       <div className="w-[80vw] h-[80vh]">
         {blobUrl ? (
           <div className="w-full h-full">
-            
-              <div className="w-full flex items-center justify-center py-1 gap-2">
-                {selected?.name}
-                {selected?.tag && (
-                  <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-800 rounded-full px-2 py-1">
-                    {categories[selected.tag as keyof typeof categories]?.label}
-                  </div>
-                )}
-
-              </div>
+            <div className="w-full flex items-center justify-center py-1 gap-2">
+              {selected?.name}
+              {selected?.tag && (
+                <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-800 rounded-full px-2 py-1">
+                  {categories[selected.tag as keyof typeof categories]?.label}
+                </div>
+              )}
+            </div>
             <iframe
               src={blobUrl}
               className="w-full h-full border-0"
               title="PDF Viewer"
             ></iframe>
           </div>
-
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <p>Loading PDF...</p>

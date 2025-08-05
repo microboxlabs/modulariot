@@ -2,13 +2,19 @@ import { FaRegFilePdf } from "react-icons/fa";
 import { displayBase64Content } from "./multimedia-manager.tsx/file-images";
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import React, { useEffect, useState } from "react";
+import { getCategories } from "./multimedia-manager.tsx/clasification-form";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function Document({
   document,
   setSelected,
+  dictionary,
+  modified = false,
 }: {
   document: any;
   setSelected: (selected: any) => void;
+  dictionary: I18nRecord;
+  modified?: boolean;
 }) {
   const [thumbnail, setThumbnail] = useState<any>(null);
   const [thumbnailError, setThumbnailError] = useState<boolean>(false);
@@ -28,6 +34,7 @@ export default function Document({
 
   // Convert blob to URL for display
   const thumbnailUrl = thumbnail ? URL.createObjectURL(thumbnail) : null;
+  const categories = getCategories(dictionary);
 
   // Clean up object URL when component unmounts or thumbnail changes
   useEffect(() => {
@@ -45,7 +52,11 @@ export default function Document({
         document.data,
         document.file.entry.content.mimeType,
       );
-      setSelected(pdfDataUrl);
+      setSelected({
+        url: pdfDataUrl,
+        tag: document.file.entry.properties["mintral:contentType"],
+        name: document.file.entry.name,
+      });
     }
   };
 
@@ -69,10 +80,27 @@ export default function Document({
           />
         )}
       </div>
-      <div className="flex flex-col h-full justify-center p-2 w-full">
-        <p className="text-sm text-gray-800 dark:text-gray-200 truncate whitespace-nowrap">
+      <div className="flex flex-col h-full justify-center px-2 w-full gap-1">
+        <p className="text-sm text-gray-800 dark:text-gray-200 truncate whitespace-nowrap h-fit">
           {document.file.entry.name}
         </p>
+        {document.file.entry.properties["mintral:contentType"] && (
+          <div
+            className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
+              modified
+                ? "dark:bg-gray-700 dark:text-gray-400 bg-gray-200 text-gray-00"
+                : "bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 "
+            }`}
+          >
+            {
+              categories[
+                document.file.entry.properties[
+                  "mintral:contentType"
+                ] as keyof typeof categories
+              ]?.label
+            }
+          </div>
+        )}
       </div>
     </a>
   );

@@ -74,7 +74,7 @@ const createLoggerConfig = () => {
     return {
       ...baseConfig,
       // Disable pretty transport to avoid worker thread issues
-      // transport: {
+      // /* transport: {
       //   target: "pino-pretty",
       //   options: {
       //     colorize: true,
@@ -82,7 +82,7 @@ const createLoggerConfig = () => {
       //     ignore: "pid,hostname",
       //     messageFormat: "{msg} {req.method} {req.url} {responseTime}ms",
       //   },
-      // },
+      // }, */
     };
   }
 

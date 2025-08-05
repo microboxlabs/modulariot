@@ -16,11 +16,13 @@ import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
+  OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
   OUTCOME_PREPARE_SERVICE_V2,
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
 import { useState } from "react";
@@ -125,6 +127,32 @@ export default function TaskConfirmModal({
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
+            {taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK &&
+              outcome === OUTCOME_OVERLORD_CANCELED_SOVOS_V2 && (
+                <>
+                  <Label className="mt-4">
+                    {(dict.modal as I18nRecord).title2 as string}
+                  </Label>
+                  <Select
+                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    <option value="NOT_VALID_DOCUMENT">
+                      {(dict.modal as I18nRecord).PODReason1 as string}
+                    </option>
+                    <option value="ID_RECEPTOR_MISSING">
+                      {(dict.modal as I18nRecord).PODReason2 as string}
+                    </option>
+                    <option value="INCOMPLETE_POD">
+                      {(dict.modal as I18nRecord).PODReason3 as string}
+                    </option>
+                    <option value="OTHER">
+                      {(dict.modal as I18nRecord).PODReason4 as string}
+                    </option>
+                  </Select>
+                </>
+              )}
             {taskType === "wfship:sovosDigitalSignature" &&
               outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL && (
                 <>

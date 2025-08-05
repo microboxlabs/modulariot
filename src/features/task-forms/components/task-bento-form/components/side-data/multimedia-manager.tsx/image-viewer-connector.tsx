@@ -14,15 +14,18 @@ export default function ImageViewerConnector({
   setSelected: (index: number | null) => void;
   dictionary: I18nRecord;
 }) {
-  const tags = useMemo(() => {
+  const data = useMemo(() => {
     return images.map((image: any) => {
-      return image.file.entry.properties["mintral:contentType"];
+      return {
+        tag: image.file.entry.properties["mintral:contentType"],
+        name: image.file.entry.name,
+      };
     });
   }, [images]);
 
   const imagesUrls = useMemo(() => {
     return images
-      .map((image: any) => {
+      .map((image: any, index: number) => {
         if (image.data) {
           return displayBase64Content(
             image.data,
@@ -39,7 +42,7 @@ export default function ImageViewerConnector({
       images={imagesUrls}
       selected={selected}
       setSelected={setSelected}
-      tags={tags}
+      data={data}
       dictionary={dictionary}
     />
   );

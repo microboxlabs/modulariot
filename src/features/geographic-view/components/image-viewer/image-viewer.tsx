@@ -11,13 +11,13 @@ export default function ImageViewer({
   images,
   selected,
   setSelected,
-  tags = [],
+  data = [],
   dictionary,
 }: {
   images: string[];
   selected: number | null;
   setSelected: (index: number | null) => void;
-  tags?: string[];
+  data?: { tag: string; name: string }[];
   dictionary: I18nRecord;
 }) {
   const handleShare = async () => {
@@ -115,15 +115,13 @@ export default function ImageViewer({
           {selected !== null && (
             <div className="w-full flex justify-between items-center text-white transition-all duration-300 gap-2 p-2">
               <div className="text-gray-500 dark:text-gray-300 text-sm font-light flex flex-row items-center gap-2 min-w-0 flex-1 px-2 py-1">
-                <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full font-light truncate">
+                <div className="text-gray-500 dark:text-gray-300 text-sm font-light truncate">
                   {
-                    images[selected]?.split("/")[
-                      images[selected]?.split("/").length - 1
-                    ]
+                    data[selected]?.name
                   }
                 </div>
                 <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1">
-                  {categories[tags[selected] as keyof typeof categories]
+                  {categories[data[selected]?.tag as keyof typeof categories]
                     ?.label || "Sin categoría"}
                 </div>
               </div>

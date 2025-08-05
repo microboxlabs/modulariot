@@ -157,7 +157,7 @@ export default function FileImages({
         }`}
       ></div>
       <div
-        className={`flex w-full p-2 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed ${
+        className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver
             ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
@@ -351,6 +351,7 @@ export default function FileImages({
                   key={document.file.entry.id}
                   document={document}
                   setSelected={setSelectedDocument}
+                  dictionary={dictionary}
                 />
               ))}
             </div>
@@ -376,6 +377,7 @@ export default function FileImages({
         <FileViewer
           selected={selectedDocument}
           setSelected={setSelectedDocument}
+          dictionary={dictionary}
         />
       </div>
 
@@ -395,6 +397,7 @@ export default function FileImages({
           setIsOpen={setIsDocumentListOpen}
           documents={documents}
           setSelectedDocument={setSelectedDocument}
+          dictionary={dictionary}
         />
       )}
     </div>

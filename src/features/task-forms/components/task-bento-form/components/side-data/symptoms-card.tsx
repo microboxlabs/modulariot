@@ -14,7 +14,6 @@ interface SymptomData {
   icon: string;
   label: string;
   count: number;
-  severity: number; // 0-4 severity levels
   conditions: string[];
 }
 
@@ -22,7 +21,7 @@ function getSymptom(symptoms: any[], id: string) {
   return symptoms.filter((e) => e[id]);
 }
 
-function getTotalSymptoms(symptoms: any[], id: string) {
+function getTotalSymptoms(symptoms: any[], id: string): number {
   const existingElement = getSymptom(symptoms, id);
   return existingElement.length > 0 ? existingElement[0][id].total_symptoms : 0;
 }
@@ -132,7 +131,6 @@ export default function SymptomsCard({
       label: (dict.symptoms as I18nRecord)
         .double_driver_rotation_check as string,
       count: getTotalSymptoms(symptoms, "Double Driver Rotation Check") || 0,
-      severity: getTotalSymptoms(symptoms, "Double Driver Rotation Check") || 0,
       conditions: getConditions(symptoms, "Double Driver Rotation Check") || [
         "",
       ],
@@ -143,7 +141,6 @@ export default function SymptomsCard({
       id: "Speed Limit standard",
       label: (dict.symptoms as I18nRecord)["speed limit"] as string,
       count: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
-      severity: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
       conditions: getConditions(symptoms, "Speed Limit Standard") || [""],
     },
     {
@@ -152,7 +149,6 @@ export default function SymptomsCard({
       id: "Speed Limit Custom",
       label: (dict.symptoms as I18nRecord)["Speed Limit Custom"] as string,
       count: getTotalSymptoms(symptoms, "Speed Limit Custom") || 0,
-      severity: getTotalSymptoms(symptoms, "Speed Limit Custom") || 0,
       conditions: getConditions(symptoms, "Speed Limit Custom") || [""],
     },
     {
@@ -161,7 +157,6 @@ export default function SymptomsCard({
       id: "Stay Risk",
       label: (dict.symptoms as I18nRecord)["RISK ZONE STOP"] as string,
       count: getTotalSymptoms(symptoms, "Stay Risk") || 0,
-      severity: getTotalSymptoms(symptoms, "Stay Risk") || 0,
       conditions: getConditions(symptoms, "Stay Risk") || [""],
     },
     {
@@ -170,7 +165,6 @@ export default function SymptomsCard({
       id: "Night Stay Risk",
       label: (dict.symptoms as I18nRecord)["RISK ZONE SLEEP"] as string,
       count: getTotalSymptoms(symptoms, "Night Stay Risk") || 0,
-      severity: getTotalSymptoms(symptoms, "Night Stay Risk") || 0,
       conditions: getConditions(symptoms, "Night Stay Risk") || [""],
     },
     {
@@ -179,7 +173,6 @@ export default function SymptomsCard({
       id: "Off Hours Driving",
       label: (dict.symptoms as I18nRecord)["OFF HOURS DRIVING"] as string,
       count: getTotalSymptoms(symptoms, "Off Hours Driving") || 0,
-      severity: getTotalSymptoms(symptoms, "Off Hours Driving") || 0,
       conditions: getConditions(symptoms, "Off Hours Driving") || [""],
     },
     {
@@ -188,7 +181,6 @@ export default function SymptomsCard({
       id: "Continuous Drive Check",
       label: (dict.symptoms as I18nRecord)["CONTINUOUS DRIVE CHECK"] as string,
       count: getTotalSymptoms(symptoms, "Continuous Drive Check") || 0,
-      severity: getTotalSymptoms(symptoms, "Continuous Drive Check") || 0,
       conditions: getConditions(symptoms, "Continuous Drive Check") || [""],
     },
     {
@@ -199,7 +191,6 @@ export default function SymptomsCard({
         "CONTINUOUS RESTING CHECK"
       ] as string,
       count: getTotalSymptoms(symptoms, "Continuous Resting Check") || 0,
-      severity: getTotalSymptoms(symptoms, "Continuous Resting Check") || 0,
       conditions: getConditions(symptoms, "Continuous Resting Check") || [""],
     },
     {
@@ -208,7 +199,6 @@ export default function SymptomsCard({
       id: "Lost Signal",
       label: (dict.symptoms as I18nRecord)["LOST SIGNAL"] as string,
       count: getTotalSymptoms(symptoms, "Lost Signal") || 0,
-      severity: getTotalSymptoms(symptoms, "Lost Signal") || 0,
       conditions: getConditions(symptoms, "Lost Signal") || [""],
     },
     {
@@ -217,7 +207,6 @@ export default function SymptomsCard({
       id: "Deficient Cargo Securing",
       label: (dict.symptoms as I18nRecord).deficient_cargo_securing as string,
       count: getTotalSymptoms(symptoms, "Deficient Cargo Securing") || 0,
-      severity: getTotalSymptoms(symptoms, "Deficient Cargo Securing") || 0,
       conditions: getConditions(symptoms, "Deficient Cargo Securing") || [""],
     },
     {
@@ -226,7 +215,6 @@ export default function SymptomsCard({
       id: "No Cargo Securing",
       label: (dict.symptoms as I18nRecord).absence_cargo_securing as string,
       count: getTotalSymptoms(symptoms, "No Cargo Securing") || 0,
-      severity: getTotalSymptoms(symptoms, "No Cargo Securing") || 0,
       conditions: getConditions(symptoms, "No Cargo Securing") || [""],
     },
     {
@@ -235,7 +223,6 @@ export default function SymptomsCard({
       id: "Movement With Cargo",
       label: (dict.symptoms as I18nRecord).movement_with_cargo as string,
       count: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
-      severity: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
       conditions: getConditions(symptoms, "Movement With Cargo") || [""],
     },
   ];

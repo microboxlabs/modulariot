@@ -34,7 +34,7 @@ const task_states = {
 export default function Bento({
   lang,
   task,
-  /* userGroups, */
+  userGroups,
   dict, // this is the general dictionary to base all our code
   msg, // this is a relative dictionary for the current task
   active = true,
@@ -43,7 +43,7 @@ export default function Bento({
 }: {
   lang: string;
   task: TaskResponse;
-  /* userGroups: string[]; */
+  userGroups: string[];
   dict: I18nRecord;
   msg: I18nRecord;
   active?: boolean;
@@ -172,7 +172,12 @@ export default function Bento({
             task={task as ExtendedTaskResponse}
             dict={dict as I18nRecord}
           /> */}
-          <ValidationsInfo task={task} msg={dict} />
+          <ValidationsInfo
+            task={task}
+            msg={dict}
+            lang={lang}
+            userGroups={userGroups}
+          />
         </div>
 
         {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}

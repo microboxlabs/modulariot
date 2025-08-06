@@ -65,7 +65,7 @@ export async function TaskBentoForm({
           <Bento
             lang={lang ?? defaultLocale}
             task={task as any}
-            /* userGroups={userGroups} */
+            userGroups={userGroups}
             dict={dictionary as I18nRecord}
             msg={
               (dictionary.pages as I18nRecord)
@@ -138,7 +138,7 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as any}
-          /* userGroups={userGroups} */
+          userGroups={userGroups}
           dict={dictionary as I18nRecord}
           msg={
             (dictionary.pages as I18nRecord)
@@ -154,7 +154,7 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as any}
-          /* userGroups={userGroups} */
+          userGroups={userGroups}
           dict={dictionary as I18nRecord}
           msg={
             (dictionary.pages as I18nRecord)
@@ -183,7 +183,7 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as any}
-          /* userGroups={userGroups} */
+          userGroups={userGroups}
           dict={dictionary as I18nRecord}
           msg={
             (dictionary.pages as I18nRecord)
@@ -197,7 +197,7 @@ export async function TaskBentoForm({
         <Bento
           lang={lang ?? defaultLocale}
           task={task as any}
-          /* userGroups={userGroups} */
+          userGroups={userGroups}
           dict={dictionary as I18nRecord}
           msg={
             (dictionary.pages as I18nRecord)

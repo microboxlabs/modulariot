@@ -15,7 +15,7 @@ export default async function MissionControlTripInitForm({
   task,
   lang,
   msg,
-  /* userGroups, */
+  userGroups,
 }: TaskFormProps) {
   // const session = await auth();
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
@@ -46,7 +46,7 @@ export default async function MissionControlTripInitForm({
       <Bento
         lang={lang}
         task={task as any}
-        /* userGroups={userGroups} */
+        userGroups={userGroups}
         dict={dictionary as I18nRecord}
         msg={(msg!.pages as I18nRecord).transportValidationForm as I18nRecord}
         enableActions={true}

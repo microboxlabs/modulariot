@@ -400,6 +400,8 @@
         "alcoholTest": "Alcohol test",
         "drugTest": "Drug test",
         "sleepinessTest": "Sleepiness test",
+        "appTest": "Driver App",
+        "identityTest": "Identity Validation",
         "clientCode": "Client Code",
         "clientName": "Client",
         "serviceCode": "Service Code",

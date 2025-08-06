@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const serviceCode = url.searchParams.get("serviceCode");
+  const scope = url.searchParams.get("scope") ?? undefined;
+  const scopeId = url.searchParams.get("scopeId") ?? undefined;
 
   if (!serviceCode) {
     return NextResponse.json(
@@ -25,6 +27,8 @@ export async function GET(req: NextRequest) {
     const tasks = await getValidationByServiceCode(
       session.user.ticket,
       serviceCode,
+      scope,
+      scopeId,
     );
     return NextResponse.json(tasks);
   } catch (e: any) {

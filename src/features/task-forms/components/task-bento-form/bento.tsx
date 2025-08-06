@@ -166,8 +166,8 @@ export default function Bento({
             <TripInformation
               task={task}
               msg={dict}
-              lang={lang}
-              userGroups={userGroups}
+              /* lang={lang}
+              userGroups={userGroups} */
             />
           </div>
 
@@ -175,16 +175,25 @@ export default function Bento({
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
             <DriverInfo task={task} msg={dict} />
           </div>
+
+          {/* Validations Info */}
+          {/* <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
+            <ValidationsInfo task={task} msg={dict} />
+          </div> */}
         </div>
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700">
-          {/* Validations Info */}
-          <ValidationsInfo task={task} msg={dict} />
-          {/* <Comment
+          {/*  <Comment
             task={task as ExtendedTaskResponse}
             dict={dict as I18nRecord}
           /> */}
+          <ValidationsInfo
+            task={task}
+            msg={dict}
+            lang={lang}
+            userGroups={userGroups}
+          />
         </div>
 
         {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}
@@ -234,17 +243,14 @@ export default function Bento({
           <Forum dict={dict as I18nRecord} />
         </div>
         */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-3 h-[400px]">
+          <Comment
+            task={task as ExtendedTaskResponse}
+            dict={dict as I18nRecord}
+          />
         </div>
-        {/* Content */}
       </div>
-      {/* Historic Loads - spans full width */}
-      <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[300px] p-2">
-        <HistoricLoads
-          task={task}
-          dictionary={dict as unknown as Record<string, string>}
-          active={active}
-        />
-      </div>
+      {/* Content */}
     </div>
   );
 }

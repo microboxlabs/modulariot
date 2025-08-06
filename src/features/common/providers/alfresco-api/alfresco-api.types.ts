@@ -281,3 +281,20 @@ export type NodeChildrenRequest = {
   includeSource?: boolean;
 } & NodesIncludeQuery &
   ContentPagingQuery;
+
+export type ValidationsResponse = {
+  validations: ValidationsResponseItem[];
+  scope: string;
+  scopeId: string;
+};
+
+export type ValidationsResponseItem = {
+  validations: ValidationResponseItem[];
+  group: string;
+};
+
+export type ValidationResponseItem = {
+  value: number;
+  description: string;
+  name: string;
+};

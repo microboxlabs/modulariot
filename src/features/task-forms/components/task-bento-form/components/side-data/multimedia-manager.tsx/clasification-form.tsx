@@ -141,6 +141,52 @@ export default function ClasificationForm({
         />
       }
     >
+      <div className="flex flex-col gap-2">
+        <div
+          className={`${selectedDocs.length > 0 ? "block" : "hidden"} flex flex-col gap-2`}
+        >
+          <Button
+            className="w-full"
+            color="red"
+            onClick={() => {
+              setLoadableDocs(
+                loadableDocs.filter(
+                  (loadableDoc: any) =>
+                    !selectedDocs.includes(
+                      loadableDoc.name + "-" + loadableDoc.lastModified,
+                    ),
+                ),
+              );
+              setSelectedDocs([]);
+            }}
+          >
+            Eliminar Seleccionados
+          </Button>
+          <SelectorDropdown
+            dictionary={dictionary}
+            selectCategory={(category) => {
+              setLoadableDocs(
+                loadableDocs.map((loadableDoc) =>
+                  selectedDocs.includes(
+                    loadableDoc.name + "-" + loadableDoc.lastModified,
+                  )
+                    ? { ...loadableDoc, category }
+                    : loadableDoc,
+                ),
+              );
+            }}
+            categories={Object.values(categories)}
+          />
+        </div>
+        <Button
+          className="w-full"
+          color="blue"
+          onClick={handleUpload}
+          disabled={isUploading}
+        >
+          {isUploading ? "Subiendo..." : "Subir"}
+        </Button>
+      </div>
       <div
         className={`flex flex-col gap-2 flex-grow overflow-y-auto border-2 border-dashed rounded-lg ${isDragOver ? "border-blue-500" : "border-transparent"}`}
         onDragEnter={(e) => {
@@ -170,13 +216,35 @@ export default function ClasificationForm({
           }
           e.preventDefault();
           setIsDragOver(false);
-          const newFiles = Array.from(e.dataTransfer.files);
-          setUploadableFiles([...uploadableFiles, ...newFiles]);
+          const files = Array.from(e.dataTransfer.files);
+          const allowedTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "application/pdf",
+          ];
+          const validFiles = files.filter((file) =>
+            allowedTypes.includes(file.type),
+          );
+
+          if (validFiles.length !== files.length) {
+            alert(
+              tr(
+                "only_jpg_jpeg_png_pdf_allowed",
+                ((dictionary as I18nRecord).bento as I18nRecord)
+                  .multimedia as I18nRecord,
+              ),
+            );
+            return;
+          }
+
+          setUploadableFiles([...uploadableFiles, ...validFiles]);
         }}
       >
         {loadableDocs.map((doc, index) => (
           <LoadableDoc
             key={doc.name + "-" + doc.lastModified}
+            dictionary={dictionary}
             file={doc}
             selectedDocs={selectedDocs}
             setSelectedDocs={setSelectedDocs}
@@ -195,51 +263,6 @@ export default function ClasificationForm({
             }}
           />
         ))}
-      </div>
-      <div className="flex flex-col gap-2">
-        <div
-          className={`${selectedDocs.length > 0 ? "block" : "hidden"} flex flex-col gap-2`}
-        >
-          <Button
-            className="w-full"
-            color="red"
-            onClick={() => {
-              setLoadableDocs(
-                loadableDocs.filter(
-                  (loadableDoc) =>
-                    !selectedDocs.includes(
-                      loadableDoc.name + "-" + loadableDoc.lastModified,
-                    ),
-                ),
-              );
-              setSelectedDocs([]);
-            }}
-          >
-            Eliminar Seleccionados
-          </Button>
-          <SelectorDropdown
-            selectCategory={(category) => {
-              setLoadableDocs(
-                loadableDocs.map((loadableDoc) =>
-                  selectedDocs.includes(
-                    loadableDoc.name + "-" + loadableDoc.lastModified,
-                  )
-                    ? { ...loadableDoc, category }
-                    : loadableDoc,
-                ),
-              );
-            }}
-            categories={Object.values(categories)}
-          />
-        </div>
-        <Button
-          className="w-full"
-          color="blue"
-          onClick={handleUpload}
-          disabled={isUploading}
-        >
-          {isUploading ? "Subiendo..." : "Subir"}
-        </Button>
       </div>
     </InnerContainer>
   );

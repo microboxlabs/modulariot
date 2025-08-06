@@ -124,7 +124,29 @@ export default function FileImages({
         }
 
         setIsDragOver(false);
-        setUploadableFiles(Array.from(e.dataTransfer.files));
+        const files = Array.from(e.dataTransfer.files);
+        const allowedTypes = [
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "application/pdf",
+        ];
+        const validFiles = files.filter((file) =>
+          allowedTypes.includes(file.type),
+        );
+
+        if (validFiles.length !== files.length) {
+          alert(
+            tr(
+              "only_jpg_jpeg_png_pdf_allowed",
+              ((dictionary as I18nRecord).bento as I18nRecord)
+                .multimedia as I18nRecord,
+            ),
+          );
+          return;
+        }
+
+        setUploadableFiles(validFiles);
         setIsClasificationFormOpen(true);
       }}
     >
@@ -135,7 +157,7 @@ export default function FileImages({
         }`}
       ></div>
       <div
-        className={`flex w-full p-2 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed ${
+        className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver
             ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
@@ -166,10 +188,33 @@ export default function FileImages({
               id="file-input"
               className="hidden"
               multiple
+              accept=".jpg,.jpeg,.png,.pdf"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
+                  const files = Array.from(e.target.files);
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/jpg",
+                    "image/png",
+                    "application/pdf",
+                  ];
+                  const validFiles = files.filter((file) =>
+                    allowedTypes.includes(file.type),
+                  );
+
+                  if (validFiles.length !== files.length) {
+                    alert(
+                      tr(
+                        "only_jpg_jpeg_png_pdf_allowed",
+                        ((dictionary as I18nRecord).bento as I18nRecord)
+                          .multimedia as I18nRecord,
+                      ),
+                    );
+                    return;
+                  }
+
                   setIsClasificationFormOpen(true);
-                  setUploadableFiles(Array.from(e.target.files));
+                  setUploadableFiles(validFiles);
                 }
               }}
             />
@@ -245,6 +290,7 @@ export default function FileImages({
                   file={image.file}
                   index={index}
                   setSelectedImage={setSelectedImage}
+                  dictionary={dictionary}
                 />
               ))}
             </div>
@@ -305,6 +351,7 @@ export default function FileImages({
                   key={document.file.entry.id}
                   document={document}
                   setSelected={setSelectedDocument}
+                  dictionary={dictionary}
                 />
               ))}
             </div>
@@ -324,11 +371,13 @@ export default function FileImages({
           images={images}
           selected={selectedImage}
           setSelected={setSelectedImage}
+          dictionary={dictionary}
         />
 
         <FileViewer
           selected={selectedDocument}
           setSelected={setSelectedDocument}
+          dictionary={dictionary}
         />
       </div>
 
@@ -348,6 +397,7 @@ export default function FileImages({
           setIsOpen={setIsDocumentListOpen}
           documents={documents}
           setSelectedDocument={setSelectedDocument}
+          dictionary={dictionary}
         />
       )}
     </div>

@@ -1,3 +1,5 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { Button, Dropdown } from "flowbite-react";
 import { useState, useEffect, useRef } from "react";
 import { HiChevronDown } from "react-icons/hi";
@@ -7,15 +9,20 @@ export default function SelectorDropdown({
   selectCategory = () => {},
   baseCategory = null,
   disabled = false,
+  dictionary,
 }: {
   categories: { value: string; label: string }[];
   selectCategory?: (category: string) => void;
   baseCategory?: string | null;
   disabled?: boolean;
+  dictionary: I18nRecord;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    baseCategory,
+  const [selectedCategory, setSelectedCategory] = useState<{
+    value: string;
+    label: string;
+  } | null>(
+    categories.find((category) => category.value === baseCategory) || null,
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +43,9 @@ export default function SelectorDropdown({
   }, []);
 
   useEffect(() => {
-    setSelectedCategory(baseCategory);
+    setSelectedCategory(
+      categories.find((category) => category.value === baseCategory) || null,
+    );
   }, [baseCategory]);
 
   return (
@@ -76,15 +85,14 @@ export default function SelectorDropdown({
             >
               {selectedCategory ? (
                 <span className="text-sm font-light">
-                  {
-                    categories.find(
-                      (category) => category.value === selectedCategory,
-                    )?.label
-                  }
+                  {selectedCategory?.label}
                 </span>
               ) : (
                 <span className="text-sm font-light">
-                  Selecciona una categoría
+                  {tr(
+                    "select_document_type",
+                    (dictionary.bento as I18nRecord).multimedia as I18nRecord,
+                  )}
                 </span>
               )}
               <HiChevronDown
@@ -100,7 +108,7 @@ export default function SelectorDropdown({
           <Dropdown.Item
             key={category.value}
             onClick={() => {
-              setSelectedCategory(category.label);
+              setSelectedCategory(category);
               selectCategory(category.value);
             }}
           >

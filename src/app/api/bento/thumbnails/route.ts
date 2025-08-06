@@ -33,6 +33,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // Handle 404 specifically - thumbnail doesn't exist
+    if (response.status === 404) {
+      return NextResponse.json(
+        { error: "Thumbnail not found" },
+        { status: 404 },
+      );
+    }
+
+    // Handle other non-200 responses
     if (!response.ok) {
       throw new Error(`Alfresco responded with status: ${response.status}`);
     }

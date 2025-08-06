@@ -12,6 +12,7 @@ import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-a
 import { PeopleApi } from "@alfresco/js-api";
 import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
+import { logger } from "@/lib/logger";
 
 export async function signInWithCredentials(
   credentials: Record<keyof SignInCredentials, string>,
@@ -63,22 +64,15 @@ export async function authenticateAction(
       password: formData.get("password") as string,
       redirect: false,
     });
-    console.log("signIn--------------------------------", result);
+    logger.info("result--------------------------------");
+    logger.info(result);
     if (result?.error) {
-      return {
-        success: false,
-        message: result.error,
-        status: 403,
-      };
+      logger.error(result.error);
     }
     const session = await auth();
-    console.log("session--------------------------------", session);
+    logger.info("session--------------------------------");
+    logger.info(session);
     redirectWithLang("/shipping");
-    /*return {
-      success: true,
-      message: "Authentication successful",
-      status: 200,
-    };*/
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

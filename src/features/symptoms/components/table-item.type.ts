@@ -13,6 +13,11 @@ import speedLimitCustom from "@assets/timeline/speed-limit-custom.svg";
 import maximumContinuousDriving from "@assets/timeline/continuos-drive-check.svg";
 import ofHoursDriving from "@assets/timeline/off-hour-driving.svg";
 import doubleDriverRotationCheck from "@assets/timeline/double-driver-rotation-check.svg";
+import nightStayRisk from "@assets/timeline/overnight-risk-stay.svg";
+import stayRisk from "@assets/timeline/risk-stay.svg";
+import deficientCargoSecuring from "@assets/timeline/deficient-cargo-securing.svg";
+import absenceCargoSecuring from "@assets/timeline/absence-cargo-securing.svg";
+import movementWithCargo from "@assets/timeline/movement-with-cargo.svg";
 
 export type TableItemType = {
   id: string;
@@ -290,6 +295,71 @@ export const Symptoms: Record<string, SymptomType> = {
     separatorColor: "border-gray-300 dark:border-gray-700",
     hoverColor: "",
     icon: ofHoursDriving,
+  },
+  "NIGHT STAY RISK": {
+    dict_name: "night_stay_risk",
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: nightStayRisk,
+  },
+  "STAY RISK": {
+    dict_name: "stay_risk",
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: stayRisk,
+  },
+  "DEFICIENT CARGO SECURING": {
+    dict_name: "deficient_cargo_securing",
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: deficientCargoSecuring,
+  },
+  "NO CARGO SECURING": {
+    dict_name: "absence_cargo_securing",
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: absenceCargoSecuring,
+  },
+  "MOVEMENT WITH CARGO": {
+    dict_name: "movement_with_cargo",
+    color: "border-blue-600",
+    innerColor: "bg-blue-100",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: movementWithCargo,
   },
   compromised: {
     dict_name: "compromised_condition",

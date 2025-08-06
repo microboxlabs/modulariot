@@ -583,7 +583,7 @@ export default function MapVisualizationTrip({
       )}
       <div className="absolute w-full h-full flex flex-row justify-end items-start pointer-events-none">
         {pictures_list.length > 0 && !minimized ? (
-          <ImageSelector images={pictures_list} />
+          <ImageSelector images={pictures_list} dictionary={dict} />
         ) : null}
         <ToolBar
           dictionary={dict}

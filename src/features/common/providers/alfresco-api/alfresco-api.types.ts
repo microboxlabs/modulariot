@@ -162,6 +162,7 @@ export type UploadNodeRequest = {
   thumbnails?: string[];
   updateNameAndMimetype?: boolean;
   createdDirectory?: boolean;
+  prop_mintral_contentType?: string;
 };
 
 export type FinishedWorkflowsResponse = {
@@ -261,4 +262,39 @@ export type SympthomTemplate = {
 
 export type UserGroupsResponse = {
   data: string[];
+};
+
+export type NodesIncludeQuery = {
+  include?: string[];
+  fields?: string[];
+};
+
+export type ContentPagingQuery = {
+  skipCount?: number;
+  maxItems?: number;
+};
+
+export type NodeChildrenRequest = {
+  orderBy?: string[];
+  where?: string;
+  relativePath?: string;
+  includeSource?: boolean;
+} & NodesIncludeQuery &
+  ContentPagingQuery;
+
+export type ValidationsResponse = {
+  validations: ValidationsResponseItem[];
+  scope: string;
+  scopeId: string;
+};
+
+export type ValidationsResponseItem = {
+  validations: ValidationResponseItem[];
+  group: string;
+};
+
+export type ValidationResponseItem = {
+  value: number;
+  description: string;
+  name: string;
 };

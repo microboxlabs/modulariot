@@ -13,12 +13,14 @@ import type {
   FinishedWorkflowsRequest,
   FinishedWorkflowsResponse,
   HistoricalWorkflow,
+  NodeChildrenRequest,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
   UserState,
+  ValidationsResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
@@ -160,6 +162,12 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
   if (request.createdDirectory) {
     formdata.append("createdDirectory", request.createdDirectory.toString());
   }
+  if (request.prop_mintral_contentType) {
+    formdata.append(
+      "prop_mintral_contentType",
+      request.prop_mintral_contentType,
+    );
+  }
   return formdata;
 }
 
@@ -179,12 +187,11 @@ export async function uploadNodeContent(
 export async function getChildrenNodes(
   ticket: string,
   nodeId: string,
+  options: NodeChildrenRequest,
 ): Promise<NodeChildAssociationPaging> {
   alfrescoApi.setTicket(ticket, "");
   const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const children = await nodesApi.listNodeChildren(nodeId, {
-    where: "(isFile=true)",
-  });
+  const children = await nodesApi.listNodeChildren(nodeId, options);
   return children;
 }
 
@@ -493,4 +500,25 @@ export async function ecmSovosDec5(
   });
 
   return result as any;
+}
+
+export async function getValidationByServiceCode(
+  ticket: string,
+  serviceCode: string,
+  scope?: string,
+  scopeId?: string,
+): Promise<ValidationsResponse> {
+  alfrescoApi.setTicket(ticket, "");
+  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  if (scope && scopeId) {
+    return (await webscriptApi.executeWebScript(
+      "GET",
+      `mintral/service/validation?serviceCode=${serviceCode}&scope=${scope}&scopeId=${scopeId}`,
+    )) as ValidationsResponse;
+  }
+
+  return (await webscriptApi.executeWebScript(
+    "GET",
+    `mintral/service/validation?serviceCode=${serviceCode}`,
+  )) as ValidationsResponse;
 }

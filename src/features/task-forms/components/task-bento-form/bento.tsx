@@ -2,7 +2,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
-import Conditions from "./components/side-data/conditions";
+// import Conditions from "./components/side-data/conditions";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
@@ -15,6 +15,7 @@ import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
 import ValidationsInfo from "./components/driver/validations";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
+import SymptomsCard from "./components/side-data/symptoms-card";
 // import Forum from "./components/forum/forum";
 
 const task_states = {
@@ -216,7 +217,8 @@ export default function Bento({
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <Conditions dict={dict as I18nRecord} task={task} />
+          {/* <Conditions dict={dict as I18nRecord} task={task} /> */}
+          <SymptomsCard task={task} dict={dict as I18nRecord} />
         </div>
 
         {/* Forum */}

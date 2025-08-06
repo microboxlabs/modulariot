@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -19,19 +20,20 @@ export async function GET(req: NextRequest) {
     const nodeRef = `workspace://SpacesStore/${nodeId}`;
     const path = nodeRef.replace(/:\//, "");
 
-    const alfrescoUrl = `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib?alf_ticket=${session.user.ticket}`;
-
     let userAgent: Record<string, string> = {};
     if (process.env.USER_AGENT) {
       userAgent["User-Agent"] = process.env.USER_AGENT;
     }
 
-    const response = await fetch(alfrescoUrl, {
-      headers: {
-        ...userAgent,
-        Accept: "image/*",
+    const response = await fetch(
+      `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib?alf_ticket=${session.user.ticket}`,
+      {
+        headers: {
+          ...userAgent,
+          Accept: "image/*",
+        },
       },
-    });
+    );
 
     // Handle 404 specifically - thumbnail doesn't exist
     if (response.status === 404) {
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest) {
 
     // Handle other non-200 responses
     if (!response.ok) {
-      throw new Error(`Alfresco responded with status: ${response.status}`);
+      throw new Error(`Alfresco response status: ${response.status}`);
     }
 
     // Extract filename from Content-Disposition or use default
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Thumbnail fetch error:", error);
+    logger.error("Thumbnail fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch thumbnail" },
       { status: 500 },

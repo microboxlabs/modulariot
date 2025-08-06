@@ -8,12 +8,14 @@ import { calcGpsValidationType } from "../../services/client-form.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 import { Spinner } from "flowbite-react";
-import {
+/* import {
   CheckCircle,
   Exclamation,
   ErrorCircle,
   Ellipse,
-} from "../task-bento-form/components/trip-information/trip-verifications";
+} from "../task-bento-form/components/trip-information/trip-verifications"; */
+import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
+import { ValidationStatus } from "../task-bento-form/components/driver/validations.types";
 
 export default function GpsValidationItem({
   task,
@@ -40,7 +42,6 @@ export default function GpsValidationItem({
         )) as GetEntityInfoResponse;
         setEntityInfo(entity_info);
       } catch (error) {
-        console.error(error);
         setLoading(false);
         setError(true);
       } finally {
@@ -72,17 +73,22 @@ export default function GpsValidationItem({
       )}
       {!loading && !error && (
         <>
-          {gpsValidationType === "ok" && <CheckCircle />}
+          {/* {gpsValidationType === "ok" && <CheckCircle />}
           {gpsValidationType === "warning" && <Exclamation />}
           {gpsValidationType === "error" && <ErrorCircle />}
-          {gpsValidationType === undefined && <Ellipse />}
+          {gpsValidationType === undefined && <Ellipse />} */}
+          <ValidationIcon status={gpsValidationType as ValidationStatus} />
 
           <a
             href="#"
-            className="ml-2 text-gray-400 text-sm hover:underline"
+            className="ml-2 text-gray-600 text-sm hover:underline"
             onClick={openGpsValidationModal}
           >
-            {(msg!.cards as I18nRecord).gpsValidation as string}
+            {msg?.cards
+              ? ((msg!.cards as I18nRecord).gpsValidation as string)
+              : msg?.bento
+                ? ((msg!.bento as I18nRecord).gpsValidation as string)
+                : ((msg as I18nRecord).gpsValidation as string)}
           </a>
           <GpsValidationModal
             openModal={showGpsValidationModal}
@@ -97,7 +103,9 @@ export default function GpsValidationItem({
       )}
       {error && (
         <p className=" text-red-400 text-sm">
-          {(msg!.cards as I18nRecord).gpsValidationError as string}
+          {msg?.cards
+            ? ((msg!.cards as I18nRecord).gpsValidationError as string)
+            : ((msg as I18nRecord).gpsValidationError as string)}
         </p>
       )}
     </small>

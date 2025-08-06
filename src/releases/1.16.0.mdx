@@ -1,0 +1,98 @@
+# 🧾 Release Notes – v1.16.0 – Plataforma MBL
+
+**Fecha de entrega:** 6 de agosto 2025
+
+**Objetivo general:** Esta versión incorpora mejoras sustanciales a nivel visual, funcional y estructural en los flujos logísticos. Se corrigen problemas críticos de trazabilidad, se
+habilita la clasificación y visualización avanzada de documentos, se refuerzan las validaciones de viaje, y se introducen nuevos flujos de gestión como el rechazo de POD y el inicio del escalamiento hacia Overlord.
+
+---
+
+## 🧬 Evolutivos – Nuevas funcionalidades implementadas
+
+### 📂 Drag and Drop con visualización y clasificación de archivos
+
+Se implementó un nuevo componente de carga de archivos que permite:
+Subida de múltiples imágenes y documentos.
+Clasificación de los archivos por tipo (ej. imágenes, permisos, formularios).
+Visualización agrupada según categoría.
+Interacción fluida para revisión y consulta de archivos desde el expediente.
+
+---
+
+## ✅ Sistema de validaciones con íconos de estado
+
+Se integró un nuevo sistema visual para mostrar el estado de validaciones críticas directamente en el expediente, incluyendo:
+- ✔️ Validación aprobada: ícono de check verde.
+- ⚠️ Validación no aprobada: ícono de exclamación amarillo.
+
+- Validaciones disponibles:
+- GPS
+- Consolidación
+- Separación documental
+- Sistema cliente
+- Fechas asignadas (salida/llegada/entrega)
+- Tests biométricos y por app (alcohol, drogas, somnolencia, validación por App y biometría)
+
+---
+
+## 🚫 Incorporación del flujo de rechazo de POD
+
+Al rechazar un documento POD, la tarjeta del viaje se mostrará en la vista Kanban con menor opacidad, simulando un estado inactivo. Esto permite identificar rápidamente viajes rechazados sin necesidad de entrar al detalle del expediente.
+
+---
+
+## 🧠 Activación del flujo Overlord (fase inicial)
+
+Se integraron las primeras condiciones para habilitar el flujo de escalamiento a Overlord. Este flujo gestionará viajes excepcionales que requieren revisión por alta dirección.
+
+---
+
+## 🎨 Refactorización y mejoras visuales
+
+### 🧭 Indicador visual de destino (bandera de llegada)
+
+Se incorporó el ícono de bandera de destino en la vista Kanban y módulo de tratamiento para los siguientes puntos que previamente no lo mostraban:
+
+- SPC, MEL, MED, CAN, CAS, OSA, CLS, COL, PAT, SBL
+
+Esto mejora la lectura rápida de viajes que ya han alcanzado su punto final.
+
+---
+
+## 🛠️ Correcciones y ajustes de estabilidad
+
+### 🔺 Síntomas en viajes fuera del estado “Viaje iniciado”
+
+Se corrigió un error donde los síntomas eran visibles en etapas incorrectas como  Viaje finalizado, Presentar conductor o En revisión.
+
+Ahora, los síntomas solo se mostrarán cuando el viaje esté en estado “Viaje iniciado”, preservando la lógica del flujo.
+
+### 🔺 Viajes iniciados fuera de ECM (Sitrack)
+
+Se resolvió un problema donde viajes iniciados desde  Sitrack  no avanzaban correctamente a la columna “Viaje iniciado” y quedaban atascados en etapas como Asignar conductor o Presentar conductor.
+
+Ahora el flujo se mantiene alineado con el backend y los viajes avanzan automáticamente.
+
+### ⚠️ Etapa “Iniciar viaje” sin input válido
+
+Se implementó una validación que impide avanzar a la etapa Inicio de viaje sin haber recibido un input válido desde Sitrack o el coordinador.
+
+Esto asegura la secuencia correcta del proceso.
+
+### 📢 Notificaciones a Teams – Coordinador de Viajes
+
+Se avanzó en la conexión para enviar notificaciones al canal de Teams del equipo de Coordinación.
+
+Esta integración permitirá alertar en tiempo real sobre eventos como errores en enrolamiento, fallas de validación, o cambios de estado relevantes.
+
+**Estado actual**: conexión pendiente de webhook final.
+
+---
+
+# 📌 Conclusión
+
+La versión 1.16.0 representa un avance clave en la estabilidad del sistema y la interacción visual.
+
+Mejora la trazabilidad del viaje, incorpora nuevas herramientas para gestión documental y validación, y habilita el camino hacia procesos avanzados como el flujo Overlord.
+
+Estos cambios fortalecen tanto la operación diaria como la capacidad de análisis del equipo coordinador.

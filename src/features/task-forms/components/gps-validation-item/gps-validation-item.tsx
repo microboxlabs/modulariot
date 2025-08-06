@@ -16,7 +16,6 @@ import { Spinner } from "flowbite-react";
 } from "../task-bento-form/components/trip-information/trip-verifications"; */
 import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
 import { ValidationStatus } from "../task-bento-form/components/driver/validations.types";
-import { logger } from "@/lib/logger";
 
 export default function GpsValidationItem({
   task,

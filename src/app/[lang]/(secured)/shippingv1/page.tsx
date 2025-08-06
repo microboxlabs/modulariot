@@ -1,5 +1,6 @@
 import "server-only";
 // import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { auth } from "@/auth";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import PageContent from "@/features/shipping/components/content";
@@ -8,7 +9,6 @@ import {
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
-import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function ShippingPage({

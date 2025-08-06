@@ -1,21 +1,16 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripData from "./trip-data";
-import TripVerifications from "./trip-verifications";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { tr } from "@/features/i18n/tr.service";
 
 export default function TripInformation({
   task,
   msg,
-  lang,
-  userGroups,
   isLoading = false,
 }: {
   task: TaskResponse;
   msg: I18nRecord;
-  lang: string;
-  userGroups: string[];
   isLoading?: boolean;
 }) {
   return (

@@ -13,10 +13,13 @@ import { redirectWithLang } from "@/features/auth/services/navigation.service";
 export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
+
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
+
   const userGroups = await getGroupsForPerson(session!.user.ticket);
   // let tasks;
+
   try {
     // tasks = await getUserTasks(session!.user.ticket);
     // const data = await toShippingKanban(tasks);
@@ -28,6 +31,7 @@ export default async function ShippingPage({
     //     tasks: data[board.title]?.tasks || board.tasks,
     //   };
     // });
+
     return (
       <>
         <PageContent

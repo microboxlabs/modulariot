@@ -1,15 +1,18 @@
+"use client";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
+
+
 import { GoX } from "react-icons/go";
 import { Driver } from "@/features/task-forms/components/driver-contact-info/driver-contact-info.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-/* import { useGetValidation } from "@/features/common/providers/client-api.provider"; */
+import { useGetValidation } from "@/features/common/providers/client-api.provider";
 import { getValidationByServiceCode } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { auth } from "@/auth";
 import { ValidationIcon } from "./validation-icon";
 import { ValidationStatus } from "./validations.types";
 
-export default async function DriverValidations({
+export default function DriverValidations({
   driver,
   msg,
   serviceCode,
@@ -18,13 +21,8 @@ export default async function DriverValidations({
   msg: I18nRecord;
   serviceCode: string;
 }) {
-  const session = await auth();
-  if (!session) {
-    return <div>No session</div>;
-  }
 
-  const tasks = await getValidationByServiceCode(
-    session.user.ticket,
+  const { data, error, isLoading } = useGetValidation(
     serviceCode,
     "driver",
     driver.rut,
@@ -36,8 +34,8 @@ export default async function DriverValidations({
   let appTestStatus = "not_found";
   let identityTestStatus = "not_found";
 
-  if (tasks?.validations?.length > 0) {
-    tasks.validations.forEach((validation1) => {
+  if (data?.validations && data.validations.length > 0) {
+    data.validations.forEach((validation1) => {
       validation1.validations.forEach((validation) => {
         if (validation.name === "ALCOHOL_TEST") {
           alcoholTestStatus = validation.value === 0 ? "ok" : "not_found";
@@ -62,31 +60,31 @@ export default async function DriverValidations({
   return (
     <div className="grid grid-cols-1 gap-1 w-fit">
       <div className="flex gap-2 items-center flex-row">
-        <ValidationIcon status={alcoholTestStatus as ValidationStatus} />
+        <ValidationIcon status={alcoholTestStatus as ValidationStatus} isLoading={isLoading} />
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord).alcoholTest as string}
         </span>
       </div>
       <div className="flex gap-2 items-center flex-row">
-        <ValidationIcon status={drugTestStatus as ValidationStatus} />
+        <ValidationIcon status={drugTestStatus as ValidationStatus} isLoading={isLoading} />
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord).drugTest as string}
         </span>
       </div>
       <div className="flex gap-2 items-center flex-row">
-        <ValidationIcon status={sleepinessTestStatus as ValidationStatus} />
+        <ValidationIcon status={sleepinessTestStatus as ValidationStatus} isLoading={isLoading} />
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord).sleepinessTest as string}
         </span>
       </div>
       <div className="flex gap-2 items-center flex-row">
-        <ValidationIcon status={appTestStatus as ValidationStatus} />
+        <ValidationIcon status={appTestStatus as ValidationStatus} isLoading={isLoading} />
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord).appTest as string}
         </span>
       </div>
       <div className="flex gap-2 items-center flex-row">
-        <ValidationIcon status={identityTestStatus as ValidationStatus} />
+        <ValidationIcon status={identityTestStatus as ValidationStatus} isLoading={isLoading} />
         <span className="text-gray-400 text-sm">
           {(msg.cards as I18nRecord).identityTest as string}
         </span>

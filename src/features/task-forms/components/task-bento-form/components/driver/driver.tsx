@@ -64,21 +64,24 @@ export default function DriverInfo({
           </Tooltip>
           */}
         </h1>
-        <DriverData
-          driver={driver1}
-          msg={msg}
-          serviceCode={task.mintral_serviceCode}
-        />
-        {driver2 && (
-          <>
-            <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
+        <div
+          className={`grid grid-cols-1 gap-4 ${
+            driver2 ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
+          <DriverData
+            driver={driver1}
+            msg={msg}
+            serviceCode={task.mintral_serviceCode}
+          />
+          {driver2 && (
             <DriverData
               driver={driver2}
               msg={msg}
               serviceCode={task.mintral_serviceCode}
             />
-          </>
-        )}
+          )}
+        </div>
       </div>
     </CustomCard>
   );

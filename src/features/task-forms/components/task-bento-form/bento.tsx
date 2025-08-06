@@ -2,21 +2,20 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
-//import Conditions from "./components/side-data/conditions";
+import Conditions from "./components/side-data/conditions";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
-//import { useGetConditions } from "./hooks/use-get-conditions";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
-/* import Comment from "./components/side-data/comment";
-import { ExtendedTaskResponse } from "../task-form/task-form.types"; */
+import Comment from "./components/side-data/comment";
+import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
-import SymptomsCard from "./components/side-data/symptoms-card";
 import ValidationsInfo from "./components/driver/validations";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
+import SymptomsCard from "./components/side-data/symptoms-card";
 // import Forum from "./components/forum/forum";
 
 const task_states = {
@@ -52,20 +51,6 @@ export default function Bento({
   enableActions?: boolean;
   showActions?: boolean;
 }) {
-  /* const [selectedImage, setSelectedImage] = useState<number | null>(null);
-
-  const testImages = [
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-    "https://mintcargaimagenesprbfc3.blob.core.windows.net/mintral-catalogo-imagenes-prd/viaje/1484826/alerta_estiba/c9231598_1748475008514.jpeg",
-  ]; */
-
-  /*  const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
-    task.id,
-  ); */
-
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
   const writable_dict = (
@@ -216,29 +201,28 @@ export default function Bento({
           */}
         </div>
 
+        {/* File Images */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
+          <FileImages task={task} dictionary={dict as I18nRecord} />
+        </div>
+
+        {/* Historic Loads - spans full width */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[300px]">
+          <HistoricLoads
+            task={task}
+            dictionary={dict as unknown as Record<string, string>}
+            active={active}
+          />
+        </div>
+
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          {/* <Conditions
-            dict={dict as I18nRecord}
-            conditions={conditions}
-            isLoading={isLoadingConditions}
-          /> */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700 mb-2">
-            <SymptomsCard dict={dict as I18nRecord} task={task} />
-          </div>
+          {/* <Conditions dict={dict as I18nRecord} task={task} /> */}
+          <SymptomsCard task={task} dict={dict as I18nRecord} />
+        </div>
 
-          {/* File Images */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-300 dark:border-gray-700">
-            <FileImages task={task} dictionary={dict as I18nRecord} />
-          </div>
-
-          {/* Conditions */}
-          {/* <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <Conditions dict={dict as I18nRecord} task={task} />
-        </div> */}
-
-          {/* Forum */}
-          {/*
+        {/* Forum */}
+        {/*
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
           <Forum dict={dict as I18nRecord} />
         </div>

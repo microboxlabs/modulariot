@@ -10,6 +10,7 @@ import {
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { useGetValidation } from "@/features/common/providers/client-api.provider";
 import { ValidationIcon } from "./validation-icon";
+import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 
 // Validation item component
 const ValidationItemComponent = ({
@@ -34,10 +35,16 @@ const ValidationCategory = ({
   title,
   items,
   msg,
+  lang,
+  userGroups,
+  task,
 }: {
   title: string;
   items: ValidationItem[];
   msg: I18nRecord;
+  lang: string;
+  userGroups: string[];
+  task: TaskResponse;
 }) => {
   return (
     <div className="space-y-2">
@@ -45,9 +52,19 @@ const ValidationCategory = ({
         {title}
       </h3>
       <div className="space-y-1">
-        {items.map((item) => (
-          <ValidationItemComponent key={item.key} item={item} msg={msg} />
-        ))}
+        {items.map((item) =>
+          item.key === "gpsValidation" ? (
+            <GpsValidationItem
+              key={item.key}
+              msg={msg}
+              lang={lang}
+              task={task as TaskResponse}
+              userGroups={userGroups}
+            />
+          ) : (
+            <ValidationItemComponent key={item.key} item={item} msg={msg} />
+          ),
+        )}
       </div>
     </div>
   );
@@ -90,9 +107,13 @@ const mapValidationNameToKey = (name: string): string => {
 export default function ValidationsInfo({
   task,
   msg,
+  lang,
+  userGroups,
 }: {
   readonly task: TaskResponse;
   readonly msg: I18nRecord;
+  readonly lang: string;
+  readonly userGroups: string[];
 }) {
   const { data: serviceValidation } = useGetValidation(
     task.mintral_serviceCode,
@@ -123,6 +144,9 @@ export default function ValidationsInfo({
                 group: validation.group,
               }))}
               msg={msg}
+              lang={lang}
+              userGroups={userGroups}
+              task={task}
             />
           ))}
       </div>

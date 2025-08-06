@@ -38,7 +38,9 @@ export default function GpsValidationModal({
     >
       <Modal.Header className="border-none">
         <h2 className="text-base font-semibold">
-          {(msg!.cards as I18nRecord).gpsValidation as string}
+          {msg?.cards
+            ? ((msg!.cards as I18nRecord).gpsValidation as string)
+            : ((msg as I18nRecord).gpsValidation as string)}
         </h2>
         <p className="text-sm text-gray-500 mt-1"></p>
       </Modal.Header>
@@ -68,14 +70,26 @@ export default function GpsValidationModal({
                       value !== "" && (
                         <Table.Row key={key}>
                           <Table.Cell>
-                            <strong>{tr(key, msg!.cards as I18nRecord)}</strong>
+                            <strong>
+                              {msg?.cards
+                                ? tr(key, msg!.cards as I18nRecord)
+                                : tr(key, msg as I18nRecord)}
+                            </strong>
                           </Table.Cell>
                           <Table.Cell>
                             {!date_values.includes(key) &&
                               ((typeof value === "string" &&
                                 `${value.replace("_", " ")}`) ||
                                 (typeof value === "boolean" &&
-                                  `${value ? tr("true", msg!.cards as I18nRecord) : tr("false", msg!.cards as I18nRecord)}`) ||
+                                  `${
+                                    value
+                                      ? msg?.cards
+                                        ? tr("true", msg!.cards as I18nRecord)
+                                        : tr("true", msg as I18nRecord)
+                                      : msg?.cards
+                                        ? tr("false", msg!.cards as I18nRecord)
+                                        : tr("false", msg as I18nRecord)
+                                  }`) ||
                                 (typeof value === "number" && `${value}`))}
                             {date_values.includes(key) &&
                               `${new Date(

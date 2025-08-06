@@ -84,7 +84,7 @@ export default function Document({
         <p className="text-sm text-gray-800 dark:text-gray-200 truncate whitespace-nowrap h-fit">
           {document.file.entry.name}
         </p>
-        {document.file.entry.properties["mintral:contentType"] && (
+        {document?.file?.entry?.properties?.["mintral:contentType"] && (
           <div
             className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
               modified

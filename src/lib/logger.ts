@@ -73,7 +73,7 @@ const createLoggerConfig = () => {
   if (isDevelopment) {
     return {
       ...baseConfig,
-      transport: {
+      /* transport: {
         target: "pino-pretty",
         options: {
           colorize: true,
@@ -81,7 +81,7 @@ const createLoggerConfig = () => {
           ignore: "pid,hostname",
           messageFormat: "{msg} {req.method} {req.url} {responseTime}ms",
         },
-      },
+      }, */
     };
   }
 

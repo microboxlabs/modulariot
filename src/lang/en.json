@@ -400,6 +400,8 @@
         "alcoholTest": "Alcohol test",
         "drugTest": "Drug test",
         "sleepinessTest": "Sleepiness test",
+        "appTest": "Driver App",
+        "identityTest": "Identity Validation",
         "clientCode": "Client Code",
         "clientName": "Client",
         "serviceCode": "Service Code",
@@ -409,7 +411,7 @@
         "comments": "Comments",
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
-        "clientSystemValidation": "Client System Validation",
+        "clientSystemValidation": "Client System Validation",       
         "gpsValidation": "GPS Validation",
         "gpsValidationError": "Error loading GPS validation",
         "entity": "Entity",
@@ -471,7 +473,8 @@
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
         "Viaje Finalizado": "Trip Finished",
-        "Viaje Rechazado": "Trip Sovos Canceled",
+        "Viaje Rechazado": "Trip Rejected POD",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -499,6 +502,10 @@
         "missionControlTripInitTaskReason2": "No consolidation documentation.",
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
+        "PODReason1": "Document not related to the service (an attachment was made without relation to the load).",
+        "PODReason2": "Missing identification of the receiver (stamp, name or RUT of who received the load).",
+        "PODReason3": "Incomplete POD: no client authorization (the document must include the email that vouches for the delivery).",
+        "PODReason4": "Other.",
 
         "reason": "Reason",
         "confirm": "Confirm move to {outcome}"
@@ -562,6 +569,7 @@
         "authorizedWithRepairs": "Authorized with Repairs",
         "canceledByOverlord": "Canceled by Overlord",
         "annulledByOverlord": "Annulled by Overlord",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -1080,6 +1088,23 @@
     "arribado_cp": "Arrived CP",
     "recepcionado": "Received",
     "taken_by": "Taken by",
+
+    "gpsValidation": "GPS Validation",
+    "consolidation": "Consolidation",
+    "documentSeparation": "Document Separation",
+    "clientSystemValidation": "Client System Validation",
+    "assignedDepartureDate": "Assigned Departure Date",
+    "assignedArrivalDate": "Assigned Arrival Date",
+    "assignedDeliveryDate": "Assigned Delivery Date",
+    "generalAlcoholTest": "General Alcohol Test",
+    "generalDrugTest": "General Drug Test",
+    "generalDrowsinessTest": "General Drowsiness Test",
+    "driverApp": "Driver App",
+    "biometricValidation": "Biometric Validation",
+    "validations": "Validations",
+    "DEVICES": "Devices",
+    "PAYLOAD": "Payload",
+    "DRIVERS": "Drivers",
     "forum": "Forum",
     "forum_subtitle": "Here you can view the comments entered.",
     "titles": {
@@ -1109,6 +1134,9 @@
       "finished": "Finished"
     },
     "multimedia": {
+      "only_jpg_jpeg_png_pdf_allowed": "Only JPG, JPEG, PNG and PDF files are allowed.",
+      "select_document_type": "Select a document type",
+      "select_document_type_error": "You must select a document type",
       "categories": {
         "PROOF_OF_DELIVERY": "Proof of delivery",
         "PROOF_OF_PICKUP": "Proof of pickup",

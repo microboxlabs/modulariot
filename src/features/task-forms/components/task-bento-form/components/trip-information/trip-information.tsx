@@ -29,12 +29,6 @@ export default function TripInformation({
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
           isLoading={isLoading}
         />
-        <TripVerifications
-          task={task}
-          msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
-          lang={lang}
-          userGroups={userGroups}
-        />
       </div>
     </CustomCard>
   );

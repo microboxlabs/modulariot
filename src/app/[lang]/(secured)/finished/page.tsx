@@ -10,7 +10,6 @@ import {
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
-import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 
 export default async function FinishedPage({
   params: { lang },
@@ -32,7 +31,6 @@ export default async function FinishedPage({
     // });
     return (
       <div className="h-full w-full overflow-auto">
-        <SseListener dictionary={dictionary} tenantId={session!.user.email} />
         <PageContent
           showFinishedTasks={true}
           kanbanBoards={staticData}

@@ -125,6 +125,7 @@ export type MissionControlTaskOutcome =
   | "Preparar Servicio"
   | "Presentar Conductor"
   | "Asignar Conductor/Transporte"
+  | "Requiere Overlord"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 

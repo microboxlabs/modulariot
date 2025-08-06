@@ -24,7 +24,6 @@ export default function GpsValidationItem({
   lang,
   userGroups,
 }: TaskFormProps) {
-  logger.info(msg);
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

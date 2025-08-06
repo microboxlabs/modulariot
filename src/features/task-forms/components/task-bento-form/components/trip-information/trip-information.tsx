@@ -7,13 +7,13 @@ import CustomCard from "@/features/common/components/custom-card/custom-card";
 export default function TripInformation({
   task,
   msg,
-  lang,
-  userGroups,
+  /* lang,
+  userGroups, */
 }: {
   task: TaskResponse;
   msg: I18nRecord;
-  lang: string;
-  userGroups: string[];
+  /* lang: string;
+  userGroups: string[]; */
 }) {
   return (
     <CustomCard
@@ -28,8 +28,8 @@ export default function TripInformation({
         <TripVerifications
           task={task}
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
-          lang={lang}
-          userGroups={userGroups}
+          /* lang={lang}
+          userGroups={userGroups} */
         />
       </div>
     </CustomCard>

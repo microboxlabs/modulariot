@@ -62,6 +62,16 @@ export type ShippingCoordinatorProcessTask =
   | "monitoringFinalization"
   | "finished";
 
+export type ShippingFinishedCoordinatorProcessTask =
+  | "monitoringFinalization"
+  | "finished"
+  | "tripCancelled"
+  | "tripCanceledByOverlord"
+  | "canceled"
+  | "tripNullified"
+  | "tripNullifiedByOverlord"
+  | "nullified";
+
 export type OverlordTripInitOutcome =
   | "Autorizado Sin GPS"
   | "Autorizado Con Reparos"
@@ -115,6 +125,7 @@ export type MissionControlTaskOutcome =
   | "Preparar Servicio"
   | "Presentar Conductor"
   | "Asignar Conductor/Transporte"
+  | "Requiere Overlord"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
@@ -175,7 +186,7 @@ export type DeliveryProcessForms =
   | "wfship2:notifyTMSArrivalTask"
   | "wfship2:notifyTMSDeliveryTask";
 
-export type ConfirmDeliveryOutcome = "Recibir Entrega";
+export type ConfirmDeliveryOutcome = "Recibir Entrega" | "Viaje Rechazado";
 
 export type ReceiveDeliveryOutcome =
   | "Confirmar Entrega"

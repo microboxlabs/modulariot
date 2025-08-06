@@ -1,3 +1,4 @@
+"use client";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
@@ -5,36 +6,11 @@ import {
   ValidationStatus,
   ServiceValidationData,
 } from "./validations.types";
-import { useGetValidationByServiceCode } from "@/features/common/providers/client-api.provider";
-import { FaCheck } from "react-icons/fa";
-import { TbExclamationMark } from "react-icons/tb";
 
 import CustomCard from "@/features/common/components/custom-card/custom-card";
-
-// Validation status icons
-const ValidationIcon = ({ status }: { status: ValidationStatus }) => {
-  switch (status) {
-    case "ok":
-      return (
-        <div className="w-5 h-5 text-white bg-gray-400 rounded-full flex items-center justify-center p-1">
-          <FaCheck className="w-4 h-4" />
-        </div>
-      );
-    case "not_found":
-      return (
-        <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
-          <TbExclamationMark className="w-4 h-4" />
-        </div>
-      );
-    case "error":
-    default:
-      return (
-        <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
-          <TbExclamationMark className="w-4 h-4" />
-        </div>
-      );
-  }
-};
+import { useGetValidation } from "@/features/common/providers/client-api.provider";
+import { ValidationIcon } from "./validation-icon";
+import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 
 // Validation item component
 const ValidationItemComponent = ({
@@ -59,10 +35,16 @@ const ValidationCategory = ({
   title,
   items,
   msg,
+  lang,
+  userGroups,
+  task,
 }: {
   title: string;
   items: ValidationItem[];
   msg: I18nRecord;
+  lang: string;
+  userGroups: string[];
+  task: TaskResponse;
 }) => {
   return (
     <div className="space-y-2">
@@ -70,9 +52,19 @@ const ValidationCategory = ({
         {title}
       </h3>
       <div className="space-y-1">
-        {items.map((item) => (
-          <ValidationItemComponent key={item.key} item={item} msg={msg} />
-        ))}
+        {items.map((item) =>
+          item.key === "gpsValidation" ? (
+            <GpsValidationItem
+              key={item.key}
+              msg={msg}
+              lang={lang}
+              task={task as TaskResponse}
+              userGroups={userGroups}
+            />
+          ) : (
+            <ValidationItemComponent key={item.key} item={item} msg={msg} />
+          ),
+        )}
       </div>
     </div>
   );
@@ -115,17 +107,20 @@ const mapValidationNameToKey = (name: string): string => {
 export default function ValidationsInfo({
   task,
   msg,
+  lang,
+  userGroups,
 }: {
   readonly task: TaskResponse;
   readonly msg: I18nRecord;
+  readonly lang: string;
+  readonly userGroups: string[];
 }) {
-  const { data: serviceValidation } = useGetValidationByServiceCode(
+  const { data: serviceValidation } = useGetValidation(
     task.mintral_serviceCode,
   );
 
-  let validationData: ServiceValidationData | null = null;
-
-  validationData = serviceValidation as ServiceValidationData;
+  const validationData: ServiceValidationData =
+    serviceValidation as ServiceValidationData;
 
   return (
     <CustomCard
@@ -149,6 +144,9 @@ export default function ValidationsInfo({
                 group: validation.group,
               }))}
               msg={msg}
+              lang={lang}
+              userGroups={userGroups}
+              task={task}
             />
           ))}
       </div>

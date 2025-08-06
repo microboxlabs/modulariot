@@ -44,10 +44,10 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse; //[];
+    let taskResponses: FastTasksResponse[] | FinishedWorkflowsResponse[];
     if (show_finished) {
-      taskResponses = await Promise.all([
-        /*TODO:Refactor columns to getFinishedWorkflows: ...columns.map((column) => {
+      taskResponses = (await Promise.all([
+        ...columns.map((column) => {
           return getFinishedWorkflows(session.user.ticket, {
             from: from ? parseInt(from) : 0,
             size: size ? parseInt(size) : 10,
@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
               clientAbbreviation: customer ? customer : undefined,
             },
           });
-        }), */
-        getFinishedWorkflows(session.user.ticket, {
+        }),
+        /* getFinishedWorkflows(session.user.ticket, {
           from: from ? parseInt(from) : 0,
           size: size ? parseInt(size) : 10,
           //definitionKey: "shippingCoordinatorProcess",
@@ -83,8 +83,8 @@ export async function GET(req: NextRequest) {
         }).then((res) => ({
           tasks: res.workflows,
           total: res.total,
-        })),
-      ]);
+        })), */
+      ])) as FinishedWorkflowsResponse[];
     } else {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {

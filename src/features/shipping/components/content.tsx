@@ -47,8 +47,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
-  SHIPPING_COORDINATOR_PROCESS_TASKS,
+  // SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
 } from "@/features/task-forms/services/form.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
@@ -57,6 +58,7 @@ import { TableView } from "./views/table-view";
 import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
 import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
+//import { logger } from "@/lib/logger";
 
 export default function PageContent({
   showFinishedTasks,
@@ -80,7 +82,7 @@ export default function PageContent({
       : showWorkflowTasks === "delivery"
         ? [...DELIVERY_COORDINATOR_PROCESS_TASKS]
         : []
-    : [...SHIPPING_COORDINATOR_PROCESS_TASKS];
+    : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
 
   const {
     data: myTasksData,

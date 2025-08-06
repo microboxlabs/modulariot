@@ -149,21 +149,7 @@ export async function TaskBentoForm({
       );
 
     case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
-      /* if (task.mintral_executionType === "T") {
-        return (
-          <SovosVerificationForm
-            lang={lang}
-            task={task as TaskResponse}
-            user={user}
-            userGroups={userGroups}
-            msg={
-              (dictionary.pages as I18nRecord)
-                .sovosVerificationForm as I18nRecord
-            }
-          />
-        );
-      } */
-
+      //TODO: Add task.mintral_executionType === "T"
       return (
         <Bento
           lang={lang ?? defaultLocale}

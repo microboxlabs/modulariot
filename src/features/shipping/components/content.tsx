@@ -193,11 +193,11 @@ export default function PageContent({
             className={`flex items-start justify-start ${compactKanbanView ? "mx-2 gap-2" : "mx-4 gap-4"} `}
           >
             <ModalTooltip
+              lang={lang}
+              userGroups={userGroups}
               selectedTask={selectedTask}
               setSelectedTask={setSelectedTask}
               dict={dictionary.general}
-              lang={lang}
-              userGroups={userGroups}
             />
             {list.map((board) => {
               if (showFinishedTasks) {

@@ -33,7 +33,7 @@ export default function DriverData({
   ];
 
   return (
-    <div className="flex flex-col gap-2 h-full">
+    <div className="flex flex-col gap-2 h-full w-1/2">
       <div className="flex flex-col">
         <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
           {

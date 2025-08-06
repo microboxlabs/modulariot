@@ -65,9 +65,7 @@ export default function DriverInfo({
           */}
         </h1>
         <div
-          className={`grid grid-cols-1 gap-4 ${
-            driver2 ? "grid-cols-2" : "grid-cols-1"
-          }`}
+          className={`flex flex-row gap-4`}
         >
           <DriverData
             driver={driver1}

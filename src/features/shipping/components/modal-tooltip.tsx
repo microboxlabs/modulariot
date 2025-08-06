@@ -5,6 +5,8 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useGetTaskData } from "@/features/common/providers/client-api.provider";
 import DriverInfo from "@/features/task-forms/components/task-bento-form/components/driver/driver";
 import { Spinner } from "flowbite-react";
+import ValidationsInfo from "@/features/task-forms/components/task-bento-form/components/driver/validations";
+import Conditions from "@/features/task-forms/components/task-bento-form/components/side-data/conditions";
 
 export default function ModalTooltip({
   selectedTask,
@@ -44,8 +46,6 @@ export default function ModalTooltip({
             <TripInformation
               task={data.taskResponse as unknown as TaskResponse}
               msg={dict}
-              lang={lang}
-              userGroups={userGroups}
               isLoading={isLoading}
             />
           </div>
@@ -56,17 +56,17 @@ export default function ModalTooltip({
             />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-            <DriverInfo
-              task={data.taskResponse as unknown as TaskResponse}
-              msg={dict}
-            />
+            <Conditions dict={dict as I18nRecord} task={data.taskResponse as unknown as TaskResponse} />
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-            <DriverInfo
+            <ValidationsInfo
               task={data.taskResponse as unknown as TaskResponse}
               msg={dict}
+              lang={lang}
+              userGroups={userGroups}
             />
           </div>
+          
         </div>
       )}
     </AbsoluteModal>

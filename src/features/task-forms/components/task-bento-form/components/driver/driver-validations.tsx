@@ -39,20 +39,19 @@ export default async function DriverValidations({
   if (tasks?.validations?.length > 0) {
     tasks.validations.forEach((validation1) => {
       validation1.validations.forEach((validation) => {
-        if (validation.name === "ALCOHOL_TEST") {
+        if (validation.name === "DRIVER_ALCOHOL_TEST") {
           alcoholTestStatus = validation.value === 0 ? "ok" : "not_found";
         }
-        if (validation.name === "DRUG_TEST") {
+        if (validation.name === "DRIVER_DRUG_TEST") {
           drugTestStatus = validation.value === 0 ? "ok" : "not_found";
         }
-        if (validation.name === "SLEEPINESS_TEST") {
+        if (validation.name === "DRIVER_SLEEP_TEST") {
           sleepinessTestStatus = validation.value === 0 ? "ok" : "not_found";
         }
-        if (validation.name === "CLIENT_SYSTEM_VALIDATION") {
-          // TODO: change to APP_TEST
+        if (validation.name === "DRIVER_DRIVER_APP") {
           appTestStatus = validation.value === 0 ? "ok" : "not_found";
         }
-        if (validation.name === "IDENTITY_TEST") {
+        if (validation.name === "DRIVER_BIOMETRIC_VERIFICATION") {
           identityTestStatus = validation.value === 0 ? "ok" : "not_found";
         }
       });

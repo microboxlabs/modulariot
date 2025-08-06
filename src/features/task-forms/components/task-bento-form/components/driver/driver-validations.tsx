@@ -5,7 +5,6 @@ import { Driver } from "@/features/task-forms/components/driver-contact-info/dri
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 /* import { useGetValidation } from "@/features/common/providers/client-api.provider"; */
 import { getValidationByServiceCode } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { logger } from "@/lib/logger";
 import { auth } from "@/auth";
 import { ValidationIcon } from "./validation-icon";
 import { ValidationStatus } from "./validations.types";
@@ -40,7 +39,6 @@ export default async function DriverValidations({
   if (tasks?.validations?.length > 0) {
     tasks.validations.forEach((validation1) => {
       validation1.validations.forEach((validation) => {
-        logger.info(validation.name);
         if (validation.name === "ALCOHOL_TEST") {
           alcoholTestStatus = validation.value === 0 ? "ok" : "not_found";
         }

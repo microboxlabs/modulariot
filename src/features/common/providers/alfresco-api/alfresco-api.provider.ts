@@ -20,6 +20,7 @@ import type {
   TaskResponse,
   UploadNodeRequest,
   UserState,
+  ValidationsResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
@@ -504,13 +505,20 @@ export async function ecmSovosDec5(
 export async function getValidationByServiceCode(
   ticket: string,
   serviceCode: string,
-): Promise<TaskResponse> {
+  scope?: string,
+  scopeId?: string,
+): Promise<ValidationsResponse> {
   alfrescoApi.setTicket(ticket, "");
   const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
+  if (scope && scopeId) {
+    return (await webscriptApi.executeWebScript(
+      "GET",
+      `mintral/service/validation?serviceCode=${serviceCode}&scope=${scope}&scopeId=${scopeId}`,
+    )) as ValidationsResponse;
+  }
+
+  return (await webscriptApi.executeWebScript(
     "GET",
     `mintral/service/validation?serviceCode=${serviceCode}`,
-  );
-  return result as TaskResponse;
+  )) as ValidationsResponse;
 }

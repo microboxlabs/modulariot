@@ -10,14 +10,14 @@ export default function TripInformation({
   msg,
   lang,
   userGroups,
+  isLoading = false,
 }: {
   task: TaskResponse;
   msg: I18nRecord;
   lang: string;
   userGroups: string[];
+  isLoading?: boolean;
 }) {
-  console.log(msg);
-
   return (
     <CustomCard
       title={tr("trip_information", msg.bento as I18nRecord)}
@@ -27,6 +27,7 @@ export default function TripInformation({
         <TripData
           task={task}
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+          isLoading={isLoading}
         />
         <TripVerifications
           task={task}

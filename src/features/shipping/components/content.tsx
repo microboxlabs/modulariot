@@ -11,7 +11,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import type { FC } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   HiArchive,
   HiClipboardCopy,
@@ -74,10 +74,9 @@ export default function PageContent({
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [compactKanbanView, setCompactKanbanView] = useState(true);
-  const [selectedTask, setSelectedTask] = useState<string | null>("2691936");
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<number | null>(null);
   const pageSize = 100;
-
-  console.log(dictionary);
 
   configureLocale(lang);
   const columns = showWorkflowTasks
@@ -247,17 +246,42 @@ export default function PageContent({
                         })
                       }
                       disabled={true}
+                      className={`flex flex-col ${
+                        compactKanbanView ? "gap-1" : "gap-4"
+                      }`}
                     >
-                      {board.tasks.map((task) => (
-                        <KanbanCard
-                          key={task.id}
-                          task={task}
-                          dict={dictionary.base}
-                          table_name={board.title}
-                          compactKanbanView={compactKanbanView}
-                          showFinishedTasks={showFinishedTasks}
-                        />
-                      ))}
+                      {board.tasks.map((task) => {
+                        const handleMouseEnter = () => {
+                          hoverTimeoutRef.current = window.setTimeout(() => {
+                            setSelectedTask(task.id);
+                          }, 1000);
+                        };
+
+                        const handleMouseLeave = () => {
+                          if (hoverTimeoutRef.current) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = null;
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={task.id}
+                            className="w-full h-fit group relative"
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                          >
+                            <KanbanCard
+                              key={task.id}
+                              task={task}
+                              dict={dictionary.base}
+                              table_name={board.title}
+                              compactKanbanView={compactKanbanView}
+                              showFinishedTasks={showFinishedTasks}
+                            />
+                          </div>
+                        );
+                      })}
                     </ReactSortable>
                   </div>
                   <AddAnotherCardModal />

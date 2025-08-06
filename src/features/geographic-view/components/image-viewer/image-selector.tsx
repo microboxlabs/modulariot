@@ -3,8 +3,15 @@ import { FaChevronRight, FaImage } from "react-icons/fa";
 import { MdOutlineFileDownload, MdOutlineRemoveRedEye } from "react-icons/md";
 import Image from "next/image";
 import ImageViewer from "./image-viewer";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-export default function ImageSelector({ images }: { images: string[] }) {
+export default function ImageSelector({
+  images,
+  dictionary,
+}: {
+  images: string[];
+  dictionary: I18nRecord;
+}) {
   const [open, setOpen] = useState(true);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -76,6 +83,7 @@ export default function ImageSelector({ images }: { images: string[] }) {
         images={images}
         selected={selected}
         setSelected={setSelected}
+        dictionary={dictionary}
       />
     </div>
   );
@@ -88,6 +96,7 @@ export function ImageComponent({
   setSize = "h-40 w-40",
   stepped = true,
   loading = false,
+  tag = null,
 }: {
   image: string | null;
   index: number;
@@ -95,6 +104,7 @@ export function ImageComponent({
   setSize?: string;
   stepped?: boolean;
   loading?: boolean;
+  tag?: string | null;
 }) {
   if (loading) {
     return (
@@ -103,7 +113,12 @@ export function ImageComponent({
   }
 
   return (
-    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 h-40">
+    <div className="overflow-hidden bg-gray-300 dark:bg-gray-600 h-40 relative">
+      {tag && (
+        <div className="whitespace-nowrap bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 px-2 py-1 text-xs w-full absolute top-0 left-0 z-10 flex items-center justify-center">
+          {tag}
+        </div>
+      )}
       <div
         className={`${setSize} flex flex-col items-center justify-center gap-2 ${stepped ? "border-b-2 border-gray-300" : ""} relative overflow-hidden`}
       >

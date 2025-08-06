@@ -400,6 +400,8 @@
         "alcoholTest": "Alcohol test",
         "drugTest": "Drug test",
         "sleepinessTest": "Sleepiness test",
+        "appTest": "Driver App",
+        "identityTest": "Identity Validation",
         "clientCode": "Client Code",
         "clientName": "Client",
         "serviceCode": "Service Code",
@@ -472,6 +474,7 @@
         "Notificar Entrega (5.11)": "Notify Delivery",
         "Viaje Finalizado": "Trip Finished",
         "Viaje Rechazado": "Trip Rejected POD",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -566,6 +569,7 @@
         "authorizedWithRepairs": "Authorized with Repairs",
         "canceledByOverlord": "Canceled by Overlord",
         "annulledByOverlord": "Annulled by Overlord",
+        "Requiere Overlord": "Requires Overlord",
 
         "Asignar Conductor/Transporte": "Assign Driver/Transport",
         "Presentar Conductor": "Present Driver",
@@ -1143,6 +1147,9 @@
       "finished": "Finished"
     },
     "multimedia": {
+      "only_jpg_jpeg_png_pdf_allowed": "Only JPG, JPEG, PNG and PDF files are allowed.",
+      "select_document_type": "Select a document type",
+      "select_document_type_error": "You must select a document type",
       "categories": {
         "PROOF_OF_DELIVERY": "Proof of delivery",
         "PROOF_OF_PICKUP": "Proof of pickup",

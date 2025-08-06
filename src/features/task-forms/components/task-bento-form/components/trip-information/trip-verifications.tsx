@@ -3,7 +3,7 @@
 import { useGetServiceValidation } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
+//import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
 import { GoX } from "react-icons/go";
@@ -11,13 +11,13 @@ import { GoX } from "react-icons/go";
 export default function TripVerifications({
   task,
   msg,
-  lang,
-  userGroups,
+  /* lang,
+  userGroups, */
 }: {
   task: TaskResponse;
   msg: I18nRecord;
-  lang: string;
-  userGroups: string[];
+  /*  lang: string;
+  userGroups: string[]; */
 }) {
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task.mintral_serviceCode as string);
@@ -74,14 +74,14 @@ export default function TripVerifications({
           {(msg!.cards as I18nRecord).clientSystemValidation as string}
         </span>
       </div>
-      <div className="flex gap-2 items-center border-0 border-gray-200 dark:border-gray-500 rounded-br-lg">
+      {/* <div className="flex gap-2 items-center border-0 border-gray-200 dark:border-gray-500 rounded-br-lg">
         <GpsValidationItem
           msg={msg}
           lang={lang}
           task={task}
           userGroups={userGroups}
         />
-      </div>
+      </div> */}
     </div>
   );
 }

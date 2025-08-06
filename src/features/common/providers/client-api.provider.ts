@@ -557,7 +557,40 @@ export function useGetNodeContents(nodeIds: string[]) {
 }
 
 export function useGetNodeThumbnail(nodeId: string) {
-  return fetcher(`/app/api/bento/thumbnails?nodeId=${nodeId}`);
+  const { data, error, isLoading } = useSWR<Blob | null, FetcherError>(
+    nodeId ? `/app/api/bento/thumbnails?nodeId=${nodeId}` : null,
+    async (url: string) => {
+      const response = await fetch(url);
+
+      // Handle 404 gracefully - thumbnail doesn't exist
+      if (response.status === 404) {
+        // Return null instead of throwing error to prevent retries
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch thumbnail: ${response.statusText}`);
+      }
+
+      // Return the blob directly
+      return response.blob();
+    },
+    {
+      // Prevent retries on 404 errors and limit retry attempts
+      errorRetryCount: 3,
+      errorRetryInterval: 1000,
+      shouldRetryOnError: (error: FetcherError) => {
+        // Don't retry on 404 errors
+        return error.status !== 404;
+      },
+    },
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
 }
 
 export function postBentoMultimedia(sendableFile: SendableFile) {
@@ -580,11 +613,19 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   });
 }
 
-export function useGetValidation(serviceCode: string) {
+export function useGetValidation(
+  serviceCode: string,
+  scope?: string,
+  scopeId?: string,
+) {
+  let baseUrl = `/app/api/task/validation?serviceCode=${serviceCode}`;
+  if (scope && scopeId) {
+    baseUrl += `&scope=${scope}&scopeId=${scopeId}`;
+  }
   const { data, error, isLoading } = useSWR<
     ServiceValidationResponse,
     FetcherError
-  >(`/app/api/task/validation?serviceCode=${serviceCode}`, fetcher);
+  >(baseUrl, fetcher);
   return {
     data,
     error,

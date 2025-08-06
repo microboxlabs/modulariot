@@ -395,9 +395,11 @@
         "driver2": "Conductor 2",
         "verified": "Verificado",
         "driverValidation": "Validación",
-        "alcoholTest": "Test de alcoholemia",
+        "alcoholTest": "Test de alcohol",
         "drugTest": "Test de drogas",
         "sleepinessTest": "Test de somnolencia",
+        "appTest": "APP Conductor",
+        "identityTest": "Validación de identidad",
         "tripInformation": "Información del viaje",
         "transportNumberCode": "N° de transporte",
         "patente": "Patente",
@@ -474,7 +476,8 @@
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
         "Viaje Finalizado": "Viaje Finalizado",
-        "Viaje Rechazado": "Viaje Rechazado POD"
+        "Viaje Rechazado": "Viaje Rechazado POD",
+        "Requiere Overlord": "Requiere Overlord"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -544,7 +547,6 @@
         "initiationWithObjections": "Iniciar viaje con reparos",
         "initiatedWithoutSovosSignature": "Iniciar viaje sin Firma Sovos",
         "returnToTransportValidation": "Devolver a Validación de Transporte",
-        "requiresOverlord": "Escalar a superior",
         "canceled": "Cancelar",
         "annulled": "Anular",
         "continue": "Continuar",
@@ -558,6 +560,7 @@
         "authorizedWithRepairs": "Autorizado con reparos",
         "canceledByOverlord": "Cancelado por Overlord",
         "annulledByOverlord": "Anulado por Overlord",
+        "requiresOverlord": "Requiere Overlord",
 
         "Asignar Conductor/Transporte": "Asignar Conductor/Transporte",
         "Presentar Conductor": "Presentar Conductor",
@@ -575,7 +578,8 @@
         "Recibir Entrega": "Recibir Entrega",
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
-        "Viaje Finalizado": "Viaje Finalizado"
+        "Viaje Finalizado": "Viaje Finalizado",
+        "Requiere Overlord": "Requiere Overlord"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -1147,6 +1151,9 @@
       "finished": "Finalizado"
     },
     "multimedia": {
+      "only_jpg_jpeg_png_pdf_allowed": "Solo se permiten archivos JPG, JPEG, PNG y PDF.",
+      "select_document_type": "Selecciona un Tipo de Documento",
+      "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
         "PROOF_OF_PICKUP": "Prueba de Retiro",

@@ -4,6 +4,7 @@ import TripInformation from "@/features/task-forms/components/task-bento-form/co
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useGetTaskData } from "@/features/common/providers/client-api.provider";
 import DriverInfo from "@/features/task-forms/components/task-bento-form/components/driver/driver";
+import { Spinner } from "flowbite-react";
 
 export default function ModalTooltip({
   selectedTask,
@@ -18,38 +19,56 @@ export default function ModalTooltip({
   lang: string;
   userGroups: string[];
 }) {
-  // here get the task from the task id
-  const { data, error, isLoading } = useGetTaskData(selectedTask || "");
+  // Only fetch data when selectedTask is not null - this prevents unnecessary requests
+  // and automatically cancels the request when selectedTask becomes null (modal closes)
+  const { data, error, isLoading } = useGetTaskData(
+    selectedTask ? selectedTask : "",
+  );
 
   if (!selectedTask) {
     return null;
   }
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-
   return (
     <AbsoluteModal selected={selectedTask} setSelected={setSelectedTask}>
-      <div className="grid grid-cols-2 grid-rows-2 gap-2 p-2">
-        {/* Trip Information */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-          <TripInformation
-            task={data as unknown as TaskResponse}
-            msg={dict}
-            lang={lang}
-            userGroups={userGroups}
-          />
+      {isLoading && (
+        <div className="flex justify-center items-center h-full p-5">
+          <Spinner size="lg" />
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-          <DriverInfo task={data as unknown as TaskResponse} msg={dict} />
+      )}
+      {error && <div>Error: {error.message}</div>}
+      {!isLoading && !error && (
+        <div className="grid grid-cols-2 grid-rows-2 gap-2 p-2">
+          {/* Trip Information */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
+            <TripInformation
+              task={data.taskResponse as unknown as TaskResponse}
+              msg={dict}
+              lang={lang}
+              userGroups={userGroups}
+              isLoading={isLoading}
+            />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
+            <DriverInfo
+              task={data.taskResponse as unknown as TaskResponse}
+              msg={dict}
+            />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
+            <DriverInfo
+              task={data.taskResponse as unknown as TaskResponse}
+              msg={dict}
+            />
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
+            <DriverInfo
+              task={data.taskResponse as unknown as TaskResponse}
+              msg={dict}
+            />
+          </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-          <DriverInfo task={data as unknown as TaskResponse} msg={dict} />
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-          <DriverInfo task={data as unknown as TaskResponse} msg={dict} />
-        </div>
-      </div>
+      )}
     </AbsoluteModal>
   );
 }

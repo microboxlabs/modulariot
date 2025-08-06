@@ -52,7 +52,7 @@ export default function TransportValidationForm({
           <Bento
             lang={lang}
             task={task as any}
-            userGroups={userGroups}
+            /* userGroups={userGroups} */
             msg={msg as I18nRecord}
             dict={msg as I18nRecord}
             enableActions={false}

@@ -613,11 +613,19 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   });
 }
 
-export function useGetValidation(serviceCode: string) {
+export function useGetValidation(
+  serviceCode: string,
+  scope?: string,
+  scopeId?: string,
+) {
+  let baseUrl = `/app/api/task/validation?serviceCode=${serviceCode}`;
+  if (scope && scopeId) {
+    baseUrl += `&scope=${scope}&scopeId=${scopeId}`;
+  }
   const { data, error, isLoading } = useSWR<
     ServiceValidationResponse,
     FetcherError
-  >(`/app/api/task/validation?serviceCode=${serviceCode}`, fetcher);
+  >(baseUrl, fetcher);
   return {
     data,
     error,

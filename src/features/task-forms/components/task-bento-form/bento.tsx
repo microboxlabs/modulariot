@@ -9,8 +9,8 @@ import DownloadSignedDocument from "@/features/shipping/components/download-sign
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
-import Comment from "./components/side-data/comment";
-import { ExtendedTaskResponse } from "../task-form/task-form.types";
+//import Comment from "./components/side-data/comment";
+//import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
 import ValidationsInfo from "./components/driver/validations";
@@ -34,7 +34,7 @@ const task_states = {
 export default function Bento({
   lang,
   task,
-  userGroups,
+  /* userGroups, */
   dict, // this is the general dictionary to base all our code
   msg, // this is a relative dictionary for the current task
   active = true,
@@ -43,7 +43,7 @@ export default function Bento({
 }: {
   lang: string;
   task: TaskResponse;
-  userGroups: string[];
+  /* userGroups: string[]; */
   dict: I18nRecord;
   msg: I18nRecord;
   active?: boolean;
@@ -150,8 +150,8 @@ export default function Bento({
             <TripInformation
               task={task}
               msg={dict}
-              lang={lang}
-              userGroups={userGroups}
+              /* lang={lang}
+              userGroups={userGroups} */
             />
           </div>
 
@@ -161,17 +161,18 @@ export default function Bento({
           </div>
 
           {/* Validations Info */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
+          {/* <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
             <ValidationsInfo task={task} msg={dict} />
-          </div>
+          </div> */}
         </div>
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700">
-          <Comment
+          {/*  <Comment
             task={task as ExtendedTaskResponse}
             dict={dict as I18nRecord}
-          />
+          /> */}
+          <ValidationsInfo task={task} msg={dict} />
         </div>
 
         {/* Geographic - spans full width below trip/driver on portrait, 2 columns on landscape */}

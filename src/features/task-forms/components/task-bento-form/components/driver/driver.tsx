@@ -35,11 +35,48 @@ export default function DriverInfo({
   return (
     <CustomCard title={null} subtitle={null}>
       <div className="flex flex-col flex-grow rounded-lg whitespace-nowrap relative">
-        <DriverData driver={driver1} msg={msg} />
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
+          {((msg as I18nRecord).symptoms as I18nRecord).drivers as string}
+          {/*
+          <Tooltip
+            style="auto"
+            content={
+              <div className="text-gray-600 dark:text-gray-400 text-sm flex gap-1 items-center w-fit font-light whitespace-nowrap">
+                {(msg.bento as I18nRecord).biometric_verification as string}:{" "}
+                <span className="text-gray-800 dark:text-gray-100 text-sm">
+                  {driver.status === "verified"
+                    ? ((msg.bento as I18nRecord).verified as string)
+                    : ((msg.bento as I18nRecord).not_verified as string)}
+                </span>
+              </div>
+            }
+          >
+            {driver.status === "verified" && (
+              <div className="border border-green-500 bg-green-500 rounded-full p-1">
+                <FaCheck className="w-4 h-4 text-white" />
+              </div>
+            )}
+            {driver.status !== "verified" && (
+              <div className="border border-red-500 bg-red-500 rounded-full p-1">
+                <FaTimes className="w-4 h-4 text-white" />
+              </div>
+            )}
+          </Tooltip>
+          */}
+        </h1>
+        <DriverData
+          driver={driver1}
+          msg={msg}
+          serviceCode={task.mintral_serviceCode}
+        />
         {driver2 && (
           <>
             <hr className="w-full mb-2 mt-3 dark:border-gray-700" />
-            <DriverData driver={driver2} msg={msg} />
+            <DriverData
+              driver={driver2}
+              msg={msg}
+              serviceCode={task.mintral_serviceCode}
+            />
           </>
         )}
       </div>

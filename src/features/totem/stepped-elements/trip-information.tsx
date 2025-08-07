@@ -229,7 +229,7 @@ export default function TripInformation({
           name={tripData?.tripInfo?.driver1Info?.driverId}
           /* email={tripData?.tripInfo?.email}
           phone={tripData?.tripInfo?.phone} */
-          state={tripData?.tripInfo?.status}
+          state={tripData?.tripInfo?.driver1Info?.verified}
           dict={dict}
         />
         {tripData?.isDoubleDriver && (
@@ -238,7 +238,7 @@ export default function TripInformation({
             name={tripData?.tripInfo?.driver2Info?.driverId}
             /*  email={tripData?.trip?.email2}
             phone={tripData?.trip?.phone2} */
-            state={tripData?.tripInfo?.status2}
+            state={tripData?.tripInfo?.driver2Info?.verified}
             dict={dict}
           />
         )}

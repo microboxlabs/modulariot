@@ -1218,6 +1218,7 @@
     "nativeGenerationEnabled": "Generate the Trip Manifest natively in the Coordinator",
     "codigo_servicio": "Service code",
     "tipo_servicio": "Service type",
+    "servicio": "Service",
     "tipo_gps": "GPS type",
     "estado": "State",
     "is_active": "Active",

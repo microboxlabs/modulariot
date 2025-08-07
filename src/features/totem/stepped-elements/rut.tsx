@@ -63,8 +63,14 @@ export default function Rut({
           <input
             type="text"
             placeholder="RUT"
+            autoFocus
             value={rut}
             onChange={(e) => setRut(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleValidateRut();
+              }
+            }}
             className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
           />
         </div>

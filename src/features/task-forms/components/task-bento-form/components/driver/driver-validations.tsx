@@ -28,7 +28,9 @@ export default async function DriverValidations({
     serviceCode,
     "driver",
     driver.rut,
-  );
+  ).catch(() => {
+    return { validations: [] };
+  });
 
   let alcoholTestStatus = "not_found";
   let drugTestStatus = "not_found";

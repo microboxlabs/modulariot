@@ -20,7 +20,7 @@ export default async function Page({
           <h2 className="text-lg text-gray-700 dark:text-gray-300">
             {(dict.release as I18nRecord).other_versions as string}
           </h2>
-          <OtherVersions version={version} />
+          <OtherVersions version={version} dict={dict} />
         </div>
       </div>
     </div>

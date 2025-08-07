@@ -1224,6 +1224,7 @@
     "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador",
     "codigo_servicio": "Código de servicio",
     "tipo_servicio": "Tipo de servicio",
+    "servicio": "Servicio",
     "tipo_gps": "Tipo de GPS",
     "estado": "Estado",
     "is_active": "Activo",

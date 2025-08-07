@@ -317,10 +317,10 @@ function DriverInfo({
       <div className="flex flex-col justify-center w-full">
         <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2 w-full">
           <span className="break-words min-w-0">{name}</span>
-          {state === "SUCCESS" && (
+          {state && (
             <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
           )}
-          {state !== "SUCCESS" && (
+          {!state && (
             <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
           )}
         </h1>

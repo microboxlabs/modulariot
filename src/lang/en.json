@@ -1216,6 +1216,8 @@
     "write_here_your_observations": "Write here your observations",
     "tripManifestParams": "Trip Manifest Generation",
     "nativeGenerationEnabled": "Generate the Trip Manifest natively in the Coordinator",
+    "codigo_servicio": "Service code",
+    "tipo_servicio": "Service type",
     "tipo_gps": "GPS type",
     "estado": "State",
     "is_active": "Active",

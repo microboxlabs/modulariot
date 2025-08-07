@@ -1222,6 +1222,8 @@
     "write_here_your_observations": "Escribe aquí tus observaciones",
     "tripManifestParams": "Generación de la Carta de Porte",
     "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador",
+    "codigo_servicio": "Código de servicio",
+    "tipo_servicio": "Tipo de servicio",
     "tipo_gps": "Tipo de GPS",
     "estado": "Estado",
     "is_active": "Activo",

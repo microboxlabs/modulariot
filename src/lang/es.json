@@ -116,7 +116,7 @@
         "tripInformation": "Información del viaje",
         "patente": "Patente",
         "transportNumberCode": "N° de transporte",
-        "truckLicensePlate": "Patente"        
+        "truckLicensePlate": "Patente"
       },
       "views": {
         "table": "Tabla",
@@ -139,7 +139,7 @@
         "carrierName": "Transportista",
         "customerCode": "Cliente"
       }
-    },   
+    },
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
@@ -177,7 +177,7 @@
         "monitorTrip": "Monitorear Viaje Iniciado",
         "monitorTripCompact": "Viaje Iniciado",
         "confirmArrival": "Confirmar Arribo a Destino",
-        "confirmArrivalCompact": "Confirmar Arribo",        
+        "confirmArrivalCompact": "Confirmar Arribo",
         "confirmTripDestinationDeparture": "Confirmar Salida de Destino",
         "confirmTripDestinationDepartureCompact": "Confirmar Salida",
         "confirmDelivery": "Confirmar Entrega",
@@ -255,7 +255,7 @@
         "tripInformation": "Información del viaje",
         "patente": "Patente",
         "transportNumberCode": "N° de transporte",
-        "truckLicensePlate": "Patente"  ,
+        "truckLicensePlate": "Patente",
         "withoutDriver": "Sin Asignación"
       },
       "views": {
@@ -280,7 +280,7 @@
         "customerCode": "Código Cliente",
         "customer": "Cliente"
       }
-    }, 
+    },
     "delivery": {
       "breadcrumb": {
         "tasks": "Mis tareas",
@@ -299,7 +299,7 @@
         "notifyTMSArrival": "Notificar Arribo (4.7)",
         "notifyTMSArrivalCompact": "Notificar Arribo",
         "notifyTMSDelivery": "Notificar Entrega (5.11)",
-        "notifyTMSDeliveryCompact": "Notificar Entrega",        
+        "notifyTMSDeliveryCompact": "Notificar Entrega",
         "departure": "Salida: ",
         "arrival": "Llegada: ",
         "compact": "Compactar",
@@ -332,7 +332,7 @@
         "tripInformation": "Información del viaje",
         "patente": "Patente",
         "transportNumberCode": "N° de transporte",
-        "truckLicensePlate": "Patente"  ,
+        "truckLicensePlate": "Patente",
         "withoutDriver": "Sin Asignación"
       },
       "views": {
@@ -356,7 +356,7 @@
         "carrierName": "Transportista",
         "customerCode": "Cliente"
       }
-    },  
+    },
     "notFound": {
       "supportingText": "Error 404",
       "supportingTextMobile": "404",
@@ -412,7 +412,7 @@
         "comments": "Comentarios",
         "consolidation": "Consolidación",
         "documentSeparation": "Separación Documental",
-        "clientSystemValidation": "Validación Sistema Cliente",       
+        "clientSystemValidation": "Validación Sistema Cliente",
         "gpsValidation": "Validación GPS",
         "gpsValidationError": "Error al cargar la validación GPS",
         "entity": "Patente",
@@ -425,6 +425,7 @@
         "ultimo_duration_seg": "Duración del evento",
         "ultimo_last_ptofinal": "Coordenadas de la ultima ubicación",
         "avg_delay_gps_mbl_det": "Retraso promedio en detenciones",
+        "avg_delay": "Retraso promedio",
         "avg_delay_gps_mbl_mov": "Retraso promedio en movimiento",
         "avg_every_signals_det": "Tiempo promedio entre señales en detenciones",
         "avg_every_signals_mov": "Tiempo promedio entre señales en movimiento",
@@ -469,7 +470,6 @@
         "authorizedWithRepairs": "Autorizado con reparos",
         "canceledByOverlord": "Cancelado por Overlord",
         "annulledByOverlord": "Anulado por Overlord",
-
         "Confirmar Asignar/ Entregar": "Confirmar Asignar/ Entregar",
         "Confirmar Entrega": "Confirmar Entrega",
         "Recibir Entrega": "Recibir Entrega",
@@ -498,7 +498,6 @@
         "PODReason2": "Falta identificación del receptor (timbre, nombre o RUT de quien recibió la carga).",
         "PODReason3": "POD incompleto: sin autorización de cliente (el documento debe incluir el correo que avala la entrega).",
         "PODReason4": "Otro.",
-        
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
@@ -561,7 +560,6 @@
         "canceledByOverlord": "Cancelado por Overlord",
         "annulledByOverlord": "Anulado por Overlord",
         "requiresOverlord": "Requiere Overlord",
-
         "Asignar Conductor/Transporte": "Asignar Conductor/Transporte",
         "Presentar Conductor": "Presentar Conductor",
         "Preparar Servicio": "Controlar Servicio",
@@ -596,7 +594,6 @@
         "missionControlTripInitTaskReason2": "No tiene consolidación documental.",
         "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
         "missionControlTripInitTaskReason4": "Otro.",
-        
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}"
       }
@@ -799,7 +796,7 @@
     "derive_to_specialist": "Derivar a especialista",
     "contact_carabineros": "Contactar Carabineros",
     "contact_via_whatsapp": "Contactar via WhatsApp",
-    "copilot": "Copiloto",    
+    "copilot": "Copiloto",
     "actions_description": "Acciones realizadas anteriormente.",
     "timeline_description": "Historial de condiciones anteriores.",
     "symptom_information": "Información del síntoma.",
@@ -1047,16 +1044,16 @@
     "biometric_verification_error": "Error al verificar datos biométricos",
     "Query return 2 results instead of max 1": "Más de un viaje asignado",
     "Driver already verified": "Conductor ya verificado",
-    "to_qrcode":"Ir a escaneo Cédula de identidad",
-    "id_card_scan":"Escaneo de Cédula de identidad",
-    "qr_code_scann":"Escanear código QR",
-    "manual_access":"Ingreso manual",
-    "qrcode_subtext":"Escanear el código QR que se encuentra al reverso de su cédula de identidad o ingresar datos de forma manual",
-    "smart_lock_card_subtext":"Debe colocar su cédula en dirección boca arriba mostrando el QR de su cédula hacia abajo",
-    "smart_lock_card_subtext_loading":"Espere por favor, se está escaneando...",
-    "id_card_manual_access":"Ingreso manual",
-    "id_card_manual_access_subtext":"Ingrese el número de serie de su cédula de identidad",
-    "verification_success":"Verificación exitosa",
+    "to_qrcode": "Ir a escaneo Cédula de identidad",
+    "id_card_scan": "Escaneo de Cédula de identidad",
+    "qr_code_scann": "Escanear código QR",
+    "manual_access": "Ingreso manual",
+    "qrcode_subtext": "Escanear el código QR que se encuentra al reverso de su cédula de identidad o ingresar datos de forma manual",
+    "smart_lock_card_subtext": "Debe colocar su cédula en dirección boca arriba mostrando el QR de su cédula hacia abajo",
+    "smart_lock_card_subtext_loading": "Espere por favor, se está escaneando...",
+    "id_card_manual_access": "Ingreso manual",
+    "id_card_manual_access_subtext": "Ingrese el número de serie de su cédula de identidad",
+    "verification_success": "Verificación exitosa",
     "verification_success_subtext": "Escaneo de cédula exitoso",
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
     "multiple_tasks": "Más de un viaje asignado"
@@ -1095,7 +1092,6 @@
     "arribado_cp": "Arribado CP",
     "recepcionado": "Recepcionado",
     "taken_by": "Tomada por",
-
     "gpsValidation": "Validación GPS",
     "consolidation": "Consolidación",
     "documentSeparation": "Separación Documental",
@@ -1172,6 +1168,75 @@
       "documents": "Documentos",
       "noDocuments": "No hay documentos"
     }
+  },
+  "cards": {
+    "driverContactInfo": "Información de contacto",
+    "email": "Correo electrónico",
+    "status": "Estado",
+    "phone": "Teléfono",
+    "rut": "Rut",
+    "driver1": "Conductor 1",
+    "driver2": "Conductor 2",
+    "verified": "Verificado",
+    "driverValidation": "Validación",
+    "alcoholTest": "Test de alcohol",
+    "drugTest": "Test de drogas",
+    "sleepinessTest": "Test de somnolencia",
+    "appTest": "APP Conductor",
+    "identityTest": "Validación de identidad",
+    "tripInformation": "Información del viaje",
+    "transportNumberCode": "N° de transporte",
+    "patente": "Patente",
+    "clientCode": "Código cliente",
+    "clientName": "Cliente",
+    "serviceCode": "Código servicio",
+    "origin": "Origen",
+    "destination": "Destino",
+    "scheduling": "Horario",
+    "comments": "Comentarios",
+    "consolidation": "Consolidación",
+    "documentSeparation": "Separación Documental",
+    "clientSystemValidation": "Validación Sistema Cliente",
+    "gpsValidation": "Validación GPS",
+    "gpsValidationError": "Error al cargar la validación GPS",
+    "entity": "Patente",
+    "source": "Cliente",
+    "ultimo_name": "Última ubicación",
+    "ultimo_fclass": "Clase",
+    "ultimo_velavg": "Velocidad promedio",
+    "ultimo_clasreg": "Clasificación de velocidad",
+    "ultimo_trip_id": "Con viaje asignado",
+    "ultimo_duration_seg": "Duración del evento",
+    "ultimo_last_ptofinal": "Coordenadas de la ultima ubicación",
+    "avg_delay_gps_mbl_det": "Retraso promedio en detenciones",
+    "avg_delay_det": "Retraso promedio en detenciones",
+    "avg_delay": "Retraso promedio",
+    "avg_delay_gps_mbl_mov": "Retraso promedio en movimiento",
+    "avg_delay_mov": "Retraso promedio en movimiento",
+    "avg_every_signals_det": "Tiempo promedio entre señales en detenciones",
+    "avg_every_signals_mov": "Tiempo promedio entre señales en movimiento",
+    "ultimo_last_timestamp": "Fecha y hora del último evento",
+    "avg_signals_per_minute_det": "Cantidad de señales por minuto en detenciones",
+    "avg_signals_per_minute_mov": "Cantidad de señales por minuto en movimiento",
+    "avg_signals_per_minute": "Cantidad de señales por minuto",
+    "write_here_your_observations": "Escribe aquí tus observaciones",
+    "tripManifestParams": "Generación de la Carta de Porte",
+    "nativeGenerationEnabled": "Generar nativamente la Carta de Porte en el  Coordinador",
+    "codigo_servicio": "Código de servicio",
+    "tipo_servicio": "Tipo de servicio",
+    "servicio": "Servicio",
+    "tipo_gps": "Tipo de GPS",
+    "estado": "Estado",
+    "is_active": "Activo",
+    "dispositivo_gps": "Dispositivo GPS",
+    "speed": "Velocidad",
+    "createdat": "Fecha de creación",
+    "nombre_oficial_gps": "Proovedor GPS",
+    "true": "Si",
+    "false": "No",
+    "executionType": "Tipo de ejecución",
+    "priorityCode": "Prioridad",
+    "serviceKind": "Tipo de servicio"
   },
   "searchbar": {
     "service": "Servicio",

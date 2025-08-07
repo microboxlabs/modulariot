@@ -309,7 +309,7 @@ function DriverInfo({
   name: string;
   /*  email: string;
   phone: string; */
-  state: string;
+  state: boolean;
   dict: I18nRecord;
 }) {
   return (

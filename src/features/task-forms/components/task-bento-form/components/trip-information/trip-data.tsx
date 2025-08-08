@@ -43,46 +43,71 @@ export default function TripData({
 
   const data = [
     {
+      icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).patente as string,
       value: (task.mintral_truckLicensePlate as string) ?? "-",
     },
     {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).trailer as string,
+      value: (task.mintral_trailerLicensePlate as string) ?? "-",
+    },
+    {
+      icon: <FaClipboardList className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).serviceCode as string,
       value: (task.mintral_serviceCode as string) ?? "-",
     },
     {
-      label: (msg!.cards as I18nRecord).clientName as string,
-      value: (task.mintral_clientAbbreviation as string) ?? "-",
-    },
-    {
-      label: (msg!.cards as I18nRecord).origin as string,
-      value: (task.mintral_originDelegateCode as string) ?? "-",
-    },
-    {
-      label: (msg!.cards as I18nRecord).destination as string,
-      value: (task.mintral_destinationDelegateCode as string) ?? "-",
-    },
-    {
-      label: (msg!.cards as I18nRecord).scheduling as string,
-      value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
-    },
-    {
-      label: (msg!.cards as I18nRecord).priorityCode as string,
-      value: priority,
-    },
-    {
+      icon: <FaCog className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).executionType as string,
       value: executionType,
     },
     {
+      icon: <FaMapMarkerAlt className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).route as string,
+      value:
+        task.mintral_originDelegateCode && task.mintral_destinationDelegateCode
+          ? (task.mintral_originDelegateCode as string) +
+            " - " +
+            (task.mintral_destinationDelegateCode as string)
+          : "-",
+    },
+    /* {
+      icon: <FaMapMarkerAlt className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).destination as string,
+      value: (task.mintral_destinationDelegateCode as string) ?? "-",
+    }, */
+    {
+      icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).serviceKind as string,
       value: task.mintral_serviceKind
         ? (task.mintral_serviceKind as string).toUpperCase()
         : "-",
     },
     {
+      icon: <FaShield className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).estado as string,
+      value: priority,
+    },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).transportNumberCode as string,
       value: (task.mintral_servicePrincipalNumber as string) ?? "-",
+    },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).supplierName as string,
+      value: (task.mintral_clientAbbreviation as string) ?? "-",
+    },
+    {
+      icon: <FaCalendarAlt className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).scheduling as string,
+      value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
+    },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).supplierId as string,
+      value: task.mintral_supplierId ?? "-",
     },
   ];
 

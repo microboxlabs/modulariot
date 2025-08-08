@@ -446,7 +446,11 @@
         "false": "No",
         "executionType": "Tipo de ejecución",
         "priorityCode": "Prioridad",
-        "serviceKind": "Tipo de servicio"
+        "serviceKind": "Tipo de servicio",
+        "route": "Ruta",
+        "trailer": "Patente rampla",
+        "supplierId": "Rut transportista",
+        "supplierName": "Nombre transportista"
       },
       "outcome": {
         "moreOptions": "Más opciones",
@@ -1072,6 +1076,7 @@
     "reject_reason": "Motivo de rechazo"
   },
   "bento": {
+    "trip": "Viaje",
     "trip_information": "Información del viaje",
     "conditions_present_in_the_trip": "Condiciones presentes en el viaje",
     "symptoms_present_in_the_trip": "Síntomas presentes en el viaje",
@@ -1236,7 +1241,8 @@
     "false": "No",
     "executionType": "Tipo de ejecución",
     "priorityCode": "Prioridad",
-    "serviceKind": "Tipo de servicio"
+    "serviceKind": "Tipo de servicio",
+    "route": "Ruta"
   },
   "searchbar": {
     "service": "Servicio",

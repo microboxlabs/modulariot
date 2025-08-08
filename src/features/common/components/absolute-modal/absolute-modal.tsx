@@ -25,9 +25,13 @@ export default function AbsoluteModal({
         }
       }}
     >
-      <div 
+      <div
         className="flex flex-col items-center justify-center bg-white dark:bg-gray-700 rounded-lg border border-gray-800 overflow-hidden"
-        style={{ maxWidth: maxWidth || '100%', maxHeight: maxHeight || '100%', height: '' }}
+        style={{
+          maxWidth: maxWidth || "100%",
+          maxHeight: maxHeight || "100%",
+          height: height || "",
+        }}
       >
         {children}
       </div>

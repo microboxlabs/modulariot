@@ -1,4 +1,4 @@
-import TaskActions from "../task-actions/task-actions"
+import TaskActions from "../task-actions/task-actions";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
@@ -26,7 +26,6 @@ export default function BentoHead({
   dict,
   msg,
   lang,
-  userGroups,
   showActions,
   enableActions,
   show_horeference = true,
@@ -35,14 +34,12 @@ export default function BentoHead({
   dict: I18nRecord;
   msg: I18nRecord;
   lang: string;
-  userGroups: string[];
   showActions: boolean;
   enableActions: boolean;
   show_horeference?: boolean;
 }) {
-  
   const task_name_identifier =
-  taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
+    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
   const writable_dict = (
     (dict.pages as unknown as I18nRecord).shipping as I18nRecord
   ).kanban as I18nRecord;
@@ -50,50 +47,50 @@ export default function BentoHead({
   const task_name = writable_dict[task_name_identifier];
 
   const title = task?.persistentState?.endTime
-  ? tr("finished_process", (dict.bento as I18nRecord).titles as I18nRecord)
-  : tr(
-      (task_name as string) ?? "",
-      (dict.bento as I18nRecord).titles as I18nRecord,
-    );
-
-const subtitle = task?.persistentState?.endTime
-  ? tr("finished", (dict.bento as I18nRecord).titles as I18nRecord)
-  : Object.values(task_states).includes(task_name_identifier)
-    ? tr(
-        task_states[
-          task_name_identifier as keyof typeof task_states
-        ] as string,
+    ? tr("finished_process", (dict.bento as I18nRecord).titles as I18nRecord)
+    : tr(
+        (task_name as string) ?? "",
         (dict.bento as I18nRecord).titles as I18nRecord,
-      )
-    : "";
+      );
+
+  const subtitle = task?.persistentState?.endTime
+    ? tr("finished", (dict.bento as I18nRecord).titles as I18nRecord)
+    : Object.values(task_states).includes(task_name_identifier)
+      ? tr(
+          task_states[
+            task_name_identifier as keyof typeof task_states
+          ] as string,
+          (dict.bento as I18nRecord).titles as I18nRecord,
+        )
+      : "";
 
   return (
     <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-between">
-        <div>
-          <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
-            {title as string}
-          </h1>
-          <div className="flex flex-row gap-2">
-            {subtitle && (
-              <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-                {(dict.bento as I18nRecord).process_state as string}:{" "}
-                <span className="font-normal text-gray-800 dark:text-gray-200">
-                  {subtitle as string}
-                </span>
-              </h2>
-            )}
-            {task.takenBy && (
-              <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-                {(dict.bento as I18nRecord).taken_by as string}:{" "}
-                <span className="font-normal text-gray-800 dark:text-gray-200">
-                  {task.takenBy as string}
-                </span>
-              </h2>
-            )}
-          </div>
+      <div>
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
+          {title as string}
+        </h1>
+        <div className="flex flex-row gap-2">
+          {subtitle && (
+            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+              {(dict.bento as I18nRecord).process_state as string}:{" "}
+              <span className="font-normal text-gray-800 dark:text-gray-200">
+                {subtitle as string}
+              </span>
+            </h2>
+          )}
+          {task.takenBy && (
+            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
+              {(dict.bento as I18nRecord).taken_by as string}:{" "}
+              <span className="font-normal text-gray-800 dark:text-gray-200">
+                {task.takenBy as string}
+              </span>
+            </h2>
+          )}
         </div>
-        <div className="flex flex-row gap-1 w-full sm:w-auto">
-          {/*          
+      </div>
+      <div className="flex flex-row gap-1 w-full sm:w-auto">
+        {/*          
           <Button
             color="gray"
             className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-fit hover:text-gray-500 portrait:hidden"
@@ -103,30 +100,30 @@ const subtitle = task?.persistentState?.endTime
             </div>
           </Button>
           */}
-          <TimeElement
-            task={task as TaskResponse}
-            dict={dict as I18nRecord}
-            endTime={task?.persistentState?.endTime}
+        <TimeElement
+          task={task as TaskResponse}
+          dict={dict as I18nRecord}
+          endTime={task?.persistentState?.endTime}
+        />
+        {task.mintral_hoReference && show_horeference && (
+          <DownloadSignedDocument
+            documentId={task.mintral_hoReference}
+            asLink
+            name="Carta Porte"
           />
-          {task.mintral_hoReference && show_horeference && (
-            <DownloadSignedDocument
-              documentId={task.mintral_hoReference}
-              asLink
-              name="Carta Porte"
-            />
-          )}
+        )}
 
-          {showActions && task.isEditable && (
-            <TaskActions
-              taskId={task.id}
-              taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
-              lang={lang}
-              dict={msg}
-              fluid={true}
-              enableActions={enableActions}
-            />
-          )}
-        </div>
+        {showActions && task.isEditable && (
+          <TaskActions
+            taskId={task.id}
+            taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+            lang={lang}
+            dict={msg}
+            fluid={true}
+            enableActions={enableActions}
+          />
+        )}
       </div>
+    </div>
   );
 }

@@ -13,7 +13,6 @@ import { redirectWithLang } from "@/features/auth/services/navigation.service";
 export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
-
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
 

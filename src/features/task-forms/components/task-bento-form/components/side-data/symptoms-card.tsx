@@ -105,7 +105,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="bg-gray-200 animate-pulse rounded-lg h-full" />
+        <div className="bg-gray-500 animate-pulse rounded-lg h-full" />
       </CustomCard>
     );
   }
@@ -118,7 +118,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="grid grid-cols-2 gap-2 p-1">
+        <div className="flex h-full w-full items-center justify-center text-md text-gray-500 dark:text-gray-400 font-light">
           {(dict.symptoms as I18nRecord).no_symptoms as string}
         </div>
       </CustomCard>
@@ -237,7 +237,9 @@ export default function SymptomsCard({
       }
       subtitle={null}
     >
-      <div className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-3"}`}>
+      <div
+        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-3"}`}
+      >
         {allSymptoms.map((symptom) => (
           <div key={symptom.key}>
             <SymptomCard symptom={symptom} dict={dict} />

@@ -64,9 +64,7 @@ export default function DriverInfo({
           </Tooltip>
           */}
         </h1>
-        <div
-          className={`flex flex-row gap-4`}
-        >
+        <div className="flex flex-row gap-4">
           <DriverData
             driver={driver1}
             msg={msg}

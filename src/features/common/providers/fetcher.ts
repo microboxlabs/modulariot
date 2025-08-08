@@ -1,34 +1,12 @@
 import { FetcherError } from "./fetcher.types";
 import { apiLogger } from "@/lib/logger";
+import {
+  formatAccessLogDate,
+  formatAccessLogLine,
+  generateRequestId,
+} from "@/features/common/utils/access-log";
 
-// Generate a lightweight request id suitable for correlation when none is provided
-const generateRequestId = (): string =>
-  Math.random().toString(36).slice(2) + Date.now().toString(36);
-
-// Format date similar to nginx combined log time local: 08/Aug/2025:13:46:51 +0000
-const formatAccessLogDate = (date: Date): string => {
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const month = months[date.getUTCMonth()];
-  const year = date.getUTCFullYear();
-  const hours = String(date.getUTCHours()).padStart(2, "0");
-  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-  const seconds = String(date.getUTCSeconds()).padStart(2, "0");
-  return `${day}/${month}/${year}:${hours}:${minutes}:${seconds} +0000`;
-};
+// moved to common utils
 
 // Type guard for Request
 const isRequest = (value: unknown): value is Request =>
@@ -125,9 +103,18 @@ export default async function httfetcher<T>(
     const contentLength = response.headers.get("content-length") || "-";
 
     if (shouldLog) {
-      const formatted = `OUT - - - [${formatAccessLogDate(
+      const formatted = formatAccessLogLine({
+        prefix: "OUT",
+        method,
+        pathAndQuery,
+        status,
+        contentLength,
+        userAgent,
         startedAt,
-      )}] "${method} ${pathAndQuery} HTTP/1.1" ${status} ${contentLength} "-" "${userAgent}" upstream_host=${upstreamHost} duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
+        durationMs,
+        requestId,
+        extras: { upstream_host: upstreamHost },
+      });
 
       apiLogger.info(
         {
@@ -153,9 +140,18 @@ export default async function httfetcher<T>(
       error.status = response.status;
 
       if (shouldLog) {
-        const formatted = `OUT - - - [${formatAccessLogDate(
+        const formatted = formatAccessLogLine({
+          prefix: "OUT",
+          method,
+          pathAndQuery,
+          status: response.status,
+          contentLength,
+          userAgent,
           startedAt,
-        )}] "${method} ${pathAndQuery} HTTP/1.1" ${response.status} ${contentLength} "-" "${userAgent}" upstream_host=${upstreamHost} duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
+          durationMs,
+          requestId,
+          extras: { upstream_host: upstreamHost },
+        });
         apiLogger.error(
           {
             direction: "outbound",
@@ -185,9 +181,18 @@ export default async function httfetcher<T>(
     const contentLength = response?.headers.get("content-length") || "-";
 
     if (shouldLog) {
-      const formatted = `OUT - - - [${formatAccessLogDate(
+      const formatted = formatAccessLogLine({
+        prefix: "OUT",
+        method,
+        pathAndQuery,
+        status,
+        contentLength,
+        userAgent,
         startedAt,
-      )}] "${method} ${pathAndQuery} HTTP/1.1" ${status} ${contentLength} "-" "${userAgent}" upstream_host=${upstreamHost} duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
+        durationMs,
+        requestId,
+        extras: { upstream_host: upstreamHost },
+      });
 
       apiLogger.error(
         {

@@ -3,7 +3,11 @@ import type { NextRequest } from "next/server";
 import { auth } from "./auth";
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
-import { logger } from "./lib/logger";
+// import { logger } from "./lib/logger";
+// import {
+//   buildAccessLogFields,
+//   generateRequestId,
+// } from "@/features/common/utils/access-log";
 //import { getRoutePermissions } from "@/features/auth/config/route-permissions";
 //import type { JWT } from "next-auth/jwt";
 
@@ -26,51 +30,73 @@ function hasRequiredGroups(
     : requiredGroups.every((group) => userGroups.includes(group));
 } */
 
+// moved to common utils
+
 export default auth(async function middleware(request: NextRequest) {
+  // const shouldLog = process.env.LOG_ACCESS === "true";
+
   let { pathname } = request.nextUrl;
 
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
     pathname = "/shipping";
   }
 
-  logger.info(
-    {
-      method: request.method,
-      url: request.url,
-      context: "middleware",
-    },
-    `Request completed: ${request.method} ${request.url}`,
-  );
+  // const startTime = Date.now();
+  // const startedAt = new Date();
+  // NextRequest does not expose ip in types; keep best-effort without using `any`
+  // const ipHeader = request.headers.get("x-forwarded-for");
+  // const ip = ipHeader?.split(",")[0]?.trim() || "-";
+  // const method = request.method.toUpperCase();
+  // const pathAndQuery =
+  //   `${request.nextUrl.pathname}${request.nextUrl.search}` || "/";
+  // const userAgent = request.headers.get("user-agent") || "-";
+  // const contentLength = "-"; // not available at middleware stage
+  // const requestId = request.headers.get("x-request-id") || generateRequestId();
 
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}`) || pathname === `/${locale}`,
   );
 
+  let response: NextResponse;
   if (pathnameHasLocale) {
-    return;
+    response = NextResponse.next();
+  } else {
+    const locale = getLocaleFromHeaders(request.headers);
+    request.nextUrl.pathname = `/${locale}${pathname}`;
+    response = NextResponse.redirect(request.nextUrl.toString());
   }
 
-  const locale = getLocaleFromHeaders(request.headers);
-  request.nextUrl.pathname = `/${locale}${pathname}`;
-  return NextResponse.redirect(request.nextUrl.toString());
+  // const durationMs = Date.now() - startTime;
+  // const status = response.status;
 
-  /* const token = (req as NextRequestWithAuth)?.nextauth?.token;
-    const path = req.nextUrl.pathname;
-    const requiredGroups = getRoutePermissions(path);
+  // if (shouldLog) {
+  //   const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
+  //   const payload = {
+  //     ...buildAccessLogFields({
+  //       prefix: "IN",
+  //       remoteAddr: ip,
+  //       method,
+  //       pathAndQuery,
+  //       status,
+  //       contentLength,
+  //       userAgent,
+  //       startedAt,
+  //       durationMs,
+  //       requestId,
+  //     }),
+  //     context: "middleware",
+  //   } as const;
 
-    if (
-      !token ||
-      !hasRequiredGroups(token.groups as string[], requiredGroups)
-    ) {
-      return NextResponse.redirect(new URL(`/`, req.url));
-    }
+  //   if (level === "error") {
+  //     logger.error(payload);
+  //   } else if (level === "warn") {
+  //     logger.warn(payload);
+  //   } else {
+  //     logger.info(payload);
+  //   }
+  // }
 
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }: { token: JWT | null }) => !!token,
-    },*/
+  return response;
 });
 
 export const config = {

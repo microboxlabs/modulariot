@@ -24,7 +24,10 @@ export default function RootLayout({
         <Toaster
           position="bottom-center"
           richColors
-          toastOptions={{ className: "bg-white dark:bg-gray-800" }}
+          toastOptions={{
+            className:
+              "bg-white dark:bg-gray-800 text-gray-900 dark:text-white [&>button]:text-gray-900 dark:[&>button]:text-white [&>button]:bg-gray-100 dark:[&>button]:bg-gray-700 [&>button]:hover:bg-gray-200 dark:[&>button]:hover:bg-gray-600",
+          }}
           closeButton
         />
       </body>

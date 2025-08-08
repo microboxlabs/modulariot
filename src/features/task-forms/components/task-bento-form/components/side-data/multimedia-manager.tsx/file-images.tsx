@@ -7,8 +7,8 @@ import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { FaUpload } from "react-icons/fa";
 import ClasificationForm from "./clasification-form";
 import {
-  useGetNodeChildren,
   useGetNodeContents,
+  useOptimisticFileUpload,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import FileViewer from "./file_viewer";
@@ -39,12 +39,13 @@ export default function FileImages({
   const packageId =
     task?.bpm_package!.split("/")[task.bpm_package!.split("/").length - 1];
 
+  // Use the optimistic upload hook instead of the basic one
   const {
     data,
     error: _childrenError,
     isLoading: _childrenIsLoading,
-    mutate,
-  } = useGetNodeChildren(packageId);
+    uploadFile,
+  } = useOptimisticFileUpload(packageId);
 
   const files = data?.data?.list?.entries || [];
 
@@ -87,9 +88,10 @@ export default function FileImages({
     return null;
   }
 
-  if (documentsIsLoading) {
+  // Only show loading skeleton if we have no existing data and are loading
+  if (documentsIsLoading && images.length === 0 && documents.length === 0) {
     return (
-      <div className="flex flex-col relative bg-gray-50 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg"></div>
+      <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg"></div>
     );
   }
 
@@ -389,7 +391,7 @@ export default function FileImages({
           uploadableFiles={uploadableFiles}
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
-          mutate={mutate}
+          uploadFile={uploadFile}
         />
       )}
       {isDocumentListOpen && (

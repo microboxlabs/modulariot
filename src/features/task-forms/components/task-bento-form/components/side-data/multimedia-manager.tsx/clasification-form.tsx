@@ -5,7 +5,6 @@ import SelectorDropdown from "@/features/common/components/custom-dropdown/selec
 import InnerContainer from "./inner-container";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { postBentoMultimedia } from "@/features/common/providers/client-api.provider";
 import { ShowNotification } from "@/features/notifications/notification";
 
 export type FileType = {
@@ -30,14 +29,14 @@ export default function ClasificationForm({
   uploadableFiles,
   dictionary,
   setUploadableFiles,
-  mutate,
+  uploadFile,
 }: {
   packageId: string;
   setIsOpen: (isOpen: boolean) => void;
   uploadableFiles: any[];
   dictionary: I18nRecord;
   setUploadableFiles: (files: any[]) => void;
-  mutate: () => void;
+  uploadFile: (file: SendableFile) => Promise<any>;
 }) {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [loadableDocs, setLoadableDocs] = useState<FileType[]>(
@@ -90,36 +89,47 @@ export default function ClasificationForm({
       setErrorOnCondition([]);
     }
 
-    loadableDocs.forEach(async (doc) => {
-      if (doc.category === null) {
-        return;
-      }
+    setIsUploading(true);
+    setIsOpen(false);
 
-      setIsUploading(true);
-
-      await postBentoMultimedia({
-        filedata: doc.file as File,
-        prop_mintral_contentType: doc.category,
-        prop_cm_name: doc.name,
-        prop_mimetype: doc.type,
-        alf_destination: `workspace://SpacesStore/${packageId}`,
-      })
-        .then((_res) => {
-          setIsUploading(false);
-          ShowNotification({
-            type: "success",
-            message: "Archivo subido correctamente",
-          });
-          setIsOpen(false);
-          mutate();
-        })
-        .catch((_err) => {
-          ShowNotification({
-            type: "error",
-            message: "Error al subir el archivo",
+    try {
+      // Upload all files in parallel using the optimistic upload function
+      const uploadPromises = loadableDocs
+        .filter((doc) => doc.category !== null)
+        .map(async (doc) => {
+          return await uploadFile({
+            filedata: doc.file as File,
+            prop_mintral_contentType: doc.category!,
+            prop_cm_name: doc.name,
+            prop_mimetype: doc.type,
+            alf_destination: `workspace://SpacesStore/${packageId}`,
           });
         });
-    });
+
+      // Create the promise and handle it manually
+      const uploadPromise = Promise.all(uploadPromises);
+
+      // Show notification with the promise
+      ShowNotification({
+        type: "promise",
+        promise: uploadPromise,
+        loading: "Subiendo archivos...",
+        ok: "Archivos subidos correctamente",
+        error: "Error al subir los archivos",
+      });
+
+      // Add custom error handling
+      uploadPromise.catch((_error) => {
+        setIsOpen(true);
+      });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: "Error al subir los archivos",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (

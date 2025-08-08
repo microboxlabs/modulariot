@@ -1,7 +1,6 @@
 "use client";
 import { FaCheck } from "react-icons/fa";
 import { TbExclamationMark } from "react-icons/tb";
-
 import { GoX } from "react-icons/go";
 import { Driver } from "@/features/task-forms/components/driver-contact-info/driver-contact-info.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";

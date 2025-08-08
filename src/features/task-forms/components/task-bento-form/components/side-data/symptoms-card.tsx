@@ -18,6 +18,10 @@ interface SymptomData {
 }
 
 function getSymptom(symptoms: any[], id: string) {
+  if (Object.keys(symptoms).length === 0) {
+    return [];
+  }
+
   return symptoms.filter((e) => e[id]);
 }
 
@@ -48,7 +52,7 @@ const SymptomCard = ({
       {/* min-w-fit */}
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
-        <div className="text-gray-600 dark:text-gray-400 bg-gray-300 rounded-lg p-1">
+        <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-lg p-1">
           <SymptomIcon type={symptom.icon} size="h-6 w-6" dict={dict} />
         </div>
         <div className="flex gap-1">
@@ -105,22 +109,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="bg-gray-500 animate-pulse rounded-lg h-full" />
-      </CustomCard>
-    );
-  }
-
-  if (symptoms && (symptoms.length === 0 || symptoms.length === undefined)) {
-    return (
-      <CustomCard
-        title={
-          (dict.bento as I18nRecord).symptoms_present_in_the_trip as string
-        }
-        subtitle={null}
-      >
-        <div className="flex h-full w-full items-center justify-center text-md text-gray-500 dark:text-gray-400 font-light">
-          {(dict.symptoms as I18nRecord).no_symptoms as string}
-        </div>
+        <div className="bg-gray-300 dark:bg-gray-700 animate-pulse rounded-lg h-full" />
       </CustomCard>
     );
   }

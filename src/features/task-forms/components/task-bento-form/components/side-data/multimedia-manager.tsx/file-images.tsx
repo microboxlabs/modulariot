@@ -163,7 +163,9 @@ export default function FileImages({
           isDragOver
             ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
-        } ${images.length === 0 && documents.length === 0 ? "h-[650px]" : "h-full"}`}
+        } ${
+          images.length === 0 && documents.length === 0 ? "h-[650px]" : "h-full"
+        }`}
       >
         <div className="flex flex-col items-center justify-center pb-6 pt-5 gap-2">
           <div className="flex flex-col items-center justify-center">
@@ -249,7 +251,9 @@ export default function FileImages({
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0 ? "hidden" : "block"
+            images.length == 0 && documents.length == 0 && !documentsIsLoading
+              ? "hidden"
+              : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -311,7 +315,9 @@ export default function FileImages({
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0 ? "hidden" : "block"
+            documents.length == 0 && images.length == 0 && !documentsIsLoading
+              ? "hidden"
+              : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">

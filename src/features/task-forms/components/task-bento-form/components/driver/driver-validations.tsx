@@ -17,6 +17,12 @@ export default function DriverValidations({
   msg: I18nRecord;
   serviceCode: string;
 }) {
+  const { data, isLoading } = useGetValidation(
+    serviceCode,
+    "driver",
+    driver.rut,
+  );
+
   let alcoholTestStatus = "not_found";
   let drugTestStatus = "not_found";
   let sleepinessTestStatus = "not_found";

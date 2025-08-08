@@ -18,28 +18,18 @@ export default function ModalTooltip({
   lang,
   userGroups,
 }: {
-  selectedTask: string | null;
-  setSelectedTask: (task: string | null) => void;
-  dict: I18nRecord;
-  lang: string;
-  userGroups: string[];
+  readonly selectedTask: string | null;
+  readonly setSelectedTask: (task: string | null) => void;
+  readonly dict: I18nRecord;
+  readonly lang: string;
+  readonly userGroups: string[];
 }) {
-  /*
-  const taskResponse = await getFinishedWorkflowByInstanceId(
-    session.user.ticket,
-    taskId,
-  );
-  */
-
-  // Only fetch data when selectedTask is not null - this prevents unnecessary requests
-  // and automatically cancels the request when selectedTask becomes null (modal closes)
-
   const pathname = usePathname();
   const pathWithoutLang = pathNameWithoutLanguage(pathname);
   const isFinishedPage = pathWithoutLang.includes("/finished");
 
   const { data, error, isLoading } = useGetTasksById(
-    selectedTask ? selectedTask : "",
+    selectedTask ?? "",
     isFinishedPage,
   );
 
@@ -90,7 +80,7 @@ export default function ModalTooltip({
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
               <SymptomsCard
                 task={data.taskResponse as unknown as TaskResponse}
-                dict={dict as I18nRecord}
+                dict={dict}
                 reactive={false}
               />
             </div>

@@ -13,9 +13,9 @@ export default function DriverValidations({
   msg,
   serviceCode,
 }: {
-  driver: Driver;
-  msg: I18nRecord;
-  serviceCode: string;
+  readonly driver: Driver;
+  readonly msg: I18nRecord;
+  readonly serviceCode: string;
 }) {
   const { data, isLoading } = useGetValidation(
     serviceCode,

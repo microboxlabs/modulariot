@@ -160,6 +160,30 @@ export default function PageContent({
     return tasks.length;
   };
 
+  const handleMouseEnter = (task: Task) => {
+    if (!isLoading) {
+      hoverTimeoutRef.current = window.setTimeout(() => {
+        setSelectedTask(task.id);
+      }, 1000);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const handleCardClick = () => {
+    setIsLoading(true);
+    setSelectedTask(null);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="inline-block align-middle relative">
@@ -221,7 +245,7 @@ export default function PageContent({
                   >
                     <div className="flex-1">
                       {tr(
-                        `kanban.${board.title}${compactKanbanView && ((dictionary.base as I18nRecord).kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
+                        `kanban.${board.title}${compactKanbanView && (dictionary.base.kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
                         dictionary.base,
                       )}
                     </div>
@@ -252,37 +276,19 @@ export default function PageContent({
                       }`}
                     >
                       {board.tasks.map((task) => {
-                        const handleMouseEnter = () => {
-                          if (!isLoading) {
-                            hoverTimeoutRef.current = window.setTimeout(() => {
-                              setSelectedTask(task.id);
-                            }, 1000);
-                          }
-                        };
-
-                        const handleMouseLeave = () => {
-                          if (hoverTimeoutRef.current) {
-                            clearTimeout(hoverTimeoutRef.current);
-                            hoverTimeoutRef.current = null;
-                          }
-                        };
-
-                        const handleCardClick = () => {
-                          setIsLoading(true);
-                          setSelectedTask(null);
-                          if (hoverTimeoutRef.current) {
-                            clearTimeout(hoverTimeoutRef.current);
-                            hoverTimeoutRef.current = null;
-                          }
-                        };
-
                         return (
                           <div
                             key={task.id}
                             className={`w-full h-fit group relative ${isLoading ? "cursor-wait" : ""}`}
-                            onMouseEnter={handleMouseEnter}
+                            role="button"
+                            tabIndex={0}
+                            onMouseEnter={() => handleMouseEnter(task)}
                             onMouseLeave={handleMouseLeave}
                             onClick={handleCardClick}
+                            onKeyDown={(e) => {
+                              e.preventDefault();
+                            }}
+                            aria-label={`Task ${task.id}`}
                           >
                             <KanbanCard
                               key={task.id}

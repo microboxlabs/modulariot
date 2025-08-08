@@ -87,7 +87,7 @@ export default function SymptomsCard({
 }: {
   readonly dict: I18nRecord;
   readonly task: TaskResponse;
-  reactive?: boolean;
+  readonly reactive?: boolean;
 }) {
   const {
     treatmentsTripData: symptoms,

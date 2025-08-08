@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { auth } from "./auth";
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
-import { logger } from "./lib/logger";
-import {
-  buildAccessLogFields,
-  generateRequestId,
-} from "@/features/common/utils/access-log";
+// import { logger } from "./lib/logger";
+// import {
+//   buildAccessLogFields,
+//   generateRequestId,
+// } from "@/features/common/utils/access-log";
 //import { getRoutePermissions } from "@/features/auth/config/route-permissions";
 //import type { JWT } from "next-auth/jwt";
 
@@ -33,7 +33,7 @@ function hasRequiredGroups(
 // moved to common utils
 
 export default auth(async function middleware(request: NextRequest) {
-  const shouldLog = process.env.LOG_ACCESS === "true";
+  // const shouldLog = process.env.LOG_ACCESS === "true";
 
   let { pathname } = request.nextUrl;
 
@@ -41,17 +41,17 @@ export default auth(async function middleware(request: NextRequest) {
     pathname = "/shipping";
   }
 
-  const startTime = Date.now();
-  const startedAt = new Date();
+  // const startTime = Date.now();
+  // const startedAt = new Date();
   // NextRequest does not expose ip in types; keep best-effort without using `any`
-  const ipHeader = request.headers.get("x-forwarded-for");
-  const ip = ipHeader?.split(",")[0]?.trim() || "-";
-  const method = request.method.toUpperCase();
-  const pathAndQuery =
-    `${request.nextUrl.pathname}${request.nextUrl.search}` || "/";
-  const userAgent = request.headers.get("user-agent") || "-";
-  const contentLength = "-"; // not available at middleware stage
-  const requestId = request.headers.get("x-request-id") || generateRequestId();
+  // const ipHeader = request.headers.get("x-forwarded-for");
+  // const ip = ipHeader?.split(",")[0]?.trim() || "-";
+  // const method = request.method.toUpperCase();
+  // const pathAndQuery =
+  //   `${request.nextUrl.pathname}${request.nextUrl.search}` || "/";
+  // const userAgent = request.headers.get("user-agent") || "-";
+  // const contentLength = "-"; // not available at middleware stage
+  // const requestId = request.headers.get("x-request-id") || generateRequestId();
 
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}`) || pathname === `/${locale}`,
@@ -66,35 +66,35 @@ export default auth(async function middleware(request: NextRequest) {
     response = NextResponse.redirect(request.nextUrl.toString());
   }
 
-  const durationMs = Date.now() - startTime;
-  const status = response.status;
+  // const durationMs = Date.now() - startTime;
+  // const status = response.status;
 
-  if (shouldLog) {
-    const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
-    const payload = {
-      ...buildAccessLogFields({
-        prefix: "IN",
-        remoteAddr: ip,
-        method,
-        pathAndQuery,
-        status,
-        contentLength,
-        userAgent,
-        startedAt,
-        durationMs,
-        requestId,
-      }),
-      context: "middleware",
-    } as const;
+  // if (shouldLog) {
+  //   const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
+  //   const payload = {
+  //     ...buildAccessLogFields({
+  //       prefix: "IN",
+  //       remoteAddr: ip,
+  //       method,
+  //       pathAndQuery,
+  //       status,
+  //       contentLength,
+  //       userAgent,
+  //       startedAt,
+  //       durationMs,
+  //       requestId,
+  //     }),
+  //     context: "middleware",
+  //   } as const;
 
-    if (level === "error") {
-      logger.error(payload);
-    } else if (level === "warn") {
-      logger.warn(payload);
-    } else {
-      logger.info(payload);
-    }
-  }
+  //   if (level === "error") {
+  //     logger.error(payload);
+  //   } else if (level === "warn") {
+  //     logger.warn(payload);
+  //   } else {
+  //     logger.info(payload);
+  //   }
+  // }
 
   return response;
 });

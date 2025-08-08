@@ -79,19 +79,19 @@ export default function KanbanCard({
         compactKanbanView ? "p-1 " : "p-5 w-full"
       }
       ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
-      ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : isLoading ? "cursor-wait" : "hover:shadow-lg cursor-pointer"}
+      ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : isLoading ? "!cursor-wait" : "hover:shadow-lg cursor-pointer"}
       `}
     >
       <div className="absolute inset-0 bg-gradient-to-r bg-black/10 dark:bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-1000 ease-out pointer-events-none" />
       <div className="relative z-10">
         {task.executionType === "F" && !compactKanbanView && (
-          <div className="relative cursor-pointer">
+          <div className="relative">
             <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-white rounded-full -top-2 -end-2 dark:border-gray-900">
               F
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between cursor-pointer">
+        <div className="flex items-center justify-between">
           <Link href={`/task/edit/${task.id}`} className="w-full">
             <div className="text-base text-gray-900 dark:text-gray-200">
               {compactKanbanView ? (

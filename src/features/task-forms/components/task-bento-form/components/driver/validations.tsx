@@ -22,7 +22,7 @@ const ValidationItemComponent = ({
 }) => {
   return (
     <div className="flex gap-1 items-center">
-      <ValidationIcon status={item.status} />
+      <ValidationIcon status={item.status} isLoading={false} />
       <span className="text-sm  text-gray-600 dark:text-gray-300">
         {((msg.bento as I18nRecord)[item.key] as string) || item.label}
       </span>

@@ -3,21 +3,20 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import TripData from "./trip-data";
 // import TripVerifications from "./trip-verifications";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TripInformation({
   task,
   msg,
-  /* lang,
-  userGroups, */
+  isLoading = false,
 }: {
   task: TaskResponse;
   msg: I18nRecord;
-  /* lang: string;
-  userGroups: string[]; */
+  isLoading?: boolean;
 }) {
   return (
     <CustomCard
-      title={(msg.bento as I18nRecord).trip_information as string}
+      title={tr("trip_information", msg.bento as I18nRecord)}
       /* subtitle={task.mintral_serviceCode + "-V"} */
       subtitle={(msg.bento as I18nRecord).trip as string}
     >
@@ -25,13 +24,8 @@ export default function TripInformation({
         <TripData
           task={task}
           msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+          isLoading={isLoading}
         />
-        {/* <TripVerifications
-          task={task}
-          msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
-           lang={lang}
-          userGroups={userGroups} 
-        /> */}
       </div>
     </CustomCard>
   );

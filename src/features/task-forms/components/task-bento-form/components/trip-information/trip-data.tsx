@@ -1,6 +1,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { fromString } from "@/features/common/services/days.service";
+import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 import {
   FaCalendarAlt,
   FaClipboardList,
@@ -13,9 +14,11 @@ import { FaShield } from "react-icons/fa6";
 export default function TripData({
   task,
   msg,
+  isLoading = false,
 }: {
   task: TaskResponse;
   msg: I18nRecord;
+  isLoading?: boolean;
 }) {
   const eta = fromString(
     task.mintral_arrivalDate
@@ -121,20 +124,12 @@ export default function TripData({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-fit">
       {data.map((item, index) => (
-        <span
-          className="text-gray-600 dark:text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light"
+        <LoadableLabel
           key={index}
-        >
-          {/* make an react icon here align with the line */}
-          <div className="flex items-center mr-1 text-gray-400">
-            {item.icon}
-          </div>
-          {item.label}
-          <span className="mr-1">:</span>
-          <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
-            {item.value as string}
-          </span>
-        </span>
+          label={item.label}
+          value={item.value as string}
+          isLoading={isLoading}
+        />
       ))}
     </div>
   );

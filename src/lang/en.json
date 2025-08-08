@@ -724,6 +724,7 @@
     "rights": " MicroboxLabs. All rights reserved."
   },
   "symptoms": {
+    "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
     "symptoms": "Symptoms",
     "symptom": "Symptom",

@@ -44,11 +44,11 @@ const SymptomCard = ({
   dict: I18nRecord;
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex items-center gap-1 p-2 w-min-[150px] h-[70px] ">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-1 p-2 w-min-[150px] h-[70px] ">
       {/* min-w-fit */}
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
-        <div className="text-gray-600">
+        <div className="text-gray-600 dark:text-gray-400 bg-gray-300 rounded-lg p-1">
           <SymptomIcon type={symptom.icon} size="h-6 w-6" dict={dict} />
         </div>
         <div className="flex gap-1">
@@ -66,14 +66,14 @@ const SymptomCard = ({
       </div>
 
       {/* Second column: Label */}
-      <div className="flex-1 justify-center text-gray-900 text-xs font-light min-w-0">
+      <div className="flex-1 justify-center text-gray-900 dark:text-gray-100 text-[11px] font-light min-w-0 overflow-hidden">
         {/*  <span className="text-sm text-gray-700 font-light truncate block"> */}
         {symptom.label}
         {/* </span> */}
       </div>
 
       {/* Third column: Number */}
-      <div className="text-xl text-gray-800 flex-shrink-0">
+      <div className="text-xl text-gray-800 dark:text-gray-200 flex-shrink-0">
         {symptom.count.toString().padStart(2, "0")}
       </div>
     </div>
@@ -83,9 +83,11 @@ const SymptomCard = ({
 export default function SymptomsCard({
   dict,
   task,
+  reactive = true,
 }: {
   readonly dict: I18nRecord;
   readonly task: TaskResponse;
+  readonly reactive?: boolean;
 }) {
   const {
     treatmentsTripData: symptoms,
@@ -103,7 +105,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="bg-gray-200 animate-pulse rounded-lg h-20" />
+        <div className="bg-gray-500 animate-pulse rounded-lg h-full" />
       </CustomCard>
     );
   }
@@ -116,7 +118,7 @@ export default function SymptomsCard({
         }
         subtitle={null}
       >
-        <div className="grid grid-cols-2 gap-2 p-1">
+        <div className="flex h-full w-full items-center justify-center text-md text-gray-500 dark:text-gray-400 font-light">
           {(dict.symptoms as I18nRecord).no_symptoms as string}
         </div>
       </CustomCard>
@@ -235,7 +237,9 @@ export default function SymptomsCard({
       }
       subtitle={null}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+      <div
+        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-3"}`}
+      >
         {allSymptoms.map((symptom) => (
           <div key={symptom.key}>
             <SymptomCard symptom={symptom} dict={dict} />

@@ -426,9 +426,9 @@ export function useUserGroups() {
   };
 }
 
-export function useGetTasksById(taskId: string) {
+export function useGetTasksById(taskId: string, finished: boolean) {
   const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
-    `/app/api/task/mytasks/details?taskId=${taskId}`,
+    `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`,
     fetcher,
   );
 

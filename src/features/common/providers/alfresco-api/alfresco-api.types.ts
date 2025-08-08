@@ -238,6 +238,7 @@ export type ServiceValidationResponse = {
     v_01type: string;
     v_01res: number;
   };
+  validations?: ValidationsResponseItem[];
 };
 
 export type DownloadDocumentResponse = {

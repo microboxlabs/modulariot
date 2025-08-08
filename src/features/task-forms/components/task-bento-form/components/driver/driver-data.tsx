@@ -33,7 +33,7 @@ export default function DriverData({
   ];
 
   return (
-    <div className="flex flex-col gap-2 h-full">
+    <div className="flex flex-col gap-2 h-full w-1/2">
       <div className="flex flex-col">
         <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
           {
@@ -50,7 +50,7 @@ export default function DriverData({
           <div className="grid grid-cols-1 gap-2 w-fit">
             {data.map((item, index) => (
               <span
-                className="text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light gap-1"
+                className="text-gray-400 whitespace-nowrap w-fit flex flex-row text-sm font-light gap-1"
                 key={index}
               >
                 {item.icon}

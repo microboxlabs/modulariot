@@ -5,4 +5,5 @@ export type KanBanCardProps = {
   table_name: string;
   compactKanbanView: boolean;
   showFinishedTasks?: boolean;
+  isLoading?: boolean;
 };

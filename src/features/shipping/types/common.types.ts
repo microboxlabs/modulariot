@@ -1,3 +1,5 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
 export type KanbanBoard = {
   id: number;
   title: string;
@@ -53,9 +55,15 @@ export type KanbanPageData = {
   showWorkflowTasks?: string;
   kanbanBoards: KanbanBoard[];
   lang: string;
+  dictionary: dictionary_components;
   // tasks: any;
 };
 
 export type GeographicViewPageData = {
   lang: string;
+};
+
+type dictionary_components = {
+  base: I18nRecord;
+  general: I18nRecord;
 };

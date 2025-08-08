@@ -1,8 +1,8 @@
 import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getTaskById } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { getFinishedWorkflowByInstanceId, getTaskById } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { HistoricalWorkflow, TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { KanbanBoard } from "@/features/shipping/types/common.types";
 
 export async function GET(req: NextRequest) {
@@ -16,12 +16,13 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
 
   const taskId = url.searchParams.get("taskId");
+  const finished = url.searchParams.get("finished");
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
   try {
-    let taskResponse: TaskResponse;
+    let taskResponse: TaskResponse | HistoricalWorkflow;
 
     if (!taskId) {
       return NextResponse.json({
@@ -30,7 +31,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    taskResponse = await getTaskById(session.user.ticket, taskId);
+    if (finished === "true") {
+      taskResponse = await getFinishedWorkflowByInstanceId(session.user.ticket, taskId);
+    } else {
+      taskResponse = await getTaskById(session.user.ticket, taskId);
+    }
 
     return NextResponse.json({
       taskResponse,

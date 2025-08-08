@@ -229,7 +229,7 @@ export default function TripInformation({
           name={tripData?.tripInfo?.driver1Info?.driverId}
           /* email={tripData?.tripInfo?.email}
           phone={tripData?.tripInfo?.phone} */
-          state={tripData?.tripInfo?.status}
+          state={tripData?.tripInfo?.driver1Info?.verified}
           dict={dict}
         />
         {tripData?.isDoubleDriver && (
@@ -238,7 +238,7 @@ export default function TripInformation({
             name={tripData?.tripInfo?.driver2Info?.driverId}
             /*  email={tripData?.trip?.email2}
             phone={tripData?.trip?.phone2} */
-            state={tripData?.tripInfo?.status2}
+            state={tripData?.tripInfo?.driver2Info?.verified}
             dict={dict}
           />
         )}
@@ -309,7 +309,7 @@ function DriverInfo({
   name: string;
   /*  email: string;
   phone: string; */
-  state: string;
+  state: boolean;
   dict: I18nRecord;
 }) {
   return (
@@ -317,10 +317,10 @@ function DriverInfo({
       <div className="flex flex-col justify-center w-full">
         <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2 w-full">
           <span className="break-words min-w-0">{name}</span>
-          {state === "SUCCESS" && (
+          {state && (
             <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
           )}
-          {state !== "SUCCESS" && (
+          {!state && (
             <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
           )}
         </h1>

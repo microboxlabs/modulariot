@@ -44,7 +44,9 @@ export default function TripData({
       ? "URGENTE"
       : task.mintral_priorityCode === "RG"
         ? "REGULARIZACIÓN"
-        : task.mintral_priorityCode;
+        : task.mintral_priorityCode
+          ? task.mintral_priorityCode
+          : "-";
 
   const data = [
     {

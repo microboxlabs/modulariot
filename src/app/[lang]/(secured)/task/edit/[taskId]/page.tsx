@@ -21,10 +21,12 @@ export default async function TaskEditPage({
       redirect(`/${lang}/sign-in`);
     }
 
-    const [, _dictionary] = await getDictionary(lang);
-    const taskResult = await getTaskById(session.user.ticket, taskId);
-
-    const userGroups = await getGroupsForPerson(session.user.ticket);
+    const [dictionaryTuple, taskResult, userGroups] = await Promise.all([
+      getDictionary(lang),
+      getTaskById(session.user.ticket, taskId),
+      getGroupsForPerson(session.user.ticket),
+    ]);
+    const [, _dictionary] = dictionaryTuple;
 
     let task = taskResult;
     if ((typeof task == "string" && task == "null") || task == null) {

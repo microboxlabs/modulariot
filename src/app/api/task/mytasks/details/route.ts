@@ -1,8 +1,14 @@
 import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getFinishedWorkflowByInstanceId, getTaskById } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { HistoricalWorkflow, TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import {
+  getFinishedWorkflowByInstanceId,
+  getTaskById,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import {
+  HistoricalWorkflow,
+  TaskResponse,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { KanbanBoard } from "@/features/shipping/types/common.types";
 
 export async function GET(req: NextRequest) {
@@ -32,7 +38,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (finished === "true") {
-      taskResponse = await getFinishedWorkflowByInstanceId(session.user.ticket, taskId);
+      taskResponse = await getFinishedWorkflowByInstanceId(
+        session.user.ticket,
+        taskId,
+      );
     } else {
       taskResponse = await getTaskById(session.user.ticket, taskId);
     }

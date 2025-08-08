@@ -6,7 +6,6 @@ import { useGetTasksById } from "@/features/common/providers/client-api.provider
 import DriverInfo from "@/features/task-forms/components/task-bento-form/components/driver/driver";
 import { Spinner } from "flowbite-react";
 import ValidationsInfo from "@/features/task-forms/components/task-bento-form/components/driver/validations";
-import Conditions from "@/features/task-forms/components/task-bento-form/components/side-data/conditions";
 import SymptomsCard from "@/features/task-forms/components/task-bento-form/components/side-data/symptoms-card";
 import BentoHead from "@/features/task-forms/components/task-bento-form/bento-head";
 import { usePathname } from "next/navigation";
@@ -49,10 +48,10 @@ export default function ModalTooltip({
   }
 
   return (
-    <AbsoluteModal 
-      selected={selectedTask} 
-      setSelected={setSelectedTask} 
-      maxWidth="1300px" 
+    <AbsoluteModal
+      selected={selectedTask}
+      setSelected={setSelectedTask}
+      maxWidth="1300px"
       maxHeight="90vh"
       height="fit-content"
     >
@@ -64,7 +63,15 @@ export default function ModalTooltip({
       {error && <div>Error: {error.message}</div>}
       {!isLoading && !error && data && (
         <div className="flex flex-col bg-gray-100 dark:bg-gray-700 overflow-y-auto h-full">
-          <BentoHead show_horeference={false} task={data.taskResponse as TaskResponse} dict={dict} msg={dict} lang={lang} userGroups={userGroups} showActions={false} enableActions={false} />
+          <BentoHead
+            show_horeference={false}
+            task={data.taskResponse as TaskResponse}
+            dict={dict}
+            msg={dict}
+            lang={lang}
+            showActions={false}
+            enableActions={false}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 w-full overflow-y-auto">
             {/* Trip Information */}
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
@@ -81,7 +88,11 @@ export default function ModalTooltip({
               />
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-              <SymptomsCard task={data.taskResponse as unknown as TaskResponse} dict={dict as I18nRecord} reactive={false} />
+              <SymptomsCard
+                task={data.taskResponse as unknown as TaskResponse}
+                dict={dict as I18nRecord}
+                reactive={false}
+              />
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
               <ValidationsInfo
@@ -93,7 +104,6 @@ export default function ModalTooltip({
             </div>
           </div>
         </div>
-        
       )}
     </AbsoluteModal>
   );

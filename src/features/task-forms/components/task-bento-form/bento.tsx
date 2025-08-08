@@ -8,8 +8,6 @@ import HistoricLoads from "@/features/shipping/components/historic-loads";
 
 import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
-import TimeElement from "./time-element";
-import { tr } from "@/features/i18n/tr.service";
 import ValidationsInfo from "./components/driver/validations";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
 import SymptomsCard from "./components/side-data/symptoms-card";
@@ -38,7 +36,14 @@ export default function Bento({
   return (
     <div className="flex flex-col w-full h-full ">
       {/* Head */}
-      <BentoHead task={task} dict={dict} msg={msg} lang={lang} userGroups={userGroups} showActions={showActions} enableActions={enableActions} />
+      <BentoHead
+        task={task}
+        dict={dict}
+        msg={msg}
+        lang={lang}
+        showActions={showActions}
+        enableActions={enableActions}
+      />
       {/* Head */}
 
       {/* Content */}

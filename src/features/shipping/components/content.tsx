@@ -279,7 +279,7 @@ export default function PageContent({
                         return (
                           <div
                             key={task.id}
-                            className={`w-full h-fit group relative ${isLoading ? 'cursor-wait' : ''}`}
+                            className={`w-full h-fit group relative ${isLoading ? "cursor-wait" : ""}`}
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                             onClick={handleCardClick}

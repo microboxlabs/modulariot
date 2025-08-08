@@ -3,11 +3,16 @@ import { TbExclamationMark } from "react-icons/tb";
 import { ValidationStatus } from "./validations.types";
 
 // Validation status icons
-export const ValidationIcon = ({ status, isLoading }: { status: ValidationStatus, isLoading: boolean }) => {
+export const ValidationIcon = ({
+  status,
+  isLoading,
+}: {
+  status: ValidationStatus;
+  isLoading: boolean;
+}) => {
   if (isLoading) {
     return (
-      <div className="w-5 h-5 bg-gray-500 rounded-full animate-pulse">
-      </div>
+      <div className="w-5 h-5 bg-gray-500 rounded-full animate-pulse"></div>
     );
   }
 

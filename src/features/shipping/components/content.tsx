@@ -75,6 +75,7 @@ export default function PageContent({
   const [page, setPage] = useState(1);
   const [compactKanbanView, setCompactKanbanView] = useState(true);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const hoverTimeoutRef = useRef<number | null>(null);
   const pageSize = 100;
 
@@ -252,9 +253,11 @@ export default function PageContent({
                     >
                       {board.tasks.map((task) => {
                         const handleMouseEnter = () => {
-                          hoverTimeoutRef.current = window.setTimeout(() => {
-                            setSelectedTask(task.id);
-                          }, 1000);
+                          if (!isLoading) {
+                            hoverTimeoutRef.current = window.setTimeout(() => {
+                              setSelectedTask(task.id);
+                            }, 1000);
+                          }
                         };
 
                         const handleMouseLeave = () => {
@@ -264,12 +267,22 @@ export default function PageContent({
                           }
                         };
 
+                        const handleCardClick = () => {
+                          setIsLoading(true);
+                          setSelectedTask(null);
+                          if (hoverTimeoutRef.current) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = null;
+                          }
+                        };
+
                         return (
                           <div
                             key={task.id}
-                            className="w-full h-fit group relative"
+                            className={`w-full h-fit group relative ${isLoading ? 'cursor-wait' : ''}`}
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
+                            onClick={handleCardClick}
                           >
                             <KanbanCard
                               key={task.id}
@@ -278,6 +291,7 @@ export default function PageContent({
                               table_name={board.title}
                               compactKanbanView={compactKanbanView}
                               showFinishedTasks={showFinishedTasks}
+                              isLoading={isLoading}
                             />
                           </div>
                         );

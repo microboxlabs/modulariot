@@ -63,6 +63,7 @@ export default function KanbanCard({
   compactKanbanView,
   dict,
   showFinishedTasks,
+  isLoading = false,
 }: PropsWithI18nDict<KanBanCardProps>) {
   /*  const executionType =
     task.executionType === "T"
@@ -78,7 +79,7 @@ export default function KanbanCard({
         compactKanbanView ? "p-1 " : "p-5 w-full"
       }
       ${task.mintral_priorityCode === "UR" ? "bg-purple-100 dark:bg-indigo-800 shadow" : "bg-white shadow dark:bg-gray-800"}
-      ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
+      ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : isLoading ? "cursor-wait" : "hover:shadow-lg cursor-pointer"}
       `}
     >
       <div className="absolute inset-0 bg-gradient-to-r bg-black/10 dark:bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-1000 ease-out pointer-events-none" />

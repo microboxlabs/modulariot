@@ -5,7 +5,7 @@ import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
 import { logger } from "./lib/logger";
 import {
-  formatAccessLogLine,
+  buildAccessLogFields,
   generateRequestId,
 } from "@/features/common/utils/access-log";
 //import { getRoutePermissions } from "@/features/auth/config/route-permissions";
@@ -67,44 +67,32 @@ export default auth(async function middleware(request: NextRequest) {
   }
 
   const durationMs = Date.now() - startTime;
-  const durationSec = (durationMs / 1000).toFixed(3);
   const status = response.status;
 
   if (shouldLog) {
-    const formatted = formatAccessLogLine({
-      prefix: "IN",
-      remoteAddr: ip,
-      method,
-      pathAndQuery,
-      status,
-      contentLength,
-      userAgent,
-      startedAt,
-      durationMs,
-      requestId,
-    });
-
     const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
-    const payload: Record<string, unknown> = {
-      direction: "inbound",
-      method,
-      url: pathAndQuery,
-      status,
-      contentLength,
-      userAgent,
-      ip,
-      durationMs,
-      durationSec,
-      requestId,
+    const payload = {
+      ...buildAccessLogFields({
+        prefix: "IN",
+        remoteAddr: ip,
+        method,
+        pathAndQuery,
+        status,
+        contentLength,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+      }),
       context: "middleware",
-    };
+    } as const;
 
     if (level === "error") {
-      logger.error(payload, formatted);
+      logger.error(payload);
     } else if (level === "warn") {
-      logger.warn(payload, formatted);
+      logger.warn(payload);
     } else {
-      logger.info(payload, formatted);
+      logger.info(payload);
     }
   }
 

@@ -76,3 +76,70 @@ export function formatAccessLogLine(params: {
     startedAt,
   )}] "${method} ${pathAndQuery} ${protocol}" ${status} ${length} "-" "${ua}" ${extrasSegment}duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
 }
+
+export type AccessLogFields = {
+  access: true;
+  direction: "inbound" | "outbound";
+  remote_addr?: string;
+  http_method: string;
+  http_target: string;
+  http_status: number;
+  bytes_sent?: number;
+  http_user_agent?: string;
+  http_protocol?: string;
+  duration_ms: number;
+  duration_s: number;
+  request_id: string;
+} & AccessLogExtras;
+
+export function buildAccessLogFields(params: {
+  prefix: "IN" | "OUT";
+  remoteAddr?: string;
+  method: string;
+  pathAndQuery: string;
+  status: number;
+  contentLength?: string | number;
+  userAgent?: string;
+  startedAt: Date;
+  durationMs: number;
+  requestId: string;
+  protocol?: string;
+  extras?: AccessLogExtras;
+}): AccessLogFields {
+  const {
+    prefix,
+    remoteAddr,
+    method,
+    pathAndQuery,
+    status,
+    contentLength,
+    userAgent,
+    durationMs,
+    requestId,
+    protocol = "HTTP/1.1",
+    extras = {},
+  } = params;
+
+  const bytes =
+    typeof contentLength === "number"
+      ? contentLength
+      : contentLength && /^[0-9]+$/.test(String(contentLength))
+        ? Number(contentLength)
+        : undefined;
+
+  return {
+    access: true,
+    direction: prefix === "IN" ? "inbound" : "outbound",
+    remote_addr: remoteAddr || undefined,
+    http_method: method,
+    http_target: pathAndQuery,
+    http_status: status,
+    bytes_sent: bytes,
+    http_user_agent: userAgent || undefined,
+    http_protocol: protocol,
+    duration_ms: durationMs,
+    duration_s: Number((durationMs / 1000).toFixed(3)),
+    request_id: requestId,
+    ...extras,
+  };
+}

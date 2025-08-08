@@ -1,7 +1,7 @@
 import { FetcherError } from "./fetcher.types";
 import { apiLogger } from "@/lib/logger";
 import {
-  formatAccessLogLine,
+  buildAccessLogFields,
   generateRequestId,
 } from "@/features/common/utils/access-log";
 
@@ -97,38 +97,23 @@ export default async function httfetcher<T>(
     });
 
     const durationMs = Date.now() - startTime;
-    const durationSec = (durationMs / 1000).toFixed(3);
     const status = response.status;
     const contentLength = response.headers.get("content-length") || "-";
 
     if (shouldLog) {
-      const formatted = formatAccessLogLine({
-        prefix: "OUT",
-        method,
-        pathAndQuery,
-        status,
-        contentLength,
-        userAgent,
-        startedAt,
-        durationMs,
-        requestId,
-        extras: { upstream_host: upstreamHost },
-      });
-
       apiLogger.info(
-        {
-          direction: "outbound",
+        buildAccessLogFields({
+          prefix: "OUT",
           method,
-          url: pathAndQuery,
+          pathAndQuery,
           status,
           contentLength,
           userAgent,
-          upstreamHost,
+          startedAt,
           durationMs,
-          durationSec,
           requestId,
-        },
-        formatted,
+          extras: { upstream_host: upstreamHost },
+        }),
       );
     }
 
@@ -139,34 +124,21 @@ export default async function httfetcher<T>(
       error.status = response.status;
 
       if (shouldLog) {
-        const formatted = formatAccessLogLine({
-          prefix: "OUT",
-          method,
-          pathAndQuery,
-          status: response.status,
-          contentLength,
-          userAgent,
-          startedAt,
-          durationMs,
-          requestId,
-          extras: { upstream_host: upstreamHost },
-        });
-        apiLogger.error(
-          {
-            direction: "outbound",
+        apiLogger.error({
+          ...buildAccessLogFields({
+            prefix: "OUT",
             method,
-            url: pathAndQuery,
+            pathAndQuery,
             status: response.status,
             contentLength,
             userAgent,
-            upstreamHost,
+            startedAt,
             durationMs,
-            durationSec,
             requestId,
-            err: error,
-          },
-          formatted,
-        );
+            extras: { upstream_host: upstreamHost },
+          }),
+          err: error,
+        });
       }
 
       throw error;
@@ -175,40 +147,25 @@ export default async function httfetcher<T>(
     return (await response.json()) as T;
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const durationSec = (durationMs / 1000).toFixed(3);
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
 
     if (shouldLog) {
-      const formatted = formatAccessLogLine({
-        prefix: "OUT",
-        method,
-        pathAndQuery,
-        status,
-        contentLength,
-        userAgent,
-        startedAt,
-        durationMs,
-        requestId,
-        extras: { upstream_host: upstreamHost },
-      });
-
-      apiLogger.error(
-        {
-          direction: "outbound",
+      apiLogger.error({
+        ...buildAccessLogFields({
+          prefix: "OUT",
           method,
-          url: pathAndQuery,
+          pathAndQuery,
           status,
           contentLength,
           userAgent,
-          upstreamHost,
+          startedAt,
           durationMs,
-          durationSec,
           requestId,
-          err,
-        },
-        formatted,
-      );
+          extras: { upstream_host: upstreamHost },
+        }),
+        err,
+      });
     }
     throw err;
   }

@@ -81,7 +81,7 @@ export default function KanbanCard({
       ${!task.isEditable && !showFinishedTasks ? "opacity-60 grayscale cursor-not-allowed" : "hover:shadow-lg cursor-pointer"}
       `}
     >
-      <div className="absolute inset-0 bg-gradient-to-r bg-gray-200 dark:bg-gray-700 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-1000 ease-out pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r bg-black/10 dark:bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-1000 ease-out pointer-events-none" />
       <div className="relative z-10">
         {task.executionType === "F" && !compactKanbanView && (
           <div className="relative cursor-pointer">

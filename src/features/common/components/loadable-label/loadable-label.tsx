@@ -8,7 +8,7 @@ export default function LoadableLabel({
   isLoading?: boolean;
 }) {
   return (
-    <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-col sm:flex-row text-sm font-light w-full">
+    <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-row text-sm font-light w-full">
       {label}
       <span className="mr-1">:</span>
       {isLoading ? (
@@ -16,7 +16,7 @@ export default function LoadableLabel({
           Loading...
         </div>
       ) : (
-        <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap flex-grow">
+        <span className="text-gray-800 dark:text-gray-200 flex-grow whitespace-normal">
           {value}
         </span>
       )}

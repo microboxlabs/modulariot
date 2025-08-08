@@ -426,9 +426,9 @@ export function useUserGroups() {
   };
 }
 
-export function useGetTasksById(taskId: string) {
+export function useGetTasksById(taskId: string, finished: boolean) {
   const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
-    `/app/api/task/mytasks/details?taskId=${taskId}`,
+    `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`,
     fetcher,
   );
 
@@ -611,19 +611,6 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
     method: "POST",
     body: formData,
   });
-}
-
-export function useGetTaskData(taskId: string) {
-  const { data, error, isLoading } = useSWR<any, FetcherError>(
-    `/app/api/task/mytasks/details?taskId=${taskId}`,
-    fetcher,
-  );
-
-  return {
-    data,
-    error,
-    isLoading,
-  };
 }
 
 export function useGetValidation(

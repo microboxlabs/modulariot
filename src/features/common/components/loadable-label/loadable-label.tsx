@@ -3,9 +3,9 @@ export default function LoadableLabel({
   value,
   isLoading = false,
 }: {
-  label: string;
-  value: string;
-  isLoading?: boolean;
+  readonly label: string;
+  readonly value: string;
+  readonly isLoading?: boolean;
 }) {
   return (
     <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-row text-sm font-light w-full">

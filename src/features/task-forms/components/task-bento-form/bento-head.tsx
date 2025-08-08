@@ -30,13 +30,13 @@ export default function BentoHead({
   enableActions,
   show_horeference = true,
 }: {
-  task: TaskResponse;
-  dict: I18nRecord;
-  msg: I18nRecord;
-  lang: string;
-  showActions: boolean;
-  enableActions: boolean;
-  show_horeference?: boolean;
+  readonly task: TaskResponse;
+  readonly dict: I18nRecord;
+  readonly msg: I18nRecord;
+  readonly lang: string;
+  readonly showActions: boolean;
+  readonly enableActions: boolean;
+  readonly show_horeference?: boolean;
 }) {
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
@@ -46,36 +46,43 @@ export default function BentoHead({
 
   const task_name = writable_dict[task_name_identifier];
 
-  const title = task?.persistentState?.endTime
-    ? tr("finished_process", (dict.bento as I18nRecord).titles as I18nRecord)
-    : tr(
-        (task_name as string) ?? "",
-        (dict.bento as I18nRecord).titles as I18nRecord,
-      );
+  let title = "";
 
-  const subtitle = task?.persistentState?.endTime
-    ? tr("finished", (dict.bento as I18nRecord).titles as I18nRecord)
-    : Object.values(task_states).includes(task_name_identifier)
-      ? tr(
-          task_states[
-            task_name_identifier as keyof typeof task_states
-          ] as string,
-          (dict.bento as I18nRecord).titles as I18nRecord,
-        )
-      : "";
+  if (task?.persistentState?.endTime) {
+    title = tr(
+      "finished_process",
+      (dict.bento as I18nRecord).titles as I18nRecord,
+    );
+  } else if (task_name) {
+    title = tr(
+      task_name as string,
+      (dict.bento as I18nRecord).titles as I18nRecord,
+    );
+  }
+
+  let subtitle = "";
+
+  if (task?.persistentState?.endTime) {
+    subtitle = tr("finished", (dict.bento as I18nRecord).titles as I18nRecord);
+  } else if (Object.values(task_states).includes(task_name_identifier)) {
+    subtitle = tr(
+      task_states[task_name_identifier as keyof typeof task_states] as string,
+      (dict.bento as I18nRecord).titles as I18nRecord,
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-between">
       <div>
         <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
-          {title as string}
+          {title}
         </h1>
         <div className="flex flex-row gap-2">
           {subtitle && (
             <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
               {(dict.bento as I18nRecord).process_state as string}:{" "}
               <span className="font-normal text-gray-800 dark:text-gray-200">
-                {subtitle as string}
+                {subtitle}
               </span>
             </h2>
           )}
@@ -83,7 +90,7 @@ export default function BentoHead({
             <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
               {(dict.bento as I18nRecord).taken_by as string}:{" "}
               <span className="font-normal text-gray-800 dark:text-gray-200">
-                {task.takenBy as string}
+                {task.takenBy}
               </span>
             </h2>
           )}
@@ -101,8 +108,8 @@ export default function BentoHead({
           </Button>
           */}
         <TimeElement
-          task={task as TaskResponse}
-          dict={dict as I18nRecord}
+          task={task}
+          dict={dict}
           endTime={task?.persistentState?.endTime}
         />
         {task.mintral_hoReference && show_horeference && (

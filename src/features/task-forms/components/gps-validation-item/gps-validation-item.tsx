@@ -77,7 +77,10 @@ export default function GpsValidationItem({
           {gpsValidationType === "warning" && <Exclamation />}
           {gpsValidationType === "error" && <ErrorCircle />}
           {gpsValidationType === undefined && <Ellipse />} */}
-          <ValidationIcon status={gpsValidationType as ValidationStatus} />
+          <ValidationIcon
+            status={gpsValidationType as ValidationStatus}
+            isLoading={loading}
+          />
 
           <a
             href="#"

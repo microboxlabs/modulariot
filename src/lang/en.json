@@ -444,7 +444,11 @@
         "false": "No",
         "executionType": "Execution Type",
         "priorityCode": "Priority",
-        "serviceKind": "Service Kind"
+        "serviceKind": "Service Kind",
+        "route": "Route",
+        "trailer": "Trailer license plate",
+        "supplierId": "Supplier ID",
+        "supplierName": "Supplier Name"
       },
       "outcome": {
         "moreOptions": "More options",
@@ -1071,6 +1075,7 @@
     "reject_reason": "Reject reason"
   },
   "bento": {
+    "trip": "Trip",
     "trip_information": "Trip information",
     "conditions_present_in_the_trip": "Conditions present in the trip",
     "symptoms_present_in_the_trip": "Symptoms present in the trip",
@@ -1234,7 +1239,8 @@
     "false": "No",
     "executionType": "Execution Type",
     "priorityCode": "Priority",
-    "serviceKind": "Service Kind"
+    "serviceKind": "Service Kind",
+    "route": "Route"
   },
   "searchbar": {
     "service": "Service",

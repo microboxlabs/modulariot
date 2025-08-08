@@ -1,4 +1,7 @@
-export type AccessLogExtras = Record<string, string | number | boolean | undefined>;
+export type AccessLogExtras = Record<
+  string,
+  string | number | boolean | undefined
+>;
 
 // Generate a lightweight request id suitable for correlation when none is provided
 export const generateRequestId = (): string =>
@@ -73,5 +76,3 @@ export function formatAccessLogLine(params: {
     startedAt,
   )}] "${method} ${pathAndQuery} ${protocol}" ${status} ${length} "-" "${ua}" ${extrasSegment}duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
 }
-
-

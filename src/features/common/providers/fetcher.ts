@@ -1,7 +1,6 @@
 import { FetcherError } from "./fetcher.types";
 import { apiLogger } from "@/lib/logger";
 import {
-  formatAccessLogDate,
   formatAccessLogLine,
   generateRequestId,
 } from "@/features/common/utils/access-log";

@@ -3,7 +3,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-const finished = [
+const kanban_params = [
   "service",
   "licensePlate",
   "driverId",
@@ -15,14 +15,18 @@ const finished = [
 ];
 
 export function getNavegationParams(dict: I18nRecord) {
-  const finished_params = finished.map((param) => {
+  return {
+    finished: getParamsFixed(kanban_params, dict),
+    shipping: getParamsFixed(kanban_params, dict),
+    delivery: getParamsFixed(kanban_params, dict),
+  };
+}
+
+function getParamsFixed(params: string[], dict: I18nRecord) {
+  return params.map((param) => {
     return {
       label: tr(param, dict.searchbar as I18nRecord),
       param,
     };
   });
-
-  return {
-    finished: finished_params,
-  };
 }

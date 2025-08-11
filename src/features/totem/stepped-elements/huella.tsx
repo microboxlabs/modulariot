@@ -139,6 +139,18 @@ export default function Huella({
     }
   }, [isWindowsDevice]);
 
+  useEffect(() => {
+    if (
+      isWindowsDevice &&
+      !idCard &&
+      !qrCode &&
+      !manualAccess &&
+      !verificatioSuccess
+    ) {
+      handleScanFingerprint();
+    }
+  }, []);
+
   if (!pluginReady) return null;
 
   const validator =
@@ -177,6 +189,21 @@ export default function Huella({
       setStatus("error");
       setCount(count + 1);
     }
+  };
+
+  const handleValidateIdCard = async () => {
+    setManualVerificationLoading(true);
+    const response = await validateIdCard({
+      user_rut: rutData?.rut as string,
+      nro_serie: idCardNumber,
+    });
+    if (response.success) {
+      setVerificatioSuccess(true);
+      setStatus("success");
+    } else {
+      setStatus("error-id-card");
+    }
+    setManualVerificationLoading(false);
   };
 
   const status_icon = {
@@ -274,8 +301,14 @@ export default function Huella({
               <input
                 type="text"
                 placeholder="No de Serie"
+                autoFocus
                 value={idCardNumber}
                 onChange={(e) => setIdCardNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleValidateIdCard();
+                  }
+                }}
                 className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
               />
             </div>
@@ -287,18 +320,7 @@ export default function Huella({
           )}
           <Button
             onClick={async () => {
-              setManualVerificationLoading(true);
-              const response = await validateIdCard({
-                user_rut: rutData?.rut as string,
-                nro_serie: idCardNumber,
-              });
-              if (response.success) {
-                setVerificatioSuccess(true);
-                setStatus("success");
-              } else {
-                setStatus("error-id-card");
-              }
-              setManualVerificationLoading(false);
+              handleValidateIdCard();
             }}
             disabled={
               status !== "idle" &&

@@ -1,5 +1,3 @@
-"use client";
-
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { tr } from "@/features/i18n/tr.service";
@@ -11,14 +9,29 @@ const comments = [
   {
     sender: "pedroecheverria@gmail.com",
     name: "Pedro Echeverria",
-    message: "Saludos, este es un mensaje de prueba",
+    message:
+      "He devuelto la task, pues el camion se presento con 500 litros de mostaza",
     reason: "No se puede cargar mostaza",
     date: "2025-07-25",
   },
   {
     sender: "juanperez@gmail.com",
     name: "Juan Perez",
-    message: "¿Esta es una respuesta de prueba?",
+    message: "¿Que hay de malo?",
+    reason: null,
+    date: "2025-07-25",
+  },
+  {
+    sender: "pedroecheverria@gmail.com",
+    name: "Pedro Echeverria",
+    message: "La mostaza no es un producto de la mineria",
+    reason: null,
+    date: "2025-07-25",
+  },
+  {
+    sender: "juanperez@gmail.com",
+    name: "Juan Perez",
+    message: "Ehhhhhh... ¿Estas seguro?",
     reason: null,
     date: "2025-07-25",
   },

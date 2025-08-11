@@ -23,7 +23,7 @@ const ValidationItemComponent = ({
   return (
     <div className="flex gap-1 items-center">
       <ValidationIcon status={item.status} isLoading={false} />
-      <span className="text-sm  text-gray-600 dark:text-gray-300">
+      <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
         {((msg.bento as I18nRecord)[item.key] as string) || item.label}
       </span>
     </div>
@@ -129,7 +129,7 @@ export default function ValidationsInfo({
     >
       <div className="space-y-6">
         {/* Equipment category - full width */}
-        {validationData?.validations &&
+        {validationData?.validations ? (
           validationData?.validations.map((validation) => (
             <ValidationCategory
               key={validation.group}
@@ -148,7 +148,17 @@ export default function ValidationsInfo({
               userGroups={userGroups}
               task={task}
             />
-          ))}
+          ))
+        ) : (
+          <div className="text-center text-gray-500 dark:text-gray-400 w-fit">
+            <div className="flex gap-1 items-center">
+              <ValidationIcon status="not_found" isLoading={false} />
+              <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                Ejemplo de validaciones
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </CustomCard>
   );

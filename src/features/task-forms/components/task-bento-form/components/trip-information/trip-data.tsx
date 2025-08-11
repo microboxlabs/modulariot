@@ -110,11 +110,6 @@ export default function TripData({
       value: (task.mintral_clientAbbreviation as string) ?? "-",
     },
     {
-      icon: <FaCalendarAlt className="w-4 h-4" />,
-      label: (msg!.cards as I18nRecord).scheduling as string,
-      value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
-    },
-    {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
@@ -122,7 +117,7 @@ export default function TripData({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-fit">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 w-fit">
       {data.map((item, index) => (
         <LoadableLabel
           key={index}

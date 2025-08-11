@@ -52,7 +52,7 @@ export default function DriverValidations({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-1 w-fit">
+    <div className="grid grid-cols-1 gap-2 w-fit">
       <div className="flex gap-2 items-center flex-row">
         <ValidationIcon
           status={alcoholTestStatus as ValidationStatus}

@@ -41,7 +41,7 @@ export default function ModalTooltip({
     <AbsoluteModal
       selected={selectedTask}
       setSelected={setSelectedTask}
-      maxWidth="1300px"
+      maxWidth="1500px"
       maxHeight="90vh"
       height="fit-content"
     >
@@ -62,36 +62,39 @@ export default function ModalTooltip({
             showActions={false}
             enableActions={false}
           />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 w-full overflow-y-auto">
-            {/* Trip Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-              <TripInformation
-                task={data.taskResponse as unknown as TaskResponse}
-                msg={dict}
-                isLoading={isLoading}
-              />
+          <div className="grid grid-cols-1 gap-2 p-2 w-full overflow-y-auto">
+            <div className="flex flex-col xl:flex-row w-full gap-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full xl:w-fit">
+                <TripInformation
+                  task={data.taskResponse as unknown as TaskResponse}
+                  msg={dict}
+                  isLoading={isLoading}
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-fit">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow">
+                  <DriverInfo
+                    task={data.taskResponse as unknown as TaskResponse}
+                    msg={dict}
+                  />
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full sm:w-fit">
+                  <ValidationsInfo
+                    task={data.taskResponse as unknown as TaskResponse}
+                    msg={dict}
+                    lang={lang}
+                    userGroups={userGroups}
+                  />
+                </div>
+              </div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-              <DriverInfo
-                task={data.taskResponse as unknown as TaskResponse}
-                msg={dict}
-              />
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-              <SymptomsCard
-                task={data.taskResponse as unknown as TaskResponse}
-                dict={dict}
-                reactive={false}
-              />
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-              <ValidationsInfo
-                task={data.taskResponse as unknown as TaskResponse}
-                msg={dict}
-                lang={lang}
-                userGroups={userGroups}
-              />
-            </div>
+                <SymptomsCard
+                  task={data.taskResponse as unknown as TaskResponse}
+                  dict={dict}
+                  reactive={false}
+                />
+              </div>
           </div>
         </div>
       )}

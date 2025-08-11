@@ -53,7 +53,12 @@ const SymptomCard = ({
       {/* First column: Icon and conditions */}
       <div className="flex flex-col items-center gap-1 min-w-0.5">
         <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-lg p-1">
-          <SymptomIcon type={symptom.icon} size="h-6 w-6" dict={dict} />
+          <SymptomIcon
+            type={symptom.icon}
+            size="h-6 w-6"
+            dict={dict}
+            fixed_label={symptom.label}
+          />
         </div>
         <div className="flex gap-1">
           <div className="flex -space-x-2.5 transition-all duration-[0.5s] animate-show-flex">

@@ -40,7 +40,16 @@ export async function GET(req: NextRequest) {
   const options = {
     from: from ? parseInt(from) : 0,
     size: size ? parseInt(size) : 10,
-    filter: undefined,
+    filter: {
+      mintralKey: serviceCode ? `v${serviceCode}` : undefined,
+      licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,
+      driverId: driverId ? driverId : undefined,
+      carrierId: carrierId ? carrierId : undefined,
+      carrierName: carrierName ? carrierName : undefined,
+      origin: origin ? origin.toUpperCase() : undefined,
+      destination: destination ? destination.toUpperCase() : undefined,
+      clientAbbreviation: customer ? customer : undefined,
+    },
   };
 
   try {

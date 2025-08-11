@@ -128,6 +128,7 @@ export default function TripData({
           key={index}
           label={item.label}
           value={item.value as string}
+          icon={item.icon}
           isLoading={isLoading}
         />
       ))}

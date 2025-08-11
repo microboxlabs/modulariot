@@ -543,6 +543,64 @@ export function useGetNodeChildren(nodeId: string | undefined) {
   };
 }
 
+// Custom hook for optimistic file uploads
+export function useOptimisticFileUpload(nodeId: string | undefined) {
+  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId);
+
+  const uploadFile = async (file: SendableFile) => {
+    // Optimistic update - add the file to the current data
+    const optimisticData = {
+      ...data,
+      data: {
+        ...data?.data,
+        list: {
+          ...data?.data?.list,
+          entries: [
+            ...(data?.data?.list?.entries || []),
+            {
+              entry: {
+                id: `temp-${Date.now()}`,
+                name: file.prop_cm_name,
+                content: {
+                  mimeType: file.prop_mimetype,
+                },
+                properties: {
+                  "mintral:contentType": file.prop_mintral_contentType,
+                },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    // Update the cache optimistically
+    await mutate(optimisticData, false);
+
+    try {
+      // Perform the actual upload
+      const result = await postBentoMultimedia(file);
+
+      // Revalidate to get the real data from server
+      await mutate();
+
+      return result;
+    } catch (error) {
+      // If upload fails, revert the optimistic update
+      await mutate();
+      throw error;
+    }
+  };
+
+  return {
+    data,
+    error,
+    isLoading,
+    uploadFile,
+    mutate,
+  };
+}
+
 export function useGetNodeContents(nodeIds: string[]) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,

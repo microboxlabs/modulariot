@@ -9,14 +9,12 @@ import DownloadSignedDocument from "@/features/shipping/components/download-sign
 import TaskActions from "../task-actions/task-actions";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
-import Comment from "./components/side-data/comment";
-import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import TimeElement from "./time-element";
 import { tr } from "@/features/i18n/tr.service";
 import ValidationsInfo from "./components/driver/validations";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
 import SymptomsCard from "./components/side-data/symptoms-card";
-// import Forum from "./components/forum/forum";
+import Forum from "./components/forum/forum";
 
 const task_states = {
   assignDriver: "planificado",
@@ -222,16 +220,8 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        {/*
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
           <Forum dict={dict as I18nRecord} />
-        </div>
-        */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-3 h-[400px]">
-          <Comment
-            task={task as ExtendedTaskResponse}
-            dict={dict as I18nRecord}
-          />
         </div>
       </div>
       {/* Content */}

@@ -115,51 +115,61 @@ export default function ValidationsInfo({
   readonly lang: string;
   readonly userGroups: string[];
 }) {
-  const { data: serviceValidation } = useGetValidation(
+  const { data: serviceValidation, isLoading, error } = useGetValidation(
     task.mintral_serviceCode,
   );
 
   const validationData: ServiceValidationData =
     serviceValidation as ServiceValidationData;
 
+  if (isLoading) {
+    
+  }
+
   return (
     <CustomCard
-      title={(msg.bento as I18nRecord).validations as string}
+      title={null}
       subtitle={null}
     >
-      <div className="space-y-6">
-        {/* Equipment category - full width */}
-        {validationData?.validations ? (
-          validationData?.validations.map((validation) => (
-            <ValidationCategory
-              key={validation.group}
-              title={
-                ((msg.bento as I18nRecord)[validation.group] as string) ||
-                validation.group
-              }
-              items={validation.validations.map((validation) => ({
-                key: mapValidationNameToKey(validation.name),
-                status: mapValidationValueToStatus(validation.value),
-                label: validation.name,
-                group: validation.group,
-              }))}
-              msg={msg}
-              lang={lang}
-              userGroups={userGroups}
-              task={task}
-            />
-          ))
-        ) : (
-          <div className="text-center text-gray-500 dark:text-gray-400 w-fit">
-            <div className="flex gap-1 items-center">
-              <ValidationIcon status="not_found" isLoading={false} />
-              <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                Ejemplo de validaciones
-              </span>
+      <div className="flex flex-col h-full w-full">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
+          {(msg.bento as I18nRecord).validations as string}
+        </h1>
+        <div className="space-y-6 h-full">
+          {/* Equipment category - full width */}
+          {validationData?.validations ? (
+            validationData?.validations.map((validation) => (
+              <ValidationCategory
+                key={validation.group}
+                title={
+                  ((msg.bento as I18nRecord)[validation.group] as string) ||
+                  validation.group
+                }
+                items={validation.validations.map((validation) => ({
+                  key: mapValidationNameToKey(validation.name),
+                  status: mapValidationValueToStatus(validation.value),
+                  label: validation.name,
+                  group: validation.group,
+                }))}
+                msg={msg}
+                lang={lang}
+                userGroups={userGroups}
+                task={task}
+              />
+            ))
+          ) : (
+            <div className="text-center bg-gray-300 dark:bg-gray-700 rounded-lg animate-pulse w-full h-full">
+              <div className="flex gap-1 items-center opacity-0">
+                <ValidationIcon status="not_found" isLoading={false} />
+                <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  Ejemplo de validaciones
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
     </CustomCard>
   );
 }

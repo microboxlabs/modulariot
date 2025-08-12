@@ -27,8 +27,8 @@ export default function Welcome({
         <div className="flex flex-col items-center justify-center w-full">
           <Button
             onClick={() => setCurrentOption(currentOption + 1)}
-            className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
-            color="blue"
+            className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+            color="yellow"
           >
             <div className="flex items-center justify-center w-full gap-1">
               <p className="text-xl font-light">

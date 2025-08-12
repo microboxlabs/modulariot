@@ -40,6 +40,7 @@ export default function Huella({
     "idle" | "scanning" | "success" | "error" | "error-id-card"
   >("idle");
   const [count, setCount] = useState(0);
+  const [countIdCard, setCountIdCard] = useState(0);
   const [qrCode, setQrCode] = useState(false);
   const [idCard, setIdCard] = useState(false);
   const [idCardLoading, setIdCardLoading] = useState(false);
@@ -48,6 +49,7 @@ export default function Huella({
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
+  let html5QrCodeScope: any;
 
   const qrRef = useRef(null);
 
@@ -91,12 +93,12 @@ export default function Huella({
   useEffect(() => {
     if (idCardLoading && qrRef.current) {
       import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
-        const html5QrCode = new Html5Qrcode("html5qr-code");
+        html5QrCodeScope = new Html5Qrcode("html5qr-code");
 
         // Get optimal configuration for large QR codes
         const config = getQRScannerConfig();
 
-        html5QrCode.start(
+        html5QrCodeScope.start(
           config.cameraConfig,
           config.scannerConfig,
           async (decodedText: string, _decodedResult: any) => {
@@ -116,8 +118,8 @@ export default function Huella({
             } else {
               setStatus("error-id-card");
             }
-            html5QrCode?.clear();
-            html5QrCode?.stop();
+            html5QrCodeScope?.clear();
+            html5QrCodeScope?.stop();
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors
@@ -138,6 +140,18 @@ export default function Huella({
       setQrCode(true);
     }
   }, [isWindowsDevice]);
+
+  useEffect(() => {
+    if (
+      isWindowsDevice &&
+      !idCard &&
+      !qrCode &&
+      !manualAccess &&
+      !verificatioSuccess
+    ) {
+      handleScanFingerprint();
+    }
+  }, []);
 
   if (!pluginReady) return null;
 
@@ -177,6 +191,26 @@ export default function Huella({
       setStatus("error");
       setCount(count + 1);
     }
+  };
+
+  const handleValidateIdCard = async () => {
+    setManualVerificationLoading(true);
+    setStatus("scanning");
+    setCountIdCard(countIdCard + 1);
+    const response = await validateIdCard({
+      user_rut: rutData?.rut as string,
+      nro_serie: idCardNumber,
+    });
+    if (response.success) {
+      setVerificatioSuccess(true);
+      setStatus("success");
+    } else {
+      setStatus("error-id-card");
+      if (countIdCard >= 2) {
+        setCurrentStep(currentStep + 2);
+      }
+    }
+    setManualVerificationLoading(false);
   };
 
   const status_icon = {
@@ -230,8 +264,8 @@ export default function Huella({
           onClick={() => {
             setCurrentStep(2);
           }}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -274,8 +308,14 @@ export default function Huella({
               <input
                 type="text"
                 placeholder="No de Serie"
+                autoFocus
                 value={idCardNumber}
                 onChange={(e) => setIdCardNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleValidateIdCard();
+                  }
+                }}
                 className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
               />
             </div>
@@ -287,18 +327,7 @@ export default function Huella({
           )}
           <Button
             onClick={async () => {
-              setManualVerificationLoading(true);
-              const response = await validateIdCard({
-                user_rut: rutData?.rut as string,
-                nro_serie: idCardNumber,
-              });
-              if (response.success) {
-                setVerificatioSuccess(true);
-                setStatus("success");
-              } else {
-                setStatus("error-id-card");
-              }
-              setManualVerificationLoading(false);
+              handleValidateIdCard();
             }}
             disabled={
               status !== "idle" &&
@@ -307,8 +336,8 @@ export default function Huella({
               status !== "error-id-card" &&
               manualVerificationLoading
             }
-            className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
-            color="blue"
+            className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+            color="yellow"
           >
             <p className="text-base font-light">
               {manualVerificationLoading
@@ -354,8 +383,8 @@ export default function Huella({
                   ref={qrRef}
                   style={{
                     width: "100%",
-                    maxWidth: 400,
-                    minHeight: 400,
+                    maxWidth: 250,
+                    minHeight: 250,
                     aspectRatio: "1/1",
                   }}
                   className="rounded-lg overflow-hidden border-2 border-gray-300"
@@ -376,24 +405,28 @@ export default function Huella({
         </div>
         {idCardLoading ? (
           <>
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+            {/*  <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
               {(dict.totem as I18nRecord).loading as string}
-            </p>
-            {/* <Button
-            onClick={() => {
-              setIdCardLoading(false);
-              setVerificatioSuccess(true);
-            }}
-            disabled={
-              status !== "idle" && status !== "success" && status !== "error"
-            }
-            className="text-black p-2 rounded-lg w-full flex items-center justify-center"
-            color="light"
-          >
-            <p className="text-base font-light">
-              {(dict.totem as I18nRecord).continue as string}
-            </p>
-          </Button> */}
+            </p> */}
+            <Button
+              onClick={() => {
+                setIdCard(false);
+                setManualAccess(false);
+                setQrCode(true);
+                setIdCardLoading(false);
+                html5QrCodeScope?.stop();
+                html5QrCodeScope?.clear();
+              }}
+              disabled={
+                status !== "idle" && status !== "success" && status !== "error"
+              }
+              className="text-black p-2 rounded-lg w-full flex items-center justify-center"
+              color="light"
+            >
+              <p className="text-base font-light">
+                {(dict.totem as I18nRecord).back as string}
+              </p>
+            </Button>
           </>
         ) : (
           <Button
@@ -457,8 +490,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
@@ -508,8 +541,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          color="blue"
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
         >
           <p className="text-base font-light">
             {count == 0
@@ -525,8 +558,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          color="blue"
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
         >
           <p className="text-sm font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}

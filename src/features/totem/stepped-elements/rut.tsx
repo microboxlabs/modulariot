@@ -63,8 +63,14 @@ export default function Rut({
           <input
             type="text"
             placeholder="RUT"
+            autoFocus
             value={rut}
             onChange={(e) => setRut(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleValidateRut();
+              }
+            }}
             className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
           />
         </div>
@@ -72,8 +78,8 @@ export default function Rut({
       {error && <p className="text-red-500 text-sm">{error}</p>}
       <Button
         onClick={handleValidateRut}
-        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
-        color="blue"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="yellow"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}

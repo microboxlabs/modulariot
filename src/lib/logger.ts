@@ -1,5 +1,7 @@
 import pino from "pino";
 
+const isDevelopment = process.env.NODE_ENV === "development";
+
 // Define log levels
 const logLevels = {
   fatal: 60,
@@ -29,8 +31,6 @@ const getLogLevel = (): keyof typeof logLevels => {
 
 // Create base logger configuration
 const createLoggerConfig = () => {
-  const isDevelopment = process.env.NODE_ENV === "development";
-
   const baseConfig = {
     level: getLogLevel(),
     timestamp: pino.stdTimeFunctions.isoTime,
@@ -109,6 +109,9 @@ export const notificationLogger = createLogger("notification");
 
 // Utility functions for structured logging
 export const logError = (error: Error, context?: Record<string, any>) => {
+  if (isDevelopment) {
+    console.error(error);
+  }
   logger.error({ err: error, ...context }, error.message);
 };
 

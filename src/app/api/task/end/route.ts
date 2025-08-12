@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       try {
         updateTaskPayload = {
           prop_bpm_comment: comments,
+          prop_mintral_commentPostContent: comments,
         };
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error

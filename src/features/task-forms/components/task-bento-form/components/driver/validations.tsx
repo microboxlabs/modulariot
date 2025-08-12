@@ -48,10 +48,10 @@ const ValidationCategory = ({
 }) => {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
         {title}
-      </h3>
-      <div className="space-y-1">
+      </h2>
+      <div className="space-y-1 flex flex-col gap-2">
         {items.map((item) =>
           item.key === "gpsValidation" ? (
             <GpsValidationItem
@@ -122,23 +122,36 @@ export default function ValidationsInfo({
   const validationData: ServiceValidationData =
     serviceValidation as ServiceValidationData;
 
+  let content = null;
+
   if (isLoading) {
-    
+    content = (
+      <div className="text-center bg-gray-300 dark:bg-gray-700 rounded-lg animate-pulse w-full h-full">
+        <div className="flex gap-1 items-center opacity-0">
+          <ValidationIcon status="not_found" isLoading={false} />
+          <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            Fecha de llegada asignada
+          </span>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <CustomCard
-      title={null}
-      subtitle={null}
-    >
-      <div className="flex flex-col h-full w-full">
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
-          {(msg.bento as I18nRecord).validations as string}
-        </h1>
-        <div className="space-y-6 h-full">
-          {/* Equipment category - full width */}
-          {validationData?.validations ? (
-            validationData?.validations.map((validation) => (
+  if (error) {
+    content = (
+      <div className="text-center w-full h-full flex justify-center items-center">
+          <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {error.message}
+          </span>
+      </div>
+    );
+  }
+
+  if (validationData?.validations) {
+    content = (
+      <div className="flex flex-col gap-4">
+        {
+        validationData?.validations.map((validation) => (
               <ValidationCategory
                 key={validation.group}
                 title={
@@ -157,16 +170,22 @@ export default function ValidationsInfo({
                 task={task}
               />
             ))
-          ) : (
-            <div className="text-center bg-gray-300 dark:bg-gray-700 rounded-lg animate-pulse w-full h-full">
-              <div className="flex gap-1 items-center opacity-0">
-                <ValidationIcon status="not_found" isLoading={false} />
-                <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                  Ejemplo de validaciones
-                </span>
-              </div>
-            </div>
-          )}
+          }
+      </div>
+    );
+  }
+
+  return (
+    <CustomCard
+      title={null}
+      subtitle={null}
+    >
+      <div className="flex flex-col h-full w-full">
+        <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
+          {(msg.bento as I18nRecord).validations as string}
+        </h1>
+        <div className="space-y-6 h-full">
+          {content}
         </div>
       </div>
 

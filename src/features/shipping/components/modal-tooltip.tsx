@@ -52,7 +52,7 @@ export default function ModalTooltip({
       )}
       {error && <div>Error: {error.message}</div>}
       {!isLoading && !error && data && (
-        <div className="flex flex-col bg-gray-100 dark:bg-gray-700 overflow-y-auto h-full">
+        <div className="flex flex-col bg-gray-100 dark:bg-gray-700 overflow-y-auto h-full cursor-default">
           <BentoHead
             show_horeference={false}
             task={data.taskResponse as TaskResponse}
@@ -61,6 +61,7 @@ export default function ModalTooltip({
             lang={lang}
             showActions={false}
             enableActions={false}
+            show_go_to_bento={true}
           />
           <div className="grid grid-cols-1 gap-2 p-2 w-full overflow-y-auto">
             <div className="flex flex-col xl:flex-row w-full gap-2">
@@ -89,12 +90,12 @@ export default function ModalTooltip({
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full">
-                <SymptomsCard
-                  task={data.taskResponse as unknown as TaskResponse}
-                  dict={dict}
-                  reactive={false}
-                />
-              </div>
+              <SymptomsCard
+                task={data.taskResponse as unknown as TaskResponse}
+                dict={dict}
+                reactive={false}
+              />
+            </div>
           </div>
         </div>
       )}

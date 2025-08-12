@@ -220,7 +220,7 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-3 h-[400px]">
           <Forum dict={dict as I18nRecord} task={task} />
         </div>
       </div>

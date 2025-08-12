@@ -6,13 +6,12 @@ import DriverInfo from "./components/driver/driver";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
 
-import Comment from "./components/side-data/comment";
-import { ExtendedTaskResponse } from "../task-form/task-form.types";
 import ValidationsInfo from "./components/driver/validations";
 import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
 import SymptomsCard from "./components/side-data/symptoms-card";
 import BentoHead from "./bento-head";
 // import Forum from "./components/forum/forum";
+import Forum from "./components/forum/forum";
 
 export default function Bento({
   lang,
@@ -116,16 +115,8 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        {/*
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
           <Forum dict={dict as I18nRecord} />
-        </div>
-        */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 lg:col-span-3 h-[400px]">
-          <Comment
-            task={task as ExtendedTaskResponse}
-            dict={dict as I18nRecord}
-          />
         </div>
       </div>
       {/* Content */}

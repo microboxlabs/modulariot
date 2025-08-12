@@ -62,7 +62,7 @@ export default function TripInformation({
             fingerprintData: biometricResult, // Add if available
             driverSerieId: idCardNumber, // Add if available
           }),
-        });        
+        });
         if (!response.ok) {
           const errorData = await response.json();
           logger.info("errorData", errorData);
@@ -112,7 +112,10 @@ export default function TripInformation({
           );
           return;
         }
-        if (
+        setTripData({
+          ...data,
+        });
+        /* if (
           tripData &&
           tripData?.tripInfo?.driver1Info?.driverId === data?.tripInfo?.driverId
         ) {
@@ -159,7 +162,7 @@ export default function TripInformation({
                   : "PENDING",
             },
           });
-        }
+        } */
       } catch (err) {
         console.error(err);
         //setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -201,11 +204,12 @@ export default function TripInformation({
     );
   }
 
-  if (!isLoading && !error && !rutData?.rut_validated) {   
+  if (!isLoading && !error && !rutData?.rut_validated) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
-          No se ha podido validar el rut <span className="font-bold">{rutData?.rut}</span>
+          No se ha podido validar el rut{" "}
+          <span className="font-bold">{rutData?.rut}</span>
         </p>
         <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
@@ -221,7 +225,7 @@ export default function TripInformation({
     );
   }
 
-  if (!tripData && !isLoading && !error) {   
+  if (!tripData && !isLoading && !error) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
@@ -311,8 +315,8 @@ export default function TripInformation({
       )}
       <Button
         onClick={() => setCurrentStep(currentStep + 1)}
-        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
-        color="yellow"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="white"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}
@@ -353,14 +357,14 @@ function DriverInfo({
           {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>
-      <div className="flex flex-col justify-center gap-2 w-full">
+      {/*  <div className="flex flex-col justify-center gap-2 w-full">
         <div className="flex flex-col justify-center gap-1 w-full">
           <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
             {(dict.totem as I18nRecord).state as string}:{" "}
             <span className="font-light">{state}</span>
           </h1>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -93,8 +93,8 @@ function Congratulation({
       />
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
-        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
-          tripData?.tripInfo?.status !== "SUCCESS") && (
+        (!tripData?.tripInfo?.driver2Info?.verified ||
+          !tripData?.tripInfo?.driver1Info?.verified) && (
           <h1 className="text-sm text-red-600 dark:text-red-500 text-center">
             *{" "}
             {
@@ -127,8 +127,8 @@ function Congratulation({
       )}
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
-        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
-          tripData?.tripInfo?.status !== "SUCCESS") && (
+        (!tripData?.tripInfo?.driver2Info?.verified ||
+          !tripData?.tripInfo?.driver1Info?.verified) && (
           <Button
             onClick={() => {
               setRutData({

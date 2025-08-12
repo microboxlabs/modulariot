@@ -23,7 +23,7 @@ export default function TripInformation({
   dict: I18nRecord;
   deviceId: string | null;
   deviceLocation: string | null;
-  rutData: { rut: string } | null;
+  rutData: { rut: string; rut_validated: boolean } | null;
   biometricResult: any;
   tripData: any;
   setTripData: (tripData: any) => void;
@@ -44,6 +44,10 @@ export default function TripInformation({
         setIsLoading(false);
         return;
       }
+      if (!rutData?.rut_validated) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const response = await fetch("/app/api/biometric/verify", {
@@ -58,7 +62,7 @@ export default function TripInformation({
             fingerprintData: biometricResult, // Add if available
             driverSerieId: idCardNumber, // Add if available
           }),
-        });
+        });        
         if (!response.ok) {
           const errorData = await response.json();
           logger.info("errorData", errorData);
@@ -76,6 +80,7 @@ export default function TripInformation({
           );
         }
         const data = await response.json();
+        console.log("data", data);
         if (data?.success === false) {
           if (data?.message == "Driver already verified") {
             if (tripData?.tripInfo?.driver1Info?.driverId === rutData?.rut) {
@@ -185,8 +190,8 @@ export default function TripInformation({
         <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -196,7 +201,27 @@ export default function TripInformation({
     );
   }
 
-  if (!tripData && !isLoading && !error) {
+  if (!isLoading && !error && !rutData?.rut_validated) {   
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
+        <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
+          No se ha podido validar el rut <span className="font-bold">{rutData?.rut}</span>
+        </p>
+        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
+        <Button
+          onClick={() => setCurrentStep(currentStep + 1)}
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
+        >
+          <p className="text-base font-light">
+            {(dict.totem as I18nRecord).continue as string}
+          </p>
+        </Button>
+      </div>
+    );
+  }
+
+  if (!tripData && !isLoading && !error) {   
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
@@ -206,8 +231,8 @@ export default function TripInformation({
         <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}

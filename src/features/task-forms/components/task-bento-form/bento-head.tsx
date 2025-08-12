@@ -114,8 +114,8 @@ export default function BentoHead({
             href={`/task/edit/${task.id}`}
           >
             <div className="flex flex-row gap-2 items-center">
-              <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                Ver Formulario
+              <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
+                {(dict.bento as I18nRecord).go_to_bento as string}
               </p>
             </div>
           </Button>

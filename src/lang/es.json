@@ -1128,6 +1128,7 @@
     "deficient_cargo_securing": "Sujeción de carga deficiente",
     "absence_cargo_securing": "Ausencia sujeción de carga",
     "movement_with_cargo": "Movimiento con carga",
+    "go_to_bento": "Ir al Expediente",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",

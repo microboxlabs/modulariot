@@ -49,6 +49,7 @@ export default function Huella({
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
+  let html5QrCodeScope: any;
 
   const qrRef = useRef(null);
 
@@ -92,12 +93,12 @@ export default function Huella({
   useEffect(() => {
     if (idCardLoading && qrRef.current) {
       import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
-        const html5QrCode = new Html5Qrcode("html5qr-code");
+        html5QrCodeScope = new Html5Qrcode("html5qr-code");
 
         // Get optimal configuration for large QR codes
         const config = getQRScannerConfig();
 
-        html5QrCode.start(
+        html5QrCodeScope.start(
           config.cameraConfig,
           config.scannerConfig,
           async (decodedText: string, _decodedResult: any) => {
@@ -117,8 +118,8 @@ export default function Huella({
             } else {
               setStatus("error-id-card");
             }
-            html5QrCode?.clear();
-            html5QrCode?.stop();
+            html5QrCodeScope?.clear();
+            html5QrCodeScope?.stop();
           },
           (_errorMessage: any) => {
             // Optionally handle scan errors
@@ -404,24 +405,28 @@ export default function Huella({
         </div>
         {idCardLoading ? (
           <>
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+            {/*  <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
               {(dict.totem as I18nRecord).loading as string}
-            </p>
-            {/* <Button
-            onClick={() => {
-              setIdCardLoading(false);
-              setVerificatioSuccess(true);
-            }}
-            disabled={
-              status !== "idle" && status !== "success" && status !== "error"
-            }
-            className="text-black p-2 rounded-lg w-full flex items-center justify-center"
-            color="light"
-          >
-            <p className="text-base font-light">
-              {(dict.totem as I18nRecord).continue as string}
-            </p>
-          </Button> */}
+            </p> */}
+            <Button
+              onClick={() => {
+                setIdCard(false);
+                setManualAccess(false);
+                setQrCode(true);
+                setIdCardLoading(false);
+                html5QrCodeScope?.stop();
+                html5QrCodeScope?.clear();
+              }}
+              disabled={
+                status !== "idle" && status !== "success" && status !== "error"
+              }
+              className="text-black p-2 rounded-lg w-full flex items-center justify-center"
+              color="light"
+            >
+              <p className="text-base font-light">
+                {(dict.totem as I18nRecord).back as string}
+              </p>
+            </Button>
           </>
         ) : (
           <Button

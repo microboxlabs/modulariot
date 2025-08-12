@@ -2,7 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getForumDiscussion } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { logger } from "@/lib/logger";
+import { logError } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -23,7 +23,12 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (e: any) {
-    logger.error(e.message);
+    logError(e as Error, {
+      route: "GET /app/api/forum/discussion",
+      taskId,
+      instanceId,
+      serviceCode,
+    });
     if (e?.status === 401) {
       return NextResponse.json(
         { error: "Unauthorized", status: 401 },

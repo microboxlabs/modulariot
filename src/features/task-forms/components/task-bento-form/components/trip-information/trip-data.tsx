@@ -106,26 +106,37 @@ export default function TripData({
     },
     {
       icon: <FaTruck className="w-4 h-4" />,
-      label: (msg!.cards as I18nRecord).supplierName as string,
-      value: (task.mintral_clientAbbreviation as string) ?? "-",
-    },
-    {
-      icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
     },
   ];
 
+  const supplier_name = {
+    icon: <FaTruck className="w-4 h-4" />,
+    label: (msg!.cards as I18nRecord).supplierName as string,
+    value: (task.mintral_clientAbbreviation as string) ?? "-",
+  }
+
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 w-fit">
-      {data.map((item, index) => (
+    <div className="flex flex-col gap-2 w-fit">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 w-fit">
+        {data.map((item, index) => (
+          <LoadableLabel
+            key={index}
+            label={item.label}
+            value={item.value as string}
+            isLoading={isLoading}
+          />
+        ))}
+      </div>
+      {
         <LoadableLabel
-          key={index}
-          label={item.label}
-          value={item.value as string}
+          label={supplier_name.label}
+          value={supplier_name.value as string}
           isLoading={isLoading}
         />
-      ))}
+      }
     </div>
   );
 }

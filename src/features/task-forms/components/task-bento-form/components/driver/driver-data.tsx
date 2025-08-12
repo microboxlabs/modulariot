@@ -8,12 +8,10 @@ export default function DriverData({
   driver,
   msg,
   serviceCode,
-  single = false,
 }: {
   driver: Driver;
   msg: I18nRecord;
   serviceCode: string;
-  single?: boolean;
 }) {
   const data = [
     {
@@ -38,7 +36,7 @@ export default function DriverData({
     <div className="flex gap-2 h-full flex-col">
       {/* Trip specific data */}
       <div className="flex flex-row gap-4 items-stretch">
-        <div className={`flex gap-4 ${single ? "flex-row" : "flex-col"}`}>
+        <div className={`flex gap-4 flex-col`}>
           <div className="grid grid-cols-1 w-fit h-fit">
             <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
               {
@@ -48,7 +46,7 @@ export default function DriverData({
                 )[driver.varName as string] as string
               }
             </h2>
-            <div className={`flex flex-col ${single ? "gap-1" : "gap-2"}`}>
+            <div className={`flex flex-col gap-2`}>
               {data.map((item, index) => (
                 <span
                   className="text-gray-400 whitespace-nowrap w-fit flex flex-row text-sm font-light gap-1"

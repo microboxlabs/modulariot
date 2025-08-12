@@ -1014,6 +1014,7 @@
     "welcome": "Welcome",
     "subtitle": "To the verification totem",
     "start": "Start",
+    "back": "Back",
     "rut_ingress": "Rut ingress",
     "fingerprint_scan": "Verification",
     "assigned_trip": "Assigned trip",

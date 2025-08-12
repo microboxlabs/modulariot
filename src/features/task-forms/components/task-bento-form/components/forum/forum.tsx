@@ -1,3 +1,4 @@
+"use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { tr } from "@/features/i18n/tr.service";

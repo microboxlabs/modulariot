@@ -165,7 +165,7 @@ function StepperMarker({
 }) {
   return (
     <div
-      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-[#F1B300]" : selected ? "text-black dark:text-white" : "text-gray-500"}`}
+      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-[#F1B300]" : selected ? "text-[#F1B300]" : "text-gray-500"}`}
       style={{ cursor: current_step > id ? "pointer" : "default" }}
       onClick={onClick}
     >
@@ -174,9 +174,9 @@ function StepperMarker({
       >
         {icon}
         <div
-          className={`absolute top-[-0.2rem] right-[-0.2rem] w-[1rem] h-[1rem] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
+          className={`absolute top-[-0.2rem] right-[-0.2rem] w-[1rem] h-[1rem] bg-gray-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
         >
-          <RxCheck className="w-full h-full text-blue-900" />
+          <RxCheck className="w-full h-full text-black" />
         </div>
       </div>
       <p className="text-xs font-light whitespace-nowrap">{text}</p>

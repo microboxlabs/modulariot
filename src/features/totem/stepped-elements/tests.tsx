@@ -94,8 +94,8 @@ function Congratulation({
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => setTestState(true)}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -105,8 +105,8 @@ function Congratulation({
       {!tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => window.location.reload()}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).finish as string}
@@ -181,8 +181,8 @@ function GotoBox({
       </div>
       <Button
         onClick={() => window.location.reload()}
-        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-        color="blue"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
+        color="yellow"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).finish as string}

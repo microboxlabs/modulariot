@@ -4,6 +4,8 @@ import React from "react";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
+import { GlobalErrorHandler } from "@/features/common/components/global-error-handler";
+import { AlfrescoErrorBoundary } from "@/features/common/components/alfresco-error-boundary";
 
 export const metadata: Metadata = {
   title: "Coordinador Viajes Mintral",
@@ -20,7 +22,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={theme}>
       <body className="dark:bg-gray-900">
-        <ThemeDetector>{children}</ThemeDetector>
+        <ThemeDetector>
+          <GlobalErrorHandler />
+          <AlfrescoErrorBoundary>{children}</AlfrescoErrorBoundary>
+        </ThemeDetector>
         <Toaster
           position="bottom-center"
           richColors

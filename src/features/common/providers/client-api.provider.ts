@@ -30,6 +30,7 @@ import {
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
+import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -689,4 +690,55 @@ export function useGetValidation(
     error,
     isLoading,
   };
+}
+
+// Forum SWR hooks
+export function useForumDiscussion(params: {
+  taskId?: string;
+  instanceId?: string;
+  serviceCode?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.taskId) qs.set("taskId", params.taskId);
+  if (params.instanceId) qs.set("instanceId", params.instanceId);
+  if (params.serviceCode) qs.set("serviceCode", params.serviceCode);
+  const key = `/app/api/forum/discussion${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const { data, error, isLoading, mutate } = useSWR<
+    ForumDiscussionResponse,
+    FetcherError
+  >(key, fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  return {
+    discussion: data,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+export async function createForumMessage(payload: {
+  topic: string;
+  content: string;
+  title?: string;
+}) {
+  return fetcher(`/app/api/forum/post`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createForumTopicClient(payload: {
+  bpmPackage: string;
+  title: string;
+  content?: string;
+}) {
+  return fetcher(`/app/api/forum/topic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }

@@ -299,3 +299,35 @@ export type ValidationResponseItem = {
   description: string;
   name: string;
 };
+
+// Forum types
+export type ForumDiscussionResponse = {
+  forum: string;
+  topics: ForumTopic[];
+};
+
+export type ForumTopic = {
+  ref: string;
+  name: string;
+  title: string;
+  author: string;
+  created: string;
+  posts: ForumPost[];
+};
+
+export type ForumPost = {
+  ref: string;
+  name: string;
+  title: string;
+  author: string;
+  created: string;
+  content: string;
+  replies: ForumReply[];
+};
+
+export type ForumReply = {
+  ref: string;
+  title: string;
+  author: string;
+  created: string;
+};

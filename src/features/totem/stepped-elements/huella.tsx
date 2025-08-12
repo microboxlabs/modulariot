@@ -382,8 +382,8 @@ export default function Huella({
                   ref={qrRef}
                   style={{
                     width: "100%",
-                    maxWidth: 400,
-                    minHeight: 400,
+                    maxWidth: 250,
+                    minHeight: 250,
                     aspectRatio: "1/1",
                   }}
                   className="rounded-lg overflow-hidden border-2 border-gray-300"

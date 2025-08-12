@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getForumDiscussion } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { logError } from "@/lib/logger";
+import { redirectWithLang } from "@/features/auth/services/navigation.service";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -30,10 +31,7 @@ export async function GET(req: NextRequest) {
       serviceCode,
     });
     if (e?.status === 401) {
-      return NextResponse.json(
-        { error: "Unauthorized", status: 401 },
-        { status: 401 },
-      );
+      redirectWithLang(`/sign-in`);
     }
     return NextResponse.json(
       { error: "Failed to fetch forum discussion" },

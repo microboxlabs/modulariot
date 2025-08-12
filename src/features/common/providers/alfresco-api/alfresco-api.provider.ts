@@ -565,9 +565,6 @@ export async function getForumDiscussion(
   ticket: string,
   params: { taskId?: string; instanceId?: string; serviceCode?: string },
 ): Promise<ForumDiscussionResponse> {
-  if (params.taskId) {
-    params.taskId = `activiti$${params.taskId}`;
-  }
   return callForumAction<ForumDiscussionResponse>(ticket, "discussion", {
     query: params,
   });

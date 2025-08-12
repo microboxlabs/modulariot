@@ -22,6 +22,7 @@ export default function Huella({
   currentStep,
   dict,
   rutData,
+  setRutData,
   pluginReady,
   onBiometricResult,
   idCardNumber,
@@ -31,6 +32,7 @@ export default function Huella({
   currentStep: number;
   dict: I18nRecord;
   rutData: { rut: string } | null;
+  setRutData: (rutData: { rut: string; rut_validated: boolean }) => void;
   pluginReady: boolean;
   onBiometricResult: (result: any) => void;
   idCardNumber: string;
@@ -207,7 +209,11 @@ export default function Huella({
     } else {
       setStatus("error-id-card");
       if (countIdCard >= 2) {
-        setCurrentStep(currentStep + 2);
+        setCurrentStep(currentStep + 1);
+        setRutData({
+          rut: rutData?.rut as string,
+          rut_validated: false,
+        });
       }
     }
     setManualVerificationLoading(false);
@@ -262,10 +268,14 @@ export default function Huella({
         </div>
         <Button
           onClick={() => {
+            setRutData({
+              rut: rutData?.rut as string,
+              rut_validated: true,
+            });
             setCurrentStep(2);
           }}
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -317,6 +327,9 @@ export default function Huella({
                   }
                 }}
                 className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+                style={{
+                  boxShadow: "none",              
+                }}
               />
             </div>
           </div>
@@ -336,8 +349,8 @@ export default function Huella({
               status !== "error-id-card" &&
               manualVerificationLoading
             }
-            className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
-            color="yellow"
+            className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+            color="white"
           >
             <p className="text-base font-light">
               {manualVerificationLoading
@@ -490,8 +503,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
@@ -541,8 +554,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          color="yellow"
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="white"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
         >
           <p className="text-base font-light">
             {count == 0
@@ -558,8 +571,8 @@ export default function Huella({
           disabled={
             status !== "idle" && status !== "success" && status !== "error"
           }
-          color="yellow"
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="white"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
         >
           <p className="text-sm font-light">
             {(dict.totem as I18nRecord).to_qrcode as string}

@@ -16,7 +16,13 @@ export default function Tests({
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
-  setRutData: ({ rut }: { rut: string }) => void;
+  setRutData: ({
+    rut,
+    rut_validated,
+  }: {
+    rut: string;
+    rut_validated: boolean;
+  }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
   setBiometricResult: (biometricResult: any) => void;
 }) {
@@ -54,7 +60,13 @@ function Congratulation({
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
-  setRutData: ({ rut }: { rut: string }) => void;
+  setRutData: ({
+    rut,
+    rut_validated,
+  }: {
+    rut: string;
+    rut_validated: boolean;
+  }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
   setBiometricResult: (biometricResult: any) => void;
 }) {
@@ -94,8 +106,8 @@ function Congratulation({
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => setTestState(true)}
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -105,8 +117,8 @@ function Congratulation({
       {!tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => window.location.reload()}
-          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="yellow"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).finish as string}
@@ -124,6 +136,7 @@ function Congratulation({
                   tripData?.tripInfo?.status2 !== "SUCCESS"
                     ? tripData?.tripInfo?.driver2Info?.driverId
                     : tripData?.tripInfo?.driver1Info?.driverId,
+                rut_validated: true,
               });
               setIdCardNumber("");
               setBiometricResult(null);
@@ -181,8 +194,8 @@ function GotoBox({
       </div>
       <Button
         onClick={() => window.location.reload()}
-        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center gap-2"
-        color="yellow"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="white"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).finish as string}

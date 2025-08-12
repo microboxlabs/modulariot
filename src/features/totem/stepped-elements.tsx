@@ -23,7 +23,10 @@ export default function Stepped({
   deviceLocation: string | null;
 }) {
   const [pluginReady, setPluginReady] = useState(false);
-  const [rutData, setRutData] = useState<{ rut: string } | null>(null);
+  const [rutData, setRutData] = useState<{
+    rut: string;
+    rut_validated: boolean;
+  } | null>(null);
   const [biometricResult, setBiometricResult] = useState<any>(null);
   const [rut, setRut] = useState("");
   const [idCardNumber, setIdCardNumber] = useState("");
@@ -51,6 +54,7 @@ export default function Stepped({
           currentStep={currentStep}
           dict={dict}
           rutData={rutData}
+          setRutData={setRutData}
           pluginReady={pluginReady}
           onBiometricResult={setBiometricResult}
           setIdCardNumber={setIdCardNumber}

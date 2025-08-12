@@ -65,8 +65,7 @@ export class AlfrescoErrorBoundary extends Component<Props, State> {
       if (error.message) {
         const parsed = JSON.parse(error.message) as AlfrescoAuthError;
         return (
-          parsed?.error?.errorKey === "framework.exception.ApiDefault" &&
-          parsed?.error?.statusCode === 401 &&
+          parsed?.error?.statusCode === 401 ||
           parsed?.error?.briefSummary?.includes(
             "Authentication failed for Web Script",
           )
@@ -149,8 +148,7 @@ function isAlfrescoAuthError(error: Error): boolean {
     if (error.message) {
       const parsed = JSON.parse(error.message) as AlfrescoAuthError;
       return (
-        parsed?.error?.errorKey === "framework.exception.ApiDefault" &&
-        parsed?.error?.statusCode === 401 &&
+        parsed?.error?.statusCode === 401 ||
         parsed?.error?.briefSummary?.includes(
           "Authentication failed for Web Script",
         )

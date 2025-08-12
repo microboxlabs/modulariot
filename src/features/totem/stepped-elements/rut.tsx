@@ -78,8 +78,8 @@ export default function Rut({
       {error && <p className="text-red-500 text-sm">{error}</p>}
       <Button
         onClick={handleValidateRut}
-        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
-        color="blue"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="yellow"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}

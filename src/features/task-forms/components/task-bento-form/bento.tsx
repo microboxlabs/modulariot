@@ -13,6 +13,30 @@ import FileImages from "./components/side-data/multimedia-manager.tsx/file-image
 import SymptomsCard from "./components/side-data/symptoms-card";
 import BentoHead from "./bento-head";
 // import Forum from "./components/forum/forum";
+import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
+import TaskActions from "../task-actions/task-actions";
+import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
+import TimeElement from "./time-element";
+import { tr } from "@/features/i18n/tr.service";
+import ValidationsInfo from "./components/driver/validations";
+import FileImages from "./components/side-data/multimedia-manager.tsx/file-images";
+import SymptomsCard from "./components/side-data/symptoms-card";
+import Forum from "./components/forum/forum";
+
+const task_states = {
+  assignDriver: "planificado",
+  presentDriver: "asignado",
+  prepareService: "en_preparacion",
+  missionControl: "preparado",
+  monitorTrip: "iniciado",
+  confirmArrival: "arribado_sp",
+  closeMonitoring: "arribado_cp",
+  confirmDelivery: "arribado_sp",
+  receiveDelivery: "arribado_cp",
+  notifyTMSArrival: "recepcionado",
+  notifyTMSDelivery: "recepcionado",
+};
 
 export default function Bento({
   lang,
@@ -116,16 +140,8 @@ export default function Bento({
         </div>
 
         {/* Forum */}
-        {/*
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 h-[400px]">
           <Forum dict={dict as I18nRecord} />
-        </div>
-        */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 lg:col-span-3 h-[400px]">
-          <Comment
-            task={task as ExtendedTaskResponse}
-            dict={dict as I18nRecord}
-          />
         </div>
       </div>
       {/* Content */}

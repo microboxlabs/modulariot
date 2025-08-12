@@ -44,9 +44,9 @@ export default function DriverInfo({
             msg={msg}
             serviceCode={task.mintral_serviceCode}
           />
-          {driver1 && (
+          {driver2 && (
             <DriverData
-              driver={driver1}
+              driver={driver2}
               msg={msg}
               serviceCode={task.mintral_serviceCode}
             />

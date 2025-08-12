@@ -3,7 +3,6 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import { fromString } from "@/features/common/services/days.service";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 import {
-  FaCalendarAlt,
   FaClipboardList,
   FaCog,
   FaMapMarkerAlt,
@@ -20,14 +19,14 @@ export default function TripData({
   msg: I18nRecord;
   isLoading?: boolean;
 }) {
-  const eta = fromString(
+  const _eta = fromString(
     task.mintral_arrivalDate
       ? (task.mintral_arrivalDate as string)
       : task.mintral_estimatedArrivalDate
         ? (task.mintral_estimatedArrivalDate as string)
         : "",
   );
-  const etd = fromString(
+  const _etd = fromString(
     task.mintral_departureDate
       ? (task.mintral_departureDate as string)
       : task.mintral_expectedDepartureDate
@@ -115,8 +114,7 @@ export default function TripData({
     icon: <FaTruck className="w-4 h-4" />,
     label: (msg!.cards as I18nRecord).supplierName as string,
     value: (task.mintral_clientAbbreviation as string) ?? "-",
-  }
-
+  };
 
   return (
     <div className="flex flex-col gap-2 w-fit">
@@ -130,13 +128,11 @@ export default function TripData({
           />
         ))}
       </div>
-      {
-        <LoadableLabel
-          label={supplier_name.label}
-          value={supplier_name.value as string}
-          isLoading={isLoading}
-        />
-      }
+      <LoadableLabel
+        label={supplier_name.label}
+        value={supplier_name.value as string}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

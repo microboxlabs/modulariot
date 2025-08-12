@@ -1,10 +1,11 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import Geographic from "@/features/shipping/components/geographic";
+import HistoricLoads from "@/features/shipping/components/historic-loads";
+
 import TripInformation from "./components/trip-information/trip-information";
 import DriverInfo from "./components/driver/driver";
 // import Conditions from "./components/side-data/conditions";
-import Geographic from "@/features/shipping/components/geographic";
-import HistoricLoads from "@/features/shipping/components/historic-loads";
 
 import Comment from "./components/side-data/comment";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";

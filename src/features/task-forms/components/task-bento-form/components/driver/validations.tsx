@@ -115,9 +115,11 @@ export default function ValidationsInfo({
   readonly lang: string;
   readonly userGroups: string[];
 }) {
-  const { data: serviceValidation, isLoading, error } = useGetValidation(
-    task.mintral_serviceCode,
-  );
+  const {
+    data: serviceValidation,
+    isLoading,
+    error,
+  } = useGetValidation(task.mintral_serviceCode);
 
   const validationData: ServiceValidationData =
     serviceValidation as ServiceValidationData;
@@ -140,9 +142,9 @@ export default function ValidationsInfo({
   if (error) {
     content = (
       <div className="text-center w-full h-full flex justify-center items-center">
-          <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
-            {error.message}
-          </span>
+        <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
+          {error.message}
+        </span>
       </div>
     );
   }
@@ -150,45 +152,37 @@ export default function ValidationsInfo({
   if (validationData?.validations) {
     content = (
       <div className="flex flex-col gap-4">
-        {
-        validationData?.validations.map((validation) => (
-              <ValidationCategory
-                key={validation.group}
-                title={
-                  ((msg.bento as I18nRecord)[validation.group] as string) ||
-                  validation.group
-                }
-                items={validation.validations.map((validation) => ({
-                  key: mapValidationNameToKey(validation.name),
-                  status: mapValidationValueToStatus(validation.value),
-                  label: validation.name,
-                  group: validation.group,
-                }))}
-                msg={msg}
-                lang={lang}
-                userGroups={userGroups}
-                task={task}
-              />
-            ))
-          }
+        {validationData?.validations.map((validation) => (
+          <ValidationCategory
+            key={validation.group}
+            title={
+              ((msg.bento as I18nRecord)[validation.group] as string) ||
+              validation.group
+            }
+            items={validation.validations.map((validation) => ({
+              key: mapValidationNameToKey(validation.name),
+              status: mapValidationValueToStatus(validation.value),
+              label: validation.name,
+              group: validation.group,
+            }))}
+            msg={msg}
+            lang={lang}
+            userGroups={userGroups}
+            task={task}
+          />
+        ))}
       </div>
     );
   }
 
   return (
-    <CustomCard
-      title={null}
-      subtitle={null}
-    >
+    <CustomCard title={null} subtitle={null}>
       <div className="flex flex-col h-full w-full">
         <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
           {(msg.bento as I18nRecord).validations as string}
         </h1>
-        <div className="space-y-6 h-full">
-          {content}
-        </div>
+        <div className="space-y-6 h-full">{content}</div>
       </div>
-
     </CustomCard>
   );
 }

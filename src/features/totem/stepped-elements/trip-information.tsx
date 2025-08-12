@@ -185,8 +185,8 @@ export default function TripInformation({
         <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -206,8 +206,8 @@ export default function TripInformation({
         <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+          color="yellow"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -286,8 +286,8 @@ export default function TripInformation({
       )}
       <Button
         onClick={() => setCurrentStep(currentStep + 1)}
-        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center"
-        color="blue"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-[#F1B300]/80 dark:hover:bg-[#F1B300]/80 font-bold p-2 rounded-lg w-full flex items-center justify-center"
+        color="yellow"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}

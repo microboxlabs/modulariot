@@ -2,7 +2,8 @@ import ExclamationIcon from "@/features/icons/exclamation";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import { Button } from "flowbite-react";
-import { FaCheckCircle } from "react-icons/fa";
+import Image from "next/image";
+import ControlCenter from "@assets/icons/totem/control-tower.svg";
 
 export default function Tests({
   dict,
@@ -83,7 +84,7 @@ function Congratulation({
           {(dict.totem as I18nRecord).notify_control_center as string}
         </h1>
       )}
-      <FaCheckCircle className="w-20 h-20 text-[#F1B300]" />
+      <Image src={ControlCenter} alt="Ok" width={100} height={100} />
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
         (!tripData?.tripInfo?.driver2Info?.verified ||

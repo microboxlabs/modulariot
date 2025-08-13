@@ -18,14 +18,14 @@ export async function GET(request: Request) {
       }
       token = session.user.ticket;
     }
-
     alfrescoApi.setTicket(token, "");
     const response = await tryCatch(getGroupsForPerson(token));
 
     if (response?.error) {
       return NextResponse.json(
         { error: "Failed to fetch groups" },
-        { status: 401 },
+        //@ts-ignore
+        { status: response?.error?.status ?? 500 },
       );
     }
 

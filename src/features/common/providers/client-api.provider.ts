@@ -31,6 +31,7 @@ import {
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
+import { useRouter } from "next/navigation";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -415,10 +416,16 @@ export function useUserStatus() {
 }
 
 export function useUserGroups() {
+  const router = useRouter();
   const { data, error, isLoading } = useSWR<UserGroupsResponse, FetcherError>(
     "/app/api/user/groups",
     fetcher,
   );
+
+  //here we need to check if the error is an Alfresco authentication error
+  if (error && error.status === 401) {
+    router.push("/app/signin");
+  }
 
   return {
     data: data?.data ?? [],

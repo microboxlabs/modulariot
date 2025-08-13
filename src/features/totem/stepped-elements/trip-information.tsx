@@ -1,8 +1,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
-import Image from "next/image";
-import exclamationIcon from "@assets/wired-flat-1140-error-in-reveal.gif";
 import { Button } from "flowbite-react";
 import { logger } from "@/lib/logger";
 
@@ -80,27 +78,14 @@ export default function TripInformation({
           );
         }
         const data = await response.json();
-        console.log("data", data);
+        logger.info("data", data);
         if (data?.success === false) {
           if (data?.message == "Driver already verified") {
-            if (tripData?.tripInfo?.driver1Info?.driverId === rutData?.rut) {
-              setTripData({
-                ...tripData,
-                tripInfo: {
-                  ...tripData.tripInfo,
-                  status: "SUCCESS",
-                },
-              });
-            }
-            if (tripData?.tripInfo?.driver2Info?.driverId === rutData?.rut) {
-              setTripData({
-                ...tripData,
-                tripInfo: {
-                  ...tripData.tripInfo,
-                  status2: "SUCCESS",
-                },
-              });
-            }
+            setError(
+              ((dict.totem as I18nRecord)[
+                data.message as keyof I18nRecord
+              ] as string) ?? data.message,
+            );
             return;
           }
           setError(
@@ -115,56 +100,7 @@ export default function TripInformation({
         setTripData({
           ...data,
         });
-        /* if (
-          tripData &&
-          tripData?.tripInfo?.driver1Info?.driverId === data?.tripInfo?.driverId
-        ) {
-          setTripData({
-            ...tripData,
-            tripInfo: {
-              ...tripData.tripInfo,
-              status:
-                data?.tripInfo?.driver1Info?.driverId ===
-                data?.tripInfo?.driverId
-                  ? "SUCCESS"
-                  : "PENDING",
-            },
-          });
-        } else if (
-          tripData &&
-          tripData?.tripInfo?.driver2Info?.driverId === data?.tripInfo?.driverId
-        ) {
-          setTripData({
-            ...tripData,
-            tripInfo: {
-              ...tripData.tripInfo,
-              status2:
-                data?.tripInfo?.driver2Info?.driverId ===
-                data?.tripInfo?.driverId
-                  ? "SUCCESS"
-                  : "PENDING",
-            },
-          });
-        } else {
-          setTripData({
-            ...data,
-            tripInfo: {
-              ...data.tripInfo,
-              status:
-                data?.tripInfo?.driver1Info?.driverId ===
-                data?.tripInfo?.driverId
-                  ? "SUCCESS"
-                  : "PENDING",
-              status2:
-                data?.tripInfo?.driver2Info?.driverId ===
-                data?.tripInfo?.driverId
-                  ? "SUCCESS"
-                  : "PENDING",
-            },
-          });
-        } */
       } catch (err) {
-        console.error(err);
         // setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
@@ -189,8 +125,10 @@ export default function TripInformation({
   if (error && !tripData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
-        <p className="text-lg text-red-500 text-center">{error}</p>
-        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
+        <p className="text-lg text-gray-900 dark:text-gray-100 text-center">
+          {error}
+        </p>
+        <FaExclamationCircle className="w-20 h-20 text-red-500" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
@@ -211,7 +149,7 @@ export default function TripInformation({
           No se ha podido validar el rut{" "}
           <span className="font-bold">{rutData?.rut}</span>
         </p>
-        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
+        <FaExclamationCircle className="w-20 h-20 text-red-500" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
@@ -232,7 +170,7 @@ export default function TripInformation({
           El conductor con rut <span className="font-bold">{rutData?.rut}</span>{" "}
           no posee un viaje asignado.
         </p>
-        <Image src={exclamationIcon} alt="exclamation" className="w-40 h-40" />
+        <FaExclamationCircle className="w-10 h-10 text-red-500" />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"

@@ -140,10 +140,14 @@ export default function ValidationsInfo({
   }
 
   if (error) {
+    console.error(error);
+
     content = (
-      <div className="text-center w-full h-full flex justify-center items-center">
-        <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
-          {error.message}
+      <div className="text-center h-full flex justify-center items-center w-full">
+        <span className="text-sm  text-red-500 whitespace-normal">
+          Algo salió mal al obtener los
+          <br></br>
+          datos de validación.
         </span>
       </div>
     );

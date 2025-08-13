@@ -1257,6 +1257,7 @@
   "comments": {
     "title": "Comments",
     "subtitle": "Here you can view the comments entered.",
+    "migrating": "Comments in migration process",
     "no_comments": "No comments"
   }
 }

@@ -1260,6 +1260,7 @@
   "comments": {
     "title": "Comentarios",
     "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
+    "migrating": "Comentarios en proceso de migración",
     "no_comments": "No hay comentarios"
   }
 }

@@ -82,8 +82,9 @@ export class AlfrescoErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       // If it's an Alfresco auth error, don't show the fallback
       // The redirect should happen automatically
-      console.log(this.state);
-      if (this.state.error && this.isAlfrescoAuthError(this.state.error)) {
+      //console.log(this.state);
+      return null;
+      /* if (this.state.error && this.isAlfrescoAuthError(this.state.error)) {
         return null;
       }
 
@@ -107,7 +108,7 @@ export class AlfrescoErrorBoundary extends Component<Props, State> {
             </div>
           </div>
         )
-      );
+      ); */
     }
 
     return this.props.children;

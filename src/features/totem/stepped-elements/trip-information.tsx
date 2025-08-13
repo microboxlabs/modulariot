@@ -2,7 +2,6 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
 import { Button } from "flowbite-react";
-import { logger } from "@/lib/logger";
 
 export default function TripInformation({
   setCurrentStep,
@@ -63,7 +62,6 @@ export default function TripInformation({
         });
         if (!response.ok) {
           const errorData = await response.json();
-          logger.info("errorData", errorData);
           if (errorData?.error?.code === "multiple_tasks") {
             setError((dict.totem as I18nRecord).multiple_tasks as string);
             return;
@@ -78,7 +76,6 @@ export default function TripInformation({
           );
         }
         const data = await response.json();
-        logger.info("data", data);
         if (data?.success === false) {
           if (data?.message == "Driver already verified") {
             setError(
@@ -146,7 +143,7 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
-          No se ha podido validar el rut{" "}
+          {(dict.totem as I18nRecord).unable_to_validate_rut as string}{" "}
           <span className="font-bold">{rutData?.rut}</span>
         </p>
         <FaExclamationCircle className="w-20 h-20 text-red-500" />
@@ -167,8 +164,9 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
-          El conductor con rut <span className="font-bold">{rutData?.rut}</span>{" "}
-          no posee un viaje asignado.
+          {(dict.totem as I18nRecord).driver_without_trip1 as string}{" "}
+          <span className="font-bold">{rutData?.rut}</span>{" "}
+          {(dict.totem as I18nRecord).driver_without_trip2 as string}
         </p>
         <FaExclamationCircle className="w-10 h-10 text-red-500" />
         <Button

@@ -235,7 +235,7 @@ export default function Huella({
       text: (dict.totem as I18nRecord).loading as string,
     },
     success: {
-      style: "text-green-500 border-green-500",
+      style: "text-[#F1B300] border-[#F1B300]",
       text: (dict.totem as I18nRecord).fingerprint_scan_success as string,
     },
     error: {
@@ -263,7 +263,7 @@ export default function Huella({
           width={100}
           height={100}
         /> */}
-        <FaCheckCircle className="w-20 h-20 text-green-500" />
+        <FaCheckCircle className="w-20 h-20 text-[#F1B300]" />
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">

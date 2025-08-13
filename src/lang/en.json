@@ -1127,6 +1127,7 @@
     "deficient_cargo_securing": "Deficient cargo securing",
     "absence_cargo_securing": "Absence of cargo securing",
     "movement_with_cargo": "Movement with cargo",
+    "go_to_bento": "Go to the form",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",

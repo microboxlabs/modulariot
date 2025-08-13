@@ -84,7 +84,7 @@ export default function GpsValidationItem({
 
           <a
             href="#"
-            className="ml-2 text-gray-600 text-sm hover:underline"
+            className="ml-2 text-gray-600 dark:text-gray-400 text-sm hover:underline"
             onClick={openGpsValidationModal}
           >
             {msg?.cards

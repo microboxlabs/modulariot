@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useRef } from "react";
 import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import fingerPrint from "@assets/icons/totem/fingerprint-security.gif";
-import SmartLockCard from "@assets/icons/totem/smart-lock-card-hover-pinch.gif";
-import QrCode from "@assets/icons/totem/qr-code-hover-pinch.gif";
-import VerificationSuccess from "@assets/icons/totem/approve-checked-simple-hover-pinch.gif";
+
 import {
   fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
-import Image from "next/image";
-import { FaIdCard } from "react-icons/fa";
+
+import {
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaIdCard,
+  FaQrcode,
+} from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
@@ -229,7 +231,7 @@ export default function Huella({
       text: (dict.totem as I18nRecord).fingerprint_scan_idle as string,
     },
     scanning: {
-      style: "text-blue-500 animate-pulse border-blue-500",
+      style: "text-[#F1B300] animate-pulse border-[#F1B300]",
       text: (dict.totem as I18nRecord).loading as string,
     },
     success: {
@@ -254,13 +256,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).verification_success as string}
           </h1>
         </div>
-        <Image
+        {/* <Image
           className="w-[18vh] h-[18vh] animate-scale-in"
           src={VerificationSuccess}
           alt="Ok"
           width={100}
           height={100}
-        />
+        /> */}
+        <FaCheckCircle className="w-20 h-20 text-green-500" />
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
@@ -297,13 +300,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_manual_access as string}
           </h1>
         </div>
-        <Image
+        {/*  <Image
           className="w-28 h-28 animate-scale-in"
           src={SmartLockCard}
           alt="Ok"
           width={100}
           height={100}
-        />
+        /> */}
+        <FaIdCard className="w-20 h-20 text-gray-500" />
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
@@ -377,13 +381,14 @@ export default function Huella({
         </div>
         {!idCardLoading && (
           <>
-            <Image
+            {/* <Image
               className="w-28 h-28 animate-scale-in"
               src={SmartLockCard}
               alt="Ok"
               width={100}
               height={100}
-            />
+            /> */}
+            <FaIdCard className="w-20 h-20 text-gray-500" />
           </>
         )}
         {qrMessage && (
@@ -473,13 +478,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
-        <Image
+        {/* <Image
           className="w-28 h-28 animate-scale-in"
           src={QrCode}
           alt="Ok"
           width={100}
           height={100}
-        />
+        /> */}
+        <FaQrcode className="w-20 h-20 text-gray-500" />
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
@@ -526,13 +532,7 @@ export default function Huella({
         </h1>
       </div>
       {status == "error" ? (
-        <Image
-          className="w-20 h-20 animate-scale-in"
-          src={fingerPrint}
-          alt="Ok"
-          width={100}
-          height={100}
-        />
+        <FaExclamationCircle className="w-20 h-20 text-red-500" />
       ) : (
         <div
           className={`p-2 rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}

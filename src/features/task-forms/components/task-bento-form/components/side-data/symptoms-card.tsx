@@ -18,6 +18,10 @@ interface SymptomData {
 }
 
 function getSymptom(symptoms: any[], id: string) {
+  if (!symptoms) {
+    return [];
+  }
+
   if (Object.keys(symptoms).length === 0) {
     return [];
   }
@@ -43,9 +47,11 @@ function getConditions(symptoms: any[], id: string): string[] {
 const SymptomCard = ({
   symptom,
   dict,
+  loading = false,
 }: {
   symptom: SymptomData;
   dict: I18nRecord;
+  loading?: boolean;
 }) => {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-1 p-2 w-min-[150px] h-[70px] ">
@@ -83,7 +89,13 @@ const SymptomCard = ({
 
       {/* Third column: Number */}
       <div className="text-xl text-gray-800 dark:text-gray-200 flex-shrink-0">
-        {symptom.count.toString().padStart(2, "0")}
+        {loading ? (
+          <div className="bg-gray-300 dark:bg-gray-700 text-gray-300 dark:text-gray-700 animate-pulse rounded-lg h-full w-full">
+            00
+          </div>
+        ) : (
+          symptom.count.toString().padStart(2, "0")
+        )}
       </div>
     </div>
   );
@@ -105,18 +117,6 @@ export default function SymptomsCard({
   } = useTreatmentsTrip(task.mintral_serviceCode);
   if (error) {
     return <div>Error: {error.message}</div>;
-  }
-  if (isLoading) {
-    return (
-      <CustomCard
-        title={
-          (dict.bento as I18nRecord).symptoms_present_in_the_trip as string
-        }
-        subtitle={null}
-      >
-        <div className="bg-gray-300 dark:bg-gray-700 animate-pulse rounded-lg h-full" />
-      </CustomCard>
-    );
   }
 
   // Define all symptoms with their icons and default values
@@ -232,11 +232,11 @@ export default function SymptomsCard({
       subtitle={null}
     >
       <div
-        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-3"}`}
+        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-2 md:grid-cols-3"}`}
       >
         {allSymptoms.map((symptom) => (
           <div key={symptom.key}>
-            <SymptomCard symptom={symptom} dict={dict} />
+            <SymptomCard symptom={symptom} dict={dict} loading={isLoading} />
           </div>
         ))}
       </div>

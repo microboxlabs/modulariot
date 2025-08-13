@@ -52,13 +52,13 @@ export default function DriverValidations({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-1 w-fit">
+    <div className="grid grid-cols-1 gap-2 w-fit">
       <div className="flex gap-2 items-center flex-row">
         <ValidationIcon
           status={alcoholTestStatus as ValidationStatus}
           isLoading={isLoading}
         />
-        <span className="text-gray-400 text-sm">
+        <span className="text-gray-400 text-sm whitespace-normal">
           {(msg.cards as I18nRecord).alcoholTest as string}
         </span>
       </div>
@@ -67,7 +67,7 @@ export default function DriverValidations({
           status={drugTestStatus as ValidationStatus}
           isLoading={isLoading}
         />
-        <span className="text-gray-400 text-sm">
+        <span className="text-gray-400 text-sm whitespace-normal">
           {(msg.cards as I18nRecord).drugTest as string}
         </span>
       </div>
@@ -76,7 +76,7 @@ export default function DriverValidations({
           status={sleepinessTestStatus as ValidationStatus}
           isLoading={isLoading}
         />
-        <span className="text-gray-400 text-sm">
+        <span className="text-gray-400 text-sm whitespace-normal">
           {(msg.cards as I18nRecord).sleepinessTest as string}
         </span>
       </div>
@@ -85,7 +85,7 @@ export default function DriverValidations({
           status={appTestStatus as ValidationStatus}
           isLoading={isLoading}
         />
-        <span className="text-gray-400 text-sm">
+        <span className="text-gray-400 text-sm whitespace-normal">
           {(msg.cards as I18nRecord).appTest as string}
         </span>
       </div>
@@ -94,7 +94,7 @@ export default function DriverValidations({
           status={identityTestStatus as ValidationStatus}
           isLoading={isLoading}
         />
-        <span className="text-gray-400 text-sm">
+        <span className="text-gray-400 text-sm whitespace-normal">
           {(msg.cards as I18nRecord).identityTest as string}
         </span>
       </div>

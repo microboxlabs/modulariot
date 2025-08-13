@@ -6,6 +6,8 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
 import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
 import TimeElement from "./time-element";
+import Link from "next/link";
+import { Button } from "flowbite-react";
 
 const task_states = {
   assignDriver: "planificado",
@@ -29,6 +31,7 @@ export default function BentoHead({
   showActions,
   enableActions,
   show_horeference = true,
+  show_go_to_bento = false,
 }: {
   readonly task: TaskResponse;
   readonly dict: I18nRecord;
@@ -37,6 +40,7 @@ export default function BentoHead({
   readonly showActions: boolean;
   readonly enableActions: boolean;
   readonly show_horeference?: boolean;
+  readonly show_go_to_bento?: boolean;
 }) {
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
@@ -97,21 +101,25 @@ export default function BentoHead({
         </div>
       </div>
       <div className="flex flex-row gap-1 w-full sm:w-auto">
-        {/*          
-          <Button
-            color="gray"
-            className="h-10 transition-all duration-100 bg-white dark:bg-gray-800 gap-2 w-fit hover:text-gray-500 portrait:hidden"
-          >
-            <div className="flex flex-row gap-2 items-center">
-              <MdWindow className="w-5 h-5" width={30} height={30} />
-            </div>
-          </Button>
-          */}
         <TimeElement
           task={task}
           dict={dict}
           endTime={task?.persistentState?.endTime}
         />
+        {show_go_to_bento && (
+          <Button
+            color="blue"
+            className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit"
+            as={Link}
+            href={`/task/edit/${task.id}`}
+          >
+            <div className="flex flex-row gap-2 items-center">
+              <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
+                {(dict.bento as I18nRecord).go_to_bento as string}
+              </p>
+            </div>
+          </Button>
+        )}
         {task.mintral_hoReference && show_horeference && (
           <DownloadSignedDocument
             documentId={task.mintral_hoReference}

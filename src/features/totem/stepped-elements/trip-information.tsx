@@ -36,7 +36,7 @@ export default function TripInformation({
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    //if (tripData) return; // Only run if tripData is not set
+    // if (tripData) return; // Only run if tripData is not set
 
     setIsLoading(true);
     const verifyBiometric = async () => {
@@ -165,7 +165,7 @@ export default function TripInformation({
         } */
       } catch (err) {
         console.error(err);
-        //setError(err instanceof Error ? err.message : "Unknown error occurred");
+        // setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
       }
@@ -251,7 +251,7 @@ export default function TripInformation({
       <h1 className="text-lg text-gray-900 dark:text-gray-100">
         {(dict.totem as I18nRecord).trip_information as string}
       </h1>
-      <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
+      <hr className="w-full border-gray-300 dark:border-gray-700" />
       <div className="flex flex-wrap items-stretch w-full my-2 gap-4">
         <DriverInfo
           number={1}
@@ -272,7 +272,7 @@ export default function TripInformation({
           />
         )}
       </div>
-      <hr className="w-full border-gray-300 dark:border-gray-700"></hr>
+      <hr className="w-full border-gray-300 dark:border-gray-700" />
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <div className="flex flex-row items-stretch justify-center gap-3 w-full my-2">
           <div className="flex flex-col justify-center gap-2 w-full">
@@ -287,8 +287,10 @@ export default function TripInformation({
                 </span>
               </h1>
               <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
-                {((dict.totem as I18nRecord)
-                  .trip_information_origin_destination as string) + ": "}
+                {`${
+                  (dict.totem as I18nRecord)
+                    .trip_information_origin_destination as string
+                }: `}
                 <span className="font-light">
                   {tripData?.tripInfo?.tripInfo?.origin} -{" "}
                   {tripData?.tripInfo?.tripInfo?.destination}

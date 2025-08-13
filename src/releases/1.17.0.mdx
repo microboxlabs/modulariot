@@ -1,0 +1,33 @@
+# 🧾 Release Notes – v1.17.0 – Plataforma MBL
+
+**Fecha estimada de entrega**: 06/08 – 12/08
+
+Objetivo general: Esta versión incorpora integraciones clave y mejoras operativas para optimizar la trazabilidad, la comunicación interna y la experiencia de usuario, tanto en el Coordinador de Viajes como en el Tótem de verificación.
+
+## 🧬 Evolutivos – Nuevas funcionalidades implementadas
+- **Habilitación de Azure Active Directory para el Coordinador**: Se integró la autenticación con Azure Active Directory, permitiendo a los usuarios ingresar con sus credenciales   corporativas   internas, mejorando la seguridad y simplificando el acceso.
+
+- **Notificaciones vía Microsoft Teams**: Se habilitó la conexión para envío automático de notificaciones relevantes  al  canal  del  equipo  Coordinador  de  Viajes  en  Microsoft  Teams,  incluyendo  casos  críticos detectados en el flujo operativo.
+
+- **Tooltip dinámico en Kanban: Se incorporó un tooltip informativo en las tarjetas del   Kanban, mostrando de forma resumida**:
+
+  - Información del viaje
+  - Datos del o los conductores
+  - Validaciones realizadas
+  - Síntomas detectados
+
+- **Sección de foro en el Bentobox**: Se activó el componente Foro dentro del Expediente de Viaje, centralizando los comentarios y motivos ingresados durante el proceso operativo.
+
+- **Integración de filtros en Kanban adicionales**: Se incorporó la funcionalidad de búsqueda y filtrado en los otros tableros Kanban (además del principal), alineando la experiencia de navegación en toda la plataforma.
+
+## 🛠️ Correcciones y ajustes de estabilidad
+
+- Optimización del Tótem de verificación
+  - **Enrutamiento condicional**: Posibilidad de ingresar desde el link base a la pantalla de inicio directamente a pantallas accionables (ej. lectura de huella).
+  - **Eliminación de pantalla intermedia previa al lector de huella**: El sistema abre directamente el modal de lectura, evitando errores por interacción anticipada.
+  - **Autofoco en campos clave**: El campo de RUT y otros datos críticos ahora reciben foco automático al cargarse.
+  - **Flujo para RUT no identificado en Sovos**: Cuando el RUT es válido pero no está registrado en la base Sovos, se ejecuta el flujo existente que notifica a la torre de control y retorna a la pantalla inicial.
+  - **Actualización de identidad visual**: Botones y elementos accionables utilizan ahora el color #F1B300 (Mintral) en lugar del azul anterior.
+
+# 📌 Conclusión
+La versión 1.17.0 refuerza la integración de la plataforma con herramientas corporativas (Azure y Teams), mejora la trazabilidad y acceso a información clave en Kanban y Bentobox, y optimiza la experiencia de interacción en el Tótem, resolviendo problemas previos y unificando criterios visuales.

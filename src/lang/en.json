@@ -1060,7 +1060,10 @@
     "verification_success": "Verification successful",
     "verification_success_subtext": "ID card scan successful",
     "id_card_manual_access_error": "Invalid serial number. Please try again.",
-    "multiple_tasks": "Multiple tasks assigned"
+    "multiple_tasks": "Multiple tasks assigned",
+    "driver_without_trip1": "The driver with RUT",
+    "driver_without_trip2": "does not have a trip assigned.",
+    "unable_to_validate_rut": "Unable to validate RUT"
   },
   "notifications": {
     "client": "Client",

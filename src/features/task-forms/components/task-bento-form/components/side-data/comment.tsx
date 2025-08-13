@@ -16,7 +16,7 @@ export default function Comment({
   return (
     <CustomCard
       title={(dict.comments as I18nRecord).title as string}
-      subtitle={(dict.comments as I18nRecord).subtitle as string}
+      subtitle={(dict.comments as I18nRecord).migrating as string}
     >
       <div className="flex p-1 gap-1 flex-1 min-h-0 flex-col overflow-y-auto bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300">
         {comments?.length > 0 ? (

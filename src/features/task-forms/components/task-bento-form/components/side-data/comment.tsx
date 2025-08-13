@@ -19,7 +19,7 @@ export default function Comment({
       subtitle={(dict.comments as I18nRecord).migrating as string}
     >
       <div className="flex p-1 gap-1 flex-1 min-h-0 flex-col overflow-y-auto bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300">
-        {comments?.length > 0 ? (
+        {comments && comments instanceof Array && comments?.length > 0 ? (
           comments?.map((comment, index) => <div key={index}>{comment}</div>)
         ) : (
           <div className="text-gray-500 dark:text-gray-400 w-full h-full flex items-center justify-center flex-col">
@@ -27,6 +27,7 @@ export default function Comment({
             {(dict.comments as I18nRecord).no_comments as string}
           </div>
         )}
+        {comments && typeof comments === "string" && <div>{comments}</div>}
       </div>
     </CustomCard>
   );

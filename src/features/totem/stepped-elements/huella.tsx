@@ -188,6 +188,10 @@ export default function Huella({
       if (result) {
         setStatus("success");
         onBiometricResult(result);
+        setRutData({
+          rut: rutData?.rut as string,
+          rut_validated: true,
+        });
       }
     } catch (err: any) {
       setStatus("error");

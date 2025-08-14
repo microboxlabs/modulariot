@@ -16,10 +16,10 @@ export default async function ShippingPage({
 }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
-  const userGroups = await getGroupsForPerson(session!.user.ticket);
+  const userGroups = await getGroupsForPerson(session!);
   // let tasks;
   try {
-    // tasks = await getUserTasks(session!.user.ticket);
+    // tasks = await getUserTasks(session!);
     // const data = await toShippingKanban(tasks);
     // const data = [];
     const staticData = await getStaticData();

@@ -5,6 +5,7 @@ import {
   signInWithMicrosoft,
 } from "@/features/auth/services/auth.service";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
+import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -115,7 +116,10 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           type="submit"
           formAction={signInWithMicrosoft}
         >
-          Continue with Microsoft
+          <div className="flex items-center justify-center gap-2">
+            <Windows className="h-5 w-5" />
+            {msg.buttonContinueWithMicrosoft}
+          </div>
         </Button>
       </div>
     </form>

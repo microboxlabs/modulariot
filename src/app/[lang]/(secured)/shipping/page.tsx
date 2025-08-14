@@ -20,7 +20,7 @@ export default async function ShippingPage({
     const userGroups = await getGroupsForPerson(session!);
     // let tasks;
 
-    // tasks = await getUserTasks(session!.user.ticket);
+    // tasks = await getUserTasks(session);
     // const data = await toShippingKanban(tasks);
     // const data = [];
     const staticData = await getStaticShippingV2Data();

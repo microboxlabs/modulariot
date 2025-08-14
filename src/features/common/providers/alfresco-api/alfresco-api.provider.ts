@@ -694,7 +694,7 @@ export async function getForumDiscussion(
 }
 
 export async function createForumTopic(
-    session: Session,
+  session: Session,
   data: { bpmPackage: string; title: string; content: string },
 ): Promise<unknown> {
   return callForumAction(session, "topic/create", { body: data });

@@ -23,7 +23,7 @@ export default async function MissionControlTripInitForm({
   //   task.mintral_truckLicensePlate as string,
   // );
   // const serviceValidation = await getServiceValidation(
-  //   session?.user.ticket as string,
+  //   session!,
   //   task.mintral_serviceCode as string,
   // );
 

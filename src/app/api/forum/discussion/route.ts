@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const serviceCode = url.searchParams.get("serviceCode") || undefined;
 
   try {
-    const result = await getForumDiscussion(session.user.ticket, {
+    const result = await getForumDiscussion(session, {
       taskId,
       instanceId,
       serviceCode,

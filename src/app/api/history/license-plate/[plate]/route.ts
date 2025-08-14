@@ -138,7 +138,7 @@ export async function GET(
     */
 
     // Make API request with optimized headers
-    const response = await getTaskByLicensePlate(session.user.ticket, body);
+    const response = await getTaskByLicensePlate(session, body);
     if (!response) {
       const errorMessage =
         response.status === 404

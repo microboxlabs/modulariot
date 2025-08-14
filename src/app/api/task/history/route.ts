@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const taskHistory = await getTaskHistory(
-      session.user.ticket,
+      session,
       taskId,
       active === "true",
     );

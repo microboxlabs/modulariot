@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       throw new Error("Trip ID is required");
     }
 
-    const response = await getTripLoads(session.user.ticket, tripId);
+    const response = await getTripLoads(session, tripId);
 
     return NextResponse.json(response);
   } catch (error) {

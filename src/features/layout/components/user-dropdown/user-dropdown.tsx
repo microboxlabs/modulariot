@@ -29,7 +29,7 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
   // if (!session) {
   //   return <Dropdown label="Loading..." />;
   // }
-  // const base64UserAvatar = await getBase64UserAvatar(session.user.ticket);
+  // const base64UserAvatar = await getBase64UserAvatar(session);
 
   return (
     <Dropdown
@@ -40,14 +40,14 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
         <span className="flex items-center text-sm gap-3">
           <span className="sr-only">User menu</span>
           <Avatar alt="" img="/app/api/user/-me-/avatar" rounded size="sm" />
-          <span className="dark:text-gray-400">{session.user.name}</span>
+          <span className="dark:text-gray-400">{session.user?.name}</span>
         </span>
       }
     >
       <Dropdown.Header className="px-4 py-3">
-        <span className="block text-sm">{session.user.name}</span>
+        <span className="block text-sm">{session.user?.name}</span>
         <span className="block truncate text-sm font-medium">
-          {session.user.email}
+          {session.user?.email}
         </span>
       </Dropdown.Header>
       {/* <Dropdown.Item>Dashboard</Dropdown.Item>

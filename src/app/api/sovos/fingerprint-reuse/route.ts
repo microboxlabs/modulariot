@@ -26,13 +26,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const fingerprintReuse = await getSovosFingerprintReuse(
-      session.user.ticket,
-      {
-        driverId: rut,
-        tripId,
-      },
-    );
+    const fingerprintReuse = await getSovosFingerprintReuse(session, {
+      driverId: rut,
+      tripId,
+    });
     return NextResponse.json({ fingerprintReuse });
   } catch (error) {
     console.error(error);

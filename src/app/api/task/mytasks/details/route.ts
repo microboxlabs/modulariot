@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    taskResponse = await getTaskById(session.user.ticket, taskId);
+    taskResponse = await getTaskById(session, taskId);
 
     return NextResponse.json({
       taskResponse,

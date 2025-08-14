@@ -11,7 +11,7 @@ export async function GET() {
     });
   }
   try {
-    const taskResponses = await getCountTask(session.user.ticket);
+    const taskResponses = await getCountTask(session);
     return NextResponse.json({
       totals: taskResponses.totals,
     });

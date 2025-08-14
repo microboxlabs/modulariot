@@ -10,10 +10,7 @@ export async function PUT(req: NextRequest) {
       throw new Error("Unauthorized");
     }
 
-    const response = await markAsRead(
-      session.user.ticket,
-      (await req.json()).id,
-    );
+    const response = await markAsRead(session, (await req.json()).id);
     return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
   try {
-    const tasks = await getUserTasks(session.user.ticket, "", {
+    const tasks = await getUserTasks(session, "", {
       from: 0,
       size: 100,
       filter: {

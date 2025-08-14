@@ -36,12 +36,12 @@ import ConfirmDeliveryForm from "../confirm-delivery-form/confirm-delivery-form"
 export async function TaskBentoForm({
   task,
   lang,
-  ticket,
+  session,
   userGroups,
   active = true,
 }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
-  const userInstance = await getUserProfile(ticket!);
+  const userInstance = await getUserProfile(session);
   const user = JSON.stringify(userInstance);
 
   /* 

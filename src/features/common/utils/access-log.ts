@@ -2,7 +2,6 @@ export type AccessLogExtras = Record<
   string,
   string | number | boolean | undefined
 >;
-
 // Generate a lightweight request id suitable for correlation when none is provided
 export const generateRequestId = (): string =>
   Math.random().toString(36).slice(2) + Date.now().toString(36);

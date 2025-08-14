@@ -40,12 +40,12 @@ import ConfirmDeliveryForm from "../confirm-delivery-form/confirm-delivery-form"
 export async function TaskForm({
   task,
   lang,
-  ticket,
   userGroups,
   active = true,
+  session,
 }: ExtendedTaskViewProps) {
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
-  const userInstance = await getUserProfile(ticket!);
+  const userInstance = await getUserProfile(session!, "-me-");
   const user = JSON.stringify(userInstance);
 
   // Handle historical tasks
@@ -54,6 +54,7 @@ export async function TaskForm({
       default:
         return (
           <GeneralTripView
+            session={session}
             lang={lang ?? defaultLocale}
             task={task}
             user={user}
@@ -131,6 +132,7 @@ export async function TaskForm({
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
       return (
         <NextCancelTripView
+          session={session}
           lang={lang ?? defaultLocale}
           task={task}
           user={user}
@@ -160,6 +162,7 @@ export async function TaskForm({
 
       return (
         <NextCancelTripView
+          session={session}
           lang={lang ?? defaultLocale}
           task={task}
           user={user}
@@ -173,6 +176,7 @@ export async function TaskForm({
     default:
       return (
         <GeneralTripView
+          session={session}
           lang={lang ?? defaultLocale}
           task={task}
           user={user}

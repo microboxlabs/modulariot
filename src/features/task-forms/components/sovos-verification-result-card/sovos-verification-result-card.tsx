@@ -59,7 +59,7 @@ export default function SovosVerificationResultCard({
     personRut = `Rut: ${getRut() as string}`;
   }
   if (step === "step6") {
-    personName = `${trParams?.step6?.stepVal}: ${session?.user.name ?? ""}`;
+    personName = `${trParams?.step6?.stepVal}: ${session?.user?.name ?? ""}`;
     personRut = `Rut: ${getRut() as string}`;
   }
 

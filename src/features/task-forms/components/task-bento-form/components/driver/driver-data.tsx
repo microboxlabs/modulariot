@@ -33,45 +33,45 @@ export default function DriverData({
   ];
 
   return (
-    <div className="flex flex-col gap-2 h-full">
-      <div className="flex flex-col">
-        <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
-          {
-            ((msg.pages as I18nRecord).shippingDetailsTaskForm as I18nRecord)[
-              driver.varName as string
-            ] as string
-          }
-        </h2>
-      </div>
-
+    <div className="flex gap-2 h-full flex-col">
       {/* Trip specific data */}
       <div className="flex flex-row gap-4 items-stretch">
-        <div className="flex flex-col">
-          <div className="grid grid-cols-1 gap-2 w-fit">
-            {data.map((item, index) => (
-              <span
-                className="text-gray-400 whitespace-nowrap w-fit flex flex-col sm:flex-row text-sm font-light gap-1"
-                key={index}
-              >
-                {item.icon}
-                <span className="text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                  {item.value}
+        <div className={`flex gap-4 flex-col`}>
+          <div className="grid grid-cols-1 w-fit h-fit">
+            <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
+              {
+                (
+                  (msg.pages as I18nRecord)
+                    .shippingDetailsTaskForm as I18nRecord
+                )[driver.varName as string] as string
+              }
+            </h2>
+            <div className={`flex flex-col gap-2`}>
+              {data.map((item, index) => (
+                <span
+                  className="text-gray-400 whitespace-nowrap w-fit flex flex-row text-sm font-light gap-1"
+                  key={index}
+                >
+                  {item.icon}
+                  <span className="text-gray-800 dark:text-gray-200 whitespace-normal">
+                    {item.value}
+                  </span>
                 </span>
-              </span>
-            ))}
+              ))}
+            </div>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mt-3 mb-2">
+            <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
               {(msg.bento as I18nRecord).validations as string}
             </h2>
+            <DriverValidations
+              driver={driver}
+              serviceCode={serviceCode}
+              msg={
+                (msg.pages as I18nRecord).transportValidationForm as I18nRecord
+              }
+            />
           </div>
-          <DriverValidations
-            driver={driver}
-            serviceCode={serviceCode}
-            msg={
-              (msg.pages as I18nRecord).transportValidationForm as I18nRecord
-            }
-          />
         </div>
       </div>
     </div>

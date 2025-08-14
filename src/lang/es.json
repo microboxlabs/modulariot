@@ -446,7 +446,11 @@
         "false": "No",
         "executionType": "Tipo de ejecución",
         "priorityCode": "Prioridad",
-        "serviceKind": "Tipo de servicio"
+        "serviceKind": "Tipo de servicio",
+        "route": "Ruta",
+        "trailer": "Patente rampla",
+        "supplierId": "Rut transportista",
+        "supplierName": "Nombre transportista"
       },
       "outcome": {
         "moreOptions": "Más opciones",
@@ -719,6 +723,7 @@
     "rights": " MicroboxLabs. Todos los derechos reservados."
   },
   "symptoms": {
+    "no_symptoms": "No hay síntomas",
     "active_symptoms": "Síntomas activos",
     "symptoms": "Síntomas",
     "symptom": "Síntoma",
@@ -1008,6 +1013,7 @@
     "welcome": "Les damos la bienvenida",
     "subtitle": "Al totem de verificación",
     "start": "Comenzar",
+    "back": "Volver",
     "rut_ingress": "Ingreso Rut",
     "fingerprint_scan": "Verificación",
     "assigned_trip": "Viaje Asignado",
@@ -1056,7 +1062,10 @@
     "verification_success": "Verificación exitosa",
     "verification_success_subtext": "Escaneo de cédula exitoso",
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
-    "multiple_tasks": "Más de un viaje asignado"
+    "multiple_tasks": "Más de un viaje asignado",
+    "driver_without_trip1": "El conductor con rut",
+    "driver_without_trip2": "no posee un viaje asignado.",
+    "unable_to_validate_rut": "No se ha podido validar el rut"
   },
   "notifications": {
     "client": "Cliente",
@@ -1072,6 +1081,7 @@
     "reject_reason": "Motivo de rechazo"
   },
   "bento": {
+    "trip": "Viaje",
     "trip_information": "Información del viaje",
     "conditions_present_in_the_trip": "Condiciones presentes en el viaje",
     "symptoms_present_in_the_trip": "Síntomas presentes en el viaje",
@@ -1122,6 +1132,7 @@
     "deficient_cargo_securing": "Sujeción de carga deficiente",
     "absence_cargo_securing": "Ausencia sujeción de carga",
     "movement_with_cargo": "Movimiento con carga",
+    "go_to_bento": "Ir al Expediente",
     "titles": {
       "transportValidation": "Validación de Conductor / Transporte",
       "missionControlTripInit": "Iniciar Viaje",
@@ -1236,7 +1247,8 @@
     "false": "No",
     "executionType": "Tipo de ejecución",
     "priorityCode": "Prioridad",
-    "serviceKind": "Tipo de servicio"
+    "serviceKind": "Tipo de servicio",
+    "route": "Ruta"
   },
   "searchbar": {
     "service": "Servicio",
@@ -1251,6 +1263,7 @@
   "comments": {
     "title": "Comentarios",
     "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
+    "migrating": "Comentarios en proceso de migración",
     "no_comments": "No hay comentarios"
   }
 }

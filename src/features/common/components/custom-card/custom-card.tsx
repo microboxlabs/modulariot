@@ -22,7 +22,7 @@ export default function CustomCard({
           </h1>
         )}
         {subtitle && (
-          <h2 className="text-sm font-light text-gray-500 dark:text-gray-400">
+          <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
             {subtitle}
           </h2>
         )}

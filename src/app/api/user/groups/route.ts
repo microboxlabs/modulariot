@@ -15,7 +15,8 @@ export async function GET() {
     if (response?.error) {
       return NextResponse.json(
         { error: "Failed to fetch groups" },
-        { status: 401 },
+        //@ts-ignore
+        { status: response?.error?.status ?? 500 },
       );
     }
 

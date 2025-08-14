@@ -12,6 +12,7 @@ import type {
   FinishedWorkflowsResponse,
   HistoricalWorkflow,
   NodeChildrenRequest,
+  ForumDiscussionResponse,
   ServiceValidationResponse,
   SympthomTemplateResponse,
   TaskCountResponse,
@@ -645,4 +646,98 @@ export async function getValidationByServiceCode(
     method: "GET",
     headers,
   }) as Promise<ValidationsResponse>;
+}
+
+// Forum API integrations
+
+type ForumAction =
+  | "discussion"
+  | "topic/create"
+  | "topic/delete"
+  | "post/create"
+  | "post/reply"
+  | "post/edit"
+  | "post/delete";
+
+async function callForumAction<TResponse = unknown>(
+  ticket: string,
+  action: ForumAction,
+  options?: {
+    query?: Record<string, string | undefined>;
+    body?: Record<string, unknown>;
+  },
+): Promise<TResponse> {
+  const url = new URL(
+    `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}`,
+  );
+  url.searchParams.set("alf_ticket", ticket);
+  if (options?.query) {
+    Object.entries(options.query).forEach(([k, v]) => {
+      if (typeof v !== "undefined" && v !== null) {
+        url.searchParams.set(k, String(v));
+      }
+    });
+  }
+  const result = await fetcher(url.toString(), {
+    method: "POST",
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  return result as TResponse;
+}
+
+export async function getForumDiscussion(
+  ticket: string,
+  params: { taskId?: string; instanceId?: string; serviceCode?: string },
+): Promise<ForumDiscussionResponse> {
+  return callForumAction<ForumDiscussionResponse>(ticket, "discussion", {
+    query: params,
+  });
+}
+
+export async function createForumTopic(
+  ticket: string,
+  data: { bpmPackage: string; title: string; content: string },
+): Promise<unknown> {
+  return callForumAction(ticket, "topic/create", { body: data });
+}
+
+export async function createForumPost(
+  ticket: string,
+  data: { topic: string; title: string; content: string; author: string },
+): Promise<unknown> {
+  return callForumAction(ticket, "post/create", { body: data });
+}
+
+export async function replyForumPost(
+  ticket: string,
+  data: {
+    topic: string;
+    parentPost: string;
+    title?: string;
+    content: string;
+    author: string;
+  },
+): Promise<unknown> {
+  return callForumAction(ticket, "post/reply", { body: data });
+}
+
+export async function editForumPost(
+  ticket: string,
+  data: { post: string; title?: string; content?: string },
+): Promise<unknown> {
+  return callForumAction(ticket, "post/edit", { body: data });
+}
+
+export async function deleteForumPost(
+  ticket: string,
+  data: { topic: string; post: string },
+): Promise<unknown> {
+  return callForumAction(ticket, "post/delete", { body: data });
+}
+
+export async function deleteForumTopic(
+  ticket: string,
+  data: { bpmPackage: string; topic: string },
+): Promise<unknown> {
+  return callForumAction(ticket, "topic/delete", { body: data });
 }

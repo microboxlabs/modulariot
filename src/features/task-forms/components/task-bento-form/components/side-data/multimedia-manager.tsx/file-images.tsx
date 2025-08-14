@@ -1,23 +1,23 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import Document from "../document";
 import { useState, useEffect } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { FaUpload } from "react-icons/fa";
-import ClasificationForm from "./clasification-form";
 import {
-  useGetNodeChildren,
   useGetNodeContents,
+  useOptimisticFileUpload,
 } from "@/features/common/providers/client-api.provider";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import Document from "../document";
+import ClasificationForm from "./clasification-form";
 import FileViewer from "./file_viewer";
 import DocumentList from "./document-list";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
-import { tr } from "@/features/i18n/tr.service";
 
 export default function FileImages({
   task,
@@ -36,15 +36,17 @@ export default function FileImages({
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
 
-  const packageId =
-    task?.bpm_package!.split("/")[task.bpm_package!.split("/").length - 1];
+  const packageId = task?.bpm_package
+    ? task.bpm_package.split("/")[task.bpm_package.split("/").length - 1]
+    : undefined;
 
+  // Use the optimistic upload hook instead of the basic one
   const {
     data,
     error: _childrenError,
     isLoading: _childrenIsLoading,
-    mutate,
-  } = useGetNodeChildren(packageId);
+    uploadFile,
+  } = useOptimisticFileUpload(packageId);
 
   const files = data?.data?.list?.entries || [];
 
@@ -87,9 +89,10 @@ export default function FileImages({
     return null;
   }
 
-  if (documentsIsLoading) {
+  // Only show loading skeleton if we have no existing data and are loading
+  if (documentsIsLoading && images.length === 0 && documents.length === 0) {
     return (
-      <div className="flex flex-col relative bg-gray-50 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg"></div>
+      <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
   }
 
@@ -155,13 +158,15 @@ export default function FileImages({
         className={`absolute top-0 left-0 w-full h-full flex items-center justify-center rounded-lg bg-blue-500/40 z-20 transition-all duration-300 ${
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
-      ></div>
+      />
       <div
         className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver
             ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
             : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
-        } ${images.length === 0 && documents.length === 0 ? "h-[650px]" : "h-full"}`}
+        } ${
+          images.length === 0 && documents.length === 0 ? "h-[650px]" : "h-full"
+        }`}
       >
         <div className="flex flex-col items-center justify-center pb-6 pt-5 gap-2">
           <div className="flex flex-col items-center justify-center">
@@ -247,7 +252,9 @@ export default function FileImages({
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0 ? "hidden" : "block"
+            images.length == 0 && documents.length == 0 && !documentsIsLoading
+              ? "hidden"
+              : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -309,7 +316,9 @@ export default function FileImages({
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0 ? "hidden" : "block"
+            documents.length == 0 && images.length == 0 && !documentsIsLoading
+              ? "hidden"
+              : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -389,7 +398,7 @@ export default function FileImages({
           uploadableFiles={uploadableFiles}
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
-          mutate={mutate}
+          uploadFile={uploadFile}
         />
       )}
       {isDocumentListOpen && (

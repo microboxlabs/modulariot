@@ -238,6 +238,7 @@ export type ServiceValidationResponse = {
     v_01type: string;
     v_01res: number;
   };
+  validations?: ValidationsResponseItem[];
 };
 
 export type DownloadDocumentResponse = {
@@ -297,4 +298,36 @@ export type ValidationResponseItem = {
   value: number;
   description: string;
   name: string;
+};
+
+// Forum types
+export type ForumDiscussionResponse = {
+  forum: string;
+  topics: ForumTopic[];
+};
+
+export type ForumTopic = {
+  ref: string;
+  name: string;
+  title: string;
+  author: string;
+  created: string;
+  posts: ForumPost[];
+};
+
+export type ForumPost = {
+  ref: string;
+  name: string;
+  title: string;
+  author: string;
+  created: string;
+  content: string;
+  replies: ForumReply[];
+};
+
+export type ForumReply = {
+  ref: string;
+  title: string;
+  author: string;
+  created: string;
 };

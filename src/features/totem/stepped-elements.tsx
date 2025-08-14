@@ -169,7 +169,7 @@ function StepperMarker({
 }) {
   return (
     <div
-      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-[#F1B300]" : selected ? "text-[#F1B300]" : "text-gray-500"}`}
+      className={` flex items-center justify-center flex-col gap-2 w-[80px] ${current_step > id ? "text-[#F1B300]" : selected ? "text-[#F1B300]" : "text-gray-800 dark:text-gray-200"}`}
       style={{ cursor: current_step > id ? "pointer" : "default" }}
       onClick={onClick}
     >

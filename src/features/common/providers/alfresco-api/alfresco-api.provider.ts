@@ -675,7 +675,7 @@ async function callForumAction<TResponse = unknown>(
   }
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  
+
   const result = await fetcher(url.toString(), {
     method: "POST",
     headers,

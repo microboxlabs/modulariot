@@ -37,7 +37,7 @@
     "lottie-web": "^5.12.2",
     "mapbox-gl": "^3.9.3",
     "negotiator": "^0.6.3",
-    "next": "14.2.5",
+    "next": "^14.2.5",
     "next-auth": "^5.0.0-beta.20",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",

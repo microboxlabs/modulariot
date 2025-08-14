@@ -23,7 +23,10 @@ export default function Stepped({
   deviceLocation: string | null;
 }) {
   const [pluginReady, setPluginReady] = useState(false);
-  const [rutData, setRutData] = useState<{ rut: string } | null>(null);
+  const [rutData, setRutData] = useState<{
+    rut: string;
+    rut_validated: boolean;
+  } | null>(null);
   const [biometricResult, setBiometricResult] = useState<any>(null);
   const [rut, setRut] = useState("");
   const [idCardNumber, setIdCardNumber] = useState("");
@@ -51,6 +54,7 @@ export default function Stepped({
           currentStep={currentStep}
           dict={dict}
           rutData={rutData}
+          setRutData={setRutData}
           pluginReady={pluginReady}
           onBiometricResult={setBiometricResult}
           setIdCardNumber={setIdCardNumber}
@@ -165,18 +169,18 @@ function StepperMarker({
 }) {
   return (
     <div
-      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-blue-300" : selected ? "text-blue-500" : "text-gray-500"}`}
+      className={` flex items-center justify-center flex-col gap-2 ${current_step > id ? "text-[#F1B300]" : selected ? "text-[#F1B300]" : "text-gray-500"}`}
       style={{ cursor: current_step > id ? "pointer" : "default" }}
       onClick={onClick}
     >
       <div
-        className={`relative w-[3rem] h-[3rem] rounded-full border-2 flex items-center justify-center ${current_step > id ? "border-blue-300" : selected ? "border-blue-500" : "border-gray-500"}`}
+        className={`relative w-[3rem] h-[3rem] rounded-full border-2 flex items-center justify-center ${current_step > id ? "border-[#F1B300]" : selected ? "border-[#F1B300]" : "border-gray-500"}`}
       >
         {icon}
         <div
-          className={`absolute top-[-0.2rem] right-[-0.2rem] w-[1rem] h-[1rem] bg-blue-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
+          className={`absolute top-[-0.2rem] right-[-0.2rem] w-[1rem] h-[1rem] bg-gray-300 rounded-full transition-opacity duration-300 ${current_step > id ? "opacity-100" : "opacity-0"}`}
         >
-          <RxCheck className="w-full h-full text-blue-900" />
+          <RxCheck className="w-full h-full text-black" />
         </div>
       </div>
       <p className="text-xs font-light whitespace-nowrap">{text}</p>

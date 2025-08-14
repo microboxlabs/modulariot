@@ -444,7 +444,11 @@
         "false": "No",
         "executionType": "Execution Type",
         "priorityCode": "Priority",
-        "serviceKind": "Service Kind"
+        "serviceKind": "Service Kind",
+        "route": "Route",
+        "trailer": "Trailer license plate",
+        "supplierId": "Supplier ID",
+        "supplierName": "Supplier Name"
       },
       "outcome": {
         "moreOptions": "More options",
@@ -720,6 +724,7 @@
     "rights": " MicroboxLabs. All rights reserved."
   },
   "symptoms": {
+    "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
     "symptoms": "Symptoms",
     "symptom": "Symptom",
@@ -932,6 +937,9 @@
     "Continuous Drive Check": "Maximum continuous driving",
     "Continuous Resting Check": "Continuous resting check",
     "Double Driver Rotation Check": "Double driver rotation check",
+    "deficient_cargo_securing": "Deficient cargo securing",
+    "absence_cargo_securing": "Absence of cargo securing",
+    "movement_with_cargo": "Movement with cargo",
     "ascending": "Ascending",
     "descending": "Descending",
     "treatments": "Treatments",
@@ -1006,6 +1014,7 @@
     "welcome": "Welcome",
     "subtitle": "To the verification totem",
     "start": "Start",
+    "back": "Back",
     "rut_ingress": "Rut ingress",
     "fingerprint_scan": "Verification",
     "assigned_trip": "Assigned trip",
@@ -1051,7 +1060,10 @@
     "verification_success": "Verification successful",
     "verification_success_subtext": "ID card scan successful",
     "id_card_manual_access_error": "Invalid serial number. Please try again.",
-    "multiple_tasks": "Multiple tasks assigned"
+    "multiple_tasks": "Multiple tasks assigned",
+    "driver_without_trip1": "The driver with RUT",
+    "driver_without_trip2": "does not have a trip assigned.",
+    "unable_to_validate_rut": "Unable to validate RUT"
   },
   "notifications": {
     "client": "Client",
@@ -1067,6 +1079,7 @@
     "reject_reason": "Reject reason"
   },
   "bento": {
+    "trip": "Trip",
     "trip_information": "Trip information",
     "conditions_present_in_the_trip": "Conditions present in the trip",
     "symptoms_present_in_the_trip": "Symptoms present in the trip",
@@ -1117,6 +1130,7 @@
     "deficient_cargo_securing": "Deficient cargo securing",
     "absence_cargo_securing": "Absence of cargo securing",
     "movement_with_cargo": "Movement with cargo",
+    "go_to_bento": "Go to the form",
     "titles": {
       "transportValidation": "Driver / transport validation",
       "missionControlTripInit": "Start trip",
@@ -1230,7 +1244,8 @@
     "false": "No",
     "executionType": "Execution Type",
     "priorityCode": "Priority",
-    "serviceKind": "Service Kind"
+    "serviceKind": "Service Kind",
+    "route": "Route"
   },
   "searchbar": {
     "service": "Service",
@@ -1245,6 +1260,7 @@
   "comments": {
     "title": "Comments",
     "subtitle": "Here you can view the comments entered.",
+    "migrating": "Comments in migration process",
     "no_comments": "No comments"
   }
 }

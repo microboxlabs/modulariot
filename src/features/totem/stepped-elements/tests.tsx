@@ -1,9 +1,9 @@
 import ExclamationIcon from "@/features/icons/exclamation";
-import okImage from "@assets/icons/totem/ok.gif";
-import Image from "next/image";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import { Button } from "flowbite-react";
+import Image from "next/image";
+import ControlCenter from "@assets/icons/totem/control-tower.svg";
 
 export default function Tests({
   dict,
@@ -16,7 +16,13 @@ export default function Tests({
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
-  setRutData: ({ rut }: { rut: string }) => void;
+  setRutData: ({
+    rut,
+    rut_validated,
+  }: {
+    rut: string;
+    rut_validated: boolean;
+  }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
   setBiometricResult: (biometricResult: any) => void;
 }) {
@@ -54,7 +60,13 @@ function Congratulation({
   dict: I18nRecord;
   tripData: any;
   setCurrentStep: (step: number) => void;
-  setRutData: ({ rut }: { rut: string }) => void;
+  setRutData: ({
+    rut,
+    rut_validated,
+  }: {
+    rut: string;
+    rut_validated: boolean;
+  }) => void;
   setIdCardNumber: (idCardNumber: string) => void;
   setBiometricResult: (biometricResult: any) => void;
 }) {
@@ -72,17 +84,11 @@ function Congratulation({
           {(dict.totem as I18nRecord).notify_control_center as string}
         </h1>
       )}
-      <Image
-        className="w-24 h-24 animate-scale-in"
-        src={okImage}
-        alt="Ok"
-        width={100}
-        height={100}
-      />
+      <Image src={ControlCenter} alt="Ok" width={100} height={100} />
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
-        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
-          tripData?.tripInfo?.status !== "SUCCESS") && (
+        (!tripData?.tripInfo?.driver2Info?.verified ||
+          !tripData?.tripInfo?.driver1Info?.verified) && (
           <h1 className="text-sm text-red-600 dark:text-red-500 text-center">
             *{" "}
             {
@@ -94,8 +100,8 @@ function Congratulation({
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => setTestState(true)}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
@@ -105,8 +111,8 @@ function Congratulation({
       {!tripData?.tripInfo?.tripInfo?.tripId && (
         <Button
           onClick={() => window.location.reload()}
-          className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-          color="blue"
+          className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          color="white"
         >
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).finish as string}
@@ -115,8 +121,8 @@ function Congratulation({
       )}
       {tripData?.tripInfo?.tripInfo?.tripId &&
         tripData?.isDoubleDriver &&
-        (tripData?.tripInfo?.status2 !== "SUCCESS" ||
-          tripData?.tripInfo?.status !== "SUCCESS") && (
+        (!tripData?.tripInfo?.driver2Info?.verified ||
+          !tripData?.tripInfo?.driver1Info?.verified) && (
           <Button
             onClick={() => {
               setRutData({
@@ -124,6 +130,7 @@ function Congratulation({
                   tripData?.tripInfo?.status2 !== "SUCCESS"
                     ? tripData?.tripInfo?.driver2Info?.driverId
                     : tripData?.tripInfo?.driver1Info?.driverId,
+                rut_validated: true,
               });
               setIdCardNumber("");
               setBiometricResult(null);
@@ -181,8 +188,8 @@ function GotoBox({
       </div>
       <Button
         onClick={() => window.location.reload()}
-        className="bg-blue-500 text-white p-2 rounded-lg w-full flex items-center justify-center gap-2"
-        color="blue"
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="white"
       >
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).finish as string}

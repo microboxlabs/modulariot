@@ -77,11 +77,14 @@ export default function GpsValidationItem({
           {gpsValidationType === "warning" && <Exclamation />}
           {gpsValidationType === "error" && <ErrorCircle />}
           {gpsValidationType === undefined && <Ellipse />} */}
-          <ValidationIcon status={gpsValidationType as ValidationStatus} />
+          <ValidationIcon
+            status={gpsValidationType as ValidationStatus}
+            isLoading={loading}
+          />
 
           <a
             href="#"
-            className="ml-2 text-gray-600 text-sm hover:underline"
+            className="ml-2 text-gray-600 dark:text-gray-400 text-sm hover:underline"
             onClick={openGpsValidationModal}
           >
             {msg?.cards

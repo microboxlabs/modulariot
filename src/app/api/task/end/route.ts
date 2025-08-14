@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     const comments = json.comments;
     const nativeGenerationEnabled = json.nativeGenerationEnabled;
     const reason = json.reason;
-    const reasonId = json.reasonId;
 
     let updateTaskPayload: UpdateTaskRequest = {
       prop_cm_owner: user!.email!,
@@ -32,6 +31,7 @@ export async function POST(request: NextRequest) {
       try {
         updateTaskPayload = {
           prop_bpm_comment: comments,
+          prop_mintral_commentPostContent: comments,
         };
       } catch (error) {
         // ignore for now, TODO: we need to do something if we got an error
@@ -41,14 +41,8 @@ export async function POST(request: NextRequest) {
       updateTaskPayload.prop_mintral_shouldBuildManifest =
         nativeGenerationEnabled.toLowerCase() === "true" ? "true" : "false";
     }
-    if (reason && reasonId) {
-      if (reasonId === "wfship:sovosDigitalSignature") {
-        updateTaskPayload.prop_wfship_sovosDigitalSignatureOutputReasonType =
-          reason;
-      } else if (reasonId === "wfship:missionControlTripInitTask") {
-        updateTaskPayload.prop_wfship_missionControlValidationOutputReasonType =
-          reason;
-      }
+    if (reason && reason.trim() !== "") {
+      updateTaskPayload.prop_mintral_commentPostTitle = reason;
     }
     await updateTask(session, "activiti$" + taskId, updateTaskPayload);
 

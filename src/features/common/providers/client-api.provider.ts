@@ -30,6 +30,7 @@ import {
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
+import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -426,9 +427,9 @@ export function useUserGroups() {
   };
 }
 
-export function useGetTasksById(taskId: string) {
+export function useGetTasksById(taskId: string, finished: boolean) {
   const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
-    `/app/api/task/mytasks/details?taskId=${taskId}`,
+    `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`,
     fetcher,
   );
 
@@ -543,6 +544,64 @@ export function useGetNodeChildren(nodeId: string | undefined) {
   };
 }
 
+// Custom hook for optimistic file uploads
+export function useOptimisticFileUpload(nodeId: string | undefined) {
+  const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId);
+
+  const uploadFile = async (file: SendableFile) => {
+    // Optimistic update - add the file to the current data
+    const optimisticData = {
+      ...data,
+      data: {
+        ...data?.data,
+        list: {
+          ...data?.data?.list,
+          entries: [
+            ...(data?.data?.list?.entries || []),
+            {
+              entry: {
+                id: `temp-${Date.now()}`,
+                name: file.prop_cm_name,
+                content: {
+                  mimeType: file.prop_mimetype,
+                },
+                properties: {
+                  "mintral:contentType": file.prop_mintral_contentType,
+                },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    // Update the cache optimistically
+    await mutate(optimisticData, false);
+
+    try {
+      // Perform the actual upload
+      const result = await postBentoMultimedia(file);
+
+      // Revalidate to get the real data from server
+      await mutate();
+
+      return result;
+    } catch (error) {
+      // If upload fails, revert the optimistic update
+      await mutate();
+      throw error;
+    }
+  };
+
+  return {
+    data,
+    error,
+    isLoading,
+    uploadFile,
+    mutate,
+  };
+}
+
 export function useGetNodeContents(nodeIds: string[]) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
@@ -631,4 +690,55 @@ export function useGetValidation(
     error,
     isLoading,
   };
+}
+
+// Forum SWR hooks
+export function useForumDiscussion(params: {
+  taskId?: string;
+  instanceId?: string;
+  serviceCode?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.taskId) qs.set("taskId", params.taskId);
+  if (params.instanceId) qs.set("instanceId", params.instanceId);
+  if (params.serviceCode) qs.set("serviceCode", params.serviceCode);
+  const key = `/app/api/forum/discussion${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const { data, error, isLoading, mutate } = useSWR<
+    ForumDiscussionResponse,
+    FetcherError
+  >(key, fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  return {
+    discussion: data,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+export async function createForumMessage(payload: {
+  topic: string;
+  content: string;
+  title?: string;
+}) {
+  return fetcher(`/app/api/forum/post`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createForumTopicClient(payload: {
+  bpmPackage: string;
+  title: string;
+  content?: string;
+}) {
+  return fetcher(`/app/api/forum/topic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }

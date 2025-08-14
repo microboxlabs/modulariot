@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { auth } from "./auth";
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
-
 // import { logger } from "./lib/logger";
 // import {
 //   buildAccessLogFields,

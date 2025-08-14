@@ -5,6 +5,8 @@ import {
   generateRequestId,
 } from "@/features/common/utils/access-log";
 
+// moved to common utils
+
 // Type guard for Request
 const isRequest = (value: unknown): value is Request =>
   typeof Request !== "undefined" && value instanceof Request;

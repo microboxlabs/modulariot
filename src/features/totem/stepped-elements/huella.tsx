@@ -1,21 +1,21 @@
 import React, { useEffect, useState, useRef } from "react";
-import { IoIosFingerPrint } from "react-icons/io";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import VerificationSuccess from "@assets/icons/totem/ok.svg";
+import FingerprintError from "@assets/icons/totem/finger-print-red.svg";
+import Fingerprint from "@assets/icons/totem/finger-print-blue.svg";
+import QrCode from "@assets/icons/totem/qr-code.svg";
+import SmartLockCard from "@assets/icons/totem/id-card.svg";
 
 import {
   fakeValidateRut,
   validateRut,
 } from "@/features/sovos-fingerprint/services/autentia";
 
-import {
-  FaCheckCircle,
-  FaExclamationCircle,
-  FaIdCard,
-  FaQrcode,
-} from "react-icons/fa";
+import { FaIdCard } from "react-icons/fa";
 import { validateIdCard } from "@/features/common/providers/client-api.provider";
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
+import Image from "next/image";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -140,14 +140,14 @@ export default function Huella({
   }, [idCardLoading]);
 
   useEffect(() => {
-    if (!isWindowsDevice) {
+    /* if (!isWindowsDevice) {
       setQrCode(true);
-    }
+    } */
   }, [isWindowsDevice]);
 
   useEffect(() => {
     if (
-      isWindowsDevice &&
+      //isWindowsDevice &&
       !idCard &&
       !qrCode &&
       !manualAccess &&
@@ -256,14 +256,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).verification_success as string}
           </h1>
         </div>
-        {/* <Image
+        <Image
           className="w-[18vh] h-[18vh] animate-scale-in"
           src={VerificationSuccess}
           alt="Ok"
           width={100}
           height={100}
-        /> */}
-        <FaCheckCircle className="w-20 h-20 text-[#F1B300]" />
+        />
+        {/* <FaCheckCircle className="w-20 h-20 text-[#F1B300]" /> */}
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
@@ -300,14 +300,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_manual_access as string}
           </h1>
         </div>
-        {/*  <Image
+        <Image
           className="w-28 h-28 animate-scale-in"
           src={SmartLockCard}
           alt="Ok"
           width={100}
           height={100}
-        /> */}
-        <FaIdCard className="w-20 h-20 text-gray-500" />
+        />
+        {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
@@ -381,14 +381,14 @@ export default function Huella({
         </div>
         {!idCardLoading && (
           <>
-            {/* <Image
+            <Image
               className="w-28 h-28 animate-scale-in"
               src={SmartLockCard}
               alt="Ok"
               width={100}
               height={100}
-            /> */}
-            <FaIdCard className="w-20 h-20 text-gray-500" />
+            />
+            {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
           </>
         )}
         {qrMessage && (
@@ -478,14 +478,14 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
-        {/* <Image
+        <Image
           className="w-28 h-28 animate-scale-in"
           src={QrCode}
           alt="Ok"
           width={100}
           height={100}
-        /> */}
-        <FaQrcode className="w-20 h-20 text-gray-500" />
+        />
+        {/* <FaQrcode className="w-20 h-20 text-gray-500" /> */}
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
@@ -532,12 +532,24 @@ export default function Huella({
         </h1>
       </div>
       {status == "error" ? (
-        <FaExclamationCircle className="w-20 h-20 text-red-500" />
+        <Image
+          className="w-20 h-20 animate-scale-in"
+          src={FingerprintError}
+          alt="Ok"
+          width={100}
+          height={100}
+        />
       ) : (
         <div
           className={`p-2 rounded-full border-4 flex items-center justify-center shadow-md ${status_icon[status].style}`}
         >
-          <IoIosFingerPrint className="w-20 h-20 transition-colors duration-300" />
+          <Image
+            className="w-20 h-20 animate-scale-in"
+            src={Fingerprint}
+            alt="Ok"
+            width={100}
+            height={100}
+          />
         </div>
       )}
       <div className="flex flex-col items-center justify-center">

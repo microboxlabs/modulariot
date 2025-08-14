@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -15,14 +16,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const alfrescoUrl = `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${documentId}?a=true&alf_ticket=${session.user.ticket}`;
+    const { url, headers } = prepareAlfrescoAuth(
+      `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${documentId}?a=true`,
+      session,
+    );
+
     let userAgent: Record<string, string> = {};
     if (process.env.USER_AGENT) {
       userAgent["User-Agent"] = process.env.USER_AGENT;
     }
 
-    const response = await fetch(alfrescoUrl, {
+    const response = await fetch(url, {
       headers: {
+        ...headers,
         ...userAgent,
         Accept: "*/*",
       },
@@ -46,6 +52,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch document" },
       { status: 500 },

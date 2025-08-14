@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const exists = await checkDocumentExists(session.user.ticket, documentId);
+    const exists = await checkDocumentExists(session, documentId);
     return NextResponse.json({ exists });
   } catch (error) {
     return NextResponse.json(

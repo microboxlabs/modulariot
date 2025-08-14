@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const tasks = await getValidationByServiceCode(
-      session.user.ticket,
+      session,
       serviceCode,
       scope,
       scopeId,

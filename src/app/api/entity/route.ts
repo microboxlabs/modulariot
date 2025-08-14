@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const response = await getInfoEntity(licencePlate, session.user.ticket);
+    const response = await getInfoEntity(session, licencePlate);
     return NextResponse.json(response);
   } catch (error) {
     console.error(error);

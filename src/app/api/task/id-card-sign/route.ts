@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       requireInternalSign = false;
     }
     const file = await getContentByTaskId(
-      session.user.ticket,
+      session,
       `activiti$${json.taskId}`,
       documentName,
       requireInternalSign,
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const uploadResponse = await uploadNodeContent(session.user.ticket, {
+    const uploadResponse = await uploadNodeContent(session, {
       filename: uploadFileName,
       filedata: signedFile,
       destination: json.bpmPackage,
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     /* const endTaskResult = await endTask(
-      session.user.ticket,
+      session,
       json.taskId,
       json.transitionId,
     );

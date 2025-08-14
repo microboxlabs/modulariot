@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const taskResponses = await getChildrenNodes(session.user.ticket, nodeId, {
+    const taskResponses = await getChildrenNodes(session, nodeId, {
       where: "(isFile=true)",
       include: ["properties"],
     });

@@ -17,10 +17,7 @@ export async function GET(req: NextRequest) {
     });
   }
   try {
-    const taskResponses = await getServiceValidation(
-      session.user.ticket,
-      serviceCode,
-    );
+    const taskResponses = await getServiceValidation(session, serviceCode);
     return NextResponse.json(taskResponses);
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

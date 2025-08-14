@@ -7,6 +7,7 @@ export type FormSignInMessages = {
   buttonSubmitLabel: string;
   invalidCredentials: string;
   invalidFromData: string;
+  buttonContinueWithMicrosoft: string;
 };
 
 export type FormSignInProps = {

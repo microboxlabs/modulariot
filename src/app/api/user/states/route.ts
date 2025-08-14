@@ -11,7 +11,7 @@ export async function GET(_request: Request) {
   }
 
   try {
-    const userStates = await getUserStates(session.user.ticket);
+    const userStates = await getUserStates(session);
     return NextResponse.json({ userStates });
   } catch (error) {
     return NextResponse.json(

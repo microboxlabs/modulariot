@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const reason = json.reason;
 
     let updateTaskPayload: UpdateTaskRequest = {
-      prop_cm_owner: user.email!,
+      prop_cm_owner: user!.email!,
     };
 
     if (comments) {
@@ -44,13 +44,9 @@ export async function POST(request: NextRequest) {
     if (reason && reason.trim() !== "") {
       updateTaskPayload.prop_mintral_commentPostTitle = reason;
     }
-    await updateTask(
-      session.user.ticket,
-      "activiti$" + taskId,
-      updateTaskPayload,
-    );
+    await updateTask(session, "activiti$" + taskId, updateTaskPayload);
 
-    const response = await endTask(session.user.ticket, taskId, transitionId);
+    const response = await endTask(session, taskId, transitionId);
     return NextResponse.json({
       success: true,
       status: 200,

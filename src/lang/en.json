@@ -19,7 +19,8 @@
         }
       },
       "buttons": {
-        "submit": "Sign in to your account"
+        "submit": "Sign in to your account",
+        "continueWithMicrosoft": "Continue with Microsoft"
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",

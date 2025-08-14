@@ -38,12 +38,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (finished === "true") {
-      taskResponse = await getFinishedWorkflowByInstanceId(
-        session.user.ticket,
-        taskId,
-      );
+      taskResponse = await getFinishedWorkflowByInstanceId(session, taskId);
     } else {
-      taskResponse = await getTaskById(session.user.ticket, taskId);
+      taskResponse = await getTaskById(session, taskId);
     }
 
     return NextResponse.json({
@@ -57,9 +54,7 @@ export async function GET(req: NextRequest) {
           error: "Unauthorized",
           status: 401,
         },
-        {
-          status: 401,
-        },
+        { status: 401 },
       );
     }
     return NextResponse.json({

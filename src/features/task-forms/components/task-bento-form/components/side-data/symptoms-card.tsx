@@ -226,9 +226,7 @@ export default function SymptomsCard({
 
   return (
     <CustomCard
-      title={
-        (dict.bento as I18nRecord).symptoms_present_in_the_trip as string
-      }
+      title={(dict.bento as I18nRecord).symptoms_present_in_the_trip as string}
       subtitle={null}
     >
       <div

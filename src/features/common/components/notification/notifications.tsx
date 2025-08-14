@@ -5,7 +5,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 
 export default async function Notifications({ lang }: { lang: string }) {
   const session = await auth();
-  const data = await getNotifications(session?.user.ticket ?? "");
+  const data = await getNotifications(session!);
 
   const notifications = data.notifications;
 

@@ -252,7 +252,7 @@ export default function Huella({
     return (
       <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-800 dark:text-gray-200">
             {(dict.totem as I18nRecord).verification_success as string}
           </h1>
         </div>
@@ -266,10 +266,10 @@ export default function Huella({
         {/* <FaCheckCircle className="w-20 h-20 text-[#F1B300]" /> */}
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-base text-gray-800 dark:text-gray-200 text-center px-6">
             {(dict.totem as I18nRecord).verification_success_subtext as string}
           </p>
-          <p className="text-base text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-base text-gray-800 dark:text-gray-200 text-center px-6">
             {rutData?.rut}
           </p>
         </div>
@@ -296,7 +296,7 @@ export default function Huella({
     return (
       <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-800 dark:text-gray-200">
             {(dict.totem as I18nRecord).id_card_manual_access as string}
           </h1>
         </div>
@@ -310,10 +310,10 @@ export default function Huella({
         {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-xs text-gray-800 dark:text-gray-200 text-center px-6">
             {(dict.totem as I18nRecord).id_card_manual_access_subtext as string}
           </p>
-          <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6 font-bold">
+          <p className="text-xs text-gray-800 dark:text-gray-200 text-center px-6 font-bold">
             RUT:{rutData?.rut}
           </p>
         </div>
@@ -375,7 +375,7 @@ export default function Huella({
     return (
       <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-800 dark:text-gray-200">
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
@@ -392,7 +392,7 @@ export default function Huella({
           </>
         )}
         {qrMessage && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
             {qrMessage}
           </p>
         )}
@@ -474,7 +474,7 @@ export default function Huella({
     return (
       <div className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md portrait:w-full w-full">
         <div className="flex flex-col items-center justify-center gap-4">
-          <h1 className="text-lg font-light text-gray-900 dark:text-gray-100">
+          <h1 className="text-lg font-light text-gray-800 dark:text-gray-200">
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
@@ -488,7 +488,7 @@ export default function Huella({
         {/* <FaQrcode className="w-20 h-20 text-gray-500" /> */}
 
         <div className="flex flex-col items-center justify-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400 text-center px-6">
+          <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
             {(dict.totem as I18nRecord).qrcode_subtext as string}
           </p>
         </div>
@@ -527,7 +527,7 @@ export default function Huella({
   return (
     <div className="flex flex-col items-center justify-center gap-4 bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 shadow-md w-full">
       <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-light text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).fingerprint_scan as string}
         </h1>
       </div>
@@ -554,7 +554,7 @@ export default function Huella({
       )}
       <div className="flex flex-col items-center justify-center">
         <p
-          className={`text-sm text-gray-600 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
+          className={`text-sm text-gray-800 dark:text-gray-200 ${status == "error" ? "text-red-500" : "dark:text-gray-400"} text-center`}
         >
           {status_icon[status].text}
         </p>

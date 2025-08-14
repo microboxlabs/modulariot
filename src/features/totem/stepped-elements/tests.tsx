@@ -75,12 +75,12 @@ function Congratulation({
       className={`flex flex-col items-center justify-center w-full rounded-2xl p-4 gap-4 bg-gray-100 dark:bg-gray-800 ${!testState ? "max-h-[100vh] opacity-100" : "max-h-0 opacity-0 hidden"} portrait:w-full`}
     >
       {tripData?.tripInfo?.tripInfo?.tripId && (
-        <h1 className="text-lg text-gray-900 dark:text-gray-100 text-center">
+        <h1 className="text-lg text-gray-800 dark:text-gray-200 text-center">
           {(dict.totem as I18nRecord).congratulations as string}
         </h1>
       )}
       {!tripData?.tripInfo?.tripInfo?.tripId && (
-        <h1 className="text-lg text-gray-900 dark:text-gray-100 text-center">
+        <h1 className="text-lg text-gray-800 dark:text-gray-200 text-center">
           {(dict.totem as I18nRecord).notify_control_center as string}
         </h1>
       )}
@@ -136,7 +136,7 @@ function Congratulation({
               setBiometricResult(null);
               setCurrentStep(1);
             }}
-            className="bg-white text-gray-900 p-3 rounded-lg w-full flex items-center justify-center gap-2"
+            className="bg-white text-gray-800 dark:text-gray-200 p-3 rounded-lg w-full flex items-center justify-center gap-2"
             color="light"
           >
             <p className="text-base font-light">
@@ -163,7 +163,7 @@ function GotoBox({
         <h1 className="text-lg text-gray-600 dark:text-gray-400 text-center font-light whitespace-nowrap">
           {(dict.totem as I18nRecord).now_go_to_the_module as string}
         </h1>
-        {/* <h1 className="text-[5vh] portrait:text-[5vw] text-gray-900 dark:text-gray-100 text-center">
+        {/* <h1 className="text-[5vh] portrait:text-[5vw] text-gray-800 dark:text-gray-200 text-center">
           03
         </h1> */}
         <div className="flex flex-col items-center justify-center w-full gap-5 mt-8">

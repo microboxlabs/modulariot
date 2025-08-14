@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await createForumTopic(session.user.ticket, {
+    const result = await createForumTopic(session, {
       bpmPackage: body.bpmPackage,
       title: body.title,
       content: body.content ?? "",

@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
           const result = await getContentNode(session, nodeId);
           return result;
         } catch (nodeError: any) {
+          console.error(nodeError);
           return {
             error: `Failed to fetch node ${nodeId}`,
             details: nodeError.message,

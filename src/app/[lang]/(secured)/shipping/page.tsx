@@ -13,13 +13,13 @@ import { redirectWithLang } from "@/features/auth/services/navigation.service";
 export default async function ShippingPage({
   params: { lang },
 }: ParamsWithLang) {
-  const [, dictionary] = await getDictionary(lang);
-  const session = await auth();
-
-  const userGroups = await getGroupsForPerson(session!.user.ticket);
-  // let tasks;
-
   try {
+    const [, dictionary] = await getDictionary(lang);
+    const session = await auth();
+
+    const userGroups = await getGroupsForPerson(session!.user.ticket);
+    // let tasks;
+
     // tasks = await getUserTasks(session!.user.ticket);
     // const data = await toShippingKanban(tasks);
     // const data = [];
@@ -49,7 +49,6 @@ export default async function ShippingPage({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    console.error(e);
     if (e?.status === 401) {
       redirectWithLang(`/sign-in`);
     }

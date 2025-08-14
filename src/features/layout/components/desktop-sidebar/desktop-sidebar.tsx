@@ -38,6 +38,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
+  useEffect(() => {
+    if (error && (error.status === 403 || error.status === 401)) {
+      router.push("/sign-in");
+    }
+  }, [error]);
+
   if (!error) {
     /* totals["shippingv1"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
@@ -58,8 +64,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
-  } else if (error.status === 403 || error.status === 401) {
-    router.push("/sign-in");
   }
 
   useEffect(() => {

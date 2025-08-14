@@ -19,7 +19,8 @@
         }
       },
       "buttons": {
-        "submit": "Ingresar a tu cuenta"
+        "submit": "Ingresar a tu cuenta",
+        "continueWithMicrosoft": "Continuar con Microsoft"
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",

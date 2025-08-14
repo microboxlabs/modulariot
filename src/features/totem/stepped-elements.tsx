@@ -99,7 +99,7 @@ export default function Stepped({
   ];
 
   return (
-    <div className="flex flex-col h-full p-5 relative w-full sm:gap-4">
+    <div className="flex flex-col justify-between h-full p-5 relative w-full sm:gap-4">
       {/* Stepper */}
       <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content">
         <StepperMarker
@@ -142,11 +142,12 @@ export default function Stepped({
           onClick={() => currentStep > 3 && setCurrentStep(3)}
         />
       </div>
-      <div className="flex items-center justify-center h-full">
-        <div className="flex items-center justify-center w-[20rem] scale-[1.0] xs:scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-[1.0] xl:scale-[1.5] 2xl:scale-[1.6] portrait:scale-100 portrait:xs:scale-110 portrait:sm:scale-125 portrait:md:scale-150 portrait:lg:scale-175 portrait:xl:scale-200 portrait:2xl:scale-225 scale-content">
+      <div className="flex items-start justify-center">
+        <div className="origin-top flex items-start justify-center w-[20rem] scale-[1.0]  portrait:scale-100 portrait:xs:scale-110 portrait:sm:scale-125 portrait:md:scale-150 portrait:lg:scale-175 portrait:xl:scale-200 portrait:2xl:scale-225 scale-content">
           {steps[currentStep].interface}
         </div>
       </div>
+      <div className="h-5 w-full"></div>
       <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );

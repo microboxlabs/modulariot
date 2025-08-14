@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await createForumPost(session.user.ticket, {
+    const result = await createForumPost(session, {
       topic: body.topic,
       title: body.title ?? "Message",
       content: body.content,
-      author: session.user.email ?? session.user.name ?? "anonymous",
+      author: session?.user?.email ?? session?.user?.name ?? "anonymous",
     });
     return NextResponse.json(result, { status: 201 });
   } catch (e: any) {

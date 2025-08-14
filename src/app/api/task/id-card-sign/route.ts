@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     /* const endTaskResult = await endTask(
-      session.user.ticket,
+      session,
       json.taskId,
       json.transitionId,
     );

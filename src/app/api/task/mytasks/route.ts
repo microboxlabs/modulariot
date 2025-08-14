@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
             },
           });
         }),
-        /* getFinishedWorkflows(session.user.ticket, {
+        /* getFinishedWorkflows(session, {
           from: from ? parseInt(from) : 0,
           size: size ? parseInt(size) : 10,
           //definitionKey: "shippingCoordinatorProcess",

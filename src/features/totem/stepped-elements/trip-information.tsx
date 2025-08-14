@@ -114,7 +114,7 @@ export default function TripInformation({
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-10 bg-gray-100 dark:bg-gray-800 w-full">
-        <p className="text-xl font-light text-gray-900 dark:text-gray-100">
+        <p className="text-xl font-light text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).loading as string}
         </p>
       </div>
@@ -124,7 +124,7 @@ export default function TripInformation({
   if (error && !tripData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
-        <p className="text-lg text-gray-900 dark:text-gray-100 text-center">
+        <p className="text-lg text-gray-800 dark:text-gray-200 text-center">
           {error}
         </p>
         <Image src={ErrorImage} alt="Ok" width={100} height={100} />
@@ -144,7 +144,7 @@ export default function TripInformation({
   if (!isLoading && !error && !rutData?.rut_validated) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
-        <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
+        <p className="text-center font-light text-base text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).unable_to_validate_rut as string}{" "}
           <span className="font-bold">{rutData?.rut}</span>
         </p>
@@ -165,7 +165,7 @@ export default function TripInformation({
   if (!tripData && !isLoading && !error) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
-        <p className="text-center font-light text-base text-gray-900 dark:text-gray-100">
+        <p className="text-center font-light text-base text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).driver_without_trip1 as string}{" "}
           <span className="font-bold">{rutData?.rut}</span>{" "}
           {(dict.totem as I18nRecord).driver_without_trip2 as string}
@@ -186,7 +186,7 @@ export default function TripInformation({
 
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl p-4 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
-      <h1 className="text-lg text-gray-900 dark:text-gray-100">
+      <h1 className="text-lg text-gray-800 dark:text-gray-200">
         {(dict.totem as I18nRecord).trip_information as string}
       </h1>
       <hr className="w-full border-gray-300 dark:border-gray-700" />
@@ -214,17 +214,17 @@ export default function TripInformation({
       {tripData?.tripInfo?.tripInfo?.tripId && (
         <div className="flex flex-row items-stretch justify-center gap-3 w-full my-2">
           <div className="flex flex-col justify-center gap-2 w-full">
-            <h1 className="text-base font-light text-gray-900 dark:text-gray-100">
+            <h1 className="text-base font-light text-gray-800 dark:text-gray-200">
               {(dict.totem as I18nRecord).trip_information as string}
             </h1>
             <div className="flex flex-col justify-center gap-1 w-full">
-              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 {(dict.totem as I18nRecord).trip_information_client as string}:{" "}
                 <span className="font-light">
                   {tripData?.tripInfo?.tripInfo?.tripId}
                 </span>
               </h1>
-              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 {`${
                   (dict.totem as I18nRecord)
                     .trip_information_origin_destination as string
@@ -234,7 +234,7 @@ export default function TripInformation({
                   {tripData?.tripInfo?.tripInfo?.destination}
                 </span>
               </h1>
-              <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
+              <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 {(dict.totem as I18nRecord).trip_information_schedule as string}
                 :{" "}
                 <span className="font-light">
@@ -284,7 +284,7 @@ function DriverInfo({
   return (
     <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-[300px] w-full">
       <div className="flex flex-col justify-center w-full">
-        <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex flex-row items-center gap-2 w-full">
+        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 flex flex-row items-center gap-2 w-full">
           <span className="break-words min-w-0">{name}</span>
           {state && (
             <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
@@ -293,13 +293,13 @@ function DriverInfo({
             <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
           )}
         </h1>
-        <h1 className="text-xs font-light text-gray-900 dark:text-gray-400">
+        <h1 className="text-xs font-light text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>
       {/*  <div className="flex flex-col justify-center gap-2 w-full">
         <div className="flex flex-col justify-center gap-1 w-full">
-          <h1 className="text-xs font-bold text-gray-900 dark:text-gray-400">
+          <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
             {(dict.totem as I18nRecord).state as string}:{" "}
             <span className="font-light">{state}</span>
           </h1>

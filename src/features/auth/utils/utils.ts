@@ -14,6 +14,7 @@ export function buildSignInFormMessages({
     buttonSubmitLabel: dict("pages.login.buttons.submit"),
     invalidCredentials: dict("pages.login.errors.invalidCredentials"),
     invalidFromData: dict("pages.login.errors.invalidFromData"),
+    buttonContinueWithMicrosoft: dict("pages.login.buttons.continueWithMicrosoft"),
   };
 }
 

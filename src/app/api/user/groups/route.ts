@@ -1,26 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import {
-  alfrescoApi,
-  getGroupsForPerson,
-} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { tryCatch } from "@/utils/tryCatch";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    let token = url.searchParams.get("token");
-
-    if (!token) {
-      const session = await auth();
-      if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      token = session.user.ticket;
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    alfrescoApi.setTicket(token, "");
-    const response = await tryCatch(getGroupsForPerson(token));
+    const response = await tryCatch(getGroupsForPerson(session));
 
     if (response?.error) {
       return NextResponse.json(

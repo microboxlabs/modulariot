@@ -1,10 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { tryCatch } from "@/utils/tryCatch";
-import {
-  alfrescoApi,
-  getSympthomTemplate,
-} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getSympthomTemplate } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -13,7 +10,6 @@ export async function GET(request: Request) {
       status: 401,
     });
   }
-  alfrescoApi.setTicket(session.user.ticket, "");
   const { searchParams } = new URL(request.url);
   const serviceCode = searchParams.get("serviceCode");
   const conditionName = searchParams.get("conditionName");
@@ -24,12 +20,7 @@ export async function GET(request: Request) {
     });
   }
   const response = await tryCatch(
-    getSympthomTemplate(
-      session.user.ticket,
-      serviceCode,
-      conditionName,
-      icuCode,
-    ),
+    getSympthomTemplate(session, serviceCode, conditionName, icuCode),
   );
 
   if (response?.error || !response?.data?.success) {

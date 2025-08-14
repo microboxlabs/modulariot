@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
+import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -25,15 +26,18 @@ export async function GET(req: NextRequest) {
       userAgent["User-Agent"] = process.env.USER_AGENT;
     }
 
-    const response = await fetch(
-      `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib?alf_ticket=${session.user.ticket}`,
-      {
-        headers: {
-          ...userAgent,
-          Accept: "image/*",
-        },
-      },
+    const { url } = prepareAlfrescoAuth(
+      `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib`,
+      session,
     );
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        ...userAgent,
+        Accept: "image/*",
+      },
+    });
 
     // Handle 404 specifically - thumbnail doesn't exist
     if (response.status === 404) {

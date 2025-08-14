@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     if (show_finished) {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {
-          return getFinishedWorkflows(session.user.ticket, {
+          return getFinishedWorkflows(session, {
             from: from ? parseInt(from) : 0,
             size: size ? parseInt(size) : 10,
             definitionKey: column,
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     } else {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {
-          return getUserTasks(session.user.ticket, column, options);
+          return getUserTasks(session, column, options);
         }),
       ])) as FastTasksResponse[];
     }

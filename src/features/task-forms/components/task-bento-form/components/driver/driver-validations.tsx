@@ -24,7 +24,7 @@ export default async function DriverValidations({
   }
 
   const tasks = await getValidationByServiceCode(
-    session.user.ticket,
+    session,
     serviceCode,
     "driver",
     driver.rut,

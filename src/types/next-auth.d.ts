@@ -2,11 +2,14 @@ import "next-auth";
 
 declare module "next-auth" {
   interface Session {
-    user: {
+    user?: {
       id: string;
       email: string;
       name: string;
       groups: string[];
+      ticket?: string;
+      rawJWT?: string;
+      accessToken?: string;
     };
   }
 
@@ -15,6 +18,7 @@ declare module "next-auth" {
     email: string;
     name: string;
     groups: string[];
+    ticket?: string;
   }
 }
 
@@ -24,5 +28,9 @@ declare module "next-auth/jwt" {
     email: string;
     name: string;
     groups: string[];
+    ticket?: string;
+    rawJWT?: string;
+    accessToken?: string;
+    refreshToken?: string;
   }
 }

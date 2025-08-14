@@ -33,7 +33,7 @@ import type { Session } from "next-auth";
  */
 export function prepareAlfrescoAuth(
   baseUrl: string,
-  session: Session,
+  session?: Session,
   // contentType: string = "application/json",
 ): {
   url: string;
@@ -44,9 +44,9 @@ export function prepareAlfrescoAuth(
     // "Content-Type": contentType,
   };
 
-  if (session.user?.rawJWT) {
+  if (session?.user?.rawJWT) {
     headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
-  } else if (session.user?.ticket) {
+  } else if (session?.user?.ticket) {
     const separator = baseUrl.includes("?") ? "&" : "?";
     url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
   }
@@ -660,56 +660,55 @@ type ForumAction =
   | "post/delete";
 
 async function callForumAction<TResponse = unknown>(
-  ticket: string,
+  session: Session,
   action: ForumAction,
   options?: {
     query?: Record<string, string | undefined>;
     body?: Record<string, unknown>;
   },
 ): Promise<TResponse> {
-  const url = new URL(
-    `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}`,
-  );
-  url.searchParams.set("alf_ticket", ticket);
+  const queryParams = new URLSearchParams();
   if (options?.query) {
     Object.entries(options.query).forEach(([k, v]) => {
-      if (typeof v !== "undefined" && v !== null) {
-        url.searchParams.set(k, String(v));
-      }
+      queryParams.set(k, String(v));
     });
   }
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  
   const result = await fetcher(url.toString(), {
     method: "POST",
+    headers,
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   return result as TResponse;
 }
 
 export async function getForumDiscussion(
-  ticket: string,
+  session: Session,
   params: { taskId?: string; instanceId?: string; serviceCode?: string },
 ): Promise<ForumDiscussionResponse> {
-  return callForumAction<ForumDiscussionResponse>(ticket, "discussion", {
+  return callForumAction<ForumDiscussionResponse>(session, "discussion", {
     query: params,
   });
 }
 
 export async function createForumTopic(
-  ticket: string,
+    session: Session,
   data: { bpmPackage: string; title: string; content: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "topic/create", { body: data });
+  return callForumAction(session, "topic/create", { body: data });
 }
 
 export async function createForumPost(
-  ticket: string,
+  session: Session,
   data: { topic: string; title: string; content: string; author: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/create", { body: data });
+  return callForumAction(session, "post/create", { body: data });
 }
 
 export async function replyForumPost(
-  ticket: string,
+  session: Session,
   data: {
     topic: string;
     parentPost: string;
@@ -718,26 +717,26 @@ export async function replyForumPost(
     author: string;
   },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/reply", { body: data });
+  return callForumAction(session, "post/reply", { body: data });
 }
 
 export async function editForumPost(
-  ticket: string,
+  session: Session,
   data: { post: string; title?: string; content?: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/edit", { body: data });
+  return callForumAction(session, "post/edit", { body: data });
 }
 
 export async function deleteForumPost(
-  ticket: string,
+  session: Session,
   data: { topic: string; post: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/delete", { body: data });
+  return callForumAction(session, "post/delete", { body: data });
 }
 
 export async function deleteForumTopic(
-  ticket: string,
+  session: Session,
   data: { bpmPackage: string; topic: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "topic/delete", { body: data });
+  return callForumAction(session, "topic/delete", { body: data });
 }

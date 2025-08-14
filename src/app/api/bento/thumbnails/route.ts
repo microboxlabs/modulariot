@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       userAgent["User-Agent"] = process.env.USER_AGENT;
     }
 
-    const { url } = prepareAlfrescoAuth(
+    const { url, headers } = prepareAlfrescoAuth(
       `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib`,
       session,
     );
@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     const response = await fetch(url, {
       method: "GET",
       headers: {
+        ...headers,
         ...userAgent,
         Accept: "image/*",
       },

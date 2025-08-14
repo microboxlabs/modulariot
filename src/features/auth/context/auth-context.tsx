@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useEffect } from "react";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 
 interface AuthContextType {
@@ -12,7 +12,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: userGroups, isLoading } = useUserGroups();
+  const { data: userGroups, isLoading, error } = useUserGroups();
+
+  useEffect(() => {
+    if (error && error.status === 401) {
+      window.location.href = "/app/sign-in";
+    }
+  }, [error]);
 
   const hasPermission = (
     requiredGroups: string[],

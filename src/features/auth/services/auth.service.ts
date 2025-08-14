@@ -8,7 +8,6 @@ import {
   formSchema,
   SignInCredentials,
 } from "./auth.service.types";
-import { getAlfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PeopleApi, AlfrescoApi } from "@alfresco/js-api";
 import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
@@ -29,7 +28,7 @@ export async function signInWithCredentials(
       credentials.password as string,
     )) as string;
 
-    const peopleApi = new PeopleApi(getAlfrescoApi());
+    const peopleApi = new PeopleApi(alfrescoApi);
     const person = await peopleApi.getPerson("-me-");
 
     return {

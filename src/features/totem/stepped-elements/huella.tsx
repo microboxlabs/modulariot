@@ -140,14 +140,14 @@ export default function Huella({
   }, [idCardLoading]);
 
   useEffect(() => {
-    /* if (!isWindowsDevice) {
+    if (!isWindowsDevice) {
       setQrCode(true);
-    } */
+    }
   }, [isWindowsDevice]);
 
   useEffect(() => {
     if (
-      //isWindowsDevice &&
+      isWindowsDevice &&
       !idCard &&
       !qrCode &&
       !manualAccess &&

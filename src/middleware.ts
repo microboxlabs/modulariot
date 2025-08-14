@@ -36,7 +36,8 @@ export default auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
 
-  const prefixApp = pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
+  const prefixApp =
+    pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
 
   pathname = pathname.replace(
     /^\/app(\/.*)?$/,

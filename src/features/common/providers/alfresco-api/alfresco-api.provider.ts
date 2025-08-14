@@ -1,11 +1,9 @@
 import {
-  AlfrescoApi,
-  PeopleApi,
-  WebscriptApi,
-  NodesApi,
+  AlfrescoApiClient,
   PersonEntry,
-  GroupsApi,
   NodeChildAssociationPaging,
+  GroupPaging,
+  NodeEntry,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -25,38 +23,91 @@ import type {
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
-export const alfrescoApi = new AlfrescoApi({
-  hostEcm: process.env.ECM_API_URL,
-  provider: process.env.AUTH_PROVIDER,
-  contextRoot: process.env.CONTEXT_ROOT,
-});
+import type { Session } from "next-auth";
+
+/**
+ * Prepares authentication configuration for Alfresco API calls
+ * @param baseUrl - The base URL for the API endpoint
+ * @param session - The user session containing authentication data
+ * @returns Object containing the modified URL and headers for authentication
+ */
+export function prepareAlfrescoAuth(
+  baseUrl: string,
+  session?: Session,
+  // contentType: string = "application/json",
+): {
+  url: string;
+  headers: Record<string, string>;
+} {
+  let url = baseUrl;
+  const headers: Record<string, string> = {
+    // "Content-Type": contentType,
+  };
+
+  if (session?.user?.rawJWT) {
+    headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
+  } else if (session?.user?.ticket) {
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
+  }
+
+  return { url, headers };
+}
+
+export function prepareAlfrescoAuthWithAccessToken(session: Session): void {
+  var idToken = session.user?.rawJWT;
+  if (idToken) {
+    alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
+  } else {
+    alfrescoApi.config.ticket = session.user?.ticket ?? "";
+  }
+}
+
+let alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
+
+export function getAlfrescoApi(): AlfrescoApiClient {
+  return alfrescoApi;
+}
 
 export async function getUserProfile(
-  ticket: string,
+  session: Session,
   userId: string = "-me-",
 ): Promise<PersonEntry> {
-  alfrescoApi.setTicket(ticket, "");
-  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
-  return peopleApi.getPerson(userId);
+  const queryParams = new URLSearchParams({
+    userId,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/people/${userId}?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as PersonEntry;
 }
 
 export async function getBase64UserAvatar(
-  ticket: string,
+  session: Session,
   userId = "-me-",
-): Promise<string> {
-  alfrescoApi.setTicket(ticket, "");
-  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
-  const blob = await peopleApi.getAvatarImage(userId, {
-    placeholder: true,
-    attachment: true,
+): Promise<Blob> {
+  // curl -X 'GET' \
+  // 'https://coordinador-dev.mintral.cl/alfresco/api/-default-/public/alfresco/versions/1/people/-me-/avatar?attachment=true&placeholder=true' \
+  // -H 'accept: application/octet-stream' \
+  // -H 'authorization: Basic YWRtaW46MzNMY3BtZS4kVHdwUk5FRk0='
+  const queryParams = new URLSearchParams({
+    attachment: "true",
+    placeholder: "true",
   });
-
-  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
-  return "data:image/png;base64," + buffer.toString("base64");
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/people/${userId}/avatar?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  return await result.blob();
 }
 
 export async function getUserTasks(
-  ticket: string,
+  session: Session,
   definitionKey: string,
   options: {
     from?: number;
@@ -64,54 +115,57 @@ export async function getUserTasks(
     filter?: Record<string, unknown>;
   } = {},
 ): Promise<FastTasksResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-
   const { from = 0, size = 100, filter = undefined } = options;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    "mintral/tasks",
-    undefined,
-    undefined,
-    undefined,
-    JSON.stringify({
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
       from,
       size,
       definitionKey: definitionKey.length == 0 ? undefined : definitionKey,
       filter,
     }),
-  );
+  });
+
   return result as FastTasksResponse;
 }
 
 export async function getTaskById(
-  ticket: string,
+  session: Session,
   taskId: string,
 ): Promise<TaskResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const queryParams = new URLSearchParams({
+    taskId,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/details?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/tasks/details?taskId=${taskId}`,
-  );
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as TaskResponse;
 }
 
 export async function endTask(
-  ticket: string,
+  session: Session,
   taskId: string,
   transitionId?: string,
 ): Promise<EndTaskResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  let endpoint = `mintral/tasks/end?taskId=${taskId}`;
+  const queryParams = new URLSearchParams({
+    taskId,
+  });
   if (transitionId) {
-    endpoint += `&transition=${transitionId}`;
+    queryParams.set("transition", transitionId);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript("GET", endpoint);
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/end?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as EndTaskResponse;
 }
 
@@ -173,37 +227,55 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
 }
 
 export async function uploadNodeContent(
-  ticket: string,
+  session: Session,
   request: UploadNodeRequest,
 ): Promise<string> {
   const formdata = uploadNodeFormData(request);
-  const url = `${process.env.ECM_API_URL}/alfresco/s/api/upload?alf_ticket=${ticket}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "multipart/form-data",
+    },
     body: formdata,
   });
   return result as string;
 }
 
 export async function getChildrenNodes(
-  ticket: string,
+  session: Session,
   nodeId: string,
   options: NodeChildrenRequest,
 ): Promise<NodeChildAssociationPaging> {
-  alfrescoApi.setTicket(ticket, "");
-  const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const children = await nodesApi.listNodeChildren(nodeId, options);
-  return children;
+  const queryParams = new URLSearchParams();
+  Object.entries(options).forEach(([key, value]) => {
+    queryParams.set(key, value.toString());
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/children?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const children = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return children as NodeChildAssociationPaging;
 }
 
 export async function getContentNode(
-  ticket: string,
+  session: Session,
   nodeId: string,
 ): Promise<string> {
-  alfrescoApi.setTicket(ticket, "");
-  const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const blob = await nodesApi.getNodeContent(nodeId);
-  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  const queryParams = new URLSearchParams({
+    attachment: "true",
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  const buffer = Buffer.from(await result.arrayBuffer());
   return buffer.toString("base64");
 }
 // Define el tipo Validations si no está definido
@@ -215,138 +287,149 @@ interface Validations {
 }
 
 export async function validateService(
-  ticket: string,
+  session: Session,
   serviceCode: string,
 ): Promise<Validations> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const queryParams = new URLSearchParams({
+    serviceCode,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   // Llamada a la API para validar el servicio
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/service/validation?serviceCode=${serviceCode}`,
-  );
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+    body: JSON.stringify({ serviceCode }),
+  });
 
   return result as Validations; // Asegúrate de que 'result' tenga el tipo correcto
 }
 
 export async function getContentByTaskId(
-  ticket: string,
+  session: Session,
   taskId: string,
   fileName: string,
   requireInternalSign: boolean = false,
 ): Promise<string> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/node/content`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = (await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/node/content?taskId=${taskId}&fileName=${fileName}&signed=${requireInternalSign}`,
-  )) as { node: { id: string } };
-  const nodesApi = new NodesApi(alfrescoApi.contentClient);
-  const blob = await nodesApi.getNodeContent(result.node.id);
-  const buffer = Buffer.from(await new Response(blob).arrayBuffer());
+  const result = (await fetcher(url, {
+    method: "GET",
+    headers,
+    body: JSON.stringify({ taskId, fileName, signed: requireInternalSign }),
+  })) as { node: { id: string } };
+  const baseUrl1 = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${result.node.id}/content`;
+
+  const { url: url1, headers: headers1 } = prepareAlfrescoAuth(
+    baseUrl1,
+    session,
+  );
+  const result1 = await fetch(url1, {
+    method: "GET",
+    headers: headers1,
+  });
+  const buffer = Buffer.from(await result1.arrayBuffer());
   return buffer.toString("base64");
 }
 
-export async function getCountTask(ticket: string): Promise<TaskCountResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+export async function getCountTask(
+  session: Session,
+): Promise<TaskCountResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/statistics/tasks`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    `mintral/statistics/tasks`,
-  );
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+  });
   return result as TaskCountResponse;
 }
 
 export async function formProcessor(
-  ticket: string,
+  session: Session,
   itemKind: string,
   itemId: string,
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${itemId}/formprocessor`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    `api/${itemKind}/${itemId}/formprocessor`,
-    undefined,
-    undefined,
-    undefined,
-    JSON.stringify(data),
-  );
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data),
+  });
   return result as TaskResponse;
 }
 
 export async function updateTask(
-  ticket: string,
+  session: Session,
   taskId: string,
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
-  return formProcessor(ticket, "task", taskId, data);
+  return formProcessor(session, "task", taskId, data);
 }
 
 export async function getServiceValidation(
-  ticket: string,
+  session: Session,
   serviceCode: string,
 ): Promise<ServiceValidationResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/service/validation?serviceCode=${serviceCode}`,
-  );
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+    body: JSON.stringify({ serviceCode }),
+  });
   return result as ServiceValidationResponse;
 }
 
 export async function getFinishedWorkflows(
-  ticket: string,
+  session: Session,
   data: FinishedWorkflowsRequest,
 ): Promise<FinishedWorkflowsResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "POST",
-    `mintral/finished/workflows`,
-    undefined,
-    undefined,
-    undefined,
-    JSON.stringify(data),
-  );
-
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/finished/workflows`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data),
+  });
   return result as FinishedWorkflowsResponse;
 }
 
 export async function getFinishedWorkflowByInstanceId(
-  ticket: string,
+  session: Session,
   data: string,
 ): Promise<HistoricalWorkflow> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/finished/workflow/details?instanceId=${data}`,
-  );
-
+  const queryParams = new URLSearchParams({
+    instanceId: data,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/finished/workflow/details?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as HistoricalWorkflow;
 }
 
 export async function checkDocumentExists(
-  ticket: string,
+  session: Session,
   nodeId: string,
 ): Promise<boolean> {
   try {
-    alfrescoApi.setTicket(ticket, "");
-    const nodesApi = new NodesApi(alfrescoApi.contentClient);
-
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     // This will throw an error if the node doesn't exist
-    const node = await nodesApi.getNode(nodeId);
+    const node = (await fetcher(url, {
+      method: "GET",
+      headers,
+    })) as NodeEntry;
     return node && node?.entry?.isFile;
   } catch (error) {
     // just ignore and return false
@@ -354,80 +437,111 @@ export async function checkDocumentExists(
   return false;
 }
 
-export async function getUserStatus(ticket: string): Promise<string> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `api/activities/feed/user?format=json`,
-  );
+export async function getUserStatus(session: Session): Promise<string> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/activities/feed/user?format=json`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as string;
 }
 
 export async function getSympthomTemplate(
-  ticket: string,
+  session: Session,
   serviceCode: string,
   conditionName: string,
   icuCode: string,
 ): Promise<SympthomTemplateResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/service/message-template?serviceCode=${serviceCode}&conditionName=${conditionName}&icuCode=${icuCode}`,
-  );
+  const queryParams = new URLSearchParams({
+    serviceCode,
+    conditionName,
+    icuCode,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/message-template?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as SympthomTemplateResponse;
 }
 
-export async function getUserStates(ticket: string): Promise<UserState[]> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+export async function getUserStates(session: Session): Promise<UserState[]> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/operator-status`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/tasks/operator-status`,
-  );
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
   return result as UserState[];
 }
 
 export async function getTaskHistory(
-  ticket: string,
+  session: Session,
   taskId: string,
   active: boolean = true,
 ): Promise<TaskResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const result = await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/tasks/history?taskId=${taskId}&active=${active}`,
-  );
+  const queryParams = new URLSearchParams({
+    taskId,
+    active: `${active}`,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
 
   return result as TaskResponse;
 }
 
 export async function getTripLoads(
-  ticket: string,
+  session: Session,
   tripId: string,
 ): Promise<TaskResponse> {
-  const url = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/letter-port?tripId=${tripId}&alf_ticket=${ticket}`;
-  const result = await fetcher(url);
+  const queryParams = new URLSearchParams({
+    tripId,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/letter-port?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
 
   return result as any;
 }
 
-export async function getGroupsForPerson(ticket: string): Promise<string[]> {
-  alfrescoApi.setTicket(ticket, "");
-  const groupsApi = new GroupsApi(alfrescoApi.contentClient);
-  const groups = await groupsApi.listGroupMembershipsForPerson("-me-");
+export async function getGroupsForPerson(session: Session): Promise<string[]> {
+  const queryParams = new URLSearchParams({
+    skipCount: "0",
+    maxItems: "100",
+  });
+  const personId = "-me-";
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/people/${personId}/groups?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const groups = (await fetcher(url, {
+    method: "GET",
+    headers,
+  })) as GroupPaging;
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
 }
 
-export async function getInfoEntity(licencePlate: string, ticket: string) {
-  const url = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?licencePlate=${licencePlate}&alf_ticket=${ticket}`;
-  const result = await fetcher(url);
+export async function getInfoEntity(
+  session: Session,
+  licencePlate: string,
+): Promise<GetEntityInfoResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+    body: JSON.stringify({ licencePlate }),
+  });
+
   return result as GetEntityInfoResponse;
 }
 
@@ -445,44 +559,52 @@ export async function getBiometricVerification(
 }
 
 export async function getSovosFingerprintReuse(
-  ticket: string,
+  session: Session,
   data: Record<string, unknown>,
 ): Promise<TaskResponse> {
-  const url = `${process.env.ECM_API_URL}/alfresco/service/sovos/fingerprint-reuse?alf_ticket=${ticket}`;
-
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/sovos/fingerprint-reuse`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
+    headers,
     body: JSON.stringify(data),
   });
 
   return result as any;
 }
 
-export async function getNotifications(ticket: string) {
-  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications?alf_ticket=${ticket}`;
+export async function getNotifications(session: Session) {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "GET",
+    headers,
   });
   return result as any;
 }
 
-export async function markAsRead(ticket: string, id: string) {
-  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications/mark-as-read?alf_ticket=${ticket}&id=${id}`;
+export async function markAsRead(session: Session, id: string) {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/notifications/mark-as-read`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "PUT",
+    headers,
+    body: JSON.stringify({ id }),
   });
 
   return result as any;
 }
 
 export async function getTaskByLicensePlate(
-  ticket: string,
+  session: Session,
   data: Record<string, unknown>,
 ): Promise<any> {
-  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter?alf_ticket=${ticket}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   const result = await fetcher(url, {
     method: "POST",
+    headers,
     body: JSON.stringify(data),
   });
 
@@ -490,13 +612,15 @@ export async function getTaskByLicensePlate(
 }
 
 export async function ecmSovosDec5(
-  ticket: string,
+  session: Session,
   taskId: string,
 ): Promise<any> {
-  const url = `${process.env.ECM_API_URL}/alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}&alf_ticket=${ticket}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   const result = await fetcher(url, {
     method: "POST",
+    headers,
     body: JSON.stringify({}),
   });
 
@@ -504,24 +628,24 @@ export async function ecmSovosDec5(
 }
 
 export async function getValidationByServiceCode(
-  ticket: string,
+  session: Session,
   serviceCode: string,
   scope?: string,
   scopeId?: string,
 ): Promise<ValidationsResponse> {
-  alfrescoApi.setTicket(ticket, "");
-  const webscriptApi = new WebscriptApi(alfrescoApi.contentClient);
+  const queryParams = new URLSearchParams({
+    serviceCode,
+  });
   if (scope && scopeId) {
-    return (await webscriptApi.executeWebScript(
-      "GET",
-      `mintral/service/validation?serviceCode=${serviceCode}&scope=${scope}&scopeId=${scopeId}`,
-    )) as ValidationsResponse;
+    queryParams.set("scope", scope);
+    queryParams.set("scopeId", scopeId);
   }
-
-  return (await webscriptApi.executeWebScript(
-    "GET",
-    `mintral/service/validation?serviceCode=${serviceCode}`,
-  )) as ValidationsResponse;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  return fetcher(url, {
+    method: "GET",
+    headers,
+  }) as Promise<ValidationsResponse>;
 }
 
 // Forum API integrations
@@ -536,56 +660,55 @@ type ForumAction =
   | "post/delete";
 
 async function callForumAction<TResponse = unknown>(
-  ticket: string,
+  session: Session,
   action: ForumAction,
   options?: {
     query?: Record<string, string | undefined>;
     body?: Record<string, unknown>;
   },
 ): Promise<TResponse> {
-  const url = new URL(
-    `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}`,
-  );
-  url.searchParams.set("alf_ticket", ticket);
+  const queryParams = new URLSearchParams();
   if (options?.query) {
     Object.entries(options.query).forEach(([k, v]) => {
-      if (typeof v !== "undefined" && v !== null) {
-        url.searchParams.set(k, String(v));
-      }
+      queryParams.set(k, String(v));
     });
   }
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/forum/${action}?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
   const result = await fetcher(url.toString(), {
     method: "POST",
+    headers,
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   return result as TResponse;
 }
 
 export async function getForumDiscussion(
-  ticket: string,
+  session: Session,
   params: { taskId?: string; instanceId?: string; serviceCode?: string },
 ): Promise<ForumDiscussionResponse> {
-  return callForumAction<ForumDiscussionResponse>(ticket, "discussion", {
+  return callForumAction<ForumDiscussionResponse>(session, "discussion", {
     query: params,
   });
 }
 
 export async function createForumTopic(
-  ticket: string,
+  session: Session,
   data: { bpmPackage: string; title: string; content: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "topic/create", { body: data });
+  return callForumAction(session, "topic/create", { body: data });
 }
 
 export async function createForumPost(
-  ticket: string,
+  session: Session,
   data: { topic: string; title: string; content: string; author: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/create", { body: data });
+  return callForumAction(session, "post/create", { body: data });
 }
 
 export async function replyForumPost(
-  ticket: string,
+  session: Session,
   data: {
     topic: string;
     parentPost: string;
@@ -594,26 +717,26 @@ export async function replyForumPost(
     author: string;
   },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/reply", { body: data });
+  return callForumAction(session, "post/reply", { body: data });
 }
 
 export async function editForumPost(
-  ticket: string,
+  session: Session,
   data: { post: string; title?: string; content?: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/edit", { body: data });
+  return callForumAction(session, "post/edit", { body: data });
 }
 
 export async function deleteForumPost(
-  ticket: string,
+  session: Session,
   data: { topic: string; post: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "post/delete", { body: data });
+  return callForumAction(session, "post/delete", { body: data });
 }
 
 export async function deleteForumTopic(
-  ticket: string,
+  session: Session,
   data: { bpmPackage: string; topic: string },
 ): Promise<unknown> {
-  return callForumAction(ticket, "topic/delete", { body: data });
+  return callForumAction(session, "topic/delete", { body: data });
 }

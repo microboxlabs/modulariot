@@ -21,7 +21,7 @@ export default async function SecuredLayout({
   const session = await auth();
   return (
     <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
-      <SseListener dictionary={dictionary} tenantId={session!.user.email} />
+      <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
       <SecuredNavbar
         messages={navBarMessages}
         dict={dictionary as I18nRecord}

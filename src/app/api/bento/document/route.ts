@@ -26,9 +26,10 @@ export async function GET(req: NextRequest) {
     const responses = await Promise.all(
       nodeIdsArray.map(async (nodeId) => {
         try {
-          const result = await getContentNode(session.user.ticket, nodeId);
+          const result = await getContentNode(session, nodeId);
           return result;
         } catch (nodeError: any) {
+          console.error(nodeError);
           return {
             error: `Failed to fetch node ${nodeId}`,
             details: nodeError.message,

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
     const json = await request.json();
     const taskId = json.taskId;
-    const response = await ecmSovosDec5(session.user.ticket, taskId);
+    const response = await ecmSovosDec5(session, taskId);
 
     return NextResponse.json({
       success: true,

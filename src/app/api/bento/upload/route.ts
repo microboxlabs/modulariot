@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { uploadNodeContent } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 import { UploadNodeRequest } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import type { Session } from "next-auth";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       contentType,
       destination,
       currentFileName,
-      session.user.ticket,
+      session,
     );
     return NextResponse.json({
       success: true,
@@ -61,7 +62,7 @@ async function uploadFile(
   contentType: string,
   destination: string,
   fileName: string,
-  ticket: string,
+  session: Session,
 ) {
   const formData: UploadNodeRequest = {
     filedata: file,
@@ -72,5 +73,5 @@ async function uploadFile(
     thumbnails: ["doclib"],
   };
 
-  return uploadNodeContent(ticket, formData);
+  return uploadNodeContent(session, formData);
 }

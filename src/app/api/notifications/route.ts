@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest) {
       throw new Error("Unauthorized");
     }
 
-    const response = await getNotifications(session.user.ticket);
+    const response = await getNotifications(session);
     return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(

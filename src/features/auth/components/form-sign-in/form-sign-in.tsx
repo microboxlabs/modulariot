@@ -1,7 +1,11 @@
 "use client";
 
-import { authenticateAction } from "@/features/auth/services/auth.service";
+import {
+  authenticateAction,
+  signInWithMicrosoft,
+} from "@/features/auth/services/auth.service";
 import { Button, Checkbox, Label, TextInput } from "flowbite-react";
+import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -102,6 +106,20 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           onClick={onSubmitForm}
         >
           {msg.buttonSubmitLabel}
+        </Button>
+      </div>
+      <div className="mb-2">
+        <Button
+          color="gray"
+          theme={{ inner: { base: "px-5 py-3" } }}
+          className="w-full px-0 py-px"
+          type="submit"
+          formAction={signInWithMicrosoft}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Windows className="h-5 w-5" />
+            {msg.buttonContinueWithMicrosoft}
+          </div>
         </Button>
       </div>
     </form>

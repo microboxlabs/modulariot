@@ -3,6 +3,7 @@ import {
   TaskResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { Session } from "next-auth";
 
 export type TaskFormProps = {
   task: TaskResponse;
@@ -37,7 +38,7 @@ export interface ExtendedTaskViewProps {
   user: string;
   msg: I18nRecord;
   lang: string;
-  ticket?: string;
+  session: Session;
   userGroups: string[];
   active?: boolean;
 }

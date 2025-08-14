@@ -23,15 +23,15 @@ export default async function TaskEditPage({
 
     const [dictionaryTuple, taskResult, userGroups] = await Promise.all([
       getDictionary(lang),
-      getTaskById(session.user.ticket, taskId),
-      getGroupsForPerson(session.user.ticket),
+      getTaskById(session, taskId),
+      getGroupsForPerson(session),
     ]);
     const [, _dictionary] = dictionaryTuple;
 
     let task = taskResult;
     if ((typeof task == "string" && task == "null") || task == null) {
       const taskResponse = await getFinishedWorkflowByInstanceId(
-        session.user.ticket,
+        session,
         taskId,
       );
 
@@ -42,8 +42,8 @@ export default async function TaskEditPage({
               task={taskResponse as ExtendedTaskResponse}
               lang={lang}
               msg={_dictionary}
-              ticket={session.user.ticket}
-              user={session.user.name ?? ""}
+              session={session}
+              user={session.user?.name ?? ""}
               userGroups={userGroups}
               active={false}
             />
@@ -59,8 +59,8 @@ export default async function TaskEditPage({
           task={task as ExtendedTaskResponse}
           lang={lang}
           msg={_dictionary}
-          ticket={session.user.ticket}
-          user={session.user.name ?? ""}
+          session={session}
+          user={session.user?.name ?? ""}
           userGroups={userGroups}
         />
       </div>

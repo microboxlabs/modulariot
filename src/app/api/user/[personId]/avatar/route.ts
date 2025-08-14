@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { alfrescoApi } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { PeopleApi } from "@alfresco/js-api";
+import { getBase64UserAvatar } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export async function GET(_request: Request) {
   const session = await auth();
@@ -10,15 +9,11 @@ export async function GET(_request: Request) {
       status: 401,
     });
   }
-  alfrescoApi.setTicket(session.user.ticket, "");
-  const peopleApi = new PeopleApi(alfrescoApi.contentClient);
-  const blob = await peopleApi.getAvatarImage("-me-", {
-    placeholder: true,
-    attachment: true,
-  });
+
+  const avatar = await getBase64UserAvatar(session);
   const headers = new Headers();
   headers.set("Content-Type", "image/png;charset=UTF-8");
-  return new NextResponse(blob, {
+  return new NextResponse(avatar, {
     status: 200,
     headers,
   });

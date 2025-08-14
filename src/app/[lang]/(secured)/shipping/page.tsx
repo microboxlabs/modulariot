@@ -17,10 +17,10 @@ export default async function ShippingPage({
     const [, dictionary] = await getDictionary(lang);
     const session = await auth();
 
-    const userGroups = await getGroupsForPerson(session!.user.ticket);
+    const userGroups = await getGroupsForPerson(session!);
     // let tasks;
 
-    // tasks = await getUserTasks(session!.user.ticket);
+    // tasks = await getUserTasks(session);
     // const data = await toShippingKanban(tasks);
     // const data = [];
     const staticData = await getStaticShippingV2Data();
@@ -48,6 +48,7 @@ export default async function ShippingPage({
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
+    console.error(e);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (e?.status === 401) {
       redirectWithLang(`/sign-in`);

@@ -23,9 +23,7 @@ export default function Conditions({
 
   return (
     <CustomCard
-      title={
-        (dict.bento as I18nRecord).symptoms_present_in_the_trip as string
-      }
+      title={(dict.bento as I18nRecord).symptoms_present_in_the_trip as string}
       subtitle={null}
     >
       <div className="flex flex-col justify-between w-full h-full">

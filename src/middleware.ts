@@ -34,8 +34,14 @@ function hasRequiredGroups(
 
 export default auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
-
   let { pathname } = request.nextUrl;
+
+  const prefixApp = pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
+
+  pathname = pathname.replace(
+    /^\/app(\/.*)?$/,
+    (match, captured: string | undefined) => captured || "/",
+  );
 
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
     pathname = "/shipping";
@@ -52,9 +58,8 @@ export default auth(async function middleware(request: NextRequest) {
   // const userAgent = request.headers.get("user-agent") || "-";
   // const contentLength = "-"; // not available at middleware stage
   // const requestId = request.headers.get("x-request-id") || generateRequestId();
-
   const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}`) || pathname === `/${locale}`,
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`,
   );
 
   let response: NextResponse;
@@ -62,7 +67,7 @@ export default auth(async function middleware(request: NextRequest) {
     response = NextResponse.next();
   } else {
     const locale = getLocaleFromHeaders(request.headers);
-    request.nextUrl.pathname = `/${locale}${pathname}`;
+    request.nextUrl.pathname = `${prefixApp}${locale}${pathname}`;
     response = NextResponse.redirect(request.nextUrl.toString());
   }
 

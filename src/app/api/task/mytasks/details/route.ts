@@ -38,10 +38,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (finished === "true") {
-      taskResponse = await getFinishedWorkflowByInstanceId(
-        session,
-        taskId,
-      );
+      taskResponse = await getFinishedWorkflowByInstanceId(session, taskId);
     } else {
       taskResponse = await getTaskById(session, taskId);
     }
@@ -59,7 +56,7 @@ export async function GET(req: NextRequest) {
         },
         {
           status: 401,
-        },
+        }
       );
     }
     return NextResponse.json({

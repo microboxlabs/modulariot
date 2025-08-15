@@ -694,6 +694,13 @@
           "addButton": "Add symptom"
         }
       }
+    },
+    "admin": {
+      "breadcrumb": {
+        "admin": "Admin",
+        "console": "Console",
+        "logs": "Logs"
+      }
     }
   },
   "layout": {

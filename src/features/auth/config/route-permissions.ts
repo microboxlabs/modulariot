@@ -7,6 +7,12 @@ const FULL_ACCESS_ROLES = [
   "GROUP_MINTRAL_VALIDADOR_TRANSPORTE",
 ];
 
+// Admin roles for system management
+const ADMIN_ROLES = [
+  "GROUP_ALFRESCO_ADMINISTRATORS",
+  "GROUP_MINTRAL_SYSTEM_ADMIN",
+];
+
 // Define groups that should be blocked from certain routes
 const BLOCKED_GROUPS = {
   GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
@@ -32,6 +38,7 @@ export const ROUTE_PERMISSIONS = {
   "/api/task": FULL_ACCESS_ROLES,
   "/api/geographic": FULL_ACCESS_ROLES,
   "/api/symptoms": FULL_ACCESS_ROLES,
+  "/api/admin/logs": ADMIN_ROLES,
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_PERMISSIONS;

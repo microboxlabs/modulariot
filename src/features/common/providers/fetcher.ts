@@ -1,12 +1,13 @@
 import { FetcherError } from "./fetcher.types";
-import { apiLogger } from "@/lib/logger";
+import { apiLogger, logError } from "@/lib/logger";
 import {
   buildAccessLogFields,
   generateRequestId,
 } from "@/features/common/utils/access-log";
 
-// moved to common utils
-
+// moved const shouldLog =
+const shouldLog =
+  typeof window === "undefined" && process.env.LOG_ACCESS === "true";
 // Type guard for Request
 const isRequest = (value: unknown): value is Request =>
   typeof Request !== "undefined" && value instanceof Request;
@@ -63,6 +64,9 @@ const buildMergedHeaders = (
     const overrideHeaders = new Headers(override);
     overrideHeaders.forEach((value, key) => merged.set(key, value));
   }
+  if (!merged.has("content-type")) {
+    merged.set("Content-Type", "application/json");
+  }
   return merged;
 };
 
@@ -70,9 +74,6 @@ export default async function httfetcher<T>(
   input: RequestInfo | URL,
   init?: RequestInit
 ) {
-  const shouldLog =
-    typeof window === "undefined" && process.env.LOG_ACCESS === "true";
-
   const method = (init?.method || "GET").toUpperCase();
   const { pathAndQuery, upstreamHost } = parseTarget(input);
 
@@ -119,12 +120,18 @@ export default async function httfetcher<T>(
 
     if (!response.ok) {
       const error = new Error(response.statusText) as FetcherError;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      error.info = await response.json();
       error.status = response.status;
 
+      // Try to parse error response as JSON, but handle cases where there's no body
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        error.info = await response.json();
+      } catch {
+        error.info = null;
+      }
+
       if (shouldLog) {
-        apiLogger.error({
+        logError(error, {
           ...buildAccessLogFields({
             prefix: "OUT",
             method,
@@ -137,11 +144,18 @@ export default async function httfetcher<T>(
             requestId,
             extras: { upstream_host: upstreamHost },
           }),
-          err: error,
         });
       }
 
       throw error;
+    }
+
+    // Handle 204 No Content and other responses with no body
+    if (
+      response.status === 204 ||
+      !response.headers.get("content-type")?.includes("application/json")
+    ) {
+      return undefined as T;
     }
 
     return (await response.json()) as T;

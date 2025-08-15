@@ -68,7 +68,7 @@ export function useSidebarContext(): SidebarContextProps {
 
   if (!context) {
     throw new Error(
-      "useSidebarContext must be used within the SidebarContext provider!",
+      "useSidebarContext must be used within the SidebarContext provider!"
     );
   }
 

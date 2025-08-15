@@ -26,7 +26,7 @@ export function login(): Promise<LoginResult> {
 
 export function getDocumentTypes(
   institutionId: string,
-  sessionId: string,
+  sessionId: string
 ): Promise<DocumentTypesResult> {
   const url = `${process.env.CAP_API_URL}/document_type/list?institution=${institutionId}&session_id=${sessionId}`;
   return fetcher(url, {
@@ -38,7 +38,7 @@ export function getDocumentTypes(
 }
 
 export function createContent(
-  contentRequest: ContentRequest,
+  contentRequest: ContentRequest
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/documents/create`;
   return fetcher(url, {
@@ -52,7 +52,7 @@ export function createContent(
 }
 
 export function createContentSign(
-  contentRequest: ContentRequest,
+  contentRequest: ContentRequest
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/documents/create_sign`;
   return fetcher(url, {
@@ -66,7 +66,7 @@ export function createContentSign(
 }
 
 export function signIdCard(
-  contentRequest: SignIdCardRequest,
+  contentRequest: SignIdCardRequest
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/sign/ci`;
   return fetcher(url, {
@@ -80,7 +80,7 @@ export function signIdCard(
 }
 
 export function getDocument(
-  contentRequest: GetDocumentRequest,
+  contentRequest: GetDocumentRequest
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/documents`;
   return fetcher(url, {
@@ -94,7 +94,7 @@ export function getDocument(
 }
 
 export function validateIdCard(
-  contentRequest: ValidateIdCardRequest,
+  contentRequest: ValidateIdCardRequest
 ): Promise<ContentResult> {
   const url = `${process.env.CAP_API_URL}/sign/ci`;
   return fetcher(url, {

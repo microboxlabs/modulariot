@@ -23,7 +23,7 @@ export function useTreatmentsGeneral(id?: string) {
         setError(
           err instanceof Error
             ? err
-            : new Error("Failed to fetch treatment data"),
+            : new Error("Failed to fetch treatment data")
         );
       } finally {
         setLoading(false);

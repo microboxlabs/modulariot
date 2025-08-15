@@ -77,7 +77,7 @@ export default function ParametrizedSearchBar({
                 const param = navegation_params.find(
                   (param: any) =>
                     param.label.toUpperCase() ===
-                    search.split(":")[0].toUpperCase(),
+                    search.split(":")[0].toUpperCase()
                 );
                 if (param) {
                   handleSearch(search.split(":")[1], param.param);
@@ -101,7 +101,7 @@ export default function ParametrizedSearchBar({
                     // Search for this page in validation format
                     // Check if the search.split(":")[0] is equal to the label, change the value to the param
                     const param = navegation_params.find(
-                      (param: any) => param.label === search.split(":")[0],
+                      (param: any) => param.label === search.split(":")[0]
                     );
                     if (param) {
                       handleSearch(search.split(":")[1], param.param);

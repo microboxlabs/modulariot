@@ -55,12 +55,12 @@ export default function BentoHead({
   if (task?.persistentState?.endTime) {
     title = tr(
       "finished_process",
-      (dict.bento as I18nRecord).titles as I18nRecord,
+      (dict.bento as I18nRecord).titles as I18nRecord
     );
   } else if (task_name) {
     title = tr(
       task_name as string,
-      (dict.bento as I18nRecord).titles as I18nRecord,
+      (dict.bento as I18nRecord).titles as I18nRecord
     );
   }
 
@@ -71,7 +71,7 @@ export default function BentoHead({
   } else if (Object.values(task_states).includes(task_name_identifier)) {
     subtitle = tr(
       task_states[task_name_identifier as keyof typeof task_states] as string,
-      (dict.bento as I18nRecord).titles as I18nRecord,
+      (dict.bento as I18nRecord).titles as I18nRecord
     );
   }
 

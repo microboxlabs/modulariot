@@ -68,7 +68,7 @@ export default function PulseTooltip({
             :{" "}
             <span className="font-light">
               {new Date(
-                object.description.first_signal_timestamp,
+                object.description.first_signal_timestamp
               ).toLocaleString()}
             </span>
           </div>
@@ -82,7 +82,7 @@ export default function PulseTooltip({
             :{" "}
             <span className="font-light">
               {new Date(
-                object.description.last_signal_timestamp,
+                object.description.last_signal_timestamp
               ).toLocaleString()}
             </span>
           </div>

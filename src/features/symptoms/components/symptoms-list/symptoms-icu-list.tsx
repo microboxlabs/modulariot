@@ -86,7 +86,7 @@ export default function SymptomsIcuList({
       ? icuData.reduce(
           (
             groups: Record<string, SymptomsICUItemResponse[]>,
-            item: SymptomsICUItemResponse,
+            item: SymptomsICUItemResponse
           ) => {
             // Extract date part from start_time (assuming ISO format)
             const date = new Date(item.start_time).toLocaleDateString(lang);
@@ -100,7 +100,7 @@ export default function SymptomsIcuList({
             groups[date].push(item);
             return groups;
           },
-          {},
+          {}
         )
       : {};
 

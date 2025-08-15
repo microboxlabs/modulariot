@@ -30,7 +30,7 @@ export default function ModalTooltip({
 
   const { data, error, isLoading } = useGetTasksById(
     selectedTask ?? "",
-    isFinishedPage,
+    isFinishedPage
   );
 
   if (!selectedTask) {

@@ -165,7 +165,7 @@ export interface TripHistoryHookResult {
  * Filter change handler type
  */
 export type FilterChangeHandler = (
-  filters: Partial<TripHistoryFilters>,
+  filters: Partial<TripHistoryFilters>
 ) => void;
 
 /**

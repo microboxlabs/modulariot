@@ -32,7 +32,7 @@ export default function FilterComponent({
 
   // Calculate the number of activated options
   const activatedCount = filter_options.filter(
-    (option) => option.activated,
+    (option) => option.activated
   ).length;
 
   // Handle option toggle with direct onChange call

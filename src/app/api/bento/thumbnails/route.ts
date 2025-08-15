@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     const { url, headers } = prepareAlfrescoAuth(
       `${process.env.ECM_API_URL}/alfresco/s/api/node/${path}/content/thumbnails/doclib`,
-      session,
+      session
     );
 
     const response = await fetch(url, {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     if (response.status === 404) {
       return NextResponse.json(
         { error: "Thumbnail not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     logger.error("Thumbnail fetch error:", error);
     return NextResponse.json(
       { error: "Failed to fetch thumbnail" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

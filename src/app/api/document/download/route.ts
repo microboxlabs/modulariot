@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   try {
     const { url, headers } = prepareAlfrescoAuth(
       `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${documentId}?a=true`,
-      session,
+      session
     );
 
     let userAgent: Record<string, string> = {};
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch document" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

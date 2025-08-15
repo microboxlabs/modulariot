@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (!filter) {
     return NextResponse.json(
       { error: "Filter parameter is required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         },
         {
           status: 401,
-        },
+        }
       );
     }
     return NextResponse.json(
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       },
       {
         status: 500,
-      },
+      }
     );
   }
 }

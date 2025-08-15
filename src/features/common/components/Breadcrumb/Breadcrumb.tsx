@@ -41,7 +41,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             >
               {item}
             </FlowbiteBreadcrumb.Item>
-          ),
+          )
         )}
       </FlowbiteBreadcrumb>
       {rightContent.length > 0 && (

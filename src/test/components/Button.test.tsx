@@ -48,7 +48,7 @@ describe("Button Component", () => {
     render(
       <Button onClick={handleClick} disabled>
         Click me
-      </Button>,
+      </Button>
     );
 
     const button = screen.getByRole("button");
@@ -65,7 +65,7 @@ describe("Button Component", () => {
       "py-2",
       "bg-blue-500",
       "text-white",
-      "rounded",
+      "rounded"
     );
   });
 });

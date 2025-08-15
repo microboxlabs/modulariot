@@ -10,7 +10,7 @@ import { FetcherError } from "@/features/common/providers/fetcher.types";
 
 async function fetcherClient<T>(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<T> {
   try {
     return await fetcher<T>(input, init);
@@ -50,7 +50,7 @@ async function fetcherClient<T>(
 
 export async function taskNextAction(
   _prevState: TaskNextActionState,
-  formData: FormData,
+  formData: FormData
 ): Promise<TaskNextActionState> {
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
@@ -78,7 +78,7 @@ export async function taskNextAction(
 
 export async function taskSignDocument(
   _prevState: TaskNextActionState,
-  formData: FormData,
+  formData: FormData
 ): Promise<TaskNextActionState> {
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
@@ -106,7 +106,7 @@ export async function taskSignDocument(
 
 export async function taskSignIdCardDocument(
   _prevState: TaskNextActionState,
-  formData: FormData,
+  formData: FormData
 ): Promise<TaskNextActionState> {
   const taskId = formData.get("taskId") as string;
   const transitionId = formData.get("transitionId");
@@ -146,7 +146,7 @@ export async function taskSignIdCardDocument(
  * @returns El tipo de validación GPS ("ok", "warning", "error").
  */
 export function calcGpsValidationType(
-  entityInfo: GetEntityInfoResponse,
+  entityInfo: GetEntityInfoResponse
 ): GPSValidityType {
   const { ultimo_last_timestamp } = entityInfo;
   const lastTimestamp = new Date(`${ultimo_last_timestamp}Z`);
@@ -163,7 +163,7 @@ export function toLatLngLiteral(
   coordinates: {
     type: string;
     coordinates: [number, number];
-  },
+  }
   // eslint-disable-next-line no-undef
 ): google.maps.LatLngLiteral {
   // eslint-disable-next-line no-undef

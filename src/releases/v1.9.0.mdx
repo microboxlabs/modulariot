@@ -4,7 +4,8 @@
 
 ---
 
-## 🧩 1. Evolutivos – Nuevas funcionalidades 
+## 🧩 1. Evolutivos – Nuevas funcionalidades
+
 - Cambio de flujo de monitoreo al recibir señal de arribo: Se ajustó la lógica del sistema de monitoreo para transicionar automáticamente al estado de confirmar arribo a destino tan pronto se detecta que el dispositivo lleva 5 minutos en el destino del viaje. Esto mejora la precisión en la gestión del estado del viaje y optimiza la generación de alertas posteriores.
 
 - Visualización de detenciones en el mapa de seguimiento: Se añadió una funcionalidad que permite representar visualmente en el mapa, las detenciones detectadas. Cada señal donde el dispositivo marque velocidad cero, se visualizará de color rojo.
@@ -13,14 +14,16 @@
 
 ---
 
-## 🧪 2. Refactorización y mejoras visuales 
+## 🧪 2. Refactorización y mejoras visuales
+
 - Conexión del componente de validación de GPS: Se integró el componente encargado de validar la reportabilidad del dispositivo GPS directamente con modular. Esta conexión permite verificar en tiempo real si el GPS asociado a cada viaje está enviando señales conforme a los parámetros esperados, mejorando la capacidad de monitoreo proactivo y reduciendo los falsos positivos por pérdida de señal.
 
 - Mejora en la experiencia de carga de vistas relacionadas con síntomas: Se reemplazaron las pantallas de carga con esqueleto completo por indicadores de carga inline y ajustes de opacidad en las vistas del mapa y paneles laterales relacionados con síntomas. Esta mejora ofrece una experiencia de carga más fluida y menos disruptiva para el usuario.
 
 ---
 
-## 🛠️ 3. Correcciones y ajustes de estabilidad 
+## 🛠️ 3. Correcciones y ajustes de estabilidad
+
 - Se solucionó un error que impedía mostrar las geocercas asociadas al viaje dentro del formulario del coordinador de viajes. Con esta corrección, ahora se visualizan correctamente todas las zonas configuradas, mejorando la supervisión y toma de decisiones por parte del equipo operativo.
 
 - Se ajustaron los colores de los íconos en el componente de filtrado por estado de viaje dentro del módulo Vista Geográfica. Ahora los íconos que permiten filtrar vehículos en viaje se visualizan correctamente.

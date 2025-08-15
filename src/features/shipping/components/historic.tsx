@@ -71,7 +71,7 @@ export default function Historic({
                     const seconds = Math.floor((duration / 1000) % 60);
                     const minutes = Math.floor((duration / (1000 * 60)) % 60);
                     const hours = Math.floor(
-                      (duration / (1000 * 60 * 60)) % 24,
+                      (duration / (1000 * 60 * 60)) % 24
                     );
                     const days = Math.floor(duration / (1000 * 60 * 60 * 24));
                     const parts = [];

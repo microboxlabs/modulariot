@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
             details: nodeError.message,
           };
         }
-      }),
+      })
     );
 
     return NextResponse.json({
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         },
         {
           status: 401,
-        },
+        }
       );
     }
     return NextResponse.json({

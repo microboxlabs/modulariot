@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       session,
       `activiti$${json.taskId}`,
       documentName,
-      requireInternalSign,
+      requireInternalSign
     );
 
     let signersRoles: string[] = [];
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
           if (err) reject(err);
           resolve(true);
         });
-      }),
+      })
     );
 
     const uploadResponse = await uploadNodeContent(session, {

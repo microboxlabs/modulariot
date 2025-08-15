@@ -25,7 +25,7 @@ export function useViewPreference(initialView: ViewType = "kanban") {
       params.set("view", view);
       router.push(`?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams],
+    [router, searchParams]
   );
 
   return {

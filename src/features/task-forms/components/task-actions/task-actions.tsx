@@ -96,7 +96,7 @@ export default function TaskActions({
   const [isLoading, setIsLoading] = useState(false);
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
-    {},
+    {}
   );
   const router = useRouter();
   dict = dict["outcome"]
@@ -113,7 +113,7 @@ export default function TaskActions({
 
   const handleSelection = (
     outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
-    outcomeLabel: string,
+    outcomeLabel: string
   ) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
@@ -122,7 +122,7 @@ export default function TaskActions({
 
   const isCommentsFieldEnabled = (
     outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
-    taskType?: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
+    taskType?: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms
   ) => {
     if (taskType) {
       /* V2 Tasks */
@@ -189,7 +189,7 @@ export default function TaskActions({
                 onClick={() =>
                   handleSelection(
                     OUTCOME_NORMAL_INITIATION,
-                    (dict.outcome as I18nRecord).normalInitiation as string,
+                    (dict.outcome as I18nRecord).normalInitiation as string
                   )
                 }
               />
@@ -252,8 +252,7 @@ export default function TaskActions({
                 onClick={() =>
                   handleSelection(
                     OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                    (dict.outcome as I18nRecord)
-                      .authorizedWithRepairs as string,
+                    (dict.outcome as I18nRecord).authorizedWithRepairs as string
                   )
                 }
               />
@@ -292,7 +291,7 @@ export default function TaskActions({
                   handleSelection(
                     OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
                     (dict.outcome as I18nRecord)
-                      .confirmTripDestinationArrival as string,
+                      .confirmTripDestinationArrival as string
                   )
                 }
               />
@@ -331,7 +330,7 @@ export default function TaskActions({
                 onClick={() =>
                   handleSelection(
                     OUTCOME_CONFIRM_DELIVERY,
-                    (dict.outcome as I18nRecord).confirmDelivery as string,
+                    (dict.outcome as I18nRecord).confirmDelivery as string
                   )
                 }
               />
@@ -370,7 +369,7 @@ export default function TaskActions({
                   handleSelection(
                     OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
                     (dict.outcome as I18nRecord)
-                      .confirmTripDestinationDeparture as string,
+                      .confirmTripDestinationDeparture as string
                   )
                 }
               />
@@ -409,7 +408,7 @@ export default function TaskActions({
                   handleSelection(
                     OUTCOME_CONFIRM_MONITORING_FINALIZATION,
                     (dict.outcome as I18nRecord)
-                      .confirmMonitoringFinalization as string,
+                      .confirmMonitoringFinalization as string
                   )
                 }
               />
@@ -448,7 +447,7 @@ export default function TaskActions({
                   handleSelection(
                     OUTCOME_MONITORING_FINALIZATION,
                     (dict.outcome as I18nRecord)
-                      .monitoringFinalization as string,
+                      .monitoringFinalization as string
                   )
                 }
               />
@@ -541,11 +540,11 @@ export default function TaskActions({
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: {
       const transitionId = getTransitionIdV2(
         taskType as ShippingCoordinatorProcessFormsV2,
-        outcome as TaskOutcomeV2,
+        outcome as TaskOutcomeV2
       );
       const otherOptions = getSecondaryTransitionIdV2(
         taskType as ShippingCoordinatorProcessFormsV2,
-        dict,
+        dict
       );
 
       return (
@@ -568,7 +567,7 @@ export default function TaskActions({
                 onClick={() =>
                   handleSelection(
                     transitionId,
-                    (dict.outcome as I18nRecord)[transitionId] as string,
+                    (dict.outcome as I18nRecord)[transitionId] as string
                   )
                 }
               />

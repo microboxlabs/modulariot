@@ -22,7 +22,7 @@ const specialists = [
 
 export default function DeriveToSpecialist({ dict }: { dict: any }) {
   const [selectedSpecialist, setSelectedSpecialist] = useState<string | null>(
-    null,
+    null
   );
 
   return (

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!body?.topic || !body?.content) {
     return NextResponse.json(
       { error: "topic and content are required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -34,12 +34,12 @@ export async function POST(req: NextRequest) {
     if (e?.status === 401) {
       return NextResponse.json(
         { error: "Unauthorized", status: 401 },
-        { status: 401 },
+        { status: 401 }
       );
     }
     return NextResponse.json(
       { error: "Failed to create forum post" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

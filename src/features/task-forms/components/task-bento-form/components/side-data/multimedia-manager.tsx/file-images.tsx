@@ -55,7 +55,7 @@ export default function FileImages({
     error: _documentsError,
     isLoading: documentsIsLoading,
   } = useGetNodeContents(
-    files?.map((file: AlfrescoFileEntry) => file.entry.id) || [],
+    files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
   );
 
   // Process documents data when it changes
@@ -135,7 +135,7 @@ export default function FileImages({
           "application/pdf",
         ];
         const validFiles = files.filter((file) =>
-          allowedTypes.includes(file.type),
+          allowedTypes.includes(file.type)
         );
 
         if (validFiles.length !== files.length) {
@@ -143,8 +143,8 @@ export default function FileImages({
             tr(
               "only_jpg_jpeg_png_pdf_allowed",
               ((dictionary as I18nRecord).bento as I18nRecord)
-                .multimedia as I18nRecord,
-            ),
+                .multimedia as I18nRecord
+            )
           );
           return;
         }
@@ -174,7 +174,7 @@ export default function FileImages({
               {tr(
                 "title",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
             </p>
             <p className="text-sm font-light text-gray-500 dark:text-gray-400">
@@ -182,7 +182,7 @@ export default function FileImages({
                 {tr(
                   "subtitle",
                   ((dictionary as I18nRecord).bento as I18nRecord)
-                    .multimedia as I18nRecord,
+                    .multimedia as I18nRecord
                 )}
               </span>
             </p>
@@ -204,7 +204,7 @@ export default function FileImages({
                     "application/pdf",
                   ];
                   const validFiles = files.filter((file) =>
-                    allowedTypes.includes(file.type),
+                    allowedTypes.includes(file.type)
                   );
 
                   if (validFiles.length !== files.length) {
@@ -212,8 +212,8 @@ export default function FileImages({
                       tr(
                         "only_jpg_jpeg_png_pdf_allowed",
                         ((dictionary as I18nRecord).bento as I18nRecord)
-                          .multimedia as I18nRecord,
-                      ),
+                          .multimedia as I18nRecord
+                      )
                     );
                     return;
                   }
@@ -240,7 +240,7 @@ export default function FileImages({
                 {tr(
                   "upload",
                   ((dictionary as I18nRecord).bento as I18nRecord)
-                    .multimedia as I18nRecord,
+                    .multimedia as I18nRecord
                 )}
               </div>
             </Button>
@@ -262,13 +262,13 @@ export default function FileImages({
               {tr(
                 "gallery",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}{" "}
               ({images.length}{" "}
               {tr(
                 "elements",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
               )
             </p>
@@ -285,7 +285,7 @@ export default function FileImages({
               {tr(
                 "viewMore",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
             </a>
           </div>
@@ -307,7 +307,7 @@ export default function FileImages({
               {tr(
                 "noImages",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
             </div>
           )}
@@ -326,13 +326,13 @@ export default function FileImages({
               {tr(
                 "documents",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}{" "}
               ({documents.length}{" "}
               {tr(
                 "elements",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
               )
             </p>
@@ -349,7 +349,7 @@ export default function FileImages({
               {tr(
                 "viewMore",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
             </a>
           </div>
@@ -370,7 +370,7 @@ export default function FileImages({
               {tr(
                 "noDocuments",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
+                  .multimedia as I18nRecord
               )}
             </div>
           )}
@@ -415,7 +415,7 @@ export default function FileImages({
 
 export function displayBase64Content(
   base64Content: string,
-  mimeType: string,
+  mimeType: string
 ): string {
   return `data:${mimeType};base64,${base64Content}`;
 }

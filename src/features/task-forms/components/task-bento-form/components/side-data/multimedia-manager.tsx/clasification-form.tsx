@@ -46,7 +46,7 @@ export default function ClasificationForm({
       lastModified: file.lastModified,
       category: null,
       file,
-    })),
+    }))
   );
   const [errorOnCondition, setErrorOnCondition] = useState<number[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -69,7 +69,7 @@ export default function ClasificationForm({
         lastModified: file.lastModified,
         category: null,
         file,
-      })),
+      }))
     );
   }, [uploadableFiles]);
 
@@ -142,7 +142,7 @@ export default function ClasificationForm({
           onChange={(e) => {
             if (e.target.checked) {
               setSelectedDocs(
-                loadableDocs.map((doc) => doc.name + "-" + doc.lastModified),
+                loadableDocs.map((doc) => doc.name + "-" + doc.lastModified)
               );
             } else {
               setSelectedDocs([]);
@@ -163,9 +163,9 @@ export default function ClasificationForm({
                 loadableDocs.filter(
                   (loadableDoc: any) =>
                     !selectedDocs.includes(
-                      loadableDoc.name + "-" + loadableDoc.lastModified,
-                    ),
-                ),
+                      loadableDoc.name + "-" + loadableDoc.lastModified
+                    )
+                )
               );
               setSelectedDocs([]);
             }}
@@ -178,11 +178,11 @@ export default function ClasificationForm({
               setLoadableDocs(
                 loadableDocs.map((loadableDoc) =>
                   selectedDocs.includes(
-                    loadableDoc.name + "-" + loadableDoc.lastModified,
+                    loadableDoc.name + "-" + loadableDoc.lastModified
                   )
                     ? { ...loadableDoc, category }
-                    : loadableDoc,
-                ),
+                    : loadableDoc
+                )
               );
             }}
             categories={Object.values(categories)}
@@ -234,7 +234,7 @@ export default function ClasificationForm({
             "application/pdf",
           ];
           const validFiles = files.filter((file) =>
-            allowedTypes.includes(file.type),
+            allowedTypes.includes(file.type)
           );
 
           if (validFiles.length !== files.length) {
@@ -242,8 +242,8 @@ export default function ClasificationForm({
               tr(
                 "only_jpg_jpeg_png_pdf_allowed",
                 ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord,
-              ),
+                  .multimedia as I18nRecord
+              )
             );
             return;
           }
@@ -267,8 +267,8 @@ export default function ClasificationForm({
                   loadableDoc.name + "-" + loadableDoc.lastModified ===
                   doc.name + "-" + doc.lastModified
                     ? { ...loadableDoc, category }
-                    : loadableDoc,
-                ),
+                    : loadableDoc
+                )
               );
             }}
           />
@@ -285,7 +285,7 @@ export function getCategories(dict: I18nRecord) {
       label: tr(
         "PROOF_OF_DELIVERY",
         ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord,
+          .categories as I18nRecord
       ),
     },
     PROOF_OF_PICKUP: {
@@ -293,7 +293,7 @@ export function getCategories(dict: I18nRecord) {
       label: tr(
         "PROOF_OF_PICKUP",
         ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord,
+          .categories as I18nRecord
       ),
     },
     CARGO_MANIFEST: {
@@ -301,7 +301,7 @@ export function getCategories(dict: I18nRecord) {
       label: tr(
         "CARGO_MANIFEST",
         ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord,
+          .categories as I18nRecord
       ),
     },
     OTHER: {
@@ -309,7 +309,7 @@ export function getCategories(dict: I18nRecord) {
       label: tr(
         "OTHER",
         ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord,
+          .categories as I18nRecord
       ),
     },
   };

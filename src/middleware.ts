@@ -41,7 +41,7 @@ export default auth(async function middleware(request: NextRequest) {
 
   pathname = pathname.replace(
     /^\/app(\/.*)?$/,
-    (match, captured: string | undefined) => captured || "/",
+    (match, captured: string | undefined) => captured || "/"
   );
 
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
@@ -60,7 +60,7 @@ export default auth(async function middleware(request: NextRequest) {
   // const contentLength = "-"; // not available at middleware stage
   // const requestId = request.headers.get("x-request-id") || generateRequestId();
   const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`,
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
   let response: NextResponse;

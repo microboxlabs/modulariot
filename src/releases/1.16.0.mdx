@@ -22,6 +22,7 @@ Interacción fluida para revisión y consulta de archivos desde el expediente.
 ## ✅ Sistema de validaciones con íconos de estado
 
 Se integró un nuevo sistema visual para mostrar el estado de validaciones críticas directamente en el expediente, incluyendo:
+
 - ✔️ Validación aprobada: ícono de check verde.
 - ⚠️ Validación no aprobada: ícono de exclamación amarillo.
 
@@ -63,13 +64,13 @@ Esto mejora la lectura rápida de viajes que ya han alcanzado su punto final.
 
 ### 🔺 Síntomas en viajes fuera del estado “Viaje iniciado”
 
-Se corrigió un error donde los síntomas eran visibles en etapas incorrectas como  Viaje finalizado, Presentar conductor o En revisión.
+Se corrigió un error donde los síntomas eran visibles en etapas incorrectas como Viaje finalizado, Presentar conductor o En revisión.
 
 Ahora, los síntomas solo se mostrarán cuando el viaje esté en estado “Viaje iniciado”, preservando la lógica del flujo.
 
 ### 🔺 Viajes iniciados fuera de ECM (Sitrack)
 
-Se resolvió un problema donde viajes iniciados desde  Sitrack  no avanzaban correctamente a la columna “Viaje iniciado” y quedaban atascados en etapas como Asignar conductor o Presentar conductor.
+Se resolvió un problema donde viajes iniciados desde Sitrack no avanzaban correctamente a la columna “Viaje iniciado” y quedaban atascados en etapas como Asignar conductor o Presentar conductor.
 
 Ahora el flujo se mantiene alineado con el backend y los viajes avanzan automáticamente.
 

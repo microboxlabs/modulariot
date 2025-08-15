@@ -153,7 +153,7 @@ export default function SovosStartVerificationCard({
             getRut(),
             "coordinador-web",
             "coordinador-web-location",
-            result,
+            result
           );
           stepperController.toNextStep(false, { ...result, Rut: getRut() });
         }

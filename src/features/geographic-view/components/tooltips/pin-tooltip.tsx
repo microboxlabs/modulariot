@@ -97,7 +97,7 @@ export default function PinTooltip({
                     return types[symptom.symptom_name] || symptom.symptom_name;
                   })()}
                 </div>
-              ),
+              )
             )}
           </div>
         )}

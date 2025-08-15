@@ -2,12 +2,7 @@
   "summary": {
     "totalFiles": 35,
     "totalStatements": 73,
-    "contexts": [
-      "map",
-      "task",
-      "general",
-      "api"
-    ]
+    "contexts": ["map", "task", "general", "api"]
   },
   "files": [
     {

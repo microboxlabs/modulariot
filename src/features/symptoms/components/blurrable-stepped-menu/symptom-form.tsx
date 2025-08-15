@@ -39,7 +39,7 @@ export default function SymptomForm({
 
   // call driver
   const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
-    treatments_templates?.data?.message ?? "",
+    treatments_templates?.data?.message ?? ""
   );
   const [driverResponse, setDriverResponse] = useState<string>("");
 

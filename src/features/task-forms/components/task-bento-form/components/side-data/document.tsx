@@ -50,7 +50,7 @@ export default function Document({
     if (document.data) {
       const pdfDataUrl = displayBase64Content(
         document.data,
-        document.file.entry.content.mimeType,
+        document.file.entry.content.mimeType
       );
       setSelected({
         url: pdfDataUrl,

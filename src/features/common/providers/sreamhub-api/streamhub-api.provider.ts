@@ -44,7 +44,7 @@ export class AuthToken {
     if (!response.ok) {
       const errorData = await response.text();
       throw new Error(
-        `Request failed with status ${response.status}: ${errorData}`,
+        `Request failed with status ${response.status}: ${errorData}`
       );
     }
 

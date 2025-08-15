@@ -56,16 +56,16 @@ function get_face(state: string, lost_signal: boolean = false) {
 function get_background(
   background_color: string,
   outer_line_color: string,
-  lost_signal: boolean,
+  lost_signal: boolean
 ) {
   return `${BACKGROUND_PATHS.background}${BACKGROUND_PATHS.innerColor(
-    lost_signal ? disconnected_pin.main_color : background_color,
+    lost_signal ? disconnected_pin.main_color : background_color
   )}${BACKGROUND_PATHS.outerLine(outer_line_color)}`;
 }
 
 export function createSVGIcon(
   speed_limit_condition: number,
-  lost_signal: boolean,
+  lost_signal: boolean
 ) {
   const state = STATE_MAP[speed_limit_condition] || "Happy";
 

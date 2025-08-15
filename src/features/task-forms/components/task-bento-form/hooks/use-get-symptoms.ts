@@ -7,7 +7,7 @@ import useSWR from "swr";
 export function useGetSymptoms(tripId: string) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     `/app/api/task/conditions?tripId=${tripId}`,
-    fetcher,
+    fetcher
   );
 
   return {

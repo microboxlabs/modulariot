@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!body?.bpmPackage || !body?.title) {
     return NextResponse.json(
       { error: "bpmPackage and title are required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -33,12 +33,12 @@ export async function POST(req: NextRequest) {
     if (e?.status === 401) {
       return NextResponse.json(
         { error: "Unauthorized", status: 401 },
-        { status: 401 },
+        { status: 401 }
       );
     }
     return NextResponse.json(
       { error: "Failed to create forum topic" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

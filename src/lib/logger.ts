@@ -122,7 +122,7 @@ export const logRequest = (req: any, res: any, responseTime?: number) => {
       res,
       responseTime,
     },
-    `${req.method} ${req.url}`,
+    `${req.method} ${req.url}`
   );
 };
 
@@ -131,7 +131,7 @@ export const logApiCall = (
   url: string,
   statusCode: number,
   responseTime: number,
-  context?: Record<string, any>,
+  context?: Record<string, any>
 ) => {
   apiLogger.info(
     {
@@ -141,7 +141,7 @@ export const logApiCall = (
       responseTime,
       ...context,
     },
-    `API ${method} ${url} - ${statusCode} (${responseTime}ms)`,
+    `API ${method} ${url} - ${statusCode} (${responseTime}ms)`
   );
 };
 

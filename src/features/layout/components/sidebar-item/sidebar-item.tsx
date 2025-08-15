@@ -27,7 +27,7 @@ export default function SidebarItem({
 
   // Check if user has any blocked groups
   const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group),
+    userGroups.includes(group)
   );
   if (hasBlockedGroup) {
     return null; // Don't render the item if user has blocked groups
@@ -50,7 +50,7 @@ export default function SidebarItem({
         {items.map((item) => {
           // Check if user has any blocked groups for this sub-item
           const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
-            (group) => userGroups.includes(group),
+            (group) => userGroups.includes(group)
           );
           if (hasSubItemBlockedGroup) {
             return null; // Don't render the sub-item if user has blocked groups
@@ -70,7 +70,7 @@ export default function SidebarItem({
               icon={item.icon}
               className={twMerge(
                 "justify-center [&>*]:font-normal",
-                pathname === item.href && "bg-gray-100 dark:bg-gray-700",
+                pathname === item.href && "bg-gray-100 dark:bg-gray-700"
               )}
               label={getTotalCountBagaes(totals[item.label])}
               labelColor={

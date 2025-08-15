@@ -25,7 +25,7 @@ function getRelativeDayText(date: Date, lang: string): string {
   givenDate.setHours(0, 0, 0, 0);
 
   const diffDays = Math.round(
-    (givenDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    (givenDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (diffDays === 0) {
@@ -70,7 +70,7 @@ export default function SymptomsData({ data, dict, lang }: SymptomsDataProps) {
       acc[timeBlock].push(item);
       return acc;
     },
-    {} as Record<string, SymptomsICUItemResponse[]>,
+    {} as Record<string, SymptomsICUItemResponse[]>
   );
 
   return (

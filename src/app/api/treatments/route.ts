@@ -64,7 +64,7 @@ export async function POST(request: Request) {
           status: 500,
           message: "Failed to fetch symptoms data",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
   } catch (error) {
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         status: 500,
         message: "Failed to fetch symptoms data",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

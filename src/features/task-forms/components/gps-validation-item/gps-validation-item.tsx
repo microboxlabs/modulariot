@@ -38,7 +38,7 @@ export default function GpsValidationItem({
     const entity_info_setting = async () => {
       try {
         const entity_info = (await getEntityInfo(
-          task.mintral_truckLicensePlate as string,
+          task.mintral_truckLicensePlate as string
         )) as GetEntityInfoResponse;
         setEntityInfo(entity_info);
       } catch (error) {

@@ -1,27 +1,27 @@
-/* import { describe, it, expect, vi, beforeEach } from 'vitest'
+/\* import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the auth service - you would import the actual service here
 // import { authService } from '@/features/auth/services/auth.service'
 
 // Example auth service for testing
 const authService = {
-  login: vi.fn(),
-  logout: vi.fn(),
-  isAuthenticated: vi.fn(),
-  getUser: vi.fn(),
+login: vi.fn(),
+logout: vi.fn(),
+isAuthenticated: vi.fn(),
+getUser: vi.fn(),
 }
 
 describe('AuthService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+beforeEach(() => {
+vi.clearAllMocks()
+})
 
-  describe('login', () => {
-    it('should call login with correct credentials', async () => {
-      const credentials = {
-        email: 'test@example.com',
-        password: 'password123'
-      }
+describe('login', () => {
+it('should call login with correct credentials', async () => {
+const credentials = {
+email: 'test@example.com',
+password: 'password123'
+}
 
       authService.login.mockResolvedValue({ success: true, user: { id: 1, email: credentials.email } })
 
@@ -42,22 +42,24 @@ describe('AuthService', () => {
       await expect(authService.login(credentials)).rejects.toThrow('Invalid credentials')
       expect(authService.login).toHaveBeenCalledWith(credentials)
     })
-  })
 
-  describe('logout', () => {
-    it('should call logout successfully', async () => {
-      authService.logout.mockResolvedValue({ success: true })
+})
+
+describe('logout', () => {
+it('should call logout successfully', async () => {
+authService.logout.mockResolvedValue({ success: true })
 
       const result = await authService.logout()
 
       expect(authService.logout).toHaveBeenCalled()
       expect(result).toEqual({ success: true })
     })
-  })
 
-  describe('isAuthenticated', () => {
-    it('should return true when user is authenticated', () => {
-      authService.isAuthenticated.mockReturnValue(true)
+})
+
+describe('isAuthenticated', () => {
+it('should return true when user is authenticated', () => {
+authService.isAuthenticated.mockReturnValue(true)
 
       const result = authService.isAuthenticated()
 
@@ -73,15 +75,16 @@ describe('AuthService', () => {
       expect(authService.isAuthenticated).toHaveBeenCalled()
       expect(result).toBe(false)
     })
-  })
 
-  describe('getUser', () => {
-    it('should return user data when authenticated', async () => {
-      const mockUser = {
-        id: 1,
-        email: 'test@example.com',
-        name: 'Test User'
-      }
+})
+
+describe('getUser', () => {
+it('should return user data when authenticated', async () => {
+const mockUser = {
+id: 1,
+email: 'test@example.com',
+name: 'Test User'
+}
 
       authService.getUser.mockResolvedValue(mockUser)
 
@@ -99,5 +102,6 @@ describe('AuthService', () => {
       expect(authService.getUser).toHaveBeenCalled()
       expect(result).toBeNull()
     })
-  })
-})  */
+
+})
+}) \*/

@@ -23,7 +23,7 @@ export default async function NotFound() {
     <div
       className={twMerge(
         inter.className,
-        "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col",
+        "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col"
       )}
     >
       <SimpleLayout params={{ lang }}>

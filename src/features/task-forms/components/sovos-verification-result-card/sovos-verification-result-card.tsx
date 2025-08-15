@@ -34,7 +34,7 @@ export default function SovosVerificationResultCard({
     TaskOutcome | TaskOutcomeV2 | undefined
   >(undefined);
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>(
-    undefined,
+    undefined
   );
 
   let title;
@@ -77,7 +77,7 @@ export default function SovosVerificationResultCard({
 
   const handleSelection = (
     outcome: TaskOutcome | TaskOutcomeV2,
-    outcomeLabel: string,
+    outcomeLabel: string
   ) => {
     setOutcome(outcome);
     setOutcomeLabel(outcomeLabel);
@@ -126,7 +126,7 @@ export default function SovosVerificationResultCard({
                                 handleSelection(
                                   OUTCOME_RETURN_TO_MISSION_CONTROL,
                                   (msg?.outcome as I18nRecord)
-                                    .returnToMissionControl as string,
+                                    .returnToMissionControl as string
                                 );
                               },
                             },
@@ -141,7 +141,7 @@ export default function SovosVerificationResultCard({
                                 handleSelection(
                                   OUTCOME_ASSIGN_DRIVER_V2,
                                   (msg?.outcome as I18nRecord)
-                                    .assignDriver as string,
+                                    .assignDriver as string
                                 );
                               },
                             },
@@ -156,7 +156,7 @@ export default function SovosVerificationResultCard({
                               handleSelection(
                                 OUTCOME_CONFIRM_MONITORING_FINALIZATION,
                                 (msg?.outcome as I18nRecord)
-                                  .confirmMonitoringFinalization as string,
+                                  .confirmMonitoringFinalization as string
                               );
                             },
                           },

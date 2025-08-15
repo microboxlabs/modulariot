@@ -97,7 +97,7 @@ export default function PageContent({
     showFinishedTasks,
     page,
     pageSize,
-    searchParams.toString(),
+    searchParams.toString()
   );
 
   const {
@@ -246,7 +246,7 @@ export default function PageContent({
                     <div className="flex-1">
                       {tr(
                         `kanban.${board.title}${compactKanbanView && (dictionary.base.kanban as I18nRecord)[board.title + "Compact"] ? "Compact" : ""}`,
-                        dictionary.base,
+                        dictionary.base
                       )}
                     </div>
                     <TaskCounter
@@ -264,7 +264,7 @@ export default function PageContent({
                         setList((list) => {
                           const newList = [...list];
                           const index = newList.findIndex(
-                            (item) => item.id === board.id,
+                            (item) => item.id === board.id
                           );
                           newList[index].tasks = tasks;
                           return newList;
@@ -321,8 +321,8 @@ export default function PageContent({
                     acc[board.title] = board;
                     return acc;
                   },
-                  {} as Record<string, KanbanBoard>,
-                ),
+                  {} as Record<string, KanbanBoard>
+                )
               )}
               dict={dictionary.base}
               lang={lang}

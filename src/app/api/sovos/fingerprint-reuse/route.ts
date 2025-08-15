@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   if (process.env.TOTEM_PILOT_ENABLED !== "true") {
     return NextResponse.json(
       { autoSigned: false, totemPilot: false },
-      { status: 200 },
+      { status: 200 }
     );
   }
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

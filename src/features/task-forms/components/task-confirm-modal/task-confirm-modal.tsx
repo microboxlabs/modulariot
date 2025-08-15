@@ -89,7 +89,7 @@ export default function TaskConfirmModal({
           SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
             taskType
               ?.replace("wfship2:", "")
-              .replace("Task", "") as ShippingCoordinatorProcessTaskV2,
+              .replace("Task", "") as ShippingCoordinatorProcessTaskV2
           )
         ) {
           router.push(`/shipping`);

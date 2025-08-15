@@ -77,13 +77,13 @@ function getTimeDifference(task: TaskResponse) {
 
   const years = Math.floor(diffInMs / (1000 * 60 * 60 * 24 * 365));
   const months = Math.floor(
-    (diffInMs % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30),
+    (diffInMs % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30)
   );
   const days = Math.floor(
-    (diffInMs % (1000 * 60 * 60 * 24 * 30)) / (1000 * 60 * 60 * 24),
+    (diffInMs % (1000 * 60 * 60 * 24 * 30)) / (1000 * 60 * 60 * 24)
   );
   const hours = Math.floor(
-    (diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+    (diffInMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
   );
   const minutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diffInMs % (1000 * 60)) / 1000);

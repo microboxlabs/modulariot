@@ -96,7 +96,7 @@ export default function TagManager({
                 {typeof tag.text === "string" ? tag.text : tag.text}
               </span>
             </div>
-          ),
+          )
       )}
       {hiddenCount > 0 && (
         <Tooltip
@@ -127,7 +127,7 @@ export default function TagManager({
                         {typeof tag.text === "string" ? tag.text : tag.text}
                       </span>
                     </div>
-                  ),
+                  )
               )}
             </div>
           }

@@ -21,7 +21,7 @@ export default function FileViewer({
       const userAgent = navigator.userAgent.toLowerCase();
       const isMobileDevice =
         /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-          userAgent,
+          userAgent
         );
       const isSmallScreen = window.innerWidth <= 768;
       setIsMobile(isMobileDevice || isSmallScreen);

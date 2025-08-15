@@ -63,7 +63,7 @@ const ValidationCategory = ({
             />
           ) : (
             <ValidationItemComponent key={item.key} item={item} msg={msg} />
-          ),
+          )
         )}
       </div>
     </div>

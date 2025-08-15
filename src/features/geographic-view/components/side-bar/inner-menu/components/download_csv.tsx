@@ -8,7 +8,7 @@ import { RiFileChartLine } from "react-icons/ri";
 function convertJSONToCSV(
   jsonData: MapPosition[],
   columnHeaders: string[],
-  dict: I18nRecord,
+  dict: I18nRecord
 ): string {
   // Check if JSON data is empty
   if (jsonData.length === 0) {
@@ -53,7 +53,7 @@ function convertJSONToCSV(
       return rowData
         .map(
           (field: string) =>
-            (row as unknown as Record<string, string>)[field] || "",
+            (row as unknown as Record<string, string>)[field] || ""
         )
         .join(";");
     })

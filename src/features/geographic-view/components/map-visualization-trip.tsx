@@ -106,7 +106,7 @@ type MapVisualizationProps = {
   dict: I18nRecord;
   selectedTreatmentIndex: ConditionsAgg | null;
   setSelectedTreatment?: (
-    treatment: TreatmentsGeneralResponseItem | null,
+    treatment: TreatmentsGeneralResponseItem | null
   ) => void;
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
@@ -130,7 +130,7 @@ function zoom_on_pin(
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
   camera_movement: boolean,
-  zoom?: number,
+  zoom?: number
 ) {
   if (latitude && longitude) {
     const newViewState = {
@@ -163,7 +163,7 @@ function move_to_pin(
   },
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
-  camera_movement: boolean,
+  camera_movement: boolean
 ) {
   if (camera_movement) {
     setViewState({
@@ -231,7 +231,7 @@ export default function MapVisualizationTrip({
         },
         setViewState,
         viewState,
-        true,
+        true
       );
     }
   }, [positions, filteredLocationData]);
@@ -261,7 +261,7 @@ export default function MapVisualizationTrip({
           };
         }) || [],
     }),
-    [positions],
+    [positions]
   );
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function MapVisualizationTrip({
         const matchingIndex = positions.findIndex(
           (pos) =>
             pos.longitude === filteredItem.longitude &&
-            pos.latitude === filteredItem.latitude,
+            pos.latitude === filteredItem.latitude
         );
         if (matchingIndex !== -1) {
           matchingIndices.add(matchingIndex);
@@ -355,7 +355,7 @@ export default function MapVisualizationTrip({
           updateTriggers: {
             showGeofences,
           },
-        }),
+        })
       );
     }
 
@@ -374,7 +374,7 @@ export default function MapVisualizationTrip({
 
             setHoverInfo(info);
             setSelectedPulse(
-              info.object?.properties.id ? [info.object?.properties.id] : [],
+              info.object?.properties.id ? [info.object?.properties.id] : []
             );
             zoom_on_pin(
               info.object?.geometry.coordinates[0] ?? 0,
@@ -382,7 +382,7 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
-              camera_movement,
+              camera_movement
             );
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
               setSelectedTreatment(null);
@@ -398,7 +398,7 @@ export default function MapVisualizationTrip({
             showStops,
             displayPosition,
           },
-        }),
+        })
       );
     }
 
@@ -419,7 +419,7 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
-              camera_movement,
+              camera_movement
             );
             return true;
           },
@@ -427,7 +427,7 @@ export default function MapVisualizationTrip({
           updateTriggers: {
             showGeofences,
           },
-        }),
+        })
       );
     }
 
@@ -465,13 +465,13 @@ export default function MapVisualizationTrip({
               false,
               setViewState,
               viewState,
-              camera_movement,
+              camera_movement
             );
           },
           updateTriggers: {
             data: positions,
           },
-        }),
+        })
       );
     }
 

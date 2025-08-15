@@ -45,7 +45,8 @@
     transform: rotate(0deg) translateX(-50px) translateY(-50px) rotate(0deg);
   }
   to {
-    transform: rotate(360deg) translateX(-50px) translateY(-50px) rotate(-360deg);
+    transform: rotate(360deg) translateX(-50px) translateY(-50px)
+      rotate(-360deg);
   }
 }
 
@@ -54,7 +55,8 @@
     transform: rotate(0deg) translateX(-80px) translateY(-80px) rotate(0deg);
   }
   to {
-    transform: rotate(360deg) translateX(-80px) translateY(-80px) rotate(-360deg);
+    transform: rotate(360deg) translateX(-80px) translateY(-80px)
+      rotate(-360deg);
   }
 }
 
@@ -72,7 +74,8 @@
     transform: rotate(0deg) translateX(110px) translateY(110px) rotate(0deg);
   }
   to {
-    transform: rotate(360deg) translateX(110px) translateY(110px) rotate(-360deg);
+    transform: rotate(360deg) translateX(110px) translateY(110px)
+      rotate(-360deg);
   }
 }
 
@@ -81,6 +84,7 @@
     transform: rotate(0deg) translateX(-110px) translateY(-110px) rotate(0deg);
   }
   to {
-    transform: rotate(360deg) translateX(-110px) translateY(-110px) rotate(-360deg);
+    transform: rotate(360deg) translateX(-110px) translateY(-110px)
+      rotate(-360deg);
   }
 }

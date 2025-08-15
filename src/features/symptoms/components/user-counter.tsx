@@ -104,7 +104,7 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
 }
 
 function getUserState(
-  user: any,
+  user: any
 ): "offline" | "connected_treating" | "connected_free" | "inactive" {
   switch (user.status) {
     case "offline":

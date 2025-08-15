@@ -42,7 +42,7 @@ export function useDeviceDetection(): DeviceInfo {
     if (typeof window === "undefined") return;
 
     const detectOperatingSystem = (
-      userAgent: string,
+      userAgent: string
     ): { os: OperatingSystem; version?: string } => {
       // Method 1: Use navigator.platform (more reliable for desktop OS)
       const platform = navigator.platform;
@@ -144,10 +144,10 @@ export function useDeviceDetection(): DeviceInfo {
       // Method 1: User Agent Detection
       const isMobileUA =
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          userAgent,
+          userAgent
         );
       const isTabletUA = /iPad|Android(?=.*\bMobile\b)(?=.*\bSafari\b)/i.test(
-        userAgent,
+        userAgent
       );
 
       // Method 2: Screen Size Detection
@@ -259,7 +259,7 @@ export const isMobileDevice = (): boolean => {
 
   return (
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      userAgent,
+      userAgent
     ) ||
     (hasTouchScreen && hasCoarsePointer)
   );

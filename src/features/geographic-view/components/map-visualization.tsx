@@ -77,7 +77,7 @@ type MapVisualizationProps = {
 function zoom_on_pin(
   object: any,
   setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType,
+  viewState: ViewStateType
 ) {
   if (object) {
     const longitude = object.geometry.coordinates[0];
@@ -100,7 +100,7 @@ function zoom_on_pin(
 function zoom_on_position(
   positions: MapPosition[],
   setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType,
+  viewState: ViewStateType
 ) {
   if (positions && positions.length > 0) {
     const validPositions = positions.filter(
@@ -108,7 +108,7 @@ function zoom_on_position(
         typeof pos.longitude === "number" &&
         typeof pos.latitude === "number" &&
         !isNaN(pos.longitude) &&
-        !isNaN(pos.latitude),
+        !isNaN(pos.latitude)
     );
 
     if (validPositions.length > 0) {
@@ -165,7 +165,7 @@ export default function MapVisualization({
   useEffect(() => {
     if (search && search != "") {
       const filteredPositions = originalPositions.filter((position: any) =>
-        position.asset_id.toLowerCase().includes(search.toLowerCase()),
+        position.asset_id.toLowerCase().includes(search.toLowerCase())
       );
       setPositions(filteredPositions || []);
       if (filteredPositions && filteredPositions.length > 0) {

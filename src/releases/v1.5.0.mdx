@@ -1,33 +1,37 @@
 # Release Notes v1.5.0 – ModularIoT
+
 ## Fecha de lanzamiento: 2025-04-20
 
 ### 1. Mejoras en la Experiencia de Usuario y Visualización
+
 - **Tooltip corregido en condiciones Código Negro (light mode)**:
-Ahora el texto de los tooltips tiene un contraste adecuado en el modo claro, mejorando la legibilidad al pasar el cursor sobre los botones de íconos en la barra lateral.
+  Ahora el texto de los tooltips tiene un contraste adecuado en el modo claro, mejorando la legibilidad al pasar el cursor sobre los botones de íconos en la barra lateral.
 - **Tooltip sobre pulsos en el mapa de tratamiento**:
-Se agregaron tooltips flotantes en los pulsos del mapa que muestran la condición, el estado del viaje y la hora del evento.
+  Se agregaron tooltips flotantes en los pulsos del mapa que muestran la condición, el estado del viaje y la hora del evento.
 - **Tooltip de pines en vista geográfica**:
-Se rediseñó el contenido del tooltip de los pines para mostrar el síntoma y la condición asociados.
+  Se rediseñó el contenido del tooltip de los pines para mostrar el síntoma y la condición asociados.
 - **Rediseño de la vista Kanban compacta (minimizada)**:
-Se incorpora un toggle que permite cambiar a una vista compacta de las cards en Kanban, facilitando la visualización de más cards simultáneamente.
+  Se incorpora un toggle que permite cambiar a una vista compacta de las cards en Kanban, facilitando la visualización de más cards simultáneamente.
 - **Actualización de etiqueta en timeline**:
-El texto "Fin de viaje" ha sido reemplazado por "Último evento registrado" para evitar confusiones.
+  El texto "Fin de viaje" ha sido reemplazado por "Último evento registrado" para evitar confusiones.
 
 ---
 
 ### 2. Gestión de Validaciones y Flujos en Kanban
+
 - **Modal con motivo de retorno en verificación de identidad (huella/Sovos)**:
-Se agregó un dropdown en el modal al seleccionar "Devolver a torre de control" con razones específicas y un campo de descripción.
+  Se agregó un dropdown en el modal al seleccionar "Devolver a torre de control" con razones específicas y un campo de descripción.
 - **Opción para devolver a validación de transporte desde el Overlord**:
-Bajo el botón "Más opciones", se incorpora la nueva opción "Devolver a validación de transporte" junto a un modal para especificar el motivo y una descripción.
+  Bajo el botón "Más opciones", se incorpora la nueva opción "Devolver a validación de transporte" junto a un modal para especificar el motivo y una descripción.
 - **Nueva opción para escalar a superior en Validación de Transporte**:
-Se agregó el botón "Más opciones" en dicha columna con la opción "Escalar a superior" que traslada automáticamente la card a la columna del Overlord.
+  Se agregó el botón "Más opciones" en dicha columna con la opción "Escalar a superior" que traslada automáticamente la card a la columna del Overlord.
 - **Ajuste de acción por defecto en cards del Overlord**:
-Ahora el botón "Continuar" autoriza por defecto "con observaciones". La opción "Autorizar sin GPS" ha sido movida al menú "Más opciones".
+  Ahora el botón "Continuar" autoriza por defecto "con observaciones". La opción "Autorizar sin GPS" ha sido movida al menú "Más opciones".
 
 ---
 
 ## Estado General
+
 - Todas las funcionalidades han sido implementadas y probadas con datos reales.
 - Se mantuvo la consistencia visual en ambas vistas (modo claro y oscuro).
 - Se eliminaron tareas relacionadas con el botón FAB, siendo reemplazadas por interacciones contextuales según cada vista.

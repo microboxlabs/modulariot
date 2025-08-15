@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
         url: request.url,
         headers: Object.fromEntries(request.headers.entries()),
       },
-      "Example API route called",
+      "Example API route called"
     );
 
     // Simulate some processing
@@ -41,12 +41,12 @@ export async function GET(request: NextRequest) {
         url: request.url,
         responseTime,
       },
-      "Error in example API route",
+      "Error in example API route"
     );
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         url: request.url,
         body,
       },
-      "POST request to example API route",
+      "POST request to example API route"
     );
 
     // Simulate processing
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
         responseTime,
       },
-      { status: 201 },
+      { status: 201 }
     );
   } catch (error) {
     const responseTime = Date.now() - startTime;
@@ -98,12 +98,12 @@ export async function POST(request: NextRequest) {
         url: request.url,
         responseTime,
       },
-      "Error processing POST request",
+      "Error processing POST request"
     );
 
     return NextResponse.json(
       { error: "Failed to process request" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 }

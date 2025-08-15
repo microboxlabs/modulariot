@@ -27,7 +27,7 @@
     "finished": false,
     "state": "pending",
     "tasks": []
-  },  
+  },
   {
     "id": 5,
     "title": "monitorTrip",
@@ -41,7 +41,7 @@
     "finished": false,
     "state": "started",
     "tasks": []
-  },  
+  },
   {
     "id": 7,
     "title": "closeMonitoring",

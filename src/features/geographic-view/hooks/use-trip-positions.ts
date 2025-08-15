@@ -12,7 +12,7 @@ export function useTripPositions(tripId: string, assetId: string) {
     let size = 0;
 
     eventSourceRef.current = new EventSource(
-      `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`,
+      `/app/api/map/trip?tripId=${tripId}&assetId=${assetId}`
     );
 
     const eventSource = eventSourceRef.current;

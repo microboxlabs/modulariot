@@ -32,7 +32,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     SHIPPING_COORDINATOR_PROCESS_TASKS,
     true,
     1,
-    0,
+    0
   );
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
@@ -53,14 +53,14 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       .reduce((a, b) => a + b, 0); */
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
-        SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any),
+        SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any)
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
 
     totals["delivery"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
-        DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as any),
+        DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as any)
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
@@ -78,7 +78,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     <div
       className={twMerge(
         "transition-all duration-200 ease-in-out overflow-hidden h-full",
-        isCollapsed ? "w-0" : "w-64",
+        isCollapsed ? "w-0" : "w-64"
       )}
     >
       <Sidebar

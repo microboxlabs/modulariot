@@ -8,43 +8,45 @@
 
 # 🧾 Evolutivos – Nuevas funcionalidades implementadas
 
+## 🧠 Sistema de Lectura de QR en Tótem
 
-  ## 🧠 Sistema de Lectura de QR en Tótem
+Se implementó un sistema de validación inicial a través de la lectura del
+código QR de la cédula de identidad del conductor directamente en el
+tótem.
 
-  Se implementó un sistema de validación inicial a través de la lectura del 
-  código QR de la cédula de identidad del conductor directamente en el 
-  tótem.
-  
-  Esta mejora agregó una capa de seguridad y eficiencia en los procesos logísticos.
-  - El flujo comienza con la presentación del documento por parte del conductor.
-  - El tótem escanea automáticamente el QR, validando su autenticidad.
-  - Se incorporaron mensajes visuales y señales auditivas para confirmar el éxito de la lectura.
-  - En caso de fallos en la lectura, se habilitó una opción alternativa de ingreso manual del número de documento o número de serie.
+Esta mejora agregó una capa de seguridad y eficiencia en los procesos logísticos.
 
-  Esta funcionalidad sentó las bases para el futuro flujo de validación dual (Tótem + Móvil), asegurando robustez desde el primer punto de contacto.
+- El flujo comienza con la presentación del documento por parte del conductor.
+- El tótem escanea automáticamente el QR, validando su autenticidad.
+- Se incorporaron mensajes visuales y señales auditivas para confirmar el éxito de la lectura.
+- En caso de fallos en la lectura, se habilitó una opción alternativa de ingreso manual del número de documento o número de serie.
 
----
-
-  ## 🧠 Notificaciones Toast para Cambios de Estado en Kanban
-
-  Se desarrolló un sistema de notificaciones tipo toast que informa en tiempo real cada vez que una tarjeta cambia de estado dentro del tablero Kanban, mejorando significativamente la claridad operativa.
-  - Las notificaciones aparecen de forma inmediata tras un cambio de estado (avance o retroceso).
-  - El mensaje refleja con precisión la acción ejecutada.
-  - Las notificaciones desaparecen automáticamente tras 5 segundos.
-  - La implementación no afecta el rendimiento de la plataforma.
-  - Los cambios de estado quedan registrados en los logs del backend para asegurar trazabilidad y control interno.
-
-  Con esta funcionalidad, los usuarios obtienen retroalimentación visual instantánea, lo que mejora la eficiencia en la gestión de tareas y procesos.
+Esta funcionalidad sentó las bases para el futuro flujo de validación dual (Tótem + Móvil), asegurando robustez desde el primer punto de contacto.
 
 ---
 
-# 🧾  Correctivos
-  No se incluyeron correctivos en esta versión.
+## 🧠 Notificaciones Toast para Cambios de Estado en Kanban
+
+Se desarrolló un sistema de notificaciones tipo toast que informa en tiempo real cada vez que una tarjeta cambia de estado dentro del tablero Kanban, mejorando significativamente la claridad operativa.
+
+- Las notificaciones aparecen de forma inmediata tras un cambio de estado (avance o retroceso).
+- El mensaje refleja con precisión la acción ejecutada.
+- Las notificaciones desaparecen automáticamente tras 5 segundos.
+- La implementación no afecta el rendimiento de la plataforma.
+- Los cambios de estado quedan registrados en los logs del backend para asegurar trazabilidad y control interno.
+
+Con esta funcionalidad, los usuarios obtienen retroalimentación visual instantánea, lo que mejora la eficiencia en la gestión de tareas y procesos.
+
+---
+
+# 🧾 Correctivos
+
+No se incluyeron correctivos en esta versión.
 
 ---
 
 # 🧾 Conclusión
-  
-  La versión 1.14.0 entregó mejoras clave en la experiencia visual del flujo Kanban y fortaleció la seguridad del sistema mediante un nuevo canal de validación QR en los tótems.
-  
-  Ambas funcionalidades consolidan la plataforma como una herramienta más confiable, clara y eficiente para los usuarios en terreno y en gestión operativa.
+
+La versión 1.14.0 entregó mejoras clave en la experiencia visual del flujo Kanban y fortaleció la seguridad del sistema mediante un nuevo canal de validación QR en los tótems.
+
+Ambas funcionalidades consolidan la plataforma como una herramienta más confiable, clara y eficiente para los usuarios en terreno y en gestión operativa.

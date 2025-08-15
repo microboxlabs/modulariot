@@ -18,7 +18,7 @@ const sendTeamsCall = async (phoneNumber: string) => {
   // Open Teams with the phone number parameter
   window.open(
     `https://teams.microsoft.com/l/call/0/0?users=4:${phoneNumber}`,
-    "_blank",
+    "_blank"
   );
 };
 

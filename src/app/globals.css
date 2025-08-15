@@ -6,7 +6,7 @@
   .no-dot {
     text-decoration: none;
   }
-  
+
   .no-dot::before {
     content: none;
   }

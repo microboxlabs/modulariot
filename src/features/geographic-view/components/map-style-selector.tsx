@@ -61,7 +61,7 @@ export default function MapStyleSelector({
     >
       {[...mapstyles]
         .sort((a, b) =>
-          a.value === selectedStyle ? -1 : b.value === selectedStyle ? 1 : 0,
+          a.value === selectedStyle ? -1 : b.value === selectedStyle ? 1 : 0
         )
         .map((style) => (
           <div

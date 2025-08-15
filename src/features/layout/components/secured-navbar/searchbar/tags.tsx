@@ -32,7 +32,7 @@ export default function Tags({
         .map(([key, value]) => {
           // Find the label for this parameter from navigation_params
           const navParam = navegation_params?.find(
-            (param) => param.param === key,
+            (param) => param.param === key
           );
           return {
             name: key,

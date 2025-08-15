@@ -38,7 +38,7 @@ export async function GET() {
           accept: "application/json",
           Authorization: ` Bearer ${token}`,
         },
-      },
+      }
     );
 
     if (!response.ok) {
@@ -54,7 +54,7 @@ export async function GET() {
         error: "Failed to fetch symptoms data",
         errorMessage: error,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

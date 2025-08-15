@@ -44,7 +44,7 @@ import { getTaskByLicensePlate } from "@/features/common/providers/alfresco-api/
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { plate: string } },
+  { params }: { params: { plate: string } }
 ) {
   const session = await auth();
   if (!session) {
@@ -54,7 +54,7 @@ export async function GET(
         data: [],
         message: "Unauthorized access",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -68,7 +68,7 @@ export async function GET(
           data: [],
           message: "License plate parameter is required",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -151,7 +151,7 @@ export async function GET(
           data: [],
           message: errorMessage,
         },
-        { status: response.status },
+        { status: response.status }
       );
     }
 
@@ -201,7 +201,7 @@ export async function GET(
             ? `Failed to fetch trip history: ${error.message}`
             : "Failed to fetch trip history: Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

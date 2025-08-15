@@ -25,7 +25,7 @@ export default function StepperNavigation({
                   ? "text-blue-600"
                   : stepEnabled && isError
                     ? "text-red-500"
-                    : "text-gray-500",
+                    : "text-gray-500"
               )}
             >
               {tr(routePath, msg, trParams ? trParams[routePath] : undefined)}

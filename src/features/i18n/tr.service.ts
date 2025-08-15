@@ -6,7 +6,7 @@ export const defaultLocale = "es";
 export function tr(
   path: string,
   dictionary: I18nRecord,
-  params?: Record<string, string>,
+  params?: Record<string, string>
 ): string {
   const keys = path.split(".");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +25,6 @@ export function tr(
 
   return Object.entries(params ?? {}).reduce(
     (acc, [key, value]) => acc.replace(`{${key}}`, value),
-    value as string,
+    value as string
   );
 }

@@ -96,12 +96,12 @@ export function getStaticDeliverData(): KanbanBoard[] {
 
 export function toShippingKanban(
   tasks: FastTasksResponse | FinishedWorkflowsResponse,
-  index: Record<string, KanbanBoard>,
+  index: Record<string, KanbanBoard>
 ): Record<string, KanbanBoard> {
   if ("tasks" in tasks) {
     tasks.tasks.forEach(
       (
-        task: { persistentState?: PersistentState } & Record<string, unknown>,
+        task: { persistentState?: PersistentState } & Record<string, unknown>
       ) => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         const taskFormKey =
@@ -113,12 +113,12 @@ export function toShippingKanban(
           tasks: [],
         };
         index[boardKey].tasks.push(toKanbanBoardTask(task));
-      },
+      }
     );
   } else {
     tasks.workflows.forEach(
       (
-        task: { persistentState?: PersistentState } & Record<string, unknown>,
+        task: { persistentState?: PersistentState } & Record<string, unknown>
       ) => {
         const taskFormKey =
           task.persistentState?.endStateName ?? (task.taskFormKey as string);
@@ -129,7 +129,7 @@ export function toShippingKanban(
           tasks: [],
         };
         index[boardKey].tasks.push(toKanbanBoardTask(task));
-      },
+      }
     );
   }
   return index;

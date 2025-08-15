@@ -32,7 +32,7 @@ export default async function TaskEditPage({
     if ((typeof task == "string" && task == "null") || task == null) {
       const taskResponse = await getFinishedWorkflowByInstanceId(
         session,
-        taskId,
+        taskId
       );
 
       if (taskResponse) {

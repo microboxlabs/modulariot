@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         status: 400,
         message: "Missing required parameters",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
   try {
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
           accept: "application/json",
           Authorization: ` Bearer ${token}`,
         },
-      },
+      }
     );
 
     if (!response.ok) {
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
         status: 500,
         message: error.message,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

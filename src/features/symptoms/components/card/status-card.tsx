@@ -51,7 +51,7 @@ export default function StatusCard({
         "active:bg-gray-200",
         "cursor-pointer",
         "transition-all",
-        "w-full",
+        "w-full"
       )}
     >
       <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
@@ -64,7 +64,7 @@ export default function StatusCard({
                 "rounded-full",
                 "border",
                 borderColor,
-                "flex items-center justify-center",
+                "flex items-center justify-center"
               )}
             >
               <span className="text-white text-[8px] font-medium">{icon}</span>

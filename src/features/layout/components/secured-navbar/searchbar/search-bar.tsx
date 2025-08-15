@@ -31,7 +31,7 @@ export default function SearchBar({
       }
       router.push(`${pathName}?${params.toString()}`);
     },
-    300,
+    300
   );
 
   const final_path = pathName.split("/")[pathName.split("/").length - 1];

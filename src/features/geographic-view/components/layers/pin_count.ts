@@ -39,8 +39,8 @@ export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
             createSVGIcon(
               (d.properties.cluster
                 ? d.properties.point_count.toString()
-                : "1") as string,
-            ),
+                : "1") as string
+            )
           ),
           width: 480,
           height: 480,

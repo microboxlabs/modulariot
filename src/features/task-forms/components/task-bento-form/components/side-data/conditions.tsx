@@ -14,7 +14,7 @@ export default function Conditions({
   task: TaskResponse;
 }) {
   const { data: conditions, isLoading: isLoadingConditions } = useGetConditions(
-    task.id,
+    task.id
   );
 
   if (isLoadingConditions) {

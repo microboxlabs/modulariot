@@ -20,7 +20,7 @@ export default function DriverValidations({
   const { data, isLoading } = useGetValidation(
     serviceCode,
     "driver",
-    driver.rut,
+    driver.rut
   );
 
   let alcoholTestStatus = "not_found";

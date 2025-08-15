@@ -56,7 +56,7 @@ export default function SymptomsTable({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(
-      Math.max(1, Math.min(page, tableData?.pagination.totalPages || 0)),
+      Math.max(1, Math.min(page, tableData?.pagination.totalPages || 0))
     );
   };
 
@@ -67,7 +67,7 @@ export default function SymptomsTable({
   const endItem = tableData?.pagination.currentPage
     ? Math.min(
         tableData?.pagination.currentPage * pageSize,
-        tableData?.pagination.totalPages,
+        tableData?.pagination.totalPages
       )
     : 0;
 

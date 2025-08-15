@@ -6,6 +6,7 @@ import {
 import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { NextRequest, NextResponse } from "next/server";
 import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,14 +29,8 @@ export async function POST(request: NextRequest) {
     };
 
     if (comments) {
-      try {
-        updateTaskPayload = {
-          prop_bpm_comment: comments,
-          prop_mintral_commentPostContent: comments,
-        };
-      } catch (error) {
-        // ignore for now, TODO: we need to do something if we got an error
-      }
+      updateTaskPayload.prop_bpm_comment = comments;
+      updateTaskPayload.prop_mintral_commentPostContent = comments;
     }
     if (nativeGenerationEnabled) {
       updateTaskPayload.prop_mintral_shouldBuildManifest =
@@ -44,6 +39,7 @@ export async function POST(request: NextRequest) {
     if (reason && reason.trim() !== "") {
       updateTaskPayload.prop_mintral_commentPostTitle = reason;
     }
+    logger.info("updateTaskPayload", updateTaskPayload);
     await updateTask(session, "activiti$" + taskId, updateTaskPayload);
 
     const response = await endTask(session, taskId, transitionId);

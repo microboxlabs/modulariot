@@ -8,7 +8,7 @@ export function usePermissions() {
 
   const hasPermission = (
     requiredGroups: string[],
-    operator: "OR" | "AND" = "OR",
+    operator: "OR" | "AND" = "OR"
   ): boolean => {
     if (!requiredGroups.length) return true;
 
@@ -19,7 +19,7 @@ export function usePermissions() {
 
   const hasRoutePermission = (
     path: string,
-    operator: "OR" | "AND" = "OR",
+    operator: "OR" | "AND" = "OR"
   ): boolean => {
     return hasRouteAccess(userGroups, path, operator);
   };

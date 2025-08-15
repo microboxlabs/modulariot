@@ -8,7 +8,7 @@ export function LayoutContent({ children }: PropsWithChildren) {
     <div
       id="main-content"
       className={twMerge(
-        "relative h-full w-full overflow-y-hidden overflow-x-hidden dark:bg-gray-900",
+        "relative h-full w-full overflow-y-hidden overflow-x-hidden dark:bg-gray-900"
       )}
     >
       {children}

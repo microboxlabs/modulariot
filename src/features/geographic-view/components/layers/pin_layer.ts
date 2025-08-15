@@ -22,7 +22,7 @@ export class PinLayer extends CompositeLayer<any> {
       new IconLayer({
         id: "IconLayer-base",
         data: (this.props.data || []).filter(
-          (d: PinPosition | undefined) => !!d,
+          (d: PinPosition | undefined) => !!d
         ),
         getIcon: (_d: PinPosition) => ({
           url: createSVGIcon(1, false),

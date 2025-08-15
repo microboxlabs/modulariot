@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 async function streamPositions(
   tripId: string,
   assetId: string,
-  writable: WritableStream,
+  writable: WritableStream
 ) {
   const writer = writable.getWriter();
   const token = await authToken.getToken();
@@ -70,7 +70,7 @@ async function streamPositions(
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      },
+      }
     );
 
     if (!response.ok) {
@@ -89,7 +89,7 @@ async function streamPositions(
 
     for await (const record of csvStream.pipe(parser)) {
       const [longitude, latitude] = parseWKBPoint(
-        (record as MapPosition).location,
+        (record as MapPosition).location
       );
 
       const newRecord: MapPosition = {

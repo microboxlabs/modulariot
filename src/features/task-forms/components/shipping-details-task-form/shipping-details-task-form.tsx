@@ -182,7 +182,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="originDelegateCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.originDelegateCode",
+                        "pages.shippingDetailsTaskForm.originDelegateCode"
                       )}
                       value={task.mintral_originDelegateCode as string}
                     />
@@ -190,7 +190,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="destinationDelegateCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.destinationDelegateCode",
+                        "pages.shippingDetailsTaskForm.destinationDelegateCode"
                       )}
                       value={task.mintral_destinationDelegateCode as string}
                     />
@@ -267,7 +267,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="transportNumberCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.transportNumberCode",
+                        "pages.shippingDetailsTaskForm.transportNumberCode"
                       )}
                       value={task.mintral_transportNumberCode as string}
                     />
@@ -277,7 +277,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="truckLicensePlate"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.truckLicensePlate",
+                        "pages.shippingDetailsTaskForm.truckLicensePlate"
                       )}
                       value={task.mintral_truckLicensePlate as string}
                     />
@@ -285,7 +285,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="trailerLicensePlate"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.trailerLicensePlate",
+                        "pages.shippingDetailsTaskForm.trailerLicensePlate"
                       )}
                       value={task.mintral_trailerLicensePlate as string}
                     />

@@ -67,21 +67,21 @@ export const pages: SidebarItem[] = [
     icon: ChartMixedIcon,
     label: "controlTower",
     /* eslint-disable */
-    items: [       
-          {
-            href: "/geographic-view",
-            label: "geographicView",
-            totals: {},
-            requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
-            blockedGroups: [], // Hide from revisors
-          },
-          {
-            href: "/symptoms",
-            label: "symptoms",
-            totals: {},
-            requiredGroups: [],
-            blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
-          },       
+    items: [
+      {
+        href: "/geographic-view",
+        label: "geographicView",
+        totals: {},
+        requiredGroups: [], //"GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL"
+        blockedGroups: [], // Hide from revisors
+      },
+      {
+        href: "/symptoms",
+        label: "symptoms",
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
+      },
     ],
     /* eslint-enable */
 

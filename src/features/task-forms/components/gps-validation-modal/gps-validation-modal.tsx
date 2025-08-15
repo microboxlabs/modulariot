@@ -93,11 +93,11 @@ export default function GpsValidationModal({
                                 (typeof value === "number" && `${value}`))}
                             {date_values.includes(key) &&
                               `${new Date(
-                                `${value as string}`,
+                                `${value as string}`
                               ).toLocaleString()}`}
                           </Table.Cell>
                         </Table.Row>
-                      ),
+                      )
                   )}
               </Table.Body>
             </Table>

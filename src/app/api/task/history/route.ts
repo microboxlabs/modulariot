@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const taskHistory = await getTaskHistory(
       session,
       taskId,
-      active === "true",
+      active === "true"
     );
 
     return NextResponse.json(taskHistory);

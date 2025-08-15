@@ -16,7 +16,7 @@ export default function Geographic({
 
   const { positions, error, isLoading } = useTripPositions(
     trip_id as string,
-    assetId as string,
+    assetId as string
   );
 
   if (error) {
@@ -30,7 +30,7 @@ export default function Geographic({
         longitude: acc.longitude + curr.longitude / positions.length,
       };
     },
-    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 0 }
   );
 
   return (

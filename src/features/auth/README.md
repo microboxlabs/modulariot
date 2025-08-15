@@ -5,20 +5,24 @@ This system supports both **allowlist** and **blocklist** approaches for route p
 ## Features
 
 ### 1. Allowlist (Original Logic)
+
 - Users must have specific groups to access routes
 - If no groups are required, access is allowed
 
 ### 2. Blocklist (Opposite Logic)
+
 - Users with specific groups are blocked from accessing certain routes
 - Takes precedence over allowlist logic
 
 ### 3. Sidebar Navigation Protection
+
 - Sidebar items can be hidden from users with blocked groups
 - Prevents users from seeing navigation options they can't access
 
 ## Configuration
 
 ### Route Permissions (Allowlist)
+
 ```typescript
 export const ROUTE_PERMISSIONS = {
   "/shipping": ["MINTRAL_EJECUTIVO_TORRE_CONTROL", "MINTRAL_OPERADORES"],
@@ -28,14 +32,16 @@ export const ROUTE_PERMISSIONS = {
 ```
 
 ### Blocked Groups (Blocklist)
+
 ```typescript
 const BLOCKED_GROUPS = {
-  "MINTRAL_REVISOR": ["/reports", "/geographic-view"], // Revisors cannot access reports and geographic view
-  "MINTRAL_REVISOR": ["/users/settings", "/api/symptoms"], // Basic operators cannot access settings and symptoms API
+  MINTRAL_REVISOR: ["/reports", "/geographic-view"], // Revisors cannot access reports and geographic view
+  MINTRAL_REVISOR: ["/users/settings", "/api/symptoms"], // Basic operators cannot access settings and symptoms API
 };
 ```
 
 ### Sidebar Configuration (Hide Navigation Items)
+
 ```typescript
 export const pages: SidebarItem[] = [
   {
@@ -64,6 +70,7 @@ export const pages: SidebarItem[] = [
 ### 1. Using RouteGuard Component (Recommended)
 
 **For route-level protection (uses hasRoutePermission):**
+
 ```tsx
 // This will check both allowlist and blocklist for the specific route
 <RouteGuard path="/reports" fallbackPath="/shipping">
@@ -76,6 +83,7 @@ export const pages: SidebarItem[] = [
 ```
 
 **For component-level protection (manual checks):**
+
 ```tsx
 // Allowlist only
 <RouteGuard requiredGroups={["MINTRAL_EJECUTIVO_TORRE_CONTROL"]}>
@@ -88,7 +96,7 @@ export const pages: SidebarItem[] = [
 </RouteGuard>
 
 // Both allowlist and blocklist
-<RouteGuard 
+<RouteGuard
   requiredGroups={["MINTRAL_EJECUTIVO_TORRE_CONTROL"]}
   blockedGroups={["MINTRAL_REVISOR"]}
 >
@@ -172,17 +180,19 @@ To add new route restrictions:
 3. **For sidebar**: Add `blockedGroups` to sidebar items in `pages.ts`
 
 Example:
+
 ```typescript
 const BLOCKED_GROUPS = {
-  "MINTRAL_REVISOR": ["/reports", "/geographic-view"],
-  "MINTRAL_OPERADOR_BASICO": ["/users/settings", "/api/symptoms"],
-  "NEW_GROUP": ["/restricted-route"], // Add new restriction
+  MINTRAL_REVISOR: ["/reports", "/geographic-view"],
+  MINTRAL_OPERADOR_BASICO: ["/users/settings", "/api/symptoms"],
+  NEW_GROUP: ["/restricted-route"], // Add new restriction
 };
 ```
 
 ## Why RouteGuard with path prop is recommended
 
 The `path` prop in RouteGuard uses the `hasRoutePermission` function which:
+
 - Automatically checks the route permissions configuration
 - Applies both allowlist and blocklist logic
 - Ensures consistent permission checking across the application
@@ -192,4 +202,4 @@ The `path` prop in RouteGuard uses the `hasRoutePermission` function which:
 
 1. **Sidebar**: Items hidden from users with blocked groups
 2. **Route Access**: RouteGuard prevents access to protected pages
-3. **API Protection**: Server-side checks prevent unauthorized API calls 
+3. **API Protection**: Server-side checks prevent unauthorized API calls

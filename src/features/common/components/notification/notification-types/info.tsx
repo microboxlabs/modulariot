@@ -134,7 +134,7 @@ export default function InfoCard({
                         {
                           method: "PUT",
                           body: JSON.stringify({ id: data.id }),
-                        },
+                        }
                       );
 
                       if (response.ok) {

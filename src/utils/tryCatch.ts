@@ -11,7 +11,7 @@ type Failure<E> = {
 type Result<T, E = Error> = Success<T> | Failure<E>;
 
 export async function tryCatch<T, E = Error>(
-  promise: Promise<T>,
+  promise: Promise<T>
 ): Promise<Result<T, E>> {
   try {
     const data = await promise;
@@ -24,7 +24,7 @@ export async function tryCatch<T, E = Error>(
 export async function retry<T, E = Error>(
   promise: Promise<T>,
   maxAttempts: number = 3,
-  delayMs: number = 1000,
+  delayMs: number = 1000
 ): Promise<Result<T, E>> {
   let lastError: E | null = null;
   const attempts = Array.from({ length: maxAttempts }, (_, i) => i + 1);

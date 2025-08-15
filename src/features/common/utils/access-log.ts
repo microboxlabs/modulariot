@@ -73,7 +73,7 @@ export function formatAccessLogLine(params: {
   const extrasSegment = extrasStr ? `${extrasStr} ` : "";
 
   return `${prefix} ${remote} - - [${formatAccessLogDate(
-    startedAt,
+    startedAt
   )}] "${method} ${pathAndQuery} ${protocol}" ${status} ${length} "-" "${ua}" ${extrasSegment}duration_ms=${durationMs} duration_s=${durationSec} request_id=${requestId}`;
 }
 

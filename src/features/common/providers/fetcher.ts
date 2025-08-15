@@ -13,7 +13,7 @@ const isRequest = (value: unknown): value is Request =>
 
 // Extracts path+query and upstream host from the input
 const parseTarget = (
-  input: RequestInfo | URL,
+  input: RequestInfo | URL
 ): { pathAndQuery: string; upstreamHost: string } => {
   // URL instance
   if (typeof URL !== "undefined" && input instanceof URL) {
@@ -56,7 +56,7 @@ const parseTarget = (
 // Merge headers from a Request and/or init headers into a new Headers instance
 const buildMergedHeaders = (
   base: RequestInfo | URL,
-  override?: HeadersInit,
+  override?: HeadersInit
 ): Headers => {
   const merged = new Headers(isRequest(base) ? base.headers : undefined);
   if (override) {
@@ -68,7 +68,7 @@ const buildMergedHeaders = (
 
 export default async function httfetcher<T>(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit
 ) {
   const shouldLog =
     typeof window === "undefined" && process.env.LOG_ACCESS === "true";
@@ -113,7 +113,7 @@ export default async function httfetcher<T>(
           durationMs,
           requestId,
           extras: { upstream_host: upstreamHost },
-        }),
+        })
       );
     }
 

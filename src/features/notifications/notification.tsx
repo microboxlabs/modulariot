@@ -10,18 +10,18 @@ type NotificationAction =
   | { type: "default"; message: string }
   | { type: "description"; message: string; description: string }
   | {
-    type: "action";
-    label: string;
-    message: string | React.ReactNode;
-    onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
-  }
+      type: "action";
+      label: string;
+      message: string | React.ReactNode;
+      onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
+    }
   | {
-    type: "promise";
-    promise: Promise<any> | (() => Promise<any>);
-    loading: string;
-    ok: string;
-    error: string;
-  };
+      type: "promise";
+      promise: Promise<any> | (() => Promise<any>);
+      loading: string;
+      ok: string;
+      error: string;
+    };
 
 /**
  * # Show Notification

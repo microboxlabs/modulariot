@@ -59,7 +59,7 @@ export default function DepartureDateShip({
   const board = kanbanBoards.find((board) => board.title === table_name);
   const boardV2 = kanbanBoardsV2.find((board) => board.title === table_name);
   const boardDelivery = kanbanBoardsV2.find(
-    (board) => board.title === table_name,
+    (board) => board.title === table_name
   );
 
   const color = shipBgColor(dayjs(date), table_name);
@@ -70,7 +70,7 @@ export default function DepartureDateShip({
       className={twMerge(
         "flex items-center justify-center rounded-lg px-3 text-sm font-medium h-7 gap-1",
         color?.bg + " " + color?.text,
-        "dark:text-white",
+        "dark:text-white"
       )}
     >
       {board?.state === "done" ||

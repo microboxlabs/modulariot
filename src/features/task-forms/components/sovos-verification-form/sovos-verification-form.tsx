@@ -35,9 +35,9 @@ export default function SovosVerificationForm({
   });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [fingerprintReuse, setFingerprintReuse] = useState<boolean>(false);
-  
+
   const handleSignDocument = async () => {
-    setLoading(true);    
+    setLoading(true);
     logger.info(audits);
     /* let pos = 0;
     let results = [];
@@ -110,7 +110,7 @@ export default function SovosVerificationForm({
         });
       }   
     setLoading(false); */
-   
+
     const result = await signDec5(task.id);
     if (result.success) {
       router.push(`/${lang}/shipping`);
@@ -137,7 +137,6 @@ export default function SovosVerificationForm({
       });
     },
     toNextStep: (isError: boolean = false, audit?: AutentiaParamsGet) => {
-
       if (audit) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         setAudits([...audits, audit]);
@@ -152,7 +151,7 @@ export default function SovosVerificationForm({
       // if (steps.length === 4 && nextStep === 2) {
       //   nextStep = 5;
       // } else {
-        nextStep += 1;
+      nextStep += 1;
       // }
       return setStepper({
         ...stepper,
@@ -208,7 +207,7 @@ export default function SovosVerificationForm({
       {(stepper.currentStep === "step1" ||
         stepper.currentStep === "step3" ||
         stepper.currentStep === "step5") && (
-          <SovosStartVerificationCard
+        <SovosStartVerificationCard
           lang={lang}
           msg={msg}
           task={task}
@@ -222,28 +221,28 @@ export default function SovosVerificationForm({
           isFingerprintReuseNeeded={true}
           fingerprintReuse={fingerprintReuse}
           setFingerprintReuse={setFingerprintReuse}
-          />
-        )}
+        />
+      )}
       {(stepper.currentStep === "step2" ||
         stepper.currentStep === "step4" ||
         stepper.currentStep === "step6") && (
-          <SovosVerificationResultCard
-            lang={lang}
-            msg={msg}
-            task={task}
-            pluginReady={pluginReady}
-            stepperController={stepperController}
-            success={!stepper.isError}
-            isSovosVerification={true}
-            user={user}
-            userGroups={userGroups}
-            validationError={validationError}
-            setValidationError={setValidationError}
-            isFingerprintReuseNeeded={true}
-            fingerprintReuse={fingerprintReuse}
-            setFingerprintReuse={setFingerprintReuse}
-          />
-        )}
+        <SovosVerificationResultCard
+          lang={lang}
+          msg={msg}
+          task={task}
+          pluginReady={pluginReady}
+          stepperController={stepperController}
+          success={!stepper.isError}
+          isSovosVerification={true}
+          user={user}
+          userGroups={userGroups}
+          validationError={validationError}
+          setValidationError={setValidationError}
+          isFingerprintReuseNeeded={true}
+          fingerprintReuse={fingerprintReuse}
+          setFingerprintReuse={setFingerprintReuse}
+        />
+      )}
       <SovosDeps onReady={() => setPluginReady(true)} />
     </div>
   );

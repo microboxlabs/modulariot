@@ -62,13 +62,13 @@ export default function TimelineGroup({
       const tags = [];
       if (subItem.type) tags.push(subItem.type);
       return tags;
-    }) ?? [],
+    }) ?? []
   );
 
   useEffect(() => {
     if (
       item.conditions_agg?.some(
-        (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id,
+        (subItem) => subItem.symptom_id == treatmentData.symptom_info?.id
       )
     ) {
       setIsExpanded(true);
@@ -88,11 +88,11 @@ export default function TimelineGroup({
 
   // Get unique conditions
   const uniqueConditions = new Set(
-    item.conditions_agg?.map((subItem) => subItem.icu_condition?.toLowerCase()),
+    item.conditions_agg?.map((subItem) => subItem.icu_condition?.toLowerCase())
   );
 
   const start_hour = new Date(
-    item.conditions_agg?.[0]?.start ?? "",
+    item.conditions_agg?.[0]?.start ?? ""
   ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const longest_treatment = item.conditions_agg?.reduce((max, subItem) => {
@@ -101,8 +101,8 @@ export default function TimelineGroup({
       Math.floor(
         (new Date(subItem?.end ?? "").getTime() -
           new Date(subItem?.start ?? "").getTime()) /
-          60000,
-      ),
+          60000
+      )
     );
   }, 0);
   // Get the length in minutes
@@ -185,10 +185,10 @@ export default function TimelineGroup({
                             treatment.treatment_type.toUpperCase() ===
                               "CORREO ELECTRONICO" ||
                             treatment.treatment_type.toUpperCase() ===
-                              "MENSAJE KAUSANA",
+                              "MENSAJE KAUSANA"
                         ).length
                       : 0),
-                  0,
+                  0
                 )}
               </span>
               <span className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs px-2.5 py-0.5 rounded flex items-center gap-1">
@@ -206,10 +206,10 @@ export default function TimelineGroup({
                       ? subItem.treatments.filter(
                           (treatment) =>
                             treatment.treatment_type.toUpperCase() ===
-                            "LLAMAR AL CONDUCTOR",
+                            "LLAMAR AL CONDUCTOR"
                         ).length
                       : 0),
-                  0,
+                  0
                 )}
               </span>
             </div>
@@ -290,7 +290,7 @@ export default function TimelineGroup({
                           {Math.floor(
                             (new Date(subItem.end).getTime() -
                               new Date(subItem.start).getTime()) /
-                              60000,
+                              60000
                           )}
                         </>
                       )}{" "}
@@ -313,7 +313,7 @@ export default function TimelineGroup({
                           {formatLongEmails(
                             ((dict.symptoms as I18nRecord)[
                               subItem.assigned_to
-                            ] as string) ?? subItem.assigned_to,
+                            ] as string) ?? subItem.assigned_to
                           )}
                         </small>
                       )}

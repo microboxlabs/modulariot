@@ -14,7 +14,7 @@ import { redirectWithLang } from "./navigation.service";
 import { logger } from "@/lib/logger";
 
 export async function signInWithCredentials(
-  credentials: Record<keyof SignInCredentials, string>,
+  credentials: Record<keyof SignInCredentials, string>
 ): Promise<User | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -25,7 +25,7 @@ export async function signInWithCredentials(
     });
     const ticket: string = (await alfrescoApi.login(
       credentials.email as string,
-      credentials.password as string,
+      credentials.password as string
     )) as string;
 
     const peopleApi = new PeopleApi(alfrescoApi);
@@ -52,7 +52,7 @@ export async function signInWithMicrosoft(): Promise<void> {
 
 export async function authenticateAction(
   prevState: AuthenticateActionState,
-  formData: FormData,
+  formData: FormData
 ): Promise<AuthenticateActionState> {
   try {
     const validatedFields = formSchema.safeParse({

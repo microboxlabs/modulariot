@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to verify document" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

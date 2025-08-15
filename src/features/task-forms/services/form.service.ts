@@ -297,7 +297,7 @@ export const OUTCOME_OVERLORD_REQUIRED_V2: TaskOutcomeV2 = "Requiere Overlord";
 
 export const getTransitionIdV2 = (
   taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
-  outcome: TaskOutcomeV2,
+  outcome: TaskOutcomeV2
 ): TaskOutcomeV2 | TaskOutcomeDelivery => {
   switch (taskType) {
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
@@ -329,7 +329,7 @@ export const getTransitionIdV2 = (
 
 export const getSecondaryTransitionIdV2 = (
   taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
-  dict: I18nRecord,
+  dict: I18nRecord
 ): {
   id: TaskOutcomeV2 | TaskOutcomeDelivery;
   label: string;
@@ -346,7 +346,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowLeft,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
     otherOptions.push(
@@ -358,7 +358,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowLeft,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
     otherOptions.push(
@@ -398,7 +398,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowRight,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
     otherOptions.push(
@@ -410,7 +410,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowLeft,
         },
-      ],
+      ]
     );
   } else if (
     taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
@@ -425,7 +425,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowLeft,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
     otherOptions.push(
@@ -444,7 +444,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowLeft,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
     otherOptions.push(
@@ -463,7 +463,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowRight,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
     otherOptions.push(
@@ -482,7 +482,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowRight,
         },
-      ],
+      ]
     );
   } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
     otherOptions.push(
@@ -501,7 +501,7 @@ export const getSecondaryTransitionIdV2 = (
           ] as string,
           icon: HiOutlineArrowRight,
         },
-      ],
+      ]
     );
   }
   otherOptions.push(
@@ -516,7 +516,7 @@ export const getSecondaryTransitionIdV2 = (
         label: (dict.outcome as I18nRecord).annulled as string,
         icon: HiTrash,
       },
-    ],
+    ]
   );
   return otherOptions;
 };

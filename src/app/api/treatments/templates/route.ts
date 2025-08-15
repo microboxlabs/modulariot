@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     });
   }
   const response = await tryCatch(
-    getSympthomTemplate(session, serviceCode, conditionName, icuCode),
+    getSympthomTemplate(session, serviceCode, conditionName, icuCode)
   );
 
   if (response?.error || !response?.data?.success) {

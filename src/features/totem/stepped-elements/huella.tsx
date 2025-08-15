@@ -108,7 +108,7 @@ export default function Huella({
           async (decodedText: string, _decodedResult: any) => {
             const serialText = decodedText.substring(
               decodedText.indexOf("&serial=") + 8,
-              decodedText.indexOf("&mrz="),
+              decodedText.indexOf("&mrz=")
             );
             setQrMessage(serialText);
             setIdCardNumber(serialText);
@@ -128,7 +128,7 @@ export default function Huella({
           (_errorMessage: any) => {
             // Optionally handle scan errors
             //console.error("QR Code error:", errorMessage);
-          },
+          }
         );
       });
     }

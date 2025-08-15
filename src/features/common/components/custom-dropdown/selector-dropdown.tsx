@@ -22,7 +22,7 @@ export default function SelectorDropdown({
     value: string;
     label: string;
   } | null>(
-    categories.find((category) => category.value === baseCategory) || null,
+    categories.find((category) => category.value === baseCategory) || null
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +44,7 @@ export default function SelectorDropdown({
 
   useEffect(() => {
     setSelectedCategory(
-      categories.find((category) => category.value === baseCategory) || null,
+      categories.find((category) => category.value === baseCategory) || null
     );
   }, [baseCategory]);
 
@@ -91,7 +91,7 @@ export default function SelectorDropdown({
                 <span className="text-sm font-light">
                   {tr(
                     "select_document_type",
-                    (dictionary.bento as I18nRecord).multimedia as I18nRecord,
+                    (dictionary.bento as I18nRecord).multimedia as I18nRecord
                   )}
                 </span>
               )}

@@ -36,13 +36,13 @@ export default function SideBar({
         component: <Download dict={dict} mapPositions={mapPositions} />,
       },
     ],
-    [dict, mapPositionsResume],
+    [dict, mapPositionsResume]
   );
 
   const [open, set_open] = useState(false);
   const [openned_menu, set_openned_menu] = useState(0);
   const [component, set_component] = useState(
-    inner_menu[openned_menu].component,
+    inner_menu[openned_menu].component
   );
 
   useEffect(() => {

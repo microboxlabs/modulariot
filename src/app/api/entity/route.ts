@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!licencePlate) {
     return NextResponse.json(
       { error: "Licence Plate is required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Error fetching entity info" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

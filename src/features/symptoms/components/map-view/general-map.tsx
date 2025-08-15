@@ -32,7 +32,7 @@ export default function GeneralMap({
   const router = useRouter();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
-    assetId ?? "",
+    assetId ?? ""
   );
 
   const {
@@ -72,7 +72,7 @@ export default function GeneralMap({
       .replace(/\b\w/g, (char) => char.toUpperCase()) ?? "",
     /* selectedTreatmentIndex?.start ?? "",
     selectedTreatmentIndex?.end ?? "", */
-    selectedTreatmentIndex?.symptom_id?.toString() ?? "",
+    selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
   // this is wrong, we should get the average of the positions but im getting an acumulated value
@@ -83,7 +83,7 @@ export default function GeneralMap({
         longitude: acc.longitude + curr.longitude / positions.length,
       };
     },
-    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 0 }
   );
 
   if (error) {
@@ -104,7 +104,7 @@ export default function GeneralMap({
       <div
         className={`mx-2 mb-2 relative flex flex-col gap-10 ${
           ["3", "4"].includes(
-            treatmentData?.symptom_info?.icu_code?.toString() ?? "",
+            treatmentData?.symptom_info?.icu_code?.toString() ?? ""
           )
             ? "animate-shadow-toggle"
             : ""

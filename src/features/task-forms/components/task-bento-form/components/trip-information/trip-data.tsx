@@ -24,14 +24,14 @@ export default function TripData({
       ? (task.mintral_arrivalDate as string)
       : task.mintral_estimatedArrivalDate
         ? (task.mintral_estimatedArrivalDate as string)
-        : "",
+        : ""
   );
   const _etd = fromString(
     task.mintral_departureDate
       ? (task.mintral_departureDate as string)
       : task.mintral_expectedDepartureDate
         ? (task.mintral_expectedDepartureDate as string)
-        : (task.mintral_estimatedDepartureDate as string),
+        : (task.mintral_estimatedDepartureDate as string)
   );
 
   const executionType =

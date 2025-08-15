@@ -61,14 +61,14 @@ export function getBlockedGroupsForRoute(path: string): string[] {
 export function hasRouteAccess(
   userGroups: string[],
   path: string,
-  operator: "OR" | "AND" = "OR",
+  operator: "OR" | "AND" = "OR"
 ): boolean {
   const requiredGroups = getRoutePermissions(path);
   const blockedGroups = getBlockedGroupsForRoute(path);
 
   // Check if user has any blocked groups
   const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group),
+    userGroups.includes(group)
   );
 
   if (hasBlockedGroup) {

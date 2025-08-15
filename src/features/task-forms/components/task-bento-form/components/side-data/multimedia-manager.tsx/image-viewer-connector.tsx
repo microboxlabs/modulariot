@@ -29,7 +29,7 @@ export default function ImageViewerConnector({
         if (image.data) {
           return displayBase64Content(
             image.data,
-            image.file.entry.content.mimeType,
+            image.file.entry.content.mimeType
           );
         }
         return null;

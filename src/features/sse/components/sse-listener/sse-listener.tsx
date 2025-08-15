@@ -27,7 +27,7 @@ export default function SseListener({
     // Initialize the global EventSource if not already done
     if (!isInitialized) {
       globalEventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`,
+        `${process.env.NEXT_PUBLIC_ECM_API_URL}/api/v1/events/tenant/${tenantId}/stream`
       );
 
       isInitialized = true;
@@ -94,7 +94,7 @@ export default function SseListener({
               </p>
             </div>
             <InnerData data={parsed_event.payload} dictionary={dictionary} />
-          </div>,
+          </div>
         );
       }
     };

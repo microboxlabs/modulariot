@@ -15,7 +15,7 @@ export type TaskHistory = {
 export function useTaskHistory(taskId: string, active: boolean = true) {
   const { data, error, isLoading } = useSWR<TaskHistory[], FetcherError>(
     `/app/api/task/history?taskId=${taskId}&active=${active}`,
-    fetcher,
+    fetcher
   );
 
   return {

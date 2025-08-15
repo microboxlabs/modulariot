@@ -17,7 +17,7 @@ import CustomTooltip from "@/features/common/components/custom-tooltip/custom-to
 function set_filtered_positions(
   originalPositions: MapPosition[],
   activeFilters: any,
-  setPositions: (positions: MapPosition[]) => void,
+  setPositions: (positions: MapPosition[]) => void
 ) {
   const filtered_positions = originalPositions.filter((position) => {
     const matchesTripState =
@@ -25,7 +25,7 @@ function set_filtered_positions(
       activeFilters.tripStates.some(
         (filter: any) =>
           filter.activated &&
-          position.in_trip === (filter.filter_value === "true"),
+          position.in_trip === (filter.filter_value === "true")
       );
 
     const matchesCondition =
@@ -33,7 +33,7 @@ function set_filtered_positions(
       activeFilters.conditions.some(
         (filter: any) =>
           filter.activated &&
-          position.symptoms_condition === Number(filter.code),
+          position.symptoms_condition === Number(filter.code)
       );
 
     const matchesSpeed =
@@ -236,7 +236,7 @@ export default function Filters({
 
   useEffect(() => {
     const defaultPositions = originalPositions.filter(
-      (position) => position.in_trip === true,
+      (position) => position.in_trip === true
     );
     setPositions(defaultPositions);
 
@@ -252,7 +252,7 @@ export default function Filters({
 
   const handle_filter_change = (
     updated_options: Option[],
-    filterType: "conditions" | "tripStates" | "speed",
+    filterType: "conditions" | "tripStates" | "speed"
   ) => {
     const newFilters = {
       ...activeFilters,

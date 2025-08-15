@@ -25,7 +25,7 @@ export async function GET() {
         },
         {
           status: 401,
-        },
+        }
       );
     }
     return NextResponse.json({

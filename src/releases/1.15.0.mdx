@@ -1,4 +1,5 @@
 # 🧾 Release Notes – v1.15.0 – Plataforma MBL
+
 ## Fecha de entrega: 18 de Julio
 
 **Objetivo general**: Esta versión tuvo como foco principal la
@@ -10,6 +11,7 @@ elementos ya existentes y habilitando nuevas formas de interacción más claras 
 ---
 
 # 🧬 Evolutivos – Nuevas funcionalidades implementadas
+
 ## 🗂️ Rediseño del Formulario a Expediente tipo Bentobox
 
 El nuevo diseño estructurado en formato Bentobox permite visualizar la información de un viaje a
@@ -19,34 +21,36 @@ función específica. A continuación, se detalla la nueva disposición y conten
 ### 📦 Caja 1 – Información del Viaje
 
 Contiene los datos esenciales del servicio:
-  - Patente
-  - Código servicio
-  - Código cliente
-  - Origen
-  - Destino
-  - Horario
-  - Prioridad
-  - Tipo de ejecución
-  - Tipo de servicio
-  - N° de transporte
-  - Validaciones asociadas al viaje:
-  - Consolidación
-  - eparación Documental
-  - Validación Sistema Cliente
-  - Validación GPS
+
+- Patente
+- Código servicio
+- Código cliente
+- Origen
+- Destino
+- Horario
+- Prioridad
+- Tipo de ejecución
+- Tipo de servicio
+- N° de transporte
+- Validaciones asociadas al viaje:
+- Consolidación
+- eparación Documental
+- Validación Sistema Cliente
+- Validación GPS
 
 ### 📦 Caja 2 – Información del Conductor
 
 Ubicada a la derecha de la caja 1. Incluye:
-  - Nombre
-  - Rol
-  - RUT
-  - Teléfono
-  - Empresa asociada
-  - Validaciones realizadas al conductor:
-  - Test de alcoholemia
-  - Test de drogas
-  - Test de somnolencia
+
+- Nombre
+- Rol
+- RUT
+- Teléfono
+- Empresa asociada
+- Validaciones realizadas al conductor:
+- Test de alcoholemia
+- Test de drogas
+- Test de somnolencia
 
 ### 🗨️ Caja 3 – Comentarios del Viaje
 
@@ -56,14 +60,17 @@ proceso al devolver a una etapa anterior.
 Este espacio recoge observaciones o seguimientos relevantes realizados durante el desarrollo del servicio.
 
 ### 🗺️ Caja 4 – Mapa del Recorrido
+
 Caja ubicada en la segunda fila, que muestra el mapa interactivo con el recorrido completo del viaje.
 
 ### ♻️ Caja 5 – Condiciones del Viaje (Síntomas)
+
 Sección que reutiliza componentes existentes para mostrar las condiciones registradas durante el viaje:
+
 - Código negro
 - Condición crítica
 - Condición comprometida
-- Condición en observación 
+- Condición en observación
 - Condición en tratamiento
 
 ### 📊 Caja 6 – Tabla con Pestañas Dinámicas (Movimientos / Cargas)
@@ -78,6 +85,7 @@ Ambas comparten el mismo espacio y lógica de navegación.
 ---
 
 ## 🔄 Cambios en el Proceso de Coordinación de Viajes
+
 Con el objetivo de mejorar la trazabilidad y alinear el flujo con nuevos puntos de control (huellero,
 tótem y Kausana), se incorporaron etapas iniciales y un proceso paralelo al momento de la llegada:
 

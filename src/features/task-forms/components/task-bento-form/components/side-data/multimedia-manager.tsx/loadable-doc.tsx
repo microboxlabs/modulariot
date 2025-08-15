@@ -38,8 +38,8 @@ export default function LoadableDoc({
               if (!e.target.checked) {
                 setSelectedDocs(
                   selectedDocs.filter(
-                    (doc) => doc !== file.name + "-" + file.lastModified,
-                  ),
+                    (doc) => doc !== file.name + "-" + file.lastModified
+                  )
                 );
               } else {
                 setSelectedDocs([
@@ -61,7 +61,7 @@ export default function LoadableDoc({
         <div className="text-red-500 text-xs font-light">
           {tr(
             "select_document_type_error",
-            (dictionary.bento as I18nRecord).multimedia as I18nRecord,
+            (dictionary.bento as I18nRecord).multimedia as I18nRecord
           )}
         </div>
       )}

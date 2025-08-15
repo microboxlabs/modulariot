@@ -46,7 +46,7 @@ export function useMyTasks(
   showFinished: boolean,
   page?: number,
   limit?: number,
-  params?: string,
+  params?: string
 ) {
   const columnQuery = columns.map((column) => `columns=${column}`).join("&");
 
@@ -70,7 +70,7 @@ export function useMyTasks(
 export function useMyTasksCount() {
   const { data, error, isLoading } = useSWR<TaskCountResponse, FetcherError>(
     `/app/api/task/mytasks/count`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -133,7 +133,7 @@ export function useSearchTasks(searchTerm: string | null) {
     searchTerm
       ? `/app/api/task/search?filter=mintral_key:v${searchTerm}`
       : null,
-    fetcher,
+    fetcher
   );
   return {
     data,
@@ -148,7 +148,7 @@ export function useDownloadDocument(documentId: string | undefined) {
     FetcherError
   >(
     documentId ? `/app/api/document/download?documentId=${documentId}` : null,
-    fetcher,
+    fetcher
   );
   return {
     content: data?.content,
@@ -160,7 +160,7 @@ export function useDownloadDocument(documentId: string | undefined) {
 export function useVerifyDocument(documentId: string) {
   const { data, error } = useSWR<VerifyDocumentResponse, FetcherError>(
     `/app/api/document/verify?documentId=${documentId}`,
-    fetcher,
+    fetcher
   );
   return {
     exists: data?.exists,
@@ -176,13 +176,13 @@ export function useSymptoms() {
       refreshInterval: 30000,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   const count = data
     ? Object.values(data).reduce<number>(
         (sum, value) => (typeof value === "number" ? sum + value : sum),
-        0,
+        0
       )
     : 0;
 
@@ -212,7 +212,7 @@ export function useSymptomsTable({
       refreshInterval: 30000,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {
@@ -240,7 +240,7 @@ export function useSymptomsIcu(condition?: string) {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {
@@ -262,7 +262,7 @@ export function useMapPositions() {
       const data = (await response.json()) as MapPosition[];
       return data?.map((position: MapPosition) => {
         const [longitude, latitude] = MapService.parseWKBPoint(
-          position.location,
+          position.location
         );
         return {
           ...position,
@@ -274,7 +274,7 @@ export function useMapPositions() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {
@@ -299,7 +299,7 @@ export function useMapPositionsResume() {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {
@@ -314,7 +314,7 @@ export function useMapPositionsResume() {
 export function useGeofences(tripId: string) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     `/app/api/map/geofences?tripId=${tripId}`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -327,14 +327,14 @@ export function useGeofences(tripId: string) {
 export function useTreatmentsTemplates(
   serviceCode: string,
   conditionName: string,
-  icuCode: string,
+  icuCode: string
 ) {
   const { data, error, isLoading } = useSWR<
     SympthomTemplateResponse,
     FetcherError
   >(
     `/app/api/treatments/templates?serviceCode=${serviceCode}&conditionName=${conditionName}&icuCode=${icuCode}`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -345,7 +345,7 @@ export function useTreatmentsTemplates(
 }
 
 export function requestTreatment(
-  treatmentRequest: TreatmentsRequest,
+  treatmentRequest: TreatmentsRequest
 ): Promise<TreatmentsRequest> {
   const url = `/app/api/treatments`;
   return fetcher(url, {
@@ -365,7 +365,7 @@ interface Release {
 export function useReleases() {
   const { data, error, isLoading } = useSWR<Release[], FetcherError>(
     `/app/api/releases`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -380,7 +380,7 @@ export function useTreatmentsLocation(
   symptom_name: string,
   /*  first_date: string,
   last_date: string, */
-  symptom_id: string,
+  symptom_id: string
 ) {
   const shouldFetch = tripId && symptom_name; //&& first_date && last_date
   //&first_date=${first_date}&last_date=${last_date}
@@ -391,7 +391,7 @@ export function useTreatmentsLocation(
     shouldFetch
       ? `/app/api/treatments/location?trip_id=${tripId}&symptom_name=${symptom_name}&symptom_id=${symptom_id}`
       : null,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -404,7 +404,7 @@ export function useTreatmentsLocation(
 export function useUserStatus() {
   const { data, error, isLoading } = useSWR<string, FetcherError>(
     "/app/api/user/status",
-    fetcher,
+    fetcher
   );
 
   return {
@@ -417,7 +417,7 @@ export function useUserStatus() {
 export function useUserGroups() {
   const { data, error, isLoading } = useSWR<UserGroupsResponse, FetcherError>(
     "/app/api/user/groups",
-    fetcher,
+    fetcher
   );
 
   return {
@@ -430,7 +430,7 @@ export function useUserGroups() {
 export function useGetTasksById(taskId: string, finished: boolean) {
   const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
     `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -448,7 +448,7 @@ export function getUserStatus() {
 export function useGetUserStates() {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     `/app/api/user/states`,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -460,14 +460,14 @@ export function useGetUserStates() {
 
 export function requestSovosFingerprintReuse(
   rut: string,
-  tripId: string,
+  tripId: string
 ): Promise<any> {
   const url = `/app/api/sovos/fingerprint-reuse?rut=${rut}&tripId=${tripId}`;
   return fetcher(url);
 }
 
 export function validateIdCard(
-  idCardRequest: ValidateIdCardRequest,
+  idCardRequest: ValidateIdCardRequest
 ): Promise<any> {
   const url = `/app/api/task/validate-id-card`;
   return fetcher(url, {
@@ -495,7 +495,7 @@ export function biometricVerify(
   deviceId: string,
   deviceLocation: string,
   fingerprintData?: object,
-  driverSerieId?: string,
+  driverSerieId?: string
 ): Promise<any> {
   const url = "/app/api/biometric/verify";
   return fetcher(url, {
@@ -533,7 +533,7 @@ export function useGetNodeChildren(nodeId: string | undefined) {
     {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {
@@ -605,7 +605,7 @@ export function useOptimisticFileUpload(nodeId: string | undefined) {
 export function useGetNodeContents(nodeIds: string[]) {
   const { data, error, isLoading } = useSWR<any, FetcherError>(
     nodeIds ? `/app/api/bento/document?nodeIds=${nodeIds.join(",")}` : null,
-    fetcher,
+    fetcher
   );
 
   return {
@@ -642,7 +642,7 @@ export function useGetNodeThumbnail(nodeId: string) {
         // Don't retry on 404 errors
         return error.status !== 404;
       },
-    },
+    }
   );
 
   return {
@@ -660,7 +660,7 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
   formData.append("filedata", sendableFile.filedata);
   formData.append(
     "prop_mintral_contentType",
-    sendableFile.prop_mintral_contentType,
+    sendableFile.prop_mintral_contentType
   );
   formData.append("prop_cm_name", sendableFile.prop_cm_name);
   formData.append("prop_mimetype", sendableFile.prop_mimetype);
@@ -675,7 +675,7 @@ export function postBentoMultimedia(sendableFile: SendableFile) {
 export function useGetValidation(
   serviceCode: string,
   scope?: string,
-  scopeId?: string,
+  scopeId?: string
 ) {
   let baseUrl = `/app/api/task/validation?serviceCode=${serviceCode}`;
   if (scope && scopeId) {

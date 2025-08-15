@@ -74,7 +74,7 @@ export default function TripInformation({
                   errorData?.error?.info?.error as keyof I18nRecord
                 ] as string)
               : ((dict.totem as I18nRecord)
-                  .biometric_verification_error as string),
+                  .biometric_verification_error as string)
           );
         }
         const data = await response.json();
@@ -83,7 +83,7 @@ export default function TripInformation({
             setError(
               ((dict.totem as I18nRecord)[
                 data.message as keyof I18nRecord
-              ] as string) ?? data.message,
+              ] as string) ?? data.message
             );
             return;
           }
@@ -92,7 +92,7 @@ export default function TripInformation({
               data?.message as keyof I18nRecord
             ] as string) ??
               ((dict.totem as I18nRecord)
-                .biometric_verification_error as string),
+                .biometric_verification_error as string)
           );
           return;
         }

@@ -33,7 +33,7 @@ export class MapService {
     } catch (error) {
       mapLogger.error(
         { err: error as Error, wkbPoint },
-        "Error parsing WKB point",
+        "Error parsing WKB point"
       );
       return [-70.668505, -33.439764]; // Santiago, Chile
     }

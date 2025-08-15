@@ -1,43 +1,49 @@
 # 🧾 Release Notes – v1.14.1 – Plataforma MBL
 
-## Fecha   de   entrega:  14/07
+## Fecha de entrega: 14/07
 
-**Objetivo general:**  Esta   versión   corresponde   a   una   entrega   de
+**Objetivo general:** Esta versión corresponde a una entrega de
 mantenimiento y ajustes correctivos, enfocada en resolver errores detectados en producción, mejorar
 el rendimiento general del sistema y aplicar refactorizaciones clave en módulos de validación e interfaz.
 
 ---
 
 # 🛠️ Correctivos y Mejoras Técnicas
+
 ### 📍 Corrección de bug en pines de camión en mapa
-  Se resolvió un error que impedía mostrar la información del camión al hacer clic sobre sus pines en el
-  mapa interactivo.
-  
-  Ahora, al seleccionar cualquier pin de camión, se despliega correctamente la
-  información asociada.
+
+Se resolvió un error que impedía mostrar la información del camión al hacer clic sobre sus pines en el
+mapa interactivo.
+
+Ahora, al seleccionar cualquier pin de camión, se despliega correctamente la
+información asociada.
 
 ---
 
 ### 📝 Corrección de textos en síntomas
-  Se revisaron y ajustaron los textos descriptivos en el módulo de síntomas, corrigiendo errores de
-  redacción y mejorando la claridad del contenido para los usuarios finales.
+
+Se revisaron y ajustaron los textos descriptivos en el módulo de síntomas, corrigiendo errores de
+redacción y mejorando la claridad del contenido para los usuarios finales.
 
 ---
 
 ### 🚀 Mejora de rendimiento en carga de tarjetas (shipping y finished)
-  Se eliminó el uso innecesario de prefetch en las tarjetas de los estados Shipping y Finished, lo que
-  generaba un consumo innecesario de recursos y ralentizaba la carga. Esta optimización mejora el
-  rendimiento general del Kanban.
+
+Se eliminó el uso innecesario de prefetch en las tarjetas de los estados Shipping y Finished, lo que
+generaba un consumo innecesario de recursos y ralentizaba la carga. Esta optimización mejora el
+rendimiento general del Kanban.
 
 ---
 
 ### 🔔 Ajuste en cantidad de datos visibles en notificaciones
-  Se ajustó la cantidad y estructura de los datos mostrados en las notificaciones del sistema, asegurando
-  una presentación más clara y precisa de la información relevante para el usuario.
+
+Se ajustó la cantidad y estructura de los datos mostrados en las notificaciones del sistema, asegurando
+una presentación más clara y precisa de la información relevante para el usuario.
 
 ---
 
 ### 🔧 Refactor de servicios de huella digital y cédula de identidad
+
 Se realizó una refactorización completa de los servicios relacionados con la validación por huella digital
 y cédula de identidad (CI), tanto en la app móvil como en el tótem físico, mejorando la estabilidad y
 estructura del código para futuras extensiones e integraciones.
@@ -45,6 +51,7 @@ estructura del código para futuras extensiones e integraciones.
 ---
 
 # 🧩 Corrección de errores críticos
+
 Se solucionó un problema en una variable de entorno mal configurada, que impedía la
 visualización del sidebar en ciertos entornos.
 Se resolvió un error de performance que afectaba la experiencia de navegación en contextos
@@ -53,6 +60,7 @@ de alta carga.
 ---
 
 # 📌 Conclusión
+
 La versión 1.14.1 se enfocó en estabilizar aspectos clave de la plataforma tras la entrega de nuevas
 funcionalidades en versiones anteriores. Con estos ajustes, se asegura un funcionamiento más fluido,
 confiable y alineado con las expectativas de los usuarios, al tiempo que se preparan bases técnicas más

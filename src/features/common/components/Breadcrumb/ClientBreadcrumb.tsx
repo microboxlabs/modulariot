@@ -38,7 +38,7 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
             <FlowbiteBreadcrumb.Item key={index}>
               {item}
             </FlowbiteBreadcrumb.Item>
-          ),
+          )
         )}
       </FlowbiteBreadcrumb>
       {rightContent.length > 0 && (

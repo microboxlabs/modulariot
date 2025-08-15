@@ -23,7 +23,7 @@ type ToolBarProps = {
     setViewState: (viewState: ViewStateType) => void,
     viewState: ViewStateType,
     camera_movement: boolean,
-    zoom?: number,
+    zoom?: number
   ) => void;
   setViewState: (viewState: ViewStateType) => void;
   viewState: ViewStateType;
@@ -129,7 +129,7 @@ export default function ToolBar({
                 className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "mapSelection" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                 onClick={() => {
                   setSelectedTool(
-                    selectedTool === "mapSelection" ? null : "mapSelection",
+                    selectedTool === "mapSelection" ? null : "mapSelection"
                   );
                 }}
               >
@@ -151,7 +151,7 @@ export default function ToolBar({
                 className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                 onClick={() =>
                   setSelectedTool(
-                    selectedTool === "timeline" ? null : "timeline",
+                    selectedTool === "timeline" ? null : "timeline"
                   )
                 }
               >

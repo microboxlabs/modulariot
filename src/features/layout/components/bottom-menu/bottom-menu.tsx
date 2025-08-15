@@ -18,7 +18,7 @@ export default function BottomMenu({
     <div
       className={twMerge(
         "flex items-center justify-center gap-4 mb-9",
-        isCollapsed && "flex-col",
+        isCollapsed && "flex-col"
       )}
     >
       <Sidebar.ItemGroup>
@@ -27,7 +27,7 @@ export default function BottomMenu({
           icon={HiCog}
           className={twMerge(
             "justify-center [&>*]:font-normal",
-            pathname === "/users/settings" && "bg-gray-100 dark:bg-gray-700",
+            pathname === "/users/settings" && "bg-gray-100 dark:bg-gray-700"
           )}
         >
           {tr("settings", dict)}

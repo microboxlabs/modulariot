@@ -39,7 +39,7 @@ export function RouteGuard({
       // Fallback to manual checks if no path provided
       // Check if user has any blocked groups
       const hasBlockedGroup = blockedGroups.some((group) =>
-        userGroups.includes(group),
+        userGroups.includes(group)
       );
       if (hasBlockedGroup) {
         router.push(fallbackPath);
@@ -80,7 +80,7 @@ export function RouteGuard({
   // Fallback to manual checks if no path provided
   // Check blocked groups first
   const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group),
+    userGroups.includes(group)
   );
   if (hasBlockedGroup) {
     return null;

@@ -15,7 +15,7 @@ export function buildSignInFormMessages({
     invalidCredentials: dict("pages.login.errors.invalidCredentials"),
     invalidFromData: dict("pages.login.errors.invalidFromData"),
     buttonContinueWithMicrosoft: dict(
-      "pages.login.buttons.continueWithMicrosoft",
+      "pages.login.buttons.continueWithMicrosoft"
     ),
   };
 }
@@ -26,7 +26,7 @@ export function getMinifiedUserGroups(userGroups: string[]) {
 
 export function getUserGroupLabel(group: string) {
   return Object.keys(groups).find(
-    (key) => groups[key as keyof typeof groups] === group,
+    (key) => groups[key as keyof typeof groups] === group
   );
 }
 

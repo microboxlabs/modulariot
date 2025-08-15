@@ -28,7 +28,7 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
           if (result.ParamsGet.Erc !== 0) {
             // Error rut, resultado
             const error: Error & { status?: number } = new Error(
-              result.ParamsGet.ercText || "rut validation failed",
+              result.ParamsGet.ercText || "rut validation failed"
             );
             error.status = result.ParamsGet.Erc;
             reject(error);
@@ -41,13 +41,13 @@ export function validateRut(Rut: string): Promise<AutentiaParamsGet> {
           } else {
             // Error rut, resultado
             const error: Error & { status?: number } = new Error(
-              result.ParamsGet.ercText || "rut validation failed",
+              result.ParamsGet.ercText || "rut validation failed"
             );
             error.status = 500;
 
             reject(error);
           }
-        },
+        }
       );
     } catch (error) {
       reject(error);

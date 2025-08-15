@@ -51,7 +51,7 @@ export default function DriverVerifiedCard({
 }: DriverVerifiedCardProps) {
   const [state, formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
-    {},
+    {}
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function DriverVerifiedCard({
   const [outcome, setOutcome] = useState<TaskOutcome | undefined>();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const [nativeGenerationEnabled, onNativeGenerationChange] = useState(
-    task.mintral_nativeGenerationEnabled as boolean,
+    task.mintral_nativeGenerationEnabled as boolean
   );
 
   const handleSelection = (outcome: TaskOutcome, outcomeLabel: string) => {

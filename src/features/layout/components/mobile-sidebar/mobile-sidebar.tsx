@@ -30,7 +30,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
     SHIPPING_COORDINATOR_PROCESS_TASKS,
     true,
     1,
-    0,
+    0
   );
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
@@ -60,7 +60,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
         aria-label="Sidebar with multi-level dropdown example"
         className={twMerge(
           "fixed inset-y-0 left-0 z-20 hidden h-full shrink-0 flex-col border-r border-gray-200 pt-16 lg:flex dark:border-gray-700",
-          isOpen && "flex",
+          isOpen && "flex"
         )}
         id="sidebar"
       >

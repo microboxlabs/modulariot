@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = (
     requiredGroups: string[],
-    operator: "OR" | "AND" = "OR",
+    operator: "OR" | "AND" = "OR"
   ) => {
     if (!requiredGroups.length) return true;
 

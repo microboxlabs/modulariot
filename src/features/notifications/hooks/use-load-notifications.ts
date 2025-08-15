@@ -12,7 +12,7 @@ export function useLoadNotifications() {
       refreshInterval: 5000, // 5 seconds in milliseconds
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-    },
+    }
   );
 
   return {

@@ -142,7 +142,7 @@ export default function Monitoring({
         },
       ],
     }),
-    [mapPositionsResume, dict],
+    [mapPositionsResume, dict]
   );
 
   useEffect(() => {

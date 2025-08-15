@@ -11,7 +11,7 @@ export type AutentiaType = {
     outputs: string[],
     giveFocusToAutentia: boolean,
     token: string | number,
-    callback: AutentiaTypeCallback,
+    callback: AutentiaTypeCallback
   ) => void;
 };
 

@@ -21,14 +21,14 @@ export default function TripInformation({
       ? (task.mintral_arrivalDate as string)
       : task.mintral_estimatedArrivalDate
         ? (task.mintral_estimatedArrivalDate as string)
-        : "",
+        : ""
   );
   const etd = fromString(
     task.mintral_departureDate
       ? (task.mintral_departureDate as string)
       : task.mintral_expectedDepartureDate
         ? (task.mintral_expectedDepartureDate as string)
-        : (task.mintral_estimatedDepartureDate as string),
+        : (task.mintral_estimatedDepartureDate as string)
   );
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task?.mintral_serviceCode as string);

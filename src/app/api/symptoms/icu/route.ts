@@ -55,7 +55,7 @@ export async function GET(request: Request) {
         status: 500,
         message: "Failed to fetch symptoms data",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

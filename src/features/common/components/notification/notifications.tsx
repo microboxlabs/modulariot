@@ -52,7 +52,7 @@ export default async function Notifications({ lang }: { lang: string }) {
       acc[dayKey].push(item);
       return acc;
     },
-    {} as Record<string, any[]>,
+    {} as Record<string, any[]>
   );
 
   return (

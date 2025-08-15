@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest) {
         status: 500,
         message: "Something went wrong updating the notification:" + error,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

@@ -22,7 +22,7 @@ export type TaskLoads = {
 export function useLoadTable(tripId: string) {
   const { data, error, isLoading } = useSWR<TaskLoads | null, FetcherError>(
     `/app/api/task/loads?tripId=${tripId}`,
-    fetcher,
+    fetcher
   );
 
   return {

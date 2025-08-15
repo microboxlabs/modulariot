@@ -18,7 +18,7 @@ export default function Download({
   const [isCapturing, setIsCapturing] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(
-    null,
+    null
   );
 
   // Function to take a screenshot of the map and show in modal
@@ -29,10 +29,10 @@ export default function Download({
     try {
       // First find the map canvases to create a preview
       const deckGLCanvas = document.querySelector(
-        "canvas#deckgl-overlay",
+        "canvas#deckgl-overlay"
       ) as HTMLCanvasElement;
       const mapboxCanvas = document.querySelector(
-        "canvas.mapboxgl-canvas",
+        "canvas.mapboxgl-canvas"
       ) as HTMLCanvasElement;
 
       if (mapboxCanvas && deckGLCanvas) {
@@ -65,7 +65,7 @@ export default function Download({
     } catch (error) {
       console.error("Screenshot preview error:", error);
       setStatus(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       setIsCapturing(false);
@@ -98,7 +98,7 @@ export default function Download({
     } catch (error) {
       console.error("Screenshot error:", error);
       setStatus(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       // Reset status after a delay

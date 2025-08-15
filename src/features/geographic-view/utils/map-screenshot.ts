@@ -16,7 +16,7 @@ export async function captureAndDownloadMap(
     fileType?: string;
     onStatusChange?: (status: string) => void;
     debugMode?: boolean;
-  } = {},
+  } = {}
 ): Promise<boolean> {
   const {
     filename = options.filename ||
@@ -31,10 +31,10 @@ export async function captureAndDownloadMap(
   try {
     // Specifically find both the DeckGL overlay canvas and the Mapbox canvas
     const deckGLCanvas = document.querySelector(
-      "canvas#deckgl-overlay",
+      "canvas#deckgl-overlay"
     ) as HTMLCanvasElement;
     const mapboxCanvas = document.querySelector(
-      "canvas.mapboxgl-canvas",
+      "canvas.mapboxgl-canvas"
     ) as HTMLCanvasElement;
 
     if (debugMode) {
@@ -134,7 +134,7 @@ export async function captureAndDownloadMap(
           canvas.id.includes("deckgl") ||
           canvas.width > 200
         ); // Assume larger canvases are map canvases
-      },
+      }
     );
 
     if (debugMode) {
@@ -165,7 +165,7 @@ export async function captureAndDownloadMap(
               ctx.drawImage(canvas, 0, 0);
               if (debugMode) {
                 logger.info(
-                  `Drew canvas ${index} (${canvas.id || canvas.className})`,
+                  `Drew canvas ${index} (${canvas.id || canvas.className})`
                 );
               }
             } catch (e) {
@@ -205,7 +205,7 @@ export async function captureAndDownloadMap(
         // If we get a security error (CORS), we need to try a different approach
         if (err instanceof DOMException && err.name === "SecurityError") {
           onStatusChange(
-            "Cannot access canvas due to security restrictions. Try using browser print instead.",
+            "Cannot access canvas due to security restrictions. Try using browser print instead."
           );
           return false;
         }
@@ -220,7 +220,7 @@ export async function captureAndDownloadMap(
     // Open print dialog as a fallback
     if (
       confirm(
-        "Would you like to open the browser print dialog to save the map as PDF?",
+        "Would you like to open the browser print dialog to save the map as PDF?"
       )
     ) {
       window.print();
@@ -231,7 +231,7 @@ export async function captureAndDownloadMap(
   } catch (err) {
     logger.error("Error capturing map:", err);
     onStatusChange(
-      `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+      `Error: ${err instanceof Error ? err.message : "Unknown error"}`
     );
     return false;
   }

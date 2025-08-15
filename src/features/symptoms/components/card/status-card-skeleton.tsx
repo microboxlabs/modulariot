@@ -16,7 +16,7 @@ export default function StatusCardSkeleton() {
         "active:bg-gray-200",
         "cursor-pointer",
         "transition-all",
-        "w-full",
+        "w-full"
       )}
     >
       <div className="flex flex-row justify-between gap-4">
@@ -27,7 +27,7 @@ export default function StatusCardSkeleton() {
               "rounded-full",
               "bg-gray-200 dark:bg-gray-800",
               "flex items-center justify-center",
-              "animate-pulse",
+              "animate-pulse"
             )}
           ></div>
           <span className="text-gray-200 dark:text-gray-800 bg-gray-200 dark:bg-gray-800 text-sm font-light hidden lg:block whitespace-nowrap">

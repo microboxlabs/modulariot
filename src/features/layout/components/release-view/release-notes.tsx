@@ -18,7 +18,7 @@ export default function ReleaseNotes({ version }: { version: string }) {
       } catch (error) {
         console.error(
           `Failed to load release notes for version ${version}:`,
-          error,
+          error
         );
 
         try {

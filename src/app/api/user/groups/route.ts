@@ -16,7 +16,7 @@ export async function GET() {
       return NextResponse.json(
         { error: "Failed to fetch groups" },
         //@ts-ignore
-        { status: response?.error?.status ?? 500 },
+        { status: response?.error?.status ?? 500 }
       );
     }
 
@@ -24,7 +24,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

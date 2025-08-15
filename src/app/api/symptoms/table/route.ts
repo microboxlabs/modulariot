@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch symptoms data", errorMessage: error },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

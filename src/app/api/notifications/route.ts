@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest) {
         status: 500,
         message: "Failed to fetch symptoms data: " + error,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

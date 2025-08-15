@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!file || !contentType || !fileName || !mimeType || !destination) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       contentType,
       destination,
       currentFileName,
-      session,
+      session
     );
     return NextResponse.json({
       success: true,
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         error: error.message || "Upload failed",
         details: error.info || null,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -62,7 +62,7 @@ async function uploadFile(
   contentType: string,
   destination: string,
   fileName: string,
-  session: Session,
+  session: Session
 ) {
   const formData: UploadNodeRequest = {
     filedata: file,

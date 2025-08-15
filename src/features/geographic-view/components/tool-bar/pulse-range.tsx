@@ -15,7 +15,7 @@ type PulseRangeProps = {
     setViewState: (viewState: ViewStateType) => void,
     viewState: ViewStateType,
     camera_movement: boolean,
-    zoom?: number,
+    zoom?: number
   ) => void;
   setViewState: (viewState: ViewStateType) => void;
   viewState: ViewStateType;
@@ -227,7 +227,7 @@ function PulseRangeComponent({
                 setViewState,
                 viewState,
                 camera_movement,
-                10,
+                10
               );
             }
             setDisplayPosition(Number(e.target.value));

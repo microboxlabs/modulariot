@@ -45,32 +45,32 @@ export class PulsePinLayer extends CompositeLayer<any> {
     // Filter data for each layer to avoid null positions and validate coordinates
     const movingVehicles = this.props.data.features.filter(
       (d: any) =>
-        d.properties?.speed > 0 && isValidCoordinate(d.geometry?.coordinates),
+        d.properties?.speed > 0 && isValidCoordinate(d.geometry?.coordinates)
     );
     const stoppedVehicles = this.props.data.features.filter(
       (d: any) =>
         d.properties?.speed <= 0 &&
         showStops &&
-        isValidCoordinate(d.geometry?.coordinates),
+        isValidCoordinate(d.geometry?.coordinates)
     );
     const selectedVehicles = this.props.data.features.filter(
       (d: any) =>
         selectedPulse.includes(d.properties?.id) &&
-        isValidCoordinate(d.geometry?.coordinates),
+        isValidCoordinate(d.geometry?.coordinates)
     );
     const selectedStoppedVehicles = this.props.data.features.filter(
       (d: any) =>
         selectedPulse.includes(d.properties?.id) &&
         d.properties?.speed <= 0 &&
         showStops &&
-        isValidCoordinate(d.geometry?.coordinates),
+        isValidCoordinate(d.geometry?.coordinates)
     );
 
     return [
       new ScatterplotLayer({
         id: "pulse-background-layer",
         data: this.props.data.features.filter((d: any) =>
-          isValidCoordinate(d.geometry?.coordinates),
+          isValidCoordinate(d.geometry?.coordinates)
         ),
         getFillColor: () => [
           255,

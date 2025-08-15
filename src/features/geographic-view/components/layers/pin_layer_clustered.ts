@@ -121,7 +121,7 @@ export class PinLayer extends CompositeLayer<any> {
         // Always take the maximum value
         const maxSpeedLimit = Math.max(
           currentSpeedLimit || 0,
-          accumulatedSpeedLimit || 0,
+          accumulatedSpeedLimit || 0
         );
 
         const currentMaxSymptoms = props.cluster
@@ -133,7 +133,7 @@ export class PinLayer extends CompositeLayer<any> {
         // Always take the maximum value
         const maxSymptoms = Math.max(
           currentMaxSymptoms || 0,
-          accumulatedMaxSymptoms || 0,
+          accumulatedMaxSymptoms || 0
         );
 
         return {
@@ -183,7 +183,7 @@ export class PinLayer extends CompositeLayer<any> {
 
       const clusters = this.supercluster.getClusters(
         [-180, -85, 180, 85],
-        zoom,
+        zoom
       ) as ClusterFeature[];
 
       // Debug: Print children of each cluster and update highest speed limit
@@ -192,14 +192,14 @@ export class PinLayer extends CompositeLayer<any> {
           // Get all leaves (points) in this cluster
           const leaves = this.supercluster.getLeaves(
             cluster.properties.cluster_id,
-            Infinity,
+            Infinity
           );
 
           // Find the highest speed limit among children
           const highestSpeedLimit = Math.max(
             ...leaves.map(
-              (leaf: any) => leaf.properties.speed_limit_condition || 0,
-            ),
+              (leaf: any) => leaf.properties.speed_limit_condition || 0
+            )
           );
 
           // Update the cluster's highest speed limit
@@ -208,8 +208,8 @@ export class PinLayer extends CompositeLayer<any> {
 
           const highestSymptoms = Math.max(
             ...leaves.map(
-              (leaf: any) => leaf.properties.symptoms_condition || 0,
-            ),
+              (leaf: any) => leaf.properties.symptoms_condition || 0
+            )
           );
 
           // Update the cluster's highest symptoms condition
@@ -243,7 +243,7 @@ export class PinLayer extends CompositeLayer<any> {
             d.properties.cluster
               ? d.properties.highest_speed_limit
               : d.properties.speed_limit_condition,
-            d.properties.lost_signal,
+            d.properties.lost_signal
           ),
           width: 300,
           height: 500,
@@ -286,7 +286,7 @@ export class PinLayer extends CompositeLayer<any> {
         getPosition: (d: ClusterFeature) => d.geometry.coordinates,
         getPixelOffset: (d: ClusterFeature) => {
           const size = getIconSize(
-            d.properties.cluster ? d.properties.point_count || 1 : 1,
+            d.properties.cluster ? d.properties.point_count || 1 : 1
           );
           const heading = d.properties.heading || 0;
           // Convert heading to radians and calculate offset
@@ -298,7 +298,7 @@ export class PinLayer extends CompositeLayer<any> {
         iconMapping: icon_definition,
         getSize: (d: ClusterFeature) => {
           const baseSize = getIconSize(
-            d.properties.cluster ? d.properties.point_count || 1 : 1,
+            d.properties.cluster ? d.properties.point_count || 1 : 1
           );
           const scaleFactor = d.properties.cluster ? 0.7 : 1; // Smaller scale for clusters
           return (

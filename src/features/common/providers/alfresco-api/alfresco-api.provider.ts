@@ -534,14 +534,15 @@ export async function getInfoEntity(
   session: Session,
   licencePlate: string
 ): Promise<GetEntityInfoResponse> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service`;
+  const queryParams = new URLSearchParams({
+    licencePlate,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "GET",
     headers,
-    body: JSON.stringify({ licencePlate }),
   });
-
   return result as GetEntityInfoResponse;
 }
 

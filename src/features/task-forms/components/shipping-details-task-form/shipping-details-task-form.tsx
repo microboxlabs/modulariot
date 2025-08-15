@@ -20,12 +20,13 @@ import { ShippingCoordinatorProcessForms } from "../../services/form.service.typ
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiClipboardList } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import Validations from "../validations/validations";
+//import Validations from "../validations/validations";
 
+//TODO: remove this component
 export default async function ShippingDetailsTaskForm({
   task,
   lang,
-  userGroups,
+  //userGroups,
 }: TaskFormProps) {
   const [dict, dictionary] = await getDictionary(lang ?? defaultLocale);
 
@@ -33,7 +34,7 @@ export default async function ShippingDetailsTaskForm({
     serviceCode: task.mintral_serviceCode as string,
   });
 
-  const cardsMsg = (
+  /* const cardsMsg = (
     (dictionary.pages as I18nRecord).transportValidationForm as I18nRecord
   ).cards as I18nRecord;
 
@@ -48,7 +49,7 @@ export default async function ShippingDetailsTaskForm({
   });
   const check4Subtitle = dict("layout.secured.sidebar.subtitle4", {
     serviceCode: task.mintral_serviceCode as string,
-  });
+  }); */
 
   return (
     <div className="px-4 pt-6">
@@ -78,7 +79,7 @@ export default async function ShippingDetailsTaskForm({
                 lang={lang}
                 dict={dictionary.shippingDetailsTaskForm as I18nRecord}
               />
-              <Validations
+              {/* <Validations
                 task={task}
                 lang={lang}
                 userGroups={userGroups}
@@ -89,7 +90,7 @@ export default async function ShippingDetailsTaskForm({
                   check4Subtitle,
                   cards: cardsMsg,
                 }}
-              />
+              /> */}
             </div>
           </div>
 
@@ -182,7 +183,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="originDelegateCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.originDelegateCode"
+                        "pages.shippingDetailsTaskForm.originDelegateCode",
                       )}
                       value={task.mintral_originDelegateCode as string}
                     />
@@ -190,7 +191,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="destinationDelegateCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.destinationDelegateCode"
+                        "pages.shippingDetailsTaskForm.destinationDelegateCode",
                       )}
                       value={task.mintral_destinationDelegateCode as string}
                     />
@@ -267,7 +268,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="transportNumberCode"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.transportNumberCode"
+                        "pages.shippingDetailsTaskForm.transportNumberCode",
                       )}
                       value={task.mintral_transportNumberCode as string}
                     />
@@ -277,7 +278,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="truckLicensePlate"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.truckLicensePlate"
+                        "pages.shippingDetailsTaskForm.truckLicensePlate",
                       )}
                       value={task.mintral_truckLicensePlate as string}
                     />
@@ -285,7 +286,7 @@ export default async function ShippingDetailsTaskForm({
                     <DetailsTextInput
                       name="trailerLicensePlate"
                       label={dict(
-                        "pages.shippingDetailsTaskForm.trailerLicensePlate"
+                        "pages.shippingDetailsTaskForm.trailerLicensePlate",
                       )}
                       value={task.mintral_trailerLicensePlate as string}
                     />

@@ -18,6 +18,10 @@ const nextConfig = {
     // Only fail build on TypeScript errors, not warnings
     ignoreBuildErrors: false,
   },
+  experimental: {
+    instrumentationHook: true,
+    serverComponentsExternalPackages: ['sequelize', 'pino', 'pino-pretty'],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback.fs = false;

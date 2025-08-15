@@ -689,6 +689,13 @@
           "addButton": "Agregar"
         }
       }
+    },
+    "admin": {
+      "breadcrumb": {
+        "admin": "Admin",
+        "console": "Consola",
+        "logs": "Logs"
+      }
     }
   },
   "layout": {

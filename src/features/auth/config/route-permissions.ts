@@ -39,6 +39,11 @@ export const ROUTE_PERMISSIONS = {
   "/api/geographic": FULL_ACCESS_ROLES,
   "/api/symptoms": FULL_ACCESS_ROLES,
   "/api/admin/logs": ADMIN_ROLES,
+  "/api/admin/message-templates": ADMIN_ROLES,
+  "/api/admin/webhooks": ADMIN_ROLES,
+
+  // Admin console routes
+  "/admin/console/message-templates": ADMIN_ROLES,
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_PERMISSIONS;

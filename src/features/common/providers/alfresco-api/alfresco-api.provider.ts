@@ -20,6 +20,14 @@ import type {
   UploadNodeRequest,
   UserState,
   ValidationsResponse,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
+  CreateWebhookRequest,
+  UpdateWebhookRequest,
+  MessageTemplate,
+  WebhookDefinition,
+  WebhookDefinitionResponse,
+  MessageTemplatesResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
@@ -33,7 +41,7 @@ import type { Session } from "next-auth";
  */
 export function prepareAlfrescoAuth(
   baseUrl: string,
-  session?: Session,
+  session?: Session
   // contentType: string = "application/json",
 ): {
   url: string;
@@ -71,7 +79,7 @@ export function getAlfrescoApi(): AlfrescoApiClient {
 
 export async function getUserProfile(
   session: Session,
-  userId: string = "-me-",
+  userId: string = "-me-"
 ): Promise<PersonEntry> {
   const queryParams = new URLSearchParams({
     userId,
@@ -87,7 +95,7 @@ export async function getUserProfile(
 
 export async function getBase64UserAvatar(
   session: Session,
-  userId = "-me-",
+  userId = "-me-"
 ): Promise<Blob> {
   // curl -X 'GET' \
   // 'https://coordinador-dev.mintral.cl/alfresco/api/-default-/public/alfresco/versions/1/people/-me-/avatar?attachment=true&placeholder=true' \
@@ -113,7 +121,7 @@ export async function getUserTasks(
     from?: number;
     size?: number;
     filter?: Record<string, unknown>;
-  } = {},
+  } = {}
 ): Promise<FastTasksResponse> {
   const { from = 0, size = 100, filter = undefined } = options;
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks`;
@@ -134,7 +142,7 @@ export async function getUserTasks(
 
 export async function getTaskById(
   session: Session,
-  taskId: string,
+  taskId: string
 ): Promise<TaskResponse> {
   const queryParams = new URLSearchParams({
     taskId,
@@ -152,7 +160,7 @@ export async function getTaskById(
 export async function endTask(
   session: Session,
   taskId: string,
-  transitionId?: string,
+  transitionId?: string
 ): Promise<EndTaskResponse> {
   const queryParams = new URLSearchParams({
     taskId,
@@ -211,7 +219,7 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
   if (request.updateNameAndMimetype) {
     formdata.append(
       "updateNameAndMimetype",
-      request.updateNameAndMimetype.toString(),
+      request.updateNameAndMimetype.toString()
     );
   }
   if (request.createdDirectory) {
@@ -220,7 +228,7 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
   if (request.prop_mintral_contentType) {
     formdata.append(
       "prop_mintral_contentType",
-      request.prop_mintral_contentType,
+      request.prop_mintral_contentType
     );
   }
   return formdata;
@@ -228,7 +236,7 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
 
 export async function uploadNodeContent(
   session: Session,
-  request: UploadNodeRequest,
+  request: UploadNodeRequest
 ): Promise<string> {
   const formdata = uploadNodeFormData(request);
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
@@ -247,7 +255,7 @@ export async function uploadNodeContent(
 export async function getChildrenNodes(
   session: Session,
   nodeId: string,
-  options: NodeChildrenRequest,
+  options: NodeChildrenRequest
 ): Promise<NodeChildAssociationPaging> {
   const queryParams = new URLSearchParams();
   Object.entries(options).forEach(([key, value]) => {
@@ -264,7 +272,7 @@ export async function getChildrenNodes(
 
 export async function getContentNode(
   session: Session,
-  nodeId: string,
+  nodeId: string
 ): Promise<string> {
   const queryParams = new URLSearchParams({
     attachment: "true",
@@ -288,7 +296,7 @@ interface Validations {
 
 export async function validateService(
   session: Session,
-  serviceCode: string,
+  serviceCode: string
 ): Promise<Validations> {
   const queryParams = new URLSearchParams({
     serviceCode,
@@ -311,7 +319,7 @@ export async function getContentByTaskId(
   session: Session,
   taskId: string,
   fileName: string,
-  requireInternalSign: boolean = false,
+  requireInternalSign: boolean = false
 ): Promise<string> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/node/content`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -325,7 +333,7 @@ export async function getContentByTaskId(
 
   const { url: url1, headers: headers1 } = prepareAlfrescoAuth(
     baseUrl1,
-    session,
+    session
   );
   const result1 = await fetch(url1, {
     method: "GET",
@@ -336,7 +344,7 @@ export async function getContentByTaskId(
 }
 
 export async function getCountTask(
-  session: Session,
+  session: Session
 ): Promise<TaskCountResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/statistics/tasks`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -352,7 +360,7 @@ export async function formProcessor(
   session: Session,
   itemKind: string,
   itemId: string,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): Promise<TaskResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${itemId}/formprocessor`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -368,14 +376,14 @@ export async function formProcessor(
 export async function updateTask(
   session: Session,
   taskId: string,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): Promise<TaskResponse> {
   return formProcessor(session, "task", taskId, data);
 }
 
 export async function getServiceValidation(
   session: Session,
-  serviceCode: string,
+  serviceCode: string
 ): Promise<ServiceValidationResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service/validation`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -390,7 +398,7 @@ export async function getServiceValidation(
 
 export async function getFinishedWorkflows(
   session: Session,
-  data: FinishedWorkflowsRequest,
+  data: FinishedWorkflowsRequest
 ): Promise<FinishedWorkflowsResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/finished/workflows`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -404,7 +412,7 @@ export async function getFinishedWorkflows(
 
 export async function getFinishedWorkflowByInstanceId(
   session: Session,
-  data: string,
+  data: string
 ): Promise<HistoricalWorkflow> {
   const queryParams = new URLSearchParams({
     instanceId: data,
@@ -420,7 +428,7 @@ export async function getFinishedWorkflowByInstanceId(
 
 export async function checkDocumentExists(
   session: Session,
-  nodeId: string,
+  nodeId: string
 ): Promise<boolean> {
   try {
     const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
@@ -451,7 +459,7 @@ export async function getSympthomTemplate(
   session: Session,
   serviceCode: string,
   conditionName: string,
-  icuCode: string,
+  icuCode: string
 ): Promise<SympthomTemplateResponse> {
   const queryParams = new URLSearchParams({
     serviceCode,
@@ -481,7 +489,7 @@ export async function getUserStates(session: Session): Promise<UserState[]> {
 export async function getTaskHistory(
   session: Session,
   taskId: string,
-  active: boolean = true,
+  active: boolean = true
 ): Promise<TaskResponse> {
   const queryParams = new URLSearchParams({
     taskId,
@@ -499,7 +507,7 @@ export async function getTaskHistory(
 
 export async function getTripLoads(
   session: Session,
-  tripId: string,
+  tripId: string
 ): Promise<TaskResponse> {
   const queryParams = new URLSearchParams({
     tripId,
@@ -532,7 +540,7 @@ export async function getGroupsForPerson(session: Session): Promise<string[]> {
 
 export async function getInfoEntity(
   session: Session,
-  licencePlate: string,
+  licencePlate: string
 ): Promise<GetEntityInfoResponse> {
   const queryParams = new URLSearchParams({
     licencePlate,
@@ -547,7 +555,7 @@ export async function getInfoEntity(
 }
 
 export async function getBiometricVerification(
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): Promise<TaskResponse> {
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
   const result = await fetcher(url, {
@@ -560,7 +568,7 @@ export async function getBiometricVerification(
 
 export async function getSovosFingerprintReuse(
   session: Session,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): Promise<TaskResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/sovos/fingerprint-reuse`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -597,7 +605,7 @@ export async function markAsRead(session: Session, id: string) {
 
 export async function getTaskByLicensePlate(
   session: Session,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): Promise<any> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/history-filter`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -613,7 +621,7 @@ export async function getTaskByLicensePlate(
 
 export async function ecmSovosDec5(
   session: Session,
-  taskId: string,
+  taskId: string
 ): Promise<any> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/sign/sovos-dec5?taskId=${taskId}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -631,7 +639,7 @@ export async function getValidationByServiceCode(
   session: Session,
   serviceCode: string,
   scope?: string,
-  scopeId?: string,
+  scopeId?: string
 ): Promise<ValidationsResponse> {
   const queryParams = new URLSearchParams({
     serviceCode,
@@ -665,7 +673,7 @@ async function callForumAction<TResponse = unknown>(
   options?: {
     query?: Record<string, string | undefined>;
     body?: Record<string, unknown>;
-  },
+  }
 ): Promise<TResponse> {
   const queryParams = new URLSearchParams();
   if (options?.query) {
@@ -686,7 +694,7 @@ async function callForumAction<TResponse = unknown>(
 
 export async function getForumDiscussion(
   session: Session,
-  params: { taskId?: string; instanceId?: string; serviceCode?: string },
+  params: { taskId?: string; instanceId?: string; serviceCode?: string }
 ): Promise<ForumDiscussionResponse> {
   return callForumAction<ForumDiscussionResponse>(session, "discussion", {
     query: params,
@@ -695,14 +703,14 @@ export async function getForumDiscussion(
 
 export async function createForumTopic(
   session: Session,
-  data: { bpmPackage: string; title: string; content: string },
+  data: { bpmPackage: string; title: string; content: string }
 ): Promise<unknown> {
   return callForumAction(session, "topic/create", { body: data });
 }
 
 export async function createForumPost(
   session: Session,
-  data: { topic: string; title: string; content: string; author: string },
+  data: { topic: string; title: string; content: string; author: string }
 ): Promise<unknown> {
   return callForumAction(session, "post/create", { body: data });
 }
@@ -715,28 +723,161 @@ export async function replyForumPost(
     title?: string;
     content: string;
     author: string;
-  },
+  }
 ): Promise<unknown> {
   return callForumAction(session, "post/reply", { body: data });
 }
 
 export async function editForumPost(
   session: Session,
-  data: { post: string; title?: string; content?: string },
+  data: { post: string; title?: string; content?: string }
 ): Promise<unknown> {
   return callForumAction(session, "post/edit", { body: data });
 }
 
 export async function deleteForumPost(
   session: Session,
-  data: { topic: string; post: string },
+  data: { topic: string; post: string }
 ): Promise<unknown> {
   return callForumAction(session, "post/delete", { body: data });
 }
 
 export async function deleteForumTopic(
   session: Session,
-  data: { bpmPackage: string; topic: string },
+  data: { bpmPackage: string; topic: string }
 ): Promise<unknown> {
   return callForumAction(session, "topic/delete", { body: data });
+}
+
+// Message Templates API
+
+async function callMessageTemplateAction<TResponse = unknown>(
+  session: Session,
+  action: string,
+  options?: {
+    query?: Record<string, string | undefined>;
+    body?:
+      | CreateTemplateRequest
+      | UpdateTemplateRequest
+      | CreateWebhookRequest
+      | UpdateWebhookRequest
+      | { template: string };
+  }
+): Promise<TResponse> {
+  const queryParams = new URLSearchParams();
+  if (options?.query) {
+    Object.entries(options.query).forEach(([k, v]) => {
+      if (v) queryParams.set(k, v);
+    });
+  }
+
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/msgtpl/${action}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  return result as TResponse;
+}
+
+// Template CRUD operations
+export async function createMessageTemplate(
+  session: Session,
+  data: CreateTemplateRequest
+): Promise<MessageTemplate> {
+  return callMessageTemplateAction<MessageTemplate>(
+    session,
+    "template/create",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function updateMessageTemplate(
+  session: Session,
+  data: UpdateTemplateRequest
+): Promise<MessageTemplate> {
+  return callMessageTemplateAction<MessageTemplate>(
+    session,
+    "template/update",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function deleteMessageTemplate(
+  session: Session,
+  templateNodeRef: string
+): Promise<void> {
+  return callMessageTemplateAction(session, "template/delete", {
+    body: { template: templateNodeRef },
+  });
+}
+
+export async function listMessageTemplates(
+  session: Session,
+  site: string,
+  kind?: string
+): Promise<MessageTemplatesResponse> {
+  return callMessageTemplateAction<MessageTemplatesResponse>(
+    session,
+    "template/list",
+    {
+      query: { site, kind },
+    }
+  );
+}
+
+// Webhook CRUD operations
+export async function createWebhookDefinition(
+  session: Session,
+  data: CreateWebhookRequest
+): Promise<WebhookDefinition> {
+  return callMessageTemplateAction<WebhookDefinition>(
+    session,
+    "webhook/create",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function updateWebhookDefinition(
+  session: Session,
+  data: UpdateWebhookRequest
+): Promise<WebhookDefinition> {
+  return callMessageTemplateAction<WebhookDefinition>(
+    session,
+    "webhook/update",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function deleteWebhookDefinition(
+  session: Session,
+  webhookDefNodeRef: string
+): Promise<void> {
+  return callMessageTemplateAction(session, "webhook/delete", {
+    body: { webhookDef: webhookDefNodeRef },
+  });
+}
+
+export async function listWebhookDefinitions(
+  session: Session,
+  site: string,
+  kind?: string
+): Promise<WebhookDefinitionResponse> {
+  return callMessageTemplateAction<WebhookDefinitionResponse>(
+    session,
+    "webhook/list",
+    {
+      query: { site, kind },
+    }
+  );
 }

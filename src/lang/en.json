@@ -699,7 +699,107 @@
       "breadcrumb": {
         "admin": "Admin",
         "console": "Console",
-        "logs": "Logs"
+        "logs": "Logs",
+        "messageTemplates": "Message Templates"
+      },
+      "messageTemplates": {
+        "title": "Message Templates Management",
+        "description": "Manage message templates and webhook definitions for automated notifications.",
+        "tabs": {
+          "webhooks": "Webhooks",
+          "templates": "Templates"
+        },
+        "webhooks": {
+          "title": "Webhook Definitions",
+          "description": "Manage webhook definitions grouped by type.",
+          "createButton": "Create Webhook",
+          "noWebhooks": "No webhooks configured",
+          "groupBy": "Grouped by type",
+          "fields": {
+            "eventName": "Event Name",
+            "templateId": "Template ID",
+            "webhookUrl": "Webhook URL",
+            "webhookKind": "Webhook Type",
+            "template": "Associated Template",
+            "created": "Created",
+            "modified": "Modified"
+          },
+          "kinds": {
+            "MS_TEAMS": "Microsoft Teams",
+            "SLACK": "Slack",
+            "EMAIL": "Email",
+            "SMS": "SMS",
+            "WEBHOOK": "Generic Webhook"
+          },
+          "actions": {
+            "edit": "Edit",
+            "delete": "Delete",
+            "associate": "Associate Template",
+            "dissociate": "Dissociate Template"
+          },
+          "deleteConfirm": "Are you sure you want to delete this webhook?",
+          "form": {
+            "create": "Create New Webhook",
+            "edit": "Edit Webhook",
+            "eventNamePlaceholder": "e.g: TRIP_ALERT, DRIVER_NOTIFICATION",
+            "webhookUrlPlaceholder": "https://example.com/webhook",
+            "selectTemplate": "Select Template",
+            "createNewTemplate": "Create New Template",
+            "useExistingTemplate": "Use Existing Template"
+          }
+        },
+        "templates": {
+          "title": "Message Templates",
+          "description": "Manage message templates used by webhooks.",
+          "createButton": "Create Template",
+          "noTemplates": "No templates available",
+          "fields": {
+            "templateId": "Template ID",
+            "templateKind": "Template Type",
+            "engine": "Template Engine",
+            "locale": "Locale",
+            "content": "Content",
+            "associatedWebhooks": "Associated Webhooks",
+            "created": "Created",
+            "modified": "Modified"
+          },
+          "engines": {
+            "freemarker": "FreeMarker",
+            "velocity": "Velocity",
+            "mustache": "Mustache"
+          },
+          "actions": {
+            "view": "View",
+            "edit": "Edit",
+            "delete": "Delete",
+            "download": "Download"
+          },
+          "deleteConfirm": "Are you sure you want to delete this template?",
+          "form": {
+            "create": "Create New Template",
+            "edit": "Edit Template",
+            "templateIdPlaceholder": "e.g: GENERIC_ALERT",
+            "engineExtPlaceholder": "ftl, vm, mustache",
+            "contentPlaceholder": "Template content...",
+            "preview": "Preview",
+            "save": "Save",
+            "cancel": "Cancel"
+          }
+        },
+        "errors": {
+          "loadingFailed": "Failed to load data",
+          "createFailed": "Failed to create",
+          "updateFailed": "Failed to update",
+          "deleteFailed": "Failed to delete",
+          "invalidUrl": "Invalid URL",
+          "requiredField": "Required field",
+          "templateInUse": "This template is in use by active webhooks"
+        },
+        "success": {
+          "created": "Successfully created",
+          "updated": "Successfully updated",
+          "deleted": "Successfully deleted"
+        }
       }
     }
   },

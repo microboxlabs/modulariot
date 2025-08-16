@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { logManagementAPI, LogLevel } from "@/lib/logger";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-
-// Admin groups that can manage logs
-const ADMIN_GROUPS = [
-  "GROUP_ALFRESCO_ADMINISTRATORS",
-  "GROUP_MINTRAL_SYSTEM_ADMIN",
-];
-
-// Helper function to check if user has admin privileges
-async function hasAdminAccess(session: any): Promise<boolean> {
-  if (!session?.user) {
-    return false;
-  }
-
-  try {
-    const userGroups = await getGroupsForPerson(session);
-    return userGroups.some((group) => ADMIN_GROUPS.includes(group));
-  } catch (error) {
-    console.error("Error checking admin access:", error);
-    return false;
-  }
-}
+import { hasAdminAccessForSession } from "@/features/auth/utils/admin-access";
 
 /**
  * GET /api/admin/logs
@@ -32,7 +11,7 @@ export async function GET() {
   try {
     const session = await auth();
 
-    if (!session || !(await hasAdminAccess(session))) {
+    if (!session || !(await hasAdminAccessForSession(session))) {
       return NextResponse.json(
         { error: "Unauthorized. Admin access required." },
         { status: 403 }
@@ -67,7 +46,7 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !(await hasAdminAccess(session))) {
+    if (!session || !(await hasAdminAccessForSession(session))) {
       return NextResponse.json(
         { error: "Unauthorized. Admin access required." },
         { status: 403 }
@@ -136,7 +115,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !(await hasAdminAccess(session))) {
+    if (!session || !(await hasAdminAccessForSession(session))) {
       return NextResponse.json(
         { error: "Unauthorized. Admin access required." },
         { status: 403 }
@@ -202,7 +181,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !(await hasAdminAccess(session))) {
+    if (!session || !(await hasAdminAccessForSession(session))) {
       return NextResponse.json(
         { error: "Unauthorized. Admin access required." },
         { status: 403 }

@@ -60,9 +60,13 @@ export default function Huella({
 
   const handleIdCardNumberChange = (value: string) => {
     logger.info("handleIdCardNumberChange", value);
-    setQrMessage(value);
-    setIdCardNumber(value);
-    //setIdCardLoading(true);
+    if (value.length > 0) {
+      const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
+      setQrMessage(idCardCaptured);
+      setIdCardNumber(idCardCaptured);
+      //setIdCardLoading(true);
+      handleValidateIdCard();
+    }
   };
 
   useEffect(() => {
@@ -340,12 +344,21 @@ export default function Huella({
                   className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />
               </div>
-              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
-                {
-                  (dict.totem as I18nRecord)
-                    .smart_lock_card_subtext_loading as string
-                }
-              </p>
+              {status === "error-id-card" ? (
+                <p className="text-xs text-red-500 text-center px-14">
+                  {
+                    (dict.totem as I18nRecord)
+                      .id_card_manual_access_error as string
+                  }
+                </p>
+              ) : (
+                <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+                  {
+                    (dict.totem as I18nRecord)
+                      .smart_lock_card_subtext_loading as string
+                  }
+                </p>
+              )}
             </>
           ) : (
             <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">

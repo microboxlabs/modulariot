@@ -16,6 +16,7 @@ import { validateIdCard } from "@/features/common/providers/client-api.provider"
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
 import Image from "next/image";
+import { logger } from "@/lib/logger";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -61,7 +62,7 @@ export default function Huella({
   const isWindowsDevice = isWindows();
 
   // Function to get optimal QR scanning configuration
-  const getQRScannerConfig = () => {
+  /*  const getQRScannerConfig = () => {
     const container = document.getElementById("html5qr-code");
     const containerWidth = container?.offsetWidth || 600;
     const containerHeight = container?.offsetHeight || 450;
@@ -86,6 +87,12 @@ export default function Huella({
         formatsToSupport: ["QR_CODE", "DATA_MATRIX", "AZTEC"],
       },
     };
+  }; */
+
+  const handleIdCardNumberChange = (value: string) => {
+    logger.info("handleIdCardNumberChange", value);
+    setIdCardNumber(value);
+    //setIdCardLoading(true);
   };
 
   useEffect(() => {
@@ -94,7 +101,7 @@ export default function Huella({
     }
   }, [count]);
 
-  useEffect(() => {
+  /* useEffect(() => {
     if (idCardLoading && qrRef.current) {
       import("html5-qrcode" as any).then(({ Html5Qrcode }: any) => {
         html5QrCodeScope = new Html5Qrcode("html5qr-code");
@@ -138,6 +145,7 @@ export default function Huella({
       if (el) el.innerHTML = "";
     };
   }, [idCardLoading]);
+ */
 
   useEffect(() => {
     if (!isWindowsDevice) {
@@ -400,7 +408,7 @@ export default function Huella({
           {idCardLoading ? (
             <>
               <div className="w-full flex justify-center mb-4">
-                <div
+                {/*  <div
                   id="html5qr-code"
                   ref={qrRef}
                   style={{
@@ -410,6 +418,13 @@ export default function Huella({
                     aspectRatio: "1/1",
                   }}
                   className="rounded-lg overflow-hidden border-2 border-gray-300"
+                /> */}
+                <input
+                  type="text"
+                  value={idCardNumber}
+                  onChange={(e) => handleIdCardNumberChange(e.target.value)}
+                  autoFocus
+                  className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
@@ -436,8 +451,8 @@ export default function Huella({
                 setManualAccess(false);
                 setQrCode(true);
                 setIdCardLoading(false);
-                html5QrCodeScope?.stop();
-                html5QrCodeScope?.clear();
+                /*  html5QrCodeScope?.stop();
+                html5QrCodeScope?.clear(); */
               }}
               disabled={
                 status !== "idle" && status !== "success" && status !== "error"

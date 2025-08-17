@@ -16,7 +16,7 @@ import { validateIdCard } from "@/features/common/providers/client-api.provider"
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
 import Image from "next/image";
-import { logger } from "@/lib/logger";
+//import { logger } from "@/lib/logger";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -58,16 +58,16 @@ export default function Huella({
   // Device detection hook
   const isWindowsDevice = isWindows();
 
-  const handleIdCardNumberChange = (value: string) => {
+  /* const handleIdCardNumberChange = (value: string) => {
     logger.info("handleIdCardNumberChange", value);
-    if (value.length > 0) {
+    if (value.length > 20) {
       const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
       setQrMessage(idCardCaptured);
       setIdCardNumber(idCardCaptured);
       //setIdCardLoading(true);
       //handleValidateIdCard();
     }
-  };
+  }; */
 
   useEffect(() => {
     if (count >= 3) {
@@ -92,12 +92,13 @@ export default function Huella({
       handleScanFingerprint();
     }
 
-    /* if (idCard) {
+    if (idCard) {
       let bufferText = "";
       document.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          handleIdCardNumberChange(bufferText);
-          bufferText = "";
+          //handleIdCardNumberChange(bufferText);
+          setIdCardNumber(bufferText);
+          setQrMessage(bufferText);
         } else if (e.key.length === 1) {
           bufferText += e.key;
         }
@@ -105,7 +106,7 @@ export default function Huella({
       return () => {
         document.removeEventListener("keydown", () => {});
       };
-    } */
+    }
   }, []);
 
   if (!pluginReady) return null;
@@ -354,7 +355,7 @@ export default function Huella({
                 <input
                   type="text"
                   value={idCardNumber}
-                  onChange={(e) => handleIdCardNumberChange(e.target.value)}
+                  /* onChange={(e) => handleIdCardNumberChange(e.target.value)} */
                   autoFocus
                   className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />

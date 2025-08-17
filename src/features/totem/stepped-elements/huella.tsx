@@ -65,7 +65,7 @@ export default function Huella({
       setQrMessage(idCardCaptured);
       setIdCardNumber(idCardCaptured);
       //setIdCardLoading(true);
-      handleValidateIdCard();
+      //handleValidateIdCard();
     }
   };
 
@@ -92,20 +92,20 @@ export default function Huella({
       handleScanFingerprint();
     }
 
-    if (idCard) {
+    /* if (idCard) {
       let bufferText = "";
       document.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           handleIdCardNumberChange(bufferText);
           bufferText = "";
-        } else {
+        } else if (e.key.length === 1) {
           bufferText += e.key;
         }
       });
       return () => {
         document.removeEventListener("keydown", () => {});
       };
-    }
+    } */
   }, []);
 
   if (!pluginReady) return null;
@@ -354,7 +354,7 @@ export default function Huella({
                 <input
                   type="text"
                   value={idCardNumber}
-                  /* onChange={(e) => handleIdCardNumberChange(e.target.value)} */
+                  onChange={(e) => handleIdCardNumberChange(e.target.value)}
                   autoFocus
                   className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />

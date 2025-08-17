@@ -16,7 +16,7 @@ import { validateIdCard } from "@/features/common/providers/client-api.provider"
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
 import Image from "next/image";
-import { logger } from "@/lib/logger";
+//import { logger } from "@/lib/logger";
 // import dynamic from "next/dynamic";
 // const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
 
@@ -58,16 +58,16 @@ export default function Huella({
   // Device detection hook
   const isWindowsDevice = isWindows();
 
-  const handleIdCardNumberChange = (value: string) => {
+  /* const handleIdCardNumberChange = (value: string) => {
     logger.info("handleIdCardNumberChange", value);
-    if (value.length > 0) {
+    if (value.length > 20) {
       const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
       setQrMessage(idCardCaptured);
       setIdCardNumber(idCardCaptured);
       //setIdCardLoading(true);
-      handleValidateIdCard();
+      //handleValidateIdCard();
     }
-  };
+  }; */
 
   useEffect(() => {
     if (count >= 3) {
@@ -96,9 +96,10 @@ export default function Huella({
       let bufferText = "";
       document.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          handleIdCardNumberChange(bufferText);
-          bufferText = "";
-        } else {
+          //handleIdCardNumberChange(bufferText);
+          setIdCardNumber(bufferText);
+          setQrMessage(bufferText);
+        } else if (e.key.length === 1) {
           bufferText += e.key;
         }
       });

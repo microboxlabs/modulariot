@@ -56,16 +56,20 @@ export default function Huella({
   // Device detection hook
   const isWindowsDevice = isWindows();
 
-  /* const handleIdCardNumberChange = (value: string) => {
+  const handleIdCardNumberChange = (value: string) => {
     logger.info("handleIdCardNumberChange", value);
-    if (value.length > 20) {
-      const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
-      setQrMessage(idCardCaptured);
-      setIdCardNumber(idCardCaptured);
+    if (value.length > 0) {
+      //const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
+      setQrMessage(qrMessage + value);
       //setIdCardLoading(true);
       //handleValidateIdCard();
     }
-  }; */
+    if (qrMessage && qrMessage.indexOf("mrz") !== -1) {
+      logger.info("mrz", idCardNumber);
+      const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
+      setIdCardNumber(idCardCaptured);
+    }
+  };
 
   useEffect(() => {
     if (count >= 3) {
@@ -90,7 +94,7 @@ export default function Huella({
       handleScanFingerprint();
     }
 
-    if (idCard) {
+    /* if (idCard) {
       let bufferText = "";
       logger.info("add event listener");
       document.addEventListener("keydown", (e) => {
@@ -110,7 +114,7 @@ export default function Huella({
         logger.info("remove event listener");
         document.removeEventListener("keydown", () => {});
       };
-    }
+    } */
   }, []);
 
   if (!pluginReady) return null;
@@ -359,7 +363,7 @@ export default function Huella({
                 <input
                   type="text"
                   value={idCardNumber}
-                  /* onChange={(e) => handleIdCardNumberChange(e.target.value)} */
+                  onChange={(e) => handleIdCardNumberChange(e.target.value)}
                   autoFocus
                   className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />

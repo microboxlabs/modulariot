@@ -66,7 +66,10 @@ export default function Huella({
     }
     if (qrMessage && qrMessage.indexOf("mrz") !== -1) {
       logger.info("mrz", idCardNumber);
-      const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
+      const idCardCaptured = qrMessage.substring(
+        qrMessage.indexOf("serial") + 7,
+        9
+      );
       setIdCardNumber(idCardCaptured);
     }
   };

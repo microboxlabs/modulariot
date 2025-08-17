@@ -60,7 +60,11 @@ export default function Huella({
     logger.info("handleIdCardNumberChange", value);
     if (value.length > 0) {
       //const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
-      setQrMessage(qrMessage + value);
+      if (qrMessage !== null) {
+        setQrMessage(qrMessage + value);
+      } else {
+        setQrMessage(value);
+      }
       //setIdCardLoading(true);
       //handleValidateIdCard();
     }

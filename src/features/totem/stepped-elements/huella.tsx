@@ -16,9 +16,7 @@ import { validateIdCard } from "@/features/common/providers/client-api.provider"
 import { Button } from "flowbite-react";
 import { isWindows } from "@/features/common/hooks/use-device-detection";
 import Image from "next/image";
-//import { logger } from "@/lib/logger";
-// import dynamic from "next/dynamic";
-// const QrReader = dynamic(() => import("@blackbox-vision/react-qr-reader").then(mod => mod.QrReader), { ssr: false });
+import { logger } from "@/lib/logger";
 
 export default function Huella({
   setCurrentStep,
@@ -94,7 +92,9 @@ export default function Huella({
 
     if (idCard) {
       let bufferText = "";
+      logger.info("add event listener");
       document.addEventListener("keydown", (e) => {
+        logger.info("keydown", e.key);
         if (e.key === "Enter") {
           //handleIdCardNumberChange(bufferText);
           setIdCardNumber(bufferText);
@@ -102,8 +102,12 @@ export default function Huella({
         } else if (e.key.length === 1) {
           bufferText += e.key;
         }
+        if (bufferText.indexOf("mrz") !== -1) {
+          logger.info("qrCode", bufferText);
+        }
       });
       return () => {
+        logger.info("remove event listener");
         document.removeEventListener("keydown", () => {});
       };
     }

@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getNotifications } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { logError } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(_req: NextRequest) {
@@ -13,13 +14,7 @@ export async function GET(_req: NextRequest) {
     const response = await getNotifications(session);
     return NextResponse.json(response);
   } catch (error) {
-    return NextResponse.json(
-      {
-        data: {},
-        status: 500,
-        message: "Failed to fetch symptoms data: " + error,
-      },
-      { status: 500 }
-    );
+    logError(error as Error);
+    return NextResponse.json({ error }, { status: 500 });
   }
 }

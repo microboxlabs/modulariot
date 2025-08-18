@@ -482,7 +482,7 @@ export default function Huella({
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
         </Button>
-        <Button
+        {/*  <Button
           onClick={() => {
             setIdCard(true);
           }}
@@ -495,7 +495,7 @@ export default function Huella({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }

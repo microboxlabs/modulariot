@@ -6,7 +6,7 @@ import { createForumTopic } from "@/features/common/providers/alfresco-api/alfre
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) {
-    return NextResponse.next({ status: 401 });
+    return NextResponse.json({ status: 401 });
   }
 
   const body = (await req.json()) as {

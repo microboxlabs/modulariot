@@ -167,7 +167,6 @@ export default async function httfetcher<T>(
     const durationMs = Date.now() - startTime;
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
-    console.error("error response", await response?.text());
     if (shouldLog) {
       apiLogger.error({
         ...buildAccessLogFields({

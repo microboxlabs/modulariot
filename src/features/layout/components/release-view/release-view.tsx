@@ -13,7 +13,7 @@ export default function ReleaseView({ className }: { className?: string }) {
 
   if (isLoading) {
     return (
-      <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-500 dark:bg-gray-400 rounded-md sm:text-center animate-pulse">
+      <div className="text-sm text-gray-300 dark:text-gray-700 bg-gray-300 dark:bg-gray-700 rounded-md sm:text-center animate-pulse">
         loading...
       </div>
     );
@@ -21,6 +21,15 @@ export default function ReleaseView({ className }: { className?: string }) {
 
   if (error) {
     return <div>Error: {error.message}</div>;
+  }
+
+  // Check if releases exists and has files before proceeding
+  if (!releases || !(releases as unknown as Release)?.files) {
+    return (
+      <div className="text-sm text-gray-300 dark:text-gray-700 bg-gray-300 dark:bg-gray-700 rounded-md sm:text-center animate-pulse">
+        No releases available
+      </div>
+    );
   }
 
   // all the files in release have a name like "v1.1.mdx", get the newest version and add it in version

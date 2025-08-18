@@ -18,6 +18,9 @@ export default function Historic({
     error,
   } = useTaskHistory(task_id, active);
 
+  // Ensure taskHistory is always an array
+  const safeTaskHistory = Array.isArray(taskHistory) ? taskHistory : [];
+
   const headers = [
     (dict.kanban as I18nRecord).taskType as string,
     (dict.kanban as I18nRecord).taskAction as string,
@@ -29,14 +32,14 @@ export default function Historic({
   return (
     <div className="flex-1 w-0 min-w-full overflow-x-auto h-full transition-all duration-300">
       <CustomTable
-        data={taskHistory}
+        data={safeTaskHistory}
         no_data_message={(dict.kanban as I18nRecord).noLoads as string}
         isLoading={isLoading}
         error={error}
         headers={headers}
-        data_count={taskHistory?.length ?? 0}
+        data_count={safeTaskHistory.length}
       >
-        {taskHistory?.map((item: TaskHistory, index) => {
+        {safeTaskHistory.map((item: TaskHistory, index) => {
           if (item.endTime) {
             const date = new Date(item.endTime);
             const formattedDate = `${date.toLocaleDateString("es-ES", {

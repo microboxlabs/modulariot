@@ -125,8 +125,9 @@ export default async function httfetcher<T>(
       // Try to parse error response as JSON, but handle cases where there's no body
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        error.info = await response.json();
-      } catch {
+        error.info = await response.text();
+      } catch (err) {
+        console.error("error response", err);
         error.info = null;
       }
 
@@ -151,19 +152,21 @@ export default async function httfetcher<T>(
     }
 
     // Handle 204 No Content and other responses with no body
-    if (
-      response.status === 204 ||
-      !response.headers.get("content-type")?.includes("application/json")
-    ) {
-      return undefined as T;
+    if (response.status === 204) {
+      console.log("undefined response", response);
+      return null as T;
     }
+
+    /* if (response.headers.get("content-type")?.includes("application/json")) {
+      console.error("content-type is not application/json");
+      return response.text() as T;
+    } */
 
     return (await response.json()) as T;
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
-
     if (shouldLog) {
       apiLogger.error({
         ...buildAccessLogFields({

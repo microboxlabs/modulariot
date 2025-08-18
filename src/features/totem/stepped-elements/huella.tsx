@@ -52,6 +52,7 @@ export default function Huella({
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
+  let idCardNumberOnce = false;
 
   // Device detection hook
   const isWindowsDevice = isWindows();
@@ -69,14 +70,22 @@ export default function Huella({
       //handleValidateIdCard();
     }
     if (qrMessage && qrMessage.indexOf("mrz") !== -1) {
-      logger.info("mrz", idCardNumber);
       const idCardCaptured = qrMessage.substring(
         qrMessage.indexOf("serial") + 7,
         9
       );
       setIdCardNumber(idCardCaptured);
+      logger.info("idCardNumber:" + idCardNumber);
+      if (!idCardNumberOnce) {
+        idCardNumberOnce = true;
+        handleIdCardNumberOnce(idCardCaptured);
+      }
     }
   };
+
+  function handleIdCardNumberOnce(value: string) {
+    logger.info("handleIdCardNumberonce:" + value);
+  }
 
   useEffect(() => {
     if (count >= 3) {

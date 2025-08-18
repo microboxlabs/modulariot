@@ -71,8 +71,6 @@ export default function GpsValidationItem({
     ? calcGpsValidationType(entityInfo)
     : undefined; */
 
-  console.log("error", error);
-
   return (
     <small className="flex items-center">
       {loading && (

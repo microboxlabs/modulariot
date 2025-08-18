@@ -6,9 +6,10 @@ import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified
 import CheckCircleIcon from "@/features/icons/check-circle";
 import ErrorCircleIcon from "@/features/icons/error-circle";
 import ExclamationIcon from "@/features/icons/exclamation";
-import GpsValidationItem from "../gps-validation-item/gps-validation-item";
+//import GpsValidationItem from "../gps-validation-item/gps-validation-item";
 import { useGetServiceValidation } from "@/features/common/providers/client-api.provider";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
+import { logger } from "@/lib/logger";
 
 export default function TripInformation({
   lang,
@@ -16,6 +17,11 @@ export default function TripInformation({
   msg,
   userGroups,
 }: DriverVerifiedCardProps) {
+  logger.info("lang", lang);
+  logger.info("task", task);
+  logger.info("msg", msg);
+  logger.info("userGroups", userGroups);
+
   const eta = fromString(
     task.mintral_arrivalDate
       ? (task.mintral_arrivalDate as string)
@@ -143,12 +149,12 @@ export default function TripInformation({
           </span>
         </div>
         <div className="flex gap-2">
-          <GpsValidationItem
+          {/* <GpsValidationItem
             msg={msg}
             lang={lang}
             task={task}
             userGroups={userGroups}
-          />
+          /> */}
         </div>
       </div>
     </div>

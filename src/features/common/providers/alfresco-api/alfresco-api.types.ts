@@ -331,3 +331,62 @@ export type ForumReply = {
   author: string;
   created: string;
 };
+
+export type MessageTemplate = {
+  nodeRef: string;
+  templateId: string;
+  templateKind: string;
+  engine: string;
+  locale?: string;
+  content?: string;
+  name: string;
+  created: string;
+  modified: string;
+};
+
+export type MessageTemplatesResponse = {
+  templates: MessageTemplate[];
+};
+
+export type WebhookDefinition = {
+  nodeRef: string;
+  templateId: string;
+  webhookKind: string;
+  templateWebhookUrl: string;
+  templateRef?: string;
+  created: string;
+  modified: string;
+};
+
+export type WebhookDefinitionResponse = {
+  webhookDefs: WebhookDefinition[];
+};
+
+export type CreateTemplateRequest = {
+  site: string;
+  kind: string;
+  templateId: string;
+  engineExt: string;
+  content: string;
+};
+
+export type UpdateTemplateRequest = {
+  template: string;
+  content: string;
+};
+
+export type CreateWebhookRequest = {
+  site: string;
+  templateId: string;
+  webhookUrl: string;
+  webhookKind: string;
+  template?: string;
+};
+
+export type UpdateWebhookRequest = {
+  webhookDef: string;
+  templateId?: string;
+  webhookUrl?: string;
+  webhookKind?: string;
+  template?: string;
+};

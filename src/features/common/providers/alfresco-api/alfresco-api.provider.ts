@@ -20,6 +20,14 @@ import type {
   UploadNodeRequest,
   UserState,
   ValidationsResponse,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
+  CreateWebhookRequest,
+  UpdateWebhookRequest,
+  MessageTemplate,
+  WebhookDefinition,
+  WebhookDefinitionResponse,
+  MessageTemplatesResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
@@ -534,14 +542,15 @@ export async function getInfoEntity(
   session: Session,
   licencePlate: string
 ): Promise<GetEntityInfoResponse> {
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service`;
+  const queryParams = new URLSearchParams({
+    licencePlate,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "GET",
     headers,
-    body: JSON.stringify({ licencePlate }),
   });
-
   return result as GetEntityInfoResponse;
 }
 
@@ -549,7 +558,6 @@ export async function getBiometricVerification(
   data: Record<string, unknown>
 ): Promise<TaskResponse> {
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
-
   const result = await fetcher(url, {
     method: "POST",
     body: JSON.stringify(data),
@@ -739,4 +747,137 @@ export async function deleteForumTopic(
   data: { bpmPackage: string; topic: string }
 ): Promise<unknown> {
   return callForumAction(session, "topic/delete", { body: data });
+}
+
+// Message Templates API
+
+async function callMessageTemplateAction<TResponse = unknown>(
+  session: Session,
+  action: string,
+  options?: {
+    query?: Record<string, string | undefined>;
+    body?:
+      | CreateTemplateRequest
+      | UpdateTemplateRequest
+      | CreateWebhookRequest
+      | UpdateWebhookRequest
+      | { template: string };
+  }
+): Promise<TResponse> {
+  const queryParams = new URLSearchParams();
+  if (options?.query) {
+    Object.entries(options.query).forEach(([k, v]) => {
+      if (v) queryParams.set(k, v);
+    });
+  }
+
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/msgtpl/${action}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const result = await fetcher(url, {
+    method: "POST",
+    headers,
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  return result as TResponse;
+}
+
+// Template CRUD operations
+export async function createMessageTemplate(
+  session: Session,
+  data: CreateTemplateRequest
+): Promise<MessageTemplate> {
+  return callMessageTemplateAction<MessageTemplate>(
+    session,
+    "template/create",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function updateMessageTemplate(
+  session: Session,
+  data: UpdateTemplateRequest
+): Promise<MessageTemplate> {
+  return callMessageTemplateAction<MessageTemplate>(
+    session,
+    "template/update",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function deleteMessageTemplate(
+  session: Session,
+  templateNodeRef: string
+): Promise<void> {
+  return callMessageTemplateAction(session, "template/delete", {
+    body: { template: templateNodeRef },
+  });
+}
+
+export async function listMessageTemplates(
+  session: Session,
+  site: string,
+  kind?: string
+): Promise<MessageTemplatesResponse> {
+  return callMessageTemplateAction<MessageTemplatesResponse>(
+    session,
+    "template/list",
+    {
+      query: { site, kind },
+    }
+  );
+}
+
+// Webhook CRUD operations
+export async function createWebhookDefinition(
+  session: Session,
+  data: CreateWebhookRequest
+): Promise<WebhookDefinition> {
+  return callMessageTemplateAction<WebhookDefinition>(
+    session,
+    "webhook/create",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function updateWebhookDefinition(
+  session: Session,
+  data: UpdateWebhookRequest
+): Promise<WebhookDefinition> {
+  return callMessageTemplateAction<WebhookDefinition>(
+    session,
+    "webhook/update",
+    {
+      body: data,
+    }
+  );
+}
+
+export async function deleteWebhookDefinition(
+  session: Session,
+  webhookDefNodeRef: string
+): Promise<void> {
+  return callMessageTemplateAction(session, "webhook/delete", {
+    body: { webhookDef: webhookDefNodeRef },
+  });
+}
+
+export async function listWebhookDefinitions(
+  session: Session,
+  site: string,
+  kind?: string
+): Promise<WebhookDefinitionResponse> {
+  return callMessageTemplateAction<WebhookDefinitionResponse>(
+    session,
+    "webhook/list",
+    {
+      query: { site, kind },
+    }
+  );
 }

@@ -3,6 +3,7 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 import { fromString } from "@/features/common/services/days.service";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 import {
+  FaCalendarAlt,
   FaClipboardList,
   FaCog,
   FaMapMarkerAlt,
@@ -19,14 +20,14 @@ export default function TripData({
   msg: I18nRecord;
   isLoading?: boolean;
 }) {
-  const _eta = fromString(
+  const eta = fromString(
     task.mintral_arrivalDate
       ? (task.mintral_arrivalDate as string)
       : task.mintral_estimatedArrivalDate
         ? (task.mintral_estimatedArrivalDate as string)
         : ""
   );
-  const _etd = fromString(
+  const etd = fromString(
     task.mintral_departureDate
       ? (task.mintral_departureDate as string)
       : task.mintral_expectedDepartureDate
@@ -108,12 +109,17 @@ export default function TripData({
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
     },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).supplierName as string,
+      value: (task.mintral_clientAbbreviation as string) ?? "-",
+    },
   ];
 
-  const supplier_name = {
-    icon: <FaTruck className="w-4 h-4" />,
-    label: (msg!.cards as I18nRecord).supplierName as string,
-    value: (task.mintral_clientAbbreviation as string) ?? "-",
+  const scheduling = {
+    icon: <FaCalendarAlt className="w-4 h-4" />,
+    label: (msg!.cards as I18nRecord).scheduling as string,
+    value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
   };
 
   return (
@@ -125,13 +131,15 @@ export default function TripData({
             label={item.label}
             value={item.value as string}
             isLoading={isLoading}
+            icon={item.icon}
           />
         ))}
       </div>
       <LoadableLabel
-        label={supplier_name.label}
-        value={supplier_name.value as string}
+        label={scheduling.label}
+        value={scheduling.value as string}
         isLoading={isLoading}
+        icon={scheduling.icon}
       />
     </div>
   );

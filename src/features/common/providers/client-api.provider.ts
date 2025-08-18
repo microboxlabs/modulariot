@@ -742,3 +742,160 @@ export async function createForumTopicClient(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+// Message Templates and Webhooks SWR hooks
+
+export interface MessageTemplateData {
+  nodeRef: string;
+  templateId: string;
+  templateKind: string;
+  engine: string;
+  locale?: string;
+  content?: string;
+  name: string;
+  created: string;
+  modified: string;
+}
+
+export interface WebhookDefinitionData {
+  nodeRef: string;
+  templateId: string;
+  webhookKind: string;
+  templateWebhookUrl: string;
+  templateRef?: string;
+  created: string;
+  modified: string;
+}
+
+export interface MessageTemplatesResponse {
+  templates: MessageTemplateData[];
+  meta: {
+    total: number;
+    kind: number;
+    site: string;
+    timestamp: string;
+  };
+}
+
+export interface WebhooksResponse {
+  webhooks: WebhookDefinitionData[];
+  groupedWebhooks: Record<string, WebhookDefinitionData[]>;
+  meta: {
+    total: number;
+    groups: number;
+    site: string;
+    timestamp: string;
+  };
+}
+
+// Message Templates hooks
+export function useMessageTemplates(site: string = "mintral", kind?: string) {
+  const params = new URLSearchParams({ site });
+  if (kind) params.set("kind", kind);
+
+  const { data, error, isLoading, mutate } = useSWR<
+    MessageTemplatesResponse,
+    FetcherError
+  >(`/app/api/admin/message-templates?${params.toString()}`, fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  return {
+    templates: data?.templates || [],
+    meta: data?.meta,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+// Webhook Definitions hooks
+export function useWebhookDefinitions(site: string = "mintral") {
+  const { data, error, isLoading, mutate } = useSWR<
+    WebhooksResponse,
+    FetcherError
+  >(`/app/api/admin/webhooks?site=${site}`, fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  return {
+    webhooks: data?.webhooks || [],
+    groupedWebhooks: data?.groupedWebhooks || {},
+    meta: data?.meta,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+// CRUD operations for Message Templates
+export async function createMessageTemplateClient(payload: {
+  site: string;
+  kind: string;
+  templateId: string;
+  engineExt: string;
+  content: string;
+}) {
+  return fetcher(`/app/api/admin/message-templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMessageTemplateClient(payload: {
+  template: string;
+  content: string;
+}) {
+  return fetcher(`/app/api/admin/message-templates`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMessageTemplateClient(templateNodeRef: string) {
+  return fetcher(
+    `/app/api/admin/message-templates?template=${templateNodeRef}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+// CRUD operations for Webhook Definitions
+export async function createWebhookDefinitionClient(payload: {
+  site: string;
+  templateId: string;
+  webhookUrl: string;
+  webhookKind: string;
+  template?: string;
+}) {
+  return fetcher(`/app/api/admin/webhooks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateWebhookDefinitionClient(payload: {
+  webhookDef: string;
+  templateId?: string;
+  webhookUrl?: string;
+  webhookKind?: string;
+  template?: string;
+}) {
+  return fetcher(`/app/api/admin/webhooks`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteWebhookDefinitionClient(webhookDefNodeRef: string) {
+  return fetcher(`/app/api/admin/webhooks?webhookDef=${webhookDefNodeRef}`, {
+    method: "DELETE",
+  });
+}

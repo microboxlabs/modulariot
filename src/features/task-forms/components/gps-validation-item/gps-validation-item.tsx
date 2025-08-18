@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TaskFormProps } from "../task-form/task-form.types";
 import GpsValidationModal from "../gps-validation-modal/gps-validation-modal";
 import { getEntityInfo } from "@/features/common/providers/client-api.provider";
-import { calcGpsValidationType } from "../../services/client-form.service";
+//import { calcGpsValidationType } from "../../services/client-form.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 import { Spinner } from "flowbite-react";
@@ -14,15 +13,24 @@ import { Spinner } from "flowbite-react";
   ErrorCircle,
   Ellipse,
 } from "../task-bento-form/components/trip-information/trip-verifications"; */
-import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
-import { ValidationStatus } from "../task-bento-form/components/driver/validations.types";
+/* import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
+import { ValidationStatus } from "../task-bento-form/components/driver/validations.types"; */
+import { ValidationItemComponent } from "../task-bento-form/components/driver/validations";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 export default function GpsValidationItem({
   task,
   msg,
   lang,
   userGroups,
-}: TaskFormProps) {
+  item,
+}: {
+  task: TaskResponse;
+  msg: I18nRecord;
+  lang: string;
+  userGroups: string[];
+  item: any;
+}) {
   const [showGpsValidationModal, setShowGpsValidationModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -59,9 +67,9 @@ export default function GpsValidationItem({
   const { data: entityInfo, isLoading: _isLoadingEntityInfo } = entity_info;
   */
 
-  const gpsValidationType = entityInfo
+  /* const gpsValidationType = entityInfo
     ? calcGpsValidationType(entityInfo)
-    : undefined;
+    : undefined; */
 
   return (
     <small className="flex items-center">
@@ -71,27 +79,27 @@ export default function GpsValidationItem({
           <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
         </div>
       )}
-      {!loading && !error && (
+      {!loading && (
         <>
           {/* {gpsValidationType === "ok" && <CheckCircle />}
           {gpsValidationType === "warning" && <Exclamation />}
           {gpsValidationType === "error" && <ErrorCircle />}
           {gpsValidationType === undefined && <Ellipse />} */}
-          <ValidationIcon
+          {/* <ValidationIcon
             status={gpsValidationType as ValidationStatus}
-            isLoading={loading}
-          />
+            isLoading={false}
+          /> */}
 
           <a
             href="#"
-            className="ml-2 text-gray-600 dark:text-gray-400 text-sm hover:underline"
-            onClick={openGpsValidationModal}
+            className=" text-gray-600 text-sm hover:underline"
+            onClick={error ? undefined : openGpsValidationModal}
           >
-            {msg?.cards
-              ? ((msg!.cards as I18nRecord).gpsValidation as string)
-              : msg?.bento
-                ? ((msg!.bento as I18nRecord).gpsValidation as string)
-                : ((msg as I18nRecord).gpsValidation as string)}
+            <ValidationItemComponent
+              key="gpsValidation"
+              item={item}
+              msg={msg as I18nRecord}
+            />
           </a>
           <GpsValidationModal
             openModal={showGpsValidationModal}
@@ -103,13 +111,6 @@ export default function GpsValidationItem({
             userGroups={userGroups}
           />
         </>
-      )}
-      {error && (
-        <p className=" text-red-400 text-sm">
-          {msg?.cards
-            ? ((msg!.cards as I18nRecord).gpsValidationError as string)
-            : ((msg as I18nRecord).gpsValidationError as string)}
-        </p>
       )}
     </small>
   );

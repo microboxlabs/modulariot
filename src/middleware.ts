@@ -35,7 +35,7 @@ function hasRequiredGroups(
 export default auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
-
+  console.log("middleware", pathname);
   const prefixApp =
     pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
 

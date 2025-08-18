@@ -689,6 +689,113 @@
           "addButton": "Agregar"
         }
       }
+    },
+    "admin": {
+      "breadcrumb": {
+        "admin": "Admin",
+        "console": "Consola",
+        "logs": "Logs",
+        "messageTemplates": "Plantillas de Mensajes"
+      },
+      "messageTemplates": {
+        "title": "Gestión de Plantillas de Mensajes",
+        "description": "Administra plantillas de mensajes y definiciones de webhooks para notificaciones automáticas.",
+        "tabs": {
+          "webhooks": "Webhooks",
+          "templates": "Plantillas"
+        },
+        "webhooks": {
+          "title": "Definiciones de Webhooks",
+          "description": "Gestiona las definiciones de webhooks agrupadas por tipo.",
+          "createButton": "Crear Webhook",
+          "noWebhooks": "No hay webhooks configurados",
+          "groupBy": "Agrupado por tipo",
+          "fields": {
+            "eventName": "Nombre del Evento",
+            "templateId": "ID de la Plantilla",
+            "webhookUrl": "URL del Webhook",
+            "webhookKind": "Tipo de Webhook",
+            "template": "Plantilla Asociada",
+            "created": "Creado",
+            "modified": "Modificado"
+          },
+          "kinds": {
+            "MS_TEAMS": "Microsoft Teams",
+            "SLACK": "Slack",
+            "EMAIL": "Correo Electrónico",
+            "SMS": "SMS",
+            "WEBHOOK": "Webhook Genérico"
+          },
+          "actions": {
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "associate": "Asociar Plantilla",
+            "dissociate": "Desasociar Plantilla"
+          },
+          "deleteConfirm": "¿Estás seguro de que deseas eliminar este webhook?",
+          "form": {
+            "create": "Crear Nuevo Webhook",
+            "edit": "Editar Webhook",
+            "eventNamePlaceholder": "Ej: TRIP_ALERT, DRIVER_NOTIFICATION",
+            "webhookUrlPlaceholder": "https://example.com/webhook",
+            "selectTemplate": "Seleccionar Plantilla",
+            "createNewTemplate": "Crear Nueva Plantilla",
+            "useExistingTemplate": "Usar Plantilla Existente"
+          }
+        },
+        "templates": {
+          "title": "Plantillas de Mensajes",
+          "description": "Administra las plantillas de mensajes utilizadas por los webhooks.",
+          "createButton": "Crear Plantilla",
+          "noTemplates": "No hay plantillas disponibles",
+          "fields": {
+            "templateId": "ID de la Plantilla",
+            "templateKind": "Tipo de Plantilla",
+            "engine": "Motor de Plantilla",
+            "locale": "Idioma",
+            "content": "Contenido",
+            "associatedWebhooks": "Webhooks Asociados",
+            "created": "Creado",
+            "modified": "Modificado"
+          },
+          "engines": {
+            "freemarker": "FreeMarker",
+            "velocity": "Velocity",
+            "mustache": "Mustache"
+          },
+          "actions": {
+            "view": "Ver",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "download": "Descargar"
+          },
+          "deleteConfirm": "¿Estás seguro de que deseas eliminar esta plantilla?",
+          "form": {
+            "create": "Crear Nueva Plantilla",
+            "edit": "Editar Plantilla",
+            "templateIdPlaceholder": "Ej: GENERIC_ALERT",
+            "engineExtPlaceholder": "ftl, vm, mustache",
+            "contentPlaceholder": "Contenido de la plantilla...",
+            "preview": "Vista Previa",
+            "save": "Guardar",
+            "cancel": "Cancelar"
+          }
+        },
+        "errors": {
+          "loadingFailed": "Error al cargar los datos",
+          "createFailed": "Error al crear",
+          "updateFailed": "Error al actualizar",
+          "deleteFailed": "Error al eliminar",
+          "invalidUrl": "URL inválida",
+          "requiredField": "Campo requerido",
+          "templateInUse": "Esta plantilla está en uso por webhooks activos"
+        },
+        "success": {
+          "created": "Creado exitosamente",
+          "updated": "Actualizado exitosamente",
+          "deleted": "Eliminado exitosamente"
+        }
+      }
     }
   },
   "layout": {

@@ -13,7 +13,7 @@ import { ValidationIcon } from "./validation-icon";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 
 // Validation item component
-const ValidationItemComponent = ({
+export const ValidationItemComponent = ({
   item,
   msg,
 }: {
@@ -60,6 +60,7 @@ const ValidationCategory = ({
               lang={lang}
               task={task as TaskResponse}
               userGroups={userGroups}
+              item={item}
             />
           ) : (
             <ValidationItemComponent key={item.key} item={item} msg={msg} />

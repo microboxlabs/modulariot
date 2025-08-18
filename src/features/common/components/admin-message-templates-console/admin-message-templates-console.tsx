@@ -379,7 +379,10 @@ export function AdminMessageTemplatesConsole({
                       ([kind, webhooksInKind]) => (
                         <div key={kind} className="space-y-4">
                           <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                            {tr("messageTemplates.webhooks.kinds", dict)}
+                            {tr(
+                              `messageTemplates.webhooks.kinds.${kind}`,
+                              dict
+                            )}
                             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
                               {webhooksInKind.length}
                             </span>

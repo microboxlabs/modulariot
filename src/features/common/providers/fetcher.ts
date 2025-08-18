@@ -64,9 +64,13 @@ const buildMergedHeaders = (
     const overrideHeaders = new Headers(override);
     overrideHeaders.forEach((value, key) => merged.set(key, value));
   }
+
+  /*
   if (!merged.has("content-type")) {
     merged.set("Content-Type", "application/json");
   }
+  */
+
   return merged;
 };
 

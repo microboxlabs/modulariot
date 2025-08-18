@@ -157,10 +157,10 @@ export default async function httfetcher<T>(
       return null as T;
     }
 
-    if (response.headers.get("content-type")?.includes("application/json")) {
+    /* if (response.headers.get("content-type")?.includes("application/json")) {
       console.error("content-type is not application/json");
       return response.text() as T;
-    }
+    } */
 
     return (await response.json()) as T;
   } catch (err) {

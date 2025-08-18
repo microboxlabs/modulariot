@@ -79,7 +79,7 @@ export default function GpsValidationItem({
           <p className="ml-2 text-gray-400 text-sm"> Loading...</p>
         </div>
       )}
-      {!loading && !error && (
+      {!loading && (
         <>
           {/* {gpsValidationType === "ok" && <CheckCircle />}
           {gpsValidationType === "warning" && <Exclamation />}
@@ -93,7 +93,7 @@ export default function GpsValidationItem({
           <a
             href="#"
             className=" text-gray-600 text-sm hover:underline"
-            onClick={openGpsValidationModal}
+            onClick={error ? undefined : openGpsValidationModal}
           >
             <ValidationItemComponent
               key="gpsValidation"
@@ -111,13 +111,6 @@ export default function GpsValidationItem({
             userGroups={userGroups}
           />
         </>
-      )}
-      {error && (
-        <p className=" text-red-400 text-sm">
-          {msg?.cards
-            ? ((msg!.cards as I18nRecord).gpsValidationError as string)
-            : ((msg as I18nRecord).gpsValidationError as string)}
-        </p>
       )}
     </small>
   );

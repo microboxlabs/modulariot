@@ -22,6 +22,7 @@ export const authConfig = {
   },
   callbacks: {
     authorized({ auth, request }) {
+      try {
       const nextUrl = new URL(request.nextUrl);
       
       authAuthzLogger.debug("Authorization check", {
@@ -43,15 +44,20 @@ export const authConfig = {
         authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
           path: nextUrl.pathname,
           redirectTo: "/app/sign-in",
+          newUrl: new URL("/app/sign-in", nextUrl).toString(),
         });
         return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
       }
 
       authAuthzLogger.debug("Authorization successful", { 
         path: nextUrl.pathname,
-        userId: auth.user?.id 
+        userId: auth?.user?.id 
       });
       return true;
+      } catch (error) {
+        authAuthzLogger.error("Error in authorized callback", { error });
+        return false;
+      }
     },
     async jwt({ token, user, account }) {
       try {

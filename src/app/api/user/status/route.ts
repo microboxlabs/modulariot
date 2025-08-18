@@ -6,7 +6,7 @@ import { tryCatch } from "@/utils/tryCatch";
 export async function GET(_request: Request) {
   const session = await auth();
   if (!session) {
-    return NextResponse.next({
+    return NextResponse.json({
       status: 401,
     });
   }

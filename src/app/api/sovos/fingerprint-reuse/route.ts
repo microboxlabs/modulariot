@@ -5,7 +5,7 @@ import { getSovosFingerprintReuse } from "@/features/common/providers/alfresco-a
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session) {
-    return NextResponse.next({
+    return NextResponse.json({
       status: 401,
     });
   }

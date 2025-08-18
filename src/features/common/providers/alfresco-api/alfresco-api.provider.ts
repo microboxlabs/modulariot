@@ -490,7 +490,7 @@ export async function getTaskHistory(
   session: Session,
   taskId: string,
   active: boolean = true
-): Promise<any[]> {
+): Promise<TaskResponse> {
   const queryParams = new URLSearchParams({
     taskId,
     active: `${active}`,
@@ -502,7 +502,7 @@ export async function getTaskHistory(
     headers,
   });
 
-  return result as any[];
+  return result as TaskResponse;
 }
 
 export async function getTripLoads(

@@ -22,6 +22,7 @@ export const authConfig = {
   },
   callbacks: {
     authorized({ auth, request }) {
+      try {
       const nextUrl = new URL(request.nextUrl);
       
       authAuthzLogger.debug("Authorization check", {
@@ -53,6 +54,10 @@ export const authConfig = {
         userId: auth?.user?.id 
       });
       return true;
+      } catch (error) {
+        authAuthzLogger.error("Error in authorized callback", { error });
+        return false;
+      }
     },
     async jwt({ token, user, account }) {
       try {

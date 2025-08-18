@@ -241,7 +241,8 @@ export async function uploadNodeContent(
   const formdata = uploadNodeFormData(request);
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
-  const result = await fetcher(url, {
+
+  const result = await fetch(url, {
     method: "POST",
     headers: {
       ...headers,
@@ -249,7 +250,7 @@ export async function uploadNodeContent(
     },
     body: formdata,
   });
-  return result as string;
+  return await result.json();
 }
 
 export async function getChildrenNodes(

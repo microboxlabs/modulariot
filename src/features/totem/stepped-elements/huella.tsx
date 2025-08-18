@@ -69,10 +69,15 @@ export default function Huella({
       //setIdCardLoading(true);
       //handleValidateIdCard();
     }
-    if (qrMessage && qrMessage.indexOf("mrz") !== -1) {
+    if (
+      qrMessage &&
+      qrMessage.indexOf("mrz") !== -1 &&
+      idCardNumber.length === 0
+    ) {
+      const serialPosition = qrMessage.indexOf("serial");
       const idCardCaptured = qrMessage.substring(
-        qrMessage.indexOf("serial") + 7,
-        9
+        serialPosition + 7,
+        serialPosition + 16
       );
       setIdCardNumber(idCardCaptured);
       logger.info("idCardNumber:" + idCardNumber);
@@ -84,7 +89,7 @@ export default function Huella({
   };
 
   function handleIdCardNumberOnce(value: string) {
-    logger.info("handleIdCardNumberonce:" + value);
+    logger.info("handleIdCardNumberOnce:" + value);
   }
 
   useEffect(() => {
@@ -482,7 +487,7 @@ export default function Huella({
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
         </Button>
-        {/*  <Button
+        <Button
           onClick={() => {
             setIdCard(true);
           }}
@@ -495,7 +500,7 @@ export default function Huella({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
-        </Button> */}
+        </Button>
       </div>
     );
   }

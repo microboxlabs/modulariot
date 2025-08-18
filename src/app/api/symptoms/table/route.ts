@@ -23,7 +23,7 @@ const authToken = new AuthToken(config);
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
-    return NextResponse.next({
+    return NextResponse.json({
       status: 401,
     });
   }

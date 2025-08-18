@@ -8,7 +8,7 @@ import { redirectWithLang } from "@/features/auth/services/navigation.service";
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
-    return NextResponse.next({ status: 401 });
+    return NextResponse.json({ status: 401 });
   }
 
   const url = new URL(req.url);

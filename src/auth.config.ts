@@ -40,11 +40,11 @@ export const authConfig = {
       }
 
       const isLoggedIn = !!auth?.user;
-      if (isLoggedIn) {
+      if (!isLoggedIn) {
         authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
           path: nextUrl.pathname,
           redirectTo: "/app/sign-in",
-          newUrl: new URL("/app/sign-in", nextUrl),
+          newUrl: new URL("/app/sign-in", nextUrl).toString(),
         });
         return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
       }

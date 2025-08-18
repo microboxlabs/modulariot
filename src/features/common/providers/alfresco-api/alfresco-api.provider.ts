@@ -367,7 +367,10 @@ export async function formProcessor(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
   return result as TaskResponse;

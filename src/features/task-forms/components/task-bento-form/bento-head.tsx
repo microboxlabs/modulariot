@@ -8,6 +8,7 @@ import { ShippingCoordinatorProcessForms } from "../../services/form.service.typ
 import TimeElement from "./time-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
+import { FaRegEye } from "react-icons/fa";
 
 const task_states = {
   assignDriver: "planificado",
@@ -68,10 +69,10 @@ export default function BentoHead({
 
   if (task?.persistentState?.endTime) {
     subtitle = tr("finished", (dict.bento as I18nRecord).titles as I18nRecord);
-  } else if (Object.values(task_states).includes(task_name_identifier)) {
+  } else if (task_states[task_name_identifier as keyof typeof task_states]) {
     subtitle = tr(
       task_states[task_name_identifier as keyof typeof task_states] as string,
-      (dict.bento as I18nRecord).titles as I18nRecord
+      dict.bento as I18nRecord
     );
   }
 
@@ -100,7 +101,7 @@ export default function BentoHead({
           )}
         </div>
       </div>
-      <div className="flex flex-row gap-1 w-full sm:w-auto">
+      <div className="flex flex-row gap-1">
         <TimeElement
           task={task}
           dict={dict}
@@ -109,11 +110,12 @@ export default function BentoHead({
         {show_go_to_bento && (
           <Button
             color="blue"
-            className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit"
+            className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit p-0"
             as={Link}
             href={`/task/edit/${task.id}`}
           >
             <div className="flex flex-row gap-2 items-center">
+              <FaRegEye className="text-gray-100 w-5 h-5" />
               <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
                 {(dict.bento as I18nRecord).go_to_bento as string}
               </p>

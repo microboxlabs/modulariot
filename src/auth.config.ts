@@ -143,7 +143,7 @@ export const authConfig = {
             session.user.id = token.sub as string;
             // Make raw JWT available in session
             (session.user as any).rawJWT = (token as any).rawJWT;
-            (session.user as any).accessToken = (token as any).accessToken;
+            // (session.user as any).accessToken = (token as any).accessToken;
 
             authSessionLogger.debug( {
               userId: token.sub,

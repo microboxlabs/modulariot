@@ -21,7 +21,7 @@ export const authConfig = {
     signIn: "/app/sign-in",
   },
   callbacks: {
-    async authorized({ auth, request }) {
+    authorized({ auth, request }) {
       try {
       const nextUrl = new URL(request.nextUrl);
       
@@ -53,7 +53,6 @@ export const authConfig = {
         path: nextUrl.pathname,
         userId: auth?.user?.id 
       });
-      await new Promise((resolve) => setTimeout(resolve, 5000));
       return true;
       } catch (error) {
         authAuthzLogger.error("Error in authorized callback", { error });

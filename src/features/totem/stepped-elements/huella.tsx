@@ -390,10 +390,7 @@ export default function Huella({
                   value={idCardNumber}
                   onChange={(e) => handleIdCardNumberChange(e.target.value)}
                   autoFocus
-                  style={{
-                    display: "none",
-                  }}
-                  className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+                  className="hidden w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />
               </div>
               {status === "error-id-card" ? (

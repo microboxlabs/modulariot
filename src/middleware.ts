@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "./auth";
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
+import { createManagedLogger } from "./lib/logger";
 // import { logger } from "./lib/logger";
 // import {
 //   buildAccessLogFields,
@@ -32,10 +33,12 @@ function hasRequiredGroups(
 
 // moved to common utils
 
+const logger = createManagedLogger("middleware", "Middleware", "error");
+
 export default auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
-  console.log("middleware", pathname);
+  logger.debug(pathname, "middleware");
   const prefixApp =
     pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
 

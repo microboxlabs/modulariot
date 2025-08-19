@@ -128,7 +128,10 @@ export async function getUserTasks(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from,
       size,
@@ -327,7 +330,10 @@ export async function getContentByTaskId(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = (await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ taskId, fileName, signed: requireInternalSign }),
   })) as { node: { id: string } };
   const baseUrl1 = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${result.node.id}/content`;
@@ -394,7 +400,10 @@ export async function getServiceValidation(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ serviceCode }),
   });
   return result as ServiceValidationResponse;
@@ -408,7 +417,10 @@ export async function getFinishedWorkflows(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
   return result as FinishedWorkflowsResponse;
@@ -564,6 +576,9 @@ export async function getBiometricVerification(
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
   const result = await fetcher(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -578,7 +593,10 @@ export async function getSovosFingerprintReuse(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -600,7 +618,10 @@ export async function markAsRead(session: Session, id: string) {
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "PUT",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ id }),
   });
 
@@ -616,7 +637,10 @@ export async function getTaskByLicensePlate(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -632,7 +656,10 @@ export async function ecmSovosDec5(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({}),
   });
 
@@ -690,8 +717,11 @@ async function callForumAction<TResponse = unknown>(
 
   const result = await fetcher(url.toString(), {
     method: "POST",
-    headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(options?.body),
   });
   return result as TResponse;
 }
@@ -780,7 +810,10 @@ async function callMessageTemplateAction<TResponse = unknown>(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   return result as TResponse;

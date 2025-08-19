@@ -68,14 +68,14 @@ export function prepareAlfrescoAuth(
   }
 
   alfrescoApiLogger.debug(
-    "prepareAlfrescoAuth {user: %s, baseUrl: %s, headers: %s, rawJWT: %s, ticket: %s}",
     {
       user: user?.id,
       baseUrl,
       headers,
       rawJWT: user?.rawJWT,
       ticket: user?.ticket,
-    }
+    },
+    "prepareAlfrescoAuth"
   );
 
   return { url, headers };

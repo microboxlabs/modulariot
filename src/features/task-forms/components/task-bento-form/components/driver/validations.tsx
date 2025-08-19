@@ -51,7 +51,7 @@ const ValidationCategory = ({
       <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
         {title}
       </h2>
-      <div className="space-y-1 flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {items.map((item) =>
           item.key === "gpsValidation" ? (
             <GpsValidationItem

@@ -69,7 +69,7 @@ export function prepareAlfrescoAuth(
 
   alfrescoApiLogger.debug(
     {
-      user: user?.id,
+      user: user?.email,
       baseUrl,
       headers,
       rawJWT: user?.rawJWT,

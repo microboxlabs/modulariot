@@ -23,37 +23,37 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request }) {
       try {
-      const nextUrl = new URL(request.nextUrl);
-      
-      authAuthzLogger.debug("Authorization check", {
-        path: nextUrl.pathname,
-        hasAuth: !!auth,
-        hasUser: !!auth?.user,
-      });
-
-      if (
-        nextUrl.pathname.endsWith("/sign-in") ||
-        nextUrl.pathname.endsWith("/totem")
-      ) {
-        authAuthzLogger.debug("Public route access granted", { path: nextUrl.pathname });
-        return;
-      }
-
-      const isLoggedIn = !!auth?.user;
-      if (!isLoggedIn) {
-        authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
+        const nextUrl = new URL(request.nextUrl);
+        
+        authAuthzLogger.debug("Authorization check", {
           path: nextUrl.pathname,
-          redirectTo: "/app/sign-in",
-          newUrl: new URL("/app/sign-in", nextUrl).toString(),
+          hasAuth: !!auth,
+          hasUser: !!auth?.user,
         });
-        return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
-      }
 
-      authAuthzLogger.debug("Authorization successful", { 
-        path: nextUrl.pathname,
-        userId: auth?.user?.id 
-      });
-      return true;
+        if (
+          nextUrl.pathname.endsWith("/sign-in") ||
+          nextUrl.pathname.endsWith("/totem")
+        ) {
+          authAuthzLogger.debug("Public route access granted", { path: nextUrl.pathname });
+          return;
+        }
+
+        const isLoggedIn = !!auth?.user;
+        if (!isLoggedIn) {
+          authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
+            path: nextUrl.pathname,
+            redirectTo: "/app/sign-in",
+            newUrl: new URL("/app/sign-in", nextUrl).toString(),
+          });
+          return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
+        }
+
+        authAuthzLogger.debug("Authorization successful", { 
+          path: nextUrl.pathname,
+          userId: auth?.user?.id 
+        });
+        return true;
       } catch (error) {
         authAuthzLogger.error("Error in authorized callback", { error });
         return false;

@@ -80,6 +80,7 @@ export const authConfig = {
 
           // Raw JWT token from Microsoft Entra ID
           token.rawJWT = account.id_token;
+          token.ticket = null;
           // token.accessToken = account.access_token;
           // token.refreshToken = account.refresh_token;
 
@@ -88,19 +89,21 @@ export const authConfig = {
 
         // Handle credentials provider
         if (account && account.provider === "credentials") {
-          authCredentialsLogger.debug("Processing credentials-based authentication", {
-            hasUser: !!user,
-            userId: user?.id,
-          });
-        }
+            authCredentialsLogger.debug("Processing credentials-based authentication", {
+              hasUser: !!user,
+              userId: user?.id,
+            });
+      
 
-        if (user) {
-          authJwtLogger.debug("Processing user in JWT callback", {
-            userId: user.id,
-            hasTicket: !!user.ticket,
-            provider: account?.provider,
-          });
-          token.ticket = user.ticket;
+          if (user) {
+            authJwtLogger.debug("Processing user in JWT callback", {
+              userId: user.id,
+              hasTicket: !!user.ticket,
+              provider: account?.provider,
+            });
+            token.ticket = user.ticket;
+            token.rawJWT = null;
+          }
         }
 
         return token;

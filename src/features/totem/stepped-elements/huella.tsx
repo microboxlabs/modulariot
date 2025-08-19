@@ -58,7 +58,6 @@ export default function Huella({
   const isWindowsDevice = isWindows();
 
   const handleIdCardNumberChange = (value: string) => {
-    logger.info("handleIdCardNumberChange", value);
     if (value.length > 0) {
       //const idCardCaptured = value.substring(value.indexOf("serial") + 7, 9);
       if (qrMessage !== null) {
@@ -69,13 +68,17 @@ export default function Huella({
       //setIdCardLoading(true);
       //handleValidateIdCard();
     }
-    if (qrMessage && qrMessage.indexOf("mrz") !== -1) {
+    if (
+      qrMessage &&
+      qrMessage.indexOf("mrz") !== -1 &&
+      idCardNumber.length === 0
+    ) {
+      const serialPosition = qrMessage.indexOf("serial");
       const idCardCaptured = qrMessage.substring(
-        qrMessage.indexOf("serial") + 7,
-        9
+        serialPosition + 7,
+        serialPosition + 16
       );
       setIdCardNumber(idCardCaptured);
-      logger.info("idCardNumber:" + idCardNumber);
       if (!idCardNumberOnce) {
         idCardNumberOnce = true;
         handleIdCardNumberOnce(idCardCaptured);
@@ -84,7 +87,8 @@ export default function Huella({
   };
 
   function handleIdCardNumberOnce(value: string) {
-    logger.info("handleIdCardNumberonce:" + value);
+    logger.info("handleIdCardNumberOnce:" + value);
+    handleValidateIdCard(value);
   }
 
   useEffect(() => {
@@ -177,13 +181,13 @@ export default function Huella({
     }
   };
 
-  const handleValidateIdCard = async () => {
+  const handleValidateIdCard = async (idCardCaptured: string = "") => {
     setManualVerificationLoading(true);
     setStatus("scanning");
     setCountIdCard(countIdCard + 1);
     const response = await validateIdCard({
       user_rut: rutData?.rut as string,
-      nro_serie: idCardNumber,
+      nro_serie: idCardCaptured.length > 0 ? idCardCaptured : idCardNumber,
     });
     if (response.success) {
       setVerificatioSuccess(true);
@@ -367,9 +371,14 @@ export default function Huella({
             {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
           </>
         )}
-        {qrMessage && (
+        {/* {qrMessage && (
           <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
             {qrMessage}
+          </p>
+        )} */}
+        {idCardNumber && (
+          <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
+            {idCardNumber}
           </p>
         )}
         <div className="flex flex-col items-center justify-center">
@@ -381,7 +390,7 @@ export default function Huella({
                   value={idCardNumber}
                   onChange={(e) => handleIdCardNumberChange(e.target.value)}
                   autoFocus
-                  className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+                  className="hidden w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />
               </div>
               {status === "error-id-card" ? (
@@ -482,7 +491,7 @@ export default function Huella({
             {(dict.totem as I18nRecord).manual_access as string}
           </p>
         </Button>
-        {/*  <Button
+        <Button
           onClick={() => {
             setIdCard(true);
           }}
@@ -495,7 +504,7 @@ export default function Huella({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).qr_code_scann as string}
           </p>
-        </Button> */}
+        </Button>
       </div>
     );
   }

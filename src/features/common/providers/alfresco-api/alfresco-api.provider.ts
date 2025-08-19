@@ -32,7 +32,14 @@ import type {
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
+import { createManagedLogger } from "@/lib/logger";
 
+const alfrescoApiLogger = createManagedLogger(
+  "alfresco-api",
+  "Alfresco API",
+  undefined,
+  "api"
+);
 /**
  * Prepares authentication configuration for Alfresco API calls
  * @param baseUrl - The base URL for the API endpoint
@@ -51,6 +58,7 @@ export function prepareAlfrescoAuth(
   const headers: Record<string, string> = {
     // "Content-Type": contentType,
   };
+  var user = session?.user;
 
   if (session?.user?.rawJWT) {
     headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
@@ -58,6 +66,14 @@ export function prepareAlfrescoAuth(
     const separator = baseUrl.includes("?") ? "&" : "?";
     url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
   }
+
+  alfrescoApiLogger.debug("prepareAlfrescoAuth", {
+    user: user?.id,
+    baseUrl,
+    headers,
+    rawJWT: user?.rawJWT,
+    ticket: user?.ticket,
+  });
 
   return { url, headers };
 }

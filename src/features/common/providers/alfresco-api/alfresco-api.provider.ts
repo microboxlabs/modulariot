@@ -67,13 +67,16 @@ export function prepareAlfrescoAuth(
     url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
   }
 
-  alfrescoApiLogger.debug("prepareAlfrescoAuth", {
-    user: user?.id,
-    baseUrl,
-    headers,
-    rawJWT: user?.rawJWT,
-    ticket: user?.ticket,
-  });
+  alfrescoApiLogger.debug(
+    "prepareAlfrescoAuth {user: %s, baseUrl: %s, headers: %s, rawJWT: %s, ticket: %s}",
+    {
+      user: user?.id,
+      baseUrl,
+      headers,
+      rawJWT: user?.rawJWT,
+      ticket: user?.ticket,
+    }
+  );
 
   return { url, headers };
 }

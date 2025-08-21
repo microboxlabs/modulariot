@@ -56,7 +56,13 @@ const ValidationCategory = ({
         {items.map((item) => (
           <CustomTooltip
             key={item.key}
-            content={item.label || item.description}
+            content={
+              item.label
+                ? ((msg.bento as I18nRecord)[item.label] as string)
+                : item.description
+                  ? ((msg.bento as I18nRecord)[item.description] as string)
+                  : ""
+            }
           >
             {item.key === "gpsValidation" ? (
               <GpsValidationItem

@@ -11,7 +11,7 @@ import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { useGetValidation } from "@/features/common/providers/client-api.provider";
 import { ValidationIcon } from "./validation-icon";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
-import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
+import { Tooltip } from "flowbite-react";
 
 // Validation item component
 export const ValidationItemComponent = ({
@@ -54,14 +54,15 @@ const ValidationCategory = ({
       </h2>
       <div className="space-y-1 flex flex-col gap-2">
         {items.map((item) => (
-          <CustomTooltip
+          <Tooltip
+            style="auto"
             key={item.key}
             content={
               item.label
                 ? ((msg.bento as I18nRecord)[item.label] as string)
                 : item.description
                   ? ((msg.bento as I18nRecord)[item.description] as string)
-                  : ""
+                  : item.description
             }
           >
             {item.key === "gpsValidation" ? (
@@ -76,7 +77,7 @@ const ValidationCategory = ({
             ) : (
               <ValidationItemComponent key={item.key} item={item} msg={msg} />
             )}
-          </CustomTooltip>
+          </Tooltip>
         ))}
       </div>
     </div>

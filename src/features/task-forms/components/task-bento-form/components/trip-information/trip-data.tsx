@@ -95,14 +95,19 @@ export default function TripData({
         : "-",
     },
     {
-      icon: <FaShield className="w-4 h-4" />,
-      label: (msg!.cards as I18nRecord).estado as string,
-      value: priority,
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).clientName as string,
+      value: (task.mintral_clientAbbreviation as string) ?? "-",
     },
     {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).transportNumberCode as string,
       value: (task.mintral_servicePrincipalNumber as string) ?? "-",
+    },
+    {
+      icon: <FaShield className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).estado as string,
+      value: priority,
     },
     {
       icon: <FaTruck className="w-4 h-4" />,
@@ -112,7 +117,7 @@ export default function TripData({
     {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierName as string,
-      value: (task.mintral_clientAbbreviation as string) ?? "-",
+      value: (task.mintral_supplierName as string) ?? "-",
     },
   ];
 

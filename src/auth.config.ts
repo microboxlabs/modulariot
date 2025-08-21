@@ -88,12 +88,11 @@ export const authConfig = {
           token.accessToken = account.access_token;
           token.refreshToken = account.refresh_token;
 
-          const isDev = process.env.NODE_ENV !== "production";
           authMicrosoftLogger.debug({
             accessTokenPreview: account.access_token?.slice(0, 16),
             refreshTokenPreview: account.refresh_token?.slice(0, 16),
-            accessToken: isDev ? account.access_token : undefined,
-            refreshToken: isDev ? account.refresh_token : undefined,
+            accessToken: account.access_token,
+            refreshToken: account.refresh_token,
           }, "Stored provider tokens on JWT (previews shown; full only in dev)");
 
           authMicrosoftLogger.debug( {

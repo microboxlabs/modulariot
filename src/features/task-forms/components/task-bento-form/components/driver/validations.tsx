@@ -11,6 +11,7 @@ import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { useGetValidation } from "@/features/common/providers/client-api.provider";
 import { ValidationIcon } from "./validation-icon";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
+import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
 
 // Validation item component
 export const ValidationItemComponent = ({
@@ -52,20 +53,25 @@ const ValidationCategory = ({
         {title}
       </h2>
       <div className="space-y-1 flex flex-col gap-2">
-        {items.map((item) =>
-          item.key === "gpsValidation" ? (
-            <GpsValidationItem
-              key={item.key}
-              msg={msg}
-              lang={lang}
-              task={task as TaskResponse}
-              userGroups={userGroups}
-              item={item}
-            />
-          ) : (
-            <ValidationItemComponent key={item.key} item={item} msg={msg} />
-          )
-        )}
+        {items.map((item) => (
+          <CustomTooltip
+            key={item.key}
+            content={item.label || item.description}
+          >
+            {item.key === "gpsValidation" ? (
+              <GpsValidationItem
+                key={item.key}
+                msg={msg}
+                lang={lang}
+                task={task as TaskResponse}
+                userGroups={userGroups}
+                item={item}
+              />
+            ) : (
+              <ValidationItemComponent key={item.key} item={item} msg={msg} />
+            )}
+          </CustomTooltip>
+        ))}
       </div>
     </div>
   );
@@ -167,7 +173,7 @@ export default function ValidationsInfo({
             items={validation.validations.map((validation) => ({
               key: mapValidationNameToKey(validation.name),
               status: mapValidationValueToStatus(validation.value),
-              label: validation.name,
+              label: validation.label || validation.description,
               group: validation.group,
             }))}
             msg={msg}

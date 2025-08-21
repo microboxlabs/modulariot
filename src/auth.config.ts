@@ -23,37 +23,39 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request }) {
       try {
-      const nextUrl = new URL(request.nextUrl);
-      
-      authAuthzLogger.debug("Authorization check", {
-        path: nextUrl.pathname,
-        hasAuth: !!auth,
-        hasUser: !!auth?.user,
-      });
-
-      if (
-        nextUrl.pathname.endsWith("/sign-in") ||
-        nextUrl.pathname.endsWith("/totem")
-      ) {
-        authAuthzLogger.debug("Public route access granted", { path: nextUrl.pathname });
-        return;
-      }
-
-      const isLoggedIn = !!auth?.user;
-      if (!isLoggedIn) {
-        authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
+        const nextUrl = new URL(request.nextUrl);
+        
+        authAuthzLogger.debug("Authorization check", {
           path: nextUrl.pathname,
-          redirectTo: "/app/sign-in",
-          newUrl: new URL("/app/sign-in", nextUrl).toString(),
+          hasAuth: !!auth,
+          hasUser: !!auth?.user,
         });
-        return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
-      }
 
-      authAuthzLogger.debug("Authorization successful", { 
-        path: nextUrl.pathname,
-        userId: auth?.user?.id 
-      });
-      return true;
+        if (
+          nextUrl.pathname.endsWith("/sign-in") ||
+          nextUrl.pathname.endsWith("/totem") ||
+          nextUrl.pathname == "/app/favicon.ico" ||
+          nextUrl.pathname.endsWith("/app/release")
+        ) {
+          authAuthzLogger.debug( { path: nextUrl.pathname }, "Public route access granted");
+          return;
+        }
+
+        const isLoggedIn = !!auth?.user;
+        if (!isLoggedIn) {
+          authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
+            path: nextUrl.pathname,
+            redirectTo: "/app/sign-in",
+            newUrl: new URL("/app/sign-in", nextUrl).toString(),
+          });
+          return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
+        }
+
+        authAuthzLogger.debug( { 
+          path: nextUrl.pathname,
+          userId: auth?.user?.id 
+        }, "Authorization successful");
+        return true;
       } catch (error) {
         authAuthzLogger.error("Error in authorized callback", { error });
         return false;
@@ -70,39 +72,55 @@ export const authConfig = {
 
         // When user signs in with OAuth providers (like Microsoft Entra ID)
         if (account && account.provider === "microsoft-entra-id") {
-          authMicrosoftLogger.debug("Processing Microsoft Entra ID account", {
+          authMicrosoftLogger.debug( {
             accountId: account.providerAccountId,
             hasIdToken: !!account.id_token,
             hasAccessToken: !!account.access_token,
+            hasRefreshToken: !!account.refresh_token,
             idTokenLength: account.id_token?.length,
             accessTokenLength: account.access_token?.length,
-          });
+            refreshTokenLength: account.refresh_token?.length,
+          }, "Processing Microsoft Entra ID account");
 
           // Raw JWT token from Microsoft Entra ID
           token.rawJWT = account.id_token;
           token.ticket = null;
-          // token.accessToken = account.access_token;
-          // token.refreshToken = account.refresh_token;
+          token.accessToken = account.access_token;
+          token.refreshToken = account.refresh_token;
 
-          authMicrosoftLogger.debug("Tokens stored in JWT callback successfully");
+          const isDev = process.env.NODE_ENV !== "production";
+          authMicrosoftLogger.debug({
+            accessTokenPreview: account.access_token?.slice(0, 16),
+            refreshTokenPreview: account.refresh_token?.slice(0, 16),
+            accessToken: isDev ? account.access_token : undefined,
+            refreshToken: isDev ? account.refresh_token : undefined,
+          }, "Stored provider tokens on JWT (previews shown; full only in dev)");
+
+          authMicrosoftLogger.debug( {
+            rawJWT: token.rawJWT,
+            ticket: token.ticket,
+          }, "Tokens stored in JWT callback successfully");
         }
 
         // Handle credentials provider
         if (account && account.provider === "credentials") {
-            authCredentialsLogger.debug("Processing credentials-based authentication", {
+            authCredentialsLogger.debug( {
               hasUser: !!user,
-              userId: user?.id,
-            });
+              email: user?.email,
+            }, "Processing credentials-based authentication");
       
 
           if (user) {
-            authJwtLogger.debug("Processing user in JWT callback", {
-              userId: user.id,
-              hasTicket: !!user.ticket,
-              provider: account?.provider,
-            });
             token.ticket = user.ticket;
             token.rawJWT = null;
+            authJwtLogger.debug( {
+              email: user.email,
+              hasTicket: !!user.ticket,
+              provider: account?.provider,
+              ticket: token.ticket,
+              rawJWT: token.rawJWT,
+            }, "Processing user in JWT callback");
+            
           }
         }
 
@@ -115,54 +133,55 @@ export const authConfig = {
     },
     session({ session, token }) {
       try {
-        authSessionLogger.debug("Session callback triggered", {
+        authSessionLogger.debug( {
           hasSession: !!session,
           hasToken: !!token,
           hasTicket: !!token?.ticket,
           tokenSub: token?.sub,
-        });
+        }, "Session callback triggered");
 
         if (token && !token.ticket) {
           var expiresAt = new Date((token.exp ?? 0) * 1000);
-          authSessionLogger.debug("Processing OAuth token", {
+          authSessionLogger.debug( {
             expiresAt: expiresAt.toISOString(),
             isValid: expiresAt > new Date(),
             hasRawJWT: !!(token as any).rawJWT,
-          });
+          }, "Processing OAuth token");
 
           if (expiresAt > new Date()) {
             session.user.ticket = token.ticket as string;
             session.user.id = token.sub as string;
             // Make raw JWT available in session
             (session.user as any).rawJWT = (token as any).rawJWT;
-            (session.user as any).accessToken = (token as any).accessToken;
+            // (session.user as any).accessToken = (token as any).accessToken;
 
-            authSessionLogger.debug("Session created successfully for OAuth user", {
-              userId: token.sub,
-            });
+            authSessionLogger.debug( {
+              sub: token.sub,
+              email: session.user.email,
+            }, "Session created successfully for OAuth user");
           } else {
-            authSessionLogger.warn("Token expired, returning empty session", {
+            authSessionLogger.warn( {
               expiresAt: expiresAt.toISOString(),
               tokenSub: token.sub,
-            });
+            }, "Token expired, returning empty session");
             return {
               user: undefined,
               expires: new Date().toISOString(),
             };
           }
         } else if (token.ticket) {
-          authSessionLogger.debug("Processing ticket-based session", {
+          authSessionLogger.debug( {
             userId: token.sub,
             hasTicket: !!token.ticket,
-          });
+          }, "Processing ticket-based session");
           session.user.ticket = token.ticket as string;
           session.user.id = token.sub as string;
         }
 
-        authSessionLogger.debug("Session created successfully", {
-          userId: session.user?.id,
+        authSessionLogger.debug( {
+          userId: session.user?.email,
           hasTicket: !!session.user?.ticket,
-        });
+        }, "Session created successfully");
 
         return session;
       } catch (error) {
@@ -197,44 +216,44 @@ export const authConfig = {
 
   logger: {
     error(error: Error) {
-      authLogger.error("NextAuth Error", { error: error.message, stack: error.stack });
+      authLogger.error(error);
     },
     warn(code: string) {
-      authLogger.warn("NextAuth Warning", { code });
+      authLogger.warn(code);
     },
     debug(code: string, ...message: any[]) {
-      authLogger.debug("NextAuth Debug", { code, message });
+      authLogger.debug(message, code);
     },
   },
   
   events: {
     async signIn({ user, account, profile, isNewUser }) {
       if (account?.provider === "microsoft-entra-id") {
-        authMicrosoftLogger.info("User signed in via Microsoft Entra ID", {
+        authMicrosoftLogger.info( {
           userId: user.id,
           email: user.email,
           isNewUser,
-        });
+        }, "User signed in via Microsoft Entra ID");
       } else if (account?.provider === "credentials") {
-        authCredentialsLogger.info("User signed in via credentials", {
+        authCredentialsLogger.info( {
           userId: user.id,
           email: user.email,
           isNewUser,
-        });
+        }, "User signed in via credentials");
       }
     },
     async signOut(message) {
       const userId = 'session' in message ? (message.session as any)?.user?.id : message.token?.sub;
-      authLogger.info("User signed out", {
+      authLogger.info( {
         userId,
         timestamp: new Date().toISOString(),
-      });
+      }, "User signed out");
     },
     async session({ session, token }) {
-      authSessionLogger.debug("Session accessed", {
-        userId: session?.user?.id,
+      authSessionLogger.debug( {
+        userId: session?.user?.email,
         expires: session?.expires,
-      });
+      }, "Session accessed");
     },
   },
 } satisfies NextAuthConfig;

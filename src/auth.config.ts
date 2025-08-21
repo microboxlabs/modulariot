@@ -76,15 +76,25 @@ export const authConfig = {
             accountId: account.providerAccountId,
             hasIdToken: !!account.id_token,
             hasAccessToken: !!account.access_token,
+            hasRefreshToken: !!account.refresh_token,
             idTokenLength: account.id_token?.length,
             accessTokenLength: account.access_token?.length,
+            refreshTokenLength: account.refresh_token?.length,
           }, "Processing Microsoft Entra ID account");
 
           // Raw JWT token from Microsoft Entra ID
           token.rawJWT = account.id_token;
           token.ticket = null;
-          // token.accessToken = account.access_token;
-          // token.refreshToken = account.refresh_token;
+          token.accessToken = account.access_token;
+          token.refreshToken = account.refresh_token;
+
+          const isDev = process.env.NODE_ENV !== "production";
+          authMicrosoftLogger.debug({
+            accessTokenPreview: account.access_token?.slice(0, 16),
+            refreshTokenPreview: account.refresh_token?.slice(0, 16),
+            accessToken: isDev ? account.access_token : undefined,
+            refreshToken: isDev ? account.refresh_token : undefined,
+          }, "Stored provider tokens on JWT (previews shown; full only in dev)");
 
           authMicrosoftLogger.debug( {
             rawJWT: token.rawJWT,
@@ -146,7 +156,8 @@ export const authConfig = {
             // (session.user as any).accessToken = (token as any).accessToken;
 
             authSessionLogger.debug( {
-              userId: token.sub,
+              sub: token.sub,
+              email: session.user.email,
             }, "Session created successfully for OAuth user");
           } else {
             authSessionLogger.warn( {
@@ -168,7 +179,7 @@ export const authConfig = {
         }
 
         authSessionLogger.debug( {
-          userId: session.user?.id,
+          userId: session.user?.email,
           hasTicket: !!session.user?.ticket,
         }, "Session created successfully");
 
@@ -240,7 +251,7 @@ export const authConfig = {
     },
     async session({ session, token }) {
       authSessionLogger.debug( {
-        userId: session?.user?.id,
+        userId: session?.user?.email,
         expires: session?.expires,
       }, "Session accessed");
     },

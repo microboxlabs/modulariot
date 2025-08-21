@@ -5,6 +5,11 @@ import type { SignInCredentials } from "@/features/auth/services/auth.service.ty
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
+import {
+  shouldRefresh,
+  refreshAccessToken,
+  persistRotationOnJwt,
+} from "@/features/auth/providers/entra-token/entra-token.service";
 
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
@@ -87,6 +92,15 @@ export const authConfig = {
           token.ticket = null;
           token.accessToken = account.access_token;
           token.refreshToken = account.refresh_token;
+          // Persist provider access token expiry if available
+          const accAny = account as any;
+          if (typeof accAny?.expires_at === "number") {
+            (token as any).accessTokenExpiresAt = accAny.expires_at as number;
+          } else if (typeof accAny?.expires_in === "number") {
+            (token as any).accessTokenExpiresAt = Math.floor(
+              Date.now() / 1000 + (accAny.expires_in as number)
+            );
+          }
 
           authMicrosoftLogger.debug({
             accessTokenPreview: account.access_token?.slice(0, 16),
@@ -99,6 +113,31 @@ export const authConfig = {
             rawJWT: token.rawJWT,
             ticket: token.ticket,
           }, "Tokens stored in JWT callback successfully");
+        }
+
+        // Attempt rotation for OAuth tokens on subsequent invocations
+        if (
+          (token as any).accessToken &&
+          (token as any).refreshToken &&
+          shouldRefresh((token as any).accessTokenExpiresAt as number | undefined)
+        ) {
+          try {
+            const resource = process.env.AUTH_MICROSOFT_ENTRA_RESOURCE_URI;
+            const scope = resource
+              ? `openid profile offline_access ${resource}/.default`
+              : "openid profile offline_access";
+            const rotated = await refreshAccessToken({
+              issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER!,
+              clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
+              clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
+              refreshToken: (token as any).refreshToken as string,
+              scope,
+            });
+            token = persistRotationOnJwt(token as any, rotated) as any;
+          } catch (error) {
+            authJwtLogger.error("Error refreshing access_token", error);
+            (token as any).error = "RefreshTokenError";
+          }
         }
 
         // Handle credentials provider
@@ -182,6 +221,8 @@ export const authConfig = {
           hasTicket: !!session.user?.ticket,
         }, "Session created successfully");
 
+        // Propagate refresh error to session for UI/flow control
+        (session as any).error = (token as any).error;
         return session;
       } catch (error) {
         authSessionLogger.error("Error in session callback:", error);

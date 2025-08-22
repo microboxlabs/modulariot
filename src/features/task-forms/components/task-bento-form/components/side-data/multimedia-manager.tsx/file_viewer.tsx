@@ -88,12 +88,13 @@ export default function FileViewer({
         {blobUrl ? (
           <div className="w-full h-full">
             <div className="w-full flex items-center justify-center py-1 gap-2">
-              <div className="text-gray-600 dark:text-gray-300 rounded-full px-2 py-1">
+              <div className="text-gray-600 dark:text-gray-300 rounded-full py-1">
                 {selected?.name}
               </div>
               {selected?.tag && (
                 <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-800 rounded-full px-2 py-1">
-                  {categories[selected.tag as keyof typeof categories]?.label}
+                  {categories[selected.tag as keyof typeof categories]?.label ??
+                    selected.tag}
                 </div>
               )}
             </div>

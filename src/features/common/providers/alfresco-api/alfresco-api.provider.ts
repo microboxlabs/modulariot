@@ -256,7 +256,7 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
 export async function uploadNodeContent(
   session: Session,
   request: UploadNodeRequest
-): Promise<string> {
+): Promise<any> {
   const formdata = uploadNodeFormData(request);
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
@@ -265,11 +265,11 @@ export async function uploadNodeContent(
     method: "POST",
     headers: {
       ...headers,
-      "Content-Type": "multipart/form-data",
     },
     body: formdata,
   });
-  return await result.json();
+
+  return result;
 }
 
 export async function getChildrenNodes(

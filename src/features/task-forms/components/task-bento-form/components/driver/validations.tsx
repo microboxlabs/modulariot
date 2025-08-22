@@ -11,6 +11,7 @@ import CustomCard from "@/features/common/components/custom-card/custom-card";
 import { useGetValidation } from "@/features/common/providers/client-api.provider";
 import { ValidationIcon } from "./validation-icon";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
+import { Tooltip } from "flowbite-react";
 
 // Validation item component
 export const ValidationItemComponent = ({
@@ -51,21 +52,33 @@ const ValidationCategory = ({
       <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
         {title}
       </h2>
-      <div className="flex flex-col gap-2">
-        {items.map((item) =>
-          item.key === "gpsValidation" ? (
-            <GpsValidationItem
-              key={item.key}
-              msg={msg}
-              lang={lang}
-              task={task as TaskResponse}
-              userGroups={userGroups}
-              item={item}
-            />
-          ) : (
-            <ValidationItemComponent key={item.key} item={item} msg={msg} />
-          )
-        )}
+      <div className="space-y-1 flex flex-col gap-2">
+        {items.map((item) => (
+          <Tooltip
+            style="auto"
+            key={item.key}
+            content={
+              item.label
+                ? ((msg.bento as I18nRecord)[item.label] as string)
+                : item.description
+                  ? ((msg.bento as I18nRecord)[item.description] as string)
+                  : item.description
+            }
+          >
+            {item.key === "gpsValidation" ? (
+              <GpsValidationItem
+                key={item.key}
+                msg={msg}
+                lang={lang}
+                task={task as TaskResponse}
+                userGroups={userGroups}
+                item={item}
+              />
+            ) : (
+              <ValidationItemComponent key={item.key} item={item} msg={msg} />
+            )}
+          </Tooltip>
+        ))}
       </div>
     </div>
   );
@@ -167,7 +180,7 @@ export default function ValidationsInfo({
             items={validation.validations.map((validation) => ({
               key: mapValidationNameToKey(validation.name),
               status: mapValidationValueToStatus(validation.value),
-              label: validation.name,
+              label: validation.label || validation.description,
               group: validation.group,
             }))}
             msg={msg}

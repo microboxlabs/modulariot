@@ -17,6 +17,7 @@ export function buildSignInFormMessages({
     buttonContinueWithMicrosoft: dict(
       "pages.login.buttons.continueWithMicrosoft"
     ),
+    buttonContinueWithEmail: dict("pages.login.buttons.continueWithEmail"),
   };
 }
 

@@ -41,8 +41,6 @@ export async function POST(request: NextRequest) {
       session
     );
 
-    console.log(alfrescoResponse);
-
     if (alfrescoResponse.status !== 200) {
       return NextResponse.json(
         { error: "Upload failed", status: alfrescoResponse.status },

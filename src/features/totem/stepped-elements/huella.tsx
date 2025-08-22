@@ -73,10 +73,10 @@ export default function Huella({
       qrMessage.indexOf("mrz") !== -1 &&
       idCardNumber.length === 0
     ) {
-      const serialPosition = qrMessage.indexOf("serial");
+      const serialPosition = qrMessage.indexOf("erial");
       const idCardCaptured = qrMessage.substring(
-        serialPosition + 7,
-        serialPosition + 16
+        serialPosition + 6,
+        serialPosition + 15
       );
       setIdCardNumber(idCardCaptured);
       if (!idCardNumberOnce) {

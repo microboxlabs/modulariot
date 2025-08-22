@@ -18,6 +18,7 @@ import type {
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
+  UploadNodeResponse,
   UserState,
   ValidationsResponse,
   CreateTemplateRequest,
@@ -32,7 +33,7 @@ import type {
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
-import { createManagedLogger } from "@/lib/logger";
+import { createManagedLogger, logError } from "@/lib/logger";
 
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
@@ -256,20 +257,55 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
 export async function uploadNodeContent(
   session: Session,
   request: UploadNodeRequest
-): Promise<any> {
-  const formdata = uploadNodeFormData(request);
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
-  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+): Promise<UploadNodeResponse> {
+  try {
+    const formdata = uploadNodeFormData(request);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
-  const result = await fetch(url, {
-    method: "POST",
-    headers: {
-      ...headers,
-    },
-    body: formdata,
-  });
+    const result = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...headers,
+      },
+      body: formdata,
+    });
 
-  return result;
+    if (!result.ok) {
+      logError(
+        new Error(
+          `Upload failed with HTTP error: ${result.status} ${result.statusText}`
+        )
+      );
+      return {
+        status: { code: result.status, message: "The file was not uploaded" },
+        data: undefined,
+      };
+    }
+
+    const responseData = await result.json();
+
+    // Validate that the response has the expected structure
+    if (
+      responseData &&
+      typeof responseData === "object" &&
+      responseData.status &&
+      responseData.status.code
+    ) {
+      return responseData as UploadNodeResponse;
+    } else {
+      return {
+        status: { code: 200, message: "Upload successful" },
+        data: responseData,
+      };
+    }
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Upload failed with exception"
+    );
+    return null;
+  }
 }
 
 export async function getChildrenNodes(

@@ -45,6 +45,8 @@ export default function Document({
     };
   }, [thumbnailUrl]);
 
+  document.file.entry.properties["mintral:contentType"] = null;
+
   const handleViewDocument = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     if (document.data) {

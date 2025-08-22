@@ -2,7 +2,10 @@ import "server-only";
 import { auth } from "@/auth";
 import { uploadNodeContent } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
-import { UploadNodeRequest } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import {
+  UploadNodeRequest,
+  UploadNodeResponse,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import type { Session } from "next-auth";
 import { logError } from "@/lib/logger";
 
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let alfrescoResponse;
+    let alfrescoResponse: UploadNodeResponse;
     let currentFileName = fileName;
 
     alfrescoResponse = await uploadFile(
@@ -41,10 +44,22 @@ export async function POST(request: NextRequest) {
       session
     );
 
-    if (alfrescoResponse.status !== 200) {
+    if (!alfrescoResponse) {
+      return NextResponse.json(
+        { error: "Upload failed - no response from server" },
+        { status: 500 }
+      );
+    }
+
+    if (
+      alfrescoResponse.status.code < 200 ||
+      alfrescoResponse.status.code >= 300
+    ) {
       return NextResponse.json(
         { error: "Upload failed", status: alfrescoResponse.status },
-        { status: alfrescoResponse.status }
+        {
+          status: alfrescoResponse.status.code,
+        }
       );
     }
 
@@ -82,5 +97,5 @@ async function uploadFile(
     thumbnails: ["doclib"],
   };
 
-  return uploadNodeContent(session, formData);
+  return await uploadNodeContent(session, formData);
 }

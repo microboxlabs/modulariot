@@ -4,7 +4,8 @@
   "scripts": {
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "bun run prisma/seed.ts"
   },
   "devDependencies": {
     "prisma": "^6.10.1"

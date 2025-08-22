@@ -21,5 +21,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "mapbox-gl": "^3.14.0",
+    "react-map-gl": "^8.0.4"
+  }
 }

@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       .replace(/(^-|-$)/g, '') + '-' + nanoid(8)
 
     // TODO: Create organization in database
+
     const organization = await prisma.organization.create({
       data: {
         name: validatedData.name,
@@ -94,8 +95,6 @@ export async function GET(request: NextRequest) {
       projects: includeProjects,
     },
   });
-
-  console.log(organizations);
 
   return NextResponse.json(organizations);
 }

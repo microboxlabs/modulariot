@@ -303,7 +303,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/packages/db/generated/client",
+      "value": "/Users/khalz/Desktop/modulariot/packages/db/generated/client",
       "fromEnvVar": null
     },
     "config": {
@@ -312,7 +312,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin",
+        "value": "darwin-arm64",
         "native": true
       },
       {
@@ -321,7 +321,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/packages/db/prisma/schema.prisma",
+    "sourceFilePath": "/Users/khalz/Desktop/modulariot/packages/db/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -335,7 +335,6 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {

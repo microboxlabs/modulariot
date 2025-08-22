@@ -2,7 +2,7 @@
 
 import { useParams, usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
-import { SidebarItem } from './sidebar-link';
+import { type SidebarItem } from './sidebar-link';
 
 interface SmartSidebarProps {
   orgSidebarItems: (orgId: string) => SidebarItem[];

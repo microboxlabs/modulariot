@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { SidebarLink, SidebarItem } from './sidebar-link';
+import { SidebarLink, type SidebarItem } from './sidebar-link';
 
 interface SidebarProps {
   items: SidebarItem[];
@@ -38,8 +38,6 @@ export function Sidebar({ items, storageKey }: SidebarProps) {
     setIsCollapsed(newValue);
     saveState(storageKey, newValue);
   };
-
-  console.log('isCollapsed', isCollapsed);
 
   return (
     <div

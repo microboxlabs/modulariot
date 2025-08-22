@@ -5,6 +5,7 @@ export interface ValidationItem {
   status: ValidationStatus;
   label: string;
   group?: string;
+  description?: string;
 }
 
 export interface ValidationsInfoProps {
@@ -18,6 +19,7 @@ export interface ValidationData {
   value: number;
   name: string;
   group: string;
+  label?: string;
 }
 
 export interface ValidationGroup {

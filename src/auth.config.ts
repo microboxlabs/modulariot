@@ -35,7 +35,8 @@ export const authConfig = {
           nextUrl.pathname.endsWith("/sign-in") ||
           nextUrl.pathname.endsWith("/totem") ||
           nextUrl.pathname == "/app/favicon.ico" ||
-          nextUrl.pathname.endsWith("/app/release")
+          nextUrl.pathname.endsWith("/app/release") ||
+          nextUrl.pathname.includes("/release/")
         ) {
           authAuthzLogger.debug( { path: nextUrl.pathname }, "Public route access granted");
           return;

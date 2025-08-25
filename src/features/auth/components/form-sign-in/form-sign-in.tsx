@@ -4,7 +4,7 @@ import {
   authenticateAction,
   signInWithMicrosoft,
 } from "@/features/auth/services/auth.service";
-import { Button, Checkbox, Label, TextInput } from "flowbite-react";
+import { Button } from "flowbite-react";
 import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
 import React, { useEffect, useState } from "react";
@@ -62,7 +62,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
       ) : (
         <div className="flex flex-col gap-y-2">
           <Button
-            color="gray"
+            color="blue"
             theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
             type="submit"

@@ -4,7 +4,7 @@ import {
   authenticateAction,
   signInWithMicrosoft,
 } from "@/features/auth/services/auth.service";
-import { Button } from "flowbite-react";
+import { Button, Checkbox, Label, TextInput } from "flowbite-react";
 import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
 import React, { useEffect, useState } from "react";
@@ -76,6 +76,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           <div className="flex gap-1 flex-col text-sm justify-center items-center text-gray-500">
             <p>o</p>
             <a
+              href="#"
               className="text-center hover:underline cursor-pointer text-blue-700 text-md"
               onClick={() => setShowLogin(true)}
             >

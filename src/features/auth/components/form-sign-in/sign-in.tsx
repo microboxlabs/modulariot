@@ -82,6 +82,7 @@ export default function SignIn({
         <div className="mt-2 flex gap-1 flex-col text-sm justify-center items-center text-gray-500">
           <p>o</p>
           <a
+            href="#"
             className="text-center hover:underline cursor-pointer text-blue-700 text-md"
             onClick={() => setShowLogin(false)}
           >

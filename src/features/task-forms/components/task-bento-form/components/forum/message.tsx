@@ -18,12 +18,8 @@ export default function Message({
       <div
         className={`flex flex-col ${comment.sender === this_mail ? "rounded-lg rounded-tr-none" : "rounded-lg rounded-tl-none"} p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600`}
       >
-        <div
-          className={`flex flex-row gap-2 ${comment.sender === this_mail ? "" : ""}`}
-        >
-          <div
-            className={`flex flex-wrap gap-x-2 ${comment.sender === this_mail ? "" : ""}`}
-          >
+        <div className="flex flex-row gap-2">
+          <div className="flex flex-wrap gap-x-2">
             <p className="text-md text-gray-700 dark:text-gray-300">
               {comment.name}
             </p>

@@ -141,7 +141,8 @@ export default function TableItem({
       <TableCell
         className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
       >
-        {new Date(data.date).toLocaleString()}
+        {/* {new Date(data.date).toLocaleString()} */}
+        <FormattedDate date={data.date} format="datetime" />
       </TableCell>
     </TableRow>
   );

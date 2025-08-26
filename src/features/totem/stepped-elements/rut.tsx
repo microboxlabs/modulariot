@@ -28,6 +28,12 @@ export default function Rut({
     }
   }, [count]);
 
+  useEffect(() => {
+    if (rut.length > 0) {
+      //check if the rut is captured by the scanner
+    }
+  }, [rut]);
+
   const handleValidateRut = async () => {
     if (!rut.trim()) {
       setError((dict.totem as I18nRecord).rut_required as string);

@@ -451,7 +451,15 @@
         "route": "Ruta",
         "trailer": "Patente rampla",
         "supplierId": "Rut transportista",
-        "supplierName": "Nombre transportista"
+        "supplierName": "Nombre transportista",
+        "Alcohol test not performed": "Test de alcohol no realizado",
+        "Drug test not performed": "Test de drogas no realizado",
+        "Sleepiness test not performed": "Test de somnolencia no realizado",
+        "Driver App not performed": "APP Conductor no realizado",
+        "Identity Validation not performed": "Validación de identidad no realizada",
+        "Sleep test not performed": "Test de somnolencia no realizado",
+        "Driver app not connected": "APP Conductor no conectada",
+        "Biometric verification not performed": "Validación biométrica no realizada"
       },
       "outcome": {
         "moreOptions": "Más opciones",

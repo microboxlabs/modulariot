@@ -31,6 +31,14 @@ export const ValidationItemComponent = ({
   );
 };
 
+function getTooltipMessage(item: ValidationItem, msg: I18nRecord) {
+  return item.label
+    ? ((msg.bento as I18nRecord)[item.label] as string)
+    : item.description
+      ? ((msg.bento as I18nRecord)[item.description] as string)
+      : item.description;
+}
+
 // Category component
 const ValidationCategory = ({
   title,
@@ -53,32 +61,47 @@ const ValidationCategory = ({
         {title}
       </h2>
       <div className="space-y-1 flex flex-col gap-2">
-        {items.map((item) => (
-          <Tooltip
-            style="auto"
-            key={item.key}
-            content={
-              item.label
-                ? ((msg.bento as I18nRecord)[item.label] as string)
-                : item.description
-                  ? ((msg.bento as I18nRecord)[item.description] as string)
-                  : item.description
-            }
-          >
-            {item.key === "gpsValidation" ? (
-              <GpsValidationItem
-                key={item.key}
-                msg={msg}
-                lang={lang}
-                task={task as TaskResponse}
-                userGroups={userGroups}
-                item={item}
-              />
-            ) : (
-              <ValidationItemComponent key={item.key} item={item} msg={msg} />
-            )}
-          </Tooltip>
-        ))}
+        {items.map((item) => {
+          const tooltipMessage = getTooltipMessage(item, msg) || "";
+          const shouldHideTooltip = tooltipMessage.trim() === "";
+
+          return !shouldHideTooltip ? (
+            <Tooltip
+              style="auto"
+              key={item.key}
+              content={tooltipMessage}
+              hidden={shouldHideTooltip}
+            >
+              {item.key === "gpsValidation" ? (
+                <GpsValidationItem
+                  key={item.key}
+                  msg={msg}
+                  lang={lang}
+                  task={task as TaskResponse}
+                  userGroups={userGroups}
+                  item={item}
+                />
+              ) : (
+                <ValidationItemComponent key={item.key} item={item} msg={msg} />
+              )}
+            </Tooltip>
+          ) : (
+            <div>
+              {item.key === "gpsValidation" ? (
+                <GpsValidationItem
+                  key={item.key}
+                  msg={msg}
+                  lang={lang}
+                  task={task as TaskResponse}
+                  userGroups={userGroups}
+                  item={item}
+                />
+              ) : (
+                <ValidationItemComponent key={item.key} item={item} msg={msg} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -154,8 +177,6 @@ export default function ValidationsInfo({
   }
 
   if (error) {
-    console.error(error);
-
     content = (
       <div className="text-center h-full flex justify-center items-center w-full">
         <span className="text-sm  text-red-500 whitespace-normal">

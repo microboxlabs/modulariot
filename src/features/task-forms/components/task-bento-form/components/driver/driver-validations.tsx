@@ -110,7 +110,7 @@ export default function DriverValidations({
             status={alcoholTestStatus as ValidationStatus}
             isLoading={isLoading}
           />
-          <span className="text-gray-600 text-sm whitespace-normal">
+          <span className="text-gray-600 dark:text-gray-300 text-sm whitespace-normal">
             {(msg.cards as I18nRecord).alcoholTest as string}
           </span>
         </div>
@@ -127,7 +127,7 @@ export default function DriverValidations({
             status={drugTestStatus as ValidationStatus}
             isLoading={isLoading}
           />
-          <span className="text-gray-600 text-sm whitespace-normal">
+          <span className="text-gray-600 dark:text-gray-300 text-sm whitespace-normal">
             {(msg.cards as I18nRecord).drugTest as string}
           </span>
         </div>
@@ -144,7 +144,7 @@ export default function DriverValidations({
             status={sleepinessTestStatus as ValidationStatus}
             isLoading={isLoading}
           />
-          <span className="text-gray-600 text-sm whitespace-normal">
+          <span className="text-gray-600 dark:text-gray-300 text-sm whitespace-normal">
             {(msg.cards as I18nRecord).sleepinessTest as string}
           </span>
         </div>
@@ -161,7 +161,7 @@ export default function DriverValidations({
             status={appTestStatus as ValidationStatus}
             isLoading={isLoading}
           />
-          <span className="text-gray-600 text-sm whitespace-normal">
+          <span className="text-gray-600 dark:text-gray-300 text-sm whitespace-normal">
             {(msg.cards as I18nRecord).appTest as string}
           </span>
         </div>
@@ -178,7 +178,7 @@ export default function DriverValidations({
             status={identityTestStatus as ValidationStatus}
             isLoading={isLoading}
           />
-          <span className="text-gray-600 text-sm whitespace-normal">
+          <span className="text-gray-600 dark:text-gray-300 text-sm whitespace-normal">
             {(msg.cards as I18nRecord).identityTest as string}
           </span>
         </div>

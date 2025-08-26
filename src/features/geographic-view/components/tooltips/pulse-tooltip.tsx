@@ -2,6 +2,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { pin_conditions } from "@/features/geographic-view/types/pin_conditions";
 import { DescriptionProps } from "@/app/api/treatments/location/route.type";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
@@ -67,9 +68,13 @@ export default function PulseTooltip({
             }
             :{" "}
             <span className="font-light">
-              {new Date(
+              <FormattedDate
+                date={object.description.first_signal_timestamp}
+                format="datetime"
+              />
+              {/* {new Date(
                 object.description.first_signal_timestamp
-              ).toLocaleString()}
+              ).toLocaleString()} */}
             </span>
           </div>
         )}
@@ -81,9 +86,13 @@ export default function PulseTooltip({
             }
             :{" "}
             <span className="font-light">
-              {new Date(
+              <FormattedDate
+                date={object.description.last_signal_timestamp}
+                format="datetime"
+              />
+              {/* {new Date(
                 object.description.last_signal_timestamp
-              ).toLocaleString()}
+              ).toLocaleString()} */}
             </span>
           </div>
         )}

@@ -54,7 +54,9 @@ export default function Document({
       );
       setSelected({
         url: pdfDataUrl,
-        tag: document.file.entry.properties["mintral:contentType"],
+        tag:
+          document?.file?.entry?.properties?.["mintral:contentType"] ??
+          "Sin clasificar",
         name: document.file.entry.name,
       });
     }
@@ -84,23 +86,24 @@ export default function Document({
         <p className="text-sm text-gray-800 dark:text-gray-200 truncate whitespace-nowrap h-fit">
           {document.file.entry.name}
         </p>
-        {document?.file?.entry?.properties?.["mintral:contentType"] && (
-          <div
-            className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
-              modified
-                ? "dark:bg-gray-700 dark:text-gray-400 bg-gray-200 text-gray-00"
-                : "bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 "
-            }`}
-          >
-            {
-              categories[
-                document.file.entry.properties[
-                  "mintral:contentType"
-                ] as keyof typeof categories
-              ]?.label
-            }
-          </div>
-        )}
+        {document?.file?.entry?.properties?.["mintral:contentType"] &&
+          document.file.entry.properties["mintral:contentType"] !== null && (
+            <div
+              className={`text-xs z-10 rounded-full flex items-center justify-center px-2 py-1 w-fit whitespace-nowrap ${
+                modified
+                  ? "dark:bg-gray-700 dark:text-gray-400 bg-gray-200 text-gray-00"
+                  : "bg-gray-200 text-gray-00 dark:text-gray-400 dark:bg-gray-800 "
+              }`}
+            >
+              {
+                categories[
+                  document.file.entry.properties[
+                    "mintral:contentType"
+                  ] as keyof typeof categories
+                ]?.label
+              }
+            </div>
+          )}
       </div>
     </a>
   );

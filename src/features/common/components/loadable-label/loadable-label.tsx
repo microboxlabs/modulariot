@@ -7,7 +7,7 @@ export default function LoadableLabel({
   icon,
 }: {
   readonly label: string;
-  readonly value: string;
+  readonly value: string | React.ReactNode;
   readonly isLoading?: boolean;
   readonly icon?: React.ReactNode;
 }) {

@@ -1,5 +1,5 @@
 import { FaCheck } from "react-icons/fa";
-import { TbExclamationMark } from "react-icons/tb";
+import { TbExclamationMark, TbX } from "react-icons/tb";
 import { ValidationStatus } from "./validations.types";
 
 // Validation status icons
@@ -33,7 +33,7 @@ export const ValidationIcon = ({
     default:
       return (
         <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
-          <TbExclamationMark className="w-4 h-4" />
+          <TbX className="w-4 h-4" />
         </div>
       );
   }

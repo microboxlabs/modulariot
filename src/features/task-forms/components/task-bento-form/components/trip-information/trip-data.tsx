@@ -10,6 +10,7 @@ import {
   FaTruck,
 } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 export default function TripData({
   task,
@@ -119,7 +120,22 @@ export default function TripData({
   const scheduling = {
     icon: <FaCalendarAlt className="w-4 h-4" />,
     label: (msg!.cards as I18nRecord).scheduling as string,
-    value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`,
+    value: (
+      <>
+        <FormattedDate
+          date={etd.format("MM/DD/YYYY HH:mm")}
+          format="datetime"
+          timeZone="UTC"
+        />
+        <span className="mx-2">-</span>
+        <FormattedDate
+          date={eta.format("MM/DD/YYYY HH:mm")}
+          format="datetime"
+          timeZone="UTC"
+        />
+      </>
+    ),
+    /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
   };
 
   return (
@@ -137,7 +153,7 @@ export default function TripData({
       </div>
       <LoadableLabel
         label={scheduling.label}
-        value={scheduling.value as string}
+        value={scheduling.value}
         isLoading={isLoading}
         icon={scheduling.icon}
       />

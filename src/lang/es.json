@@ -1199,6 +1199,8 @@
     "reject_reason": "Motivo de rechazo"
   },
   "bento": {
+    "today": "Hoy",
+    "yesterday": "Ayer",
     "trip": "Viaje",
     "trip_information": "Información del viaje",
     "conditions_present_in_the_trip": "Condiciones presentes en el viaje",

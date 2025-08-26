@@ -150,7 +150,7 @@ export default function Forum({
       <div className="relative flex gap-2 flex-col flex-grow overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
         <div
           ref={scrollRef}
-          className="flex flex-col gap-2 w-full flex-grow overflow-y-auto p-4"
+          className="flex flex-col gap-2 w-full flex-grow overflow-y-auto px-4 py-2"
         >
           {isLoading && (
             <div className="text-center text-sm text-gray-500">
@@ -158,14 +158,40 @@ export default function Forum({
             </div>
           )}
           {!isLoading &&
-            messages.map((comment, index) => (
-              <div
-                key={`${comment.topicRef}-${index}`}
-                className="last:mb-12 first:mt-2"
-              >
-                <Message comment={comment} this_mail={currentUser} />
-              </div>
-            ))}
+            (() => {
+              let last_hour = "";
+              let isFirstDateSeparator = true;
+
+              return messages.map((comment, index) => {
+                const returnable = (
+                  <div
+                    key={`${comment.topicRef}-${index}`}
+                    className="last:mb-12"
+                  >
+                    {last_hour != to_date(comment.date) && (
+                      <div
+                        className={`flex justify-center items-center w-full mb-2 ${
+                          isFirstDateSeparator ? "" : "mt-4"
+                        }`}
+                      >
+                        <div className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 px-2 text-xs text-gray-400 rounded-full">
+                          {is_today(to_date(comment.date), dict)}
+                        </div>
+                      </div>
+                    )}
+
+                    <Message comment={comment} this_mail={currentUser} />
+                  </div>
+                );
+
+                if (last_hour != to_date(comment.date)) {
+                  last_hour = to_date(comment.date);
+                  isFirstDateSeparator = false;
+                }
+
+                return returnable;
+              });
+            })()}
         </div>
         <form
           onSubmit={handleSubmit}
@@ -196,4 +222,38 @@ export default function Forum({
       </div>
     </CustomCard>
   );
+}
+
+function to_date(date: string): string {
+  let new_date = new Date(date).toLocaleTimeString([], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+
+  return new_date.split(",")[0];
+}
+
+function is_today(formattedDate: string, dict: I18nRecord): string {
+  if (!formattedDate) return "";
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat(undefined, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    })
+      .format(d)
+      .split(",")[0];
+
+  const todayStr = fmt(today);
+  const yesterdayStr = fmt(yesterday);
+
+  if (formattedDate === todayStr) return tr("today", dict.bento as I18nRecord);
+  if (formattedDate === yesterdayStr)
+    return tr("yesterday", dict.bento as I18nRecord);
+  return formattedDate;
 }

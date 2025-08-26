@@ -1,6 +1,8 @@
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import Reason from "./reason";
 
+// helper (place near top of file or move to a utils file if preferred)
+
 export default function Message({
   comment,
   this_mail,
@@ -17,10 +19,18 @@ export default function Message({
         className={`flex flex-col ${comment.sender === this_mail ? "rounded-lg rounded-tr-none" : "rounded-lg rounded-tl-none"} p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600`}
       >
         <div className="flex flex-row gap-2">
-          <p className="text-md text-gray-700 dark:text-gray-300 font-light">
-            {comment.name}
+          <div className="flex flex-wrap gap-x-2">
+            <p className="text-md text-gray-700 dark:text-gray-300">
+              {comment.name}
+            </p>
+            {comment.reason && <Reason reason={comment.reason} />}
+          </div>
+          <p className="font-light text-xs text-gray-400 h-full flex justify-center items-center">
+            {new Date(comment.date).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </p>
-          {comment.reason && <Reason reason={comment.reason} />}
         </div>
         <p className="text-sm text-gray-700 dark:text-gray-300 font-light">
           {comment.message}

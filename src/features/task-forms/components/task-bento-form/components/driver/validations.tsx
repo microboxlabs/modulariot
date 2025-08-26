@@ -33,10 +33,8 @@ export const ValidationItemComponent = ({
 
 function getTooltipMessage(item: ValidationItem, msg: I18nRecord) {
   return item.label
-    ? ((msg.bento as I18nRecord)[item.label] as string)
-    : item.description
-      ? ((msg.bento as I18nRecord)[item.description] as string)
-      : item.description;
+    ? ((msg.bento as I18nRecord)[item.label] as string) || item.label
+    : "";
 }
 
 // Category component
@@ -108,7 +106,7 @@ const ValidationCategory = ({
 };
 
 // Helper function to map API validation value to our status
-const mapValidationValueToStatus = (value: number): ValidationStatus => {
+export const mapValidationValueToStatus = (value: number): ValidationStatus => {
   switch (value) {
     case 0:
       return "ok";

@@ -9,19 +9,16 @@ import { ValidationIcon } from "./validation-icon";
 import { ValidationItem, ValidationStatus } from "./validations.types";
 import { Tooltip } from "flowbite-react";
 import React from "react";
+import { mapValidationValueToStatus } from "./validations";
 
 function renderTooltip(
   item: ValidationItem,
   msg: I18nRecord,
   children: React.ReactNode
 ) {
-  const tooltipMessage =
-    (item.label
-      ? ((msg.cards as I18nRecord)[item.label] as string) || item.label
-      : item.description
-        ? ((msg.cards as I18nRecord)[item.description] as string) ||
-          item.description
-        : "") || "";
+  const tooltipMessage = item.label
+    ? ((msg.cards as I18nRecord)[item.label] as string) || item.label
+    : "";
   const shouldHideTooltip = tooltipMessage.trim() === "";
 
   return shouldHideTooltip ? (
@@ -63,34 +60,24 @@ export default function DriverValidations({
     data.validations.forEach((validation1) => {
       validation1.validations.forEach((validation) => {
         if (validation.name === "DRIVER_ALCOHOL_TEST") {
-          alcoholTestStatus = validation.value === 0 ? "ok" : "not_found";
-          alcoholTestTooltip = (validation.label ||
-            validation.description ||
-            "") as string;
+          alcoholTestStatus = mapValidationValueToStatus(validation.value);
+          alcoholTestTooltip = (validation.label || "") as string;
         }
         if (validation.name === "DRIVER_DRUG_TEST") {
-          drugTestStatus = validation.value === 0 ? "ok" : "not_found";
-          drugTestTooltip = (validation.label ||
-            validation.description ||
-            "") as string;
+          drugTestStatus = mapValidationValueToStatus(validation.value);
+          drugTestTooltip = (validation.label || "") as string;
         }
         if (validation.name === "DRIVER_SLEEP_TEST") {
-          sleepinessTestStatus = validation.value === 0 ? "ok" : "not_found";
-          sleepinessTestTooltip = (validation.label ||
-            validation.description ||
-            "") as string;
+          sleepinessTestStatus = mapValidationValueToStatus(validation.value);
+          sleepinessTestTooltip = (validation.label || "") as string;
         }
         if (validation.name === "DRIVER_DRIVER_APP") {
-          appTestStatus = validation.value === 0 ? "ok" : "not_found";
-          appTestTooltip = (validation.label ||
-            validation.description ||
-            "") as string;
+          appTestStatus = mapValidationValueToStatus(validation.value);
+          appTestTooltip = (validation.label || "") as string;
         }
         if (validation.name === "DRIVER_BIOMETRIC_VERIFICATION") {
-          identityTestStatus = validation.value === 0 ? "ok" : "not_found";
-          identityTestTooltip = (validation.label ||
-            validation.description ||
-            "") as string;
+          identityTestStatus = mapValidationValueToStatus(validation.value);
+          identityTestTooltip = (validation.label || "") as string;
         }
       });
     });

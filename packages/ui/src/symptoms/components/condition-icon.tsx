@@ -17,9 +17,7 @@ export default function ConditionIcon({
         style="auto"
         placement={placement}
         content={
-          <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap shadow-lg border border-gray-200 dark:border-gray-500 text-center">
-            { condition ? condition : "Sin condición" }
-          </div>
+          condition ?? "Sin condición"
         }
       >
         <div

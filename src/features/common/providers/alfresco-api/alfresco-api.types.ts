@@ -165,6 +165,15 @@ export type UploadNodeRequest = {
   prop_mintral_contentType?: string;
 };
 
+export type UploadNodeResponse = {
+  status: {
+    code: number;
+    message?: string;
+  };
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+} | null;
+
 export type FinishedWorkflowsResponse = {
   total: number;
   workflows: HistoricalWorkflow[];

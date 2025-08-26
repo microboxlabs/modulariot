@@ -24,11 +24,11 @@ export default async function SignInPage({ params: { lang } }: ParamsWithLang) {
             theme={{
               root: {
                 base: "flex rounded-lg border border-gray-200 shadow-md dark:border-gray-700",
-                children: "my-auto w-full gap-0 space-y-8 p-6 sm:p-4 lg:p-8",
+                children: "my-auto w-full gap-0 space-y-4 p-6 sm:p-4 lg:p-8",
               },
             }}
           >
-            <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white">
+            <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white w-full text-center">
               {dict("pages.login.welcome")}
             </h2>
             <FormSignIn messages={signInMessages} />

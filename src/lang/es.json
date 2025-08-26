@@ -460,7 +460,8 @@
         "Identity Validation not performed": "Validación de identidad no realizada",
         "Sleep test not performed": "Test de somnolencia no realizado",
         "Driver app not connected": "APP Conductor no conectada",
-        "Biometric verification not performed": "Validación biométrica no realizada"
+        "Biometric verification not performed": "Validación biométrica no realizada",
+        "Driver verified by fingerprint": "Conductor verificado por huella digital"
       },
       "outcome": {
         "moreOptions": "Más opciones",

@@ -1292,6 +1292,18 @@
       "noImages": "No images",
       "documents": "Documents",
       "noDocuments": "No documents"
+    },
+    "forum_reasons": {
+      "FINGERPRINT_DEVICES_TECH_ISSUES": "Fingerprint devices technical issues",
+      "COMPUTER_TECH_ISSUES": "Computer technical issues",
+      "DRIVER_FINGERPRINT_NOT_RECOGNIZED": "Driver fingerprint not recognized",
+      "DISPATCHER_NOT_ENROLLED": "Dispatcher not enrolled",
+      "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED": "Dispatcher fingerprint not recognized",
+      "AUTHORIZED_BY_TRANSPORT_OVERLORD": "Authorized by transport overlord",
+      "OTHER": "Other",
+      "NO_GPS_VALIDATION": "No GPS validation",
+      "NO_DOCUMENT_CONSOLIDATION": "No document consolidation",
+      "NO_CLIENT_SYSTEM_VALIDATION": "No client system validation"
     }
   },
   "cards": {

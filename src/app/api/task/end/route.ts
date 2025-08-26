@@ -6,7 +6,7 @@ import {
 import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { NextRequest, NextResponse } from "next/server";
 import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
-import { logger } from "@/lib/logger";
+import { logger, logError } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (_error: any) {
-    // console.error("error", _error);
+    logError(_error as Error);
     if (_error instanceof Error) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const error = parseErrorAsJson(_error);

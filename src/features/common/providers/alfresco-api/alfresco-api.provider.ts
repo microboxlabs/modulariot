@@ -18,6 +18,7 @@ import type {
   TaskCountResponse,
   TaskResponse,
   UploadNodeRequest,
+  UploadNodeResponse,
   UserState,
   ValidationsResponse,
   CreateTemplateRequest,
@@ -32,7 +33,7 @@ import type {
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
-import { createManagedLogger } from "@/lib/logger";
+import { createManagedLogger, logError } from "@/lib/logger";
 
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
@@ -147,7 +148,10 @@ export async function getUserTasks(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from,
       size,
@@ -256,20 +260,55 @@ function uploadNodeFormData(request: UploadNodeRequest): FormData {
 export async function uploadNodeContent(
   session: Session,
   request: UploadNodeRequest
-): Promise<string> {
-  const formdata = uploadNodeFormData(request);
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
-  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+): Promise<UploadNodeResponse> {
+  try {
+    const formdata = uploadNodeFormData(request);
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/upload`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
-  const result = await fetch(url, {
-    method: "POST",
-    headers: {
-      ...headers,
-      "Content-Type": "multipart/form-data",
-    },
-    body: formdata,
-  });
-  return await result.json();
+    const result = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...headers,
+      },
+      body: formdata,
+    });
+
+    if (!result.ok) {
+      logError(
+        new Error(
+          `Upload failed with HTTP error: ${result.status} ${result.statusText}`
+        )
+      );
+      return {
+        status: { code: result.status, message: "The file was not uploaded" },
+        data: undefined,
+      };
+    }
+
+    const responseData = await result.json();
+
+    // Validate that the response has the expected structure
+    if (
+      responseData &&
+      typeof responseData === "object" &&
+      responseData.status &&
+      responseData.status.code
+    ) {
+      return responseData as UploadNodeResponse;
+    } else {
+      return {
+        status: { code: 200, message: "Upload successful" },
+        data: responseData,
+      };
+    }
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error: error instanceof Error ? error.message : String(error) },
+      "Upload failed with exception"
+    );
+    return null;
+  }
 }
 
 export async function getChildrenNodes(
@@ -346,7 +385,10 @@ export async function getContentByTaskId(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = (await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ taskId, fileName, signed: requireInternalSign }),
   })) as { node: { id: string } };
   const baseUrl1 = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${result.node.id}/content`;
@@ -413,7 +455,10 @@ export async function getServiceValidation(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ serviceCode }),
   });
   return result as ServiceValidationResponse;
@@ -427,7 +472,10 @@ export async function getFinishedWorkflows(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
   return result as FinishedWorkflowsResponse;
@@ -583,6 +631,9 @@ export async function getBiometricVerification(
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
   const result = await fetcher(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -597,7 +648,10 @@ export async function getSovosFingerprintReuse(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -619,7 +673,10 @@ export async function markAsRead(session: Session, id: string) {
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "PUT",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ id }),
   });
 
@@ -635,7 +692,10 @@ export async function getTaskByLicensePlate(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -651,7 +711,10 @@ export async function ecmSovosDec5(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({}),
   });
 
@@ -709,8 +772,11 @@ async function callForumAction<TResponse = unknown>(
 
   const result = await fetcher(url.toString(), {
     method: "POST",
-    headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(options?.body),
   });
   return result as TResponse;
 }
@@ -799,7 +865,10 @@ async function callMessageTemplateAction<TResponse = unknown>(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   return result as TResponse;

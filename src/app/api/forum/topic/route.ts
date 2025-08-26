@@ -2,6 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { createForumTopic } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { logError } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result, { status: 201 });
   } catch (e: any) {
+    logError(e);
+
     if (e?.status === 401) {
       return NextResponse.json(
         { error: "Unauthorized", status: 401 },

@@ -20,7 +20,8 @@
       },
       "buttons": {
         "submit": "Ingresar a tu cuenta",
-        "continueWithMicrosoft": "Continuar con Microsoft"
+        "continueWithMicrosoft": "Continuar con Microsoft",
+        "continueWithEmail": "Continuar con Correo Electrónico"
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
@@ -1209,7 +1210,7 @@
     "not_verified": "No verificado",
     "trip_duration": "Tiempo de viaje",
     "process_state": "Estado de proceso",
-    "Planificado": "Planificado",
+    "planificado": "Planificado",
     "asignado": "Asignado",
     "en_preparacion": "En Preparación",
     "preparado": "Preparado",
@@ -1249,6 +1250,7 @@
     "absence_cargo_securing": "Ausencia sujeción de carga",
     "movement_with_cargo": "Movimiento con carga",
     "go_to_bento": "Ir al Expediente",
+    "client_name": "Cliente",
     "GPS device not found": "Dispositivo GPS no encontrado",
     "Cargo consolidation not validated": "Consolidación de carga no validada",
     "Record separation not validated": "Separación de registro no validada",

@@ -307,6 +307,7 @@ export type ValidationResponseItem = {
   value: number;
   description: string;
   name: string;
+  label?: string;
 };
 
 // Forum types

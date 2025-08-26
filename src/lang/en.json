@@ -449,7 +449,15 @@
         "route": "Route",
         "trailer": "Trailer license plate",
         "supplierId": "Supplier ID",
-        "supplierName": "Supplier Name"
+        "supplierName": "Supplier Name",
+        "Alcohol test not performed": "Alcohol test not performed",
+        "Drug test not performed": "Drug test not performed",
+        "Sleepiness test not performed": "Sleepiness test not performed",
+        "Sleep test not performed": "Sleep test not performed",
+        "Driver App not performed": "Driver App not performed",
+        "Identity Validation not performed": "Identity Validation not performed",
+        "Driver app not connected": "Driver app not connected",
+        "Biometric verification not performed": "Biometric verification not performed"
       },
       "outcome": {
         "moreOptions": "More options",

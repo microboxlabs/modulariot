@@ -1,5 +1,5 @@
 import { FaCheck } from "react-icons/fa";
-import { TbExclamationMark, TbX } from "react-icons/tb";
+import { TbExclamationMark } from "react-icons/tb";
 import { ValidationStatus } from "./validations.types";
 
 // Validation status icons
@@ -25,15 +25,13 @@ export const ValidationIcon = ({
       );
     case "not_found":
       return (
-        <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
-          <TbExclamationMark className="w-4 h-4" />
-        </div>
+        <div className="w-5 h-5 text-white bg-white rounded-full flex items-center justify-center border-2 border-gray-400"></div>
       );
     case "error":
     default:
       return (
         <div className="w-5 h-5 text-white bg-yellow-400 rounded-full flex items-center justify-center">
-          <TbX className="w-4 h-4" />
+          <TbExclamationMark className="w-4 h-4" />
         </div>
       );
   }

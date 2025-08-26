@@ -1,9 +1,11 @@
 import ExpandableButton from "../../../buttons/expansible-button"
+import { RefreshCw, Truck, Atom } from 'lucide-react';
+
 
 const test_data = [
     {
         title: "Services",
-        icon: <FaArrowsRotate />,
+        icon: <RefreshCw />,
         items: [
             {
             key: "Trips",
@@ -30,115 +32,92 @@ const test_data = [
             value: 0,
             },
         ],
-        },
-        {
+    },
+    {
         title: "Fleets",
-        icon: <HiTruck />,
+        icon: <Truck />,
         items: [
             {
-            key: active_monitored,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[0]?.value
-                : 0,
+            key: "Asset Monitored",
+            value: 0,
             },
             {
-            key: vehicles as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[1]?.value
-                : 0,
+            key: "Vehicles" as string,
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).vehicle_signal_quality as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[2]?.value
-                : 0,
+            key: "Vehicle Signal Quality",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).vehicle_signal_delay as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[3]?.value
-                : 0,
+            key: "Vehicle Signal Delay",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).containers as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[4]?.value
-                : 0,
+            key: "Containers",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).drivers as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[1]?.items?.[5]?.value
-                : 0,
+            key: "Drivers",
+            value: 0,
             },
         ],
-        },
-        {
-        title: (dict.symptoms as I18nRecord).symptoms as string,
-        icon: <GiAtom />,
+    },
+    {
+        title: "Symptoms",
+        icon: <Atom />,
         items: [
             {
-            key: (dict.symptoms as I18nRecord).stable as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[2]?.items?.[0]?.value
-                : 0,
+            key: "Stable",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).in_observation as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[2]?.items?.[1]?.value
-                : 0,
+            key: "In Observation",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).compromised as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[2]?.items?.[2]?.value
-                : 0,
+            key: "Compromised",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).critical as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[2]?.items?.[3]?.value
-                : 0,
+            key: "Critical",
+            value: 0,
             },
             {
-            key: (dict.symptoms as I18nRecord).black_code as string,
-            value: mapPositionsResume?.sections
-                ? mapPositionsResume?.sections[2]?.items?.[4]?.value
-                : 0,
+            key: "Black Code",
+            value: 0,
             },
         ],
-        },
-    ]
+    },
+]
 
 export default function Monitoring() {
-    return <div className="flex flex-col gap-2">
-            <ExpandableButton
-                initial_state={true}
-                description="This is a description"
-                icon={<div>A</div>}
-                title="Monitoring"
-                withBorder={true}
-            >
-                Hola
-            </ExpandableButton>
-            <ExpandableButton
-                initial_state={true}
-                description="This is a description"
-                icon={<div>A</div>}
-                title="Monitoring"
-                withBorder={true}
-            >
-                Hola
-            </ExpandableButton>
-            <ExpandableButton
-                initial_state={true}
-                description="This is a description"
-                icon={<div>A</div>}
-                title="Monitoring"
-                withBorder={true}
-            >
-                Hola
-            </ExpandableButton>
-        </div>
+    return (<div
+        className="w-full h-full overflow-y-auto flex flex-col gap-2"
+      >
+        {test_data.map((section: any) => (
+          <ExpandableButton
+            key={section.title}
+            initial_state={true}
+            icon={section.icon}
+            title={section.title}
+            description=""
+            withBorder={true}
+          >
+            <div className="w-full flex flex-col gap-1 text-xs font-normal text-gray-900">
+              {section.items.map((item: any) => (
+                <p
+                  className="text-gray-900 dark:text-white first-letter:capitalize"
+                  key={item.key}
+                >
+                  {item.key}:{" "}
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {item.value}
+                  </span>
+                </p>
+              ))}
+            </div>
+          </ExpandableButton>
+        ))}
+      </div>);
 }

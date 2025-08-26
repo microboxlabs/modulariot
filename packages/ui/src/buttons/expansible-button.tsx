@@ -21,8 +21,6 @@ export default function ExpandableButton({
     withBorder = false,
 }: ExpandableButtonProps) {
     const [isExpanded, setIsExpanded] = useState(initial_state);
-    console.log(isExpanded)
-
 
     return (
         <div
@@ -31,7 +29,7 @@ export default function ExpandableButton({
             {/* Title */}
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex flex-row items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:cursor-pointer transition-all duration-200 p-4"
+                className="flex flex-row items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:cursor-pointer transition-all duration-200 p-4 select-none"
             >
                 <div
                 className={`text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md  ${isExpanded ? "w-5 h-5 border-transparent bg-transparent" : "w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-900"}`}

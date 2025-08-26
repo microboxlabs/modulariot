@@ -5,6 +5,8 @@ import { useState } from "react";
 import { ChevronLeft } from 'lucide-react';
 import ExpandableButton from "../../buttons/expansible-button";
 import Monitoring from "./menus/monitoring";
+import DownloadTab from "./menus/download/download";
+import Symptoms from "./menus/symptoms";
 
 export default function FeetSideBar()  {
     const [isOpen, setIsOpen] = useState(false);
@@ -30,14 +32,18 @@ export default function FeetSideBar()  {
             >
                 <GroupedPanelView
                     className="h-full w-fit flex flex-col flex-none min-h-0 p-2"
-                    panelClassName="flex flex-col flex-1 min-h-0 overflow-auto gap-2"
+                    panelClassName="flex flex-col flex-1 min-h-0 h-full overflow-auto gap-2"
                     actionsClassName="justify-between"
                 >
                     <PanelItem actionText={"Monitoring"}>
                         <Monitoring />
                     </PanelItem>
-                    <PanelItem actionText={"Symptoms"}>Symptoms</PanelItem>
-                    <PanelItem actionText={"Download"}>Download</PanelItem>
+                    <PanelItem actionText={"Symptoms"}>
+                        <Symptoms/>
+                    </PanelItem>
+                    <PanelItem actionText={"Download"}>
+                        <DownloadTab />
+                    </PanelItem>
                 </GroupedPanelView>
             </div>
         </div>

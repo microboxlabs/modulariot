@@ -58,7 +58,7 @@ export const GroupedPanelView: React.FC<GroupedPanelViewProps> = ({
                     })}
                 </div>
             </div>
-            <div className={`border rounded p-3 dark:border-gray-600 ${panelClassName}`}>
+            <div className={`rounded ${panelClassName}`}>
                 {items.map((item, idx) =>
                 idx === active ? (
                     <div
@@ -66,6 +66,7 @@ export const GroupedPanelView: React.FC<GroupedPanelViewProps> = ({
                     role="tabpanel"
                     id={`${baseId}-panel-${idx}`}
                     aria-labelledby={`${baseId}-tab-${idx}`}
+                    className="h-full w-full"
                     >
                     {item.props.children}
                     </div>

@@ -60,7 +60,6 @@ export function prepareAlfrescoAuth(
     // "Content-Type": contentType,
   };
   var user = session?.user;
-
   if (session?.user?.rawJWT) {
     headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
   } else if (session?.user?.ticket) {
@@ -148,7 +147,10 @@ export async function getUserTasks(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from,
       size,
@@ -382,7 +384,10 @@ export async function getContentByTaskId(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = (await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ taskId, fileName, signed: requireInternalSign }),
   })) as { node: { id: string } };
   const baseUrl1 = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${result.node.id}/content`;
@@ -449,7 +454,10 @@ export async function getServiceValidation(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const result = await fetcher(url, {
     method: "GET",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ serviceCode }),
   });
   return result as ServiceValidationResponse;
@@ -463,7 +471,10 @@ export async function getFinishedWorkflows(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
   return result as FinishedWorkflowsResponse;
@@ -619,6 +630,9 @@ export async function getBiometricVerification(
   const url = `${process.env.ECM_API_URL}/alfresco/service/public/biometric/verification`;
   const result = await fetcher(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -633,7 +647,10 @@ export async function getSovosFingerprintReuse(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -655,7 +672,10 @@ export async function markAsRead(session: Session, id: string) {
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "PUT",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ id }),
   });
 
@@ -671,7 +691,10 @@ export async function getTaskByLicensePlate(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(data),
   });
 
@@ -687,7 +710,10 @@ export async function ecmSovosDec5(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({}),
   });
 
@@ -745,8 +771,11 @@ async function callForumAction<TResponse = unknown>(
 
   const result = await fetcher(url.toString(), {
     method: "POST",
-    headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(options?.body),
   });
   return result as TResponse;
 }
@@ -835,7 +864,10 @@ async function callMessageTemplateAction<TResponse = unknown>(
 
   const result = await fetcher(url, {
     method: "POST",
-    headers,
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
   return result as TResponse;
@@ -939,4 +971,88 @@ export async function listWebhookDefinitions(
       query: { site, kind },
     }
   );
+}
+
+// Refresh Token API integrations
+
+export interface RefreshTokenResponse {
+  provider?: string;
+  tokens?: string[];
+  tokensByProvider?: Record<string, string[]>;
+}
+
+export interface RefreshTokenRequest {
+  provider: string;
+  mode: "append" | "replace";
+  token?: string;
+  tokens?: string[];
+}
+
+/**
+ * Get refresh tokens for the authenticated user
+ * @param session - User session
+ * @param provider - Optional provider id (e.g., 'entraId'). If omitted, returns all providers
+ * @returns Refresh tokens for the specified provider or all providers
+ */
+export async function getRefreshTokens(
+  session: Session,
+  provider?: string
+): Promise<RefreshTokenResponse> {
+  const queryParams = new URLSearchParams();
+  if (provider) {
+    queryParams.set("provider", provider);
+  }
+
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/refresh-token?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  alfrescoApiLogger.debug(
+    {
+      provider,
+      url: baseUrl,
+    },
+    "Getting refresh tokens"
+  );
+
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+
+  return result as RefreshTokenResponse;
+}
+
+/**
+ * Store or update refresh tokens for the authenticated user
+ * @param session - User session
+ * @param request - Refresh token request data
+ * @returns Updated refresh tokens for the provider
+ */
+export async function putRefreshToken(
+  session: Session,
+  request: RefreshTokenRequest
+): Promise<RefreshTokenResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/common/refresh-token`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  alfrescoApiLogger.debug(
+    {
+      provider: request.provider,
+      mode: request.mode,
+      hasToken: !!request.token,
+      tokensCount: request.tokens?.length,
+    },
+    "Storing refresh token"
+  );
+
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return result as RefreshTokenResponse;
 }

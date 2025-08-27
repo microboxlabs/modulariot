@@ -5,6 +5,7 @@ import {
   TimelineElement,
 } from "@/features/symptoms/types/timeline";
 import TimelineGroup from "./timeline-group";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 /* function calculateDuration(
   startTime: string,
@@ -82,7 +83,8 @@ export default function TimelineComponent({
               <div className="flex flex-row justify-between items-center gap-1">
                 <div className="flex flex-row justify-between h-[1px] w-full bg-gray-400 dark:bg-gray-600"></div>
                 <span className="flex flex-row justify-between font-light text-xs whitespace-nowrap text-gray-500 dark:text-gray-500">
-                  {date}
+                  {/* {date} */}
+                  <FormattedDate date={date} format="date" timeZone="UTC" />
                 </span>
                 <div className="flex flex-row justify-between h-[1px] w-full bg-gray-400 dark:bg-gray-600"></div>
               </div>

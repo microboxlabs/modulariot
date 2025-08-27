@@ -73,10 +73,10 @@ export default function Huella({
       qrMessage.indexOf("mrz") !== -1 &&
       idCardNumber.length === 0
     ) {
-      const serialPosition = qrMessage.indexOf("serial");
+      const serialPosition = qrMessage.indexOf("erial");
       const idCardCaptured = qrMessage.substring(
-        serialPosition + 7,
-        serialPosition + 16
+        serialPosition + 6,
+        serialPosition + 15
       );
       setIdCardNumber(idCardCaptured);
       if (!idCardNumberOnce) {
@@ -113,28 +113,6 @@ export default function Huella({
     ) {
       handleScanFingerprint();
     }
-
-    /* if (idCard) {
-      let bufferText = "";
-      logger.info("add event listener");
-      document.addEventListener("keydown", (e) => {
-        logger.info("keydown", e.key);
-        if (e.key === "Enter") {
-          //handleIdCardNumberChange(bufferText);
-          setIdCardNumber(bufferText);
-          setQrMessage(bufferText);
-        } else if (e.key.length === 1) {
-          bufferText += e.key;
-        }
-        if (bufferText.indexOf("mrz") !== -1) {
-          logger.info("qrCode", bufferText);
-        }
-      });
-      return () => {
-        logger.info("remove event listener");
-        document.removeEventListener("keydown", () => {});
-      };
-    } */
   }, []);
 
   if (!pluginReady) return null;
@@ -287,7 +265,6 @@ export default function Huella({
           width={100}
           height={100}
         />
-        {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
 
         <div className="flex flex-col items-center justify-center">
           <p className="text-xs text-gray-800 dark:text-gray-200 text-center px-6">
@@ -368,7 +345,6 @@ export default function Huella({
               width={100}
               height={100}
             />
-            {/* <FaIdCard className="w-20 h-20 text-gray-500" /> */}
           </>
         )}
         {/* {qrMessage && (
@@ -390,7 +366,7 @@ export default function Huella({
                   value={idCardNumber}
                   onChange={(e) => handleIdCardNumberChange(e.target.value)}
                   autoFocus
-                  className="hidden w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+                  className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
                 />
               </div>
               {status === "error-id-card" ? (
@@ -430,8 +406,13 @@ export default function Huella({
               className="text-black p-2 rounded-lg w-full flex items-center justify-center"
               color="light"
             >
-              <p className="text-base font-light">
+              {/* <p className="text-base font-light">
                 {(dict.totem as I18nRecord).back as string}
+              </p> */}
+              <p className="text-base font-light">
+                {manualVerificationLoading
+                  ? ((dict.totem as I18nRecord).loading as string)
+                  : ((dict.totem as I18nRecord).back as string)}
               </p>
             </Button>
           </>

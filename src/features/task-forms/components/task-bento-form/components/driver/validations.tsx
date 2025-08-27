@@ -25,11 +25,17 @@ export const ValidationItemComponent = ({
     <div className="flex gap-1 items-center">
       <ValidationIcon status={item.status} isLoading={false} />
       <span className="text-sm  text-gray-600 dark:text-gray-300 whitespace-nowrap">
-        {((msg.bento as I18nRecord)[item.key] as string) || item.label}
+        {((msg.bento as I18nRecord)[item.key] as string) || item.key}
       </span>
     </div>
   );
 };
+
+function getTooltipMessage(item: ValidationItem, msg: I18nRecord) {
+  return item.label
+    ? ((msg.bento as I18nRecord)[item.label] as string) || item.label
+    : "";
+}
 
 // Category component
 const ValidationCategory = ({
@@ -53,39 +59,54 @@ const ValidationCategory = ({
         {title}
       </h2>
       <div className="space-y-1 flex flex-col gap-2">
-        {items.map((item) => (
-          <Tooltip
-            style="auto"
-            key={item.key}
-            content={
-              item.label
-                ? ((msg.bento as I18nRecord)[item.label] as string)
-                : item.description
-                  ? ((msg.bento as I18nRecord)[item.description] as string)
-                  : item.description
-            }
-          >
-            {item.key === "gpsValidation" ? (
-              <GpsValidationItem
-                key={item.key}
-                msg={msg}
-                lang={lang}
-                task={task as TaskResponse}
-                userGroups={userGroups}
-                item={item}
-              />
-            ) : (
-              <ValidationItemComponent key={item.key} item={item} msg={msg} />
-            )}
-          </Tooltip>
-        ))}
+        {items.map((item) => {
+          const tooltipMessage = getTooltipMessage(item, msg) || "";
+          const shouldHideTooltip = tooltipMessage.trim() === "";
+
+          return !shouldHideTooltip ? (
+            <Tooltip
+              style="auto"
+              key={item.key}
+              content={tooltipMessage}
+              hidden={shouldHideTooltip}
+            >
+              {item.key === "gpsValidation" ? (
+                <GpsValidationItem
+                  key={item.key}
+                  msg={msg}
+                  lang={lang}
+                  task={task as TaskResponse}
+                  userGroups={userGroups}
+                  item={item}
+                />
+              ) : (
+                <ValidationItemComponent key={item.key} item={item} msg={msg} />
+              )}
+            </Tooltip>
+          ) : (
+            <div>
+              {item.key === "gpsValidation" ? (
+                <GpsValidationItem
+                  key={item.key}
+                  msg={msg}
+                  lang={lang}
+                  task={task as TaskResponse}
+                  userGroups={userGroups}
+                  item={item}
+                />
+              ) : (
+                <ValidationItemComponent key={item.key} item={item} msg={msg} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
 // Helper function to map API validation value to our status
-const mapValidationValueToStatus = (value: number): ValidationStatus => {
+export const mapValidationValueToStatus = (value: number): ValidationStatus => {
   switch (value) {
     case 0:
       return "ok";
@@ -114,6 +135,7 @@ const mapValidationNameToKey = (name: string): string => {
     GENERAL_DRIVER_APP: "driverApp",
     BIOMETRIC_VERIFICATION: "biometricValidation",
     GENERAL_BIOMETRIC_VERIFICATION: "biometricValidation",
+    SERVICE_START_REQUEST: "serviceStartRequest",
   };
   return nameToKeyMap[name] || name.toLowerCase();
 };
@@ -154,8 +176,6 @@ export default function ValidationsInfo({
   }
 
   if (error) {
-    console.error(error);
-
     content = (
       <div className="text-center h-full flex justify-center items-center w-full">
         <span className="text-sm  text-red-500 whitespace-normal">

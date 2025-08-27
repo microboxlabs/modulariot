@@ -173,7 +173,7 @@ export default function ToolBar({
               }
             >
               <div
-                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${showPulse ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${showPulse ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                 onClick={() => setShowPulse(!showPulse)}
               >
                 <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
@@ -191,7 +191,7 @@ export default function ToolBar({
               }
             >
               <div
-                className={`flex justify-center items-center border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto ${showStops ? "bg-blue-500 text-white" : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                className={`flex justify-center items-center border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto ${showStops ? "bg-blue-500 text-white" : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                 onClick={() => setShowStops(!showStops)}
               >
                 <BsSignStop size={20} />
@@ -209,7 +209,7 @@ export default function ToolBar({
               }
             >
               <div
-                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-full hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${showGeofences ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${showGeofences ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                 onClick={() => setShowGeofences(!showGeofences)}
               >
                 <FaMapPin size={20} />

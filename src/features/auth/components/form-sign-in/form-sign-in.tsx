@@ -4,15 +4,15 @@ import {
   authenticateAction,
   signInWithMicrosoft,
 } from "@/features/auth/services/auth.service";
-import { Button, Checkbox, Label, TextInput } from "flowbite-react";
+import { Button } from "flowbite-react";
 import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
-import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
+import SignIn from "./sign-in";
 //import { useRouter } from "next/navigation";
 
 export default function FormSignIn({ messages: msg }: FormSignInProps) {
@@ -25,6 +25,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   const { register } = form;
   const [_state, formAction] = useFormState(authenticateAction, {});
   const [pending, setPending] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     if (_state?.success) {
@@ -47,81 +48,43 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   };
 
   return (
-    <form className="mt-8 space-y-6" action={formAction}>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="email">{msg.emailLabel}</Label>
-        <TextInput
-          id="email"
-          /* name="email" */
-          placeholder={msg.emailPlaceHolder}
-          type="text"
-          className={
-            _state && _state.dataErrors?.email
-              ? "animate-pulse border-2 border-rose-500"
-              : ""
-          }
-          {...register("email")}
+    <form className="space-y-6" action={formAction}>
+      {showLogin ? (
+        <SignIn
+          msg={msg}
+          register={register}
+          _state={_state}
+          pending={pending}
+          onSubmitForm={onSubmitForm}
+          getMessages={getMessages}
+          setShowLogin={setShowLogin}
         />
-      </div>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="password">{msg.passwordLabel}</Label>
-        <TextInput
-          id="password"
-          /* name="password" */
-          placeholder="••••••••"
-          type="password"
-          className={
-            _state && _state.dataErrors?.password
-              ? "animate-pulse border-2 border-rose-500"
-              : ""
-          }
-          {...register("password")}
-        />
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-x-3">
-          <Checkbox id="rememberMe" name="rememberMe" />
-          <Label htmlFor="rememberMe">{msg.rememberMeLabel}</Label>
-        </div>
-        <Link
-          href="#"
-          className="text-right text-sm text-primary-700 hover:underline dark:text-primary-500 text-blue-700"
-        >
-          {msg.forgotPasswordLabel}
-        </Link>
-      </div>
-      {_state?.message && !_state?.success && (
-        <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
-      )}
-      {/* <div>
-        {_state && _state.dataErrors && JSON.stringify(_state.dataErrors)}
-      </div> */}
-      <div className="mb-6">
-        <Button
-          color="blue"
-          theme={{ inner: { base: "px-5 py-3" } }}
-          className="w-full px-0 py-px submit"
-          isProcessing={pending && _state?.success == undefined}
-          aria-disabled={pending && _state?.success == undefined}
-          onClick={onSubmitForm}
-        >
-          {msg.buttonSubmitLabel}
-        </Button>
-      </div>
-      <div className="mb-2">
-        <Button
-          color="gray"
-          theme={{ inner: { base: "px-5 py-3" } }}
-          className="w-full px-0 py-px"
-          type="submit"
-          formAction={signInWithMicrosoft}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Windows className="h-5 w-5" />
-            {msg.buttonContinueWithMicrosoft}
+      ) : (
+        <div className="flex flex-col gap-y-2">
+          <Button
+            color="blue"
+            theme={{ inner: { base: "px-5 py-3" } }}
+            className="w-full px-0 py-px"
+            type="submit"
+            formAction={signInWithMicrosoft}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Windows className="h-5 w-5" />
+              {msg.buttonContinueWithMicrosoft}
+            </div>
+          </Button>
+          <div className="flex gap-1 flex-col text-sm justify-center items-center text-gray-500">
+            <p>o</p>
+            <a
+              href="#"
+              className="text-center hover:underline cursor-pointer text-blue-700 text-md"
+              onClick={() => setShowLogin(true)}
+            >
+              {msg.buttonContinueWithEmail}
+            </a>
           </div>
-        </Button>
-      </div>
+        </div>
+      )}
     </form>
   );
 }

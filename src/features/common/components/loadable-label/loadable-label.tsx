@@ -14,7 +14,7 @@ export default function LoadableLabel({
   return (
     <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-row text-sm font-light w-full">
       <div className="flex items-center mr-1 text-gray-400">{icon}</div>
-      <span className=" font-bold">{label}</span>
+      <span className="font-bold">{label}</span>
       <span className="mr-1">:</span>
       {isLoading ? (
         <div className="bg-gray-500 text-gray-500 animate-pulse whitespace-nowrap rounded-full flex-grow w-full">

@@ -20,7 +20,8 @@
       },
       "buttons": {
         "submit": "Sign in to your account",
-        "continueWithMicrosoft": "Continue with Microsoft"
+        "continueWithMicrosoft": "Continue with Mintral user",
+        "continueWithEmail": "Continue with external user"
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
@@ -449,7 +450,16 @@
         "route": "Route",
         "trailer": "Trailer license plate",
         "supplierId": "Supplier ID",
-        "supplierName": "Supplier Name"
+        "supplierName": "Supplier Name",
+        "Alcohol test not performed": "Alcohol test not performed",
+        "Drug test not performed": "Drug test not performed",
+        "Sleepiness test not performed": "Sleepiness test not performed",
+        "Sleep test not performed": "Sleep test not performed",
+        "Driver App not performed": "Driver App not performed",
+        "Identity Validation not performed": "Identity Validation not performed",
+        "Driver app not connected": "Driver app not connected",
+        "Biometric verification not performed": "Biometric verification not performed",
+        "Driver verified by fingerprint": "Driver verified by fingerprint"
       },
       "outcome": {
         "moreOptions": "More options",
@@ -1187,6 +1197,8 @@
     "reject_reason": "Reject reason"
   },
   "bento": {
+    "today": "Today",
+    "yesterday": "Yesterday",
     "trip": "Trip",
     "trip_information": "Trip information",
     "conditions_present_in_the_trip": "Conditions present in the trip",
@@ -1199,7 +1211,7 @@
     "not_verified": "Not verified",
     "trip_duration": "Trip duration",
     "process_state": "Process state",
-    "Planificado": "Planified",
+    "planificado": "Planified",
     "asignado": "Assigned",
     "en_preparacion": "In preparation",
     "preparado": "Prepared",
@@ -1220,6 +1232,7 @@
     "generalDrowsinessTest": "General Drowsiness Test",
     "driverApp": "Driver App",
     "biometricValidation": "Biometric Validation",
+    "serviceStartRequest": "Service Start Request",
     "validations": "Validations",
     "DEVICES": "Devices",
     "PAYLOAD": "Payload",
@@ -1239,6 +1252,7 @@
     "absence_cargo_securing": "Absence of cargo securing",
     "movement_with_cargo": "Movement with cargo",
     "go_to_bento": "Go to the form",
+    "client_name": "Client",
     "GPS device not found": "GPS device not found",
     "Cargo consolidation not validated": "Cargo consolidation not validated",
     "Record separation not validated": "Record separation not validated",
@@ -1290,6 +1304,18 @@
       "noImages": "No images",
       "documents": "Documents",
       "noDocuments": "No documents"
+    },
+    "forum_reasons": {
+      "FINGERPRINT_DEVICES_TECH_ISSUES": "Fingerprint devices technical issues",
+      "COMPUTER_TECH_ISSUES": "Computer technical issues",
+      "DRIVER_FINGERPRINT_NOT_RECOGNIZED": "Driver fingerprint not recognized",
+      "DISPATCHER_NOT_ENROLLED": "Dispatcher not enrolled",
+      "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED": "Dispatcher fingerprint not recognized",
+      "AUTHORIZED_BY_TRANSPORT_OVERLORD": "Authorized by transport overlord",
+      "OTHER": "Other",
+      "NO_GPS_VALIDATION": "No GPS validation",
+      "NO_DOCUMENT_CONSOLIDATION": "No document consolidation",
+      "NO_CLIENT_SYSTEM_VALIDATION": "No client system validation"
     }
   },
   "cards": {

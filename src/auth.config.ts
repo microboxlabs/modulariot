@@ -5,6 +5,11 @@ import type { SignInCredentials } from "@/features/auth/services/auth.service.ty
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
+import {
+  processMicrosoftEntraAccount,
+  processTokenRefresh,
+  cleanupRefreshTokens,
+} from "@/features/auth/providers/entra-token/entra-token-ecm.service";
 
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
@@ -73,26 +78,12 @@ export const authConfig = {
 
         // When user signs in with OAuth providers (like Microsoft Entra ID)
         if (account && account.provider === "microsoft-entra-id") {
-          authMicrosoftLogger.debug( {
-            accountId: account.providerAccountId,
-            hasIdToken: !!account.id_token,
-            hasAccessToken: !!account.access_token,
-            idTokenLength: account.id_token?.length,
-            accessTokenLength: account.access_token?.length,
-          }, "Processing Microsoft Entra ID account");
-
-          // Raw JWT token from Microsoft Entra ID
-          token.rawJWT = account.id_token;
-          token.ticket = null;
-          // token.accessToken = account.access_token;
-          // token.refreshToken = account.refresh_token;
-
-          authMicrosoftLogger.debug( {
-            rawJWT: token.rawJWT,
-            ticket: token.ticket,
-          }, "Tokens stored in JWT callback successfully");
+          token = await processMicrosoftEntraAccount(token, account, user);
         }
 
+        // Attempt rotation for OAuth tokens on subsequent invocations
+        const rotatedToken = await processTokenRefresh(token);
+        token.rawJWT = rotatedToken.idToken;
         // Handle credentials provider
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
@@ -103,7 +94,7 @@ export const authConfig = {
 
           if (user) {
             token.ticket = user.ticket;
-            token.rawJWT = null;
+            token.rawJWT = undefined;
             authJwtLogger.debug( {
               email: user.email,
               hasTicket: !!user.ticket,
@@ -147,7 +138,8 @@ export const authConfig = {
             // (session.user as any).accessToken = (token as any).accessToken;
 
             authSessionLogger.debug( {
-              userId: token.sub,
+              sub: token.sub,
+              email: session.user.email,
             }, "Session created successfully for OAuth user");
           } else {
             authSessionLogger.warn( {
@@ -169,10 +161,12 @@ export const authConfig = {
         }
 
         authSessionLogger.debug( {
-          userId: session.user?.id,
+          userId: session.user?.email,
           hasTicket: !!session.user?.ticket,
         }, "Session created successfully");
 
+        // Propagate refresh error to session for UI/flow control
+        (session as any).error = (token as any).error;
         return session;
       } catch (error) {
         authSessionLogger.error("Error in session callback:", error);
@@ -190,6 +184,11 @@ export const authConfig = {
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      authorization: {
+        params: {
+          scope: "openid profile email User.Read offline_access",
+        },
+      },
     }),
     Credentials({
       id: "credentials",
@@ -234,14 +233,26 @@ export const authConfig = {
     },
     async signOut(message) {
       const userId = 'session' in message ? (message.session as any)?.user?.id : message.token?.sub;
+      const session = 'session' in message ? message.session : null;
+      
       authLogger.info( {
         userId,
         timestamp: new Date().toISOString(),
       }, "User signed out");
+
+      // Clean up refresh tokens from ECM on sign-out
+      if (session && (session as any)?.user) {
+        try {
+          await cleanupRefreshTokens(session as any);
+          authLogger.debug({ userId }, "Cleaned up refresh tokens from ECM on sign-out");
+        } catch (error) {
+          authLogger.warn("Failed to cleanup refresh tokens from ECM on sign-out", { error, userId });
+        }
+      }
     },
     async session({ session, token }) {
       authSessionLogger.debug( {
-        userId: session?.user?.id,
+        userId: session?.user?.email,
         expires: session?.expires,
       }, "Session accessed");
     },

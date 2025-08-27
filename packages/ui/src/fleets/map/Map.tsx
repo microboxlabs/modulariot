@@ -8,8 +8,9 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import { type VehicleData } from "../types/fleet.types";
 import { PinLayer } from "./layers/pin_layer_clustered";
+import MapStyleSelector from "./map-style-selector/map-style-selector";
 
-const mapboxStyles = {
+const mapStyles = {
 	streets: "mapbox://styles/mapbox/streets-v9",
 	satellite: "mapbox://styles/mapbox/satellite-streets-v11",
 	dark: "mapbox://styles/mapbox/dark-v10",
@@ -21,13 +22,13 @@ const mapboxStyles = {
 function getCentroid(pts: VehicleData[]) {
 	return { longitude: 0, latitude: 0 };
 
-	/*
-	if (!pts.length) return { longitude: 0, latitude: 0 };
-	const longitude =
-		pts.reduce((acc, p) => acc + p.longitude, 0) / Math.max(1, pts.length);
-	const latitude =
-		pts.reduce((acc, p) => acc + p.latitude, 0) / Math.max(1, pts.length);
-	return { longitude, latitude };
+	/* 
+		if (!pts.length) return { longitude: 0, latitude: 0 };
+		const longitude =
+			pts.reduce((acc, p) => acc + p.longitude, 0) / Math.max(1, pts.length);
+		const latitude =
+			pts.reduce((acc, p) => acc + p.latitude, 0) / Math.max(1, pts.length);
+		return { longitude, latitude };
 	*/
 }
 
@@ -36,7 +37,7 @@ export function MapView({
 }: {
 	data: VehicleData[];
 }) {
-    const [style, setStyle] = useState<keyof typeof mapboxStyles>("satellite");
+  const [mapStyle, setMapStyle] = useState("satellite");
     
 	const centroid = useMemo(() => getCentroid(data), [data]);
 	const [viewState, setViewState] = useState<MapViewState>({
@@ -66,7 +67,7 @@ export function MapView({
     }, [data, viewState.zoom])
 
 	return (
-		<div className="w-full h-full">
+		<div className="w-full h-full bg-slate-50 dark:bg-slate-800">
 			<DeckGL
 				layers={layers}
 				controller
@@ -78,10 +79,24 @@ export function MapView({
 			>
 				<Map
 					mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-					mapStyle={mapboxStyles[style]}
+					mapStyle={mapStyles[mapStyle]}
 					preserveDrawingBuffer
-				/>
+				>
+					<style>
+						{`
+							.mapboxgl-ctrl-logo {
+								display: none !important;
+							}
+						`}
+					</style>
+				</Map>
 			</DeckGL>
+      <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
+				<MapStyleSelector
+					selectedStyle={mapStyle}
+					setSelectedStyle={setMapStyle}
+				/>
+			</div>
 		</div>
 	);
 } 

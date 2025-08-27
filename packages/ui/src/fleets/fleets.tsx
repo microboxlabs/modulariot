@@ -5,19 +5,13 @@ import { type VehicleData } from "./types/fleet.types";
 import FleetSideBar from "./side-bar/fleet-side-bar"
 import LabelledButton from "../buttons/labelled-button";
 
-/*
-	TODO:
-		- Implement Download and Screenshot functionality
-		- Add Data to the sidebar monitoring tab
-		- Add Data to the symptoms tab
-*/
-
 export function Fleets({ data }: { data: VehicleData[] }) {
 	return (
 		<div className="flex flex-col flex-grow relative">
 			{/* Map */}
 			<MapView data={data} />
 			
+
 			{/* SideBar */}
 			<FleetSideBar />
 

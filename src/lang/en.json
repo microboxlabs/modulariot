@@ -1232,6 +1232,7 @@
     "generalDrowsinessTest": "General Drowsiness Test",
     "driverApp": "Driver App",
     "biometricValidation": "Biometric Validation",
+    "serviceStartRequest": "Service Start Request",
     "validations": "Validations",
     "DEVICES": "Devices",
     "PAYLOAD": "Payload",

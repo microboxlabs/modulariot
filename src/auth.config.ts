@@ -6,10 +6,10 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
 import {
-  shouldRefresh,
-  refreshAccessToken,
-  persistRotationOnJwt,
-} from "@/features/auth/providers/entra-token/entra-token.service";
+  processMicrosoftEntraAccount,
+  processTokenRefresh,
+  cleanupRefreshTokens,
+} from "@/features/auth/providers/entra-token/entra-token-ecm.service";
 
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
@@ -78,69 +78,12 @@ export const authConfig = {
 
         // When user signs in with OAuth providers (like Microsoft Entra ID)
         if (account && account.provider === "microsoft-entra-id") {
-          authMicrosoftLogger.debug( {
-            accountId: account.providerAccountId,
-            hasIdToken: !!account.id_token,
-            hasAccessToken: !!account.access_token,
-            hasRefreshToken: !!account.refresh_token,
-            idTokenLength: account.id_token?.length,
-            accessTokenLength: account.access_token?.length,
-            refreshTokenLength: account.refresh_token?.length,
-          }, "Processing Microsoft Entra ID account");
-
-          // Raw JWT token from Microsoft Entra ID
-          token.rawJWT = account.id_token;
-          token.ticket = null;
-          token.accessToken = account.access_token;
-          token.refreshToken = account.refresh_token;
-          // Persist provider access token expiry if available
-          const accAny = account as any;
-          if (typeof accAny?.expires_at === "number") {
-            (token as any).accessTokenExpiresAt = accAny.expires_at as number;
-          } else if (typeof accAny?.expires_in === "number") {
-            (token as any).accessTokenExpiresAt = Math.floor(
-              Date.now() / 1000 + (accAny.expires_in as number)
-            );
-          }
-
-          authMicrosoftLogger.debug({
-            accessTokenPreview: account.access_token?.slice(0, 16),
-            refreshTokenPreview: account.refresh_token?.slice(0, 16),
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token,
-          }, "Stored provider tokens on JWT (previews shown; full only in dev)");
-
-          authMicrosoftLogger.debug( {
-            rawJWT: token.rawJWT,
-            ticket: token.ticket,
-          }, "Tokens stored in JWT callback successfully");
+          token = await processMicrosoftEntraAccount(token, account, user);
         }
 
         // Attempt rotation for OAuth tokens on subsequent invocations
-        if (
-          (token as any).accessToken &&
-          (token as any).refreshToken &&
-          shouldRefresh((token as any).accessTokenExpiresAt as number | undefined)
-        ) {
-          try {
-            const resource = process.env.AUTH_MICROSOFT_ENTRA_RESOURCE_URI;
-            const scope = resource
-              ? `openid profile offline_access ${resource}/.default`
-              : "openid profile offline_access";
-            const rotated = await refreshAccessToken({
-              issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER!,
-              clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID!,
-              clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET!,
-              refreshToken: (token as any).refreshToken as string,
-              scope,
-            });
-            token = persistRotationOnJwt(token as any, rotated) as any;
-          } catch (error) {
-            authJwtLogger.error("Error refreshing access_token", error);
-            (token as any).error = "RefreshTokenError";
-          }
-        }
-
+        const rotatedToken = await processTokenRefresh(token);
+        token.rawJWT = rotatedToken.idToken;
         // Handle credentials provider
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
@@ -151,7 +94,7 @@ export const authConfig = {
 
           if (user) {
             token.ticket = user.ticket;
-            token.rawJWT = null;
+            token.rawJWT = undefined;
             authJwtLogger.debug( {
               email: user.email,
               hasTicket: !!user.ticket,
@@ -290,10 +233,22 @@ export const authConfig = {
     },
     async signOut(message) {
       const userId = 'session' in message ? (message.session as any)?.user?.id : message.token?.sub;
+      const session = 'session' in message ? message.session : null;
+      
       authLogger.info( {
         userId,
         timestamp: new Date().toISOString(),
       }, "User signed out");
+
+      // Clean up refresh tokens from ECM on sign-out
+      if (session && (session as any)?.user) {
+        try {
+          await cleanupRefreshTokens(session as any);
+          authLogger.debug({ userId }, "Cleaned up refresh tokens from ECM on sign-out");
+        } catch (error) {
+          authLogger.warn("Failed to cleanup refresh tokens from ECM on sign-out", { error, userId });
+        }
+      }
     },
     async session({ session, token }) {
       authSessionLogger.debug( {

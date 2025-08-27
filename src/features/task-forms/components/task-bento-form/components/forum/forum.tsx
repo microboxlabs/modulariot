@@ -64,15 +64,16 @@ export default function Forum({
     const list: FlatMessage[] = [];
     if (!discussion?.topics) return list;
     for (const topic of discussion.topics) {
-      for (const post of topic.posts ?? []) {
+      (topic.posts ?? []).forEach((post, index) => {
         list.push({
           sender: post.author,
           name: post.author,
           message: htmlToText(post.content || post.title || ""),
-          reason: null,
+          reason: index == 0 ? normalizeTitle(topic.title || "", dict) : null,
           date: post.created,
           topicRef: topic.ref,
         });
+
         for (const reply of post.replies ?? []) {
           list.push({
             sender: reply.author,
@@ -83,7 +84,7 @@ export default function Forum({
             topicRef: topic.ref,
           });
         }
-      }
+      });
     }
     // sort by date asc
     return list.sort(
@@ -137,7 +138,7 @@ export default function Forum({
       }));
       await mutate();
       setTimeout(scrollToBottom, 0);
-    } catch (err) {
+    } catch (_err) {
       // could show toast
     }
   };
@@ -257,3 +258,33 @@ function is_today(formattedDate: string, dict: I18nRecord): string {
     return tr("yesterday", dict.bento as I18nRecord);
   return formattedDate;
 }
+
+function normalizeTitle(title: string, dict: I18nRecord): string | null {
+  if (title == "CHAT" || !title) {
+    return null;
+  }
+
+  if (reasons.includes(title)) {
+    return tr(title, (dict.bento as I18nRecord).forum_reasons as I18nRecord);
+  }
+
+  const fixed_title = title.replace("wfship2_", "").replace("Outcome", "");
+
+  return tr(
+    fixed_title as string,
+    ((dict.pages as I18nRecord).shipping as I18nRecord).kanban as I18nRecord
+  );
+}
+
+const reasons = [
+  "FINGERPRINT_DEVICES_TECH_ISSUES",
+  "COMPUTER_TECH_ISSUES",
+  "DRIVER_FINGERPRINT_NOT_RECOGNIZED",
+  "DISPATCHER_NOT_ENROLLED",
+  "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED",
+  "AUTHORIZED_BY_TRANSPORT_OVERLORD",
+  "OTHER",
+  "NO_GPS_VALIDATION",
+  "NO_DOCUMENT_CONSOLIDATION",
+  "NO_CLIENT_SYSTEM_VALIDATION",
+];

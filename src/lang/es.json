@@ -1306,6 +1306,18 @@
       "noImages": "No hay imágenes",
       "documents": "Documentos",
       "noDocuments": "No hay documentos"
+    },
+    "forum_reasons": {
+      "FINGERPRINT_DEVICES_TECH_ISSUES": "Problemas técnicos con el huellero.",
+      "COMPUTER_TECH_ISSUES": "Problemas técnicos con el computador.",
+      "DRIVER_FINGERPRINT_NOT_RECOGNIZED": "No se reconoce la huella del conductor.",
+      "DISPATCHER_NOT_ENROLLED": "Despachador no enrolado.",
+      "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED": "No se reconoce la huella del despachador.",
+      "AUTHORIZED_BY_TRANSPORT_OVERLORD": "Autorizada por Overlord de transporte.",
+      "OTHER": "Otro",
+      "NO_GPS_VALIDATION": "No tiene validación GPS.",
+      "NO_DOCUMENT_CONSOLIDATION": "No tiene consolidación documental.",
+      "NO_CLIENT_SYSTEM_VALIDATION": "No tiene validación sistema cliente."
     }
   },
   "cards": {

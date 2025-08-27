@@ -37,7 +37,7 @@ export function MapView({
 }: {
 	data: VehicleData[];
 }) {
-  const [mapStyle, setMapStyle] = useState("satellite");
+  const [mapStyle, setMapStyle] = useState<keyof typeof mapStyles>("satellite");
     
 	const centroid = useMemo(() => getCentroid(data), [data]);
 	const [viewState, setViewState] = useState<MapViewState>({
@@ -94,7 +94,7 @@ export function MapView({
       <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
 				<MapStyleSelector
 					selectedStyle={mapStyle}
-					setSelectedStyle={setMapStyle}
+					setSelectedStyle={(style: string) => setMapStyle(style as keyof typeof mapStyles)}
 				/>
 			</div>
 		</div>

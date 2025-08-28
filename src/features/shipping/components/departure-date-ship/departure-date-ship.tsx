@@ -5,6 +5,7 @@ import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
 import kanbanBoardsV2 from "../../model/kanban-shipping-v2.json";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 const color_mapping = {
   departure: {
@@ -63,7 +64,7 @@ export default function DepartureDateShip({
   );
 
   const color = shipBgColor(dayjs(date), table_name);
-  const fixed_date = dayjs(date).format("DD/MM/YYYY");
+  const fixed_date = dayjs(date).format("MM/DD/YYYY");
 
   return (
     <div
@@ -90,8 +91,9 @@ export default function DepartureDateShip({
         boardV2?.state === "started" ||
         boardDelivery?.state === "pending" ||
         boardDelivery?.state === "started"
-          ? (dict.kanban as I18nRecord).departure + " " + fixed_date
-          : (dict.kanban as I18nRecord).arrival + " " + fixed_date}
+          ? (dict.kanban as I18nRecord).departure + " "
+          : (dict.kanban as I18nRecord).arrival + " "}
+        <FormattedDate date={fixed_date} format="date" />
       </p>
     </div>
   );

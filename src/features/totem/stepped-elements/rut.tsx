@@ -21,12 +21,39 @@ export default function Rut({
 }) {
   const [error, setError] = useState("");
   const [count, setCount] = useState(0);
+  const [keyboardMessage, setKeyboardMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (count >= 3) {
       setCurrentStep(3);
     }
   }, [count]);
+
+  useEffect(() => {
+    if (rut.length > 0) {
+      //check if the rut is captured by the scanner
+    }
+  }, [rut]);
+
+  const handleRutChange = (value: string) => {
+    if (value.length > 0) {
+      if (keyboardMessage !== null) {
+        setKeyboardMessage(keyboardMessage + value);
+      } else {
+        setKeyboardMessage(value);
+      }
+    }
+
+    if (keyboardMessage && keyboardMessage.indexOf("RUN") !== -1) {
+      const runPosition = keyboardMessage.indexOf("RUN");
+      const rutCaptured = keyboardMessage.substring(
+        runPosition + 4,
+        runPosition + 10
+      );
+      setRut(rutCaptured);
+      setKeyboardMessage(null);
+    }
+  };
 
   const handleValidateRut = async () => {
     if (!rut.trim()) {
@@ -65,7 +92,10 @@ export default function Rut({
             placeholder="RUT"
             autoFocus
             value={rut}
-            onChange={(e) => setRut(e.target.value)}
+            onChange={(e) => {
+              setRut(e.target.value);
+              handleRutChange(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleValidateRut();

@@ -13,6 +13,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "flowbite-react";
 import { FaImages } from "react-icons/fa";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -91,9 +92,9 @@ export default function TimelineGroup({
     item.conditions_agg?.map((subItem) => subItem.icu_condition?.toLowerCase())
   );
 
-  const start_hour = new Date(
+  /* const start_hour = new Date(
     item.conditions_agg?.[0]?.start ?? ""
-  ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); */
 
   const longest_treatment = item.conditions_agg?.reduce((max, subItem) => {
     return Math.max(
@@ -147,7 +148,12 @@ export default function TimelineGroup({
                   ""}
               </p>
               <p className="text-xs font-light text-gray-500 leading-3">
-                {start_hour} | {Math.floor(length_text_value)} {length_text}
+                {/* {start_hour} */}
+                <FormattedDate
+                  date={item.conditions_agg?.[0]?.start}
+                  format="time"
+                />{" "}
+                | {Math.floor(length_text_value)} {length_text}
               </p>
             </div>
           </div>
@@ -275,10 +281,12 @@ export default function TimelineGroup({
                 <div className="flex flex-col w-full">
                   <div className="flex flex-row justify-between">
                     <p className="h-7 text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center">
-                      {new Date(subItem.start).toLocaleTimeString([], {
+                      <FormattedDate date={subItem.start} format="time" />
+                      {"  "}
+                      {/* {new Date(subItem.start).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}{" "}
+                      })}{" "} */}
                       {/* {new Date(subItem.end).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",

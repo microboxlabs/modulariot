@@ -20,8 +20,8 @@
       },
       "buttons": {
         "submit": "Ingresar a tu cuenta",
-        "continueWithMicrosoft": "Continuar con Microsoft",
-        "continueWithEmail": "Continuar con Correo Electrónico"
+        "continueWithMicrosoft": "Continuar con usuario Mintral",
+        "continueWithEmail": "Continuar con usuario externo"
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
@@ -1226,14 +1226,15 @@
     "consolidation": "Consolidación",
     "documentSeparation": "Separación Documental",
     "clientSystemValidation": "Validación Sistema Cliente",
-    "assignedDepartureDate": "Fecha de salida asignada",
-    "assignedArrivalDate": "Fecha de llegada asignada",
-    "assignedDeliveryDate": "Fecha de entrega asignada",
+    "assignedDepartureDate": "Fecha de Salida Asignada",
+    "assignedArrivalDate": "Fecha de Llegada Asignada",
+    "assignedDeliveryDate": "Fecha de Entrega Asignada",
     "generalAlcoholTest": "Test de alcohol general",
     "generalDrugTest": "Test de drogas general",
     "generalDrowsinessTest": "Test de somnolencia general",
     "driverApp": "APP Conductor",
     "biometricValidation": "Validación Biométrica",
+    "serviceStartRequest": "Solicitud de Inicio de Servicio",
     "validations": "Validaciones",
     "DEVICES": "Equipo",
     "PAYLOAD": "Carga",
@@ -1305,6 +1306,18 @@
       "noImages": "No hay imágenes",
       "documents": "Documentos",
       "noDocuments": "No hay documentos"
+    },
+    "forum_reasons": {
+      "FINGERPRINT_DEVICES_TECH_ISSUES": "Problemas técnicos con el huellero.",
+      "COMPUTER_TECH_ISSUES": "Problemas técnicos con el computador.",
+      "DRIVER_FINGERPRINT_NOT_RECOGNIZED": "No se reconoce la huella del conductor.",
+      "DISPATCHER_NOT_ENROLLED": "Despachador no enrolado.",
+      "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED": "No se reconoce la huella del despachador.",
+      "AUTHORIZED_BY_TRANSPORT_OVERLORD": "Autorizada por Overlord de transporte.",
+      "OTHER": "Otro",
+      "NO_GPS_VALIDATION": "No tiene validación GPS.",
+      "NO_DOCUMENT_CONSOLIDATION": "No tiene consolidación documental.",
+      "NO_CLIENT_SYSTEM_VALIDATION": "No tiene validación sistema cliente."
     }
   },
   "cards": {

@@ -6,6 +6,7 @@ import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 export default function TableItem({
   data,
@@ -63,7 +64,7 @@ export default function TableItem({
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
-          {new Date(data.date).toLocaleString()}
+          <FormattedDate date={data.date} format="datetime" />
         </TableCell>
         {/* <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
@@ -140,7 +141,8 @@ export default function TableItem({
       <TableCell
         className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
       >
-        {new Date(data.date).toLocaleString()}
+        {/* {new Date(data.date).toLocaleString()} */}
+        <FormattedDate date={data.date} format="datetime" />
       </TableCell>
     </TableRow>
   );

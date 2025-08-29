@@ -44,7 +44,7 @@ export default function Rut({
       }
     }
 
-    if (keyboardMessage && keyboardMessage.indexOf("RUN") !== -1) {
+    if (keyboardMessage && keyboardMessage.indexOf("mrz") !== -1) {
       const runPosition = keyboardMessage.indexOf("RUN");
       const rutCaptured = keyboardMessage.substring(
         runPosition + 4,

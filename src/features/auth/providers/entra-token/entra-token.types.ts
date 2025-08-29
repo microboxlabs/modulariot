@@ -16,6 +16,7 @@ export interface EntraTokenRotationParams {
 export interface EntraJwtLikeToken {
   [key: string]: unknown;
   accessToken?: string;
+  rawJWT?: string;
   idToken?: string;
   refreshToken?: string;
   accessTokenExpiresAt?: number; // epoch seconds

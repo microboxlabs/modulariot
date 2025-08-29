@@ -280,9 +280,15 @@ export default function PulseTooltip({
         ) : null}
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {(dict.geographic_view as I18nRecord).date_and_time as string}:{" "}
-          {object?.properties.timestamp
+         {/*  {object?.properties.timestamp
             ? new Date(object?.properties.timestamp).toLocaleString()
-            : ""}
+            : ""} */}
+          {object?.properties.timestamp && (
+            <FormattedDate
+              date={object?.properties.timestamp}
+              format="datetime"
+            />
+          )}
         </div>
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
         <div className="text-sm text-gray-600 dark:text-gray-300">

@@ -69,21 +69,24 @@ export const authConfig = {
     },
     async jwt({ token, user, account }) {
       try {
-        authJwtLogger.debug("JWT callback triggered", {
+        authJwtLogger.debug({
           provider: account?.provider,
           hasAccount: !!account,
           hasUser: !!user,
           tokenSub: token.sub,
-        });
+          expiresAt: token?.expiresAt,
+          rawJWT: token?.rawJWT,
+        }, "JWT callback triggered");
 
         // When user signs in with OAuth providers (like Microsoft Entra ID)
         if (account && account.provider === "microsoft-entra-id") {
-          token = await processMicrosoftEntraAccount(token, account, user);
+          token = await processMicrosoftEntraAccount(token, account, user, authJwtLogger);
         }
 
         // Attempt rotation for OAuth tokens on subsequent invocations
-        const rotatedToken = await processTokenRefresh(token);
-        token.rawJWT = rotatedToken.idToken;
+        const rotatedToken = await processTokenRefresh(token, authJwtLogger);
+        token.rawJWT = rotatedToken.rawJWT;
+        token.accessTokenExpiresAt = rotatedToken.accessTokenExpiresAt;
         // Handle credentials provider
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
@@ -115,23 +118,27 @@ export const authConfig = {
     },
     session({ session, token }) {
       try {
-        authSessionLogger.debug( {
-          hasSession: !!session,
-          hasToken: !!token,
-          hasTicket: !!token?.ticket,
-          tokenSub: token?.sub,
-        }, "Session callback triggered");
+        // authSessionLogger.debug( {
+        //   hasSession: !!session,
+        //   hasToken: !!token,
+        //   hasTicket: !!token?.ticket,
+        //   tokenSub: token?.sub,
+        //   accessTokenExpiresAt: token?.accessTokenExpiresAt,
+        //   rawJWT: token?.rawJWT,
+        // }, "Session callback triggered");
 
         if (token && !token.ticket) {
-          var expiresAt = new Date((token.exp ?? 0) * 1000);
+          const expiresAt = token.accessTokenExpiresAt ?? 0;
+          const expiresAtMs = expiresAt * 1000;
+          const now = Date.now();
           authSessionLogger.debug( {
-            expiresAt: expiresAt.toISOString(),
-            isValid: expiresAt > new Date(),
+            expiresAt: expiresAt,
+            isValid: expiresAtMs  > now,
             hasRawJWT: !!(token as any).rawJWT,
           }, "Processing OAuth token");
 
-          if (expiresAt > new Date()) {
-            session.user.ticket = token.ticket as string;
+          if (expiresAtMs > now) {
+            session.user.ticket = undefined;
             session.user.id = token.sub as string;
             // Make raw JWT available in session
             (session.user as any).rawJWT = (token as any).rawJWT;
@@ -143,12 +150,12 @@ export const authConfig = {
             }, "Session created successfully for OAuth user");
           } else {
             authSessionLogger.warn( {
-              expiresAt: expiresAt.toISOString(),
+              expiresAt: expiresAt,
               tokenSub: token.sub,
             }, "Token expired, returning empty session");
             return {
               user: undefined,
-              expires: new Date().toISOString(),
+              expires: new Date(expiresAtMs).toISOString(),
             };
           }
         } else if (token.ticket) {
@@ -205,13 +212,13 @@ export const authConfig = {
 
   logger: {
     error(error: Error) {
-      authLogger.error(error);
+      // authLogger.error(error);
     },
     warn(code: string) {
-      authLogger.warn(code);
+      // authLogger.warn(code);
     },
     debug(code: string, ...message: any[]) {
-      authLogger.debug(message, code);
+      // authLogger.debug(message, code);
     },
   },
   
@@ -251,10 +258,10 @@ export const authConfig = {
       }
     },
     async session({ session, token }) {
-      authSessionLogger.debug( {
-        userId: session?.user?.email,
-        expires: session?.expires,
-      }, "Session accessed");
+      // authSessionLogger.debug( {
+      //   userId: session?.user?.email,
+      //   expires: session?.expires,
+      // }, "Session accessed");
     },
   },
 } satisfies NextAuthConfig;

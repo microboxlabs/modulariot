@@ -45,7 +45,11 @@ export default function Rut({
       }
     }
 
-    if (keyboardMessage && keyboardMessage.indexOf("mrz") !== -1 && !isQrCaptured) {
+    if (
+      keyboardMessage &&
+      keyboardMessage.indexOf("mrz") !== -1 &&
+      !isQrCaptured
+    ) {
       setIsQrCaptured(true);
       const runPosition = keyboardMessage.indexOf("RUN");
       const rutCaptured = keyboardMessage.substring(
@@ -54,7 +58,7 @@ export default function Rut({
       );
       setTimeout(() => {
         setRut(rutCaptured.replace(/\D/g, ""));
-      }, 500);
+      }, 1000);
       setKeyboardMessage(null);
     }
   };

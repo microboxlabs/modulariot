@@ -20,6 +20,7 @@ export default function Rut({
   setRut: (rut: string) => void;
 }) {
   const [error, setError] = useState("");
+  const [isQrCaptured, setIsQrCaptured] = useState(false);
   const [count, setCount] = useState(0);
   const [keyboardMessage, setKeyboardMessage] = useState<string | null>(null);
 
@@ -44,13 +45,16 @@ export default function Rut({
       }
     }
 
-    if (keyboardMessage && keyboardMessage.indexOf("mrz") !== -1) {
+    if (keyboardMessage && keyboardMessage.indexOf("mrz") !== -1 && !isQrCaptured) {
+      setIsQrCaptured(true);
       const runPosition = keyboardMessage.indexOf("RUN");
       const rutCaptured = keyboardMessage.substring(
         runPosition + 4,
-        runPosition + 10
+        runPosition + 14
       );
-      setRut(rutCaptured);
+      setTimeout(() => {
+        setRut(rutCaptured.replace(/\D/g, ""));
+      }, 500);
       setKeyboardMessage(null);
     }
   };

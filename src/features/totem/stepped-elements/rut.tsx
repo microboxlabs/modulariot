@@ -36,10 +36,10 @@ export default function Rut({
       const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
       setTimeout(() => {
         setRut(rutCaptured.replace(/\D/g, ""));
-        setTimeout(() => {
-          handleValidateRut();
-        }, 500);
       }, 500);
+      setTimeout(() => {
+        handleValidateRut();
+      }, 1000);
     }
   };
 

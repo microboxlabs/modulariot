@@ -3,7 +3,6 @@ import { FaIdCard } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { isRutValid } from "@/utils/rut";
 import { Button } from "flowbite-react";
-import { logger } from "@/lib/logger";
 
 export default function Rut({
   setCurrentStep,
@@ -23,7 +22,6 @@ export default function Rut({
   const [error, setError] = useState("");
   const [isQrCaptured, setIsQrCaptured] = useState(false);
   const [count, setCount] = useState(0);
-  const [keyboardMessage, setKeyboardMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (count >= 3) {
@@ -31,33 +29,17 @@ export default function Rut({
     }
   }, [count]);
 
-  useEffect(() => {
-    if (rut.length > 0) {
-      //check if the rut is captured by the scanner
-    }
-  }, [rut]);
-
-  const handleRutChange = (value: string) => {
-    /*  if (value.length > 0) {
-      if (keyboardMessage !== null) {
-        setKeyboardMessage(keyboardMessage + value);
-      } else {
-        setKeyboardMessage(value);
-      }
-    } */
-
+  const handleRutChange = (_value: string) => {
     if (rut.length > 0 && rut.indexOf("mrz") !== -1 && !isQrCaptured) {
       setIsQrCaptured(true);
-      logger.info("keyboardMessage:" + rut);
       const runPosition = rut.indexOf("RUN");
-      logger.info("runPosition:" + runPosition);
       const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
-      logger.info("rutCaptured:" + rutCaptured);
-      logger.info("rutCaptured2:" + rutCaptured.replace(/\D/g, ""));
       setTimeout(() => {
         setRut(rutCaptured.replace(/\D/g, ""));
-      }, 1000);
-      //setKeyboardMessage(null);
+        setTimeout(() => {
+          handleValidateRut();
+        }, 500);
+      }, 500);
     }
   };
 
@@ -65,6 +47,7 @@ export default function Rut({
     if (!rut.trim()) {
       setError((dict.totem as I18nRecord).rut_required as string);
       setCount(count + 1);
+      setIsQrCaptured(false);
       return;
     }
     let rutText = rut;
@@ -77,6 +60,7 @@ export default function Rut({
     if (!isRutValid(rutText)) {
       setError((dict.totem as I18nRecord).rut_invalid as string);
       setCount(count + 1);
+      setIsQrCaptured(false);
       return;
     }
     onRutValidated({ rut: rutText, rut_validated: false });

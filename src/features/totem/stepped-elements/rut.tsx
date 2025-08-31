@@ -38,33 +38,26 @@ export default function Rut({
   }, [rut]);
 
   const handleRutChange = (value: string) => {
-    if (value.length > 0) {
+    /*  if (value.length > 0) {
       if (keyboardMessage !== null) {
         setKeyboardMessage(keyboardMessage + value);
       } else {
         setKeyboardMessage(value);
       }
-    }
+    } */
 
-    if (
-      keyboardMessage &&
-      keyboardMessage.indexOf("mrz") !== -1 &&
-      !isQrCaptured
-    ) {
+    if (rut.length > 0 && rut.indexOf("mrz") !== -1 && !isQrCaptured) {
       setIsQrCaptured(true);
-      logger.info("keyboardMessage:" + keyboardMessage);
-      const runPosition = keyboardMessage.indexOf("RUN");
+      logger.info("keyboardMessage:" + rut);
+      const runPosition = rut.indexOf("RUN");
       logger.info("runPosition:" + runPosition);
-      const rutCaptured = keyboardMessage.substring(
-        runPosition + 4,
-        runPosition + 14
-      );
+      const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
       logger.info("rutCaptured:" + rutCaptured);
       logger.info("rutCaptured2:" + rutCaptured.replace(/\D/g, ""));
       setTimeout(() => {
         setRut(rutCaptured.replace(/\D/g, ""));
       }, 1000);
-      setKeyboardMessage(null);
+      //setKeyboardMessage(null);
     }
   };
 

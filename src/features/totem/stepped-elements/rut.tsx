@@ -3,6 +3,7 @@ import { FaIdCard } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { isRutValid } from "@/utils/rut";
 import { Button } from "flowbite-react";
+import { logger } from "@/lib/logger";
 
 export default function Rut({
   setCurrentStep,
@@ -19,6 +20,7 @@ export default function Rut({
   rut: string;
   setRut: (rut: string) => void;
 }) {
+  const [isQrCaptured, setIsQrCaptured] = useState(false);
   const [error, setError] = useState("");
   const [count, setCount] = useState(0);
 
@@ -27,6 +29,24 @@ export default function Rut({
       setCurrentStep(3);
     }
   }, [count]);
+
+  const handleRutChange = (_value: string) => {
+    if (rut.length > 0 && rut.indexOf("mrz") !== -1 && !isQrCaptured) {
+      logger.info("rut:" + rut);
+      setIsQrCaptured(true);
+      const runPosition = rut.indexOf("RUN");
+      const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
+      logger.info("rutCaptured:" + rutCaptured);
+      setTimeout(() => {
+        logger.info("rutCaptured.replace:" + rutCaptured.replace(/\D/g, ""));
+        setRut(rutCaptured.replace(/\D/g, ""));
+      }, 500);
+      setTimeout(() => {
+        logger.info("handleValidateRut");
+        handleValidateRut();
+      }, 3000);
+    }
+  };
 
   const handleValidateRut = async () => {
     if (!rut.trim()) {
@@ -65,7 +85,10 @@ export default function Rut({
             placeholder="RUT"
             autoFocus
             value={rut}
-            onChange={(e) => setRut(e.target.value)}
+            onChange={(e) => {
+              setRut(e.target.value);
+              handleRutChange(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleValidateRut();

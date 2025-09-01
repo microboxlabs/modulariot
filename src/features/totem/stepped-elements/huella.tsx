@@ -46,7 +46,7 @@ export default function Huella({
   const [countIdCard, setCountIdCard] = useState(0);
   const [qrCode, setQrCode] = useState(false);
   const [idCard, setIdCard] = useState(false);
-  const [idCardLoading, setIdCardLoading] = useState(false);
+  const [_idCardLoading, setIdCardLoading] = useState(false);
   const [manualAccess, setManualAccess] = useState(false);
   const [manualVerificationLoading, setManualVerificationLoading] =
     useState(false);
@@ -336,102 +336,64 @@ export default function Huella({
             {(dict.totem as I18nRecord).id_card_scan as string}
           </h1>
         </div>
-        {!idCardLoading && (
-          <>
-            <Image
-              className="w-28 h-28 animate-scale-in"
-              src={SmartLockCard}
-              alt="Ok"
-              width={100}
-              height={100}
-            />
-          </>
-        )}
-        {/* {qrMessage && (
-          <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
-            {qrMessage}
-          </p>
-        )} */}
+        <Image
+          className="w-28 h-28 animate-scale-in"
+          src={SmartLockCard}
+          alt="Ok"
+          width={100}
+          height={100}
+        />
         {idCardNumber && (
           <p className="text-sm text-gray-800 dark:text-gray-200 text-center px-6">
             {idCardNumber}
           </p>
         )}
         <div className="flex flex-col items-center justify-center">
-          {idCardLoading ? (
-            <>
-              <div className="w-full flex justify-center mb-4">
-                <input
-                  type="text"
-                  value={idCardNumber}
-                  onChange={(e) => handleIdCardNumberChange(e.target.value)}
-                  autoFocus
-                  className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
-                />
-              </div>
-              {status === "error-id-card" ? (
-                <p className="text-xs text-red-500 text-center px-14">
-                  {
-                    (dict.totem as I18nRecord)
-                      .id_card_manual_access_error as string
-                  }
-                </p>
-              ) : (
-                <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
-                  {
-                    (dict.totem as I18nRecord)
-                      .smart_lock_card_subtext_loading as string
-                  }
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
-              {(dict.totem as I18nRecord).smart_lock_card_subtext as string}
+          <div className="w-full flex justify-center mb-4">
+            <input
+              type="text"
+              value={idCardNumber}
+              onChange={(e) => handleIdCardNumberChange(e.target.value)}
+              autoFocus
+              className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2 "
+            />
+          </div>
+          {status === "error-id-card" ? (
+            <p className="text-xs text-red-500 text-center px-14">
+              {(dict.totem as I18nRecord).id_card_manual_access_error as string}
             </p>
+          ) : (!manualVerificationLoading &&  <>
+              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+                {
+                  (dict.totem as I18nRecord)
+                    .smart_lock_card_subtext_loading as string
+                }
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+                {(dict.totem as I18nRecord).smart_lock_card_subtext as string}
+              </p>
+            </>
           )}
         </div>
-        {idCardLoading ? (
-          <>
-            <Button
-              onClick={() => {
-                setIdCard(false);
-                setManualAccess(false);
-                setQrCode(true);
-                setIdCardLoading(false);
-              }}
-              disabled={
-                status !== "idle" && status !== "success" && status !== "error"
-              }
-              className="text-black p-2 rounded-lg w-full flex items-center justify-center"
-              color="light"
-            >
-              {/* <p className="text-base font-light">
-                {(dict.totem as I18nRecord).back as string}
-              </p> */}
-              <p className="text-base font-light">
-                {manualVerificationLoading
-                  ? ((dict.totem as I18nRecord).loading as string)
-                  : ((dict.totem as I18nRecord).back as string)}
-              </p>
-            </Button>
-          </>
-        ) : (
-          <Button
-            onClick={() => {
-              setIdCardLoading(true);
-            }}
-            disabled={
-              status !== "idle" && status !== "success" && status !== "error"
-            }
-            className="text-black p-2 rounded-lg w-full flex items-center justify-center"
-            color="light"
-          >
-            <p className="text-base font-light">
-              {(dict.totem as I18nRecord).continue as string}
-            </p>
-          </Button>
-        )}
+        <Button
+          onClick={() => {
+            setIdCard(false);
+            setManualAccess(false);
+            setQrCode(true);
+            setIdCardLoading(false);
+          }}
+          disabled={
+            status !== "idle" && status !== "success" && status !== "error"
+          }
+          className="text-black p-2 rounded-lg w-full flex items-center justify-center"
+          color="light"
+        >
+          <p className="text-base font-light">
+            {manualVerificationLoading
+              ? ((dict.totem as I18nRecord).loading as string)
+              : ((dict.totem as I18nRecord).back as string)}
+          </p>
+        </Button>
       </div>
     );
   }
@@ -475,6 +437,7 @@ export default function Huella({
         <Button
           onClick={() => {
             setIdCard(true);
+            setIdCardLoading(true);
           }}
           disabled={
             status !== "idle" && status !== "success" && status !== "error"

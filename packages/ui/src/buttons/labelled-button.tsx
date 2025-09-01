@@ -8,7 +8,6 @@ type LabelledButtonType = {
     open_to_left?: boolean;
     onClick?: () => void;
     hover_disabled?: boolean;
-    border?: string;
     disable_label_after_click?: boolean;
 };
 
@@ -18,7 +17,6 @@ export default function LabelledButton({
     open_to_left = false,
     onClick,
     hover_disabled = false,
-    border = "",
     disable_label_after_click = false,
 }: LabelledButtonType) {
     const [expanded, set_expanded] = useState(false);
@@ -41,7 +39,9 @@ export default function LabelledButton({
             <button 
                 type="button"
                 onClick={() => {
-                    if (!hover_disabled && !disable_label_after_click) {
+                    if (disable_label_after_click) {
+                        set_expanded(false);
+                    } else if (!hover_disabled) {
                         set_expanded(false);
                     }
                     onClick?.();
@@ -54,7 +54,7 @@ export default function LabelledButton({
                 onMouseLeave={() => {
                     set_expanded(false);
                 }}
-                className="bg-slate-0  text-slate-700 hover:bg-slate-300 focus:ring-4 focus:ring-slate-300 font-medium rounded-full text-sm p-0 dark:bg-slate-700 dark:hover:bg-slate-600 focus:outline-none dark:focus:ring-slate-800 w-10 h-10 flex justify-center items-center border border-slate-700 dark:border-slate-200 transition-colors duration-200"
+                className="cursor-pointer bg-slate-0 p-0 w-10 h-10 bg-slate-0 text-slate-700 hover:bg-slate-200 font-medium rounded-full text-sm dark:bg-slate-900 dark:hover:bg-slate-800 focus:outline-none flex flex-row justify-center items-center border border-slate-700 dark:border-slate-200 transition-all duration-100 active:ring-2 active:ring-slate-300 active:dark:ring-slate-700"
             >
                 <div className="text-slate-700 dark:text-slate-300">
                     {children}
@@ -63,14 +63,11 @@ export default function LabelledButton({
 
             {/* Animated label container: only width + opacity (no padding jump) */}
             <div
-                className="flex items-center overflow-hidden transition-[width] duration-300"
-                style={{ width: expanded ? labelWidth : 0 }}
+                className={`flex items-center overflow-hidden transition-all ease-in-out duration-200 ${ expanded ? 'max-w-[200px]' : 'max-w-0' }`}
             >
                 <span
                     ref={labelRef}
-                    className={`px-5 text-slate-800 dark:text-white text-[14px] flex items-center transition-opacity duration-200 ${
-                        expanded ? "opacity-100" : "opacity-0"
-                    }`}
+                    className={`px-5 text-slate-800 dark:text-white text-[14px] flex items-center transition-opacity duration-200 whitespace-nowrap `}
                     style={{ pointerEvents: "none" }}
                 >
                     {label}

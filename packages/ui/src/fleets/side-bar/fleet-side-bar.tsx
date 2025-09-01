@@ -19,7 +19,6 @@ export default function FeetSideBar()  {
                     open_to_left={true}
                     onClick={() => setIsOpen(!isOpen)}
                     hover_disabled={true}
-                    border="border"
                 >
                     <ChevronLeft className={` h-5 w-5 transition-all duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`} />
                 </LabelledButton>

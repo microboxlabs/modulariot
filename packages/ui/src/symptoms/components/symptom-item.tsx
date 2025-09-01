@@ -103,7 +103,7 @@ export default function SymptomItem({
   return (
     <TableRow
       className={`dark:bg-slate-800 text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700
-      ${Conditions[data.condition as keyof typeof Conditions]?.bgColor ?? ""} ${Conditions[data.condition as keyof typeof Conditions]?.hoverColor ?? ""}  !border-0`}
+      ${Conditions[data.condition as keyof typeof Conditions]?.bgColor}`}
     >
       <TableCell className=" whitespace-nowrap font-medium text-slate-900 dark:text-white">
         <div className="flex items-center gap-2">

@@ -66,4 +66,14 @@
   --color-orange-800: #9e2c0e;
   --color-orange-900: #7f270f;
   --color-orange-950: #451005;
+
+  /* Custom Animations */
+  --animate-hide: hide 0.2s ease-in-out forwards;
+}
+
+/* Custom Keyframes */
+@keyframes hide {
+  0% { opacity: 1; }
+  80% { opacity: 0; display: none; }
+  100% { opacity: 0; display: none; max-width: 0; }
 }

@@ -2,6 +2,9 @@
   "name": "@modulariot/web-admin",
   "version": "0.1.0",
   "private": true,
+  "exports": {
+    ".": "./tailwind.config.ts"
+  },
   "scripts": {
     "dev": "bunx --bun next dev --turbopack --port 3000",
     "build": "bunx --bun next build",

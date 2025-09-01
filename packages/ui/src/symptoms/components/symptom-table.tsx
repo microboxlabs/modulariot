@@ -1,6 +1,6 @@
 "use client";
 
-import { TableHeadCell, TableHead, TableRow, Pagination, TableBody } from "flowbite-react";
+import { TableHeadCell, TableHead, TableRow, Pagination, TableBody, Table } from "flowbite-react";
 import CustomTable from "../../custom-table";
 import { useState } from "react";
 import SymptomItem from "./symptom-item";

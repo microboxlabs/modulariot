@@ -5,6 +5,7 @@ import {
   MapPositionProperties,
   Symptom,
 } from "@/features/geographic-view/types/map";
+import { FormattedDate } from "@/features/common/components/formatted-date";
 
 export default function PinTooltip({
   object,
@@ -42,9 +43,14 @@ export default function PinTooltip({
       )}
       <div className="text-sm text-gray-600 dark:text-gray-300">
         {(dict.geographic_view as I18nRecord).date_and_time as string}:{" "}
-        {object?.properties.timestamp
+        {/* {object?.properties.timestamp
           ? new Date(object?.properties.timestamp).toLocaleString()
-          : ""}
+          : ""} */}
+          {object?.properties.timestamp
+          ?<FormattedDate
+                date={object?.properties.timestamp}
+                format="datetime"
+              />: ""}
       </div>
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
       {object?.properties.lost_signal && (

@@ -41,10 +41,6 @@ export default function Rut({
         logger.info("rutCaptured.replace:" + rutCaptured.replace(/\D/g, ""));
         setRut(rutCaptured.replace(/\D/g, ""));
       }, 500);
-      setTimeout(() => {
-        logger.info("handleValidateRut");
-        handleValidateRut();
-      }, 3000);
     }
   };
 

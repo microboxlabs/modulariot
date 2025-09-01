@@ -39,7 +39,7 @@ export default function Rut({
       }, 500);
       setTimeout(() => {
         handleValidateRut();
-      }, 2000);
+      }, 3000);
     }
   };
 

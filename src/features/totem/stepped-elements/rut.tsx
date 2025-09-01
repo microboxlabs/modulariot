@@ -3,6 +3,7 @@ import { FaIdCard } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { isRutValid } from "@/utils/rut";
 import { Button } from "flowbite-react";
+import { logger } from "@/lib/logger";
 
 export default function Rut({
   setCurrentStep,
@@ -31,13 +32,17 @@ export default function Rut({
 
   const handleRutChange = (_value: string) => {
     if (rut.length > 0 && rut.indexOf("mrz") !== -1 && !isQrCaptured) {
+      logger.info("rut:" + rut);
       setIsQrCaptured(true);
       const runPosition = rut.indexOf("RUN");
       const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
+      logger.info("rutCaptured:" + rutCaptured);
       setTimeout(() => {
+        logger.info("rutCaptured.replace:" + rutCaptured.replace(/\D/g, ""));
         setRut(rutCaptured.replace(/\D/g, ""));
       }, 500);
       setTimeout(() => {
+        logger.info("handleValidateRut");
         handleValidateRut();
       }, 3000);
     }

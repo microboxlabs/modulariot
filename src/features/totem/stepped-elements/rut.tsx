@@ -21,7 +21,6 @@ export default function Rut({
   setRut: (rut: string) => void;
 }) {
   const [error, setError] = useState("");
-  const [isQrCaptured, setIsQrCaptured] = useState(false);
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -52,7 +51,6 @@ export default function Rut({
     if (!rut.trim()) {
       setError((dict.totem as I18nRecord).rut_required as string);
       setCount(count + 1);
-      setIsQrCaptured(false);
       return;
     }
     let rutText = rut;
@@ -65,7 +63,6 @@ export default function Rut({
     if (!isRutValid(rutText)) {
       setError((dict.totem as I18nRecord).rut_invalid as string);
       setCount(count + 1);
-      setIsQrCaptured(false);
       return;
     }
     onRutValidated({ rut: rutText, rut_validated: false });
@@ -87,10 +84,7 @@ export default function Rut({
             placeholder="RUT"
             autoFocus
             value={rut}
-            onChange={(e) => {
-              setRut(e.target.value);
-              handleRutChange(e.target.value);
-            }}
+            onChange={(e) => setRut(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleValidateRut();

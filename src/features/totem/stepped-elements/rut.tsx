@@ -20,6 +20,7 @@ export default function Rut({
   rut: string;
   setRut: (rut: string) => void;
 }) {
+  const [isQrCaptured, setIsQrCaptured] = useState(false);
   const [error, setError] = useState("");
   const [count, setCount] = useState(0);
 
@@ -84,7 +85,10 @@ export default function Rut({
             placeholder="RUT"
             autoFocus
             value={rut}
-            onChange={(e) => setRut(e.target.value)}
+            onChange={(e) => {
+              setRut(e.target.value);
+              handleRutChange(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleValidateRut();

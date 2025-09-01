@@ -1,6 +1,6 @@
 import type { Account, Session, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import { entraTokenLogger, logTokenPreviews } from "./entra-token.logger";
+import { logTokenPreviews } from "./entra-token.logger";
 import type {
   EntraJwtLikeToken,
   EntraTokenRotationParams,
@@ -14,8 +14,24 @@ import {
   refreshAccessToken as originalRefreshAccessToken,
   shouldRefresh,
 } from "./entra-token.service";
+import { Logger } from "@/lib/logger";
 
 const ENTRA_ID_PROVIDER = "entraId";
+
+function decodeJwt(jwt: string): {
+  header: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  signature: string;
+} {
+  const decoded = jwt
+    .split(".")
+    .map((part) => Buffer.from(part, "base64").toString("utf-8"));
+  return {
+    header: JSON.parse(decoded[0]) as Record<string, unknown>,
+    payload: JSON.parse(decoded[1]) as Record<string, unknown>,
+    signature: decoded[2],
+  };
+}
 
 /**
  * Process Microsoft Entra ID account during sign-in
@@ -27,10 +43,11 @@ const ENTRA_ID_PROVIDER = "entraId";
 export async function processMicrosoftEntraAccount(
   token: JWT,
   account: Account,
-  user: User
+  user: User,
+  logger?: Logger
 ): Promise<JWT> {
   try {
-    entraTokenLogger.debug(
+    logger?.debug(
       {
         accountId: account.providerAccountId,
         hasIdToken: !!account.id_token,
@@ -39,6 +56,8 @@ export async function processMicrosoftEntraAccount(
         idTokenLength: account.id_token?.length,
         accessTokenLength: account.access_token?.length,
         refreshTokenLength: account.refresh_token?.length,
+        expiresAt: account.expires_at,
+        expiresIn: account.expires_in,
       },
       "Processing Microsoft Entra ID account"
     );
@@ -49,14 +68,11 @@ export async function processMicrosoftEntraAccount(
     token.accessToken = undefined;
     token.refreshToken = undefined;
 
-    // Persist provider access token expiry if available
-    if (typeof account?.expires_at === "number") {
-      token.accessTokenExpiresAt = account.expires_at as number;
-    } else if (typeof account?.expires_in === "number") {
-      token.accessTokenExpiresAt = Math.floor(
-        Date.now() / 1000 + (account.expires_in as number)
-      );
-    }
+    const decoded = decodeJwt(account.id_token!);
+    logger?.debug(decoded, "Decoded JWT");
+
+    const expiresAt = decoded.payload.exp as number;
+    token.accessTokenExpiresAt = expiresAt;
 
     // Store initial refresh token in ECM (async, don't block sign-in)
     if (account.refresh_token && user) {
@@ -73,15 +89,14 @@ export async function processMicrosoftEntraAccount(
 
       storeInitialRefreshToken(tempSession, account.refresh_token).catch(
         (error) => {
-          entraTokenLogger.warn(
-            "Failed to store initial refresh token in ECM",
-            { error: error as Error }
-          );
+          logger?.warn("Failed to store initial refresh token in ECM", {
+            error: error as Error,
+          });
         }
       );
     }
 
-    entraTokenLogger.debug(
+    logger?.debug(
       {
         accessTokenPreview: account.access_token?.slice(0, 16),
         refreshTokenPreview: account.refresh_token?.slice(0, 16),
@@ -90,7 +105,7 @@ export async function processMicrosoftEntraAccount(
       "Stored provider tokens (rawJWT in token, refresh in ECM)"
     );
 
-    entraTokenLogger.debug(
+    logger?.debug(
       {
         rawJWT: token.rawJWT,
         ticket: token.ticket,
@@ -100,9 +115,7 @@ export async function processMicrosoftEntraAccount(
 
     return token;
   } catch (error) {
-    entraTokenLogger.error("Error processing Microsoft Entra ID account", {
-      error,
-    });
+    logger?.error(error, "Error processing Microsoft Entra ID account");
     throw error;
   }
 }
@@ -113,17 +126,20 @@ export async function processMicrosoftEntraAccount(
  * @returns Updated JWT token or original token if no refresh needed
  */
 export async function processTokenRefresh(
-  token: JWT
+  token: JWT,
+  logger?: Logger
 ): Promise<EntraJwtLikeToken> {
   try {
+    logger?.debug(
+      {
+        rawJWT: token.rawJWT,
+        expiresAt: token.accessTokenExpiresAt,
+      },
+      "processTokenRefresh"
+    );
     // Check if we need to refresh based on rawJWT and expiry
-    if (
-      token.rawJWT &&
-      shouldRefresh(token.accessTokenExpiresAt as number | undefined)
-    ) {
-      entraTokenLogger.debug(
-        "Token refresh needed, starting ECM-backed refresh"
-      );
+    if (token.rawJWT && shouldRefresh(token.accessTokenExpiresAt, logger)) {
+      logger?.debug("Token refresh needed, starting ECM-backed refresh");
 
       // Create session for ECM API calls
       const currentSession = {
@@ -155,18 +171,20 @@ export async function processTokenRefresh(
         currentSession
       );
 
-      entraTokenLogger.debug(
+      logger?.debug(
+        updatedToken,
         "Successfully refreshed tokens using ECM persistence"
       );
       return updatedToken;
     }
 
-    return { ...token, idToken: token.rawJWT };
+    return {
+      ...token,
+      idToken: token.rawJWT,
+      accessTokenExpiresAt: token.accessTokenExpiresAt,
+    };
   } catch (error) {
-    entraTokenLogger.error(
-      "Error refreshing access_token with ECM persistence",
-      error
-    );
+    logger?.error("Error refreshing access_token with ECM persistence", error);
     return { ...token, error: "RefreshTokenError" };
   }
 }
@@ -181,10 +199,11 @@ export async function processTokenRefresh(
 export async function refreshAccessTokenWithEcmPersistence(
   jwt: EntraJwtLikeToken,
   params: EntraTokenRotationParams,
-  session: Session
+  session: Session,
+  logger?: Logger
 ): Promise<EntraJwtLikeToken> {
   try {
-    entraTokenLogger.debug("Starting ECM-backed token refresh");
+    logger?.debug("Starting ECM-backed token refresh");
 
     // First, try to get the refresh token from ECM
     let refreshToken = params.refreshToken;
@@ -195,27 +214,27 @@ export async function refreshAccessTokenWithEcmPersistence(
         const ecmTokens = await getRefreshTokens(session, ENTRA_ID_PROVIDER);
         if (ecmTokens.tokens && ecmTokens.tokens.length > 0) {
           refreshToken = ecmTokens.tokens[0]; // Use the first available token
-          entraTokenLogger.debug("Retrieved refresh token from ECM storage");
+          logger?.debug("Retrieved refresh token from ECM storage");
         }
       } catch (error) {
-        entraTokenLogger.warn("Failed to retrieve refresh token from ECM", {
+        logger?.warn("Failed to retrieve refresh token from ECM", {
           error,
         });
       }
     }
 
     if (!refreshToken) {
-      entraTokenLogger.error("No refresh token available for rotation");
+      logger?.error("No refresh token available for rotation");
       throw new Error("RefreshTokenError");
     }
 
     // Perform the actual token refresh with Microsoft
-    const rotated = await originalRefreshAccessToken({
-      ...params,
-      refreshToken,
-    });
+    const rotated = await originalRefreshAccessToken(
+      { ...params, refreshToken },
+      logger
+    );
 
-    entraTokenLogger.debug("Successfully refreshed tokens with Microsoft");
+    logger?.debug(rotated, "Successfully refreshed tokens with Microsoft");
 
     // If we got a new refresh token, store it in ECM
     if (rotated.refresh_token) {
@@ -227,33 +246,41 @@ export async function refreshAccessTokenWithEcmPersistence(
         };
 
         await putRefreshToken(session, storeRequest);
-        entraTokenLogger.debug("Stored new refresh token in ECM");
+        logger?.debug("Stored new refresh token in ECM");
       } catch (error) {
-        entraTokenLogger.warn("Failed to store refresh token in ECM", {
+        logger?.warn("Failed to store refresh token in ECM", {
           error,
         });
         // Don't fail the entire refresh process if storage fails
       }
     }
 
+    const decoded = decodeJwt(rotated.id_token);
+    const expiresAt = decoded.payload.exp as number;
+
     // Update the JWT with new tokens
     const updatedJwt: EntraJwtLikeToken = {
       ...jwt,
       accessToken: rotated.access_token,
       idToken: rotated.id_token,
-      accessTokenExpiresAt: Math.floor(Date.now() / 1000 + rotated.expires_in),
+      rawJWT: rotated.id_token,
+      accessTokenExpiresAt: expiresAt,
       // Don't store refresh token in JWT anymore - it's in ECM
       refreshToken: undefined,
     };
 
-    logTokenPreviews("ECM-backed refresh completed", {
-      accessToken: rotated.access_token,
-      refreshToken: rotated.refresh_token,
-    });
+    logTokenPreviews(
+      "ECM-backed refresh completed",
+      {
+        accessToken: rotated.access_token,
+        refreshToken: rotated.refresh_token,
+      },
+      logger
+    );
 
     return updatedJwt;
   } catch (error) {
-    entraTokenLogger.error("ECM-backed token refresh failed", { error });
+    logger?.error("ECM-backed token refresh failed", { error });
     throw error;
   }
 }
@@ -265,7 +292,8 @@ export async function refreshAccessTokenWithEcmPersistence(
  */
 export async function storeInitialRefreshToken(
   session: Session,
-  refreshToken: string
+  refreshToken: string,
+  logger?: Logger
 ): Promise<void> {
   try {
     const storeRequest: RefreshTokenRequest = {
@@ -275,9 +303,9 @@ export async function storeInitialRefreshToken(
     };
 
     await putRefreshToken(session, storeRequest);
-    entraTokenLogger.debug("Stored initial refresh token in ECM");
+    logger?.debug("Stored initial refresh token in ECM");
   } catch (error) {
-    entraTokenLogger.error("Failed to store initial refresh token in ECM", {
+    logger?.error("Failed to store initial refresh token in ECM", {
       error,
     });
     // Don't fail sign-in if storage fails
@@ -288,7 +316,10 @@ export async function storeInitialRefreshToken(
  * Clean up refresh tokens from ECM (e.g., on sign-out)
  * @param session - User session for ECM API calls
  */
-export async function cleanupRefreshTokens(session: Session): Promise<void> {
+export async function cleanupRefreshTokens(
+  session: Session,
+  logger?: Logger
+): Promise<void> {
   try {
     const storeRequest: RefreshTokenRequest = {
       provider: ENTRA_ID_PROVIDER,
@@ -297,9 +328,9 @@ export async function cleanupRefreshTokens(session: Session): Promise<void> {
     };
 
     await putRefreshToken(session, storeRequest);
-    entraTokenLogger.debug("Cleaned up refresh tokens from ECM");
+    logger?.debug("Cleaned up refresh tokens from ECM");
   } catch (error) {
-    entraTokenLogger.warn("Failed to cleanup refresh tokens from ECM", {
+    logger?.warn("Failed to cleanup refresh tokens from ECM", {
       error,
     });
   }

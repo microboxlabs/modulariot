@@ -1,18 +1,12 @@
-import { createManagedLogger } from "@/lib/logger";
-
-export const entraTokenLogger = createManagedLogger(
-  "auth.providers.microsoft.token",
-  "Microsoft Entra Token",
-  undefined,
-  "auth.providers"
-);
+import type { Logger } from "@/lib/logger";
 
 export function logTokenPreviews(
   context: string,
-  data: { accessToken?: string; refreshToken?: string; idToken?: string }
+  data: { accessToken?: string; refreshToken?: string; idToken?: string },
+  logger?: Logger
 ) {
   const isDev = process.env.NODE_ENV !== "production";
-  entraTokenLogger.debug(
+  logger?.debug(
     {
       accessTokenPreview: data.accessToken?.slice(0, 16),
       refreshTokenPreview: data.refreshToken?.slice(0, 16),

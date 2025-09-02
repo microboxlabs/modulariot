@@ -1019,6 +1019,7 @@
     "EVENTS END": "Last Recorded Event.",
     "Fin de Eventos": "Last Recorded Event.",
     "CONTINUOUS DRIVE CHECK": "Maximum continuous driving",
+    "ROUTE DEVIATION": "Route deviation",
     "CONTINUOUS RESTING CHECK": "Continuous resting check",
     "DOUBLE DRIVER ROTATION CHECK": "Double driver rotation check",
     "-MENSAJE KAUSANA": "Message Kausana",
@@ -1053,6 +1054,7 @@
     "Speed Limit Custom": "Speed limit",
     "Speed Limit Standard": "Speed limit",
     "Continuous Drive Check": "Maximum continuous driving",
+    "Route Deviation": "Route deviation",
     "Continuous Resting Check": "Continuous resting check",
     "Double Driver Rotation Check": "Double driver rotation check",
     "deficient_cargo_securing": "Deficient cargo securing",
@@ -1074,6 +1076,7 @@
     "watch": "Watch",
     "types": {
       "Continuous drive check": "Continuous drive check",
+      "Route Deviation": "Route Deviation",
       "Off Hours Driving": "Off Hours Driving",
       "Speed Limit Standard": "Speed Limit Standard",
       "Double Driver Rotation Check": "Double Driver Rotation Check",

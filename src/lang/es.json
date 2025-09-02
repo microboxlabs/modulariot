@@ -1017,6 +1017,7 @@
     "EVENTS END": "Último evento",
     "Fin de Eventos": "Último evento",
     "CONTINUOUS DRIVE CHECK": "Conducción máxima continua",
+    "ROUTE DEVIATION": "Desviación de ruta",
     "CONTINUOUS RESTING CHECK": "Incumplimiento descanso nocturno",
     "DOUBLE DRIVER ROTATION CHECK": "Cambio doble conductor",
     "-MENSAJE KAUSANA": "Mensaje Kausana",
@@ -1052,6 +1053,7 @@
     "Speed Limit Custom": "Exceso límite de velocidad",
     "Speed Limit Standard": "Exceso límite de velocidad",
     "Continuous Drive Check": "Conducción máxima continua",
+    "Route Deviation": "Desviación de ruta",
     "Continuous Resting Check": "Incumplimiento de descanso nocturno",
     "Double Driver Rotation Check": "Cambio doble conductor",
     "deficient_cargo_securing": "Sujeción de carga deficiente",
@@ -1073,6 +1075,7 @@
     "watch": "Ver",
     "types": {
       "Continuous drive check": "Conducción máxima continua",
+      "Route Deviation": "Desviación de ruta",
       "Off Hours Driving": "Conducción fuera de horario",
       "Speed Limit Standard": "Exceso de límite de velocidad",
       "Double Driver Rotation Check": "Validación cambio doble conductor",

@@ -22,6 +22,9 @@ import {
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
+  OUTCOME_TO_MISSION_CONTROL_V2,
+  OUTCOME_TRIP_ANNULLED,
+  OUTCOME_TRIP_CANCELED,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
   TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
@@ -59,7 +62,15 @@ export default function TaskConfirmModal({
     ) {
       return "NO_GPS_VALIDATION";
     }
-    return "";
+    if (
+      taskType === "wfship2:missionControlTask" &&
+      outcome !== OUTCOME_TO_MISSION_CONTROL_V2 &&
+      outcome !== OUTCOME_TRIP_CANCELED &&
+      outcome !== OUTCOME_TRIP_ANNULLED
+    ) {
+      return "NO_GPS_VALIDATION";
+    }
+    return "OTHER";
   }
 
   async function handleConfirm() {

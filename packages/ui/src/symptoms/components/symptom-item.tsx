@@ -1,7 +1,7 @@
 "use client";
 
 import { TableRow, TableCell, Button } from "flowbite-react";
-import ConditionIcon from "./condition-icon";
+import ConditionIcon from "../conditions/condition-icon";
 import { Conditions, type TableItemType } from "../types/table-item.type";
 import { HiArrowRight } from "react-icons/hi";
 import Link from "next/link";

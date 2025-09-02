@@ -8,31 +8,39 @@ import Image from "next/image";
 import { speed_filter_options, condition_filter_options, trip_filter_options } from "./inner-filters.tsx/filter_lists";
 import PinIcon from "../../icons/pin-icon";
 
+type Filter = {
+  text: string;
+  filter_value: string;
+  code: string;
+  icon: React.ReactNode;
+  activated: boolean;
+};
+
 function set_filtered_positions(
   originalPositions: VehicleData[],
-  activeFilters: any,
+  activeFilters: ActiveFilters,
   setPositions: (positions: VehicleData[]) => void
 ) {
   const filtered_positions = originalPositions.filter((position) => {
     const matchesTripState =
-      !activeFilters.tripStates.some((filter: any) => filter.activated) ||
+      !activeFilters.tripStates.some((filter: Filter) => filter.activated) ||
       activeFilters.tripStates.some(
-        (filter: any) =>
+        (filter: Filter) =>
           filter.activated &&
           position.in_trip === (filter.filter_value === "true")
       );
 
     const matchesCondition =
-      !activeFilters.conditions.some((filter: any) => filter.activated) ||
+      !activeFilters.conditions.some((filter: Filter) => filter.activated) ||
       activeFilters.conditions.some(
-        (filter: any) =>
+        (filter: Filter) =>
           filter.activated &&
           position.symptoms_condition === Number(filter.code)
       );
 
     const matchesSpeed =
-      !activeFilters.speed.some((filter: any) => filter.activated) ||
-      activeFilters.speed.some((filter: any) => {
+      !activeFilters.speed.some((filter: Filter) => filter.activated) ||
+      activeFilters.speed.some((filter: Filter) => {
         if (filter.code === "1") {
           return (
             filter.activated &&

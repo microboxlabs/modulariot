@@ -60,7 +60,7 @@ export default function FilterComponent({
             filters.forEach((filter) => filter.activated = false);
             setFilters([...filters]);
             setExpanded(false);
-            onChange?.([...filters]    );
+            onChange?.([...filters]);
           }}
           className={`w-7 h-7 bg-red-500 rounded-full p-1 flex items-center justify-center hover:cursor-pointer hover:border-2 hover:border-gray-300 text-white ${expanded ? "" : "pointer-events-none"}`}
         >

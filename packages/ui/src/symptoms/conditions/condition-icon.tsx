@@ -21,7 +21,7 @@ export default function ConditionIcon({
         placement = "bottom"
       >
         <div
-          className={`${size} display-flex justify-center items-center ${Conditions[condition as keyof typeof Conditions]?.innerColor} ${Conditions[condition as keyof typeof Conditions]?.color} border-2 rounded-full cursor-pointer`}
+          className={`${size} flex justify-center items-center ${Conditions[condition as keyof typeof Conditions]?.innerColor} ${Conditions[condition as keyof typeof Conditions]?.color} border-2 rounded-full cursor-pointer`}
         >
           <Image
             src={Conditions[condition as keyof typeof Conditions]?.icon || ""}

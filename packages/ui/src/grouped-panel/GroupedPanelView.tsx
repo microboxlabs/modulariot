@@ -23,8 +23,12 @@ export const GroupedPanelView: React.FC<GroupedPanelViewProps> = ({
     ) as ReactElement<PanelItemProps>[];
 
     const [active, setActive] = useState(
-        Math.min(Math.max(defaultIndex, 0), items.length - 1)
+        items.length > 0 ? Math.min(Math.max(defaultIndex, 0), items.length - 1) : 0
     );
+
+    if (items.length === 0) {
+        return <div className={`w-full ${className}`}>No panel items provided</div>;
+    }
 
     const baseId = useId();
 

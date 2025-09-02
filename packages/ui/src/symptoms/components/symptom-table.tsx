@@ -143,7 +143,7 @@ export default function SymptomTable(
                                     {"Trip"}
                                 </TableHeadCell>
                                 <TableHeadCell className="whitespace-nowrap">
-                                    {"Diver"}
+                                    {"Driver"}
                                 </TableHeadCell>
                                 <TableHeadCell className="whitespace-nowrap">
                                     {"Creation Date"}

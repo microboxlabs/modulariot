@@ -1,11 +1,8 @@
-import FilterComponent from "../filter-component";
-import FilterOption from "../filter-option";
 import PinIcon from "../../../icons/pin-icon";
 import CustomTooltip from "../../../custom-tooltip";
 import Image from "next/image";
 import { Tooltip } from "flowbite-react";
 import { type Option } from "../types/options.type";
-import { useState } from "react";
 import ConditionIcon from "../../../symptoms/conditions/condition-icon";
 import icu_codes from "../../../symptoms/components/model/icu_condition.json";
 

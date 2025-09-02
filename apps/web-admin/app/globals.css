@@ -74,6 +74,6 @@
 /* Custom Keyframes */
 @keyframes hide {
   0% { opacity: 1; }
-  80% { opacity: 0; display: none; }
-  100% { opacity: 0; display: none; max-width: 0; }
+  80% { opacity: 0; }
+  100% { opacity: 0; max-width: 0; }
 }

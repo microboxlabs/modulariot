@@ -1,5 +1,4 @@
 import { Fleets } from "@modulariot/ui/fleets/fleets";
-import { type VehicleData } from "./types/vehicle-data.type";
 
 export default function FleetsPage() {
 	return (

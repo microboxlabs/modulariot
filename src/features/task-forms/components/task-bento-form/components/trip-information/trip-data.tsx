@@ -130,13 +130,11 @@ export default function TripData({
         <FormattedDate
           date={etd.format("MM/DD/YYYY HH:mm")}
           format="datetime"
-          timeZone="UTC"
         />
         <span className="mx-2">-</span>
         <FormattedDate
           date={eta.format("MM/DD/YYYY HH:mm")}
           format="datetime"
-          timeZone="UTC"
         />
       </>
     ),

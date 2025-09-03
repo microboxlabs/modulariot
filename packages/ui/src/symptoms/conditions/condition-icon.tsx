@@ -10,6 +10,8 @@ export default function ConditionIcon({
   condition: string;
   size?: string;
 }) {
+  if (!condition) return null;
+
   return (
     <div className="relative inline-block">
       <CustomTooltip

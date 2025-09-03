@@ -12,8 +12,8 @@ export default function FeetSideBar()  {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="absolute top-0 right-0 bottom-0 z-40 flex flex-row min-h-0">
-            <div className="p-2">
+        <div className="absolute top-0 right-0 bottom-0 z-10 flex flex-row min-h-0 pointer-events-none">
+            <div className="mt-2 mr-2 h-fit pointer-events-auto">
                 <LabelledButton
                     label={"Sidebar"}
                     open_to_left={true}
@@ -24,7 +24,7 @@ export default function FeetSideBar()  {
                 </LabelledButton>
             </div>
             <div
-                className={`h-full w-fit bg-white dark:bg-slate-900 overflow-hidden transition-all duration-500 flex ${
+                className={`h-full w-fit bg-white dark:bg-slate-900 overflow-hidden pointer-events-auto transition-all duration-500 flex ${
                     isOpen ? "max-w-[500px]" : "max-w-0"
                 }`}
                 aria-hidden={!isOpen}

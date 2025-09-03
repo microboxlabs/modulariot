@@ -3,9 +3,9 @@
 import { MapView } from "./map/Map";
 import { type VehicleData } from "./types/fleet.types";
 import FleetSideBar from "./side-bar/fleet-side-bar"
-import LabelledButton from "../buttons/labelled-button";
 import Filters from "./filters/filters";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import MapFloatingData from "./map/map-floating-data/map-floating-data";
 
 const TEST_POSITIONS: VehicleData[] = [
 	{
@@ -19,7 +19,9 @@ const TEST_POSITIONS: VehicleData[] = [
     speed_limit_condition: 1,
     route: "",
     is_moving: false,
-		in_trip: true
+		in_trip: true,
+    lost_signal: false,
+    associate_symptoms: []
   },
 	{
     id: "veh-002",
@@ -32,7 +34,11 @@ const TEST_POSITIONS: VehicleData[] = [
     speed_limit_condition: 0,
     route: "",
     is_moving: false,
-		in_trip: false
+		in_trip: false,
+    lost_signal: false,
+    associate_symptoms: [
+      "Perdida de reportabilidad GPS",
+    ]
   },
 	{
     id: "veh-003",
@@ -46,37 +52,54 @@ const TEST_POSITIONS: VehicleData[] = [
     speed_limit: 60,
     route: "",
     is_moving: false,
-		in_trip: true
+		in_trip: true,
+    lost_signal: false,
+    associate_symptoms: [
+      "Perdida de reportabilidad GPS",
+      "Exceso de velocidad",
+    ]
   },
 	{
     id: "veh-004",
     asset_id: "GG-HH-44",
     location: "0101000020E61000002E1D739EB19351C00D5531957EC637C0",
-    speed: 28,
+    speed: 0,
     timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     symptoms_condition: 0,
     speed_limit_condition: null,
     route: "",
     is_moving: false,
-		in_trip: false
+		in_trip: false,
+    lost_signal: true,
+    associate_symptoms: []
   },
 ]; 
 
 export function Fleets() {
   const [positions, setPositions] = useState<VehicleData[]>(TEST_POSITIONS);
+  const [selected_assets, setSelectedAssets] = useState<VehicleData[]>([]);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   
+
+
   return (
-    <div className="flex flex-col flex-grow relative">
+    <div ref={mapContainerRef} className="flex flex-col flex-grow relative">
       {/* Map */}
-      <MapView data={positions} />
-      
+      <MapView data={positions} setSelectedAssets={setSelectedAssets} />
+
       {/* SideBar */}
       <FleetSideBar />
       
       {/* filters */}
-      <Filters 
+      <Filters
         originalPositions={TEST_POSITIONS} 
         setPositions={setPositions} 
+      />
+
+      <MapFloatingData
+        assets_to_display={selected_assets}
+        setSelectedAssets={setSelectedAssets}
+        mapContainerRef={mapContainerRef}
       />
     </div>
   );

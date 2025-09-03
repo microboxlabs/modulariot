@@ -124,7 +124,7 @@ export default function Filters({
   });
 
   return (
-    <div className="flex flex-col gap-2 absolute top-2 left-2">
+    <div className="flex flex-col gap-2 absolute top-2 left-2 z-10">
       { filter_menus.map( (menu, index) => (
         <div key={index} className={`z-[${10 - index}]`}>
           <MapFilter

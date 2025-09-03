@@ -15,6 +15,8 @@ export type VehicleData = {
 	speed_limit_condition: number | null;
 	speed_limit?: number | null;
 	in_trip: boolean;
+	associate_symptoms: string[];
+	lost_signal: boolean;
 };
 
 /*

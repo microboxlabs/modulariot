@@ -22,15 +22,160 @@ import {
   OUTCOME_PRESENT_DRIVER_V2,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
-  OUTCOME_TO_MISSION_CONTROL_V2,
-  OUTCOME_TRIP_ANNULLED,
-  OUTCOME_TRIP_CANCELED,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
   TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.types";
+
+// Configuration for select options based on task type and outcome
+type SelectOption = {
+  value: string;
+  labelKey: string;
+};
+
+type SelectConfig = {
+  options: SelectOption[];
+  defaultValue: string;
+};
+
+type SelectOptionsConfig = {
+  [taskType: string]: {
+    [outcome: string]: SelectConfig;
+  };
+};
+
+const SELECT_OPTIONS_CONFIG: SelectOptionsConfig = {
+  [TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK]: {
+    [OUTCOME_OVERLORD_CANCELED_SOVOS_V2]: {
+      options: [
+        { value: "NOT_VALID_DOCUMENT", labelKey: "PODReason1" },
+        { value: "ID_RECEPTOR_MISSING", labelKey: "PODReason2" },
+        { value: "INCOMPLETE_POD", labelKey: "PODReason3" },
+        { value: "OTHER", labelKey: "PODReason4" },
+      ],
+      defaultValue: "NOT_VALID_DOCUMENT",
+    },
+  },
+  "wfship:sovosDigitalSignature": {
+    [OUTCOME_REDIRECT_TO_MISSION_CONTROL]: {
+      options: [
+        { value: "FINGERPRINT_DEVICES_TECH_ISSUES", labelKey: "reason1" },
+        { value: "COMPUTER_TECH_ISSUES", labelKey: "reason2" },
+        { value: "DRIVER_FINGERPRINT_NOT_RECOGNIZED", labelKey: "reason3" },
+        { value: "DISPATCHER_NOT_ENROLLED", labelKey: "reason4" },
+        { value: "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED", labelKey: "reason5" },
+        { value: "AUTHORIZED_BY_TRANSPORT_OVERLORD", labelKey: "reason6" },
+        { value: "OTHER", labelKey: "reason7" },
+      ],
+      defaultValue: "FINGERPRINT_DEVICES_TECH_ISSUES",
+    },
+  },
+  "wfship:missionControlTripInitTask": {
+    [OUTCOME_RETURN_TO_TRANSPORT_VALIDATION]: {
+      options: [
+        {
+          value: "NO_GPS_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason1",
+        },
+        {
+          value: "NO_DOCUMENT_CONSOLIDATION",
+          labelKey: "missionControlTripInitTaskReason2",
+        },
+        {
+          value: "NO_CLIENT_SYSTEM_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason3",
+        },
+        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+      ],
+      defaultValue: "NO_GPS_VALIDATION",
+    },
+  },
+  [TYPE_WFSHIP2_MISSION_CONTROL_TASK]: {
+    [OUTCOME_ASSIGN_DRIVER_V2]: {
+      options: [
+        {
+          value: "NO_GPS_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason1",
+        },
+        {
+          value: "NO_DOCUMENT_CONSOLIDATION",
+          labelKey: "missionControlTripInitTaskReason2",
+        },
+        {
+          value: "NO_CLIENT_SYSTEM_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason3",
+        },
+        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+      ],
+      defaultValue: "NO_GPS_VALIDATION",
+    },
+    [OUTCOME_PRESENT_DRIVER_V2]: {
+      options: [
+        {
+          value: "NO_GPS_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason1",
+        },
+        {
+          value: "NO_DOCUMENT_CONSOLIDATION",
+          labelKey: "missionControlTripInitTaskReason2",
+        },
+        {
+          value: "NO_CLIENT_SYSTEM_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason3",
+        },
+        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+      ],
+      defaultValue: "NO_GPS_VALIDATION",
+    },
+    [OUTCOME_OVERLORD_REQUIRED_V2]: {
+      options: [
+        {
+          value: "NO_GPS_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason1",
+        },
+        {
+          value: "NO_DOCUMENT_CONSOLIDATION",
+          labelKey: "missionControlTripInitTaskReason2",
+        },
+        {
+          value: "NO_CLIENT_SYSTEM_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason3",
+        },
+        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+      ],
+      defaultValue: "NO_GPS_VALIDATION",
+    },
+    [OUTCOME_PREPARE_SERVICE_V2]: {
+      options: [
+        {
+          value: "NO_GPS_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason1",
+        },
+        {
+          value: "NO_DOCUMENT_CONSOLIDATION",
+          labelKey: "missionControlTripInitTaskReason2",
+        },
+        {
+          value: "NO_CLIENT_SYSTEM_VALIDATION",
+          labelKey: "missionControlTripInitTaskReason3",
+        },
+        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+      ],
+      defaultValue: "NO_GPS_VALIDATION",
+    },
+  },
+};
+
+// Utility function to get select configuration
+function getSelectConfig(
+  taskType?: string,
+  outcome?: string
+): SelectConfig | null {
+  if (!taskType || !outcome) return null;
+  return SELECT_OPTIONS_CONFIG[taskType]?.[outcome] || null;
+}
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
@@ -46,38 +191,28 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
   const [comments, setComments] = useState("");
-  const [reason, setReason] = useState(getInitialReason());
 
-  function getInitialReason() {
-    if (
-      taskType === "wfship:sovosDigitalSignature" &&
-      outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL
-    ) {
-      return "FINGERPRINT_DEVICES_TECH_ISSUES";
+  // Get select configuration based on current task type and outcome
+  const selectConfig = useMemo(() => {
+    return getSelectConfig(taskType, outcome);
+  }, [taskType, outcome]);
+
+  // Initialize reason state
+  const [reason, setReason] = useState("");
+
+  // Update reason when selectConfig changes or modal opens
+  useEffect(() => {
+    if (openModal && selectConfig && !reason) {
+      setReason(selectConfig.defaultValue);
     }
-    if (
-      taskType === "wfship:missionControlTripInitTask" &&
-      (outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL ||
-        outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION)
-    ) {
-      return "NO_GPS_VALIDATION";
-    }
-    if (
-      taskType === "wfship2:missionControlTask" &&
-      outcome !== OUTCOME_TO_MISSION_CONTROL_V2 &&
-      outcome !== OUTCOME_TRIP_CANCELED &&
-      outcome !== OUTCOME_TRIP_ANNULLED
-    ) {
-      return "NO_GPS_VALIDATION";
-    }
-    return "OTHER";
-  }
+  }, [openModal, selectConfig, reason]);
 
   async function handleConfirm() {
     try {
+      // Use the current reason state directly, or fallback to default if empty
       let calculatedReason = reason;
-      if (calculatedReason === "") {
-        calculatedReason = getInitialReason();
+      if (calculatedReason === "" && selectConfig) {
+        calculatedReason = selectConfig.defaultValue;
       }
       setIsProcessing(true);
       const formData = new FormData();
@@ -121,6 +256,7 @@ export default function TaskConfirmModal({
   async function onClose() {
     setIsProcessing(false);
     setError(undefined);
+    setReason(""); // Reset reason when modal closes
     setOpenModal(false);
   }
 
@@ -139,111 +275,23 @@ export default function TaskConfirmModal({
         </Modal.Header>
         <Modal.Body>
           <div className="flex flex-col">
-            {taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK &&
-              outcome === OUTCOME_OVERLORD_CANCELED_SOVOS_V2 && (
-                <>
-                  <Label className="mt-4">
-                    {(dict.modal as I18nRecord).title2 as string}
-                  </Label>
-                  <Select
-                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
-                    <option value="NOT_VALID_DOCUMENT">
-                      {(dict.modal as I18nRecord).PODReason1 as string}
+            {selectConfig && (
+              <>
+                <Label className="mt-4">
+                  {(dict.modal as I18nRecord).title2 as string}
+                </Label>
+                <Select
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                >
+                  {selectConfig.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {(dict.modal as I18nRecord)[option.labelKey] as string}
                     </option>
-                    <option value="ID_RECEPTOR_MISSING">
-                      {(dict.modal as I18nRecord).PODReason2 as string}
-                    </option>
-                    <option value="INCOMPLETE_POD">
-                      {(dict.modal as I18nRecord).PODReason3 as string}
-                    </option>
-                    <option value="OTHER">
-                      {(dict.modal as I18nRecord).PODReason4 as string}
-                    </option>
-                  </Select>
-                </>
-              )}
-            {taskType === "wfship:sovosDigitalSignature" &&
-              outcome === OUTCOME_REDIRECT_TO_MISSION_CONTROL && (
-                <>
-                  <Label className="mt-4">
-                    {(dict.modal as I18nRecord).title2 as string}
-                  </Label>
-                  <Select
-                    /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  >
-                    <option value="FINGERPRINT_DEVICES_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason1 as string}
-                    </option>
-                    <option value="COMPUTER_TECH_ISSUES">
-                      {(dict.modal as I18nRecord).reason2 as string}
-                    </option>
-                    <option value="DRIVER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason3 as string}
-                    </option>
-                    <option value="DISPATCHER_NOT_ENROLLED">
-                      {(dict.modal as I18nRecord).reason4 as string}
-                    </option>
-                    <option value="DISPATCHER_FINGERPRINT_NOT_RECOGNIZED">
-                      {(dict.modal as I18nRecord).reason5 as string}
-                    </option>
-                    <option value="AUTHORIZED_BY_TRANSPORT_OVERLORD">
-                      {(dict.modal as I18nRecord).reason6 as string}
-                    </option>
-                    <option value="OTHER">
-                      {(dict.modal as I18nRecord).reason7 as string}
-                    </option>
-                  </Select>
-                </>
-              )}
-            {(taskType === "wfship:missionControlTripInitTask" &&
-              outcome === OUTCOME_RETURN_TO_TRANSPORT_VALIDATION) ||
-              (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK &&
-                (outcome === OUTCOME_ASSIGN_DRIVER_V2 ||
-                  outcome === OUTCOME_PRESENT_DRIVER_V2 ||
-                  outcome === OUTCOME_OVERLORD_REQUIRED_V2 ||
-                  outcome === OUTCOME_PREPARE_SERVICE_V2) && (
-                  <>
-                    <Label className="mt-4">
-                      {(dict.modal as I18nRecord).title2 as string}
-                    </Label>
-                    <Select
-                      /* className="w-full bg-white dark:bg-gray-800 rounded-md" */
-                      defaultValue="NO_GPS_VALIDATION"
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                    >
-                      <option value="NO_GPS_VALIDATION">
-                        {
-                          (dict.modal as I18nRecord)
-                            .missionControlTripInitTaskReason1 as string
-                        }
-                      </option>
-                      <option value="NO_DOCUMENT_CONSOLIDATION">
-                        {
-                          (dict.modal as I18nRecord)
-                            .missionControlTripInitTaskReason2 as string
-                        }
-                      </option>
-                      <option value="NO_CLIENT_SYSTEM_VALIDATION">
-                        {
-                          (dict.modal as I18nRecord)
-                            .missionControlTripInitTaskReason3 as string
-                        }
-                      </option>
-                      <option value="OTHER">
-                        {
-                          (dict.modal as I18nRecord)
-                            .missionControlTripInitTaskReason4 as string
-                        }
-                      </option>
-                    </Select>
-                  </>
-                ))}
+                  ))}
+                </Select>
+              </>
+            )}
 
             <div className="flex items-center justify-center mt-4">
               {!commentsFieldEnabled && <KanbanMove />}

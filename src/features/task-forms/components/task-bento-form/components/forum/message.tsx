@@ -1,5 +1,6 @@
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import Reason from "./reason";
+import FormattedDate from "@/features/common/components/formatted-date/formatted-date";
 
 // helper (place near top of file or move to a utils file if preferred)
 
@@ -26,10 +27,11 @@ export default function Message({
             {comment.reason && <Reason reason={comment.reason} />}
           </div>
           <p className="font-light text-xs text-gray-400 h-full flex justify-center items-center">
-            {new Date(comment.date).toLocaleTimeString([], {
+            {/* {new Date(comment.date).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
-            })}
+            })} */}
+            <FormattedDate date={comment.date} format="time" />
           </p>
         </div>
         <p className="text-sm text-gray-700 dark:text-gray-300 font-light">

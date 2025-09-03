@@ -3,9 +3,9 @@ import { type ActiveFilters } from "./types/active-filters.type";
 
 import { useState, useEffect } from "react";
 import { type VehicleData } from "../types/fleet.types";
-import MapFilter from "./inner-filters.tsx/map-filter";
+import MapFilter from "./inner-filters/map-filter";
 import Image from "next/image";
-import { speed_filter_options, condition_filter_options, trip_filter_options } from "./inner-filters.tsx/filter_lists";
+import { speed_filter_options, condition_filter_options, trip_filter_options } from "./inner-filters/filter_lists";
 import PinIcon from "../../icons/pin-icon";
 
 type Filter = {

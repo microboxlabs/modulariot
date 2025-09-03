@@ -6,11 +6,11 @@ export default function PinData({data}: {data: any}) {
   console.log(data)
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg">
+    <div>
       <ConditionalData
         label="License Plate"
         value={data.asset_id}
-        classname="font-medium !text-gray-900 !dark:text-white"
+        classname="font-medium text-slate-900 dark:text-slate-50"
       />
       <ConditionalData
         label="Trip"
@@ -26,17 +26,17 @@ export default function PinData({data}: {data: any}) {
       />
       {data.lost_signal && (
         <div>
-          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          <hr className="my-2 border-slate-200 dark:border-slate-700" />
           <div>
-            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg font-light text-sm">
-              <span className="text-gray-600 dark:text-gray-300 font-normal">
+            <div className="flex items-center gap-2 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg font-light text-sm">
+              <span className="text-slate-600 dark:text-slate-300 font-normal">
                 {"Signal Status"}:
               </span>{" "}
               <span className="font-light text-red-500 dark:text-red-400">
                 {"Lost Signal"}
               </span>
             </div>
-            <hr className="my-2 border-gray-200 dark:border-gray-700" />
+            <hr className="my-2 border-slate-200 dark:border-slate-700" />
           </div>
         </div>
       )}
@@ -44,12 +44,12 @@ export default function PinData({data}: {data: any}) {
       {/* Conditions and symptoms */}
       {data.symptoms_condition != 0 && (
         <div>
-          <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+          <div className="flex items-center gap-2 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
             <ConditionIcon
               condition={pin_conditions[data.symptoms_condition as keyof typeof pin_conditions]?.icon}
               size="w-6 h-6"
             />
-            <div className="text-sm text-gray-600 dark:text-gray-300">
+            <div className="text-sm text-slate-600 dark:text-slate-300">
               {pin_conditions[data.symptoms_condition as keyof typeof pin_conditions]?.label}
             </div>
           </div>
@@ -62,11 +62,11 @@ export default function PinData({data}: {data: any}) {
               )
             )}
           </div>
-          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          <hr className="my-2 border-slate-200 dark:border-slate-700" />
         </div>
       )}
       {/* Speed */}
-      <div className="text-sm text-gray-600 dark:text-gray-300">
+      <div className="text-sm text-slate-600 dark:text-slate-300">
         {"speed: "}
         <span
           className={`font-bold ${data.speed_limit && data.speed > data.speed_limit ? "text-red-500 dark:text-red-400" : "text-green-500 dark:text-green-400"}`}
@@ -86,7 +86,7 @@ export default function PinData({data}: {data: any}) {
       </div>
       {data.speed_limit && (
         <div
-          className={`text-sm text-gray-600 dark:text-gray-300 ${data.speed_limit ? "block" : "hidden"}`}
+          className={`text-sm text-slate-600 dark:text-slate-300 ${data.speed_limit ? "block" : "hidden"}`}
         >
           {"speed limit: "}
           <span className="text-green-500 dark:text-green-400">
@@ -95,7 +95,7 @@ export default function PinData({data}: {data: any}) {
         </div>
       )}
       {data.gps_provider && (
-        <div className="text-sm text-gray-600 dark:text-gray-300">
+        <div className="text-sm text-slate-600 dark:text-slate-300">
           {"gps provider: "}
           <span className="text-green-500 dark:text-green-400">
             {data.gps_provider

@@ -194,28 +194,28 @@ export default function FloatingDataDisplay({
     >
       <div
         ref={dialogRef}
-        className={`absolute bg-white dark:bg-gray-800 border rounded-lg shadow-lg border-gray-200 dark:border-gray-700 min-w-64 max-w-md pointer-events-auto`}
+        className={`absolute bg-white dark:bg-slate-800 border rounded-lg shadow-lg border-slate-200 dark:border-slate-700 min-w-64 max-w-md pointer-events-auto`}
         style={{
           left: position.x,
           top: position.y,
           cursor: isDragging ? 'grabbing' : 'default',
         }}
       >
-        <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-slate-700">
           <div
-            className="flex-1 cursor-grab hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 flex items-center justify-center"
+            className="flex-1 cursor-grab hover:bg-slate-100 dark:hover:bg-slate-700 rounded p-1 flex items-center justify-center"
             onMouseDown={handleMouseDown}
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
-            <GripHorizontal className="w-4 h-4 text-gray-500" />
+            <GripHorizontal className="w-4 h-4 text-slate-500" />
           </div>
           <button
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
             onClick={onClose}
             type="button"
             aria-label="Close"
           >
-            <X className="w-4 h-4 text-gray-500" />
+            <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
         <div className="p-3">

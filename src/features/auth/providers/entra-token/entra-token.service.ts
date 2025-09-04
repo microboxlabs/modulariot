@@ -13,8 +13,15 @@ export function buildTokenEndpoint(issuer: string): string {
 
 export function shouldRefresh(expiresAt?: number, _logger?: Logger): boolean {
   if (!expiresAt) return false;
+
+  const now = Date.now();
+  const expiresAtDate = new Date(expiresAt * 1000);
+  const timeUntilExpiration = expiresAtDate.getTime() - now;
+  const refreshThreshold = 300000; // 5 minutes in milliseconds
+
+  return timeUntilExpiration > 0 && timeUntilExpiration <= refreshThreshold;
+
   // Refresh 5 minutes (300s) before expiry to prevent session invalidation
-  return Date.now() >= (expiresAt - 300) * 1000;
   // var date = new Date((expiresAt - 58 * 60) * 1000);
   // const ret = Date.now() >= date.getTime();
   // logger?.debug(

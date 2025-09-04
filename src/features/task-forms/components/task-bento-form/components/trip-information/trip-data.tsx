@@ -120,8 +120,17 @@ export default function TripData({
       label: (msg!.cards as I18nRecord).supplierName as string,
       value: (task.mintral_supplierName as string) ?? "-",
     },
+    {
+      icon: <FaTruck className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).originIsSitrans as string,
+      value:
+        (
+          JSON.parse(
+            task.mintral_geofenceDestinationMetadata as string
+          ) as Record<string, string>
+        )["origin_is_sitrans"] ?? "-",
+    },
   ];
-
   const scheduling = {
     icon: <FaCalendarAlt className="w-4 h-4" />,
     label: (msg!.cards as I18nRecord).scheduling as string,

@@ -116,7 +116,13 @@ export default function TripData({
       value: task.mintral_supplierId ?? "-",
     },
   ];
-
+  const originIsSitrans =
+    (
+      JSON.parse(task.mintral_geofenceDestinationMetadata as string) as Record<
+        string,
+        boolean | undefined
+      >
+    )["origin_is_sitrans"] ?? null;
   // All elements whose data can variate a lot (to long texts) will be here
   const variable_length_data = [
     {
@@ -128,31 +134,31 @@ export default function TripData({
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).originIsSitrans as string,
       value:
-        (
-          JSON.parse(
-            task.mintral_geofenceDestinationMetadata as string
-          ) as Record<string, string>
-        )["origin_is_sitrans"] ?? "-",
+        originIsSitrans === null
+          ? "-"
+          : originIsSitrans === true
+            ? "interno"
+            : "externo",
+    },
+    {
+      icon: <FaCalendarAlt className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).scheduling as string,
+      value: (
+        <>
+          <FormattedDate
+            date={etd.format("MM/DD/YYYY HH:mm")}
+            format="datetime"
+          />
+          <span className="mx-2">-</span>
+          <FormattedDate
+            date={eta.format("MM/DD/YYYY HH:mm")}
+            format="datetime"
+          />
+        </>
+      ),
+      /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
     },
   ];
-  const scheduling = {
-    icon: <FaCalendarAlt className="w-4 h-4" />,
-    label: (msg!.cards as I18nRecord).scheduling as string,
-    value: (
-      <>
-        <FormattedDate
-          date={etd.format("MM/DD/YYYY HH:mm")}
-          format="datetime"
-        />
-        <span className="mx-2">-</span>
-        <FormattedDate
-          date={eta.format("MM/DD/YYYY HH:mm")}
-          format="datetime"
-        />
-      </>
-    ),
-    /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
-  };
 
   return (
     <div className="flex flex-col gap-2 w-fit">

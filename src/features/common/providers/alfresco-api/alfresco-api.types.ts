@@ -400,3 +400,8 @@ export type UpdateWebhookRequest = {
   webhookKind?: string;
   template?: string;
 };
+
+export type InfoError = {
+  info?: string;
+  message?: string;
+};

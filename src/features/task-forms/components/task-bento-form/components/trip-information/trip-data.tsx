@@ -115,51 +115,70 @@ export default function TripData({
       label: (msg!.cards as I18nRecord).supplierId as string,
       value: task.mintral_supplierId ?? "-",
     },
+  ];
+
+  // All elements whose data can variate a lot (to long texts) will be here
+  const variable_length_data = [
     {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierName as string,
       value: (task.mintral_supplierName as string) ?? "-",
     },
+    {
+      icon: <FaCalendarAlt className="w-4 h-4" />,
+      label: (msg!.cards as I18nRecord).scheduling as string,
+      value: (
+        <>
+          <FormattedDate
+            date={etd.format("MM/DD/YYYY HH:mm")}
+            format="datetime"
+          />
+          <span className="mx-2">-</span>
+          <FormattedDate
+            date={eta.format("MM/DD/YYYY HH:mm")}
+            format="datetime"
+          />
+        </>
+      ),
+      /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
+    },
   ];
-
-  const scheduling = {
-    icon: <FaCalendarAlt className="w-4 h-4" />,
-    label: (msg!.cards as I18nRecord).scheduling as string,
-    value: (
-      <>
-        <FormattedDate
-          date={etd.format("MM/DD/YYYY HH:mm")}
-          format="datetime"
-        />
-        <span className="mx-2">-</span>
-        <FormattedDate
-          date={eta.format("MM/DD/YYYY HH:mm")}
-          format="datetime"
-        />
-      </>
-    ),
-    /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
-  };
 
   return (
     <div className="flex flex-col gap-2 w-fit">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 w-fit">
-        {data.map((item, index) => (
-          <LoadableLabel
-            key={index}
-            label={item.label}
-            value={item.value as string}
-            isLoading={isLoading}
-            icon={item.icon}
-          />
-        ))}
+      <div className="flex flex-wrap gap-x-4 w-fit">
+        <div className="w-fit flex flex-col gap-2">
+          {data.slice(0, Math.ceil(data.length / 2)).map((item, index) => (
+            <LoadableLabel
+              key={index}
+              label={item.label}
+              value={item.value as string}
+              isLoading={isLoading}
+              icon={item.icon}
+            />
+          ))}
+        </div>
+        <div className="w-fit flex flex-col gap-2">
+          {data.slice(Math.ceil(data.length / 2)).map((item, index) => (
+            <LoadableLabel
+              key={index + Math.ceil(data.length / 2)}
+              label={item.label}
+              value={item.value as string}
+              isLoading={isLoading}
+              icon={item.icon}
+            />
+          ))}
+        </div>
       </div>
-      <LoadableLabel
-        label={scheduling.label}
-        value={scheduling.value}
-        isLoading={isLoading}
-        icon={scheduling.icon}
-      />
+      {variable_length_data.map((item, index) => (
+        <LoadableLabel
+          key={index}
+          label={item.label}
+          value={item.value}
+          isLoading={isLoading}
+          icon={item.icon}
+        />
+      ))}
     </div>
   );
 }

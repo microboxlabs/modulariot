@@ -123,6 +123,12 @@ export default function TripData({
         boolean | undefined
       >
     )["origin_is_sitrans"] ?? null;
+
+  let originIsSitransValue = "-";
+  if (originIsSitrans !== null) {
+    originIsSitransValue = originIsSitrans === true ? "interno" : "externo";
+  }
+
   // All elements whose data can variate a lot (to long texts) will be here
   const variable_length_data = [
     {
@@ -133,12 +139,7 @@ export default function TripData({
     {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg.cards as I18nRecord).originIsSitrans as string,
-      value:
-        originIsSitrans === null
-          ? "-"
-          : originIsSitrans === true
-            ? "interno"
-            : "externo",
+      value: originIsSitransValue,
     },
     {
       icon: <FaCalendarAlt className="w-4 h-4" />,

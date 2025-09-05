@@ -24,7 +24,7 @@ async function fetcherClient<T>(
         string,
         InfoError
       >;
-      if (parsedError.error && parsedError.error.message) {
+      if (parsedError?.error?.message) {
         errorMessage = parsedError.error.message as string;
       }
     }

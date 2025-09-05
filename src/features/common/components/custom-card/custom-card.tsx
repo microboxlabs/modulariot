@@ -15,16 +15,16 @@ export default function CustomCard({
         title == null && subtitle == null ? "gap-0" : "gap-2"
       } p-2`}
     >
-      <div className="block flex-shrink-0">
+      <div className="inline flex-shrink-0">
         {title && (
-          <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
+          <p className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7 ">
             {title}
-          </h1>
+          </p>
         )}
         {subtitle && (
-          <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400">
+          <p className="text-sm font-normal text-gray-500 dark:text-gray-400 w-fit">
             {subtitle}
-          </h2>
+          </p>
         )}
       </div>
       {children}

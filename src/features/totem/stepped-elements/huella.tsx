@@ -362,17 +362,20 @@ export default function Huella({
             <p className="text-xs text-red-500 text-center px-14">
               {(dict.totem as I18nRecord).id_card_manual_access_error as string}
             </p>
-          ) : (!manualVerificationLoading &&  <>
-              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
-                {
-                  (dict.totem as I18nRecord)
-                    .smart_lock_card_subtext_loading as string
-                }
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
-                {(dict.totem as I18nRecord).smart_lock_card_subtext as string}
-              </p>
-            </>
+          ) : (
+            !manualVerificationLoading && (
+              <>
+                <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+                  {
+                    (dict.totem as I18nRecord)
+                      .smart_lock_card_subtext_loading as string
+                  }
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 text-center px-6">
+                  {(dict.totem as I18nRecord).smart_lock_card_subtext as string}
+                </p>
+              </>
+            )
           )}
         </div>
         <Button

@@ -1,0 +1,24 @@
+# 🔔 Release Notes v1.19.1 — ModularIoT
+
+### Fecha: 05/09/2025
+
+**Objetivo**: corregir la visualización de mensajes de error en transiciones de proceso y robustecer el manejo de excepciones provenientes de ECM/Alerce (TMS), asegurando feedback claro para los usuarios del coordinador.
+
+## 🚀 Evolutivos
+
+- —
+
+## 🛠️ Refactorización / UX
+
+- **Gestión de errores unificada**: normalización del payload de error (code/message/details) y notificación consistente en pantalla al fallar acciones de flujo.
+
+## ✅ Correctivos
+
+- **Mensajes de error en transiciones del proceso** ([#718](https://github.com/microboxlabs/coordinador-webclient/issues/718))
+  - Ahora se muestra SIEMPRE un mensaje de error visible cuando falla una transición (botón "Continuar").
+  - Se propaga la causa probable desde backend (Alerce/ECM), usando el campo `message` y, cuando existe, detalles relevantes.
+  - Fallback seguro: si no hay detalle, se presenta un mensaje genérico y se registran los datos técnicos para soporte.
+
+## 📌 Conclusión
+
+Esta versión se enfoca en confiabilidad operativa: la UI comunica de forma clara las fallas en las transiciones de proceso, reduciendo incertidumbre y tiempos de resolución. Se establecen bases para una gestión de errores más consistente en futuras integraciones.

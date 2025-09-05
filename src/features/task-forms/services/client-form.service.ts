@@ -25,10 +25,7 @@ async function fetcherClient<T>(
         InfoError
       >;
       if (parsedError.error && parsedError.error.message) {
-        const errorMessageArray = parsedError.error.message.split(":");
-        errorMessage = errorMessageArray[
-          errorMessageArray.length - 1
-        ] as string;
+        errorMessage = parsedError.error.message as string;
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

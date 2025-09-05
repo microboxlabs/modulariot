@@ -125,13 +125,11 @@ export default async function httfetcher<T>(
     if (!response.ok) {
       const error = new Error(response.statusText) as FetcherError;
       error.status = response.status;
-
       // Try to parse error response as JSON, but handle cases where there's no body
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         error.info = await response.text();
       } catch (err) {
-        console.error("error response", err);
         error.info = null;
       }
 

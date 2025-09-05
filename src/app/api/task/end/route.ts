@@ -3,7 +3,10 @@ import {
   endTask,
   updateTask,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import {
+  AlfrescoErrorResponse,
+  InfoError,
+} from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { NextRequest, NextResponse } from "next/server";
 import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
 import { logger, logError } from "@/lib/logger";
@@ -65,63 +68,75 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function parseErrorAsJson(error: Error): AlfrescoErrorResponse {
+function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
   try {
-    const parsedError = JSON.parse(error.message) as Record<string, unknown>;
-    const errorMessage = parsedError.message as string;
-    // Regex to extract exception type and JSON details
-    let regex = /(\w+(?:\.\w+)*Error): ({.*})/;
-    let match = errorMessage.match(regex);
-
-    if (match) {
-      let [, exceptionType, jsonDetails] = match;
-      const details = JSON.parse(jsonDetails) as Record<string, unknown>;
-
+    if (error.info) {
+      const parsedError = JSON.parse(error.info) as Record<string, unknown>;
+      const errorMessage = parsedError.message as string;
       return {
-        code: (details.code as string) || "UNKNOWN_ERROR",
-        message: (details.message as string) || "An unknown error occurred",
-        exceptionType,
-        details,
-      };
-    }
-
-    regex = /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/;
-    match = errorMessage.match(regex);
-
-    if (match) {
-      let [, message] = match;
-      return {
-        code: "REQUIRED_DATA_MISSING",
-        message,
-        exceptionType: "RequiredDataMissingError",
+        code: "ERROR",
+        message: errorMessage,
+        exceptionType: "Error",
         details: {},
       };
     }
+    if (error.message) {
+      const parsedError = JSON.parse(error.message) as Record<string, unknown>;
+      const errorMessage = parsedError.message as string;
+      // Regex to extract exception type and JSON details
+      let regex = /(\w+(?:\.\w+)*Error): ({.*})/;
+      let match = errorMessage.match(regex);
 
-    regex = /com\.alerce\.errors\.AlerceLoginError: (.*)/;
-    match = errorMessage.match(regex);
+      if (match) {
+        let [, exceptionType, jsonDetails] = match;
+        const details = JSON.parse(jsonDetails) as Record<string, unknown>;
 
-    if (match) {
-      let [, message] = match;
-      return {
-        code: "ALERCE_LOGIN_ERROR",
-        message,
-        exceptionType: "AlerceLoginError",
-        details: {},
-      };
-    }
+        return {
+          code: (details.code as string) || "UNKNOWN_ERROR",
+          message: (details.message as string) || "An unknown error occurred",
+          exceptionType,
+          details,
+        };
+      }
 
-    regex =
-      /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/;
-    match = errorMessage.match(regex);
-    if (match) {
-      let [, message] = match;
-      return {
-        code: "DUPLICATE_LICENSE_PLATE_ERROR",
-        message,
-        exceptionType: "DuplicateLicensePlateError",
-        details: {},
-      };
+      regex = /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/;
+      match = errorMessage.match(regex);
+
+      if (match) {
+        let [, message] = match;
+        return {
+          code: "REQUIRED_DATA_MISSING",
+          message,
+          exceptionType: "RequiredDataMissingError",
+          details: {},
+        };
+      }
+
+      regex = /com\.alerce\.errors\.AlerceLoginError: (.*)/;
+      match = errorMessage.match(regex);
+
+      if (match) {
+        let [, message] = match;
+        return {
+          code: "ALERCE_LOGIN_ERROR",
+          message,
+          exceptionType: "AlerceLoginError",
+          details: {},
+        };
+      }
+
+      regex =
+        /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/;
+      match = errorMessage.match(regex);
+      if (match) {
+        let [, message] = match;
+        return {
+          code: "DUPLICATE_LICENSE_PLATE_ERROR",
+          message,
+          exceptionType: "DuplicateLicensePlateError",
+          details: {},
+        };
+      }
     }
 
     throw new Error("Unable to parse error details");

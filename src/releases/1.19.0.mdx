@@ -1,0 +1,35 @@
+# 🔔 Release Notes v1.19.0 — ModularIoT
+
+### Fecha: 05/09/2025
+
+**Objetivo**: consolidar nuevos procesadores de eventos MIOT, habilitar notificaciones operativas en tiempo real, y mejorar la estabilidad (auth/foros) junto con ajustes de UX para una operación más fluida.
+
+## 🚀 Evolutivos
+
+- **Notificaciones operativas (SSE/Teams)**
+  - Soporte a evento de **Confirmación de Arribo**.
+  - Soporte a evento de **Confirmación de Cierre de Monitoreo**.
+  - Ajustes de flujo: descripción al presentar conductor, gestión de **grupos** y **webhook de Teams** configurable.
+
+- **Procesadores de eventos MIOT**
+  - `ARRIVAL_AT_ORIGIN_OFFSITE` con **verificación biométrica de conductor**.
+  - `SERVICE_READY_TO_DEPART_OFFSITE` con transición a la tarea `VAL_MISSION_CONTROL_INIT_TRIP`.
+
+- **SPC (Spence)**: sistema de reporte para **datos históricos y actuales**.
+
+- **Síntoma de desvío de ruta**: nuevo síntoma basado en **checkpoint/trayecto**.
+
+## 🛠️ Refactorización / UX
+
+- **Timestamps unificados**: adopción de `FormattedDate` para marcas de tiempo en mensajes.
+
+## ✅ Correctivos
+
+- **Overlord (resultado virtual)**: ahora agrega correctamente el **comentario en Foro**.
+- **Autenticación**: `shouldRefresh` corregido; ya no retorna `true` indebidamente con **tokens expirados** (ventana de refresco).
+- **Razón inicial**: `getInitialReason` maneja `wfship2` y define **OTHER** por defecto cuando corresponde.
+- **Bentobox (UI)**: corrección de **breakpoint** para pantallas grandes.
+
+## 📌 Conclusión
+
+La versión 1.19.0 amplía la automatización operativa con nuevos eventos MIOT y notificaciones en tiempo real, introduce el reporte SPC y el síntoma de desvío de ruta, y mejora la consistencia visual con timestamps unificados. Se corrigen problemas relevantes en Overlord, autenticación y Bentobox, elevando la confiabilidad y fluidez del flujo de coordinación.

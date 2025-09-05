@@ -51,9 +51,9 @@ export default function Bento({
       {/* Content */}
       <div className="gap-2 p-2 bg-gray-50 dark:bg-gray-900 h-fit grid grid-cols-1 lg:grid-cols-3">
         {/* Trip Information and Driver Info - side by side on portrait, separate on landscape */}
-        <div className="col-span-2 flex flex-wrap flex-col md:flex-row gap-2">
+        <div className="col-span-2 flex flex-col md:flex-row gap-2">
           {/* Trip Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full lg:w-fit">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
             <TripInformation
               task={task}
               msg={dict}
@@ -63,7 +63,7 @@ export default function Bento({
           </div>
 
           {/* Driver Info */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full md:w-fit">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow">
             <DriverInfo task={task} msg={dict} />
           </div>
         </div>

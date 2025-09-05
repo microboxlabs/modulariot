@@ -25,7 +25,7 @@ async function fetcherClient<T>(
         InfoError
       >;
       if (parsedError?.error?.message) {
-        errorMessage = parsedError.error.message as string;
+        errorMessage = parsedError.error.message;
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

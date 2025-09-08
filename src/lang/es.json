@@ -1204,6 +1204,9 @@
     "reject_reason": "Motivo de rechazo"
   },
   "bento": {
+    "internal": "Inicio Interno",
+    "external": "Inicio Externo",
+    "urgency": "Urgencia",
     "today": "Hoy",
     "yesterday": "Ayer",
     "trip": "Viaje",

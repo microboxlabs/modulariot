@@ -116,18 +116,6 @@ export default function TripData({
       value: task.mintral_supplierId ?? "-",
     },
   ];
-  const originIsSitrans =
-    (
-      JSON.parse(task.mintral_geofenceDestinationMetadata as string) as Record<
-        string,
-        boolean | undefined
-      >
-    )["origin_is_sitrans"] ?? null;
-
-  let originIsSitransValue = "-";
-  if (originIsSitrans !== null) {
-    originIsSitransValue = originIsSitrans === true ? "interno" : "externo";
-  }
 
   // All elements whose data can variate a lot (to long texts) will be here
   const variable_length_data = [
@@ -135,11 +123,6 @@ export default function TripData({
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierName as string,
       value: (task.mintral_supplierName as string) ?? "-",
-    },
-    {
-      icon: <FaTruck className="w-4 h-4" />,
-      label: (msg.cards as I18nRecord).originIsSitrans as string,
-      value: originIsSitransValue,
     },
     {
       icon: <FaCalendarAlt className="w-4 h-4" />,

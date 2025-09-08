@@ -1202,6 +1202,9 @@
     "reject_reason": "Reject reason"
   },
   "bento": {
+    "internal": "Internal start",
+    "external": "External start",
+    "urgency": "Urgency",
     "today": "Today",
     "yesterday": "Yesterday",
     "trip": "Trip",

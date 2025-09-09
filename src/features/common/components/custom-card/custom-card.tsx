@@ -44,7 +44,7 @@ export default function CustomCard({
                   <Badge
                     className="flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5"
                     /* className="inline-flex items-center px-2 py-1 me-2 text-sm font-medium text-gray-800 bg-gray-100 rounded-sm dark:bg-gray-700 dark:text-gray-300" */
-                    key={index}
+                    key={badge.text + index}
                     color={badge.color || "gray"}
                     icon={badge.icon}
                     size="sm"

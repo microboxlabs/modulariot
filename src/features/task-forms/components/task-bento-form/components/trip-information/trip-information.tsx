@@ -30,7 +30,7 @@ export default function TripInformation({
   }
 
   let originIsSitransValue = "-";
-  if (originIsSitrans !== null) {
+  if (originIsSitrans !== null && originIsSitrans !== undefined) {
     originIsSitransValue = originIsSitrans === true ? "internal" : "external";
   }
 
@@ -48,7 +48,7 @@ export default function TripInformation({
     icon: any;
   }> = [];
 
-  if (originIsSitrans !== null) {
+  if (originIsSitrans !== null && originIsSitrans !== undefined) {
     badges.push({
       text: (msg.bento as I18nRecord)[
         originIsSitransValue as keyof I18nRecord

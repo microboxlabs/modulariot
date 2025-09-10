@@ -13,7 +13,7 @@ export const pages: SidebarItem[] = [
   },
   {
     icon: ClipboardIcon,
-    label: "tasks",
+    label: "kanban",
     items: [
       // {
       //   href: "/warehouse",
@@ -58,6 +58,19 @@ export const pages: SidebarItem[] = [
       //   label: "others",
       //   totals: {},
       // },
+    ],
+    totals: {},
+    requiredGroups: [],
+  },
+  {
+    icon: ClipboardIcon,
+    label: "tasks",
+    items: [
+      {
+        href: "/mytasks",
+        label: "completed_tasks",
+        totals: {},
+      },
     ],
     totals: {},
     requiredGroups: [],

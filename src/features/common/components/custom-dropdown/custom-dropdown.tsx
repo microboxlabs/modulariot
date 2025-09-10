@@ -1,0 +1,48 @@
+import { Dropdown, DropdownItem } from "flowbite-react";
+import React from "react";
+
+export default function CustomDropdown({
+  options,
+  renderTrigger,
+}: {
+  options: {
+    id: number;
+    label: string;
+    icon: React.ReactElement;
+    function: () => void;
+  }[];
+  renderTrigger: React.ReactElement;
+}) {
+  return (
+    <Dropdown
+      placement="bottom-start"
+      label={false}
+      renderTrigger={() => renderTrigger}
+      theme={{
+        content: "z-20 w-full",
+        floating: {
+          base: "overflow-hidden rounded-lg z-20",
+          item: {
+            container: "w-full",
+          },
+          style: {
+            auto: "border border-gray-200 bg-white text-gray-900 dark:border-gray-500 dark:bg-gray-700 dark:text-white",
+          },
+        },
+      }}
+    >
+      {options.map(({ label, icon, function: Function }, index) => (
+        <DropdownItem
+          key={index}
+          className="flex gap-2 w-full"
+          onClick={() => {
+            Function();
+          }}
+        >
+          {icon}
+          {label}
+        </DropdownItem>
+      ))}
+    </Dropdown>
+  );
+}

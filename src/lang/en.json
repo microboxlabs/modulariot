@@ -819,6 +819,7 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "completed_tasks": "Completed tasks",
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",

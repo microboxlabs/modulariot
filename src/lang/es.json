@@ -815,6 +815,7 @@
       "sidebar": {
         "home": "Home",
         "tasks": "Mis tareas",
+        "completed_tasks": "Tareas completadas",
         "werehouse": "Bodega",
         "logistics": "Logística",
         "shipping": "Despachos",

@@ -5,30 +5,33 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useMyTasks } from "../../providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
+  SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
-import {
-  DeliveryProcessTask,
-  ShippingCoordinatorProcessTaskV2,
-} from "@/features/task-forms/services/form.service.types";
+import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
+import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({ dict }: { dict: I18nRecord }) {
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status");
   const pageSize = 100;
-  const columns = [
-    ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
-    ...DELIVERY_COORDINATOR_PROCESS_TASKS,
-  ];
-  //    : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
+  const columns =
+    status === "pending"
+      ? [
+          ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+          ...DELIVERY_COORDINATOR_PROCESS_TASKS,
+        ]
+      : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
 
   const {
     data: myTasksData,
     error: myTasksError,
     isLoading: isLoading,
-  } = useMyTasks([...columns], false, 1, pageSize, "");
+  } = useMyTasks([...columns], status === "finished", 1, pageSize, "");
 
   const tasks = Object.values(myTasksData?.data ?? {})
     .map((taskObject) =>
@@ -41,9 +44,6 @@ export default function MyTasks({ dict }: { dict: I18nRecord }) {
           areaType:
             SHIPPING_COORDINATOR_PROCESS_TASKS_V2.indexOf(
               taskObject.id as unknown as ShippingCoordinatorProcessTaskV2
-            ) !== -1 ||
-            DELIVERY_COORDINATOR_PROCESS_TASKS.indexOf(
-              taskObject.id as unknown as DeliveryProcessTask
             ) !== -1
               ? "shipping"
               : "delivery",

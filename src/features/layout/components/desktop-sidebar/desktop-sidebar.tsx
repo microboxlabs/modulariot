@@ -71,6 +71,8 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
     newTotals["finished"] = finishedTasks?.total ?? 0;
+    newTotals["pending_tasks"] = totals["delivery"] + totals["shipping"];
+    newTotals["completed_tasks"] = finishedTasks?.total ?? 0;
     setTotals(newTotals);
   }, [mapCount, symptomsCount, finishedTasks]);
 

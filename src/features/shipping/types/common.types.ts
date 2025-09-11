@@ -42,6 +42,9 @@ export type KanbanBoardTask = {
   mintral_supplierName?: string;
   mintral_priorityCode?: string;
   isEditable: boolean;
+  taskType?: string;
+  areaType?: string;
+  duration?: string;
 };
 
 export type KanbanBoardTaskMember = {

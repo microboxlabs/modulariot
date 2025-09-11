@@ -105,7 +105,7 @@
         "length": "Length",
         "width": "Width",
         "height": "Height"
-      },
+      },      
       "card": {
         "origin": "Origin",
         "destination": "Dest",
@@ -820,6 +820,7 @@
       "sidebar": {
         "home": "Home",
         "completed_tasks": "Completed tasks",
+        "pending_tasks": "Pending tasks",
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
@@ -1322,6 +1323,34 @@
       "NO_CLIENT_SYSTEM_VALIDATION": "No client system validation"
     }
   },
+  "myTasks": {
+        "missionControl": "Mission Control",
+        "overlord": "Overlord",
+        "sovosDigitalSignature": "SOVOS Digital Signature",
+        "tripInitiatedOutside": "Trip Initiated Outside",
+        "monitoringInCourseTrip": "Monitoring in Course Trip",
+        "confirmTripDestinationArrival": "Confirm Trip Destination Arrival",
+        "confirmTripDestinationDeparture": "Confirm Trip Destination Departure",
+        "confirmDelivery": "Confirm Delivery",
+        "confirmMonitoringFinalization": "Confirm Monitoring Finalization",
+        "monitoringFinalization": "Monitoring Finalization",
+        "tripInitiated": "Trip Initiated",
+        "tripNullified": "Trip Nullified",
+        "tripCancelled": "Trip Cancelled",
+        "assignDriver": "Assign Driver",
+        "presentDriver": "Driver Presentation",
+        "prepareService": "Service Control",
+        "monitorTrip": "Monitoring in course trip",
+        "confirmArrival": "Confirm trip destination arrival",
+        "closeMonitoring": "Confirm monitoring finalization",
+        "receiveDelivery": "Receive delivery",
+        "notifyTMSArrival": "Notify arrival (4.7)",
+        "notifyTMSDelivery": "Notify delivery (5.11)",
+        "finished_process": "Process Finished",
+        "finished": "Finished",
+        "shipping": "Shipping",
+        "delivery": "Delivery"
+      },
   "cards": {
     "tripInformation": "Trip Information",
     "transportNumberCode": "Transport Number",

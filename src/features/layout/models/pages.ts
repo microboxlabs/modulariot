@@ -67,7 +67,12 @@ export const pages: SidebarItem[] = [
     label: "tasks",
     items: [
       {
-        href: "/mytasks",
+        href: "/mytasks?status=pending",
+        label: "pending_tasks",
+        totals: {},
+      },
+      {
+        href: "/mytasks?status=finished",
         label: "completed_tasks",
         totals: {},
       },

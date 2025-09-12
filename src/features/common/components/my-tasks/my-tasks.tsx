@@ -2,7 +2,10 @@
 import TaskList from "./components/tasks";
 import TaskListTitle from "./components/title/title";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useMyTasks } from "../../providers/client-api.provider";
+import {
+  useMyTasks,
+  useSearchTasks,
+} from "../../providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
@@ -12,31 +15,63 @@ import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
 import { useSearchParams } from "next/navigation";
+//import { useSearchParams } from "next/navigation";
 
-export default function MyTasks({ dict }: { dict: I18nRecord }) {
+export default function MyTasks({
+  dict,
+  status,
+}: {
+  dict: I18nRecord;
+  status: string;
+}) {
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
   const searchParams = useSearchParams();
-  const status = searchParams.get("status");
+
   const pageSize = 100;
   const columns =
-    status === "pending"
+    status === "pending" || status === ""
       ? [
           ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
           ...DELIVERY_COORDINATOR_PROCESS_TASKS,
         ]
       : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
 
-  const {
+  let {
     data: myTasksData,
     error: myTasksError,
     isLoading: isLoading,
-  } = useMyTasks([...columns], status === "finished", 1, pageSize, "");
+  } = useMyTasks(
+    [...columns],
+    status === "finished",
+    1,
+    pageSize,
+    searchParams.toString()
+  );
+
+  const {
+    data: searchTasksData,
+    error: searchTasksError,
+    isLoading: _2,
+  } = useSearchTasks(status === "finished" ? null : searchParams.get("search"));
+
+  if (searchTasksData) {
+    if (myTasksData) myTasksData!.data = searchTasksData.data;
+    else
+      myTasksData = {
+        data: searchTasksData.data,
+        total: searchTasksData.total,
+      };
+  }
+
+  if (searchTasksError) {
+    return <div>Error: {searchTasksError.message}</div>;
+  }
 
   const tasks = Object.values(myTasksData?.data ?? {})
     .map((taskObject) =>
       taskObject.tasks
-        .filter((task) => task.isEditable)
+        .filter((task) => (status === "finished" ? true : task.isEditable))
         .map((task) => ({
           ...task,
           duration: duration(task),

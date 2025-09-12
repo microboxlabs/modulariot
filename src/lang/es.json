@@ -1349,9 +1349,15 @@
         "notifyTMSArrival": "Notificar Arribo",
         "notifyTMSDelivery": "Notificar Entrega",
         "finished_process": "Proceso Terminado",
+        "tripNullifiedByOverlord": "Viaje anulado por Overlord",
+        "tripCanceledByOverlord": "Viaje cancelado por Overlord",
+        "canceled": "Cancelado",
+        "nullified": "Anulado",
         "finished": "Finalizado",
         "shipping": "Despachos",
-        "delivery": "Entregas"
+        "delivery": "Entregas",
+        "pending_tasks": "Tareas pendientes",
+        "completed_tasks": "Tareas completadas"
       },
   "cards": {
     "driverContactInfo": "Información de contacto",

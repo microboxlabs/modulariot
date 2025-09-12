@@ -1347,9 +1347,15 @@
         "notifyTMSArrival": "Notify arrival (4.7)",
         "notifyTMSDelivery": "Notify delivery (5.11)",
         "finished_process": "Process Finished",
+        "tripNullifiedByOverlord": "Trip Nullified by Overlord",
+        "tripCanceledByOverlord": "Trip Canceled by Overlord",
+        "canceled": "Canceled",
+        "nullified": "Nullified",
         "finished": "Finished",
         "shipping": "Shipping",
-        "delivery": "Delivery"
+        "delivery": "Delivery",
+        "pending_tasks": "Pending tasks",
+        "completed_tasks": "Completed tasks"
       },
   "cards": {
     "tripInformation": "Trip Information",

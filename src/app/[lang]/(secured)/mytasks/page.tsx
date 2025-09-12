@@ -6,14 +6,21 @@ import MyTasks from "@/features/common/components/my-tasks/my-tasks";
 
 export default async function MyTasksPage({
   params: { lang },
-}: ParamsWithLang) {
+  searchParams,
+}: ParamsWithLang & { searchParams: { status: string } }) {
   const [, dict] = await getDictionary(lang);
+  const status = searchParams.status || "pending";
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
-          path={["tasks", "tareas completadas"]}
+          path={[
+            "tasks",
+            status === "finished"
+              ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
+              : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string),
+          ]}
           lang={lang}
           rootIcon={<FaBook className="mr-2 h-4 w-4" />}
           dict={
@@ -23,7 +30,7 @@ export default async function MyTasksPage({
           }
         />
       </div>
-      <MyTasks dict={dict} />
+      <MyTasks dict={dict} status={status} />
     </div>
   );
 }

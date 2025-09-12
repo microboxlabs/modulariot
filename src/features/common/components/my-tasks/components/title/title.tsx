@@ -1,6 +1,6 @@
-import { FaBook, FaClock, FaPlusCircle, FaMapPin } from "react-icons/fa";
-import Tag from "../tag";
-import { ListOptions } from "./list-options";
+import { FaBook /* FaClock, FaPlusCircle, FaMapPin  */ } from "react-icons/fa";
+//import Tag from "../tag";
+//import { ListOptions } from "./list-options";
 
 export default function TaskListTitle() {
   return (
@@ -10,11 +10,11 @@ export default function TaskListTitle() {
         <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
           <FaBook className="h-4 w-4" />
         </div>
-        Tareas Turno Día
+        {/* Tareas Turno Día */}
       </div>
 
       {/* Filters */}
-      <div className="text-gray-600 dark:text-gray-400 flex flex-row items-center gap-2">
+      {/* <div className="text-gray-600 dark:text-gray-400 flex flex-row items-center gap-2">
         Filtros
         <Tag>
           <FaClock />
@@ -28,10 +28,10 @@ export default function TaskListTitle() {
           <FaPlusCircle />
           Urgentes
         </Tag>
-      </div>
+      </div> */}
 
       {/* Options */}
-      <ListOptions />
+      {/* <ListOptions /> */}
     </div>
   );
 }

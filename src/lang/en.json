@@ -819,6 +819,7 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "kanban": "Kanban",
         "completed_tasks": "Completed tasks",
         "pending_tasks": "Pending tasks",
         "tasks": "My tasks",

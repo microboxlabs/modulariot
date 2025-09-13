@@ -2,6 +2,7 @@ import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
 import { SidebarItem } from "../types/common.types";
+import FaBookIcon from "@/features/icons/FaBook";
 
 export const pages: SidebarItem[] = [
   {
@@ -63,7 +64,7 @@ export const pages: SidebarItem[] = [
     requiredGroups: [],
   },
   {
-    icon: ClipboardIcon,
+    icon: FaBookIcon,
     label: "tasks",
     items: [
       {

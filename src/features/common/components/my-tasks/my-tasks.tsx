@@ -96,7 +96,7 @@ export default function MyTasks({
 
   return (
     <div className="flex flex-col flex-grow bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-hidden">
-      <TaskListTitle />
+      <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
       <TaskList dict={dict} tasks={tasks as unknown as KanbanBoardTask[]} />
     </div>
   );

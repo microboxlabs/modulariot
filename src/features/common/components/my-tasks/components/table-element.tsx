@@ -3,6 +3,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { Table } from "flowbite-react";
 import { FormattedDate } from "../../formatted-date/formatted-date";
+import Link from "next/link";
 
 export default function TableElement({
   task,
@@ -15,7 +16,9 @@ export default function TableElement({
     <Table.Row className="bg-white dark:bg-gray-800">
       <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex flex-col text-xl">
-          {tr(`myTasks.${task.taskType}`, dict)}
+          <Link href={`/task/edit/${task.id}`}>
+            {tr(`myTasks.${task.taskType}`, dict)}
+          </Link>
           <div className="flex flex-row gap-4 text-sm font-light">
             <span className="text-gray-500 dark:text-gray-400">
               {task.name}

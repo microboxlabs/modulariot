@@ -6,5 +6,5 @@ export default function CustomizableDropdown({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="relative">{children}</div>;
+  return <div className="absolute ">{children}</div>;
 }

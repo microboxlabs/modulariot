@@ -5,6 +5,9 @@ type Style = {
   headClassName?: string;
   bodyClassName?: string;
   rootClassName?: string;
+  containerClassName?: string;
+  stripped?: boolean;
+  innerScroll?: boolean;
 };
 
 /**
@@ -27,6 +30,9 @@ export default function CustomTable({
     headClassName: "",
     bodyClassName: "",
     rootClassName: "",
+    containerClassName: "flex-1 min-h-0 overflow-y-auto",
+    stripped: true,
+    innerScroll: true, // This allows the item to scroll only the body
   },
   isLoading = false,
   error = null,
@@ -77,25 +83,39 @@ export default function CustomTable({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className={` ${style.containerClassName}`}>
+      <style>
+        {`
+          .row td {
+        padding-top:10px;
+        padding-bottom:10px;
+        }
+
+        .row td:first-child {
+            padding-left:10px;
+        }
+        .row td:last-child {
+            padding-right:10px;
+        }
+        `}
+      </style>
       <Table
-        striped
+        striped={style.stripped}
         hoverable={hoverable}
-        style={{ borderSpacing: "0 8px" }}
         theme={{
           root: {
-            base: "w-full text-left text-sm text-gray-500 dark:text-gray-400 border-separate",
+            base: `w-full text-left text-sm text-gray-500 dark:text-gray-400 ${style.rootClassName}`,
             shadow: "",
             wrapper: "relative",
           },
           head: {
-            base: "group/head text-xs uppercase text-gray-700 dark:text-gray-400 sticky top-0 z-10 bg-gray-50 dark:bg-gray-700",
+            base: `group/head text-xs uppercase text-gray-700 dark:text-gray-400 ${style.innerScroll ? "sticky top-0 bottom-0" : ""} z-10`,
             cell: {
-              base: `bg-gray-50 px-6 py-3 dark:bg-gray-700 sticky top-0 ${style.headClassName}`,
+              base: `bg-gray-50 px-6 py-3 dark:bg-gray-700 py-2 ${style.innerScroll ? "sticky top-0" : ""} ${style.headClassName}`,
             },
           },
           body: {
-            base: "group/body",
+            base: "group/body rounded-lg",
             cell: {
               base: `px-6 py-1 ${style.bodyClassName}`,
             },
@@ -138,6 +158,7 @@ function getListOrElement(
       }
     });
   } else {
+    console.log("Item?", item);
     return item;
   }
 }

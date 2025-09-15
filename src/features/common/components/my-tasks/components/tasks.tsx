@@ -6,7 +6,15 @@ import TaskListElement from "./task-element";
 import { Spinner } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
 
-export default function TaskList({ dict }: { dict: I18nRecord }) {
+import { KanbanBoardTask } from "@/features/shipping/types/common.types";
+
+export default function TaskList({
+  dict,
+  tasks,
+}: {
+  dict: I18nRecord;
+  tasks: KanbanBoardTask[];
+}) {
   const header = [
     tr("my_tasks.stage", dict),
     tr("my_tasks.duration", dict),
@@ -15,164 +23,9 @@ export default function TaskList({ dict }: { dict: I18nRecord }) {
     tr("my_tasks.client", dict),
   ];
 
-  const content = [
-    <TaskListElement
-      key="dato-1"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={3}
-    />,
-    <TaskListElement
-      key="dato-2"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={3}
-    />,
-    <TaskListElement
-      key="dato-3"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={2}
-    />,
-    <TaskListElement
-      key="dato-4"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={1}
-    />,
-    <TaskListElement
-      key="dato-5"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-6"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-7"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-8"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-9"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-10"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-11"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-12"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-    <TaskListElement
-      key="dato-13"
-      type="Viaje Iniciado"
-      state="En Progreso"
-      service="#1420423-v"
-      date="14-08-2025"
-      duration="02:22:45 hrs"
-      licensePlate="PBHX50"
-      route="SLC-MEL"
-      client="BHP"
-      alert_level={0}
-    />,
-  ];
+  const content = tasks.map((task) => (
+    <TaskListElement key={task.id} task={task} dict={dict} />
+  ));
 
   return (
     <div className="w-full h-fit relative">

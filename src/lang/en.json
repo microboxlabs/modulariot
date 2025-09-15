@@ -1406,5 +1406,12 @@
     "subtitle": "Here you can view the comments entered.",
     "migrating": "Comments in migration process",
     "no_comments": "No comments"
+  },
+  "my_tasks": {
+    "stage": "Stage",
+    "duration": "Duration",
+    "license_plate": "License Plate",
+    "route": "Route",
+    "client": "Client"
   }
 }

@@ -8,7 +8,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   useMyTasks,
   useSearchTasks,
-  useUserFilters,
+  //  useUserFilters,
 } from "../../providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -18,7 +18,9 @@ import {
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  /* usePathname, useRouter,  */ useSearchParams,
+} from "next/navigation";
 //import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({
@@ -28,9 +30,9 @@ export default function MyTasks({
   dict: I18nRecord;
   status: string;
 }) {
-  const router = useRouter();
-  const pathName = usePathname();
   const searchParams = useSearchParams();
+  /* const router = useRouter();
+  const pathName = usePathname();
   const {
     data: userFiltersData,
     error: _userFiltersError,
@@ -46,7 +48,7 @@ export default function MyTasks({
       params.set(key, value);
     });
     router.push(`${pathName}?${params.toString()}`);
-  }
+  } */
 
   const [showScroll, setShowScroll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);

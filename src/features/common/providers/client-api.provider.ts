@@ -901,7 +901,7 @@ export async function deleteWebhookDefinitionClient(webhookDefNodeRef: string) {
 }
 
 export interface UserFiltersResponse {
-  data: string;
+  data: string[];
 }
 
 export function useUserFilters() {

@@ -5,6 +5,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   useMyTasks,
   useSearchTasks,
+  useUserFilters,
 } from "../../providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -14,7 +15,7 @@ import {
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 //import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({
@@ -26,7 +27,25 @@ export default function MyTasks({
 }) {
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
+  const router = useRouter();
+  const pathName = usePathname();
   const searchParams = useSearchParams();
+  const {
+    data: userFiltersData,
+    error: _userFiltersError,
+    isLoading: _userFiltersLoading,
+  } = useUserFilters();
+
+  if (userFiltersData && status === "pending") {
+    const filters = userFiltersData.split("&");
+    const params = new URLSearchParams(searchParams.toString());
+
+    filters.forEach((filter) => {
+      const [key, value] = filter.split("=");
+      params.set(key, value);
+    });
+    router.push(`${pathName}?${params.toString()}`);
+  }
 
   const pageSize = 100;
   const columns =

@@ -1,10 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { FaArrowUp } from "react-icons/fa"; // install react-icons if not yet
 import TaskList from "./components/tasks";
 import TaskListTitle from "./components/title/title";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
+import { useRef, useState } from "react";
 import {
   useMyTasks,
   useSearchTasks,
@@ -18,6 +16,7 @@ import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
 import { useSearchParams } from "next/navigation";
+//import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({
   dict,
@@ -26,10 +25,25 @@ export default function MyTasks({
   dict: I18nRecord;
   status: string;
 }) {
+  //const [isLoading, setIsLoading] = useState(false);
+  //const hoverTimeoutRef = useRef<number | null>(null);
   const searchParams = useSearchParams();
 
-  const [showScroll, setShowScroll] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const onScroll = () => {
+    if (scrollRef.current) {
+      setHasScrolled(scrollRef.current.scrollTop > 0);
+    }
+  };
+
+  // Optional: scroll to top handler
+  const scrollToTop = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const pageSize = 100;
   const columns =
@@ -67,43 +81,6 @@ export default function MyTasks({
       };
   }
 
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      setShowScroll(scrollTop > 200);
-    };
-
-    container.addEventListener("scroll", handleScroll);
-
-    // Check initial scroll position
-    handleScroll();
-
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Re-check scroll position when content changes
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (container && myTasksData) {
-      // Small delay to ensure content is rendered
-      const timeoutId = setTimeout(() => {
-        const handleScroll = () => {
-          setShowScroll(container.scrollTop > 200);
-        };
-        handleScroll();
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [myTasksData]);
-
-  const scrollToTop = () => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   if (searchTasksError) {
     return <div>Error: {searchTasksError.message}</div>;
   }
@@ -137,20 +114,30 @@ export default function MyTasks({
   return (
     <div
       ref={scrollRef}
-      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative flex-grow h-full max-h-screen"
+      onScroll={onScroll}
+      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen"
     >
       <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
       <TaskList dict={dict} tasks={tasks as unknown as KanbanBoardTask[]} />
-
-      {showScroll && (
+      {hasScrolled && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-16 right-6 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all duration-200 z-50 opacity-90 hover:opacity-100"
+          className="fixed bottom-16 right-6 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all duration-200 z-10 hover:opacity-100 h-10 w-10 flex items-center justify-center"
           title="Scroll to top"
         >
-          <FaArrowUp className="w-4 h-4" />
+          ↑
         </button>
       )}
     </div>
   );
 }
+
+/*
+  <button
+    onClick={scrollToTop}
+    className="fixed bottom-16 right-6 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all duration-200 z-10 opacity-90 hover:opacity-100"
+    title="Scroll to top"
+  >
+    <FaArrowUp className="w-4 h-4" />
+  </button>
+*/

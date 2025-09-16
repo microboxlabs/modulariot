@@ -14,6 +14,7 @@ import { taskNextAction } from "../../services/client-form.service";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
+import BrandedMultiSelect from "./branded-multi-select";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
   OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
@@ -33,11 +34,14 @@ import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.ty
 type SelectOption = {
   value: string;
   labelKey: string;
+  descriptionKey?: string; // Optional: supporting text key for branded multi-select
 };
 
 type SelectConfig = {
   options: SelectOption[];
-  defaultValue: string;
+  defaultValue: string | string[];
+  multiSelect?: boolean; // Flag to enable multi-select mode
+  triggerText?: string; // Text shown in collapsed multi-select state
 };
 
 type SelectOptionsConfig = {
@@ -148,22 +152,58 @@ const SELECT_OPTIONS_CONFIG: SelectOptionsConfig = {
       defaultValue: "NO_GPS_VALIDATION",
     },
     [OUTCOME_PREPARE_SERVICE_V2]: {
+      multiSelect: true,
+      triggerText: "Seleccionar motivos de rechazo",
       options: [
+        // Image rejection reasons
+        {
+          value: "REJECTED_GUIDE",
+          labelKey: "rejectedGuide",
+          descriptionKey: "rejectedGuideDesc",
+        },
+        {
+          value: "REJECTED_LEFT_SIDE",
+          labelKey: "rejectedLeftSide",
+          descriptionKey: "rejectedLeftSideDesc",
+        },
+        {
+          value: "REJECTED_RIGHT_SIDE",
+          labelKey: "rejectedRightSide",
+          descriptionKey: "rejectedRightSideDesc",
+        },
+        {
+          value: "REJECTED_FRONT",
+          labelKey: "rejectedFront",
+          descriptionKey: "rejectedFrontDesc",
+        },
+        {
+          value: "REJECTED_BACK",
+          labelKey: "rejectedBack",
+          descriptionKey: "rejectedBackDesc",
+        },
+        // Technical reasons
         {
           value: "NO_GPS_VALIDATION",
           labelKey: "missionControlTripInitTaskReason1",
+          descriptionKey: "noGpsValidationDesc",
         },
         {
           value: "NO_DOCUMENT_CONSOLIDATION",
           labelKey: "missionControlTripInitTaskReason2",
+          descriptionKey: "noDocumentConsolidationDesc",
         },
         {
           value: "NO_CLIENT_SYSTEM_VALIDATION",
           labelKey: "missionControlTripInitTaskReason3",
+          descriptionKey: "noClientSystemValidationDesc",
         },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
+        {
+          value: "OTHER",
+          labelKey: "missionControlTripInitTaskReason4",
+          descriptionKey: "otherReasonDesc",
+        },
       ],
-      defaultValue: "NO_GPS_VALIDATION",
+      defaultValue: [],
     },
   },
 };
@@ -197,30 +237,62 @@ export default function TaskConfirmModal({
     return getSelectConfig(taskType, outcome);
   }, [taskType, outcome]);
 
-  // Initialize reason state
-  const [reason, setReason] = useState("");
+  // Initialize reason state - can be string for single-select or string[] for multi-select
+  const [reason, setReason] = useState<string | string[]>("");
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
 
   // Update reason when selectConfig changes or modal opens
   useEffect(() => {
-    if (openModal && selectConfig && !reason) {
-      setReason(selectConfig.defaultValue);
+    if (openModal && selectConfig) {
+      if (selectConfig.multiSelect) {
+        // Multi-select mode: initialize selectedReasons array
+        if (
+          selectedReasons.length === 0 &&
+          Array.isArray(selectConfig.defaultValue)
+        ) {
+          setSelectedReasons(selectConfig.defaultValue);
+        }
+      } else {
+        // Single-select mode: initialize reason string
+        if (!reason && typeof selectConfig.defaultValue === "string") {
+          setReason(selectConfig.defaultValue);
+        }
+      }
     }
-  }, [openModal, selectConfig, reason]);
+  }, [openModal, selectConfig, reason, selectedReasons]);
 
   async function handleConfirm() {
     try {
-      // Use the current reason state directly, or fallback to default if empty
-      let calculatedReason = reason;
-      if (calculatedReason === "" && selectConfig) {
-        calculatedReason = selectConfig.defaultValue;
-      }
       setIsProcessing(true);
       const formData = new FormData();
       formData.append("taskId", taskId);
       formData.append("transitionId", outcome!);
       formData.append("comments", comments);
-      formData.append("reason", calculatedReason);
       formData.append("reasonId", taskType ?? "");
+
+      // Handle both single and multi-select reasons
+      if (selectConfig?.multiSelect) {
+        // Multi-select mode: send array of reasons
+        const reasonsToSend =
+          selectedReasons.length > 0
+            ? selectedReasons
+            : Array.isArray(selectConfig.defaultValue)
+              ? selectConfig.defaultValue
+              : [];
+        formData.append("reasons", JSON.stringify(reasonsToSend));
+        formData.append("isMultiReason", "true");
+      } else {
+        // Single-select mode: send single reason
+        let calculatedReason = typeof reason === "string" ? reason : "";
+        if (
+          calculatedReason === "" &&
+          selectConfig &&
+          typeof selectConfig.defaultValue === "string"
+        ) {
+          calculatedReason = selectConfig.defaultValue;
+        }
+        formData.append("reason", calculatedReason);
+      }
       if (extraData) {
         Object.entries(extraData).forEach(([key, value]) => {
           formData.append(key, value as string);
@@ -257,6 +329,7 @@ export default function TaskConfirmModal({
     setIsProcessing(false);
     setError(undefined);
     setReason(""); // Reset reason when modal closes
+    setSelectedReasons([]); // Reset selected reasons when modal closes
     setOpenModal(false);
   }
 
@@ -280,16 +353,28 @@ export default function TaskConfirmModal({
                 <Label className="mt-4">
                   {(dict.modal as I18nRecord).title2 as string}
                 </Label>
-                <Select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  {selectConfig.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {(dict.modal as I18nRecord)[option.labelKey] as string}
-                    </option>
-                  ))}
-                </Select>
+                {selectConfig.multiSelect ? (
+                  <BrandedMultiSelect
+                    options={selectConfig.options}
+                    selectedValues={selectedReasons}
+                    onSelectionChange={setSelectedReasons}
+                    triggerText={
+                      selectConfig.triggerText || "Seleccionar opciones"
+                    }
+                    dict={dict}
+                  />
+                ) : (
+                  <Select
+                    value={typeof reason === "string" ? reason : ""}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    {selectConfig.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {(dict.modal as I18nRecord)[option.labelKey] as string}
+                      </option>
+                    ))}
+                  </Select>
+                )}
               </>
             )}
 

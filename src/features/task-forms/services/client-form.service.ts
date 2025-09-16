@@ -70,6 +70,8 @@ export async function taskNextAction(
 
   const reasonId = formData.get("reasonId");
   const reason = formData.get("reason");
+  const reasons = formData.get("reasons");
+  const isMultiReason = formData.get("isMultiReason");
 
   return fetcherClient<TaskNextActionState>("/app/api/task/end", {
     method: "POST",
@@ -83,6 +85,8 @@ export async function taskNextAction(
       nativeGenerationEnabled,
       reasonId,
       reason,
+      reasons,
+      isMultiReason,
     }),
   });
 }

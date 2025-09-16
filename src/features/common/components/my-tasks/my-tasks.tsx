@@ -31,8 +31,26 @@ export default function MyTasks({
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
   const searchParams = useSearchParams();
+  /* const router = useRouter();
+  const pathName = usePathname();
+  const {
+    data: userFiltersData,
+    error: _userFiltersError,
+    isLoading: _userFiltersLoading,
+  } = useUserFilters();
 
-  const [showScroll, setShowScroll] = useState(false);
+  if (userFiltersData && status === "pending") {
+    const filters = userFiltersData.split("&");
+    const params = new URLSearchParams(searchParams.toString());
+
+    filters.forEach((filter) => {
+      const [key, value] = filter.split("=");
+      params.set(key, value);
+    });
+    router.push(`${pathName}?${params.toString()}`);
+  } */
+
+  const [hasScrolled, setHasScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const onScroll = () => {

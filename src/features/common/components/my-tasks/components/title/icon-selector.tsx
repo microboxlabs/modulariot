@@ -1,9 +1,9 @@
-import { Status } from "./title-poc";
-import { FaBook, FaClock, FaPlusCircle, FaMapPin } from "react-icons/fa";
-import { useState } from "react";
+/* import { Status } from "./title-poc"; */
+import { FaBook /* , FaClock, FaPlusCircle, FaMapPin */ } from "react-icons/fa";
+/* import { useState } from "react"; */
 
-export default function IconSelector({ state }: { state: Status }) {
-  const [open, setOpen] = useState(false);
+export default function IconSelector({ state }: { state: string }) {
+  /* const [open, setOpen] = useState(false); */
 
   if (state != null) {
     return (

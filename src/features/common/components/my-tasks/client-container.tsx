@@ -1,14 +1,13 @@
 "use client";
 
-"use client";
-
 import { useRef, useState, useEffect } from "react";
 import { FaArrowUp } from "react-icons/fa";
-import TaskList from "./components/tasks";
-import TaskListTitle from "./components/title/title";
+/* import TaskList from "./components/tasks";
+import TaskListTitle from "./components/title/title"; */
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export default function ClientContainer({ dict }: { dict: I18nRecord }) {
+  console.log(dict);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
@@ -41,8 +40,8 @@ export default function ClientContainer({ dict }: { dict: I18nRecord }) {
       ref={scrollContainerRef}
       className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative"
     >
-      <TaskListTitle />
-      <TaskList dict={dict} />
+      {/*  <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
+      <TaskList dict={dict} tasks={tasks} /> */}
 
       {/* Scroll to top button - only visible when scrolled */}
       {showScrollButton && (

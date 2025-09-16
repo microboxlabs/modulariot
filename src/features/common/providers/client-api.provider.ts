@@ -899,3 +899,19 @@ export async function deleteWebhookDefinitionClient(webhookDefNodeRef: string) {
     method: "DELETE",
   });
 }
+
+export interface UserFiltersResponse {
+  data: string;
+}
+
+export function useUserFilters() {
+  const { data, error, isLoading } = useSWR<UserFiltersResponse, FetcherError>(
+    `/app/api/user/filters`,
+    fetcher
+  );
+  return {
+    data: data?.data,
+    error,
+    isLoading,
+  };
+}

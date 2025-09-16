@@ -25,14 +25,14 @@ export async function GET() {
     }
 
     const groups = response.data.filter((group) => group.includes("MINTRAL_"));
-    let content = "";
+    let content = [];
     for (const group of groups) {
       const filters = await getUserFilters(session, group);
       const contentFile = await getPlainTextNode(session, filters).catch(() => {
         return null;
       });
       if (contentFile) {
-        content = contentFile;
+        content.push(contentFile);
         break;
       } else {
         return NextResponse.json({ data: null });

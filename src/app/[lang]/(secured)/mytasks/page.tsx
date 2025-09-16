@@ -12,7 +12,7 @@ export default async function MyTasksPage({
   const status = searchParams.status || "pending";
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
         <Breadcrumb
           path={[

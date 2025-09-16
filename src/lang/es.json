@@ -1445,5 +1445,12 @@
     "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "migrating": "Comentarios en proceso de migración",
     "no_comments": "No hay comentarios"
+  },
+  "my_tasks": {
+    "stage": "Etapa",
+    "duration": "Duración",
+    "license_plate": "Patente",
+    "route": "Ruta",
+    "client": "Cliente"
   }
 }

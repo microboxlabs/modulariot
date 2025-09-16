@@ -16,6 +16,7 @@ import {
   useMyTasks,
   useMyTasksCount,
   useSymptoms,
+  useUserFilters,
 } from "@/features/common/providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -28,6 +29,36 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { isCollapsed } = useSidebarContext().desktop;
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
+
+  const pathName = usePathname();
+  //const searchParams = useSearchParams();
+  const {
+    data: userFiltersData,
+    error: _userFiltersError,
+    isLoading: _userFiltersLoading,
+  } = useUserFilters();
+
+  useEffect(() => {
+    if (userFiltersData && userFiltersData?.length > 0) {
+      userFiltersData.forEach((filter) => {
+        const filterArray = filter.split("&");
+        const filterPart = filterArray
+          .filter((part) => !part.includes("titleLabel"))
+          .join("&");
+        const label = filterArray
+          .filter((part) => part.includes("titleLabel"))
+          .join("&")
+          .replace("titleLabel=", "");
+        //insert in the second position
+        pages[2].items?.splice(1, 0, {
+          href: `${pathName}?${filterPart}`,
+          label,
+          totals: { [label]: 0 },
+        });
+      });
+    }
+  }, [userFiltersData]);
+
   const { data: finishedTasks } = useMyTasks(
     SHIPPING_COORDINATOR_PROCESS_TASKS,
     true,
@@ -45,12 +76,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   }, [error]);
 
   if (!error) {
-    /* totals["shippingv1"] = Object.entries(data?.totals ?? {})
-      .filter(([key]) =>
-        SHIPPING_COORDINATOR_PROCESS_TASKS.includes(key as any),
-      )
-      .map(([_, value]) => value as number)
-      .reduce((a, b) => a + b, 0); */
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any)

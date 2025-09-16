@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const comments = json.comments;
     const nativeGenerationEnabled = json.nativeGenerationEnabled;
     const reason = json.reason;
+    const reasons = json.reasons;
+    const isMultiReason = json.isMultiReason === "true";
 
     let updateTaskPayload: UpdateTaskRequest = {
       prop_cm_owner: user!.email!,
@@ -39,7 +41,29 @@ export async function POST(request: NextRequest) {
       updateTaskPayload.prop_mintral_shouldBuildManifest =
         nativeGenerationEnabled.toLowerCase() === "true" ? "true" : "false";
     }
-    if (reason && reason.trim() !== "") {
+    // Handle both single and multi-reason scenarios
+    if (isMultiReason && reasons) {
+      try {
+        const reasonArray = JSON.parse(reasons) as string[];
+        if (reasonArray.length > 0) {
+          // Use custom metadata for multi-select rejection handling
+          updateTaskPayload.prop_mintral_rejectionReasons =
+            reasonArray.join(",");
+          updateTaskPayload.prop_mintral_rejectionCount =
+            reasonArray.length.toString();
+          updateTaskPayload.prop_mintral_isMultiRejection = "true";
+          // Use a generic title for multi-rejection cases
+          updateTaskPayload.prop_mintral_commentPostTitle = `Multiple rejections: ${reasonArray.length} items`;
+        }
+      } catch (error) {
+        logger.info(`Failed to parse reasons array: ${reasons}`);
+        // Fallback to treating as single reason if parsing fails
+        if (reasons.trim() !== "") {
+          updateTaskPayload.prop_mintral_commentPostTitle = reasons;
+        }
+      }
+    } else if (reason && reason.trim() !== "") {
+      // Single reason handling (existing logic)
       updateTaskPayload.prop_mintral_commentPostTitle = reason;
     }
     logger.info(`updateTaskPayload=${JSON.stringify(updateTaskPayload)}`);

@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
+import DatePicker from "@/features/common/components/date-picker/date-picker";
 
 export default function ParametrizedSearchBar({
   messages,
@@ -89,7 +90,7 @@ export default function ParametrizedSearchBar({
           }}
           autoComplete="off"
         />
-        {open && search.length > 0 && (
+        {open && (
           <div
             className={`absolute top-full w-full flex flex-col overflow-y-auto text-gray-700 dark:text-gray-300 border-x border-b border-gray-200 dark:border-gray-600 ${open ? "bg-gray-100 dark:bg-gray-700 rounded-b-lg" : ""}`}
           >
@@ -140,6 +141,10 @@ export default function ParametrizedSearchBar({
                 </div>
               ))
             )}
+            <div className="text-xs italic p-2 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
+              Desde <DatePicker />
+              Hasta <DatePicker />
+            </div>
           </div>
         )}
       </div>

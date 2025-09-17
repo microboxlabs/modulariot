@@ -30,7 +30,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
 
-  const pathName = usePathname();
   //const searchParams = useSearchParams();
   const {
     data: userFiltersData,
@@ -40,7 +39,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
 
   useEffect(() => {
     if (userFiltersData && userFiltersData?.length > 0) {
-      console.log("userFiltersData", userFiltersData);
       userFiltersData.forEach((filter) => {
         const filterArray = filter.split("&");
         const filterPart = filterArray

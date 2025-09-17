@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@alfresco/js-api':
-        specifier: ^7.8.0
-        version: 7.8.0
+        specifier: ^9.0.0
+        version: 9.1.1
       '@formatjs/intl-localematcher':
         specifier: ^0.5.4
         version: 0.5.10
@@ -44,6 +44,9 @@ importers:
       csv-parse:
         specifier: ^5.6.0
         version: 5.6.0
+      daterangepicker:
+        specifier: ^3.1.0
+        version: 3.1.0
       dayjs:
         specifier: ^1.11.12
         version: 1.11.13
@@ -66,22 +69,28 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1
       hexoid:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^2.0.0
+        version: 2.0.0
       html5-qrcode:
         specifier: ^2.3.8
         version: 2.3.8
+      jquery:
+        specifier: ^3.7.1
+        version: 3.7.1
       lottie-web:
         specifier: ^5.12.2
         version: 5.12.2
       mapbox-gl:
         specifier: ^3.9.3
         version: 3.9.4
+      moment:
+        specifier: ^2.30.1
+        version: 2.30.1
       negotiator:
         specifier: ^0.6.3
         version: 0.6.4
       next:
-        specifier: 14.2.5
+        specifier: ^14.2.5
         version: 14.2.5(@babel/core@7.28.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       next-auth:
         specifier: ^5.0.0-beta.20
@@ -231,8 +240,8 @@ packages:
   '@adobe/css-tools@4.4.2':
     resolution: {integrity: sha512-baYZExFpsdkBNuvGKTKWCwKH57HRZLVtycZS05WTQNVOiXVSeAki3nU35zlRbToeMW8aHlJfyS+1C4BOv27q0A==}
 
-  '@alfresco/js-api@7.8.0':
-    resolution: {integrity: sha512-3y5WwtvsEkwAB3WaFC9Ec+QMzvPmZccJ7Em06lVBDwxtFgZ1F2CisVNepWgZLoCSkCH8Lgm6e4Tr0L93S3AmoQ==}
+  '@alfresco/js-api@9.1.1':
+    resolution: {integrity: sha512-G45OueaXjy0LxUv0RuQb6xfiEf/ecVX2K5qgfMdKlDcmXSv2k8lL/m+wUqeVw1NC+EeoSg6hMyOH60Y3qLvTuQ==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -2255,6 +2264,9 @@ packages:
   dateformat@4.6.3:
     resolution: {integrity: sha512-2P0p0pFGzHS5EMnhdxQi7aJN+iMheud0UhG4dlE1DLAlvL8JHjJJTX/CSm4JXwV0Ka5nGk3zC5mcb5bUQUxxMA==}
 
+  daterangepicker@3.1.0:
+    resolution: {integrity: sha512-DxWXvvPq4srWLCqFugqSV+6CBt/CvQ0dnpXhQ3gl0autcIDAruG1PuGG3gC7yPRNytAD1oU1AcUOzaYhOawhTw==}
+
   dayjs@1.11.13:
     resolution: {integrity: sha512-oaMBel6gjolK862uaPQOVTA7q3TZhuSvuMQAAglQDOWYO9A91IrAOUJEyKVlqJlHE0vq5p5UXxzdPfMH/x6xNg==}
 
@@ -2965,10 +2977,6 @@ packages:
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
 
-  hexoid@1.0.0:
-    resolution: {integrity: sha512-QFLV0taWQOZtvIRIAdBChesmogZrtuXvVWsFHZTk2SU+anspqZ2vMnoLg7IE1+Uk16N19APic1BuF8bC8c2m5g==}
-    engines: {node: '>=8'}
-
   hexoid@2.0.0:
     resolution: {integrity: sha512-qlspKUK7IlSQv2o+5I7yhUd7TxlOG2Vr5LTa3ve2XSNVKAL/n/u/7KLvKmFNimomDIKvZFXWHv0T12mv7rT8Aw==}
     engines: {node: '>=8'}
@@ -3266,6 +3274,9 @@ packages:
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
+
+  jquery@3.7.1:
+    resolution: {integrity: sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -4528,6 +4539,7 @@ packages:
   superagent@9.0.2:
     resolution: {integrity: sha512-xuW7dzkUpcJq7QnhOsnNUgtYp3xRwpt2F7abdRYIpCsAt0hhUqia0EdxyXZQQpNmGtsCzYHryaKSV3q3GJnq7w==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supercluster@8.0.1:
     resolution: {integrity: sha512-IiOea5kJ9iqzD2t7QJq/cREyLHTtSmUT6gQsweojg9WH2sYJqZK9SswTu6jrscO6D1G5v5vYZ9ru/eq85lXeZQ==}
@@ -5004,7 +5016,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.2': {}
 
-  '@alfresco/js-api@7.8.0':
+  '@alfresco/js-api@9.1.1':
     dependencies:
       event-emitter: 0.3.5
       superagent: 9.0.2
@@ -7304,6 +7316,11 @@ snapshots:
 
   dateformat@4.6.3: {}
 
+  daterangepicker@3.1.0:
+    dependencies:
+      jquery: 3.7.1
+      moment: 2.30.1
+
   dayjs@1.11.13: {}
 
   debounce@2.1.0: {}
@@ -8297,8 +8314,6 @@ snapshots:
 
   help-me@5.0.0: {}
 
-  hexoid@1.0.0: {}
-
   hexoid@2.0.0: {}
 
   html-encoding-sniffer@4.0.0:
@@ -8588,6 +8603,8 @@ snapshots:
   jose@5.9.6: {}
 
   joycon@3.1.1: {}
+
+  jquery@3.7.1: {}
 
   js-tokens@4.0.0: {}
 

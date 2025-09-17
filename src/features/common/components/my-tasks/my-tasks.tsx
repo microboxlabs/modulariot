@@ -31,24 +31,14 @@ export default function MyTasks({
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
   const searchParams = useSearchParams();
-  /* const router = useRouter();
-  const pathName = usePathname();
-  const {
-    data: userFiltersData,
-    error: _userFiltersError,
-    isLoading: _userFiltersLoading,
-  } = useUserFilters();
 
-  if (userFiltersData && status === "pending") {
-    const filters = userFiltersData.split("&");
-    const params = new URLSearchParams(searchParams.toString());
-
-    filters.forEach((filter) => {
-      const [key, value] = filter.split("=");
-      params.set(key, value);
-    });
-    router.push(`${pathName}?${params.toString()}`);
-  } */
+  const filters = searchParams
+    .toString()
+    .split("&")
+    .filter(
+      (filter) => !filter.includes("titleLabel") && !filter.includes("position")
+    )
+    .join("&");
 
   const [hasScrolled, setHasScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -84,7 +74,7 @@ export default function MyTasks({
     status === "finished",
     1,
     pageSize,
-    searchParams.toString()
+    filters.toString()
   );
 
   const {

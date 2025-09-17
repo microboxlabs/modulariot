@@ -42,16 +42,20 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       userFiltersData.forEach((filter) => {
         const filterArray = filter.split("&");
         const filterPart = filterArray
-          .filter((part) => !part.includes("titleLabel"))
+          .filter((part) => !part.includes("position"))
           .join("&");
         const label = filterArray
           .filter((part) => part.includes("titleLabel"))
           .join("&")
           .replace("titleLabel=", "");
-        pages[2].items?.splice(0, 0, {
+        const position = filterArray
+          .filter((part) => part.includes("position"))
+          .join("&")
+          .replace("position=", "");
+        pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
           href: `mytasks?${filterPart}`,
           label,
-          totals: { [label]: 0 },
+          totals: {},
         });
       });
     }

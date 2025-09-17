@@ -1,7 +1,8 @@
-const { NormalModuleReplacementPlugin } = require("webpack");
 const withMDX = require("@next/mdx")({
   extension: /\.mdx?$/,
 });
+const { NormalModuleReplacementPlugin } = require("webpack");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
@@ -11,11 +12,9 @@ const nextConfig = {
     domains: ['mintcargaimagenesprbfc3.blob.core.windows.net'],
   },
   eslint: {
-    // Don't fail build on ESLint warnings - only actual errors
     ignoreDuringBuilds: process.env.NODE_ENV === 'production',
   },
   typescript: {
-    // Only fail build on TypeScript errors, not warnings
     ignoreBuildErrors: false,
   },
   experimental: {
@@ -28,12 +27,7 @@ const nextConfig = {
       config.resolve.fallback.dns = false;
       config.resolve.fallback.net = false;
     }
-    config.plugins.push(
-      new NormalModuleReplacementPlugin(
-        /^hexoid$/,
-        require.resolve("hexoid/dist/index.js")
-      )
-    );
+
     return config;
   },
 };

@@ -145,48 +145,54 @@ export default function ParametrizedSearchBar({
                   ));
               })()
             )}
-            <hr className="border-gray-200 dark:border-gray-700" />
-            <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
-              {(() => {
-                const dateParams = navegation_params.filter(
-                  (param: any) => param.param.type === "date_range"
-                );
+            {navegation_params.filter(
+              (param: any) => param.param.type === "date_range"
+            ).length > 0 && (
+              <>
+                <hr className="border-gray-200 dark:border-gray-700" />
+                <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
+                  {(() => {
+                    const dateParams = navegation_params.filter(
+                      (param: any) => param.param.type === "date_range"
+                    );
 
-                return dateParams.map((param: any, index: number) => (
-                  <DateRangePicker
-                    key={index}
-                    label={param.label}
-                    onDateChange={(startDate: string, endDate: string) => {
-                      const paramName =
-                        param.param.name ||
-                        param.param.param ||
-                        param.name ||
-                        param.param.field ||
-                        param.param.key ||
-                        "date_range";
+                    return dateParams.map((param: any, index: number) => (
+                      <DateRangePicker
+                        key={index}
+                        label={param.label}
+                        onDateChange={(startDate: string, endDate: string) => {
+                          const paramName =
+                            param.param.name ||
+                            param.param.param ||
+                            param.name ||
+                            param.param.field ||
+                            param.param.key ||
+                            "date_range";
 
-                      const params = new URLSearchParams(
-                        searchParams.toString()
-                      );
+                          const params = new URLSearchParams(
+                            searchParams.toString()
+                          );
 
-                      if (startDate) {
-                        params.set(paramName + "_from", startDate);
-                      } else {
-                        params.delete(paramName + "_from");
-                      }
+                          if (startDate) {
+                            params.set(paramName + "_from", startDate);
+                          } else {
+                            params.delete(paramName + "_from");
+                          }
 
-                      if (endDate) {
-                        params.set(paramName + "_to", endDate);
-                      } else {
-                        params.delete(paramName + "_to");
-                      }
+                          if (endDate) {
+                            params.set(paramName + "_to", endDate);
+                          } else {
+                            params.delete(paramName + "_to");
+                          }
 
-                      router.push(`${pathName}?${params.toString()}`);
-                    }}
-                  />
-                ));
-              })()}
-            </div>
+                          router.push(`${pathName}?${params.toString()}`);
+                        }}
+                      />
+                    ));
+                  })()}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

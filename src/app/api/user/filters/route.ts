@@ -27,15 +27,18 @@ export async function GET() {
     const groups = response.data.filter((group) => group.includes("MINTRAL_"));
     let content = [];
     for (const group of groups) {
-      const filters = await getUserFilters(session, group);
-      const contentFile = await getPlainTextNode(session, filters).catch(() => {
-        return null;
-      });
-      if (contentFile) {
-        content.push(contentFile);
-        break;
-      } else {
-        return NextResponse.json({ data: null });
+      try {
+        const filters = await getUserFilters(session, group);
+        let contentFile = null;
+
+        contentFile = await getPlainTextNode(session, filters);
+
+        if (contentFile) {
+          content.push(contentFile);
+        }
+      } catch (error) {
+        //ignore 404 error
+        continue;
       }
     }
 

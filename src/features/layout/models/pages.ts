@@ -67,11 +67,11 @@ export const pages: SidebarItem[] = [
     icon: FaBookIcon,
     label: "tasks",
     items: [
-      {
+      /* {
         href: "/mytasks?status=pending",
         label: "pending_tasks",
         totals: {},
-      },
+      }, */
       {
         href: "/mytasks?status=finished",
         label: "completed_tasks",

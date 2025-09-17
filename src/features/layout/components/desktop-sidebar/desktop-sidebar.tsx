@@ -40,6 +40,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
 
   useEffect(() => {
     if (userFiltersData && userFiltersData?.length > 0) {
+      console.log("userFiltersData", userFiltersData);
       userFiltersData.forEach((filter) => {
         const filterArray = filter.split("&");
         const filterPart = filterArray
@@ -49,9 +50,8 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
           .filter((part) => part.includes("titleLabel"))
           .join("&")
           .replace("titleLabel=", "");
-        //insert in the second position
-        pages[2].items?.splice(1, 0, {
-          href: `${pathName}?${filterPart}`,
+        pages[2].items?.splice(0, 0, {
+          href: `mytasks?${filterPart}`,
           label,
           totals: { [label]: 0 },
         });

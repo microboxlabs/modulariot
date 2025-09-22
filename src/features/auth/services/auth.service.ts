@@ -39,10 +39,7 @@ export async function signInWithCredentials(
       ticket,
     };
   } catch (error) {
-    throw new CredentialsSignin({
-      message: "Invalid credentials",
-      status: 403,
-    });
+    throw new CredentialsSignin("Invalid credentials");
   }
 }
 

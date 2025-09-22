@@ -49,11 +49,11 @@ export const authConfig = {
 
         const isLoggedIn = !!auth?.user;
         if (!isLoggedIn) {
-          authAuthzLogger.info("Unauthorized access attempt, redirecting to sign-in", {
+          authAuthzLogger.info({
             path: nextUrl.pathname,
             redirectTo: "/app/sign-in",
             newUrl: new URL("/app/sign-in", nextUrl).toString(),
-          });
+          }, "Unauthorized access attempt, redirecting to sign-in");
           return NextResponse.redirect(new URL("/app/sign-in", nextUrl));
         }
 
@@ -63,7 +63,7 @@ export const authConfig = {
         }, "Authorization successful");
         return true;
       } catch (error) {
-        authAuthzLogger.error("Error in authorized callback", { error });
+        authAuthzLogger.error({ error }, "Error in authorized callback");
         return false;
       }
     },
@@ -111,7 +111,7 @@ export const authConfig = {
 
         return token;
       } catch (error) {
-        authJwtLogger.error("Error in JWT callback:", error);
+        authJwtLogger.error({ error }, "Error in JWT callback");
         // Re-throw to let NextAuth handle it
         throw error;
       }
@@ -176,7 +176,7 @@ export const authConfig = {
         (session as any).error = (token as any).error;
         return session;
       } catch (error) {
-        authSessionLogger.error("Error in session callback:", error);
+        authSessionLogger.error({ error }, "Error in session callback");
         // Return a safe session instead of throwing
         return {
           user: undefined,
@@ -253,7 +253,7 @@ export const authConfig = {
           await cleanupRefreshTokens(session as any);
           authLogger.debug({ userId }, "Cleaned up refresh tokens from ECM on sign-out");
         } catch (error) {
-          authLogger.warn("Failed to cleanup refresh tokens from ECM on sign-out", { error, userId });
+          authLogger.warn({ error, userId }, "Failed to cleanup refresh tokens from ECM on sign-out");
         }
       }
     },

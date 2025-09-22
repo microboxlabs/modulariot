@@ -289,7 +289,7 @@ export async function refreshAccessTokenWithEcmPersistence(
 
     return updatedJwt;
   } catch (error) {
-    logger?.error("ECM-backed token refresh failed", { error });
+    logger?.error({ error }, "ECM-backed token refresh failed");
     throw error;
   }
 }

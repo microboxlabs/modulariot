@@ -30,11 +30,11 @@ export const authConfig = {
       try {
         const nextUrl = new URL(request.nextUrl);
         
-        authAuthzLogger.debug("Authorization check", {
+        authAuthzLogger.debug({
           path: nextUrl.pathname,
           hasAuth: !!auth,
           hasUser: !!auth?.user,
-        });
+        }, "Authorization check");
 
         if (
           nextUrl.pathname.endsWith("/sign-in") ||

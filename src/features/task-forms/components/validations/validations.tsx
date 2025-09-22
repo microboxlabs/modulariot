@@ -17,8 +17,8 @@ export default function Validations({
 }: TaskFormProps) {
   const { data: serviceValidation, isLoading: _isLoadingServiceValidation } =
     useGetServiceValidation(task.mintral_serviceCode as string);
-  logger.info("lang", lang);
-  logger.info("userGroups", userGroups);
+  logger.info(lang, "lang");
+  logger.info(userGroups, "userGroups");
   return (
     <div className="text-gray-600 flex flex-row justify-between w-full">
       <small className="flex items-center p-3">

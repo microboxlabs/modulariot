@@ -1059,6 +1059,10 @@
     "deficient_cargo_securing": "Sujeción de carga deficiente",
     "absence_cargo_securing": "Ausencia sujeción de carga",
     "movement_with_cargo": "Movimiento con carga",
+    "Deviation_Eta_Late": "Plan de Ruta Atrasado",
+    "Deviation_Eta_Early": "Plan de Ruta Adelantado",
+    "Fatigue And Drowsiness": "Fatiga y Somnolencia",
+    "Fatigue And Drowsiness Sensor": "Sensor de Fatiga y Somnolencia",
     "ascending": "Ascendente",
     "descending": "Descendente",
     "treatments": "Tratamientos",
@@ -1089,7 +1093,11 @@
       "Night Driving": "Conducción nocturna",
       "Continuous Resting Check": "Incumplimiento de descanso nocturno",
       "Bad Sign": "Mala señal",
-      "Speed Limit Custom": "Exceso de límite de velocidad"
+      "Speed Limit Custom": "Exceso de límite de velocidad",
+      "Deviation_Eta_Late": "Plan de Ruta Atrasado",
+      "Deviation_Eta_Early": "Plan de Ruta Adelantado",
+      "Fatigue And Drowsiness": "Fatiga y Somnolencia",
+      "Fatigue And Drowsiness Sensor": "Sensor de Fatiga y Somnolencia"
     }
   },
   "geographic_view": {

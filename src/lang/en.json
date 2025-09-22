@@ -1013,6 +1013,10 @@
     "OFF HOURS DRIVING": "Off hours driving",
     "PANIC BUTTON": "Panic button",
     "RISK ZONE SLEEP": "Risk zone sleep",
+    "Deviation_Eta_Late": "Deviation Eta Late",
+    "Deviation_Eta_Early": "Deviation Eta Early",
+    "Fatigue And Drowsiness": "Fatigue and drowsiness",
+    "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor",
     "MIN REST": "Min rest",
     "TRIP_START": "Trip start",
     "TRIP_END": "Last Recorded Event.",
@@ -1090,7 +1094,11 @@
       "Night Driving": "Night Driving",
       "Continuous Resting Check": "Continuous Resting Check",
       "Bad Sign": "Bad Sign",
-      "Speed Limit Custom": "Speed Limit Custom"
+      "Speed Limit Custom": "Speed Limit Custom",
+      "Deviation_Eta_Late": "Deviation Eta Late",
+      "Deviation_Eta_Early": "Deviation Eta Early",
+      "Fatigue And Drowsiness": "Fatigue and drowsiness",
+      "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor"
     }
   },
   "geographic_view": {

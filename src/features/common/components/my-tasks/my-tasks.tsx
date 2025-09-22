@@ -2,7 +2,7 @@
 import TaskList from "./components/tasks";
 import TaskListTitle from "./components/title/title";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useSearchTasks,
   //  useUserFilters,
@@ -31,13 +31,16 @@ export default function MyTasks({
 }) {
   const searchParams = useSearchParams();
 
-  const filters = searchParams
-    .toString()
-    .split("&")
-    .filter(
-      (filter) => !filter.includes("titleLabel") && !filter.includes("position")
-    )
-    .join("&");
+  const filters = useMemo(() => {
+    return searchParams
+      .toString()
+      .split("&")
+      .filter(
+        (filter) =>
+          !filter.includes("titleLabel") && !filter.includes("position")
+      )
+      .join("&");
+  }, [searchParams]);
 
   const [hasScrolled, setHasScrolled] = useState(false);
 
@@ -56,12 +59,14 @@ export default function MyTasks({
     status,
   });
 
+  const filterKey = useMemo(() => `${filters}-${status}`, [filters, status]);
+
   const { visibleTasks, isLoading, hasMore, error, scrollRef } =
     useInfiniteScroll({
       fetchData,
       visibleItems: 20,
       stackSize: 30,
-      filterKey: `${filters}-${status}`, // Pass filters and status as key to detect changes
+      filterKey, // Pass filters and status as key to detect changes
     });
 
   const {

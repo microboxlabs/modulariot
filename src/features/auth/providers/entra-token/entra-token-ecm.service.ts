@@ -89,9 +89,12 @@ export async function processMicrosoftEntraAccount(
 
       storeInitialRefreshToken(tempSession, account.refresh_token).catch(
         (error) => {
-          logger?.warn("Failed to store initial refresh token in ECM", {
-            error: error as Error,
-          });
+          logger?.warn(
+            {
+              error: error as Error,
+            },
+            "Failed to store initial refresh token in ECM"
+          );
         }
       );
     }

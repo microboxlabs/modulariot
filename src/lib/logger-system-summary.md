@@ -77,8 +77,8 @@ import { createManagedLogger } from "@/lib/logger";
 const logger = createManagedLogger("payment-processor", "Payment Processing");
 
 // Use immediately
-logger.info("Payment started", { orderId: "12345" });
-logger.error("Payment failed", { error: "Card declined" });
+logger.info({ orderId: "12345" }, "Payment started");
+logger.error({ error: "Card declined" }, "Payment failed");
 ```
 
 ### For Administrators

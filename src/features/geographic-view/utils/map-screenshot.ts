@@ -38,7 +38,7 @@ export async function captureAndDownloadMap(
     ) as HTMLCanvasElement;
 
     if (debugMode) {
-      logger.info("Canvas elements found:", { mapboxCanvas, deckGLCanvas });
+      logger.info({ mapboxCanvas, deckGLCanvas }, "Canvas elements found:");
     }
 
     // Try to combine both canvases first - this is the most reliable approach
@@ -89,7 +89,7 @@ export async function captureAndDownloadMap(
     const deckGL = (window as any).deckGL;
 
     if (debugMode) {
-      logger.info("Map instances:", { mapboxMap, deckGL });
+      logger.info({ mapboxMap, deckGL }, "Map instances:");
     }
 
     // If we have direct access to the map instance, use its native methods
@@ -138,7 +138,7 @@ export async function captureAndDownloadMap(
     );
 
     if (debugMode) {
-      logger.info("Found map canvases:", mapCanvases);
+      logger.info(mapCanvases, "Found map canvases:");
     }
 
     if (mapCanvases.length > 0) {

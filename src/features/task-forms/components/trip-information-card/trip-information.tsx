@@ -17,10 +17,10 @@ export default function TripInformation({
   msg,
   userGroups,
 }: DriverVerifiedCardProps) {
-  logger.info("lang", lang);
-  logger.info("task", task);
-  logger.info("msg", msg);
-  logger.info("userGroups", userGroups);
+  logger.info(lang, "lang");
+  logger.info(task, "task");
+  logger.info(msg, "msg");
+  logger.info(userGroups, "userGroups");
 
   const eta = fromString(
     task.mintral_arrivalDate

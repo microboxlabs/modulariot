@@ -47,13 +47,8 @@ export async function POST(request: NextRequest) {
         const reasonArray = JSON.parse(reasons) as string[];
         if (reasonArray.length > 0) {
           // Use custom metadata for multi-select rejection handling
-          updateTaskPayload.prop_mintral_rejectionReasons =
-            reasonArray.join(",");
-          updateTaskPayload.prop_mintral_rejectionCount =
-            reasonArray.length.toString();
-          updateTaskPayload.prop_mintral_isMultiRejection = "true";
-          // Use a generic title for multi-rejection cases
-          updateTaskPayload.prop_mintral_commentPostTitle = `Multiple rejections: ${reasonArray.length} items`;
+          updateTaskPayload.prop_mintral_commentReasons = reasonArray;
+          updateTaskPayload.prop_mintral_commentPostTitle = `Multiple reasons: ${reasonArray.length} items`;
         }
       } catch (error) {
         logger.info(`Failed to parse reasons array: ${reasons}`);

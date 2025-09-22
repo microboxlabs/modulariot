@@ -29,16 +29,6 @@ type FlatMessage = {
   topicRef: string;
 };
 
-function htmlToText(html: string): string {
-  try {
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || "";
-  } catch {
-    return html;
-  }
-}
-
 export default function Forum({
   dict,
   task,
@@ -68,7 +58,7 @@ export default function Forum({
         list.push({
           sender: post.author,
           name: post.author,
-          message: htmlToText(post.content || post.title || ""),
+          message: post.content || post.title || "",
           reason: index == 0 ? normalizeTitle(topic.title || "", dict) : null,
           date: post.created,
           topicRef: topic.ref,

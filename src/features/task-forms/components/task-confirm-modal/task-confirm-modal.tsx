@@ -273,12 +273,11 @@ export default function TaskConfirmModal({
       // Handle both single and multi-select reasons
       if (selectConfig?.multiSelect) {
         // Multi-select mode: send array of reasons
+        const defaultReasons = Array.isArray(selectConfig.defaultValue)
+          ? selectConfig.defaultValue
+          : [];
         const reasonsToSend =
-          selectedReasons.length > 0
-            ? selectedReasons
-            : Array.isArray(selectConfig.defaultValue)
-              ? selectConfig.defaultValue
-              : [];
+          selectedReasons.length > 0 ? selectedReasons : defaultReasons;
         formData.append("reasons", JSON.stringify(reasonsToSend));
         formData.append("isMultiReason", "true");
       } else {

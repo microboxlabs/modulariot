@@ -95,7 +95,7 @@ export function useInfiniteScroll({
     }
 
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    const threshold = 100; // Load more when 100px from bottom
+    const threshold = 10; // Load more when 10px from bottom
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
     if (distanceFromBottom <= threshold) {

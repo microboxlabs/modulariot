@@ -252,11 +252,9 @@ export default function TaskConfirmModal({
         ) {
           setSelectedReasons(selectConfig.defaultValue);
         }
-      } else {
+      } else if (!reason && typeof selectConfig.defaultValue === "string") {
         // Single-select mode: initialize reason string
-        if (!reason && typeof selectConfig.defaultValue === "string") {
-          setReason(selectConfig.defaultValue);
-        }
+        setReason(selectConfig.defaultValue);
       }
     }
   }, [openModal, selectConfig, reason, selectedReasons]);

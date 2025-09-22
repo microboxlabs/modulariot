@@ -81,7 +81,7 @@ export default function ParametrizedSearchBar({
                     search.split(":")[0].toUpperCase()
                 );
                 if (param) {
-                  handleSearch(search.split(":")[1], param.param);
+                  handleSearch(search.split(":")[1], param.param.key);
                 } else {
                   handleSearch(search.split(":")[1], search.split(":")[0]);
                 }
@@ -105,7 +105,7 @@ export default function ParametrizedSearchBar({
                       (param: any) => param.label === search.split(":")[0]
                     );
                     if (param) {
-                      handleSearch(search.split(":")[1], param.param);
+                      handleSearch(search.split(":")[1], param.param.key);
                     } else {
                       handleSearch(search.split(":")[1], search.split(":")[0]);
                     }
@@ -130,7 +130,7 @@ export default function ParametrizedSearchBar({
                       key={index}
                       className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-600"
                       onClick={() => {
-                        handleSearch(search, param.param);
+                        handleSearch(search, param.param.key);
                       }}
                     >
                       Buscar
@@ -161,13 +161,7 @@ export default function ParametrizedSearchBar({
                         key={index}
                         label={param.label}
                         onDateChange={(startDate: string, endDate: string) => {
-                          const paramName =
-                            param.param.name ||
-                            param.param.param ||
-                            param.name ||
-                            param.param.field ||
-                            param.param.key ||
-                            "date_range";
+                          const paramName = param.param.key || "date_range";
 
                           const params = new URLSearchParams(
                             searchParams.toString()

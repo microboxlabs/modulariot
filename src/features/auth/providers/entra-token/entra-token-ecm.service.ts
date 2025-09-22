@@ -187,7 +187,7 @@ export async function processTokenRefresh(
       accessTokenExpiresAt: token.accessTokenExpiresAt,
     };
   } catch (error) {
-    logger?.error("Error refreshing access_token with ECM persistence", error);
+    logger?.error(error, "Error refreshing access_token with ECM persistence");
     return { ...token, error: "RefreshTokenError" };
   }
 }
@@ -220,9 +220,12 @@ export async function refreshAccessTokenWithEcmPersistence(
           logger?.debug("Retrieved refresh token from ECM storage");
         }
       } catch (error) {
-        logger?.warn("Failed to retrieve refresh token from ECM", {
-          error,
-        });
+        logger?.warn(
+          {
+            error,
+          },
+          "Failed to retrieve refresh token from ECM"
+        );
       }
     }
 
@@ -251,9 +254,12 @@ export async function refreshAccessTokenWithEcmPersistence(
         await putRefreshToken(session, storeRequest);
         logger?.debug("Stored new refresh token in ECM");
       } catch (error) {
-        logger?.warn("Failed to store refresh token in ECM", {
-          error,
-        });
+        logger?.warn(
+          {
+            error,
+          },
+          "Failed to store refresh token in ECM"
+        );
         // Don't fail the entire refresh process if storage fails
       }
     }
@@ -308,9 +314,12 @@ export async function storeInitialRefreshToken(
     await putRefreshToken(session, storeRequest);
     logger?.debug("Stored initial refresh token in ECM");
   } catch (error) {
-    logger?.error("Failed to store initial refresh token in ECM", {
-      error,
-    });
+    logger?.error(
+      {
+        error,
+      },
+      "Failed to store initial refresh token in ECM"
+    );
     // Don't fail sign-in if storage fails
   }
 }
@@ -333,8 +342,11 @@ export async function cleanupRefreshTokens(
     await putRefreshToken(session, storeRequest);
     logger?.debug("Cleaned up refresh tokens from ECM");
   } catch (error) {
-    logger?.warn("Failed to cleanup refresh tokens from ECM", {
-      error,
-    });
+    logger?.warn(
+      {
+        error,
+      },
+      "Failed to cleanup refresh tokens from ECM"
+    );
   }
 }

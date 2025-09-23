@@ -33,16 +33,13 @@ export async function signInWithCredentials(
 
     return {
       id: person.entry.id,
-      name: person.entry.displayName ?? "",
+      name: person.entry.displayName || person.entry.email || "Unknown User",
       email: person.entry.email,
       groups: [],
       ticket,
     };
   } catch (error) {
-    throw new CredentialsSignin({
-      message: "Invalid credentials",
-      // status: 403,
-    });
+    throw new CredentialsSignin("Invalid credentials");
   }
 }
 

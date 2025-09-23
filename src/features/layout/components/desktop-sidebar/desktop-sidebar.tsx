@@ -12,6 +12,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
+  getMyTasks,
   useMapPositions,
   useMyTasks,
   useMyTasksCount,
@@ -26,9 +27,19 @@ import {
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
+
   const { isCollapsed } = useSidebarContext().desktop;
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
+  const { data: finishedTasks } = useMyTasks(
+    SHIPPING_COORDINATOR_PROCESS_TASKS,
+    true,
+    1,
+    0
+  );
+  const { count: mapCount } = useMapPositions();
+  const { count: symptomsCount } = useSymptoms();
+  const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
   //const searchParams = useSearchParams();
   const {
@@ -52,24 +63,34 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
           .filter((part) => part.includes("position"))
           .join("&")
           .replace("position=", "");
-        pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
-          href: `mytasks?${filterPart}`,
-          label,
-          totals: {},
+        getMyTasks(
+          [
+            ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+            ...DELIVERY_COORDINATOR_PROCESS_TASKS,
+          ],
+          false,
+          0,
+          2000,
+          filterPart
+        ).then((total) => {
+          if (
+            pages &&
+            pages[2] &&
+            pages[2].items &&
+            pages[2].items?.length <= userFiltersData?.length
+          ) {
+            pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
+              href: `/mytasks?${filterPart}`,
+              label,
+              totals: { [label]: total.total },
+            });
+          }
+          totals[label] = total.total;
+          setTotals(totals);
         });
       });
     }
   }, [userFiltersData]);
-
-  const { data: finishedTasks } = useMyTasks(
-    SHIPPING_COORDINATOR_PROCESS_TASKS,
-    true,
-    1,
-    0
-  );
-  const { count: mapCount } = useMapPositions();
-  const { count: symptomsCount } = useSymptoms();
-  const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     if (error && (error.status === 403 || error.status === 401)) {

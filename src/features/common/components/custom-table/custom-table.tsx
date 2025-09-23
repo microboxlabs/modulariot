@@ -158,7 +158,6 @@ function getListOrElement(
       }
     });
   } else {
-    console.log("Item?", item);
     return item;
   }
 }

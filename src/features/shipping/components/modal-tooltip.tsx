@@ -37,10 +37,6 @@ export default function ModalTooltip({
     return null;
   }
 
-  console.log(selectedTask);
-  console.log(userGroups);
-  console.log(data);
-
   if (data?.taskResponse == null && !isLoading && !error) {
     return (
       <AbsoluteModal

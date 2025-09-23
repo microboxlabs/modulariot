@@ -514,7 +514,26 @@
         "PODReason3": "POD incompleto: sin autorización de cliente (el documento debe incluir el correo que avala la entrega).",
         "PODReason4": "Otro.",
         "reason": "Motivo",
-        "confirm": "Confirmar mover a {outcome}"
+        "confirm": "Confirmar mover a {outcome}",
+        "multipleReasonsSelected": "opciones seleccionadas",
+        "rejectedGuide": "Guía rechazada",
+        "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
+        
+        "rejectedLeftSide": "Lado izquierdo rechazado", 
+        "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
+        
+        "rejectedRightSide": "Lado derecho rechazado",
+        "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
+        
+        "rejectedFront": "Frontal rechazado",
+        "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
+        
+        "rejectedBack": "Posterior rechazado", 
+        "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
+        "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
+        "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
+        "noClientSystemValidationDesc": "No se pudo validar con el sistema del cliente",
+        "otherReasonDesc": "Otro motivo no especificado en las opciones anteriores"
       }
     },
     "shippingDetailsTaskForm": {
@@ -610,7 +629,26 @@
         "missionControlTripInitTaskReason3": "No tiene validación sistema cliente.",
         "missionControlTripInitTaskReason4": "Otro.",
         "reason": "Motivo",
-        "confirm": "Confirmar mover a {outcome}"
+        "confirm": "Confirmar mover a {outcome}",
+        "multipleReasonsSelected": "opciones seleccionadas",
+        "rejectedGuide": "Guía rechazada",
+        "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
+        
+        "rejectedLeftSide": "Lado izquierdo rechazado", 
+        "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
+        
+        "rejectedRightSide": "Lado derecho rechazado",
+        "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
+        
+        "rejectedFront": "Frontal rechazado",
+        "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
+        
+        "rejectedBack": "Posterior rechazado", 
+        "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
+        "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
+        "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
+        "noClientSystemValidationDesc": "No se pudo validar con el sistema del cliente",
+        "otherReasonDesc": "Otro motivo no especificado en las opciones anteriores"
       }
     },
     "sovosVerificationForm": {

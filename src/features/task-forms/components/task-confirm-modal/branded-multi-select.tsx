@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 // Icons - we'll use simple SVG icons for now
@@ -69,6 +69,13 @@ export default function BrandedMultiSelect({
     }
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent, value: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleToggleOption(value);
+    }
+  };
+
   const getDisplayText = () => {
     if (selectedValues.length === 0) {
       return triggerText || placeholder;
@@ -117,10 +124,12 @@ export default function BrandedMultiSelect({
           {options.map((option) => (
             <div
               key={option.value}
-              className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+              className="px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
               onClick={() => handleToggleOption(option.value)}
+              onKeyDown={(e) => handleKeyDown(e, option.value)}
               role="option"
               aria-selected={selectedValues.includes(option.value)}
+              tabIndex={0}
             >
               <div className="flex items-start">
                 {/* Checkbox */}

@@ -14,168 +14,14 @@ import { taskNextAction } from "../../services/client-form.service";
 import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
-import {
-  OUTCOME_ASSIGN_DRIVER_V2,
-  OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
-  OUTCOME_OVERLORD_REQUIRED_V2,
-  OUTCOME_PREPARE_SERVICE_V2,
-  OUTCOME_PRESENT_DRIVER_V2,
-  OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-  OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
-  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
-  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
-  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
-} from "../../services/form.service";
-import { useState, useMemo, useEffect } from "react";
+import BrandedMultiSelect from "./branded-multi-select";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "../../services/form.service";
+import { useState, useMemo } from "react";
+import { getSelectConfig } from "./task-confirm-modal.config";
+import { useTaskModalState } from "./hooks/use-task-modal-state";
+import { prepareFormData } from "./task-confirm-modal.utils";
 import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.types";
 
-// Configuration for select options based on task type and outcome
-type SelectOption = {
-  value: string;
-  labelKey: string;
-};
-
-type SelectConfig = {
-  options: SelectOption[];
-  defaultValue: string;
-};
-
-type SelectOptionsConfig = {
-  [taskType: string]: {
-    [outcome: string]: SelectConfig;
-  };
-};
-
-const SELECT_OPTIONS_CONFIG: SelectOptionsConfig = {
-  [TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK]: {
-    [OUTCOME_OVERLORD_CANCELED_SOVOS_V2]: {
-      options: [
-        { value: "NOT_VALID_DOCUMENT", labelKey: "PODReason1" },
-        { value: "ID_RECEPTOR_MISSING", labelKey: "PODReason2" },
-        { value: "INCOMPLETE_POD", labelKey: "PODReason3" },
-        { value: "OTHER", labelKey: "PODReason4" },
-      ],
-      defaultValue: "NOT_VALID_DOCUMENT",
-    },
-  },
-  "wfship:sovosDigitalSignature": {
-    [OUTCOME_REDIRECT_TO_MISSION_CONTROL]: {
-      options: [
-        { value: "FINGERPRINT_DEVICES_TECH_ISSUES", labelKey: "reason1" },
-        { value: "COMPUTER_TECH_ISSUES", labelKey: "reason2" },
-        { value: "DRIVER_FINGERPRINT_NOT_RECOGNIZED", labelKey: "reason3" },
-        { value: "DISPATCHER_NOT_ENROLLED", labelKey: "reason4" },
-        { value: "DISPATCHER_FINGERPRINT_NOT_RECOGNIZED", labelKey: "reason5" },
-        { value: "AUTHORIZED_BY_TRANSPORT_OVERLORD", labelKey: "reason6" },
-        { value: "OTHER", labelKey: "reason7" },
-      ],
-      defaultValue: "FINGERPRINT_DEVICES_TECH_ISSUES",
-    },
-  },
-  "wfship:missionControlTripInitTask": {
-    [OUTCOME_RETURN_TO_TRANSPORT_VALIDATION]: {
-      options: [
-        {
-          value: "NO_GPS_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason1",
-        },
-        {
-          value: "NO_DOCUMENT_CONSOLIDATION",
-          labelKey: "missionControlTripInitTaskReason2",
-        },
-        {
-          value: "NO_CLIENT_SYSTEM_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason3",
-        },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
-      ],
-      defaultValue: "NO_GPS_VALIDATION",
-    },
-  },
-  [TYPE_WFSHIP2_MISSION_CONTROL_TASK]: {
-    [OUTCOME_ASSIGN_DRIVER_V2]: {
-      options: [
-        {
-          value: "NO_GPS_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason1",
-        },
-        {
-          value: "NO_DOCUMENT_CONSOLIDATION",
-          labelKey: "missionControlTripInitTaskReason2",
-        },
-        {
-          value: "NO_CLIENT_SYSTEM_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason3",
-        },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
-      ],
-      defaultValue: "NO_GPS_VALIDATION",
-    },
-    [OUTCOME_PRESENT_DRIVER_V2]: {
-      options: [
-        {
-          value: "NO_GPS_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason1",
-        },
-        {
-          value: "NO_DOCUMENT_CONSOLIDATION",
-          labelKey: "missionControlTripInitTaskReason2",
-        },
-        {
-          value: "NO_CLIENT_SYSTEM_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason3",
-        },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
-      ],
-      defaultValue: "NO_GPS_VALIDATION",
-    },
-    [OUTCOME_OVERLORD_REQUIRED_V2]: {
-      options: [
-        {
-          value: "NO_GPS_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason1",
-        },
-        {
-          value: "NO_DOCUMENT_CONSOLIDATION",
-          labelKey: "missionControlTripInitTaskReason2",
-        },
-        {
-          value: "NO_CLIENT_SYSTEM_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason3",
-        },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
-      ],
-      defaultValue: "NO_GPS_VALIDATION",
-    },
-    [OUTCOME_PREPARE_SERVICE_V2]: {
-      options: [
-        {
-          value: "NO_GPS_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason1",
-        },
-        {
-          value: "NO_DOCUMENT_CONSOLIDATION",
-          labelKey: "missionControlTripInitTaskReason2",
-        },
-        {
-          value: "NO_CLIENT_SYSTEM_VALIDATION",
-          labelKey: "missionControlTripInitTaskReason3",
-        },
-        { value: "OTHER", labelKey: "missionControlTripInitTaskReason4" },
-      ],
-      defaultValue: "NO_GPS_VALIDATION",
-    },
-  },
-};
-
-// Utility function to get select configuration
-function getSelectConfig(
-  taskType?: string,
-  outcome?: string
-): SelectConfig | null {
-  if (!taskType || !outcome) return null;
-  return SELECT_OPTIONS_CONFIG[taskType]?.[outcome] || null;
-}
 export default function TaskConfirmModal({
   openModal,
   setOpenModal,
@@ -190,42 +36,35 @@ export default function TaskConfirmModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
-  const [comments, setComments] = useState("");
 
   // Get select configuration based on current task type and outcome
   const selectConfig = useMemo(() => {
     return getSelectConfig(taskType, outcome);
   }, [taskType, outcome]);
 
-  // Initialize reason state
-  const [reason, setReason] = useState("");
-
-  // Update reason when selectConfig changes or modal opens
-  useEffect(() => {
-    if (openModal && selectConfig && !reason) {
-      setReason(selectConfig.defaultValue);
-    }
-  }, [openModal, selectConfig, reason]);
+  // Use consolidated state management
+  const {
+    selectedValues,
+    setSelectedValues,
+    comments,
+    setComments,
+    resetState,
+  } = useTaskModalState(openModal, selectConfig);
 
   async function handleConfirm() {
     try {
-      // Use the current reason state directly, or fallback to default if empty
-      let calculatedReason = reason;
-      if (calculatedReason === "" && selectConfig) {
-        calculatedReason = selectConfig.defaultValue;
-      }
       setIsProcessing(true);
-      const formData = new FormData();
-      formData.append("taskId", taskId);
-      formData.append("transitionId", outcome!);
-      formData.append("comments", comments);
-      formData.append("reason", calculatedReason);
-      formData.append("reasonId", taskType ?? "");
-      if (extraData) {
-        Object.entries(extraData).forEach(([key, value]) => {
-          formData.append(key, value as string);
-        });
-      }
+
+      const formData = prepareFormData({
+        taskId,
+        outcome: outcome!,
+        comments,
+        taskType: taskType ?? "",
+        selectedValues,
+        selectConfig,
+        extraData,
+      });
+
       const response = await taskNextAction({}, formData);
       if (response.success) {
         setIsProcessing(false);
@@ -256,7 +95,7 @@ export default function TaskConfirmModal({
   async function onClose() {
     setIsProcessing(false);
     setError(undefined);
-    setReason(""); // Reset reason when modal closes
+    resetState(); // Reset all form state when modal closes
     setOpenModal(false);
   }
 
@@ -280,16 +119,28 @@ export default function TaskConfirmModal({
                 <Label className="mt-4">
                   {(dict.modal as I18nRecord).title2 as string}
                 </Label>
-                <Select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                >
-                  {selectConfig.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {(dict.modal as I18nRecord)[option.labelKey] as string}
-                    </option>
-                  ))}
-                </Select>
+                {selectConfig.multiSelect ? (
+                  <BrandedMultiSelect
+                    options={selectConfig.options}
+                    selectedValues={selectedValues}
+                    onSelectionChange={setSelectedValues}
+                    triggerText={
+                      selectConfig.triggerText || "Seleccionar opciones"
+                    }
+                    dict={dict}
+                  />
+                ) : (
+                  <Select
+                    value={selectedValues[0] || ""}
+                    onChange={(e) => setSelectedValues([e.target.value])}
+                  >
+                    {selectConfig.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {(dict.modal as I18nRecord)[option.labelKey] as string}
+                      </option>
+                    ))}
+                  </Select>
+                )}
               </>
             )}
 

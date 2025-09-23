@@ -33,7 +33,7 @@ export async function signInWithCredentials(
 
     return {
       id: person.entry.id,
-      name: person.entry.displayName,
+      name: person.entry.displayName ?? "",
       email: person.entry.email,
       groups: [],
       ticket,
@@ -41,7 +41,7 @@ export async function signInWithCredentials(
   } catch (error) {
     throw new CredentialsSignin({
       message: "Invalid credentials",
-      status: 403,
+      // status: 403,
     });
   }
 }

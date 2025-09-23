@@ -1325,6 +1325,11 @@
         "PROOF_OF_DELIVERY": "Proof of delivery",
         "PROOF_OF_PICKUP": "Proof of pickup",
         "CARGO_MANIFEST": "Cargo manifest",
+        "PICKUP_FRONT_IMAGE": "Pickup front image",
+        "PICKUP_RIGHT_IMAGE": "Pickup right image",
+        "PICKUP_LEFT_IMAGE": "Pickup left image",
+        "PICKUP_REAR_IMAGE": "Pickup rear image",
+        "PICKUP_GUIDE_IMAGE": "Pickup guide image",
         "OTHER": "Other"
       },
       "title": "Multimedia",

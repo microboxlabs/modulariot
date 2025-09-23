@@ -1457,7 +1457,8 @@
     "carrierName": "Nombre de transportista",
     "origin": "Origen",
     "destination": "Destino",
-    "customer": "Cliente"
+    "customer": "Cliente",
+    "originIsSitrans": "Origen es Sitrans"
   },
   "comments": {
     "title": "Comentarios",

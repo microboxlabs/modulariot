@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
+import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 
 export default function ParametrizedSearchBar({
   messages,
@@ -80,7 +81,7 @@ export default function ParametrizedSearchBar({
                     search.split(":")[0].toUpperCase()
                 );
                 if (param) {
-                  handleSearch(search.split(":")[1], param.param);
+                  handleSearch(search.split(":")[1], param.param.key);
                 } else {
                   handleSearch(search.split(":")[1], search.split(":")[0]);
                 }
@@ -89,7 +90,7 @@ export default function ParametrizedSearchBar({
           }}
           autoComplete="off"
         />
-        {open && search.length > 0 && (
+        {open && (
           <div
             className={`absolute top-full w-full flex flex-col overflow-y-auto text-gray-700 dark:text-gray-300 border-x border-b border-gray-200 dark:border-gray-600 ${open ? "bg-gray-100 dark:bg-gray-700 rounded-b-lg" : ""}`}
           >
@@ -104,7 +105,7 @@ export default function ParametrizedSearchBar({
                       (param: any) => param.label === search.split(":")[0]
                     );
                     if (param) {
-                      handleSearch(search.split(":")[1], param.param);
+                      handleSearch(search.split(":")[1], param.param.key);
                     } else {
                       handleSearch(search.split(":")[1], search.split(":")[0]);
                     }
@@ -121,24 +122,70 @@ export default function ParametrizedSearchBar({
                 </label>
               </div>
             ) : (
-              navegation_params.map((param: any, index: number) => (
-                <div
-                  key={index}
-                  className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-600"
-                  onClick={() => {
-                    handleSearch(search, param.param);
-                  }}
-                >
-                  Buscar
-                  <label className="font-normal max-w-32 truncate dark:text-white text-black cursor-pointer">
-                    {search}
-                  </label>
-                  como
-                  <label className="font-normal dark:text-white text-black cursor-pointer">
-                    {param.label}
-                  </label>
+              (() => {
+                return navegation_params
+                  .filter((param: any) => param.param.type === "text")
+                  .map((param: any, index: number) => (
+                    <div
+                      key={index}
+                      className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap hover:bg-gray-200 dark:hover:bg-gray-600"
+                      onClick={() => {
+                        handleSearch(search, param.param.key);
+                      }}
+                    >
+                      Buscar
+                      <label className="font-normal max-w-32 truncate dark:text-white text-black cursor-pointer">
+                        {search}
+                      </label>
+                      como
+                      <label className="font-normal dark:text-white text-black cursor-pointer">
+                        {param.label}
+                      </label>
+                    </div>
+                  ));
+              })()
+            )}
+            {navegation_params.filter(
+              (param: any) => param.param.type === "date_range"
+            ).length > 0 && (
+              <>
+                <hr className="border-gray-200 dark:border-gray-700" />
+                <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
+                  {(() => {
+                    const dateParams = navegation_params.filter(
+                      (param: any) => param.param.type === "date_range"
+                    );
+
+                    return dateParams.map((param: any, index: number) => (
+                      <DateRangePicker
+                        key={index}
+                        label={param.label}
+                        onDateChange={(startDate: string, endDate: string) => {
+                          const paramName = param.param.key || "date_range";
+
+                          const params = new URLSearchParams(
+                            searchParams.toString()
+                          );
+
+                          if (startDate) {
+                            params.set(paramName + "_from", startDate);
+                          } else {
+                            params.delete(paramName + "_from");
+                          }
+
+                          if (endDate) {
+                            params.set(paramName + "_to", endDate);
+                          } else {
+                            params.delete(paramName + "_to");
+                          }
+
+                          router.push(`${pathName}?${params.toString()}`);
+                        }}
+                      />
+                    ));
+                  })()}
                 </div>
-              ))
+              </>
             )}
           </div>
         )}

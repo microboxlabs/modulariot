@@ -12,7 +12,10 @@ export default function Tags({
   searchParams: URLSearchParams;
   router: AppRouterInstance;
   pathName: string;
-  navegation_params?: Array<{ label: string; param: string }>;
+  navegation_params?: Array<{
+    label: string;
+    param: { key: string; type: string };
+  }>;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<
@@ -32,7 +35,7 @@ export default function Tags({
         .map(([key, value]) => {
           // Find the label for this parameter from navigation_params
           const navParam = navegation_params?.find(
-            (param) => param.param === key
+            (param) => param.param.key === key
           );
           return {
             name: key,

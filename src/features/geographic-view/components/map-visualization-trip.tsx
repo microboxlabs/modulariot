@@ -333,7 +333,7 @@ export default function MapVisualizationTrip({
         features,
       };
     } catch (error) {
-      logger.error("Error processing geofence data:", error);
+      logger.error(error, "Error processing geofence data:");
       return null;
     }
   }, [geofence_data]);
@@ -494,7 +494,7 @@ export default function MapVisualizationTrip({
   // Handle errors and loading states
   React.useEffect(() => {
     if (geofence_error) {
-      logger.error("Error loading geofences:", geofence_error);
+      logger.error(geofence_error, "Error loading geofences:");
     }
 
     if (geofence_isLoading) {

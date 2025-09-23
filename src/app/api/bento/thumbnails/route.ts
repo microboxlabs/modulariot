@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { logger } from "@/lib/logger";
+import { logError } from "@/lib/logger";
 import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -67,7 +67,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error("Thumbnail fetch error:", error);
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      context: "thumbnailFetch",
+    });
     return NextResponse.json(
       { error: "Failed to fetch thumbnail" },
       { status: 500 }

@@ -26,7 +26,7 @@ export async function saveBase64ToPDF(
 
     return `/storage/${filename}.pdf`;
   } catch (error) {
-    logger.error("Error saving PDF file:", error);
+    logger.error(error, "Error saving PDF file:");
     throw new Error("Failed to save PDF file");
   }
 }
@@ -42,7 +42,7 @@ export async function readPDFAsBase64(filePath: string): Promise<string> {
     const buffer = await fs.readFile(fullPath);
     return buffer.toString("base64");
   } catch (error) {
-    logger.error("Error reading PDF file:", error);
+    logger.error(error, "Error reading PDF file:");
     throw new Error("Failed to read PDF file");
   }
 }

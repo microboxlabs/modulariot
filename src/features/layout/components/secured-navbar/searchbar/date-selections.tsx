@@ -67,15 +67,14 @@ export default function DateSelections() {
             </div>
             <Datepicker
               inline
-              onChange={(date) => setFromDate(date)}
-              className="bg-gray-100 dark:bg-gray-800"
-              onSelectedDateChanged={(date) => {
+              onChange={(date) => {
                 if (openFromDate) {
                   setFromDate(date);
                 } else {
                   setToDate(date);
                 }
               }}
+              className="bg-gray-100 dark:bg-gray-800"
             />
           </div>
         </div>

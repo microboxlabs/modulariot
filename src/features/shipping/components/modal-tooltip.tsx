@@ -37,6 +37,26 @@ export default function ModalTooltip({
     return null;
   }
 
+  console.log(selectedTask);
+  console.log(userGroups);
+  console.log(data);
+
+  if (data?.taskResponse == null && !isLoading && !error) {
+    return (
+      <AbsoluteModal
+        selected={selectedTask}
+        setSelected={setSelectedTask}
+        maxWidth="1500px"
+        maxHeight="90vh"
+        height=""
+      >
+        <div className="p-4 text-gray-500 dark:text-gray-400">
+          No data available
+        </div>
+      </AbsoluteModal>
+    );
+  }
+
   return (
     <AbsoluteModal
       selected={selectedTask}

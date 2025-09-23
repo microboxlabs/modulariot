@@ -16,18 +16,24 @@ import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
 import { duration } from "@/utils/time";
 import { useSearchParams } from "next/navigation";
+import ModalTooltip from "../../../shipping/components/modal-tooltip";
 //import { useSearchParams } from "next/navigation";
 
 export default function MyTasks({
   dict,
   status,
+  userGroups,
+  lang,
 }: {
   dict: I18nRecord;
   status: string;
+  userGroups: string[];
+  lang: string;
 }) {
   //const [isLoading, setIsLoading] = useState(false);
   //const hoverTimeoutRef = useRef<number | null>(null);
   const searchParams = useSearchParams();
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
 
   const [hasScrolled, setHasScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -118,7 +124,19 @@ export default function MyTasks({
       className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen"
     >
       <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
-      <TaskList dict={dict} tasks={tasks as unknown as KanbanBoardTask[]} />
+      <TaskList
+        dict={dict}
+        tasks={tasks as unknown as KanbanBoardTask[]}
+        setSelectedTask={setSelectedTask}
+      />
+      {/* Modal Tooltip Component */}
+      <ModalTooltip
+        lang={lang}
+        userGroups={userGroups}
+        selectedTask={selectedTask}
+        setSelectedTask={setSelectedTask}
+        dict={dict as I18nRecord}
+      />
       {hasScrolled && (
         <button
           onClick={scrollToTop}

@@ -7,6 +7,7 @@ import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-
 
 import { ShowNotification } from "@/features/notifications/notification";
 import { FetcherError } from "@/features/common/providers/fetcher.types";
+import { InfoError } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 async function fetcherClient<T>(
   input: RequestInfo | URL,
@@ -17,6 +18,16 @@ async function fetcherClient<T>(
   } catch (error) {
     const fetcherError = error as FetcherError;
     let errorMessage = fetcherError.message;
+
+    if (typeof fetcherError?.info === "string") {
+      const parsedError = JSON.parse(fetcherError.info) as Record<
+        string,
+        InfoError
+      >;
+      if (parsedError?.error?.message) {
+        errorMessage = parsedError.error.message;
+      }
+    }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (fetcherError?.info?.error?.code === "ALERCE_LOGIN_ERROR") {
       errorMessage =
@@ -59,6 +70,8 @@ export async function taskNextAction(
 
   const reasonId = formData.get("reasonId");
   const reason = formData.get("reason");
+  const reasons = formData.get("reasons");
+  const isMultiReason = formData.get("isMultiReason");
 
   return fetcherClient<TaskNextActionState>("/app/api/task/end", {
     method: "POST",
@@ -72,6 +85,8 @@ export async function taskNextAction(
       nativeGenerationEnabled,
       reasonId,
       reason,
+      reasons,
+      isMultiReason,
     }),
   });
 }

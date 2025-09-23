@@ -1,28 +1,23 @@
 import pinoHttp from "pino-http";
 import { logger } from "@/lib/logger";
-import hexoid from "hexoid";
+const hexoid = require("hexoid");
+
+// Create a generator instance
+const generateId = hexoid(); // <- call hexoid once
 
 // Create Pino HTTP middleware
 export const pinoHttpMiddleware = pinoHttp({
   logger,
   customLogLevel: (req, res, err) => {
-    if (res.statusCode >= 400 && res.statusCode < 500) {
-      return "warn";
-    }
-    if (res.statusCode >= 500 || err) {
-      return "error";
-    }
-    if (res.statusCode >= 300 && res.statusCode < 400) {
-      return "silent";
-    }
+    if (res.statusCode >= 400 && res.statusCode < 500) return "warn";
+    if (res.statusCode >= 500 || err) return "error";
+    if (res.statusCode >= 300 && res.statusCode < 400) return "silent";
     return "info";
   },
-  customSuccessMessage: (req, res) => {
-    return `${req.method} ${req.url} - ${res.statusCode}`;
-  },
-  customErrorMessage: (req, res, err) => {
-    return `${req.method} ${req.url} - ${res.statusCode} - ${err?.message || "Unknown error"}`;
-  },
+  customSuccessMessage: (req, res) =>
+    `${req.method} ${req.url} - ${res.statusCode}`,
+  customErrorMessage: (req, res, err) =>
+    `${req.method} ${req.url} - ${res.statusCode} - ${err?.message || "Unknown error"}`,
   customAttributeKeys: {
     req: "request",
     res: "response",
@@ -47,31 +42,24 @@ export const pinoHttpMiddleware = pinoHttp({
       stack: err.stack,
     }),
   },
-  // Skip logging for health checks and static assets
-  customProps: (req, _res) => {
-    return {
-      context: "http",
-      userAgent: req.headers["user-agent"],
-      remoteAddress: req.connection?.remoteAddress,
-    };
-  },
-  // Custom request ID generation
+  customProps: (req, _res) => ({
+    context: "http",
+    userAgent: req.headers["user-agent"],
+    remoteAddress: req.connection?.remoteAddress,
+  }),
+  // Fixed request ID generation
   genReqId: (req) => {
-    return req.headers["x-request-id"] || req.id || hexoid();
+    return req.headers["x-request-id"] || req.id || generateId(); // <- call the generator
   },
 });
 
 // Export a simpler version for Next.js API routes
-export const createPinoHttpLogger = () => {
-  return pinoHttp({
+export const createPinoHttpLogger = () =>
+  pinoHttp({
     logger,
     customLogLevel: (req, res, err) => {
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        return "warn";
-      }
-      if (res.statusCode >= 500 || err) {
-        return "error";
-      }
+      if (res.statusCode >= 400 && res.statusCode < 500) return "warn";
+      if (res.statusCode >= 500 || err) return "error";
       return "info";
     },
     serializers: {
@@ -83,9 +71,6 @@ export const createPinoHttpLogger = () => {
           "content-type": req.headers["content-type"],
         },
       }),
-      res: (res) => ({
-        statusCode: res.statusCode,
-      }),
+      res: (res) => ({ statusCode: res.statusCode }),
     },
   });
-};

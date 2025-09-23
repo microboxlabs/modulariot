@@ -12,10 +12,14 @@ export default function TaskList({
   setSelectedTask,
   dict,
   tasks,
+  isLoading = false,
+  hasMore = true,
 }: {
   setSelectedTask: (taskId: string | null) => void;
   dict: I18nRecord;
   tasks: KanbanBoardTask[];
+  isLoading?: boolean;
+  hasMore?: boolean;
 }) {
   const header = [
     tr("my_tasks.stage", dict),
@@ -45,9 +49,16 @@ export default function TaskList({
           minWidth: "600px",
         }}
       />
-      <div className="flex justify-center pt-4 pb-2">
-        <Spinner size="lg" />
-      </div>
+      {isLoading && hasMore && (
+        <div className="flex justify-center pt-4 pb-2">
+          <Spinner size="lg" />
+        </div>
+      )}
+      {!hasMore && tasks.length > 0 && (
+        <div className="flex justify-center pt-4 pb-2 text-gray-500 text-sm">
+          No more tasks to load
+        </div>
+      )}
     </div>
   );
 }

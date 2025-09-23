@@ -38,7 +38,7 @@ export async function captureAndDownloadMap(
     ) as HTMLCanvasElement;
 
     if (debugMode) {
-      logger.info("Canvas elements found:", { mapboxCanvas, deckGLCanvas });
+      logger.info({ mapboxCanvas, deckGLCanvas }, "Canvas elements found:");
     }
 
     // Try to combine both canvases first - this is the most reliable approach
@@ -71,7 +71,7 @@ export async function captureAndDownloadMap(
         return true;
       } catch (err) {
         if (debugMode) {
-          logger.error("Error combining canvases:", err);
+          logger.error(err, "Error combining canvases:");
         }
         // Continue to other methods if combining fails
       }
@@ -89,7 +89,7 @@ export async function captureAndDownloadMap(
     const deckGL = (window as any).deckGL;
 
     if (debugMode) {
-      logger.info("Map instances:", { mapboxMap, deckGL });
+      logger.info({ mapboxMap, deckGL }, "Map instances:");
     }
 
     // If we have direct access to the map instance, use its native methods
@@ -138,7 +138,7 @@ export async function captureAndDownloadMap(
     );
 
     if (debugMode) {
-      logger.info("Found map canvases:", mapCanvases);
+      logger.info(mapCanvases, "Found map canvases:");
     }
 
     if (mapCanvases.length > 0) {
@@ -170,7 +170,7 @@ export async function captureAndDownloadMap(
               }
             } catch (e) {
               if (debugMode) {
-                logger.warn(`Failed to draw canvas ${index}:`, e);
+                logger.warn(e, `Failed to draw canvas ${index}:`);
               }
             }
           });
@@ -182,7 +182,7 @@ export async function captureAndDownloadMap(
           return true;
         } catch (err) {
           if (debugMode) {
-            logger.error("Error combining multiple canvases:", err);
+            logger.error(err, "Error combining multiple canvases:");
           }
           // Fall back to using just the first canvas
         }
@@ -199,7 +199,7 @@ export async function captureAndDownloadMap(
         return true;
       } catch (err) {
         if (debugMode) {
-          logger.error("Error capturing canvas:", err);
+          logger.error(err, "Error capturing canvas:");
         }
 
         // If we get a security error (CORS), we need to try a different approach
@@ -229,7 +229,7 @@ export async function captureAndDownloadMap(
 
     return false;
   } catch (err) {
-    logger.error("Error capturing map:", err);
+    logger.error(err, "Error capturing map:");
     onStatusChange(
       `Error: ${err instanceof Error ? err.message : "Unknown error"}`
     );

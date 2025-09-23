@@ -15,7 +15,7 @@ export default function EndTreatment({
   setIsTeamsNotificationOn: (isTeamsNotificationOn: boolean) => void;
 }) {
   useEffect(() => {
-    logger.info("isTeamsNotificationOn changed to:", isTeamsNotificationOn);
+    logger.info(isTeamsNotificationOn, "isTeamsNotificationOn changed to:");
   }, [isTeamsNotificationOn]);
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {

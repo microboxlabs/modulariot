@@ -5,6 +5,8 @@ export type EndTaskRequest = {
   nativeGenerationEnabled?: string;
   reason?: string;
   reasonId?: string;
+  reasons?: string; // JSON stringified array for multi-select
+  isMultiReason?: string; // Flag to indicate multi-select mode
 };
 
 export type UpdateTaskRequest = {
@@ -13,4 +15,6 @@ export type UpdateTaskRequest = {
   prop_mintral_commentPostTitle?: string;
   prop_mintral_commentPostContent?: string;
   prop_cm_owner?: string;
+  // New properties for multi-select rejection handling
+  prop_mintral_commentReasons?: string[];
 };

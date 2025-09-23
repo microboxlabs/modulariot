@@ -3,13 +3,11 @@ import { auth } from "@/auth";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { AdminLogConsole } from "@/features/common/components/admin-log-console/admin-log-console";
 import { redirect } from "next/navigation";
-import { createManagedLogger, logError } from "@/lib/logger";
+import { logError } from "@/lib/logger";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
-
-const logger = createManagedLogger("admin-logs", "Logs Console Page");
 
 // Admin groups that can access log management
 const ADMIN_GROUPS = [
@@ -32,7 +30,9 @@ async function checkAdminAccess() {
       redirect("/shipping"); // Redirect to home if not admin
     }
   } catch (error) {
-    logger.error("Error checking admin access:", error);
+    logError(error instanceof Error ? error : new Error(String(error)), {
+      context: "checkAdminAccess",
+    });
     redirect("/shipping");
   }
 }

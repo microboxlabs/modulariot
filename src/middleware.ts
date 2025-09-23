@@ -38,7 +38,7 @@ const logger = createManagedLogger("middleware", "Middleware", "error");
 export default auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
-  logger.debug(pathname, "middleware");
+  logger.debug(`middleware - pathname: ${pathname}`);
   const prefixApp =
     pathname.startsWith("/app/") || pathname === "/app" ? "/app/" : "";
 

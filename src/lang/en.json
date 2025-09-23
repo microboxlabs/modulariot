@@ -520,7 +520,22 @@
         "PODReason3": "Incomplete POD: no client authorization (the document must include the email that vouches for the delivery).",
         "PODReason4": "Other.",
         "reason": "Reason",
-        "confirm": "Confirm move to {outcome}"
+        "confirm": "Confirm move to {outcome}",
+        "multipleReasonsSelected": "options selected",
+        "rejectedGuide": "Rejected guide",
+        "rejectedGuideDesc": "The guide document presents errors or is incomplete",
+        "rejectedLeftSide": "Left side rejected",
+        "rejectedLeftSideDesc": "The left side of the vehicle image is not clear or valid",
+        "rejectedRightSide": "Right side rejected",
+        "rejectedRightSideDesc": "The right side of the vehicle image is not clear or valid",
+        "rejectedFront": "Front rejected",
+        "rejectedFrontDesc": "The front of the vehicle image is not clear or valid",
+        "rejectedBack": "Back rejected",
+        "rejectedBackDesc": "The back of the vehicle image is not clear or valid",
+        "noGpsValidationDesc": "The system could not validate the GPS location of the vehicle",
+        "noDocumentConsolidationDesc": "Missing required documentation",
+        "noClientSystemValidationDesc": "Could not validate with the client system",
+        "otherReasonDesc": "Other reason not specified in the previous options"
       }
     },
     "shippingDetailsTaskForm": {
@@ -615,7 +630,8 @@
         "missionControlTripInitTaskReason3": "No client system validation.",
         "missionControlTripInitTaskReason4": "Other.",
         "confirm": "Confirm move to {outcome}",
-        "reason": "Reason"
+        "reason": "Reason",
+        "multipleReasonsSelected": "options selected"
       }
     },
     "sovosVerificationForm": {
@@ -1013,6 +1029,10 @@
     "OFF HOURS DRIVING": "Off hours driving",
     "PANIC BUTTON": "Panic button",
     "RISK ZONE SLEEP": "Risk zone sleep",
+    "Deviation_Eta_Late": "Deviation Eta Late",
+    "Deviation_Eta_Early": "Deviation Eta Early",
+    "Fatigue And Drowsiness": "Fatigue and drowsiness",
+    "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor",
     "MIN REST": "Min rest",
     "TRIP_START": "Trip start",
     "TRIP_END": "Last Recorded Event.",
@@ -1090,7 +1110,11 @@
       "Night Driving": "Night Driving",
       "Continuous Resting Check": "Continuous Resting Check",
       "Bad Sign": "Bad Sign",
-      "Speed Limit Custom": "Speed Limit Custom"
+      "Speed Limit Custom": "Speed Limit Custom",
+      "Deviation_Eta_Late": "Deviation Eta Late",
+      "Deviation_Eta_Early": "Deviation Eta Early",
+      "Fatigue And Drowsiness": "Fatigue and drowsiness",
+      "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor"
     }
   },
   "geographic_view": {

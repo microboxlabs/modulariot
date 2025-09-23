@@ -1349,6 +1349,11 @@
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
         "PROOF_OF_PICKUP": "Prueba de Retiro",
         "CARGO_MANIFEST": "Carta de Porte",
+        "PICKUP_FRONT_IMAGE": "Imagen delantera del retiro",
+        "PICKUP_RIGHT_IMAGE": "Imagen lateral derecha del retiro",
+        "PICKUP_LEFT_IMAGE": "Imagen lateral izquierda del retiro",
+        "PICKUP_REAR_IMAGE": "Imagen trasera del retiro",
+        "PICKUP_GUIDE_IMAGE": "Imagen de la guía del retiro",
         "OTHER": "Otro"
       },
       "title": "Multimedia",

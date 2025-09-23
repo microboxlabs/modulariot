@@ -222,6 +222,42 @@ export default function SymptomsCard({
       count: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
       conditions: getConditions(symptoms, "Movement With Cargo") || [""],
     },
+    {
+      key: "Deviation_Eta_Late",
+      icon: "Deviation_Eta_Late",
+      id: "Deviation_Eta_Late",
+      label: (dict.symptoms as I18nRecord).Deviation_Eta_Late as string,
+      count: getTotalSymptoms(symptoms, "Deviation_Eta_Late") || 0,
+      conditions: getConditions(symptoms, "Deviation_Eta_Late") || [""],
+    },
+    {
+      key: "Deviation_Eta_Early",
+      icon: "Deviation_Eta_Early",
+      id: "Deviation_Eta_Early",
+      label: (dict.symptoms as I18nRecord).Deviation_Eta_Early as string,
+      count: getTotalSymptoms(symptoms, "Deviation_Eta_Early") || 0,
+      conditions: getConditions(symptoms, "Deviation_Eta_Early") || [""],
+    },
+    {
+      key: "Fatigue And Drowsiness",
+      icon: "Fatigue And Drowsiness",
+      id: "Fatigue And Drowsiness",
+      label: (dict.symptoms as I18nRecord)["Fatigue And Drowsiness"] as string,
+      count: getTotalSymptoms(symptoms, "Fatigue And Drowsiness") || 0,
+      conditions: getConditions(symptoms, "Fatigue And Drowsiness") || [""],
+    },
+    {
+      key: "Fatigue And Drowsiness Sensor",
+      icon: "Fatigue And Drowsiness Sensor",
+      id: "Fatigue And Drowsiness Sensor",
+      label: (dict.symptoms as I18nRecord)[
+        "Fatigue And Drowsiness Sensor"
+      ] as string,
+      count: getTotalSymptoms(symptoms, "Fatigue And Drowsiness Sensor") || 0,
+      conditions: getConditions(symptoms, "Fatigue And Drowsiness Sensor") || [
+        "",
+      ],
+    },
   ];
 
   return (

@@ -304,6 +304,46 @@ export function getCategories(dict: I18nRecord) {
           .categories as I18nRecord
       ),
     },
+    PICKUP_FRONT_IMAGE: {
+      value: "PICKUP_FRONT_IMAGE",
+      label: tr(
+        "PICKUP_FRONT_IMAGE",
+        ((dict.bento as I18nRecord).multimedia as I18nRecord)
+          .categories as I18nRecord
+      ),
+    },
+    PICKUP_RIGHT_IMAGE: {
+      value: "PICKUP_RIGHT_IMAGE",
+      label: tr(
+        "PICKUP_RIGHT_IMAGE",
+        ((dict.bento as I18nRecord).multimedia as I18nRecord)
+          .categories as I18nRecord
+      ),
+    },
+    PICKUP_LEFT_IMAGE: {
+      value: "PICKUP_LEFT_IMAGE",
+      label: tr(
+        "PICKUP_LEFT_IMAGE",
+        ((dict.bento as I18nRecord).multimedia as I18nRecord)
+          .categories as I18nRecord
+      ),
+    },
+    PICKUP_REAR_IMAGE: {
+      value: "PICKUP_REAR_IMAGE",
+      label: tr(
+        "PICKUP_REAR_IMAGE",
+        ((dict.bento as I18nRecord).multimedia as I18nRecord)
+          .categories as I18nRecord
+      ),
+    },
+    PICKUP_GUIDE_IMAGE: {
+      value: "PICKUP_GUIDE_IMAGE",
+      label: tr(
+        "PICKUP_GUIDE_IMAGE",
+        ((dict.bento as I18nRecord).multimedia as I18nRecord)
+          .categories as I18nRecord
+      ),
+    },
     OTHER: {
       value: "OTHER",
       label: tr(

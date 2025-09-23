@@ -23,11 +23,23 @@ export default function TaskListTitle({
     carrier: FaTruck,
     driver: FaUser,
   };
+  const titleLabel = searchParams
+    .toString()
+    .split("&")
+    .filter((filter) => filter.includes("titleLabel"))
+    .join("&")
+    .replace("titleLabel=", "");
+
   const tags = searchParams.toString()
     ? searchParams
         .toString()
         .split("&")
-        .slice(1)
+        .filter(
+          (filter) =>
+            !filter.includes("titleLabel") &&
+            !filter.includes("position") &&
+            !filter.includes("status")
+        )
         .map((param) => {
           const [key, value] = param.split("=");
           return {
@@ -47,7 +59,9 @@ export default function TaskListTitle({
         </div>
         {status === "finished"
           ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
-          : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string)}
+          : titleLabel
+            ? titleLabel
+            : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string)}
       </div>
 
       {/* Filters */}

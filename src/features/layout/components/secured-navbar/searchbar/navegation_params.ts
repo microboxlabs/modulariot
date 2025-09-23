@@ -3,16 +3,22 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-const kanban_params = [
-  "service",
-  "licensePlate",
-  "driverId",
-  // "carrierName",
-  "carrierId",
-  "origin",
-  "destination",
-  "customer",
+export type ParamType = string | { param: string; type: "date_range" | "text" };
+
+const kanban_params: ParamType[] = [
+  setParam("service", "text"),
+  setParam("licensePlate", "text"),
+  setParam("driverId", "text"),
+  setParam("carrierId", "text"),
+  setParam("origin", "text"),
+  setParam("destination", "text"),
+  setParam("customer", "text"),
+  // setParam("date_range", "date_range"),
 ];
+
+function setParam(param: ParamType, type: "date_range" | "text") {
+  return { param, type } as ParamType;
+}
 
 export function getNavegationParams(dict: I18nRecord) {
   return {
@@ -23,11 +29,17 @@ export function getNavegationParams(dict: I18nRecord) {
   };
 }
 
-function getParamsFixed(params: string[], dict: I18nRecord) {
+function getParamsFixed(params: ParamType[], dict: I18nRecord) {
   return params.map((param) => {
+    const paramKey = typeof param === "string" ? param : param.param;
+    const paramType = typeof param === "string" ? "text" : param.type;
+
     return {
-      label: tr(param, dict.searchbar as I18nRecord),
-      param,
+      label: tr(paramKey, dict.searchbar as I18nRecord),
+      param: {
+        key: paramKey,
+        type: paramType,
+      },
     };
   });
 }

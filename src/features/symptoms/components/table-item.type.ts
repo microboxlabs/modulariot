@@ -452,6 +452,58 @@ export const Symptoms: Record<string, SymptomType> = {
     hoverColor: "",
     icon: recovery,
   },
+  Deviation_Eta_Late: {
+    dict_name: "in_remission",
+    color: "border-teal-700",
+    innerColor: "bg-teal-50",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: recovery,
+  },
+  Deviation_Eta_Early: {
+    dict_name: "in_remission",
+    color: "border-teal-700",
+    innerColor: "bg-teal-50",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: recovery,
+  },
+  "Fatigue And Drowsiness": {
+    dict_name: "in_remission",
+    color: "border-teal-700",
+    innerColor: "bg-teal-50",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: recovery,
+  },
+  "Fatigue And Drowsiness Sensor": {
+    dict_name: "in_remission",
+    color: "border-teal-700",
+    innerColor: "bg-teal-50",
+    textColor: "text-black dark:text-white",
+    bgColor: "border border-gray-300 dark:border-gray-700",
+    secundaryInteraction:
+      "border-gray-400 dark:border-gray-600 bg-gray-100 dark:bg-gray-800",
+    secundaryInteractionIcon: "text-gray-700 dark:text-gray-300",
+    separatorColor: "border-gray-300 dark:border-gray-700",
+    hoverColor: "",
+    icon: recovery,
+  },
 };
 
 export type SymptomType = {

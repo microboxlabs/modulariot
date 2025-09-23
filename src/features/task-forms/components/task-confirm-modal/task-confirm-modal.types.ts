@@ -41,3 +41,22 @@ export type MissionControlTripInitTaskOutputReasonType =
   | "NO_DOCUMENT_CONSOLIDATION"
   | "NO_CLIENT_SYSTEM_VALIDATION"
   | "OTHER";
+
+export type SelectOption = {
+  value: string;
+  labelKey: string;
+  descriptionKey?: string; // Optional: supporting text key for branded multi-select
+};
+
+export type SelectConfig = {
+  options: SelectOption[];
+  defaultValue: string | string[];
+  multiSelect?: boolean; // Flag to enable multi-select mode
+  triggerText?: string; // Text shown in collapsed multi-select state
+};
+
+export type SelectOptionsConfig = {
+  [taskType: string]: {
+    [outcome: string]: SelectConfig;
+  };
+};

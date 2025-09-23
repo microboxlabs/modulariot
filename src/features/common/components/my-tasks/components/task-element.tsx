@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef } from "react";
 import { FaCalendarAlt } from "react-icons/fa";
 import KanbanViewSwitcherIconCompressed from "@/features/svg_components/kanban_view_switcher_icon_compressed";
 import { tr } from "@/features/i18n/tr.service";
@@ -22,7 +22,7 @@ export default function TaskListElement({
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // make this value be a random number between 0 and 4, but keep it stable across re-renders
-  const alert_level = useMemo(() => Math.floor(Math.random() * 5), [task.id]);
+  const alert_level = 0; // useMemo(() => Math.floor(Math.random() * 5), [task.id]);
 
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {

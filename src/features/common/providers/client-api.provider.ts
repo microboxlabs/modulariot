@@ -80,6 +80,27 @@ export function useMyTasksCount() {
   };
 }
 
+export async function getMyTasks(
+  columns: string[],
+  showFinished: boolean,
+  page?: number,
+  limit?: number,
+  params?: string
+) {
+  const columnQuery = columns.map((column) => `columns=${column}`).join("&");
+
+  const from = page ? (page - 1) * (limit ?? 10) : 0;
+
+  const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
+  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}&${params}`;
+
+  const data = await fetcher<KanbanBoardTaskResponse>(
+    `/app/api/task/mytasks?${queryString}`
+  );
+
+  return data;
+}
+
 // This gets replaced by a fetched action, since useSWR generates performance issues when loading the elements in the serverside component who reads it
 /**
  * @deprecated Use getEntityInfo instead due to performance issues with SWR implementation

@@ -3,6 +3,8 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { FaBook } from "react-icons/fa";
 import MyTasks from "@/features/common/components/my-tasks/my-tasks";
+import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { auth } from "@/auth";
 
 export default async function MyTasksPage({
   params: { lang },
@@ -10,6 +12,8 @@ export default async function MyTasksPage({
 }: ParamsWithLang & { searchParams: { status: string } }) {
   const [, dict] = await getDictionary(lang);
   const status = searchParams.status || "pending";
+  const session = await auth();
+  const userGroups = await getGroupsForPerson(session!);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -30,7 +34,12 @@ export default async function MyTasksPage({
           }
         />
       </div>
-      <MyTasks dict={dict} status={status} />
+      <MyTasks
+        dict={dict}
+        status={status}
+        userGroups={userGroups}
+        lang={lang}
+      />
     </div>
   );
 }

@@ -9,9 +9,11 @@ import { tr } from "@/features/i18n/tr.service";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 
 export default function TaskList({
+  setSelectedTask,
   dict,
   tasks,
 }: {
+  setSelectedTask: (taskId: string | null) => void;
   dict: I18nRecord;
   tasks: KanbanBoardTask[];
 }) {
@@ -21,10 +23,16 @@ export default function TaskList({
     tr("my_tasks.license_plate", dict),
     tr("my_tasks.route", dict),
     tr("my_tasks.client", dict),
+    "",
   ];
 
   const content = tasks.map((task) => (
-    <TaskListElement key={task.id} task={task} dict={dict} />
+    <TaskListElement
+      key={task.id}
+      task={task}
+      dict={dict}
+      setSelectedTask={setSelectedTask}
+    />
   ));
 
   return (
@@ -33,7 +41,7 @@ export default function TaskList({
         header={header}
         content={content}
         style={{
-          gridTemplateColumns: "4fr 1fr 1fr 1fr 1fr",
+          gridTemplateColumns: "4fr 1fr 1fr 1fr 1fr 1fr",
           minWidth: "600px",
         }}
       />

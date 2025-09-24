@@ -136,6 +136,9 @@ export default function MapVisualization({
     ({ object, viewport }: { object: any; viewport: any }) => {
       setViewState((prevViewState) => ({
         ...prevViewState,
+        zoom: object.properties.cluster
+          ? prevViewState.zoom + 2
+          : prevViewState.zoom,
         longitude: object.geometry.coordinates[0],
         latitude: object.geometry.coordinates[1],
         transitionInterpolator: new FlyToInterpolator({ speed: 2 }),

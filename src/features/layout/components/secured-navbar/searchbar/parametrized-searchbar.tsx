@@ -7,12 +7,18 @@ import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
+import { ParamType } from "./navegation_params";
+import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function ParametrizedSearchBar({
+  dict,
   messages,
   searchParams,
   navegation_params,
 }: {
+  dict: any;
   messages: any;
   searchParams: any;
   navegation_params: any;
@@ -36,10 +42,17 @@ export default function ParametrizedSearchBar({
   // Handle clicks outside the component to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      // Check if click is inside the main container
+      const isInsideContainer = containerRef.current?.contains(
+        event.target as Node
+      );
+
+      // Check if click is inside any dropdown portal (CustomSelector dropdowns)
+      const isInsideDropdownPortal = (event.target as Element)?.closest(
+        "[data-dropdown-portal]"
+      );
+
+      if (!isInsideContainer && !isInsideDropdownPortal) {
         setOpen(false);
       }
     };
@@ -52,6 +65,13 @@ export default function ParametrizedSearchBar({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [open]);
+
+  const date_range_params = navegation_params.filter(
+    (param: any) => param.param.type === "date_range"
+  );
+  const bool_params = navegation_params.filter(
+    (param: any) => param.param.type === "bool"
+  );
 
   return (
     <div ref={containerRef} className="flex items-center gap-2 flex-row">
@@ -145,48 +165,19 @@ export default function ParametrizedSearchBar({
                   ));
               })()
             )}
-            {navegation_params.filter(
-              (param: any) => param.param.type === "date_range"
-            ).length > 0 && (
-              <>
-                <hr className="border-gray-200 dark:border-gray-700" />
-                <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
-                  {(() => {
-                    const dateParams = navegation_params.filter(
-                      (param: any) => param.param.type === "date_range"
-                    );
-
-                    return dateParams.map((param: any, index: number) => (
-                      <DateRangePicker
-                        key={index}
-                        label={param.label}
-                        onDateChange={(startDate: string, endDate: string) => {
-                          const paramName = param.param.key || "date_range";
-
-                          const params = new URLSearchParams(
-                            searchParams.toString()
-                          );
-
-                          if (startDate) {
-                            params.set(paramName + "_from", startDate);
-                          } else {
-                            params.delete(paramName + "_from");
-                          }
-
-                          if (endDate) {
-                            params.set(paramName + "_to", endDate);
-                          } else {
-                            params.delete(paramName + "_to");
-                          }
-
-                          router.push(`${pathName}?${params.toString()}`);
-                        }}
-                      />
-                    ));
-                  })()}
-                </div>
-              </>
-            )}
+            <BoolParams
+              bool_elements={bool_params}
+              dict={dict}
+              searchParams={searchParams}
+              pathName={pathName}
+              router={router}
+            />
+            <DateParams
+              date_elements={date_range_params}
+              searchParams={searchParams}
+              pathName={pathName}
+              router={router}
+            />
           </div>
         )}
       </div>
@@ -199,4 +190,117 @@ export default function ParametrizedSearchBar({
       />
     </div>
   );
+}
+
+function DateParams({
+  date_elements,
+  searchParams,
+  pathName,
+  router,
+}: {
+  date_elements: ParamType[];
+  searchParams: URLSearchParams;
+  pathName: string;
+  router: any;
+}) {
+  if (date_elements.length > 0) {
+    return (
+      <>
+        <hr className="border-gray-200 dark:border-gray-700" />
+        <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
+          {(() => {
+            return date_elements.map((param: any, index: number) => (
+              <DateRangePicker
+                key={index}
+                label={param.label}
+                onDateChange={(startDate: string, endDate: string) => {
+                  const paramName = param.param.key || "date_range";
+
+                  const params = new URLSearchParams(searchParams.toString());
+
+                  if (startDate) {
+                    params.set(paramName + "_from", startDate);
+                  } else {
+                    params.delete(paramName + "_from");
+                  }
+
+                  if (endDate) {
+                    params.set(paramName + "_to", endDate);
+                  } else {
+                    params.delete(paramName + "_to");
+                  }
+
+                  router.push(`${pathName}?${params.toString()}`);
+                }}
+              />
+            ));
+          })()}
+        </div>
+      </>
+    );
+  }
+}
+
+function BoolParams({
+  searchParams,
+  bool_elements,
+  dict,
+  pathName,
+  router,
+}: {
+  searchParams: URLSearchParams;
+  bool_elements: ParamType[];
+  dict: I18nRecord;
+  pathName: string;
+  router: any;
+}) {
+  if (bool_elements.length > 0) {
+    return (
+      <>
+        <hr className="border-gray-200 dark:border-gray-700" />
+        {bool_elements.map((param: any, index: number) => (
+          <div
+            key={index}
+            className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap"
+          >
+            {param.label}
+            <CustomSelector
+              options={getCategories(dict)}
+              base_value={searchParams.get(param.param.key || "bool") || ""}
+              onChange={(value) => {
+                const paramName = param.param.key || "date_range";
+
+                const params = new URLSearchParams(searchParams.toString());
+
+                if (value) {
+                  params.set(paramName, value);
+                } else {
+                  params.delete(paramName);
+                }
+
+                router.push(`${pathName}?${params.toString()}`);
+              }}
+            />
+          </div>
+        ))}
+      </>
+    );
+  }
+}
+
+export function getCategories(dict: I18nRecord) {
+  return [
+    {
+      value: "",
+      label: "-",
+    },
+    {
+      value: "YES",
+      label: tr("yes", dict.searchbar),
+    },
+    {
+      value: "NO",
+      label: tr("no", dict.searchbar),
+    },
+  ];
 }

@@ -46,11 +46,14 @@ export default function PinTooltip({
         {/* {object?.properties.timestamp
           ? new Date(object?.properties.timestamp).toLocaleString()
           : ""} */}
-          {object?.properties.timestamp
-          ?<FormattedDate
-                date={object?.properties.timestamp}
-                format="datetime"
-              />: ""}
+        {object?.properties.timestamp ? (
+          <FormattedDate
+            date={object?.properties.timestamp}
+            format="datetime"
+          />
+        ) : (
+          ""
+        )}
       </div>
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
       {object?.properties.lost_signal && (

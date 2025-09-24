@@ -11,7 +11,6 @@ type PulseRangeProps = {
   zoom_on_pin: (
     longitude: number,
     latitude: number,
-    clustered: boolean,
     setViewState: (viewState: ViewStateType) => void,
     viewState: ViewStateType,
     camera_movement: boolean,
@@ -223,7 +222,6 @@ function PulseRangeComponent({
               zoom_on_pin(
                 positions[Number(e.target.value)]?.longitude ?? 0,
                 positions[Number(e.target.value)]?.latitude ?? 0,
-                false,
                 setViewState,
                 viewState,
                 camera_movement,

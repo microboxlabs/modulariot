@@ -296,11 +296,11 @@ export function getCategories(dict: I18nRecord) {
     },
     {
       value: "YES",
-      label: tr("yes", dict.searchbar),
+      label: tr("searchbar.yes", dict),
     },
     {
       value: "NO",
-      label: tr("no", dict.searchbar),
+      label: tr("searchbar.no", dict),
     },
   ];
 }

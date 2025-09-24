@@ -1432,7 +1432,10 @@
     "carrierName": "Carrier Name",
     "origin": "Origin",
     "destination": "Destination",
-    "customer": "Client"
+    "customer": "Client",
+    "originIsSitrans": "Origin is Sitrans",
+    "yes": "Yes",
+    "no": "No"
   },
   "comments": {
     "title": "Comments",

@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
       origin: origin ? origin.toUpperCase() : undefined,
       destination: destination ? destination.toUpperCase() : undefined,
       clientAbbreviation: customer ? customer : undefined,
-      originIsSitrans: originIsSitrans ? originIsSitrans : undefined,
+      originIsSitrans: originIsSitrans ? originIsSitrans === "YES" : undefined,
     },
   };
 
@@ -74,7 +74,9 @@ export async function GET(req: NextRequest) {
               origin: origin ? origin.toUpperCase() : undefined,
               destination: destination ? destination.toUpperCase() : undefined,
               clientAbbreviation: customer ? customer : undefined,
-              originIsSitrans: originIsSitrans ? originIsSitrans : undefined,
+              originIsSitrans: originIsSitrans
+                ? originIsSitrans === "YES"
+                : undefined,
             },
           });
         }),

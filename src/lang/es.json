@@ -519,17 +519,17 @@
         "multipleReasonsSelected": "opciones seleccionadas",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-        
-        "rejectedLeftSide": "Lado izquierdo rechazado", 
+
+        "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-        
+
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-        
+
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-        
-        "rejectedBack": "Posterior rechazado", 
+
+        "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
         "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
@@ -635,17 +635,17 @@
         "multipleReasonsSelected": "opciones seleccionadas",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-        
-        "rejectedLeftSide": "Lado izquierdo rechazado", 
+
+        "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-        
+
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-        
+
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-        
-        "rejectedBack": "Posterior rechazado", 
+
+        "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
         "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
@@ -1458,7 +1458,9 @@
     "origin": "Origen",
     "destination": "Destino",
     "customer": "Cliente",
-    "originIsSitrans": "Origen es Sitrans"
+    "originIsSitrans": "Origen es Sitrans",
+    "yes": "Sí",
+    "no": "No"
   },
   "comments": {
     "title": "Comentarios",

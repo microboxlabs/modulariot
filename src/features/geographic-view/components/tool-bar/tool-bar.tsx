@@ -19,7 +19,6 @@ type ToolBarProps = {
   zoom_on_pin: (
     longitude: number,
     latitude: number,
-    clustered: boolean,
     setViewState: (viewState: ViewStateType) => void,
     viewState: ViewStateType,
     camera_movement: boolean,

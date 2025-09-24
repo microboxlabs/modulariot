@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator } from "deck.gl";
+import DeckGL, { FlyToInterpolator, type MapViewState } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
@@ -28,79 +28,16 @@ const mapboxStyles = {
   hybrid: "mapbox://styles/mapbox/hybrid-v10",
 };
 
-type ViewStateType = {
-  longitude: number;
-  latitude: number;
-  zoom: number;
-  pitch: number;
-  bearing: number;
-  padding: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  };
-  width: number;
-  height: number;
-  transitionDuration?: number;
-  transitionInterpolator?: FlyToInterpolator;
-  transitionEasing?: (t: number) => number;
-};
-
-const INITIAL_VIEW_STATE: ViewStateType = {
-  longitude: 0,
-  latitude: 0,
-  zoom: 6.5,
-  // base rotation
-  pitch: 45,
-  bearing: 45,
-  // base rotation
-  transitionDuration: 500,
-  transitionInterpolator: new FlyToInterpolator(),
-  transitionEasing: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
-  padding: {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  width: 100,
-  height: 100,
-};
-
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
 };
 
-function zoom_on_pin(
-  object: any,
-  setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType
-) {
-  if (object) {
-    const longitude = object.geometry.coordinates[0];
-    const latitude = object.geometry.coordinates[1];
-
-    // Defer the setState call to avoid updating during render
-    setTimeout(() => {
-      setViewState({
-        ...viewState,
-        longitude,
-        latitude,
-        zoom: object.properties.cluster ? viewState.zoom + 5.0 : 15.0,
-        transitionDuration: 1000,
-        transitionInterpolator: new FlyToInterpolator(),
-      });
-    }, 0);
-  }
-}
-
 function zoom_on_position(
   positions: MapPosition[],
-  setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType
+  setViewState: (viewState: MapViewState) => void,
+  viewState: MapViewState
 ) {
   if (positions && positions.length > 0) {
     const validPositions = positions.filter(
@@ -179,9 +116,7 @@ export default function MapVisualization({
     }
   }, [search, originalPositions]);
 
-  // GET THE AVERAGE OF THE LONGITUDE AND LATITUDE OF THE MAP POSITIONS
-  const NEW_INITIAL_VIEW_STATE = {
-    ...INITIAL_VIEW_STATE,
+  const [viewState, setViewState] = useState<MapViewState>({
     longitude:
       mapPositions && mapPositions.length > 0
         ? mapPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
@@ -192,24 +127,45 @@ export default function MapVisualization({
         ? mapPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
           mapPositions.length
         : 0,
-  };
+    zoom: 2,
+    pitch: 45,
+    bearing: 45,
+  });
 
-  const [viewState, setViewState] = useState(NEW_INITIAL_VIEW_STATE);
+  const onPinClick = useCallback(
+    ({ object, viewport }: { object: any; viewport: any }) => {
+      setViewState((prevViewState) => ({
+        ...prevViewState,
+        zoom: object.properties.cluster
+          ? prevViewState.zoom + 2
+          : prevViewState.zoom,
+        longitude: object.geometry.coordinates[0],
+        latitude: object.geometry.coordinates[1],
+        transitionInterpolator: new FlyToInterpolator({ speed: 2 }),
+        transitionDuration: 500,
+        transitionEasing: (t: number) =>
+          t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+      }));
+      // Only show tooltip for non-clustered pins
+      if (!object.properties.cluster) {
+        setHoverInfo({
+          object,
+          x: viewport.width / 2, // Center horizontally
+          y: viewport.height / 2, // Center vertically + offset down by 100px
+        } as PickingInfo<MapPositionProperties>);
+      } else {
+        setHoverInfo(undefined);
+      }
+    },
+    [setHoverInfo]
+  );
 
   const layers = [
     new PinLayer({
       data: positions || [],
       zoom: viewState.zoom,
       onClick: ({ object, viewport }: { object: any; viewport: any }) => {
-        // Only show tooltip for non-clustered pins
-        if (!object.properties.cluster) {
-          setHoverInfo({
-            object,
-            x: viewport.width / 2, // Center horizontally
-            y: viewport.height / 2, // Center vertically + offset down by 100px
-          } as PickingInfo<MapPositionProperties>);
-        }
-        zoom_on_pin(object, setViewState, viewState);
+        onPinClick({ object, viewport });
       },
       updateTriggers: {
         data: positions,
@@ -218,17 +174,17 @@ export default function MapVisualization({
     }),
   ];
 
-  const handleViewStateChange = useCallback((e: any) => {
+  const onViewStateChange = useCallback((e: any) => {
     setViewState(e.viewState);
   }, []);
 
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        initialViewState={viewState}
-        controller={true}
         layers={layers}
-        onViewStateChange={handleViewStateChange}
+        controller
+        onViewStateChange={onViewStateChange}
+        viewState={viewState}
         getCursor={({ isDragging, isHovering }) => {
           if (isDragging) return "grabbing";
           if (isHovering) return "pointer";

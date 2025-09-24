@@ -194,7 +194,7 @@ export type FinishedWorkflowsRequest = {
     destination?: string;
     customerCode?: string;
     clientAbbreviation?: string;
-    originIsSitrans?: string;
+    originIsSitrans?: boolean;
   };
 };
 

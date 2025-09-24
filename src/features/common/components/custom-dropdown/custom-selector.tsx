@@ -22,7 +22,7 @@ export default function CustomSelector({
   const [selected, setSelected] = useState(
     base_value ? options.findIndex((option) => option.value === base_value) : 0
   );
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLAnchorElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
@@ -51,20 +51,21 @@ export default function CustomSelector({
         left: dropdownPosition.left,
         width: dropdownPosition.width,
       }}
-      onClick={(e) => e.stopPropagation()}
     >
       {options.map((option, index) => (
-        <div
+        <a
           key={option.value}
-          className="w-full p-2 hover:bg-gray-200 text-gray-700 dark:text-gray-300 cursor-pointer select-none font-light text-sm"
-          onClick={() => {
+          href="#"
+          className="w-full p-2 hover:bg-gray-200 text-gray-700 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 cursor-pointer select-none font-light text-sm no-underline block"
+          onClick={(e) => {
+            e.preventDefault();
             setSelected(index);
             onChange(option.value);
             setOpen(false);
           }}
         >
           {option.label}
-        </div>
+        </a>
       ))}
     </div>
   ) : null;
@@ -72,16 +73,20 @@ export default function CustomSelector({
   return (
     <>
       <div className="relative inline-block text-left select-none w-full">
-        <div
+        <a
           ref={triggerRef}
-          className="p-2 bg-white rounded-md border border-gray-400 w-full justify-between flex items-center"
-          onClick={() => setOpen(!open)}
+          href="#"
+          className="p-2 bg-white dark:bg-gray-700 rounded-md border border-gray-400 w-full justify-between flex items-center cursor-pointer no-underline"
+          onClick={(e) => {
+            e.preventDefault();
+            setOpen(!open);
+          }}
         >
           {options[selected].label}
           <HiChevronDown
             className={`w-4 h-4 inline-block ml-2 transition-transform duration-200 ${open ? "transform rotate-180" : ""}`}
           />
-        </div>
+        </a>
       </div>
       {typeof window !== "undefined" &&
         createPortal(dropdownContent, document.body)}

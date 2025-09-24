@@ -1432,7 +1432,8 @@
     "carrierName": "Carrier Name",
     "origin": "Origin",
     "destination": "Destination",
-    "customer": "Client"
+    "customer": "Client",
+    "originIsSitrans": "Origin is Sitrans"
   },
   "comments": {
     "title": "Comments",

@@ -70,8 +70,8 @@ export default function MyTasks({
   const { visibleTasks, isLoading, hasMore, error, scrollRef } =
     useInfiniteScroll({
       fetchData,
-      visibleItems: 20,
-      stackSize: 30,
+      visibleItems: 30,
+      stackSize: 20,
       filterKey, // Pass filters and status as key to detect changes
     });
 
@@ -146,7 +146,7 @@ export default function MyTasks({
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen"
+      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen pb-20"
     >
       <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
       <TaskList

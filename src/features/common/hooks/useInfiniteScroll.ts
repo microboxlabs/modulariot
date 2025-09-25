@@ -81,6 +81,16 @@ export function useInfiniteScroll({
 
       setCurrentPage((prev) => prev + 1);
       setHasMore(result.hasMore);
+
+      // Scroll up slightly to prevent multiple rapid calls
+      if (scrollRef.current) {
+        const currentScrollTop = scrollRef.current.scrollTop;
+        const scrollAdjustment = 50; // Adjust by 50px up
+        scrollRef.current.scrollTop = Math.max(
+          0,
+          currentScrollTop - scrollAdjustment
+        );
+      }
     } catch (err) {
       setError(err as Error);
     } finally {

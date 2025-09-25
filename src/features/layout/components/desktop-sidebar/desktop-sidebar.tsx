@@ -71,7 +71,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
           false,
           0,
           2000,
-          filterPart
+          filterPart + "&editable=true"
         ).then((total) => {
           if (
             pages &&

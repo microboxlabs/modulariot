@@ -61,7 +61,7 @@ export default function MyTasks({
   const { fetchData } = useMyTasksInfinite({
     columns: [...columns],
     showFinished: status === "finished",
-    filters: filters.toString(),
+    filters: filters.toString() + "&editable=true",
     status,
   });
 

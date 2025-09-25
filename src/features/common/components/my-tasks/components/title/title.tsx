@@ -1,5 +1,10 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { FaBook /* FaClock, FaPlusCircle, FaMapPin  */ } from "react-icons/fa";
+import {
+  FaBook,
+  FaPencilAlt /* FaClock, FaPlusCircle, FaMapPin  */,
+  FaPlusCircle,
+  FaTrashAlt,
+} from "react-icons/fa";
 import { FaClock, FaUser, FaTruck, FaMapPin } from "react-icons/fa6";
 import { HiSearch } from "react-icons/hi";
 import Tag from "../tag";
@@ -38,6 +43,7 @@ export default function TaskListTitle({
           (filter) =>
             !filter.includes("titleLabel") &&
             !filter.includes("position") &&
+            !filter.includes("icon") &&
             !filter.includes("status")
         )
         .map((param) => {
@@ -50,12 +56,52 @@ export default function TaskListTitle({
         })
     : [];
 
+  let iconType = searchParams.get("icon");
+  let icon = null;
+
+  if (iconType) {
+    switch (iconType.toLowerCase()) {
+      case "book":
+        icon = <FaBook className="h-4 w-4" />;
+        break;
+      case "clock":
+        icon = <FaClock className="h-4 w-4" />;
+        break;
+      case "user":
+        icon = <FaUser className="h-4 w-4" />;
+        break;
+      case "map-pin":
+        icon = <FaMapPin className="h-4 w-4" />;
+        break;
+      case "truck":
+        icon = <FaTruck className="h-4 w-4" />;
+        break;
+      case "search":
+        icon = <HiSearch className="h-4 w-4" />;
+        break;
+      case "plus-circle":
+        icon = <FaPlusCircle className="h-4 w-4" />;
+        break;
+      case "pencil-alt":
+        icon = <FaPencilAlt className="h-4 w-4" />;
+        break;
+      case "trash-alt":
+        icon = <FaTrashAlt className="h-4 w-4" />;
+        break;
+      default:
+        icon = <FaBook className="h-4 w-4" />;
+    }
+  } else {
+    icon = <FaBook className="h-4 w-4" />;
+  }
+
   return (
     <div className="flex flex-row justify-between items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white">
       {/* Title */}
       <div className="flex flex-row items-center gap-2">
         <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <FaBook className="h-4 w-4" />
+          {/* <FaBook className="h-4 w-4" /> */}
+          {icon}
         </div>
         {status === "finished"
           ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)

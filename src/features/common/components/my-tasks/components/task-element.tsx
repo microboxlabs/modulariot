@@ -65,12 +65,12 @@ export default function TaskListElement({
 
           <div className="flex flex-col text-xl">
             <div className="flex flex-row justify-between items-center w-fit">
-              {tr(`myTasks.${task.taskType}`, dict)}
+              {task.name + " "} / {tr(`myTasks.${task.taskType}`, dict)}
             </div>
             <div
               className={`flex flex-row gap-4 text-sm font-light ${alert_style.secundary_text}`}
             >
-              <span className="">{task.name}</span>
+              <span className=""></span>
               {task.departureDate && (
                 <span className="flex flex-row items-center gap-1">
                   <FaCalendarAlt />

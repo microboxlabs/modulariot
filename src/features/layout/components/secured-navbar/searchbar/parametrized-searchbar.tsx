@@ -295,12 +295,12 @@ export function getCategories(dict: I18nRecord) {
       label: "-",
     },
     {
-      value: "YES",
-      label: tr("searchbar.yes", dict),
+      value: "INTERNAL",
+      label: tr("searchbar.internal", dict),
     },
     {
-      value: "NO",
-      label: tr("searchbar.no", dict),
+      value: "EXTERNAL",
+      label: tr("searchbar.external", dict),
     },
   ];
 }

@@ -499,7 +499,7 @@
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
         "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
-        "Confirmar Arribo a Destino": "Confirm Destination Arrival"
+        "Confirmar Arribo": "Confirm Destination Arrival"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

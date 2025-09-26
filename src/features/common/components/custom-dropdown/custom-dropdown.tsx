@@ -31,12 +31,12 @@ export default function CustomDropdown({
         },
       }}
     >
-      {options.map(({ label, icon, function: Function }, index) => (
+      {options.map(({ label, icon, function: FunctionAction }, index) => (
         <DropdownItem
           key={index}
           className="flex gap-2 w-full"
           onClick={() => {
-            Function();
+            FunctionAction();
           }}
         >
           {icon}

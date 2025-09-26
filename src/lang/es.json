@@ -519,17 +519,17 @@
         "multipleReasonsSelected": "opciones seleccionadas",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-        
-        "rejectedLeftSide": "Lado izquierdo rechazado", 
+
+        "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-        
+
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-        
+
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-        
-        "rejectedBack": "Posterior rechazado", 
+
+        "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
         "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
@@ -635,17 +635,17 @@
         "multipleReasonsSelected": "opciones seleccionadas",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-        
-        "rejectedLeftSide": "Lado izquierdo rechazado", 
+
+        "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-        
+
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-        
+
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-        
-        "rejectedBack": "Posterior rechazado", 
+
+        "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
         "noDocumentConsolidationDesc": "Falta consolidación de documentos requeridos",
@@ -1255,7 +1255,7 @@
   "bento": {
     "internal": "Inicio Interno",
     "external": "Inicio Externo",
-    "urgency": "Urgencia",
+    "urgency": "Urgente",
     "today": "Hoy",
     "yesterday": "Ayer",
     "trip": "Viaje",
@@ -1352,6 +1352,11 @@
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
         "PROOF_OF_PICKUP": "Prueba de Retiro",
         "CARGO_MANIFEST": "Carta de Porte",
+        "PICKUP_FRONT_IMAGE": "Imagen delantera del retiro",
+        "PICKUP_RIGHT_IMAGE": "Imagen lateral derecha del retiro",
+        "PICKUP_LEFT_IMAGE": "Imagen lateral izquierda del retiro",
+        "PICKUP_REAR_IMAGE": "Imagen trasera del retiro",
+        "PICKUP_GUIDE_IMAGE": "Imagen de la guía del retiro",
         "OTHER": "Otro"
       },
       "title": "Multimedia",
@@ -1489,7 +1494,10 @@
     "carrierName": "Nombre de transportista",
     "origin": "Origen",
     "destination": "Destino",
-    "customer": "Cliente"
+    "customer": "Cliente",
+    "originIsSitrans": "Origen es Sitrans",
+    "yes": "Sí",
+    "no": "No"
   },
   "comments": {
     "title": "Comentarios",

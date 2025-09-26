@@ -126,7 +126,6 @@ type GeometryFeatureProperties = {
 function zoom_on_pin(
   longitude: number,
   latitude: number,
-  clustered: boolean,
   setViewState: (viewState: ViewStateType) => void,
   viewState: ViewStateType,
   camera_movement: boolean,
@@ -379,7 +378,6 @@ export default function MapVisualizationTrip({
             zoom_on_pin(
               info.object?.geometry.coordinates[0] ?? 0,
               info.object?.geometry.coordinates[1] ?? 0,
-              false,
               setViewState,
               viewState,
               camera_movement
@@ -416,7 +414,6 @@ export default function MapVisualizationTrip({
             zoom_on_pin(
               info.object.coordinates[0],
               info.object.coordinates[1],
-              false,
               setViewState,
               viewState,
               camera_movement
@@ -462,7 +459,6 @@ export default function MapVisualizationTrip({
             zoom_on_pin(
               info.object?.longitude,
               info.object?.latitude,
-              false,
               setViewState,
               viewState,
               camera_movement
@@ -502,17 +498,17 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_error, geofence_isLoading]);
 
-  const handleViewStateChange = useCallback((e: any) => {
+  const onViewStateChange = useCallback((e: any) => {
     setViewState(e.viewState);
   }, []);
 
   return (
     <div className="h-full w-full relative overflow-hidden">
       <DeckGL
-        initialViewState={viewState}
-        controller={true}
         layers={layers}
-        onViewStateChange={handleViewStateChange}
+        controller
+        onViewStateChange={onViewStateChange}
+        viewState={viewState}
         getCursor={({ isHovering }) => {
           if (isHovering) return "pointer";
           return "grab";

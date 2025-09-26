@@ -195,6 +195,7 @@ export type FinishedWorkflowsRequest = {
     customerCode?: string;
     clientAbbreviation?: string;
     editable?: boolean;
+    originIsSitrans?: boolean;
   };
 };
 

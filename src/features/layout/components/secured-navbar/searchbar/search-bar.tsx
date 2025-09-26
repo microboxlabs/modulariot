@@ -59,6 +59,7 @@ export default function SearchBar({
   } else {
     return (
       <ParametrizedSearchBar
+        dict={dict}
         messages={messages}
         searchParams={searchParams}
         navegation_params={

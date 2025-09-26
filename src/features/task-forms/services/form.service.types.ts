@@ -137,7 +137,7 @@ export type MissionControlTaskOutcomeWithoutSignature =
   | "Viaje Anulado";
 
 export type MonitorTripTaskOutcome =
-  | "Confirmar Arribo / Entrega"
+  | "Confirmar Arribo"
   | "Torre de Control: Iniciar Viaje"
   | "Viaje Cancelado"
   | "Viaje Anulado";

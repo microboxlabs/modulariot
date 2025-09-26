@@ -1433,9 +1433,9 @@
     "origin": "Origin",
     "destination": "Destination",
     "customer": "Client",
-    "originIsSitrans": "Origin is Sitrans",
-    "yes": "Yes",
-    "no": "No"
+    "originType": "Origin Type",
+    "internal": "Internal",
+    "external": "External"
   },
   "comments": {
     "title": "Comments",

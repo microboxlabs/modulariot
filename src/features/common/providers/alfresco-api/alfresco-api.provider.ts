@@ -468,6 +468,7 @@ export async function getFinishedWorkflows(
   data: FinishedWorkflowsRequest
 ): Promise<FinishedWorkflowsResponse> {
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/finished/workflows`;
+
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetcher(url, {
     method: "POST",

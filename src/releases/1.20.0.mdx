@@ -1,0 +1,64 @@
+# 🔔 Release Notes v1.20.0 — ModularIoT
+
+### Fecha: 26/09/2025
+
+**Objetivo**: introducir la nueva sección "Mis Tareas" con listas personalizadas, ampliar los filtros de búsqueda por tipo de origen, automatizar procesos de anulación y mejorar la gestión de validaciones de imágenes, junto con optimizaciones de UX y correcciones de estabilidad.
+
+## 🚀 Evolutivos
+
+- **Mis Tareas - Nueva sección de gestión personalizada** (No visible en el release)
+  - Nueva sección **"Mis Tareas"** ubicada entre Kanban y Torre de Control en la barra de navegación.
+  - Sistema de **listas personalizadas** con filtros definidos por usuario (modelo, parser, endpoints CRUD).
+  - Soporte para filtros por etapa, rango de fechas, cliente, urgencia, tipo de origen, y más.
+  - Protección de **lista fija** del sistema (no eliminable ni renombrable).
+
+- **Filtros por tipo de origen**
+  - Nuevo filtro por **"tipo de origen: Interno/Externo"** en tareas activas y workflows finalizados.
+  - Integración en Kanban con opciones: "Interno", "Externo", "Todos".
+  - Decodificación automática del metadato `mintral_geofenceDestinationMetadata` para extraer `origin_is_sitrans`.
+
+- **Validaciones de imágenes mejoradas**
+  - Soporte para **múltiples razones de rechazo** en validación de imágenes de paquete de servicio.
+  - Nuevas razones específicas: Guía rechazada, Izquierdo rechazado, Derecha rechazada, Frontal rechazado, Posterior rechazado.
+  - Reemplazo de selector único por componente multi-selección con checkboxes.
+
+- **Automatización de anulaciones**
+  - Detección automática de servicios con `service_datetime_annulment` informado.
+  - Anulación automática e idempotente de todas las tareas asociadas al servicio.
+  - Banner de anulación en UI con fecha/hora y bloqueo de acciones en tareas anuladas.
+
+- **Monitoreo modular de tareas**
+  - Publicación de eventos de ciclo de vida de tareas (CREATE, COMPLETE, START_EXECUTION, END_EXECUTION) vía **Task Listener Registry**.
+  - Integración con sistema Modular para monitoreo en tiempo real.
+  - Configuración completa en `alfresco-global.properties` bajo namespace `mintral.features.modularMonitoring.*`.
+
+- **Procesamiento de servicios externos**
+  - Automatización del **proceso de inicio de servicios fuera de instalaciones**.
+  - Validación automática de geocerca y identidad (SOVOS) para presentación de conductor.
+  - Procesamiento de evidencias fotográficas categorizadas y almacenamiento en expediente.
+  - Feedback inmediato a la app con URL de carta de porte o motivos de rechazo.
+
+- **Badges informativos en expediente**
+  - Nuevos badges de **tipo de inicio** ("Interno"/"Externo") y **urgencia** en información del viaje.
+  - Badge de urgencia se muestra solo cuando el viaje es urgente.
+  - Decodificación del metadato para mostrar información de tipo de origen.
+
+- **Síntoma de estiba y amarra**
+  - Activación del síntoma **"Estiba y Amarra"** para pruebas de testeo.
+  - Generación del síntoma sin viaje asociado para validaciones técnicas.
+
+- **Zona de riesgo parametrizada**
+  - **Zona de descanso** configurada como zona de riesgo en horario 17:59 pm a 08:59 am.
+  - Comportamiento normal fuera del rango horario definido.
+
+## 🛠️ Refactorización / UX
+
+- **Variables de comentario efímeras**: las variables `VAR_COMMENT_POST_TITLE` y `VAR_COMMENT_POST_CONTENT` se eliminan automáticamente al completar tareas, tratándolas como entradas temporales de alcance de tarea.
+
+## ✅ Correctivos
+
+- **Visualización de errores**: los mensajes de error ahora se muestran correctamente cuando fallan las transiciones del proceso (TMS/Alerce), con manejo normalizado de respuestas de error estructuradas.
+
+## 📌 Conclusión
+
+La versión 1.20.0 introduce la nueva sección "Mis Tareas" con capacidades de personalización avanzadas, amplía significativamente las opciones de filtrado por tipo de origen, automatiza procesos críticos como anulaciones y validaciones de servicios externos, y mejora la experiencia de usuario con badges informativos y mejor gestión de errores. Se fortalece la integración con sistemas modulares de monitoreo y se optimiza la gestión de validaciones de imágenes con soporte multi-selección.

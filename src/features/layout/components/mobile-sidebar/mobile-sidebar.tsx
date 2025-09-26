@@ -1,9 +1,8 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Sidebar, TextInput } from "flowbite-react";
+import { Sidebar } from "flowbite-react";
 import SidebarItem from "../sidebar-item/sidebar-item";
-import { usePathname } from "next/navigation";
-import { HiSearch } from "react-icons/hi";
+import { usePathname, useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { pages } from "../../models/pages";
 /* import { externalPages } from "../../models/externalPages"; */
@@ -58,23 +57,20 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
     <>
       <Sidebar
         aria-label="Sidebar with multi-level dropdown example"
+        theme={{
+          root: {
+            inner:
+              "h-full overflow-y-auto overflow-x-hidden bg-gray-50 px-3 py-4 dark:bg-gray-800",
+          },
+        }}
         className={twMerge(
-          "fixed inset-y-0 left-0 z-20 hidden h-full shrink-0 flex-col border-r border-gray-200 pt-16 lg:flex dark:border-gray-700",
+          "fixed inset-y-0 left-0 z-20 hidden h-full shrink-0 flex-col border-r border-gray-200 pt-16 lg:flex dark:border-gray-700 bg-red-500",
           isOpen && "flex"
         )}
         id="sidebar"
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">
           <div className="py-2">
-            <form className="pb-3">
-              <TextInput
-                icon={HiSearch}
-                type="search"
-                placeholder="Search"
-                required
-                size={32}
-              />
-            </form>
             <Sidebar.Items>
               <Sidebar.ItemGroup className="mt-0 border-t-0 pb-1 pt-0">
                 {pages.map((item) => (

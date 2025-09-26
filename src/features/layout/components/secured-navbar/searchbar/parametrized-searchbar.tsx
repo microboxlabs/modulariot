@@ -12,6 +12,7 @@ import CustomSelector from "@/features/common/components/custom-dropdown/custom-
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import DatePicker from "@/features/common/components/date-picker/date-picker";
+import { logger } from "@/lib/logger";
 
 export default function ParametrizedSearchBar({
   dict,
@@ -206,6 +207,10 @@ function DateParams({
   pathName: string;
   router: any;
 }) {
+  logger.info(date_elements);
+  logger.info(searchParams);
+  logger.info(pathName);
+  logger.info(router);
   if (date_elements.length > 0) {
     return (
       <>

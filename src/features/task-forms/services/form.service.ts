@@ -272,20 +272,18 @@ export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
-export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 = "Confirmar Arribo";
 
 export const OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje sin firma"; // TODO: this could change
 export const OUTCOME_TO__MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+  "Confirmar Arribo";
 
 export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";
-export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 = "Confirmar Arribo";
 export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
 export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
   "Confirmar Cierre del Monitoreo";

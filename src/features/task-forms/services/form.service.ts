@@ -82,7 +82,7 @@ export const OUTCOME_REDIRECT_TO_MISSION_CONTROL: MonitoringInCourseTripOutcome 
   "Devolver a Torre de Control";
 
 export const OUTCOME_CONFIRM_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
-  "Confirmar Cierre del Monitoreo";
+  "Confirmar Cierre Monitoreo / Entrega";
 
 export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
   "Cerrar Monitoreo";
@@ -282,11 +282,11 @@ export const OUTCOME_TO__MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
 export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
-  "Confirmar Cierre del Monitoreo";
+  "Confirmar Cierre Monitoreo / Entrega";
 export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 = "Confirmar Arribo";
 export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
 export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
-  "Confirmar Cierre del Monitoreo";
+  "Confirmar Cierre Monitoreo / Entrega";
 export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =

@@ -45,7 +45,7 @@ export default function SidebarItem({
         icon={icon}
         label={label}
         open={isOpen}
-        theme={{ list: "space-y-2 py-2  [&>li>div]:w-full" }}
+        theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
         {items.map((item) => {
           // Check if user has any blocked groups for this sub-item
@@ -97,8 +97,13 @@ export default function SidebarItem({
       icon={icon}
       label={badge}
       className={twMerge(pathname === href && "bg-gray-100 dark:bg-gray-700")}
+      theme={{
+        content: {
+          base: "flex-1 whitespace-nowrap pl-3",
+        },
+      }}
     >
-      {label}
+      <span>{label}</span>
     </FlowbiteSidebarItem>
   );
 }

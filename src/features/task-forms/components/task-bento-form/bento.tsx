@@ -13,8 +13,6 @@ import SymptomsCard from "./components/side-data/symptoms-card";
 import BentoHead from "./bento-head";
 // import Forum from "./components/forum/forum";
 import Forum from "./components/forum/forum";
-/* import Comment from "./components/side-data/comment";
-import { ExtendedTaskResponse } from "../task-form/task-form.types"; */
 
 export default function Bento({
   lang,
@@ -121,15 +119,8 @@ export default function Bento({
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-3 h-[400px]">
           <Forum dict={dict as I18nRecord} task={task} />
         </div>
-        {/* Comment */}
-        {/* <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-1 h-[400px]">
-          <Comment
-            task={task as ExtendedTaskResponse}
-            dict={dict as I18nRecord}
-          />
-        </div> */}
+        {/* Content */}
       </div>
-      {/* Content */}
     </div>
   );
 }

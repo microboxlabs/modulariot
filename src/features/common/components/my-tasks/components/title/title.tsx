@@ -1,10 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import {
-  FaBook,
-  FaPencilAlt /* FaClock, FaPlusCircle, FaMapPin  */,
-  FaPlusCircle,
-  FaTrashAlt,
-} from "react-icons/fa";
+import { FaBook, FaPencilAlt, FaPlusCircle, FaTrashAlt } from "react-icons/fa";
 import { FaClock, FaUser, FaTruck, FaMapPin } from "react-icons/fa6";
 import { HiSearch } from "react-icons/hi";
 import Tag from "../tag";

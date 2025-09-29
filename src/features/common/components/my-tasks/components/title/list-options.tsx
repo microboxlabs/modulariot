@@ -10,18 +10,21 @@ const options = [
     label: "Crear",
     icon: <FaPlus />,
     function: () => console.log("Opción 1 seleccionada"),
+    disabledOption: true,
   },
   {
     id: 1,
     label: "Editar",
     icon: <FaPencilAlt />,
     function: () => console.log("Opción 1 seleccionada"),
+    disabledOption: true,
   },
   {
     id: 1,
     label: "Eliminar",
     icon: <FaRegTrashAlt />,
     function: () => console.log("Opción 1 seleccionada"),
+    disabledOption: true,
   },
 ];
 

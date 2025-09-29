@@ -10,6 +10,7 @@ export default function CustomDropdown({
     label: string;
     icon: React.ReactElement;
     function: () => void;
+    disabledOption?: boolean;
   }[];
   renderTrigger: React.ReactElement;
 }) {
@@ -31,18 +32,25 @@ export default function CustomDropdown({
         },
       }}
     >
-      {options.map(({ label, icon, function: FunctionAction }, index) => (
-        <DropdownItem
-          key={index}
-          className="flex gap-2 w-full"
-          onClick={() => {
-            FunctionAction();
-          }}
-        >
-          {icon}
-          {label}
-        </DropdownItem>
-      ))}
+      {options.map(
+        ({ label, icon, function: FunctionAction, disabledOption }, index) => (
+          <DropdownItem
+            key={index}
+            className="flex gap-2 w-full"
+            onClick={() => {
+              FunctionAction();
+            }}
+            disabled={disabledOption}
+            color={disabledOption ? "gray" : "default"}
+            style={
+              disabledOption ? { opacity: 0.5, cursor: "not-allowed" } : {}
+            }
+          >
+            {icon}
+            {label}
+          </DropdownItem>
+        )
+      )}
     </Dropdown>
   );
 }

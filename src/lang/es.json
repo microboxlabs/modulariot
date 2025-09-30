@@ -493,7 +493,8 @@
         "Notificar Entrega (5.11)": "Notificar Entrega",
         "Viaje Finalizado": "Viaje Finalizado",
         "Viaje Rechazado": "Viaje Rechazado POD",
-        "Requiere Overlord": "Requiere Overlord"
+        "Requiere Overlord": "Requiere Overlord",
+        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -604,9 +605,9 @@
         "Viaje Cancelado": "Viaje Cancelado",
         "Viaje Anulado": "Viaje Anulado",
         "Monitorear viaje en curso": "Monitorear viaje en curso",
-        "Confirmar Arribo a Destino": "Confirmar Arribo a Destino",
+        "Confirmar Arribo": "Confirmar Arribo",
         "Confirmar Salida de Destino": "Confirmar Salida de Destino",
-        "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
+        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega",
         "Confirmar Entrega": "Confirmar Entrega",
         "Confirmar Asignar/ Entregar": "Confirmar Asignar/ Entregar",
         "Recibir Entrega": "Recibir Entrega",

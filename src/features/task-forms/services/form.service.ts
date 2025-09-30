@@ -82,7 +82,7 @@ export const OUTCOME_REDIRECT_TO_MISSION_CONTROL: MonitoringInCourseTripOutcome 
   "Devolver a Torre de Control";
 
 export const OUTCOME_CONFIRM_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
-  "Confirmar Cierre del Monitoreo";
+  "Confirmar Cierre Monitoreo / Entrega";
 
 export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
   "Cerrar Monitoreo";
@@ -272,23 +272,21 @@ export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje";
-export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 = "Confirmar Arribo";
 
 export const OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
   "Torre de Control: Iniciar Viaje sin firma"; // TODO: this could change
 export const OUTCOME_TO__MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+  "Confirmar Arribo";
 
 export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
   "Monitorear viaje en curso";
 export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
-  "Confirmar Cierre del Monitoreo";
-export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
-  "Confirmar Arribo / Entrega";
+  "Confirmar Cierre Monitoreo / Entrega";
+export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 = "Confirmar Arribo";
 export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
 export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
-  "Confirmar Cierre del Monitoreo";
+  "Confirmar Cierre Monitoreo / Entrega";
 export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
 export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
 export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =
@@ -335,188 +333,153 @@ export const getSecondaryTransitionIdV2 = (
   label: string;
   icon: ElementType;
 }[] => {
-  const otherOptions = [];
+  const otherOptions: {
+    id: TaskOutcomeV2 | TaskOutcomeDelivery;
+    label: string;
+    icon: ElementType;
+  }[] = [];
   if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_ASSIGN_DRIVER_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_ASSIGN_DRIVER_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
+    otherOptions.push({
+      id: OUTCOME_ASSIGN_DRIVER_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
   } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_PRESENT_DRIVER_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_PRESENT_DRIVER_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
+    otherOptions.push({
+      id: OUTCOME_PRESENT_DRIVER_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
   } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
     otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_ASSIGN_DRIVER_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_ASSIGN_DRIVER_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_PRESENT_DRIVER_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_PRESENT_DRIVER_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_PREPARE_SERVICE_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_PREPARE_SERVICE_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_OVERLORD_REQUIRED_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_OVERLORD_REQUIRED_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
-          ] as string,
-          icon: HiOutlineArrowRight,
-        },
-      ]
-    );
-  } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_MISSION_CONTROL_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_MISSION_CONTROL_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
-  } else if (
-    taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK ||
-    taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK
-  ) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_MONITOR_TRIP_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_MONITOR_TRIP_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
-  } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_TO_CLOSE_MONITORING_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_TO_CLOSE_MONITORING_V2
-          ] as string,
-          icon: HiOutlineArrowRight,
-        },
-        {
-          id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_OVERLORD_CANCELED_SOVOS_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
-  } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_CONFIRM_DELIVERY_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_CONFIRM_DELIVERY_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_TO_CLOSE_MONITORING_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_TO_CLOSE_MONITORING_V2
-          ] as string,
-          icon: HiOutlineArrowRight,
-        },
-      ]
-    );
-  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_RECEIVE_DELIVERY_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_RECEIVE_DELIVERY_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_TO_CLOSE_MONITORING_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_TO_CLOSE_MONITORING_V2
-          ] as string,
-          icon: HiOutlineArrowRight,
-        },
-      ]
-    );
-  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_NOTIFY_TMS_ARRIVAL_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-        {
-          id: OUTCOME_TO_CLOSE_MONITORING_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_TO_CLOSE_MONITORING_V2
-          ] as string,
-          icon: HiOutlineArrowRight,
-        },
-      ]
-    );
-  }
-  otherOptions.push(
-    ...[
       {
-        id: OUTCOME_OVERLORD_CANCELED_V2,
-        label: (dict.outcome as I18nRecord).canceled as string,
+        id: OUTCOME_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
         icon: HiOutlineArrowLeft,
       },
       {
-        id: OUTCOME_OVERLORD_ANULLED_V2,
-        label: (dict.outcome as I18nRecord).annulled as string,
-        icon: HiTrash,
+        id: OUTCOME_PRESENT_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_PRESENT_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
       },
-    ]
+      {
+        id: OUTCOME_PREPARE_SERVICE_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_PREPARE_SERVICE_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_OVERLORD_REQUIRED_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_OVERLORD_REQUIRED_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+    otherOptions.push({
+      id: OUTCOME_MISSION_CONTROL_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_MISSION_CONTROL_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK) {
+    otherOptions.push({
+      id: OUTCOME_MONITOR_TRIP_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_MONITOR_TRIP_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
+    // nothing to do here
+  } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      },
+      {
+        id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_OVERLORD_CANCELED_SOVOS_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONFIRM_DELIVERY_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_CONFIRM_DELIVERY_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_RECEIVE_DELIVERY_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_RECEIVE_DELIVERY_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_NOTIFY_TMS_ARRIVAL_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  }
+  otherOptions.push(
+    {
+      id: OUTCOME_OVERLORD_CANCELED_V2,
+      label: (dict.outcome as I18nRecord).canceled as string,
+      icon: HiOutlineArrowLeft,
+    },
+    {
+      id: OUTCOME_OVERLORD_ANULLED_V2,
+      label: (dict.outcome as I18nRecord).annulled as string,
+      icon: HiTrash,
+    }
   );
   return otherOptions;
 };

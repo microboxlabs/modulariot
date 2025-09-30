@@ -31,7 +31,7 @@ export type MonitoringInCourseTripOutcome =
   | "Confirmar Salida del Destino"
   | "Confirmar Entrega"
   | "Devolver a Torre de Control"
-  | "Confirmar Cierre del Monitoreo"
+  | "Confirmar Cierre Monitoreo / Entrega"
   | "Cerrar Monitoreo";
 
 export type SovosDigitalSignatureOutcome =
@@ -137,13 +137,13 @@ export type MissionControlTaskOutcomeWithoutSignature =
   | "Viaje Anulado";
 
 export type MonitorTripTaskOutcome =
-  | "Confirmar Arribo / Entrega"
+  | "Confirmar Arribo"
   | "Torre de Control: Iniciar Viaje"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
 export type ConfirmArrivalTaskOutcome =
-  | "Confirmar Cierre del Monitoreo"
+  | "Confirmar Cierre Monitoreo / Entrega"
   | "Monitorear viaje en curso"
   | "Viaje Cancelado"
   | "Viaje Anulado";

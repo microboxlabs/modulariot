@@ -498,8 +498,8 @@
         "Viaje Cancelado": "Trip Canceled",
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
-        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
-        "Confirmar Arribo a Destino": "Confirm Destination Arrival"
+        "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
+        "Confirmar Arribo": "Confirm Destination Arrival"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -607,7 +607,7 @@
         "Viaje Cancelado": "Trip Canceled",
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
-        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
         "Confirmar Arribo a Destino": "Confirm Destination Arrival",
         "Confirmar Entrega": "Confirm Delivery",
         "Confirmar Asignar/ Entregar": "Confirm Assign/ Deliver",

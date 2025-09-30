@@ -423,17 +423,7 @@ export const getSecondaryTransitionIdV2 = (
       ]
     );
   } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
-    otherOptions.push(
-      ...[
-        {
-          id: OUTCOME_CONFIRM_ARRIVAL_V2,
-          label: (dict.outcome as I18nRecord)[
-            OUTCOME_CONFIRM_ARRIVAL_V2
-          ] as string,
-          icon: HiOutlineArrowLeft,
-        },
-      ]
-    );
+    // nothing to do here
   } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
     otherOptions.push(
       ...[

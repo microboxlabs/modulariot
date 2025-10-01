@@ -16,7 +16,7 @@ export default function TotemNavbar() {
         <Image
           src={logoImage}
           className="mr-3"
-          alt="Flowbite React Logo"
+          alt="Coordinador Logo"
           width={150}
         />
         <CustomThemeToggle />

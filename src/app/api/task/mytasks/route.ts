@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
   const customer = url.searchParams.get("customer");
+  const editable = url.searchParams.get("editable");
   const originIsSitrans = url.searchParams.get("originIsSitrans");
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
       destination: destination ? destination.toUpperCase() : undefined,
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originIsSitrans ? originIsSitrans === "YES" : undefined,
+      editable: editable ? editable === "true" : undefined,
     },
   };
 
@@ -77,6 +79,7 @@ export async function GET(req: NextRequest) {
               originIsSitrans: originIsSitrans
                 ? originIsSitrans === "YES"
                 : undefined,
+              editable: editable ? editable === "true" : undefined,
             },
           });
         }),

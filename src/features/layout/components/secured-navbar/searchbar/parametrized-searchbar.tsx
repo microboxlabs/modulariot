@@ -6,11 +6,13 @@ import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
 import Tags from "./tags";
-import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
+// import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import DatePicker from "@/features/common/components/date-picker/date-picker";
+import { logger } from "@/lib/logger";
 
 export default function ParametrizedSearchBar({
   dict,
@@ -122,7 +124,9 @@ export default function ParametrizedSearchBar({
                     // Search for this page in validation format
                     // Check if the search.split(":")[0] is equal to the label, change the value to the param
                     const param = navegation_params.find(
-                      (param: any) => param.label === search.split(":")[0]
+                      (param: any) =>
+                        param.label.toUpperCase() ===
+                        search.split(":")[0].toUpperCase()
                     );
                     if (param) {
                       handleSearch(search.split(":")[1], param.param.key);
@@ -203,12 +207,16 @@ function DateParams({
   pathName: string;
   router: any;
 }) {
+  logger.info(date_elements);
+  logger.info(searchParams);
+  logger.info(pathName);
+  logger.info(router);
   if (date_elements.length > 0) {
     return (
       <>
         <hr className="border-gray-200 dark:border-gray-700" />
         <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
-          {(() => {
+          {/*(() => {
             return date_elements.map((param: any, index: number) => (
               <DateRangePicker
                 key={index}
@@ -234,7 +242,7 @@ function DateParams({
                 }}
               />
             ));
-          })()}
+          })()*/}
         </div>
       </>
     );
@@ -281,6 +289,10 @@ function BoolParams({
                 router.push(`${pathName}?${params.toString()}`);
               }}
             />
+            <div className="text-xs italic p-2 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
+              Desde <DatePicker />
+              Hasta <DatePicker />
+            </div>
           </div>
         ))}
       </>

@@ -9,6 +9,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { SidebarItemProps } from "./sidebar-item.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useSearchParams } from "next/navigation";
 
 export default function SidebarItem({
   href,
@@ -24,6 +25,7 @@ export default function SidebarItem({
   blockedGroups = [],
 }: PropsWithI18nDict<SidebarItemProps>) {
   const { hasPermission, userGroups } = usePermissions();
+  const searchParams = useSearchParams();
 
   // Check if user has any blocked groups
   const hasBlockedGroup = blockedGroups.some((group) =>
@@ -70,7 +72,9 @@ export default function SidebarItem({
               icon={item.icon}
               className={twMerge(
                 "justify-center [&>*]:font-normal",
-                pathname === item.href && "bg-gray-100 dark:bg-gray-700"
+                (pathname === item.href ||
+                  item.href === pathname + "?" + searchParams.toString()) &&
+                  "bg-gray-100 dark:bg-gray-700"
               )}
               label={getTotalCountBagaes(totals[item.label])}
               labelColor={
@@ -96,7 +100,11 @@ export default function SidebarItem({
       target={target}
       icon={icon}
       label={badge}
-      className={twMerge(pathname === href && "bg-gray-100 dark:bg-gray-700")}
+      className={twMerge(
+        (pathname === href ||
+          href === pathname + "?" + searchParams.toString()) &&
+          "bg-gray-100 dark:bg-gray-700"
+      )}
     >
       {label}
     </FlowbiteSidebarItem>

@@ -19,7 +19,7 @@ export default function AppLogo({
     <Image
       src={logoImage}
       className={className}
-      alt="Mintral Coordinador - Sistema de Gestión de Viajes"
+      alt="Logo Mintral"
       width={width}
       height={height}
       priority={priority}

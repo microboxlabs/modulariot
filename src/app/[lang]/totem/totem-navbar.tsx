@@ -16,7 +16,7 @@ export default function TotemNavbar() {
         <Image
           src={logoImage}
           className="mr-3"
-          alt="Coordinador Logo"
+          alt="Logo Mintral"
           width={150}
         />
         <CustomThemeToggle />

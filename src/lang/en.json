@@ -1436,7 +1436,8 @@
     "customer": "Client",
     "originType": "Origin Type",
     "internal": "Internal",
-    "external": "External"
+    "external": "External",
+    "loadId": "Load ID"
   },
   "comments": {
     "title": "Comments",

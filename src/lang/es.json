@@ -105,7 +105,7 @@
         "length": "Largo",
         "width": "Ancho",
         "height": "Alto"
-      },
+      },      
       "card": {
         "origin": "Origen",
         "destination": "Destino",
@@ -854,7 +854,10 @@
       "search": "Buscar",
       "sidebar": {
         "home": "Home",
+        "kanban": "Kanban",
         "tasks": "Mis tareas",
+        "completed_tasks": "Tareas completadas",
+        "pending_tasks": "Tareas pendientes",
         "werehouse": "Bodega",
         "logistics": "Logística",
         "shipping": "Despachos",
@@ -1379,6 +1382,40 @@
       "NO_CLIENT_SYSTEM_VALIDATION": "No tiene validación sistema cliente."
     }
   },
+  "myTasks": {
+        "missionControl": "Torre de Control",
+        "overlord": "Overlord",
+        "sovosDigitalSignature": "Firma Digital de SOVOS",
+        "tripInitiatedOutside": "Viajes iniciados sin coordinación",
+        "monitoringInCourseTrip": "Monitorear Viaje Iniciado",
+        "confirmTripDestinationArrival": "Confirmar Arribo a Destino",
+        "confirmTripDestinationDeparture": "Confirm Trip Destination Departure",
+        "confirmDelivery": "Confirmar Entrega",
+        "confirmMonitoringFinalization": "Confirmar Cierre de Monitoreo",
+        "monitoringFinalization": "Monitoreo Finalizado",
+        "tripInitiated": "Viaje Iniciado",
+        "tripNullified": "Viaje Anulado",
+        "tripCancelled": "Viaje Cancelado",
+        "assignDriver": "Asignar Conductor",
+        "presentDriver": "Presentar Conductor",
+        "prepareService": "Controlar Servicio",
+        "monitorTrip": "Monitorear Viaje Iniciado",
+        "confirmArrival": "Confirmar Arribo a Destino",
+        "closeMonitoring": "Confirmar Cierre de Monitoreo",
+        "receiveDelivery": "Recibir Entrega",
+        "notifyTMSArrival": "Notificar Arribo",
+        "notifyTMSDelivery": "Notificar Entrega",
+        "finished_process": "Proceso Terminado",
+        "tripNullifiedByOverlord": "Viaje anulado por Overlord",
+        "tripCanceledByOverlord": "Viaje cancelado por Overlord",
+        "canceled": "Cancelado",
+        "nullified": "Anulado",
+        "finished": "Finalizado",
+        "shipping": "Despachos",
+        "delivery": "Entregas",
+        "pending_tasks": "Tareas pendientes",
+        "completed_tasks": "Tareas completadas"
+      },
   "cards": {
     "driverContactInfo": "Información de contacto",
     "email": "Correo electrónico",
@@ -1467,5 +1504,12 @@
     "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "migrating": "Comentarios en proceso de migración",
     "no_comments": "No hay comentarios"
+  },
+  "my_tasks": {
+    "stage": "Etapa",
+    "duration": "Duración",
+    "license_plate": "Patente",
+    "route": "Ruta",
+    "client": "Cliente"
   }
 }

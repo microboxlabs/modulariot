@@ -26,6 +26,7 @@ export function getNavegationParams(dict: I18nRecord) {
     finished: getParamsFixed(kanban_params, dict),
     shipping: getParamsFixed(kanban_params, dict),
     delivery: getParamsFixed(kanban_params, dict),
+    mytasks: getParamsFixed(kanban_params, dict),
   };
 }
 

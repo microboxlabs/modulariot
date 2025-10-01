@@ -1,0 +1,195 @@
+"use client";
+
+import { FaTruckLoading } from "react-icons/fa";
+import TimelineStates from "./components/state";
+import React, { useEffect } from "react";
+import { Button } from "flowbite-react";
+import { useSearchParams } from "next/navigation";
+
+export type State = {
+  name: string;
+  date: string;
+  start: string;
+  end: string;
+  duration: string;
+  icon: React.ReactElement;
+  description?: React.ReactElement;
+  ended: boolean;
+};
+
+const states: State[] = [
+  {
+    name: "Carga en proveedor",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    description: (
+      <div className="text-gray-800 dark:text-gray-300 font-light">
+        <div>El proveedor [nombre de proveedor] tiene su carga.</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow p-2 mt-2">
+          {/* Load description */}
+          <p>Alto: 2 mts</p>
+          <p>Ancho: 2 mts</p>
+          <p>Largo: 2 mts</p>
+        </div>
+      </div>
+    ),
+    ended: true,
+  },
+  {
+    name: "Carga en terminal",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    description: (
+      <div className="text-gray-800 dark:text-gray-300 font-light">
+        {/*  */}
+        <div>Su carga se ha asignado al terminal [nombre de terminal].</div>
+      </div>
+    ),
+    ended: true,
+  },
+  {
+    name: "Carga consolidada en viaje",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: true,
+    description: <div></div>,
+  },
+  {
+    name: "Viaje con transporte asignado",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: true,
+    description: (
+      <div className="text-gray-800 dark:text-gray-300 font-light">
+        {/*  */}
+        <div>Se le ha asignado un transporte a su carga.</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full text-gray-800 dark:text-gray-300 font-light p-2 mt-2">
+          <p>Conductor: Juan Perez</p>
+          <p>Rut: 12.123.123-1</p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    name: "Validación de condiciones",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: true,
+    description: <div></div>,
+  },
+  {
+    name: "Iniciar viaje",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: false,
+    description: (
+      <div className="text-gray-800 dark:text-gray-300 font-light">
+        {/*  */}
+        <div>
+          Su carga se encuentra en camino, pronto podra revisar su posicion en
+          tiempo real.
+        </div>
+      </div>
+    ),
+  },
+  {
+    name: "Viaje En transito",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: false,
+    description: <div></div>,
+  },
+  {
+    name: "Viaje arribado",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: false,
+    description: <div></div>,
+  },
+  {
+    name: "Carga en coordinación",
+    date: "30 ABR 2025",
+    start: "28-07-2025",
+    end: "29-07-2025",
+    duration: "1 día",
+    icon: <FaTruckLoading className="h-6 w-6" />,
+    ended: false,
+    description: <div></div>,
+  },
+];
+
+export default function Timeline() {
+  const [actualState, setActualState] = React.useState(3);
+  const timelineRef = React.useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const loadId = searchParams.get("loadId");
+
+  useEffect(() => {
+    if (timelineRef.current) {
+      const targetElement = timelineRef.current.children[actualState + 1]; // +1 because debug div is first child
+      if (targetElement) {
+        targetElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  }, [actualState]);
+
+  if (!loadId) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+        No load ID provided.
+      </div>
+    );
+  }
+
+  return (
+    <div ref={timelineRef} className="w-fit h-full flex flex-col">
+      <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2">
+        <h1>Debug: {actualState}</h1>
+        <div className="flex flex-col gap-2">
+          <Button onClick={() => setActualState(Math.max(0, actualState - 1))}>
+            -1
+          </Button>
+          <Button onClick={() => setActualState(actualState + 1)}>+1</Button>
+        </div>
+      </div>
+      {states.map((state, index) => {
+        return (
+          <TimelineStates
+            key={index}
+            index={index}
+            actualState={actualState}
+            state={state}
+            statesCount={states.length}
+          />
+        );
+      })}
+    </div>
+  );
+}

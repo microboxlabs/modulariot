@@ -1,14 +1,9 @@
 import React, { useRef } from "react";
-import { FaCalendarAlt } from "react-icons/fa";
-import KanbanViewSwitcherIconCompressed from "@/features/svg_components/kanban_view_switcher_icon_compressed";
-import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { FormattedDate } from "../../formatted-date/formatted-date";
-import { Button } from "flowbite-react";
-import Link from "next/link";
-import ConditionIcon from "@/features/symptoms/components/condition-icon";
-import icu_condition from "@/features/symptoms/model/icu_condition.json";
+import { GoToBentoButton } from "./go-to-bento-button";
+import { TaskPrimaryInfo } from "./task-primary-info";
 
 export default function TaskListElement({
   setSelectedTask,
@@ -50,65 +45,22 @@ export default function TaskListElement({
         <div
           className={`whitespace-nowrap font-medium rounded-l-lg ${column_base_style} border-r-0 w-full`}
         >
-          <div className="flex flex-row gap-2">
-            <div className="flex items-center">
-              <ConditionIcon
-                condition={(
-                  icu_condition[
-                    String(alert_level) as keyof typeof icu_condition
-                  ] as string
-                ).toLowerCase()}
-                dict={dict}
-              />
-            </div>
-
-            <div className="flex flex-col text-xl">
-              <div className="flex flex-row justify-between items-center w-fit">
-                {task.name + " "} / {tr(`myTasks.${task.taskType}`, dict)}
-              </div>
-              <div
-                className={`flex flex-row gap-4 text-sm font-light ${alert_style.secundary_text}`}
-              >
-                {task.departureDate && (
-                  <span className="flex flex-row items-center gap-1">
-                    <FaCalendarAlt />
-                    <FormattedDate date={task.departureDate} format="date" />
-                  </span>
-                )}
-                <span className="flex flex-row items-center gap-1">
-                  <KanbanViewSwitcherIconCompressed
-                    className={`h-5 w-5 ${alert_style.secundary_text}`}
-                  />
-                  {tr(`myTasks.${task.areaType}`, dict)}
-                </span>
-              </div>
-            </div>
-          </div>
+          <TaskPrimaryInfo
+            task={task}
+            dict={dict}
+            alert_level={alert_level}
+            alert_style={alert_style}
+          />
         </div>
         <div
           className={`flex items-center rounded-r-lg ${column_base_style} font-light border-l-0 justify-end relative`}
         >
-          <Link
-            href={`/task/edit/${task.id}`}
-            className="w-fit h-fit hover-trigger"
-          >
-            <Button
-              className="h-8 flex justify-center items-center !text-xs overflow-hidden relative"
-              color="blue"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              theme={{
-                color: {
-                  blue: "bg-blue-700 text-white focus:ring-blue-300 dark:bg-blue-600 dark:focus:ring-blue-800",
-                },
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r bg-black/30 dark:bg-white/30 translate-x-[-100%] group-hover:translate-x-0 pointer-events-none transition-transform group-hover:duration-1000 duration-0 ease-out" />
-              <div className="flex items-center gap-2 relative z-10 whitespace-nowrap">
-                <p>{tr(`bento.go_to_bento`, dict)}</p>
-              </div>
-            </Button>
-          </Link>
+          <GoToBentoButton
+            taskId={task.id}
+            dict={dict}
+            handleMouseEnter={handleMouseEnter}
+            handleMouseLeave={handleMouseLeave}
+          />
         </div>
       </div>
     );
@@ -119,40 +71,12 @@ export default function TaskListElement({
       <div
         className={`whitespace-nowrap font-medium rounded-l-lg ${column_base_style} border-r-0`}
       >
-        <div className="flex flex-row gap-2">
-          <div className="flex items-center">
-            <ConditionIcon
-              condition={(
-                icu_condition[
-                  String(alert_level) as keyof typeof icu_condition
-                ] as string
-              ).toLowerCase()}
-              dict={dict}
-            />
-          </div>
-
-          <div className="flex flex-col text-xl">
-            <div className="flex flex-row justify-between items-center w-fit">
-              {task.name + " "} / {tr(`myTasks.${task.taskType}`, dict)}
-            </div>
-            <div
-              className={`flex flex-row gap-4 text-sm font-light ${alert_style.secundary_text}`}
-            >
-              {task.departureDate && (
-                <span className="flex flex-row items-center gap-1">
-                  <FaCalendarAlt />
-                  <FormattedDate date={task.departureDate} format="date" />
-                </span>
-              )}
-              <span className="flex flex-row items-center gap-1">
-                <KanbanViewSwitcherIconCompressed
-                  className={`h-5 w-5 ${alert_style.secundary_text}`}
-                />
-                {tr(`myTasks.${task.areaType}`, dict)}
-              </span>
-            </div>
-          </div>
-        </div>
+        <TaskPrimaryInfo
+          task={task}
+          dict={dict}
+          alert_level={alert_level}
+          alert_style={alert_style}
+        />
       </div>
       <div
         className={`flex items-center ${column_base_style} font-light border-x-0`}
@@ -183,27 +107,12 @@ export default function TaskListElement({
       <div
         className={`flex items-center rounded-r-lg ${column_base_style} font-light border-l-0 justify-end relative`}
       >
-        <Link
-          href={`/task/edit/${task.id}`}
-          className="w-fit h-fit hover-trigger"
-        >
-          <Button
-            className="h-8 flex justify-center items-center !text-xs overflow-hidden relative"
-            color="blue"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            theme={{
-              color: {
-                blue: "bg-blue-700 text-white focus:ring-blue-300 dark:bg-blue-600 dark:focus:ring-blue-800",
-              },
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r bg-black/30 dark:bg-white/30 translate-x-[-100%] group-hover:translate-x-0 pointer-events-none transition-transform group-hover:duration-1000 duration-0 ease-out" />
-            <div className="flex items-center gap-2 relative z-10 whitespace-nowrap">
-              <p>{tr(`bento.go_to_bento`, dict)}</p>
-            </div>
-          </Button>
-        </Link>
+        <GoToBentoButton
+          taskId={task.id}
+          dict={dict}
+          handleMouseEnter={handleMouseEnter}
+          handleMouseLeave={handleMouseLeave}
+        />
       </div>
     </div>
   );

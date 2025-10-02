@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
   const customer = url.searchParams.get("customer");
   const editable = url.searchParams.get("editable");
   const originIsSitrans = url.searchParams.get("originIsSitrans");
+  const orderBy = url.searchParams.get("orderBy");
+  const order = url.searchParams.get("order");
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
@@ -53,6 +55,8 @@ export async function GET(req: NextRequest) {
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originIsSitrans ? originIsSitrans === "YES" : undefined,
       editable: editable ? editable === "true" : undefined,
+      orderBy: orderBy ?? undefined,
+      order: order ?? undefined,
     },
   };
 
@@ -80,27 +84,11 @@ export async function GET(req: NextRequest) {
                 ? originIsSitrans === "YES"
                 : undefined,
               editable: editable ? editable === "true" : undefined,
+              orderBy: orderBy ?? undefined,
+              order: order ?? undefined,
             },
           });
         }),
-        /* getFinishedWorkflows(session, {
-          from: from ? parseInt(from) : 0,
-          size: size ? parseInt(size) : 10,
-          //definitionKey: "shippingCoordinatorProcess",
-          filter: {
-            mintralKey: serviceCode ? `v${serviceCode}` : undefined,
-            licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,
-            driverId: driverId ? driverId : undefined,
-            carrierId: carrierId ? carrierId : undefined,
-            carrierName: carrierName ? carrierName : undefined,
-            origin: origin ? origin.toUpperCase() : undefined,
-            destination: destination ? destination.toUpperCase() : undefined,
-            clientAbbreviation: customer ? customer : undefined,
-          },
-        }).then((res) => ({
-          tasks: res.workflows,
-          total: res.total,
-        })), */
       ])) as FinishedWorkflowsResponse[];
     } else {
       taskResponses = (await Promise.all([

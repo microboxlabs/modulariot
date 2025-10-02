@@ -68,7 +68,7 @@ export default function TaskList({
       )}
       {!hasMore && tasks.length > 0 && (
         <div className="flex justify-center pt-4 pb-2 text-gray-500 text-sm">
-          No more tasks to load
+          {tr("my_tasks.no_more_tasks_to_load", dict)}
         </div>
       )}
     </div>

@@ -2,8 +2,8 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FaBook, FaPencilAlt, FaPlusCircle, FaTrashAlt } from "react-icons/fa";
 import { FaClock, FaUser, FaTruck, FaMapPin } from "react-icons/fa6";
 import { HiSearch } from "react-icons/hi";
-import Tag from "../tag";
 import { ListOptions } from "./list-options";
+import TagManager from "@/features/symptoms/components/tag-manager";
 
 export default function TaskListTitle({
   dict,
@@ -89,33 +89,42 @@ export default function TaskListTitle({
   }
 
   return (
-    <div className="flex flex-row justify-between items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white">
+    <div className="flex flex-row items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white overflow-hidden">
       {/* Title */}
-      <div className="flex flex-row items-center gap-2">
-        <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
-          {/* <FaBook className="h-4 w-4" /> */}
-          {icon}
+      <div className="flex flex-row justify-between w-full">
+        <div className="flex flex-row items-center gap-2 whitespace-nowrap pr-4 flex-shrink-0">
+          <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+            {/* <FaBook className="h-4 w-4" /> */}
+            {icon}
+          </div>
+          <span className="truncate">
+            {status === "finished"
+              ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
+              : titleLabel
+                ? titleLabel
+                : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string)}
+          </span>
         </div>
-        {status === "finished"
-          ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
-          : titleLabel
-            ? titleLabel
-            : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string)}
-      </div>
 
-      {/* Filters */}
-      <div className="text-gray-600 dark:text-gray-400 flex flex-row items-center gap-2">
-        Filtros
-        {tags.map((tag) => (
-          <Tag key={tag.key}>
-            {tag.icon && <tag.icon />}
-            {tag.value}
-          </Tag>
-        ))}
+        {/* Filters */}
+        <div className="text-gray-600 dark:text-gray-400 flex-row items-center gap-2 hidden md:flex w-full lg:w-1/2 overflow-hidden px-2">
+          <span className="whitespace-nowrap flex-shrink-0">Filtros</span>
+          <div className="flex flex-row items-center gap-2 overflow-hidden w-full text-gray-500">
+            <TagManager
+              tags={tags.map((tag) => ({
+                text: tag.value,
+                icon: tag.icon && <tag.icon />,
+              }))}
+              tag_style="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 !border-transparent"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Options */}
-      <ListOptions />
+      <div className="flex-shrink-0">
+        <ListOptions />
+      </div>
     </div>
   );
 }

@@ -1311,7 +1311,7 @@
     "deficient_cargo_securing": "Sujeción de carga deficiente",
     "absence_cargo_securing": "Ausencia sujeción de carga",
     "movement_with_cargo": "Movimiento con carga",
-    "go_to_bento": "Ir al Expediente",
+    "go_to_bento": "Detalles",
     "client_name": "Cliente",
     "GPS device not found": "Dispositivo GPS no encontrado",
     "Cargo consolidation not validated": "Consolidación de carga no validada",
@@ -1511,6 +1511,7 @@
     "duration": "Duración",
     "license_plate": "Patente",
     "route": "Ruta",
-    "client": "Cliente"
+    "client": "Cliente",
+    "no_more_tasks_to_load": "No hay más tareas para cargar"
   }
 }

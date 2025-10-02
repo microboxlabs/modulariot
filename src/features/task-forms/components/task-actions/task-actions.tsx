@@ -474,7 +474,16 @@ export default function TaskActions({
             defaultValue={taskId}
           />
 
-          {!enableActions ? (
+          {enableActions ? (
+            <TaskActions
+              taskId={taskId}
+              taskType={taskType}
+              lang={lang}
+              dict={dict.shippingDetailsTaskForm as I18nRecord}
+              fluid={true}
+              extraData={extraData}
+            />
+          ) : (
             <GroupAllowed
               userGroups={userGroups}
               notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
@@ -515,15 +524,6 @@ export default function TaskActions({
                 />
               </div>
             </GroupAllowed>
-          ) : (
-            <TaskActions
-              taskId={taskId}
-              taskType={taskType}
-              lang={lang}
-              dict={dict.shippingDetailsTaskForm as I18nRecord}
-              fluid={true}
-              extraData={extraData}
-            />
           )}
         </form>
       );
@@ -546,7 +546,6 @@ export default function TaskActions({
         taskType as ShippingCoordinatorProcessFormsV2,
         dict
       );
-
       return (
         <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
           <GroupAllowed

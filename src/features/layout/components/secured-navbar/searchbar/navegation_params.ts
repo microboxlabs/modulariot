@@ -14,7 +14,7 @@ const kanban_params: ParamType[] = [
   setParam("destination", "text"),
   setParam("customer", "text"),
   setParam("originIsSitrans", "bool"),
-  //setParam("date_range", "date_range"),
+  setParam("date_range", "date_range"),
 ];
 
 function setParam(param: ParamType, type: "date_range" | "text" | "bool") {

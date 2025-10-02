@@ -59,8 +59,8 @@ export default function DateRangePicker({
   }, []);
 
   return (
-    <div className="p-2">
-      <label>{label}</label>
+    <div className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap">
+      {label}
       <input
         ref={inputRef}
         type="text"

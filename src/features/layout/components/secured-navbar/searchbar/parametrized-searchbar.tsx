@@ -11,8 +11,8 @@ import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import DatePicker from "@/features/common/components/date-picker/date-picker";
 import { logger } from "@/lib/logger";
+import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 
 export default function ParametrizedSearchBar({
   dict,
@@ -20,7 +20,7 @@ export default function ParametrizedSearchBar({
   searchParams,
   navegation_params,
 }: {
-  dict: any;
+  dict: I18nRecord;
   messages: any;
   searchParams: any;
   navegation_params: any;
@@ -215,35 +215,33 @@ function DateParams({
     return (
       <>
         <hr className="border-gray-200 dark:border-gray-700" />
-        <div className="text-xs italic px-2 pb-2 pt-1 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
-          {/*(() => {
-            return date_elements.map((param: any, index: number) => (
-              <DateRangePicker
-                key={index}
-                label={param.label}
-                onDateChange={(startDate: string, endDate: string) => {
-                  const paramName = param.param.key || "date_range";
+        {(() => {
+          return date_elements.map((param: any, index: number) => (
+            <DateRangePicker
+              key={index}
+              label={param.label}
+              onDateChange={(startDate: string, endDate: string) => {
+                const paramName = param.param.key || "date_range";
 
-                  const params = new URLSearchParams(searchParams.toString());
+                const params = new URLSearchParams(searchParams.toString());
 
-                  if (startDate) {
-                    params.set(paramName + "_from", startDate);
-                  } else {
-                    params.delete(paramName + "_from");
-                  }
+                if (startDate) {
+                  params.set(paramName + "_from", startDate);
+                } else {
+                  params.delete(paramName + "_from");
+                }
 
-                  if (endDate) {
-                    params.set(paramName + "_to", endDate);
-                  } else {
-                    params.delete(paramName + "_to");
-                  }
+                if (endDate) {
+                  params.set(paramName + "_to", endDate);
+                } else {
+                  params.delete(paramName + "_to");
+                }
 
-                  router.push(`${pathName}?${params.toString()}`);
-                }}
-              />
-            ));
-          })()*/}
-        </div>
+                router.push(`${pathName}?${params.toString()}`);
+              }}
+            />
+          ));
+        })()}
       </>
     );
   }
@@ -289,10 +287,6 @@ function BoolParams({
                 router.push(`${pathName}?${params.toString()}`);
               }}
             />
-            <div className="text-xs italic p-2 text-gray-500 dark:text-gray-400 w-full flex flex-col gap-1">
-              Desde <DatePicker />
-              Hasta <DatePicker />
-            </div>
           </div>
         ))}
       </>

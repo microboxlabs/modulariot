@@ -109,28 +109,33 @@ export function useInfiniteScroll({
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
     if (distanceFromBottom <= threshold) {
+      //move the scroll a little bit up
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: 200, behavior: "smooth" });
+      }
+
       loadMore();
     }
   }, [loadMore, isLoading, hasMore, allTasks.length, visibleTasks.length]);
 
-  // Handle scroll to load previous data when scrolling up
+  /* // Handle scroll to load previous data when scrolling up
   const handleScrollUp = useCallback(() => {
     if (!scrollRef.current || isLoading || startIndex === 0) return;
 
     const { scrollTop } = scrollRef.current;
-    const threshold = 200; // Load previous when 200px from top
+    const threshold = 100; // Load previous when 200px from top
 
     if (scrollTop <= threshold) {
       const newStartIndex = Math.max(0, startIndex - 10);
       setStartIndex(newStartIndex);
     }
-  }, [startIndex, isLoading]);
+  }, [startIndex, isLoading]); */
 
   // Combined scroll handler
   const onScroll = useCallback(() => {
     handleScroll();
-    handleScrollUp();
-  }, [handleScroll, handleScrollUp]);
+    //handleScrollUp();
+  }, [handleScroll]); //, handleScrollUp
 
   useEffect(() => {
     const scrollElement = scrollRef.current;

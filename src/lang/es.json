@@ -1497,6 +1497,7 @@
     "destination": "Destino",
     "customer": "Cliente",
     "originType": "Tipo de origen",
+    "date_range": "Rango de fechas",
     "internal": "Interno",
     "external": "Externo"
   },

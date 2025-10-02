@@ -30,25 +30,37 @@ export default function TaskList({
     "",
   ];
 
-  const content = tasks.map((task) => (
-    <TaskListElement
-      key={task.id}
-      task={task}
-      dict={dict}
-      setSelectedTask={setSelectedTask}
-    />
-  ));
-
   return (
     <div className="w-full h-fit relative">
-      <GridTable
-        header={header}
-        content={content}
-        style={{
-          gridTemplateColumns: "4fr 1fr 1fr 1fr 1fr 1fr",
-          minWidth: "600px",
-        }}
-      />
+      <div className="flex flex-col md:hidden w-full gap-2">
+        {tasks.map((task) => (
+          <TaskListElement
+            key={task.id}
+            task={task}
+            dict={dict}
+            setSelectedTask={setSelectedTask}
+            minimized={true}
+          />
+        ))}
+      </div>
+      <div className="hidden md:block">
+        <GridTable
+          header={header}
+          content={tasks.map((task) => (
+            <TaskListElement
+              key={task.id}
+              task={task}
+              dict={dict}
+              setSelectedTask={setSelectedTask}
+              minimized={false}
+            />
+          ))}
+          style={{
+            gridTemplateColumns: "4fr 1fr 1fr 1fr 1fr 1fr",
+            minWidth: "600px",
+          }}
+        />
+      </div>
       {isLoading && hasMore && (
         <div className="flex justify-center pt-4 pb-2">
           <Spinner size="lg" />

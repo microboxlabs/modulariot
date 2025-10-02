@@ -1485,6 +1485,7 @@
     "duration": "Duration",
     "license_plate": "License Plate",
     "route": "Route",
-    "client": "Client"
+    "client": "Client",
+    "no_more_tasks_to_load": "No more tasks to load"
   }
 }

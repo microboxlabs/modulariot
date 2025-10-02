@@ -38,6 +38,9 @@ export async function GET(req: NextRequest) {
   const originType = url.searchParams.get("originType");
   const orderBy = url.searchParams.get("orderBy");
   const order = url.searchParams.get("order");
+  const date_range_from = url.searchParams.get("date_range_from");
+  const date_range_to = url.searchParams.get("date_range_to");
+
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
 
@@ -57,6 +60,8 @@ export async function GET(req: NextRequest) {
       editable: editable ? editable === "true" : undefined,
       orderBy: orderBy ?? undefined,
       order: order ?? undefined,
+      date_range_from: date_range_from ?? undefined,
+      date_range_to: date_range_to ?? undefined,
     },
   };
 
@@ -86,6 +91,8 @@ export async function GET(req: NextRequest) {
               editable: editable ? editable === "true" : undefined,
               orderBy: orderBy ?? undefined,
               order: order ?? undefined,
+              date_range_from: date_range_from ?? undefined,
+              date_range_to: date_range_to ?? undefined,
             },
           });
         }),

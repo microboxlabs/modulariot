@@ -198,6 +198,8 @@ export type FinishedWorkflowsRequest = {
     originIsSitrans?: boolean;
     orderBy?: string;
     order?: string;
+    date_range_from?: string;
+    date_range_to?: string;
   };
 };
 

@@ -1510,6 +1510,7 @@
     "duration": "Duración",
     "license_plate": "Patente",
     "route": "Ruta",
-    "client": "Cliente"
+    "client": "Cliente",
+    "no_more_tasks_to_load": "No hay más tareas para cargar"
   }
 }

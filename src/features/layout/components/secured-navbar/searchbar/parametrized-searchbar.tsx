@@ -76,9 +76,12 @@ export default function ParametrizedSearchBar({
   );
 
   return (
-    <div ref={containerRef} className="flex items-center gap-2 flex-row">
+    <div
+      ref={containerRef}
+      className={`flex items-center gap-2 flex-row w-full max-h- ${open ? "lg:relative absolute left-0 right-0 top-0 p-3 lg:p-0 bg-white z-30" : ""}`}
+    >
       <div
-        className={`flex items-center gap-2 flex-col relative ${open ? "bg-gray-100 dark:bg-gray-700 rounded-t-lg" : ""}`}
+        className={`flex items-center gap-2 flex-col relative w-full lg:w-fit ${open ? "bg-gray-100 dark:bg-gray-700 rounded-t-lg" : ""}`}
       >
         <TextInput
           className="w-full lg:w-96"
@@ -301,12 +304,12 @@ export function getCategories(dict: I18nRecord) {
       label: "-",
     },
     {
-      value: "YES",
-      label: tr("searchbar.yes", dict),
+      value: "INTERNAL",
+      label: tr("searchbar.internal", dict),
     },
     {
-      value: "NO",
-      label: tr("searchbar.no", dict),
+      value: "EXTERNAL",
+      label: tr("searchbar.external", dict),
     },
   ];
 }

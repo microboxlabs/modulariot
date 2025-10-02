@@ -62,7 +62,7 @@ export default function CanceledAnnulledEndOptions({
   return (
     <div className="" onClick={() => setIsOpen(!isOpen)}>
       <div
-        className={`fixed inset-0  z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
+        className={`fixed inset-0 z-10 transition-all duration-300 ${isOpen ? blurred : clean}`}
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(false);

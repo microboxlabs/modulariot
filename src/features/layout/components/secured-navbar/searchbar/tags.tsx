@@ -50,7 +50,9 @@ export default function Tags({
   return (
     <div
       className={`transition-all duration-300 ${
-        filter.length > 0 ? "scale-100" : "scale-0"
+        filter.length > 0
+          ? "scale-100 animate-show"
+          : "scale-0 w-0 animate-hide"
       } `}
     >
       <div
@@ -60,7 +62,7 @@ export default function Tags({
         <FaTag className="text-gray-500 dark:text-gray-400" />
       </div>
       {filterOpen && (
-        <div className="absolute top-full left-0 bg-white dark:bg-gray-700 rounded-lg p-2 mt-2 flex flex-col gap-2 border border-gray-300 dark:border-gray-600">
+        <div className="absolute top-full right-0 lg:right-auto lg:left-0 bg-white dark:bg-gray-700 rounded-lg p-2 mt-2 flex flex-col gap-2 border border-gray-300 dark:border-gray-600">
           {filter.map((tag, index) => (
             <div
               key={index}

@@ -89,7 +89,7 @@ export default function TaskListTitle({
   }
 
   return (
-    <div className="flex flex-row items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white overflow-hidden">
+    <div className="flex flex-row items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white">
       {/* Title */}
       <div className="flex flex-row justify-between w-full">
         <div className="flex flex-row items-center gap-2 whitespace-nowrap pr-4 flex-shrink-0">

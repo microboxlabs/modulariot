@@ -30,26 +30,24 @@ export default function TaskListTitle({
     .join("&")
     .replace("titleLabel=", "");
 
-  const tags = searchParams.toString()
-    ? searchParams
-        .toString()
-        .split("&")
-        .filter(
-          (filter) =>
-            !filter.includes("titleLabel") &&
-            !filter.includes("position") &&
-            !filter.includes("icon") &&
-            !filter.includes("status")
-        )
-        .map((param) => {
-          const [key, value] = param.split("=");
-          return {
-            key,
-            value,
-            icon: TagsIcons[key as keyof typeof TagsIcons],
-          };
-        })
-    : [];
+  const tags = Array.from(searchParams.entries())
+    .filter(
+      ([key]) =>
+        ![
+          "titleLabel",
+          "position",
+          "icon",
+          "status",
+          "view",
+          "page",
+          "limit",
+        ].includes(key)
+    )
+    .map(([key, value]) => ({
+      key,
+      value,
+      icon: TagsIcons[key as keyof typeof TagsIcons],
+    }));
 
   let iconType = searchParams.get("icon");
   let icon = null;

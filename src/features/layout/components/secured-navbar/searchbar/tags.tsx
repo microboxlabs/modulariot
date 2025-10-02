@@ -17,6 +17,8 @@ export default function Tags({
     param: { key: string; type: string };
   }>;
 }) {
+  console.log(searchParams.toString());
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<
     {

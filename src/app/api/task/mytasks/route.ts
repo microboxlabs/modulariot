@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originIsSitrans ? originIsSitrans === "YES" : undefined,
       editable: editable ? editable === "true" : undefined,
-      orderBy: orderBy ? orderBy : undefined,
-      order: order ? order : undefined,
+      orderBy: orderBy ?? undefined,
+      order: order ?? undefined,
     },
   };
 
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
                 ? originIsSitrans === "YES"
                 : undefined,
               editable: editable ? editable === "true" : undefined,
-              orderBy: orderBy ? orderBy : undefined,
-              order: order ? order : undefined,
+              orderBy: orderBy ?? undefined,
+              order: order ?? undefined,
             },
           });
         }),

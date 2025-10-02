@@ -196,8 +196,8 @@ export type FinishedWorkflowsRequest = {
     clientAbbreviation?: string;
     editable?: boolean;
     originIsSitrans?: boolean;
-    orderBy?: string;
-    order?: string;
+    orderBy?: string | undefined;
+    order?: string | undefined;
   };
 };
 

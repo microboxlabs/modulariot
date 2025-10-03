@@ -34,12 +34,6 @@ export default function ModalTooltip({
     isFinishedPage
   );
 
-  useEffect(() => {
-    if (data?.taskResponse === null) {
-      setSelectedTask(null);
-    }
-  }, [data?.taskResponse, setSelectedTask]);
-
   if (!selectedTask) {
     return null;
   }

@@ -69,11 +69,10 @@ export default function MyTasks({
 
   const filterKey = useMemo(() => `${filters}-${status}`, [filters, status]);
 
-  const { visibleTasks, isLoading, hasMore, error, scrollRef } =
+  const { visibleTasks, isLoading, hasMore, error, scrollRef, loadMore } =
     useInfiniteScroll({
       fetchData,
-      visibleItems: 30,
-      stackSize: 20,
+      visibleItems: 10,
       filterKey, // Pass filters and status as key to detect changes
     });
 
@@ -148,7 +147,7 @@ export default function MyTasks({
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen pb-20"
+      className="flex flex-col bg-white dark:bg-gray-900 p-2 gap-2 overflow-y-auto relative h-screen"
     >
       <TaskListTitle dict={dict} status={status} searchParams={searchParams} />
       <TaskList
@@ -157,6 +156,7 @@ export default function MyTasks({
         tasks={visibleTasks}
         isLoading={isLoading}
         hasMore={hasMore}
+        loadMore={loadMore}
       />
       {/* Modal Tooltip Component */}
       <ModalTooltip

@@ -1444,5 +1444,9 @@
     "subtitle": "Here you can view the comments entered.",
     "migrating": "Comments in migration process",
     "no_comments": "No comments"
+  },
+  "wheres_my_load": {
+    "not_found": "There's no record of the entered load ID.",
+    "search": "Use the search bar to find the status of your load."
   }
 }

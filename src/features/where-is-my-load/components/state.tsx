@@ -21,10 +21,10 @@ export default function TimelineStates({
           </div>
         ) : (
           <div
-            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 bg-gray-200 dark:bg-gray-800 border-gray-50 dark:border-gray-900 ${actualState < index ? "text-gray-500" : "text-gray-700 dark:text-gray-100"}`}
+            className={`h-12 w-12 rounded-full flex items-center justify-center border-4 bg-gray-100 dark:bg-gray-800 border-gray-50 dark:border-gray-900 ${actualState < index ? "text-gray-500" : "text-gray-700 dark:text-gray-100"}`}
           >
             <div
-              className={`h-full w-full rounded-full flex items-center justify-center ${actualState == index ? "border border-blue-500" : ""}`}
+              className={`h-full w-full rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 ${actualState == index ? "border border-blue-500" : ""}`}
             >
               {state.icon}
             </div>

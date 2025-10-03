@@ -5,6 +5,10 @@ import TimelineStates from "./components/state";
 import React, { useEffect } from "react";
 import { Button } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
+import EmptyAnimation from "../symptoms/components/empty-animation";
+import { I18nRecord } from "../i18n/i18n.service.types";
+import { tr } from "../i18n/tr.service";
+import { ShowNotification } from "../notifications/notification";
 
 export type State = {
   name: string;
@@ -142,7 +146,7 @@ const states: State[] = [
   },
 ];
 
-export default function Timeline() {
+export default function Timeline({ dict }: { dict: I18nRecord }) {
   const [actualState, setActualState] = React.useState(3);
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -163,10 +167,21 @@ export default function Timeline() {
   if (!loadId) {
     return (
       <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-        No load ID provided.
+        {tr("wheres_my_load.search", dict as I18nRecord)}
       </div>
     );
   }
+
+  /*
+  return (
+    <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
+      <EmptyAnimation />
+      <p className="text-lg text-gray-500 mt-10">
+        {tr("wheres_my_load.not_found", dict as I18nRecord)}
+      </p>
+    </div>
+  );
+  */
 
   return (
     <div ref={timelineRef} className="w-fit h-full flex flex-col">

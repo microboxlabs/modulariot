@@ -1469,5 +1469,9 @@
     "subtitle": "Aquí podrás visualizar los comentarios ingresados.",
     "migrating": "Comentarios en proceso de migración",
     "no_comments": "No hay comentarios"
+  },
+  "wheres_my_load": {
+    "not_found": "No se han encontrado datos asignados a este ID.",
+    "search": "Usa el buscador para encontrar el estado de tu carga."
   }
 }

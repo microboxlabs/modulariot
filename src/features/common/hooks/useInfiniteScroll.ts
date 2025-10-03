@@ -13,7 +13,6 @@ interface UseInfiniteScrollProps {
   }>;
   initialData?: KanbanBoardTask[];
   visibleItems: number;
-  stackSize: number;
   filterKey?: string; // Add a key to detect filter changes
 }
 
@@ -30,7 +29,6 @@ export function useInfiniteScroll({
   fetchData,
   initialData = [],
   visibleItems = 10,
-  stackSize = 30,
   filterKey,
 }: UseInfiniteScrollProps): UseInfiniteScrollReturn {
   const [allTasks, setAllTasks] = useState<KanbanBoardTask[]>(initialData);
@@ -38,7 +36,6 @@ export function useInfiniteScroll({
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [startIndex, setStartIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fetchDataRef = useRef(fetchData);
   const isInitialLoad = useRef(true);
@@ -48,8 +45,8 @@ export function useInfiniteScroll({
     fetchDataRef.current = fetchData;
   }, [fetchData]);
 
-  // Calculate visible tasks from the stack
-  const visibleTasks = allTasks.slice(startIndex, startIndex + visibleItems);
+  // For infinite scroll, show all loaded tasks
+  const visibleTasks = allTasks;
 
   const loadMore = useCallback(async () => {
     if (isLoading || !hasMore) return;
@@ -65,38 +62,16 @@ export function useInfiniteScroll({
         return;
       }
 
-      setAllTasks((prev) => {
-        const newTasks = [...prev, ...result.data];
-
-        // If we exceed stack size, remove from the beginning
-        if (newTasks.length > stackSize) {
-          const removedCount = newTasks.length - stackSize;
-          const newStartIndex = Math.max(0, startIndex - removedCount);
-          setStartIndex(newStartIndex);
-          return newTasks.slice(removedCount);
-        }
-
-        return newTasks;
-      });
+      setAllTasks((prev) => [...prev, ...result.data]);
 
       setCurrentPage((prev) => prev + 1);
       setHasMore(result.hasMore);
-
-      // Scroll up slightly to prevent multiple rapid calls
-      if (scrollRef.current) {
-        const currentScrollTop = scrollRef.current.scrollTop;
-        const scrollAdjustment = 50; // Adjust by 50px up
-        scrollRef.current.scrollTop = Math.max(
-          0,
-          currentScrollTop - scrollAdjustment
-        );
-      }
     } catch (err) {
       setError(err as Error);
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, isLoading, hasMore, stackSize, startIndex, visibleItems]); // Add visibleItems to dependencies
+  }, [currentPage, isLoading, hasMore, visibleItems]);
 
   // Handle scroll to load more data
   const handleScroll = useCallback(() => {
@@ -109,11 +84,6 @@ export function useInfiniteScroll({
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
     if (distanceFromBottom <= threshold) {
-      //move the scroll a little bit up
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({ top: 200, behavior: "smooth" });
-      }
-
       loadMore();
     }
   }, [loadMore, isLoading, hasMore, allTasks.length, visibleTasks.length]);
@@ -149,7 +119,6 @@ export function useInfiniteScroll({
   useEffect(() => {
     setAllTasks([]);
     setCurrentPage(1);
-    setStartIndex(0);
     setHasMore(true);
     setError(null);
     setIsLoading(false);

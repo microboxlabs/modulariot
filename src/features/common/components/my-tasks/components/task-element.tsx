@@ -5,23 +5,25 @@ import { FormattedDate } from "../../formatted-date/formatted-date";
 import { GoToBentoButton } from "./go-to-bento-button";
 import { TaskPrimaryInfo } from "./task-primary-info";
 
-export default function TaskListElement({
-  setSelectedTask,
-  task,
-  dict,
-  minimized = false,
-}: {
-  setSelectedTask: (taskId: string | null) => void;
-  task: KanbanBoardTask;
-  dict: I18nRecord;
-  minimized?: boolean;
-}) {
+const TaskListElement = React.forwardRef<
+  HTMLDivElement,
+  {
+    setSelectedTask: (taskId: string | null) => void;
+    task: KanbanBoardTask;
+    dict: I18nRecord;
+    minimized?: boolean;
+  }
+>(function TaskListElement(
+  { setSelectedTask, task, dict, minimized = false },
+  ref
+) {
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const alert_level = task.mintral_icuCondition || 0;
 
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {
+      console.log(task.id);
       setSelectedTask(task.id);
     }, 1000);
   };
@@ -40,7 +42,7 @@ export default function TaskListElement({
 
   if (minimized) {
     return (
-      <div className="flex flex-row w-full">
+      <div className="flex flex-row w-full" ref={ref}>
         <div
           className={`whitespace-nowrap font-medium rounded-l-lg ${column_base_style} border-r-0 w-full`}
         >
@@ -69,6 +71,7 @@ export default function TaskListElement({
     <div className="contents">
       <div
         className={`whitespace-nowrap font-medium rounded-l-lg ${column_base_style} border-r-0`}
+        ref={ref}
       >
         <TaskPrimaryInfo
           task={task}
@@ -115,7 +118,9 @@ export default function TaskListElement({
       </div>
     </div>
   );
-}
+});
+
+export default TaskListElement;
 
 function get_alert_color(alert_level: number | undefined) {
   switch (alert_level) {

@@ -31,7 +31,9 @@ export default function Tags({
     if (searchParams) {
       const params = new URLSearchParams(searchParams.toString());
       const tags = Array.from(params.entries())
-        .filter(([key]) => key !== "view") // Ignore the 'view' parameter
+        .filter(
+          ([key]) => key !== "view" && key !== "titleLabel" && key !== "icon"
+        ) // Ignore the 'view' parameter
         .map(([key, value]) => {
           // Find the label for this parameter from navigation_params
           const navParam = navegation_params?.find(

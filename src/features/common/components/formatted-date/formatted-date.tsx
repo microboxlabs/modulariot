@@ -15,7 +15,7 @@ export const FormattedDate: React.FC<FormattedDateProps> = ({
   locale = "es-CL",
   timeZone = "America/Santiago",
   className = "",
-  fallback = "/",
+  fallback = "-",
 }) => {
   const formatDate = (inputDate: string | Date | number): string => {
     try {
@@ -97,7 +97,11 @@ export const FormattedDate: React.FC<FormattedDateProps> = ({
   return (
     <span
       className={className}
-      title={date instanceof Date ? date.toISOString() : String(date)}
+      title={
+        date instanceof Date && !isNaN(date.getTime())
+          ? date.toISOString()
+          : String(date)
+      }
     >
       {formattedDate}
     </span>

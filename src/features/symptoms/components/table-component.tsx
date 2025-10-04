@@ -1,14 +1,9 @@
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeadCell,
-  Pagination,
-} from "flowbite-react";
+import { Pagination } from "flowbite-react";
 import TableItem from "./table-item";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 import EmptyTable from "./empty-table";
+import CustomTable from "@/features/common/components/custom-table/custom-table";
 
 export default function SymptomsTable({
   dict,
@@ -75,66 +70,34 @@ export default function SymptomsTable({
     return <EmptyTable dict={dict} />;
   }
 
+  const header = !compact
+    ? [
+        (dict.symptoms as I18nRecord).condition as string,
+        (dict.symptoms as I18nRecord).symptom as string,
+        (dict.symptoms as I18nRecord).active_time as string,
+        (dict.symptoms as I18nRecord).trip as string,
+        (dict.symptoms as I18nRecord).driver as string,
+        (dict.symptoms as I18nRecord).creation_date as string,
+        "",
+      ]
+    : [
+        (dict.symptoms as I18nRecord).condition as string,
+        (dict.symptoms as I18nRecord).creation_date as string,
+        "",
+      ];
+
+  const content = [
+    ...(tableData && tableData.data
+      ? tableData.data.map((item, index) => (
+          <TableItem key={index} data={item} dict={dict} compact={compact} />
+        ))
+      : []),
+  ];
+
   return (
     <div className="flex flex-col flex-grow">
-      <div className="h-10 p- bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
-        <Table
-          striped
-          hoverable={compact}
-          theme={{
-            body: {
-              cell: {
-                base: "px-6 py-1 group-first/body:group-first/row:first:rounded-tl-lg group-first/body:group-first/row:last:rounded-tr-lg group-last/body:group-last/row:first:rounded-bl-none group-last/body:group-last/row:last:rounded-br-none",
-              },
-            },
-          }}
-        >
-          {!compact ? (
-            <TableHead>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).condition as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).symptom as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).active_time as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).trip as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).driver as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).creation_date as string}
-              </TableHeadCell>
-              {/* <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).state as string}
-              </TableHeadCell> */}
-            </TableHead>
-          ) : (
-            <TableHead>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).condition as string}
-              </TableHeadCell>
-              <TableHeadCell className="whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).creation_date as string}
-              </TableHeadCell>
-            </TableHead>
-          )}
-
-          <TableBody>
-            {tableData?.data.map((item, index) => (
-              <TableItem
-                key={index}
-                data={item}
-                dict={dict}
-                compact={compact}
-              />
-            ))}
-          </TableBody>
-        </Table>
+      <div className="h-10 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
+        <CustomTable content={content} header={header} hoverable={true} />
       </div>
       {!compact && (
         <div className="flex justify-between items-center">

@@ -1057,3 +1057,39 @@ export async function putRefreshToken(
 
   return result as RefreshTokenResponse;
 }
+
+/**
+ * Unclaim a task by removing the current owner assignment
+ * @param session - User session with admin privileges
+ * @param taskId - The ID of the task to unclaim
+ * @returns Success status
+ */
+export async function unclaimTask(
+  session: Session,
+  taskId: string
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/task-instances/activiti$${taskId}`;
+  console.log("baseUrl", baseUrl);
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  alfrescoApiLogger.debug(
+    {
+      taskId,
+      user: session.user?.email,
+    },
+    "Unclaiming task"
+  );
+
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      cm_owner: null,
+    }),
+  });
+
+  return result as { success: boolean };
+}

@@ -12,10 +12,12 @@ import { tr } from "@/features/i18n/tr.service";
 import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
+  getMyTasks,
   useMapPositions,
   useMyTasks,
   useMyTasksCount,
   useSymptoms,
+  useUserFilters,
 } from "@/features/common/providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -25,6 +27,7 @@ import {
 
 export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const pathname = pathNameWithoutLanguage(usePathname());
+
   const { isCollapsed } = useSidebarContext().desktop;
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
@@ -38,6 +41,57 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
 
+  //const searchParams = useSearchParams();
+  const {
+    data: userFiltersData,
+    error: _userFiltersError,
+    isLoading: _userFiltersLoading,
+  } = useUserFilters();
+
+  useEffect(() => {
+    if (userFiltersData && userFiltersData?.length > 0) {
+      userFiltersData.forEach((filter) => {
+        const filterArray = filter.split("&");
+        const filterPart = filterArray
+          .filter((part) => !part.includes("position"))
+          .join("&");
+        const label = filterArray
+          .filter((part) => part.includes("titleLabel"))
+          .join("&")
+          .replace("titleLabel=", "");
+        const position = filterArray
+          .filter((part) => part.includes("position"))
+          .join("&")
+          .replace("position=", "");
+        getMyTasks(
+          [
+            ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+            ...DELIVERY_COORDINATOR_PROCESS_TASKS,
+          ],
+          false,
+          0,
+          2000,
+          filterPart + "&editable=true"
+        ).then((total) => {
+          if (
+            pages &&
+            pages[2] &&
+            pages[2].items &&
+            pages[2].items?.length <= userFiltersData?.length
+          ) {
+            pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
+              href: `/mytasks?${filterPart}`,
+              label,
+              totals: { [label]: total.total },
+            });
+          }
+          totals[label] = total.total;
+          setTotals({ ...totals });
+        });
+      });
+    }
+  }, [userFiltersData]);
+
   useEffect(() => {
     if (error && (error.status === 403 || error.status === 401)) {
       router.push("/sign-in");
@@ -45,12 +99,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   }, [error]);
 
   if (!error) {
-    /* totals["shippingv1"] = Object.entries(data?.totals ?? {})
-      .filter(([key]) =>
-        SHIPPING_COORDINATOR_PROCESS_TASKS.includes(key as any),
-      )
-      .map(([_, value]) => value as number)
-      .reduce((a, b) => a + b, 0); */
     totals["shipping"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as any)
@@ -71,6 +119,8 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
     newTotals["finished"] = finishedTasks?.total ?? 0;
+    newTotals["pending_tasks"] = totals["delivery"] + totals["shipping"];
+    newTotals["completed_tasks"] = finishedTasks?.total ?? 0;
     setTotals(newTotals);
   }, [mapCount, symptomsCount, finishedTasks]);
 

@@ -14,7 +14,7 @@ const kanban_params: ParamType[] = [
   setParam("destination", "text"),
   setParam("customer", "text"),
   setParam("originType", "bool"),
-  //setParam("date_range", "date_range"),
+  setParam("date_range", "date_range"),
 ];
 
 function setParam(param: ParamType, type: "date_range" | "text" | "bool") {
@@ -26,6 +26,7 @@ export function getNavegationParams(dict: I18nRecord) {
     finished: getParamsFixed(kanban_params, dict),
     shipping: getParamsFixed(kanban_params, dict),
     delivery: getParamsFixed(kanban_params, dict),
+    mytasks: getParamsFixed(kanban_params, dict),
   };
 }
 

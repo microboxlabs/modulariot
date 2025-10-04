@@ -79,12 +79,21 @@ export default function BentoHead({
     );
   }
 
+  const workflowVersion = task.definitionVersion as number | undefined;
+
   return (
     <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-between">
       <div>
-        <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
-          {title}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-md font-normal text-gray-700 dark:text-gray-200">
+            {title}
+          </h1>
+          {workflowVersion && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              v{workflowVersion}
+            </span>
+          )}
+        </div>
         <div className="flex flex-row gap-2">
           {subtitle && (
             <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">

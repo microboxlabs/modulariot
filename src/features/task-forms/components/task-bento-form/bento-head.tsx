@@ -9,6 +9,7 @@ import TimeElement from "./time-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
 import { FaRegEye } from "react-icons/fa";
+import { TaskOwnerDisplay } from "./task-owner-display";
 
 const task_states = {
   assignDriver: "planificado",
@@ -33,6 +34,7 @@ export default function BentoHead({
   enableActions,
   show_horeference = true,
   show_go_to_bento = false,
+  userGroups = [],
 }: {
   readonly task: TaskResponse;
   readonly dict: I18nRecord;
@@ -42,6 +44,7 @@ export default function BentoHead({
   readonly enableActions: boolean;
   readonly show_horeference?: boolean;
   readonly show_go_to_bento?: boolean;
+  readonly userGroups?: string[];
 }) {
   const task_name_identifier =
     taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
@@ -91,14 +94,12 @@ export default function BentoHead({
               </span>
             </h2>
           )}
-          {task.takenBy && (
-            <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-              {(dict.bento as I18nRecord).taken_by as string}:{" "}
-              <span className="font-normal text-gray-800 dark:text-gray-200">
-                {task.takenBy}
-              </span>
-            </h2>
-          )}
+          <TaskOwnerDisplay
+            taskId={task.id}
+            takenBy={task.takenBy ?? null}
+            userGroups={userGroups}
+            dict={dict.bento as Record<string, string>}
+          />
         </div>
       </div>
       <div className="flex flex-row gap-1">

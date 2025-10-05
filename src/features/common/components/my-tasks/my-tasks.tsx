@@ -178,13 +178,3 @@ export default function MyTasks({
     </div>
   );
 }
-
-/*
-  <button
-    onClick={scrollToTop}
-    className="fixed bottom-16 right-6 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all duration-200 z-10 opacity-90 hover:opacity-100"
-    title="Scroll to top"
-  >
-    <FaArrowUp className="w-4 h-4" />
-  </button>
-*/

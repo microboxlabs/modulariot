@@ -27,6 +27,23 @@ export default function TaskList({
   const lastElementRef = useRef<HTMLDivElement>(null);
   const hasLoggedRef = useRef(false);
 
+  const mintralIcuConditionImportance = (icuCode = 0) => {
+    if (icuCode > 4) {
+      return 0;
+    }
+    return icuCode;
+  };
+
+  const sortingTaskRelevance = (
+    elem1: KanbanBoardTask,
+    elem2: KanbanBoardTask
+  ) => {
+    return (
+      mintralIcuConditionImportance(elem2.mintral_icuCondition) -
+      mintralIcuConditionImportance(elem1.mintral_icuCondition)
+    );
+  };
+
   const header = [
     tr("my_tasks.stage", dict),
     tr("my_tasks.duration", dict),
@@ -77,7 +94,7 @@ export default function TaskList({
   return (
     <div className="w-full h-fit relative">
       <div className="flex flex-col md:hidden w-full gap-2">
-        {tasks.map((task, index) => (
+        {tasks.sort(sortingTaskRelevance).map((task, index) => (
           <TaskListElement
             key={task.id}
             task={task}

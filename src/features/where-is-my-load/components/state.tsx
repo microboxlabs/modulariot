@@ -1,5 +1,6 @@
 import { FaCheck } from "react-icons/fa";
 import { State } from "../timeline";
+import FormattedDate from "@/features/common/components/formatted-date";
 
 export default function TimelineStates({
   index,
@@ -41,7 +42,7 @@ export default function TimelineStates({
       >
         <div>
           <h1 className="text-sm font-light text-gray-500 dark:text-gray-400">
-            {state.date}
+            <FormattedDate date={state.date} format="datetime" />
           </h1>
           <h1 className="text-lg font-bold text-gray-700 dark:text-gray-100">
             {state.name}

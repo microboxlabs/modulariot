@@ -163,7 +163,9 @@ export default function Timeline({ dict }: { dict: I18nRecord }) {
       ? data?.map((item) => {
           return {
             name: item.nombre_etapa_,
-            date: item.start_time__,
+            date: item.base_start_time_
+              ? item.base_start_time_
+              : item.start_time__,
             start: item.start_time__,
             end: item.end_time__,
             duration: item.duration__,

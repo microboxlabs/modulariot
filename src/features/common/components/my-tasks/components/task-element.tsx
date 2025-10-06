@@ -23,7 +23,6 @@ const TaskListElement = React.forwardRef<
 
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {
-      console.log(task.id);
       setSelectedTask(task.id);
     }, 1000);
   };
@@ -122,8 +121,8 @@ const TaskListElement = React.forwardRef<
 
 export default TaskListElement;
 
-function get_alert_color(alert_level: number | undefined) {
-  switch (alert_level) {
+function get_alert_color(alert_level: number | undefined = 0) {
+  switch (+alert_level) {
     case 3:
       return {
         main_color: "bg-rose-500 group-hover:bg-rose-600 text-white",

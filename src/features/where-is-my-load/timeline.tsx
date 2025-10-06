@@ -1,27 +1,35 @@
 "use client";
 
-import { FaTruckLoading } from "react-icons/fa";
+import { FaTruck, FaTruckLoading } from "react-icons/fa";
 import TimelineStates from "./components/state";
-import React, { useEffect } from "react";
-import { Button } from "flowbite-react";
+import React, { useEffect, useMemo } from "react";
+import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import EmptyAnimation from "../symptoms/components/empty-animation";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
-import { ShowNotification } from "../notifications/notification";
+//import { ShowNotification } from "../notifications/notification";
+import { useSearchLoad } from "../common/providers/client-api.provider";
+
+const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
+  if (icon === "TRUCK_LOADING") {
+    return <FaTruckLoading className="h-6 w-6" />;
+  }
+  return <FaTruck className="h-6 w-6" />;
+};
 
 export type State = {
   name: string;
-  date: string;
-  start: string;
-  end: string;
-  duration: string;
-  icon: React.ReactElement;
-  description?: React.ReactElement;
+  date: string | null;
+  start: string | null;
+  end: string | null;
+  duration: number | null;
+  icon: React.ReactElement | null;
+  description?: string;
   ended: boolean;
 };
 
-const states: State[] = [
+/*const states: State[] = [
   {
     name: "Carga en proveedor",
     date: "30 ABR 2025",
@@ -33,7 +41,6 @@ const states: State[] = [
       <div className="text-gray-800 dark:text-gray-300 font-light">
         <div>El proveedor [nombre de proveedor] tiene su carga.</div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow p-2 mt-2">
-          {/* Load description */}
           <p>Alto: 2 mts</p>
           <p>Ancho: 2 mts</p>
           <p>Largo: 2 mts</p>
@@ -51,7 +58,6 @@ const states: State[] = [
     icon: <FaTruckLoading className="h-6 w-6" />,
     description: (
       <div className="text-gray-800 dark:text-gray-300 font-light">
-        {/*  */}
         <div>Su carga se ha asignado al terminal [nombre de terminal].</div>
       </div>
     ),
@@ -77,7 +83,6 @@ const states: State[] = [
     ended: true,
     description: (
       <div className="text-gray-800 dark:text-gray-300 font-light">
-        {/*  */}
         <div>Se le ha asignado un transporte a su carga.</div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full text-gray-800 dark:text-gray-300 font-light p-2 mt-2">
           <p>Conductor: Juan Perez</p>
@@ -106,7 +111,6 @@ const states: State[] = [
     ended: false,
     description: (
       <div className="text-gray-800 dark:text-gray-300 font-light">
-        {/*  */}
         <div>
           Su carga se encuentra en camino, pronto podra revisar su posicion en
           tiempo real.
@@ -144,13 +148,32 @@ const states: State[] = [
     ended: false,
     description: <div></div>,
   },
-];
+];*/
 
 export default function Timeline({ dict }: { dict: I18nRecord }) {
   const [actualState, setActualState] = React.useState(3);
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const loadId = searchParams.get("loadId");
+
+  const { data, error, isLoading } = useSearchLoad(loadId ?? "");
+
+  const states = useMemo(() => {
+    return data && data.length > 0
+      ? data?.map((item) => {
+          return {
+            name: item.nombre_etapa_,
+            date: item.start_time__,
+            start: item.start_time__,
+            end: item.end_time__,
+            duration: item.duration__,
+            icon: getLoadIcon(item.icon),
+            description: item.extradata && item.extradata.Tipo_carga,
+            ended: item.end_time__ ? true : false,
+          };
+        })
+      : [];
+  }, [data]);
 
   useEffect(() => {
     if (timelineRef.current) {
@@ -172,16 +195,32 @@ export default function Timeline({ dict }: { dict: I18nRecord }) {
     );
   }
 
-  /*
-  return (
-    <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
-      <EmptyAnimation />
-      <p className="text-lg text-gray-500 mt-10">
-        {tr("wheres_my_load.not_found", dict as I18nRecord)}
-      </p>
-    </div>
-  );
-  */
+  if (data && data.length === 0) {
+    return (
+      <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
+        <EmptyAnimation />
+        <p className="text-lg text-gray-500 mt-10">
+          {tr("wheres_my_load.not_found", dict as I18nRecord)}
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+        {error.message}
+      </div>
+    );
+  }
 
   return (
     <div ref={timelineRef} className="w-fit h-full flex flex-col">

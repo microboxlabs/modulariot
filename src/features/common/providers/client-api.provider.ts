@@ -31,6 +31,7 @@ import {
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
+import { LoadSearchResponse } from "@/types/load.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -898,4 +899,16 @@ export async function deleteWebhookDefinitionClient(webhookDefNodeRef: string) {
   return fetcher(`/app/api/admin/webhooks?webhookDef=${webhookDefNodeRef}`, {
     method: "DELETE",
   });
+}
+
+export function useSearchLoad(loadId: string | undefined) {
+  const { data, error, isLoading } = useSWR<LoadSearchResponse[], FetcherError>(
+    loadId ? `/app/api/load/search?loadId=${loadId}` : null,
+    fetcher
+  );
+  return {
+    data,
+    error,
+    isLoading,
+  };
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSearchParams } from "next/navigation";
 
-export default function TimelineHeader({ dict }: { dict: I18nRecord }) {
+export default function TimelineHeader() {
   const searchParams = useSearchParams();
   const loadId = searchParams.get("loadId");
 

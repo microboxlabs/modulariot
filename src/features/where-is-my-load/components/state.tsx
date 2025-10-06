@@ -1,5 +1,5 @@
-import { State } from "../timeline";
 import { FaCheck } from "react-icons/fa";
+import { State } from "../timeline";
 
 export default function TimelineStates({
   index,
@@ -47,7 +47,7 @@ export default function TimelineStates({
             {state.name}
           </h1>
         </div>
-        <div>{state.description && state.description}</div>
+        <div>{state.description}</div>
       </div>
     </div>
   );

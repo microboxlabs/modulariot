@@ -15,7 +15,7 @@ export const FormattedDate: React.FC<FormattedDateProps> = ({
   locale = "es-CL",
   timeZone = "America/Santiago",
   className = "",
-  fallback = "/",
+  fallback = "-",
 }) => {
   const formatDate = (inputDate: string | Date | number): string => {
     try {

@@ -29,17 +29,19 @@ const config: Config = {
         "hide-flex": "hide-flex 0.2s ease-in-out forwards",
         "show-flex-middle": "show-flex-middle 0.2s ease-in-out forwards",
         "hide-flex-middle": "hide-flex-middle 0.2s ease-in-out forwards",
+        "hide-scale": "hide-scale 0.2s ease-in-out forwards",
+        "show-scale": "show-scale 0.2s ease-in-out forwards",
       },
       keyframes: {
         "hide-scale": {
-          "0%": { opacity: "1", scale: "1" },
-          "50%": { opacity: "0", scale: "0" },
+          "0%": { opacity: "1", width: "100%", scale: "1" },
+          "50%": { opacity: "0", width: "0", scale: "0" },
           "100%": { opacity: "0", scale: "0", display: "none" },
         },
         "show-scale": {
-          "0%": { opacity: "0", scale: "0", display: "flex" },
-          "50%": { opacity: "0", scale: "0" },
-          "100%": { opacity: "1", scale: "1" },
+          "0%": { opacity: "0", width: "0", scale: "0", display: "flex" },
+          "50%": { opacity: "0", width: "0", scale: "0" },
+          "100%": { opacity: "1", width: "100%", scale: "1" },
         },
         "hide": {
           "0%": { opacity: "1", display: "inline", maxHeight: "100%" },

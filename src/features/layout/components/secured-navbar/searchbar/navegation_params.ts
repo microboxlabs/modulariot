@@ -23,16 +23,24 @@ function setParam(param: ParamType, type: "date_range" | "text" | "bool") {
   return { param, type } as ParamType;
 }
 
-export function getNavegationParams(dict: I18nRecord) {
+export function getNavegationParams(dict: I18nRecord, size: number) {
   return {
     finished: getParamsFixed(kanban_params, dict),
     shipping: getParamsFixed(kanban_params, dict),
     delivery: getParamsFixed(kanban_params, dict),
-    "where-is-my-load": getParamsFixed(where_is_my_load_params, dict),
+    "where-is-my-load": getParamsFixed(where_is_my_load_params, dict, size > 0),
   };
 }
 
-function getParamsFixed(params: ParamType[], dict: I18nRecord) {
+function getParamsFixed(
+  params: ParamType[],
+  dict: I18nRecord,
+  shouldExist: boolean = true
+) {
+  if (!shouldExist) {
+    return null;
+  }
+
   return params.map((param) => {
     const paramKey = typeof param === "string" ? param : param.param;
     const paramType = typeof param === "string" ? "text" : param.type;

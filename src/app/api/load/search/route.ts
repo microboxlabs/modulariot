@@ -27,6 +27,9 @@ export async function GET(request: Request) {
       },
     });
 
+    console.log("------------------------");
+    console.log(response);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

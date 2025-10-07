@@ -1472,6 +1472,7 @@
   },
   "wheres_my_load": {
     "not_found": "No se han encontrado datos asignados a este ID.",
+    "title": "¿En qué está mi carga?",
     "search": "Usa el buscador para encontrar el estado de tu carga."
   }
 }

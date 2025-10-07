@@ -50,7 +50,7 @@ export default function Tags({
   return (
     <div
       className={`transition-all duration-300 ${
-        filter.length > 0 ? "scale-100" : "scale-0"
+        filter.length > 0 ? "animate-show-scale" : "animate-hide-scale"
       } `}
     >
       <div

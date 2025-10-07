@@ -10,6 +10,7 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 //import { ShowNotification } from "../notifications/notification";
 import { useSearchLoad } from "../common/providers/client-api.provider";
+import SearchScreen from "./search-screen";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {
@@ -150,8 +151,14 @@ export type State = {
   },
 ];*/
 
-export default function Timeline({ dict }: { dict: I18nRecord }) {
-  const [actualState, setActualState] = React.useState(3);
+export default function Timeline({
+  dict,
+  messages,
+}: {
+  dict: I18nRecord;
+  messages: I18nRecord;
+}) {
+  const [actualState, setActualState] = React.useState(6);
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const loadId = searchParams.get("loadId");
@@ -189,9 +196,11 @@ export default function Timeline({ dict }: { dict: I18nRecord }) {
 
   if (!loadId) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-        {tr("wheres_my_load.search", dict as I18nRecord)}
-      </div>
+      <SearchScreen
+        dict={dict}
+        messages={messages}
+        searchParams={searchParams}
+      />
     );
   }
 
@@ -221,6 +230,8 @@ export default function Timeline({ dict }: { dict: I18nRecord }) {
       </div>
     );
   }
+
+  console.log(states);
 
   return (
     <div ref={timelineRef} className="w-fit h-full flex flex-col">

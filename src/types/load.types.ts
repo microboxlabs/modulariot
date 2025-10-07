@@ -11,8 +11,19 @@ export interface LoadSearchResponse {
   estimated_start_time_: string | null;
   estimated_end_time_: string | null;
   extradata: {
-    Tipo_carga: string;
-    "Numero de cargas": number;
+    Tipo_carga?: string;
+    "Numero de cargas"?: number;
+    Proveedor?: string;
+    Terminal?: string;
+    Patente?: string;
+    Conductor?: string;
+    Estado?: string;
+    Horario?: string;
+    Validacion?: string;
+    Origen?: string;
+    Destino?: string;
+    "Tiempo Estimado"?: string;
+    ETA?: string;
   };
   icon?: string | null;
 }

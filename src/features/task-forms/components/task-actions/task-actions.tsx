@@ -52,6 +52,9 @@ import {
   OUTCOME_RECEIVE_DELIVERY_V2,
   OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
   OUTCOME_NOTIFY_TMS_DELIVERY_V2,
+  TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK,
+  TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK,
+  TYPE_WFPLANNING_PLAN_SERVICE_TASK,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -66,6 +69,8 @@ import {
   TaskOutcomeDelivery,
   TaskOutcomeV2,
   DeliveryProcessForms,
+  PlanningProcessForms,
+  TaskOutcomePlanning,
 } from "../../services/form.service.types";
 import OtherOptions from "./other-options";
 import CanceledAnnulledOptions from "./canceled-annulled-options";
@@ -89,7 +94,11 @@ export default function TaskActions({
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
-    TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery | undefined
+    | TaskOutcome
+    | TaskOutcomeV2
+    | TaskOutcomeDelivery
+    | TaskOutcomePlanning
+    | undefined
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
@@ -112,7 +121,11 @@ export default function TaskActions({
   }, [state]);
 
   const handleSelection = (
-    outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
+    outcome:
+      | TaskOutcome
+      | TaskOutcomeV2
+      | TaskOutcomeDelivery
+      | TaskOutcomePlanning,
     outcomeLabel: string
   ) => {
     setOutcome(outcome);
@@ -121,8 +134,15 @@ export default function TaskActions({
   };
 
   const isCommentsFieldEnabled = (
-    outcome: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery,
-    taskType?: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms
+    outcome:
+      | TaskOutcome
+      | TaskOutcomeV2
+      | TaskOutcomeDelivery
+      | TaskOutcomePlanning,
+    taskType?:
+      | ShippingCoordinatorProcessFormsV2
+      | DeliveryProcessForms
+      | PlanningProcessForms
   ) => {
     if (taskType) {
       /* V2 Tasks */
@@ -537,7 +557,10 @@ export default function TaskActions({
     case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
     case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
     case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
-    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: {
+    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
+    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK:
+    case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
+    case TYPE_WFPLANNING_PLAN_SERVICE_TASK: {
       const transitionId = getTransitionIdV2(
         taskType as ShippingCoordinatorProcessFormsV2,
         outcome as TaskOutcomeV2

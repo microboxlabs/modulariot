@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "title": "consolidateLoadTask",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 2,
+    "title": "separateDocumentsTask",
+    "description": "Presentar Conductor",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 3,
+    "title": "planServiceTask",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  }
+]

@@ -142,6 +142,75 @@
         "customerCode": "Cliente"
       }
     },
+    "planning": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Planificación",
+        "finished": "Finalizados"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "consolidateLoadTask": "Consolidar Carga",
+        "separateDocumentsTask": "Separar Documentos",
+        "planServiceTask": "Planificar Servicio",
+        "compact": "Compactar",
+        "expand": "Expandir",
+        "weight": "Peso",
+        "loads": "Bultos",
+        "volume": "Volumen",
+        "expeditionNumber": "N° de expedición",
+        "code": "Código",
+        "noLoads": "No hay cargas",
+        "kanban_movements": "Movimientos de Kanban",
+        "load_table": "Tabla de cargas",
+        "length": "Largo",
+        "width": "Ancho",
+        "height": "Alto",
+        "finished": "Finalizado",
+        "finished_process": "Proceso Terminado",
+        "taskType": "Tipo de tarea",
+        "taskAction": "Acción de la tarea"
+      },
+      "card": {
+        "origin": "Origen",
+        "destination": "Destino",
+        "service": "Servicio Nº",
+        "clientCode": "Código cliente",
+        "clientName": "Cliente",
+        "departureDate": "Fecha de salida",
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje",
+        "patente": "Patente",
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente",
+        "withoutDriver": "Sin Asignación"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Servicio",
+        "departureDateTime": "Fecha y hora de salida",
+        "serviceKind": "Tipo de servicio",
+        "validations": "Validaciones",
+        "status": "Estado",
+        "stage": "Etapa",
+        "licensePlate": "Patente",
+        "origin": "Origen",
+        "destination": "Destino",
+        "active": "Activo",
+        "completed": "Completado",
+        "driverId": "RUT Conductor",
+        "carrierId": "ID Transportista",
+        "carrierName": "Transportista",
+        "customerCode": "Código Cliente",
+        "customer": "Cliente"
+      }
+    },
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
@@ -861,6 +930,7 @@
         "pending_tasks": "Tareas pendientes",
         "werehouse": "Bodega",
         "logistics": "Logística",
+        "planning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
         "picking": "Retiros",

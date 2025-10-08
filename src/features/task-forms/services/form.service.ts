@@ -13,6 +13,9 @@ import {
   DeliveryProcessTask,
   TaskOutcomeDelivery,
   ShippingFinishedCoordinatorProcessTask,
+  PlanningProcessTask,
+  PlanningProcessForms,
+  TaskOutcomePlanning,
 } from "./form.service.types";
 import {
   HiOutlineArrowLeft,
@@ -535,4 +538,36 @@ export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_RECEIVE_DELIVERY,
   TASK_NOTIFY_TMS_ARRIVAL,
   TASK_NOTIFY_TMS_DELIVERY,
+];
+
+/* ------------------------------------------------------------- */
+/* Planning Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK: PlanningProcessForms =
+  "wfship2:consolidateLoadTask";
+export const TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK: PlanningProcessForms =
+  "wfship2:separateDocumentsTask";
+export const TYPE_WFPLANNING_PLAN_SERVICE_TASK: PlanningProcessForms =
+  "wfship2:planServiceTask";
+
+export const TASK_CONSOLIDATE_LOAD: PlanningProcessTask = "consolidateLoad";
+export const TASK_SEPARATE_DOCUMENTS: PlanningProcessTask = "separateDocuments";
+export const TASK_PLAN_SERVICE: PlanningProcessTask = "planService";
+
+export const OUTCOME_TO_CONSOLIDATE_LOAD_V2: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_CONSOLIDATE_LOAD_V2: TaskOutcomePlanning =
+  "Consolidar Carga";
+export const OUTCOME_TO_SEPARATE_DOCUMENTS_V2: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_SEPARATE_DOCUMENTS_V2: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_TO_PLAN_SERVICE_V2: TaskOutcomePlanning =
+  "Planificar Servicio";
+
+export const PLANNING_COORDINATOR_PROCESS_TASKS: PlanningProcessTask[] = [
+  TASK_CONSOLIDATE_LOAD,
+  TASK_SEPARATE_DOCUMENTS,
+  TASK_PLAN_SERVICE,
 ];

@@ -11,6 +11,10 @@ import { tr } from "../i18n/tr.service";
 //import { ShowNotification } from "../notifications/notification";
 import { useSearchLoad } from "../common/providers/client-api.provider";
 import SearchScreen from "./search-screen";
+import GenericComponent from "./components/state-components/generic";
+import { LoadSearchResponse } from "./types/load.types";
+import CustomCard from "@/features/common/components/custom-card/custom-card";
+import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {
@@ -26,7 +30,7 @@ export type State = {
   end: string | null;
   duration: number | null;
   icon: React.ReactElement | null;
-  description?: string;
+  description?: string | React.ReactElement;
   ended: boolean;
 };
 
@@ -177,7 +181,7 @@ export default function Timeline({
             end: item.end_time__,
             duration: item.duration__,
             icon: getLoadIcon(item.icon),
-            description: item.extradata && item.extradata.Tipo_carga,
+            description: getComponent(item),
             ended: item.end_time__ ? true : false,
           };
         })
@@ -186,15 +190,32 @@ export default function Timeline({
 
   useEffect(() => {
     if (timelineRef.current) {
-      const targetElement = timelineRef.current.children[actualState + 1]; // +1 because debug div is first child
-      if (targetElement) {
-        targetElement.scrollIntoView({
+      const timelineContainer = timelineRef.current.querySelector(
+        ".timeline-states-container"
+      );
+      if (timelineContainer && timelineContainer.children[actualState]) {
+        timelineContainer.children[actualState].scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
       }
     }
   }, [actualState]);
+
+  // Center on actualState when states are loaded (component initialization)
+  useEffect(() => {
+    if (timelineRef.current && states.length > 0) {
+      const timelineContainer = timelineRef.current.querySelector(
+        ".timeline-states-container"
+      );
+      if (timelineContainer && timelineContainer.children[actualState]) {
+        timelineContainer.children[actualState].scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  }, [states]);
 
   if (!loadId) {
     return (
@@ -233,11 +254,9 @@ export default function Timeline({
     );
   }
 
-  console.log(states);
-
   return (
-    <div ref={timelineRef} className="w-fit h-full flex flex-col">
-      <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2">
+    <div ref={timelineRef} className="w-fit h-fit flex flex-col md:flex-row">
+      <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2 hidden">
         <h1>Debug: {actualState}</h1>
         <div className="flex flex-col gap-2">
           <Button onClick={() => setActualState(Math.max(0, actualState - 1))}>
@@ -246,17 +265,59 @@ export default function Timeline({
           <Button onClick={() => setActualState(actualState + 1)}>+1</Button>
         </div>
       </div>
-      {states.map((state, index) => {
-        return (
-          <TimelineStates
-            key={index}
-            index={index}
-            actualState={actualState}
-            state={state}
-            statesCount={states.length}
-          />
-        );
-      })}
+      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit block md:hidden mb-4">
+        <CustomCard title="Información de la expedición" subtitle="Detalles">
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <LoadableLabel label="Código" value="3849494" />
+            <LoadableLabel label="N° de expedición" value="999904361569" />
+            <LoadableLabel label="Largo" value="130 cm" />
+            <LoadableLabel label="Ancho" value="90 cm" />
+            <LoadableLabel label="Alto" value="95 cm" />
+            <LoadableLabel label="Volumen" value="9.78 m³" />
+            <LoadableLabel label="Peso" value="2856 Kg" />
+            <LoadableLabel label="Bultos" value="2" />
+          </div>
+        </CustomCard>
+      </div>
+      <div className="w-fit h-full flex flex-col timeline-states-container">
+        {states.map((state, index) => {
+          return (
+            <TimelineStates
+              key={index}
+              index={index}
+              count={states.length}
+              actualState={actualState}
+              state={state}
+              statesCount={states.length}
+            />
+          );
+        })}
+      </div>
+      <div className="sticky top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-fit h-fit ml-4 hidden md:block">
+        <CustomCard title="Información de la expedición" subtitle="Detalles">
+          <div className="grid grid-cols-[auto_1fr] gap-2">
+            <LoadableLabel label="Código" value="3849494" />
+            <LoadableLabel label="N° de expedición" value="999904361569" />
+            <LoadableLabel label="Largo" value="130 cm" />
+            <LoadableLabel label="Ancho" value="90 cm" />
+            <LoadableLabel label="Alto" value="95 cm" />
+            <LoadableLabel label="Volumen" value="9.78 m³" />
+            <LoadableLabel label="Peso" value="2856 Kg" />
+            <LoadableLabel label="Bultos" value="2" />
+          </div>
+        </CustomCard>
+      </div>
     </div>
   );
+}
+
+function getComponent(item: LoadSearchResponse) {
+  // Here we add "State Id": Component
+  const states_data: { [key: string]: () => React.ReactElement } = {};
+
+  if (states_data[item.nombre_etapa_]) {
+    return states_data[item.nombre_etapa_]();
+  }
+
+  return <GenericComponent item={item} />;
 }

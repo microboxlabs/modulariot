@@ -3,21 +3,27 @@ import { State } from "../timeline";
 
 export default function TimelineStates({
   index,
+  count,
   actualState,
   state,
   statesCount,
 }: {
   index: number;
+  count: number;
   actualState: number;
   state: State;
   statesCount: number;
 }) {
+  const is_urgent = true;
+
   return (
     <>
       <div className="w-fit flex flex-row gap-2 relative">
         <div className="w-10 flex flex-col items-center z-10">
           {actualState > index ? (
-            <div className="h-12 w-12 bg-gray-800 dark:bg-gray-200 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 text-gray-100 dark:text-gray-700">
+            <div
+              className={`h-12 w-12 bg-gray-800 dark:bg-gray-200 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 text-gray-100 dark:text-gray-700 ${is_urgent ? "border border-purple-500 dark:border-purple-500" : ""}`}
+            >
               <FaCheck className="h-6 w-6" />
             </div>
           ) : (
@@ -25,9 +31,9 @@ export default function TimelineStates({
               className={`h-12 w-12 rounded-full flex items-center justify-center border-4 bg-gray-100 dark:bg-gray-800 border-gray-50 dark:border-gray-900 ${actualState < index ? "text-gray-500" : "text-gray-700 dark:text-gray-100"}`}
             >
               <div
-                className={`h-full w-full rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 ${actualState == index ? "border border-gray-500" : ""}`}
+                className={`h-full w-full rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 ${actualState == index ? "border border-gray-500 bg-blue-50 dark:bg-blue-900" : ""} ${is_urgent ? "border-2 border-purple-500" : ""}`}
               >
-                {state.icon}
+                {index + 1}
               </div>
             </div>
           )}
@@ -38,7 +44,7 @@ export default function TimelineStates({
         )}
 
         <div
-          className={`mb-10 flex flex-col drop-shadow-md transition-all duration-200 border ${actualState == index ? "border-gray-500 p-2" : "border-transparent p-1"} rounded-md`}
+          className={`${index != count - 1 ? "mb-10" : ""} flex flex-col drop-shadow-md transition-all duration-200 border ${actualState == index ? "border-gray-500 p-2 drop-shadow-md bg-blue-50 dark:bg-blue-900" : "border-transparent p-1"} rounded-md`}
         >
           <div>
             {/*type === "tooltip" && <WithTooltip />*/}
@@ -49,10 +55,10 @@ export default function TimelineStates({
               {state.name}
             </h1>
           </div>
-          <div className="text-gray-800 dark:text-gray-300 font-light">
+          <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2">
             {/* Reemplaza por el valor de retraso entre inicio y inicio estimado o fin y fin estimado */}
             <div className="bg-red-500 rounded-md">
-              <span className="text-white text-md py-1 px-2">
+              <span className="text-white text-sm py-1 px-2 whitespace-nowrap">
                 Fin con Retraso de 5 Hrs, 30 Min y 15 Seg
               </span>
             </div>
@@ -117,12 +123,9 @@ function Explicative() {
 function ProblemLog() {
   return (
     <div className="text-sm font-light text-gray-500 dark:text-gray-400 flex flex-row gap-2">
-      <span className="cursor-pointer">Inicio: 9-05-2025</span>
-      <span className="cursor-pointer whitespace-nowrap">
-        Fin:{" "}
-        <span className="text-red-500 cursor-pointer whitespace-nowrap">
-          10-05-2025
-        </span>
+      <span>Inicio: 9-05-2025</span>
+      <span className="whitespace-nowrap">
+        Fin: <span className="text-red-500 whitespace-nowrap">10-05-2025</span>
       </span>
     </div>
   );

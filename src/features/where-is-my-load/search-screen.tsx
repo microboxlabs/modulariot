@@ -15,10 +15,10 @@ export default function SearchScreen({
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-      <h1 className="text-gray-700 dark:text-gray-200 font-bold text-4xl">
+      <h1 className="text-gray-700 dark:text-gray-200 font-bold text-2xl md:text-4xl text-center">
         Search for your load
       </h1>
-      <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4">
+      <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
         Use the searchbar to track the state of your load
       </h1>
       <ParametrizedSearchBar

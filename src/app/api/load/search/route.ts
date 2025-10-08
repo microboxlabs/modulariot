@@ -27,14 +27,14 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log("------------------------");
-    console.log(response);
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const apiData = (await response.json()) as LoadSearchResponse;
+
+    console.log("------------------------");
+    console.log(apiData);
 
     return NextResponse.json(apiData);
   } catch (error) {

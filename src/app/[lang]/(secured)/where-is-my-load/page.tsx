@@ -13,7 +13,7 @@ export default async function WheresMyLoadPage({
   return (
     <div className="h-full flex flex-col">
       <TimelineHeader dict={dictionary as I18nRecord} />
-      <div className="h-full w-full flex justify-center overflow-auto p-4">
+      <div className="h-full w-full flex flex-row justify-center overflow-auto p-4 relative">
         <Timeline dict={dictionary as I18nRecord} messages={navBarMessages} />
       </div>
     </div>

@@ -16,22 +16,11 @@ export default function TimelineHeader({ dict }: { dict: I18nRecord }) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-between border-b border-gray-300 dark:border-gray-700">
-      <h1 className="text-xl font-light text-gray-900 dark:text-gray-100 p-2">
-        N°{loadId}
+    <div className="bg-white dark:bg-gray-800 p-2 portrait:gap-2 flex flex-wrap items-center justify-center md:justify-start border-b border-gray-300 dark:border-gray-700">
+      <h1 className="text-xl font-light text-gray-700 dark:text-gray-200 p-2">
+        {tr("wheres_my_load.timeline", dict)}:{" "}
+        <span className="">N°{loadId}</span>
       </h1>
-      <Button
-        color="blue"
-        className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit p-0"
-        as={Link}
-        href=""
-      >
-        <div className="flex flex-row gap-2 items-center">
-          <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
-            {tr("bento.go_to_bento", dict)}
-          </p>
-        </div>
-      </Button>
     </div>
   );
 }

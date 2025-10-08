@@ -3,6 +3,7 @@ import kanbanBoards from "../model/kanban.json";
 import kanbanPickingBoards from "../model/picking-kanban.json";
 import kanbanShippingV2Boards from "../model/kanban-shipping-v2.json";
 import kanbanDeliverBoards from "../model/kanban-deliver.json";
+import kanbanPlanningBoards from "../model/kanban-planning.json";
 import {
   FastTasksResponse,
   FinishedWorkflowsResponse,
@@ -93,6 +94,9 @@ export function getStaticShippingV2Data(): KanbanBoard[] {
 }
 export function getStaticDeliverData(): KanbanBoard[] {
   return kanbanDeliverBoards as unknown as KanbanBoard[];
+}
+export function getStaticPlanningData(): KanbanBoard[] {
+  return kanbanPlanningBoards as unknown as KanbanBoard[];
 }
 
 export function toShippingKanban(

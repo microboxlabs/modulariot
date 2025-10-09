@@ -1,3 +1,8 @@
+export type GeneralTaskOutcome =
+  | TaskOutcomeV2
+  | TaskOutcomeDelivery
+  | TaskOutcomePlanning;
+
 export type TaskNextActionState = {
   success?: boolean;
   error?: string;

@@ -26,4 +26,6 @@ export interface LoadSearchResponse {
     ETA?: string;
   };
   icon?: string | null;
+  visible: boolean;
+  enabled: boolean;
 }

@@ -15,6 +15,9 @@ import GenericComponent from "./components/state-components/generic";
 import { LoadSearchResponse } from "./types/load.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
+import { HiExclamationCircle } from "react-icons/hi";
+import type { InformationBadge } from "@/features/common/components/custom-card/custom-card";
+import ModalTooltip from "@/features/shipping/components/modal-tooltip";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {
@@ -25,135 +28,21 @@ const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
 
 export type State = {
   name: string;
-  date: string | null;
-  start: string | null;
-  end: string | null;
-  duration: number | null;
   icon: React.ReactElement | null;
   description?: string | React.ReactElement;
   ended: boolean;
+  extradata: { [key: string]: string | number | boolean };
+  time: {
+    start: string | null;
+    estimated_start: string | null;
+    end: string | null;
+    estimated_end: string | null;
+    duration: number | null;
+  };
+  urgent: boolean;
+  visible: boolean;
+  enabled: boolean;
 };
-
-/*const states: State[] = [
-  {
-    name: "Carga en proveedor",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    description: (
-      <div className="text-gray-800 dark:text-gray-300 font-light">
-        <div>El proveedor [nombre de proveedor] tiene su carga.</div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow p-2 mt-2">
-          <p>Alto: 2 mts</p>
-          <p>Ancho: 2 mts</p>
-          <p>Largo: 2 mts</p>
-        </div>
-      </div>
-    ),
-    ended: true,
-  },
-  {
-    name: "Carga en terminal",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    description: (
-      <div className="text-gray-800 dark:text-gray-300 font-light">
-        <div>Su carga se ha asignado al terminal [nombre de terminal].</div>
-      </div>
-    ),
-    ended: true,
-  },
-  {
-    name: "Carga consolidada en viaje",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: true,
-    description: <div></div>,
-  },
-  {
-    name: "Viaje con transporte asignado",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: true,
-    description: (
-      <div className="text-gray-800 dark:text-gray-300 font-light">
-        <div>Se le ha asignado un transporte a su carga.</div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full text-gray-800 dark:text-gray-300 font-light p-2 mt-2">
-          <p>Conductor: Juan Perez</p>
-          <p>Rut: 12.123.123-1</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    name: "Validación de condiciones",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: true,
-    description: <div></div>,
-  },
-  {
-    name: "Iniciar viaje",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: false,
-    description: (
-      <div className="text-gray-800 dark:text-gray-300 font-light">
-        <div>
-          Su carga se encuentra en camino, pronto podra revisar su posicion en
-          tiempo real.
-        </div>
-      </div>
-    ),
-  },
-  {
-    name: "Viaje En transito",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: false,
-    description: <div></div>,
-  },
-  {
-    name: "Viaje arribado",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: false,
-    description: <div></div>,
-  },
-  {
-    name: "Carga en coordinación",
-    date: "30 ABR 2025",
-    start: "28-07-2025",
-    end: "29-07-2025",
-    duration: "1 día",
-    icon: <FaTruckLoading className="h-6 w-6" />,
-    ended: false,
-    description: <div></div>,
-  },
-];*/
 
 export default function Timeline({
   dict,
@@ -174,15 +63,20 @@ export default function Timeline({
       ? data?.map((item) => {
           return {
             name: item.nombre_etapa_,
-            date: item.base_start_time_
-              ? item.base_start_time_
-              : item.start_time__,
-            start: item.start_time__,
-            end: item.end_time__,
-            duration: item.duration__,
+            time: {
+              start: item.start_time__,
+              end: item.end_time__,
+              estimated_start: item.base_start_time_,
+              estimated_end: item.estimated_end_time_,
+              duration: item.duration__,
+            },
             icon: getLoadIcon(item.icon),
             description: getComponent(item),
             ended: item.end_time__ ? true : false,
+            extradata: item.extradata,
+            urgent: item.oferta_producto_ === "UR",
+            visible: item.visible,
+            enabled: item.enabled,
           };
         })
       : [];
@@ -254,8 +148,27 @@ export default function Timeline({
     );
   }
 
+  let urgent = true;
+
+  const badges: InformationBadge[] = [];
+
+  if (urgent) {
+    badges.push({
+      text: (dict.bento as I18nRecord).urgency as string,
+      color: "purple" as const,
+      icon: HiExclamationCircle,
+    });
+  }
+
   return (
     <div ref={timelineRef} className="w-fit h-fit flex flex-col md:flex-row">
+      <ModalTooltip
+        lang={lang}
+        userGroups={userGroups}
+        selectedTask={selectedTask}
+        setSelectedTask={setSelectedTask}
+        dict={dictionary.general}
+      />
       <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2 hidden">
         <h1>Debug: {actualState}</h1>
         <div className="flex flex-col gap-2">
@@ -265,22 +178,20 @@ export default function Timeline({
           <Button onClick={() => setActualState(actualState + 1)}>+1</Button>
         </div>
       </div>
-      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit block md:hidden mb-4">
-        <CustomCard title="Información de la expedición" subtitle="Detalles">
-          <div className="grid grid-cols-[auto_1fr] gap-2">
-            <LoadableLabel label="Código" value="3849494" />
-            <LoadableLabel label="N° de expedición" value="999904361569" />
-            <LoadableLabel label="Largo" value="130 cm" />
-            <LoadableLabel label="Ancho" value="90 cm" />
-            <LoadableLabel label="Alto" value="95 cm" />
-            <LoadableLabel label="Volumen" value="9.78 m³" />
-            <LoadableLabel label="Peso" value="2856 Kg" />
-            <LoadableLabel label="Bultos" value="2" />
-          </div>
-        </CustomCard>
+      <div className="block md:hidden mb-4">
+        <SideInfo badges={badges} />
       </div>
+
       <div className="w-fit h-full flex flex-col timeline-states-container">
         {states.map((state, index) => {
+          if (state.urgent) {
+            urgent = true;
+          }
+
+          if (!state.visible) {
+            return null;
+          }
+
           return (
             <TimelineStates
               key={index}
@@ -293,20 +204,33 @@ export default function Timeline({
           );
         })}
       </div>
-      <div className="sticky top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-fit h-fit ml-4 hidden md:block">
-        <CustomCard title="Información de la expedición" subtitle="Detalles">
-          <div className="grid grid-cols-[auto_1fr] gap-2">
-            <LoadableLabel label="Código" value="3849494" />
-            <LoadableLabel label="N° de expedición" value="999904361569" />
-            <LoadableLabel label="Largo" value="130 cm" />
-            <LoadableLabel label="Ancho" value="90 cm" />
-            <LoadableLabel label="Alto" value="95 cm" />
-            <LoadableLabel label="Volumen" value="9.78 m³" />
-            <LoadableLabel label="Peso" value="2856 Kg" />
-            <LoadableLabel label="Bultos" value="2" />
-          </div>
-        </CustomCard>
+      <div className="hidden md:block sticky top-1/2 transform -translate-y-1/2 w-full h-fit ml-12">
+        <SideInfo badges={badges} />
       </div>
+    </div>
+  );
+}
+
+function SideInfo({ badges }: { badges: InformationBadge[] }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-fit h-fit p-2">
+      <CustomCard
+        title="Información de la expedición"
+        subtitle="Detalles"
+        badges={badges}
+        style={{ title: "text-lg", subtitle: "text-sm" }}
+      >
+        <div className="grid grid-cols-[max-content_max-content] gap-2">
+          <LoadableLabel label="Código" value="3849494" />
+          <LoadableLabel label="N° de expedición" value="999904361569" />
+          <LoadableLabel label="Largo" value="130 cm" />
+          <LoadableLabel label="Ancho" value="90 cm" />
+          <LoadableLabel label="Alto" value="95 cm" />
+          <LoadableLabel label="Volumen" value="9.78 m³" />
+          <LoadableLabel label="Peso" value="2856 Kg" />
+          <LoadableLabel label="Bultos" value="2" />
+        </div>
+      </CustomCard>
     </div>
   );
 }

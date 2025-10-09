@@ -7,8 +7,6 @@ export default function GenericComponent({
 }: {
   item: LoadSearchResponse;
 }) {
-  console.log(item);
-
   if (Object.entries(item.extradata).length === 0) {
     return null;
   }

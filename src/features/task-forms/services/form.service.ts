@@ -328,7 +328,7 @@ export const getTransitionIdV2 = (
     case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
       return OUTCOME_TO_SEPARATE_DOCUMENTS;
     case TYPE_WFPLANNING_PLAN_SERVICE_TASK:
-      return OUTCOME_PLAN_SERVICE;
+      return OUTCOME_TO_PLAN_SERVICE;
     default:
       return outcome;
   }
@@ -500,6 +500,22 @@ export const getSecondaryTransitionIdV2 = (
       label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
       icon: HiOutlineArrowLeft,
     });
+  } else if (taskType === TYPE_WFSHIP2_ASSIGN_DRIVER_TASK) {
+    otherOptions.push({
+      id: OUTCOME_CONSOLIDATE_LOAD,
+      label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+      icon: HiOutlineArrowLeft,
+    });
+    otherOptions.push({
+      id: OUTCOME_SEPARATE_DOCUMENTS,
+      label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
+      icon: HiOutlineArrowLeft,
+    });
+    otherOptions.push({
+      id: OUTCOME_PLAN_SERVICE,
+      label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+      icon: HiOutlineArrowLeft,
+    });
   }
   otherOptions.push(
     {
@@ -592,7 +608,11 @@ export const OUTCOME_TO_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
   "Planificar Servicio";
 export const OUTCOME_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
   "Separar Documentos";
+export const OUTCOME_TO_PLAN_SERVICE: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
 export const OUTCOME_PLAN_SERVICE: TaskOutcomePlanning = "Planificar Servicio";
+export const OUTCOME_ASSIGN_DRIVER: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
 
 export const PLANNING_COORDINATOR_PROCESS_TASKS: PlanningProcessTask[] = [
   TASK_CONSOLIDATE_LOAD,

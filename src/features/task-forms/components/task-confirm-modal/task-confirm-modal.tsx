@@ -15,12 +15,20 @@ import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import BrandedMultiSelect from "./branded-multi-select";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "../../services/form.service";
+import {
+  DELIVERY_COORDINATOR_PROCESS_TASKS,
+  PLANNING_COORDINATOR_PROCESS_TASKS,
+  SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+} from "../../services/form.service";
 import { useState, useMemo } from "react";
 import { getSelectConfig } from "./task-confirm-modal.config";
 import { useTaskModalState } from "./hooks/use-task-modal-state";
 import { prepareFormData } from "./task-confirm-modal.utils";
-import { ShippingCoordinatorProcessTaskV2 } from "../../services/form.service.types";
+import {
+  DeliveryProcessTask,
+  PlanningProcessTask,
+  ShippingCoordinatorProcessTaskV2,
+} from "../../services/form.service.types";
 
 export default function TaskConfirmModal({
   openModal,
@@ -78,8 +86,24 @@ export default function TaskConfirmModal({
           )
         ) {
           router.push(`/shipping`);
-        } else if (taskType && taskType.startsWith("wfship2:")) {
+        } else if (
+          taskType &&
+          DELIVERY_COORDINATOR_PROCESS_TASKS.includes(
+            taskType
+              ?.replace("wfship2:", "")
+              .replace("Task", "") as DeliveryProcessTask
+          )
+        ) {
           router.push(`/delivery`);
+        } else if (
+          taskType &&
+          PLANNING_COORDINATOR_PROCESS_TASKS.includes(
+            taskType
+              ?.replace("wfship2:", "")
+              .replace("Task", "") as PlanningProcessTask
+          )
+        ) {
+          router.push(`/planning`);
         } else {
           router.push(`/shipping`);
         }

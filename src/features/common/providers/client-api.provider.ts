@@ -81,6 +81,27 @@ export function useMyTasksCount() {
   };
 }
 
+export async function getMyTasks(
+  columns: string[],
+  showFinished: boolean,
+  page?: number,
+  limit?: number,
+  params?: string
+) {
+  const columnQuery = columns.map((column) => `columns=${column}`).join("&");
+
+  const from = page ? (page - 1) * (limit ?? 10) : 0;
+
+  const paginationQuery = page && limit ? `from=${from}&size=${limit}` : "";
+  const queryString = `${columnQuery}&${paginationQuery}&showFinished=${showFinished}&${params}`;
+
+  const data = await fetcher<KanbanBoardTaskResponse>(
+    `/app/api/task/mytasks?${queryString}`
+  );
+
+  return data;
+}
+
 // This gets replaced by a fetched action, since useSWR generates performance issues when loading the elements in the serverside component who reads it
 /**
  * @deprecated Use getEntityInfo instead due to performance issues with SWR implementation
@@ -429,8 +450,13 @@ export function useUserGroups() {
 }
 
 export function useGetTasksById(taskId: string, finished: boolean) {
-  const { data, error, isLoading } = useSWR<TaskResponse, FetcherError>(
-    `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`,
+  const { data, error, isLoading } = useSWR<
+    { taskResponse: TaskResponse },
+    FetcherError
+  >(
+    taskId
+      ? `/app/api/task/mytasks/details?taskId=${taskId}&finished=${finished}`
+      : null,
     fetcher
   );
 
@@ -899,6 +925,22 @@ export async function deleteWebhookDefinitionClient(webhookDefNodeRef: string) {
   return fetcher(`/app/api/admin/webhooks?webhookDef=${webhookDefNodeRef}`, {
     method: "DELETE",
   });
+}
+
+export interface UserFiltersResponse {
+  data: string[];
+}
+
+export function useUserFilters() {
+  const { data, error, isLoading } = useSWR<UserFiltersResponse, FetcherError>(
+    `/app/api/user/filters`,
+    fetcher
+  );
+  return {
+    data: data?.data,
+    error,
+    isLoading,
+  };
 }
 
 export function useSearchLoad(loadId: string | undefined) {

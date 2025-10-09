@@ -1,10 +1,10 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar, Tooltip } from "flowbite-react";
+import { Label, Navbar } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import { HiBell, HiMenuAlt1, HiSearch, HiX } from "react-icons/hi";
+import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
@@ -76,13 +76,13 @@ export function SecuredNavbar({
       className="fixed h-16 top-0 z-30 w-full border-b border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="w-full p-3 pr-4">
-        <div className="flex items-center">
-          <div className="flex items-center flex-1 justify-start">
+        <div className="flex flex-row gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] items-center">
+          <div className="flex items-center w-fit">
             {isSidebarToggleEnabled && (
               <button
                 onClick={handleToggleSidebar}
                 className={twMerge(
-                  "mr-3 cursor-pointer rounded p-2 text-gray-600 ",
+                  "cursor-pointer rounded p-2 text-gray-600 ",
                   "hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400",
                   "dark:hover:bg-gray-700 dark:hover:text-white"
                 )}
@@ -115,53 +115,48 @@ export function SecuredNavbar({
               </form>
             )}
           </div>
-          <div className="flex items-center justify-center flex-1">
+          <div className="items-center justify-center flex-1 hidden lg:flex">
             <Navbar.Brand as={Link} href="/">
               <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
             </Navbar.Brand>
           </div>
-          <div className="flex items-center justify-end flex-1 lg:gap-3">
-            <div className="flex items-center">
-              <button className="cursor-pointer rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:ring-2 focus:ring-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:bg-gray-700 dark:focus:ring-gray-700">
-                <span className="sr-only">Search</span>
-                <HiSearch className="h-6 w-6" />
-              </button>
-              {!pathname.includes("/notifications") && (
-                <span
-                  className="relative border border-gray-200 dark:border-gray-700 cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-                  onClick={() => router.push("/notifications")}
-                >
-                  {unreadNotifications > 0 && (
-                    <div
-                      className={`absolute flex items-center justify-center ${
-                        unreadNotifications.toString().length > 1
-                          ? "w-7 -left-3"
-                          : "w-5 -left-1"
-                      } h-5 bg-red-400 dark:bg-red-600 text-xs font-medium text-white rounded-full -top-2  min-w-[1.25rem]`}
-                    >
-                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
-                    </div>
-                  )}
-                  <span className="sr-only">Notifications</span>
-                  <HiBell className="h-6 w-6" />
-                </span>
-              )}
-              <div className="hidden dark:block">
-                <Tooltip content="Toggle light mode">
-                  <CustomThemeToggle />
-                </Tooltip>
-              </div>
-              <div className="dark:hidden">
-                <Tooltip content="Toggle dark mode">
-                  <CustomThemeToggle />
-                </Tooltip>
-              </div>
-              {isUserMenuEnabled && (
-                <div className="ml-3 flex items-center">
-                  <UserDropdown messages={messages} />
-                </div>
-              )}
+          <div className="flex items-center justify-end gap-2 w-full">
+            <div className="block w-full lg:hidden">
+              <SearchBar
+                messages={messages}
+                searchParams={searchParams}
+                dict={dict}
+              />
             </div>
+
+            {!pathname.includes("/notifications") && (
+              <Link
+                href="/notifications"
+                className="h-10 w-10 select-none cursor-pointer relative flex items-center justify-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-600 active:ring-2 active:ring-gray-300 dark:active:ring-gray-600"
+              >
+                {unreadNotifications > 0 && (
+                  <div
+                    className={`absolute flex items-center justify-center ${
+                      unreadNotifications.toString().length > 1
+                        ? "w-7 -left-3"
+                        : "w-5 -left-1"
+                    } h-5 bg-red-400 dark:bg-red-600 text-xs font-medium text-white rounded-full -top-2  min-w-[1.25rem]`}
+                  >
+                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                  </div>
+                )}
+                <span className="sr-only">Notifications</span>
+                <HiBell className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+              </Link>
+            )}
+            <div className="hidden md:block">
+              <CustomThemeToggle />
+            </div>
+            {isUserMenuEnabled && (
+              <div className="flex items-center">
+                <UserDropdown messages={messages} />
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -61,12 +61,12 @@ export default function BlurrableDropdown({
           },
         }}
       >
-        {options.map(({ id, label, icon: Icon, function: Function }) => (
+        {options.map(({ id, label, icon: Icon, function: FunctionAction }) => (
           <DropdownItem
             key={id}
             className="flex gap-1 w-full"
             onClick={() => {
-              Function();
+              FunctionAction();
               setIsOpen(!isOpen);
             }}
           >

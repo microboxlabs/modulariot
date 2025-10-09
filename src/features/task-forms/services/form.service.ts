@@ -16,6 +16,7 @@ import {
   PlanningProcessTask,
   PlanningProcessForms,
   TaskOutcomePlanning,
+  GeneralTaskOutcome,
 } from "./form.service.types";
 import {
   HiOutlineArrowLeft,
@@ -302,7 +303,7 @@ export const getTransitionIdV2 = (
     | DeliveryProcessForms
     | PlanningProcessForms,
   outcome: TaskOutcomeV2
-): TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning => {
+): GeneralTaskOutcome => {
   switch (taskType) {
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
       return OUTCOME_TO_ASSIGN_DRIVER_V2;

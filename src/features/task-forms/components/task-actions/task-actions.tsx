@@ -149,8 +149,6 @@ export default function TaskActions({
   ) => {
     if (taskType) {
       /* V2 Tasks */
-      console.log("outcome", outcome);
-      console.log("taskType", taskType);
       switch (outcome) {
         case OUTCOME_PRESENT_DRIVER_V2:
           return taskType !== TYPE_WFSHIP2_ASSIGN_DRIVER_TASK;

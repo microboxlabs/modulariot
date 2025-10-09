@@ -498,8 +498,8 @@
         "Viaje Cancelado": "Trip Canceled",
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
-        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
-        "Confirmar Arribo a Destino": "Confirm Destination Arrival"
+        "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
+        "Confirmar Arribo": "Confirm Destination Arrival"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -607,7 +607,7 @@
         "Viaje Cancelado": "Trip Canceled",
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
-        "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
         "Confirmar Arribo a Destino": "Confirm Destination Arrival",
         "Confirmar Entrega": "Confirm Delivery",
         "Confirmar Asignar/ Entregar": "Confirm Assign/ Deliver",
@@ -837,6 +837,9 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "kanban": "Kanban",
+        "completed_tasks": "Completed tasks",
+        "pending_tasks": "Pending tasks",
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
@@ -1284,7 +1287,7 @@
     "deficient_cargo_securing": "Deficient cargo securing",
     "absence_cargo_securing": "Absence of cargo securing",
     "movement_with_cargo": "Movement with cargo",
-    "go_to_bento": "Go to the form",
+    "go_to_bento": "Details",
     "client_name": "Client",
     "GPS device not found": "GPS device not found",
     "Cargo consolidation not validated": "Cargo consolidation not validated",
@@ -1354,7 +1357,49 @@
       "NO_GPS_VALIDATION": "No GPS validation",
       "NO_DOCUMENT_CONSOLIDATION": "No document consolidation",
       "NO_CLIENT_SYSTEM_VALIDATION": "No client system validation"
-    }
+    },
+    "unclaim_task": "Release task",
+    "unclaim_task_title": "Release this task?",
+    "unclaim_task_description": "This action will release the currently assigned task. The user will lose the assignment and the task will become available to other users again.",
+    "unclaim_task_confirm": "Confirm release",
+    "unclaim_task_cancel": "Cancel",
+    "unclaim_task_success": "Task released successfully",
+    "unclaim_task_error": "Failed to release task",
+    "current_owner": "Current owner"
+  },
+  "myTasks": {
+    "missionControl": "Mission Control",
+    "overlord": "Overlord",
+    "sovosDigitalSignature": "SOVOS Digital Signature",
+    "tripInitiatedOutside": "Trip Initiated Outside",
+    "monitoringInCourseTrip": "Monitoring in Course Trip",
+    "confirmTripDestinationArrival": "Confirm Trip Destination Arrival",
+    "confirmTripDestinationDeparture": "Confirm Trip Destination Departure",
+    "confirmDelivery": "Confirm Delivery",
+    "confirmMonitoringFinalization": "Confirm Monitoring Finalization",
+    "monitoringFinalization": "Monitoring Finalization",
+    "tripInitiated": "Trip Initiated",
+    "tripNullified": "Trip Nullified",
+    "tripCancelled": "Trip Cancelled",
+    "assignDriver": "Assign Driver",
+    "presentDriver": "Driver Presentation",
+    "prepareService": "Service Control",
+    "monitorTrip": "Monitoring in course trip",
+    "confirmArrival": "Confirm trip destination arrival",
+    "closeMonitoring": "Confirm monitoring finalization",
+    "receiveDelivery": "Receive delivery",
+    "notifyTMSArrival": "Notify arrival (4.7)",
+    "notifyTMSDelivery": "Notify delivery (5.11)",
+    "finished_process": "Process Finished",
+    "tripNullifiedByOverlord": "Trip Nullified by Overlord",
+    "tripCanceledByOverlord": "Trip Canceled by Overlord",
+    "canceled": "Canceled",
+    "nullified": "Nullified",
+    "finished": "Finished",
+    "shipping": "Shipping",
+    "delivery": "Delivery",
+    "pending_tasks": "Pending tasks",
+    "completed_tasks": "Completed tasks"
   },
   "cards": {
     "tripInformation": "Trip Information",
@@ -1435,6 +1480,7 @@
     "destination": "Destination",
     "customer": "Client",
     "originType": "Origin Type",
+    "date_range": "Date Range",
     "internal": "Internal",
     "external": "External",
     "loadId": "Load ID"
@@ -1444,6 +1490,14 @@
     "subtitle": "Here you can view the comments entered.",
     "migrating": "Comments in migration process",
     "no_comments": "No comments"
+  },
+  "my_tasks": {
+    "stage": "Stage",
+    "duration": "Duration",
+    "license_plate": "License Plate",
+    "route": "Route",
+    "client": "Client",
+    "no_more_tasks_to_load": "No more tasks to load"
   },
   "wheres_my_load": {
     "not_found": "There's no record of the entered load ID.",

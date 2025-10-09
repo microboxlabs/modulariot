@@ -194,7 +194,12 @@ export type FinishedWorkflowsRequest = {
     destination?: string;
     customerCode?: string;
     clientAbbreviation?: string;
+    editable?: boolean;
     originIsSitrans?: boolean;
+    orderBy?: string;
+    order?: string;
+    date_range_from?: string;
+    date_range_to?: string;
   };
 };
 

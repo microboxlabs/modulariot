@@ -1,14 +1,14 @@
 [
   {
     "id": 1,
-    "title": "consolidateLoadTask",
+    "title": "consolidateLoad",
     "finished": false,
     "state": "pending",
     "tasks": []
   },
   {
     "id": 2,
-    "title": "separateDocumentsTask",
+    "title": "separateDocuments",
     "description": "Presentar Conductor",
     "finished": false,
     "state": "pending",
@@ -16,7 +16,14 @@
   },
   {
     "id": 3,
-    "title": "planServiceTask",
+    "title": "planService",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 4,
+    "title": "assignDriver",
     "finished": false,
     "state": "pending",
     "tasks": []

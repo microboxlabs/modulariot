@@ -152,9 +152,10 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
-        "consolidateLoadTask": "Consolidate Load",
-        "separateDocumentsTask": "Separate Documents",
-        "planServiceTask": "Plan Service",
+        "consolidateLoad": "Consolidate Load",
+        "separateDocuments": "Separate Documents",
+        "planService": "Plan Service",
+        "assignDriver": "Assign Driver",
         "compact": "Compact",
         "expand": "Expand",
         "weight": "Weight",
@@ -568,7 +569,11 @@
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
         "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
-        "Confirmar Arribo": "Confirm Destination Arrival"
+        "Confirmar Arribo": "Confirm Destination Arrival",
+        "Consolidar Carga": "Consolidate Load",
+        "Separar Documentos": "Separate Documents",
+        "Planificar Servicio": "Plan Service",
+        "Asignar Conductor": "Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -683,7 +688,11 @@
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
-        "Viaje Finalizado": "Trip Finished"
+        "Viaje Finalizado": "Trip Finished",
+        "Consolidar Carga": "Consolidate Load",
+        "Separar Documentos": "Separate Documents",
+        "Planificar Servicio": "Plan Service",
+        "Asignar Conductor": "Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",

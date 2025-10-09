@@ -231,9 +231,6 @@ export const TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK: ShippingCoordinatorProcessFormsV
 export const TYPE_WFSHIP2_CLOSE_MONITORING_TASK: ShippingCoordinatorProcessFormsV2 =
   "wfship2:closeMonitoringTask";
 
-export const TASK_ASSIGN_DRIVER: ShippingCoordinatorProcessTaskV2 =
-  "assignDriver";
-
 export const TASK_PRESENT_DRIVER: ShippingCoordinatorProcessTaskV2 =
   "presentDriver";
 
@@ -254,7 +251,6 @@ export const TASK_CLOSE_MONITORING: ShippingCoordinatorProcessTaskV2 =
 
 export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTaskV2[] =
   [
-    TASK_ASSIGN_DRIVER,
     TASK_PRESENT_DRIVER,
     TASK_PREPARE_SERVICE,
     TASK_MISSION_CONTROL,
@@ -587,6 +583,7 @@ export const TYPE_WFPLANNING_PLAN_SERVICE_TASK: PlanningProcessForms =
 export const TASK_CONSOLIDATE_LOAD: PlanningProcessTask = "consolidateLoad";
 export const TASK_SEPARATE_DOCUMENTS: PlanningProcessTask = "separateDocuments";
 export const TASK_PLAN_SERVICE: PlanningProcessTask = "planService";
+export const TASK_ASSIGN_DRIVER: PlanningProcessTask = "assignDriver";
 
 export const OUTCOME_TO_CONSOLIDATE_LOAD: TaskOutcomePlanning =
   "Separar Documentos";
@@ -601,4 +598,5 @@ export const PLANNING_COORDINATOR_PROCESS_TASKS: PlanningProcessTask[] = [
   TASK_CONSOLIDATE_LOAD,
   TASK_SEPARATE_DOCUMENTS,
   TASK_PLAN_SERVICE,
+  TASK_ASSIGN_DRIVER,
 ];

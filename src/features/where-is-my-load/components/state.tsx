@@ -2,6 +2,7 @@ import { FaCheck } from "react-icons/fa";
 import { State } from "../timeline";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import { fromString } from "@/features/common/services/days.service";
+import React, { useState, useRef } from "react";
 
 export default function TimelineStates({
   index,
@@ -9,16 +10,21 @@ export default function TimelineStates({
   actualState,
   state,
   statesCount,
+  setSelectedTask,
 }: {
   index: number;
   count: number;
   actualState: number;
   state: State;
   statesCount: number;
+  setSelectedTask: (taskId: string | null) => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const is_urgent = state.urgent;
   const is_enabled = state;
   const temporalData = TemporalComponent({ time: state.time });
+  const task_id = "2738090";
 
   return (
     <>
@@ -48,9 +54,28 @@ export default function TimelineStates({
         )}
 
         <div
-          className={`${index != count - 1 ? "mb-10" : ""} ${is_enabled ? "" : "opacity-50"} w-full flex flex-col drop-shadow-md transition-all duration-200 border ${actualState == index ? "border-gray-500 p-2 drop-shadow-md bg-blue-50 dark:bg-blue-900" + (is_urgent ? " border-purple-500" : "") : "border-transparent p-1"} rounded-md hover:bg-gray-100`}
+          className={`${index != count - 1 ? "mb-10" : ""} ${is_enabled ? "" : "opacity-50"} overflow-hidden w-full flex flex-col drop-shadow-md transition-all duration-200 border ${actualState == index ? "border-gray-500 p-2 drop-shadow-md bg-blue-50 dark:bg-blue-900" + (is_urgent ? " border-purple-500" : "") : "border-transparent p-1"} rounded-md relative cursor-pointer`}
+          onMouseEnter={() => {
+            setHovered(true);
+            // Set timer to select task after 1 second
+            hoverTimeoutRef.current = setTimeout(() => {
+              setSelectedTask(task_id);
+            }, 1000);
+          }}
+          onMouseLeave={() => {
+            setHovered(false);
+            // Clear timer and reset selection immediately
+            if (hoverTimeoutRef.current) {
+              clearTimeout(hoverTimeoutRef.current);
+              hoverTimeoutRef.current = null;
+            }
+          }}
         >
-          <div>
+          <div
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-400/10 rounded-lg ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-0"}`}
+            style={{ zIndex: 1 }}
+          />
+          <div className="relative z-10">
             {(() => {
               return temporalData.component;
             })()}
@@ -58,9 +83,7 @@ export default function TimelineStates({
               {state.name}
             </h1>
           </div>
-          <div
-            className={`text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 `}
-          >
+          <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
             <div className="flex flex-col gap-1">
               {/* Reemplaza por el valor de retraso entre inicio y inicio estimado o fin y fin estimado */}
               <DelayComponent
@@ -141,7 +164,7 @@ function TemporalComponent({
           <span
             className={`${start_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >
-            <FormattedDate date={start} format="date" />
+            <FormattedDate date={start} format="datetime" />
           </span>
         </span>
         <span>
@@ -149,7 +172,7 @@ function TemporalComponent({
           <span
             className={`${end_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >
-            <FormattedDate date={end} format="date" />
+            <FormattedDate date={end} format="datetime" />
           </span>
         </span>
       </div>

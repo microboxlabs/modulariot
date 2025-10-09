@@ -496,6 +496,11 @@ export const getSecondaryTransitionIdV2 = (
     });
   } else if (taskType === TYPE_WFPLANNING_PLAN_SERVICE_TASK) {
     otherOptions.push({
+      id: OUTCOME_CONSOLIDATE_LOAD,
+      label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+      icon: HiOutlineArrowLeft,
+    });
+    otherOptions.push({
       id: OUTCOME_SEPARATE_DOCUMENTS,
       label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
       icon: HiOutlineArrowLeft,

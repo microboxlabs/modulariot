@@ -12,7 +12,10 @@ export default async function PlanningPage({
   try {
     const [, dictionary] = await getDictionary(lang);
     const session = await auth();
-    const userGroups = await getGroupsForPerson(session!);
+    if (!session) {
+      redirectWithLang(`/sign-in`);
+    }
+    const userGroups = await getGroupsForPerson(session);
     const staticData = getStaticPlanningData();
 
     return (

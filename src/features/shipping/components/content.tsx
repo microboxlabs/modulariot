@@ -57,7 +57,6 @@ import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
 import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
 import ModalTooltip from "./modal-tooltip";
-//import { logger } from "@/lib/logger";
 
 export default function PageContent({
   showFinishedTasks,
@@ -97,13 +96,6 @@ export default function PageContent({
   } else {
     columns = [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
   }
-  /* showWorkflowTasks
-    ? showWorkflowTasks === "shipping"
-      ? [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2]
-      : showWorkflowTasks === "delivery"
-        ? [...DELIVERY_COORDINATOR_PROCESS_TASKS]
-        : []
-    : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS]; */
 
   const {
     data: myTasksData,

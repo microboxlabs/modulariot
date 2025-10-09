@@ -170,7 +170,6 @@ export type TaskOutcomeV2 =
   | CloseMonitoringTaskOutcome;
 
 export type ShippingCoordinatorProcessTaskV2 =
-  | "assignDriver"
   | "presentDriver"
   | "prepareService"
   | "missionControl"
@@ -224,7 +223,8 @@ export type DeliveryProcessTask =
 export type PlanningProcessForms =
   | "wfship2:consolidateLoadTask"
   | "wfship2:separateDocumentsTask"
-  | "wfship2:planServiceTask";
+  | "wfship2:planServiceTask"
+  | "wfship2:assignDriverTask";
 
 export type ConsolidateLoadOutcome =
   | "Separar Documentos"
@@ -232,6 +232,7 @@ export type ConsolidateLoadOutcome =
   | "Presentar Conductor"
   | "Preparar Servicio"
   | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
@@ -241,6 +242,7 @@ export type SeparateDocumentsOutcome =
   | "Presentar Conductor"
   | "Preparar Servicio"
   | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
@@ -250,15 +252,18 @@ export type PlanServiceOutcome =
   | "Presentar Conductor"
   | "Preparar Servicio"
   | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
   | "Viaje Cancelado"
   | "Viaje Anulado";
 
 export type TaskOutcomePlanning =
   | ConsolidateLoadOutcome
   | SeparateDocumentsOutcome
-  | PlanServiceOutcome;
+  | PlanServiceOutcome
+  | AssignDriverTaskOutcome;
 
 export type PlanningProcessTask =
   | "consolidateLoad"
   | "separateDocuments"
-  | "planService";
+  | "planService"
+  | "assignDriver";

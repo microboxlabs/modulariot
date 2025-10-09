@@ -152,9 +152,10 @@
         "activeCount": "{count} visibles"
       },
       "kanban": {
-        "consolidateLoadTask": "Consolidar Carga",
-        "separateDocumentsTask": "Separar Documentos",
-        "planServiceTask": "Planificar Servicio",
+        "consolidateLoad": "Consolidar Carga",  
+        "separateDocuments": "Separar Documentos",
+        "planService": "Planificar Servicio",
+        "assignDriver": "Asignar Conductor",
         "compact": "Compactar",
         "expand": "Expandir",
         "weight": "Peso",
@@ -563,7 +564,11 @@
         "Viaje Finalizado": "Viaje Finalizado",
         "Viaje Rechazado": "Viaje Rechazado POD",
         "Requiere Overlord": "Requiere Overlord",
-        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega"
+        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega",
+        "Consolidar Carga": "Consolidar Carga",
+        "Separar Documentos": "Separar Documentos",
+        "Planificar Servicio": "Planificar Servicio",
+        "Asignar Conductor": "Asignar Conductor"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -683,7 +688,11 @@
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
         "Viaje Finalizado": "Viaje Finalizado",
-        "Requiere Overlord": "Requiere Overlord"
+        "Requiere Overlord": "Requiere Overlord",
+        "Consolidar Carga": "Consolidar Carga",
+        "Separar Documentos": "Separar Documentos",
+        "Planificar Servicio": "Planificar Servicio",
+        "Asignar Conductor": "Asignar Conductor"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",

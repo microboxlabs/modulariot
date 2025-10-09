@@ -55,6 +55,9 @@ import {
   TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK,
   TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK,
   TYPE_WFPLANNING_PLAN_SERVICE_TASK,
+  OUTCOME_PLAN_SERVICE,
+  OUTCOME_SEPARATE_DOCUMENTS,
+  OUTCOME_ASSIGN_DRIVER_V2,
 } from "../../services/form.service";
 import TaskConfirmModal from "../task-confirm-modal/task-confirm-modal";
 import {
@@ -167,6 +170,12 @@ export default function TaskActions({
           return taskType !== TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK;
         case OUTCOME_NOTIFY_TMS_DELIVERY_V2:
           return taskType !== TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK;
+        case OUTCOME_SEPARATE_DOCUMENTS:
+          return taskType !== TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK;
+        case OUTCOME_PLAN_SERVICE:
+          return taskType !== TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK;
+        case OUTCOME_ASSIGN_DRIVER_V2:
+          return taskType !== TYPE_WFPLANNING_PLAN_SERVICE_TASK;
         default:
           return true;
       }
@@ -558,7 +567,7 @@ export default function TaskActions({
     case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
     case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
-    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK:
+    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK: /** Planning Coordinator Process */
     case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
     case TYPE_WFPLANNING_PLAN_SERVICE_TASK: {
       const transitionId = getTransitionIdV2(

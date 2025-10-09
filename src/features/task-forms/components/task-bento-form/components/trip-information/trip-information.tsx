@@ -16,13 +16,14 @@ export default function TripInformation({
   msg: I18nRecord;
   isLoading?: boolean;
 }) {
-  let originIsSitrans = null;  
+  let originIsSitrans = null;
   if (task.mintral_geofenceOriginMetadata) {
     try {
       originIsSitrans = (
-        JSON.parse(
-          task.mintral_geofenceOriginMetadata as string
-        ) as Record<string, boolean | undefined>
+        JSON.parse(task.mintral_geofenceOriginMetadata as string) as Record<
+          string,
+          boolean | undefined
+        >
       )["origin_is_sitrans"];
     } catch (error) {
       logError(error as Error);

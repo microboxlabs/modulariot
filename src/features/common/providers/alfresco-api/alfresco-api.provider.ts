@@ -344,6 +344,22 @@ export async function getContentNode(
   const buffer = Buffer.from(await result.arrayBuffer());
   return buffer.toString("base64");
 }
+
+export async function getPlainTextNode(
+  session: Session,
+  nodeId: string
+): Promise<string> {
+  const queryParams = new URLSearchParams({
+    attachment: "true",
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+  return result.text();
+}
 // Define el tipo Validations si no está definido
 interface Validations {
   check1: boolean;
@@ -607,6 +623,20 @@ export async function getGroupsForPerson(session: Session): Promise<string[]> {
     headers,
   })) as GroupPaging;
   return groups.list?.entries?.map(({ entry }) => entry.id!) ?? [];
+}
+
+export async function getUserFilters(
+  session: Session,
+  group: string
+): Promise<string> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/mintral/documentLibrary/task/${group}.json`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const filterResponse = (await fetcher(url, {
+    method: "GET",
+    headers,
+  })) as any;
+  return filterResponse?.entry?.id as string;
 }
 
 export async function getInfoEntity(
@@ -1056,4 +1086,40 @@ export async function putRefreshToken(
   });
 
   return result as RefreshTokenResponse;
+}
+
+/**
+ * Unclaim a task by removing the current owner assignment
+ * @param session - User session with admin privileges
+ * @param taskId - The ID of the task to unclaim
+ * @returns Success status
+ */
+export async function unclaimTask(
+  session: Session,
+  taskId: string
+): Promise<{ success: boolean }> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/task-instances/activiti$${taskId}`;
+  console.log("baseUrl", baseUrl);
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  alfrescoApiLogger.debug(
+    {
+      taskId,
+      user: session.user?.email,
+    },
+    "Unclaiming task"
+  );
+
+  const result = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      cm_owner: null,
+    }),
+  });
+
+  return result as { success: boolean };
 }

@@ -10,6 +10,7 @@ import SymptomsCard from "@/features/task-forms/components/task-bento-form/compo
 import BentoHead from "@/features/task-forms/components/task-bento-form/bento-head";
 import { usePathname } from "next/navigation";
 import { pathNameWithoutLanguage } from "@/features/layout/utils/utils";
+import { useEffect } from "react";
 
 export default function ModalTooltip({
   selectedTask,
@@ -35,6 +36,22 @@ export default function ModalTooltip({
 
   if (!selectedTask) {
     return null;
+  }
+
+  if (data?.taskResponse == null && !isLoading && !error) {
+    return (
+      <AbsoluteModal
+        selected={selectedTask}
+        setSelected={setSelectedTask}
+        maxWidth="1500px"
+        maxHeight="90vh"
+        height=""
+      >
+        <div className="p-4 text-gray-500 dark:text-gray-400">
+          No data available
+        </div>
+      </AbsoluteModal>
+    );
   }
 
   return (

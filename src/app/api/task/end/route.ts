@@ -156,13 +156,14 @@ function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
           details: {},
         };
       }
+      throw new Error(error.message);
     }
 
-    throw new Error("Unable to parse error details");
+    throw new Error(JSON.stringify(error));
   } catch (parseError) {
     return {
       code: "PARSE_ERROR",
-      message: "Failed to parse error message",
+      message: JSON.stringify(parseError) ?? "Failed to parse error message",
       exceptionType: "UnknownError",
       details: {},
     };

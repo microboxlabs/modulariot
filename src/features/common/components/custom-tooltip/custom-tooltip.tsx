@@ -23,7 +23,7 @@ export default function CustomTooltip({
           },
           placement: "-4px",
         },
-        base: "absolute inline-block rounded-lg text-sm font-medium shadow-sm",
+        base: "absolute inline-block rounded-lg text-sm font-medium shadow-sm pointer-events-none",
         style: {
           auto: "border border border-gray-500 dark:border-gray-400 bg-white text-gray-900 dark:bg-gray-700 dark:text-white",
         },

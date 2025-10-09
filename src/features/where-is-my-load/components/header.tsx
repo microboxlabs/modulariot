@@ -1,10 +1,8 @@
 "use client";
 
-import { Button } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import React from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import Link from "next/link";
 import { tr } from "@/features/i18n/tr.service";
 
 export default function TimelineHeader({ dict }: { dict: I18nRecord }) {

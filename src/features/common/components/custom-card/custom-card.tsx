@@ -20,11 +20,16 @@ export default function CustomCard({
   title,
   subtitle,
   badges,
+  style,
 }: {
   children: React.ReactNode;
   title: string | null;
   subtitle: string | null;
   badges?: InformationBadge[];
+  style?: {
+    title: string;
+    subtitle: string;
+  };
 }) {
   return (
     <div
@@ -35,7 +40,9 @@ export default function CustomCard({
       <div className="inline flex-shrink-0">
         {title && (
           <div className="flex flex-row justify-between items-center h-7">
-            <p className="text-md font-normal text-gray-700 dark:text-gray-300 whitespace-normal md:whitespace-nowrap">
+            <p
+              className={`text-md font-normal text-gray-700 dark:text-gray-300 whitespace-normal md:whitespace-nowrap ${style?.title}`}
+            >
               {title}
             </p>
             {badges && badges.length > 0 && (
@@ -57,7 +64,9 @@ export default function CustomCard({
           </div>
         )}
         {subtitle && (
-          <p className="text-sm font-normal text-gray-500 dark:text-gray-400 w-fit">
+          <p
+            className={`text-sm font-normal text-gray-500 dark:text-gray-400 w-fit ${style?.subtitle}`}
+          >
             {subtitle}
           </p>
         )}

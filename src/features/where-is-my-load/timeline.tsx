@@ -42,16 +42,23 @@ export type State = {
   urgent: boolean;
   visible: boolean;
   enabled: boolean;
+  task_id: string | null;
 };
 
 export default function Timeline({
+  lang,
+  userGroups,
   dict,
   messages,
 }: {
+  lang: string;
+  userGroups: string[];
   dict: I18nRecord;
   messages: I18nRecord;
 }) {
   const [actualState, setActualState] = React.useState(6);
+  const [selectedTask, setSelectedTask] = React.useState<string | null>(null);
+
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const loadId = searchParams.get("loadId");
@@ -77,6 +84,7 @@ export default function Timeline({
             urgent: item.oferta_producto_ === "UR",
             visible: item.visible,
             enabled: item.enabled,
+            task_id: item.task_id_ ?? null,
           };
         })
       : [];
@@ -167,7 +175,7 @@ export default function Timeline({
         userGroups={userGroups}
         selectedTask={selectedTask}
         setSelectedTask={setSelectedTask}
-        dict={dictionary.general}
+        dict={dict}
       />
       <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2 hidden">
         <h1>Debug: {actualState}</h1>
@@ -200,6 +208,7 @@ export default function Timeline({
               actualState={actualState}
               state={state}
               statesCount={states.length}
+              setSelectedTask={setSelectedTask}
             />
           );
         })}

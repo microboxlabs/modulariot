@@ -28,4 +28,5 @@ export interface LoadSearchResponse {
   icon?: string | null;
   visible: boolean;
   enabled: boolean;
+  task_id_: string | null;
 }

@@ -1,4 +1,4 @@
-import { LoadSearchResponse } from "../../types/load.types";
+import { LoadSearchResponse } from "@/types/load.types";
 import CustomCard, {
   InformationBadge,
 } from "@/features/common/components/custom-card/custom-card";

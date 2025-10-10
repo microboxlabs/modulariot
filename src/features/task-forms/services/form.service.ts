@@ -481,56 +481,70 @@ export const getSecondaryTransitionIdV2 = (
       }
     );
   } else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
-    otherOptions.push({
-      id: OUTCOME_SEPARATE_DOCUMENTS,
-      label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
-      icon: HiOutlineArrowLeft,
-    });
-    otherOptions.push({
-      id: OUTCOME_PLAN_SERVICE,
-      label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
-      icon: HiOutlineArrowLeft,
-    });
-    otherOptions.push({
-      id: OUTCOME_TO_ASSIGN_DRIVER_V2,
-      label: (dict.outcome as I18nRecord)[
-        OUTCOME_TO_ASSIGN_DRIVER_V2
-      ] as string,
-      icon: HiOutlineArrowLeft,
-    });
+    otherOptions.push(
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
   } else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
-    otherOptions.push({
-      id: OUTCOME_CONSOLIDATE_LOAD,
-      label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
-      icon: HiOutlineArrowLeft,
-    });
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
   } else if (taskType === TYPE_WFPLANNING_PLAN_SERVICE_TASK) {
-    otherOptions.push({
-      id: OUTCOME_CONSOLIDATE_LOAD,
-      label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
-      icon: HiOutlineArrowLeft,
-    });
-    otherOptions.push({
-      id: OUTCOME_SEPARATE_DOCUMENTS,
-      label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
-      icon: HiOutlineArrowLeft,
-    });
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
   } else if (taskType === TYPE_WFSHIP2_ASSIGN_DRIVER_TASK) {
-    otherOptions.push({
-      id: OUTCOME_CONSOLIDATE_LOAD,
-      label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
-      icon: HiOutlineArrowLeft,
-    });
-    otherOptions.push({
-      id: OUTCOME_SEPARATE_DOCUMENTS,
-      label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
-      icon: HiOutlineArrowLeft,
-    });
-    otherOptions.push({
-      id: OUTCOME_PLAN_SERVICE,
-      label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
-      icon: HiOutlineArrowLeft,
-    });
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
   }
   otherOptions.push(
     {

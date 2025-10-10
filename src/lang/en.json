@@ -156,6 +156,8 @@
         "separateDocuments": "Separate Documents",
         "planService": "Plan Service",
         "assignDriver": "Assign Driver",
+        "departure": "Departure",
+        "arrival": "Arrival",
         "compact": "Compact",
         "expand": "Expand",
         "weight": "Weight",

@@ -1,0 +1,23 @@
+# 🔔 Release Notes v1.21.1 — ModularIoT
+
+### Fecha: 10/10/2025
+
+**Objetivo**: ampliar el proceso operativo del Coordinador incorporando la nueva sección de Planificación con Kanban pre-despacho, permitiendo gestión temprana de consolidación, documentación y planificación de servicios antes del inicio de asignación de transporte.
+
+## 🚀 Evolutivos
+
+- **Kanban de Planificación - Nueva etapa pre-despacho**
+  - Nuevo **tablero Kanban de Planificación** ubicado "hacia la izquierda" del flujo, previo a Despacho.
+  - **Cuatro columnas operativas**: Consolidación, Gestión documental, y Planificación.
+  - **Ingreso automático** al tablero cuando el servicio tiene origen, destino y fecha definidos.
+  - **Mapeo automático por prioridad** al detectar/crear el servicio:
+    - `EC` (En Consolidación) → ubicado en columna Consolidación
+    - `GS` (Separación Documental) → ubicado en columna Gestión documental
+    - `PL` (Planificación) → ubicado en columna Planificación
+    - `AT` (Alta Prioridad) → promoción automática a Despacho → Asignación (paso 1 proceso Mintral)
+  - **Promoción automática a Despacho**: cuando la prioridad cambia a `AT`, el servicio sale del Kanban de Planificación y activa la tarea "Asignar Conductor y Transporte" en Despacho.
+  - **Reposicionamiento dinámico**: cambios en `service_definitions_priority` reubican automáticamente la tarjeta en la columna correspondiente.
+
+## 📌 Conclusión
+
+La versión 1.21.1 introduce una ampliación significativa del proceso operativo del Coordinador con la nueva sección de Planificación, agregando un Kanban pre-despacho que proporciona gobernanza temprana de consolidación, gestión documental y planificación de servicios. Esta implementación elimina la cola difusa que existía antes de la asignación de transporte, introduce criterios de priorización automática por etapas, y garantiza trazabilidad completa de prerequisitos mediante un sistema robusto de orquestación backend, eventos estructurados y auditoría detallada. La integración con el expediente y las capacidades de promoción automática a Despacho optimizan significativamente el flujo operativo desde el conocimiento del servicio hasta su asignación efectiva.

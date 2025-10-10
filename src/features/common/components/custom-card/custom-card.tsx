@@ -39,7 +39,7 @@ export default function CustomCard({
     >
       <div className="inline flex-shrink-0">
         {title && (
-          <div className="flex flex-row justify-between items-center h-7">
+          <div className="flex flex-row justify-between items-center h-7 gap-2">
             <p
               className={`text-md font-normal text-gray-700 dark:text-gray-300 whitespace-normal md:whitespace-nowrap ${style?.title}`}
             >

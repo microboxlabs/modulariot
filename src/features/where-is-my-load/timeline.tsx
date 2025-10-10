@@ -1,7 +1,10 @@
 "use client";
 
 import { FaTruck, FaTruckLoading } from "react-icons/fa";
-import TimelineStates from "./components/state";
+import TimelineStates, {
+  TemporalComponent,
+  DelayCalculations,
+} from "./components/state";
 import React, { useEffect, useMemo } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
@@ -264,9 +267,11 @@ function SideInfo({
   dict: I18nRecord;
   className?: string;
 }) {
+  const temporal_data = TemporalComponent({ time: state.time, dict });
+
   return (
     <div className={`w-fit h-fit flex flex-col gap-2 ${className}`}>
-      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit p-2x">
+      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit">
         <CustomCard
           title={tr("wheres_my_load.expedition_info", dict)}
           subtitle={null}
@@ -292,7 +297,8 @@ function SideInfo({
           </div>
         </CustomCard>
       </div>
-      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit p-2">
+      <DelayCalculations temporalData={temporal_data} dict={dict} />
+      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit">
         <CustomCard
           title={state.name}
           subtitle={null}

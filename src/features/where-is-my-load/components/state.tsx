@@ -78,7 +78,7 @@ export default function TimelineStates({
           }}
         >
           <div
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-400/10 rounded-lg ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-0"}`}
+            className={`absolute top-1/2 left-0 -translate-y-1/2 bg-gray-400/10 rounded-lg ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-[100%]"}`}
             style={{ zIndex: 1 }}
           />
           <DataBox
@@ -143,7 +143,7 @@ export function DelayCalculations({
 }) {
   return (
     <div
-      className={`flex flex-col gap-1 ${temporalData.start_delay || temporalData.end_delay ? "flex" : "hidden"}`}
+      className={`flex flex-wrap gap-1 ${temporalData.start_delay || temporalData.end_delay ? "flex" : "hidden"}`}
     >
       <DelayComponent
         label={tr("wheres_my_load.delay_pre_start", dict)}

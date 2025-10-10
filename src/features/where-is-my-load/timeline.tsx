@@ -23,7 +23,6 @@ import ModalTooltip from "@/features/shipping/components/modal-tooltip";
 import GenericComponent from "./components/state-components/generic";
 import FormattedDate from "../common/components/formatted-date";
 import { fromString } from "../common/services/days.service";
-import { set } from "zod";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {

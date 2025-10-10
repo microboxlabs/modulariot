@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
 import kanbanBoards from "../../model/kanban.json";
 import kanbanBoardsV2 from "../../model/kanban-shipping-v2.json";
+import kanbanPlanningBoards from "../../model/kanban-planning.json";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 
@@ -63,6 +64,12 @@ export default function DepartureDateShip({
     (board) => board.title === table_name
   );
 
+  const boardPlanning = kanbanPlanningBoards.find(
+    (board) => board.title === table_name
+  );
+  console.log("boardPlanning", boardPlanning);
+  console.log("table_name", table_name);
+
   const color = shipBgColor(dayjs(date), table_name);
   const fixed_date = dayjs(date).format("MM/DD/YYYY");
 
@@ -79,7 +86,9 @@ export default function DepartureDateShip({
       boardV2?.state === "done" ||
       boardV2?.state === "started" ||
       boardDelivery?.state === "done" ||
-      boardDelivery?.state === "started" ? (
+      boardDelivery?.state === "started" ||
+      boardPlanning?.state === "done" ||
+      boardPlanning?.state === "started" ? (
         <FaCalendarCheck className={"h-3 w-3 " + color?.text} />
       ) : (
         <FaCalendarAlt className={"h-3 w-3 " + color?.text} />
@@ -90,7 +99,9 @@ export default function DepartureDateShip({
         boardV2?.state === "pending" ||
         boardV2?.state === "started" ||
         boardDelivery?.state === "pending" ||
-        boardDelivery?.state === "started"
+        boardDelivery?.state === "started" ||
+        boardPlanning?.state === "pending" ||
+        boardPlanning?.state === "started"
           ? (dict.kanban as I18nRecord).departure + " "
           : (dict.kanban as I18nRecord).arrival + " "}
         <FormattedDate date={fixed_date} format="date" />

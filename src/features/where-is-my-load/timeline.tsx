@@ -23,6 +23,7 @@ import ModalTooltip from "@/features/shipping/components/modal-tooltip";
 import GenericComponent from "./components/state-components/generic";
 import FormattedDate from "../common/components/formatted-date";
 import { fromString } from "../common/services/days.service";
+import { set } from "zod";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {
@@ -95,19 +96,14 @@ export default function Timeline({
       : [];
   }, [data]);
 
-  // Calculate actualState based on the first element without real end
+  // Calculate actualState based on completed tasks
   useEffect(() => {
     if (data && data.length > 0) {
-      // Find the first index of an element that doesn't have end_time__ (not completed yet)
-      let firstActiveIndex = -1;
       for (let i = 0; i < data.length; i++) {
-        if (!data[i].end_time__) {
-          firstActiveIndex = i;
-          break;
+        if (data[i].start_time__) {
+          setActualState(i);
         }
       }
-      // If found, set actualState to that index, otherwise keep it at 0
-      setActualState(firstActiveIndex >= 0 ? firstActiveIndex : 0);
     }
   }, [data]);
 

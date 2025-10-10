@@ -480,15 +480,25 @@ export const getSecondaryTransitionIdV2 = (
         icon: HiOutlineArrowRight,
       }
     );
-  } /* else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
+  } else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
     otherOptions.push({
-      id: OUTCOME_TO_CONSOLIDATE_LOAD,
+      id: OUTCOME_SEPARATE_DOCUMENTS,
+      label: (dict.outcome as I18nRecord)[OUTCOME_SEPARATE_DOCUMENTS] as string,
+      icon: HiOutlineArrowLeft,
+    });
+    otherOptions.push({
+      id: OUTCOME_PLAN_SERVICE,
+      label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+      icon: HiOutlineArrowLeft,
+    });
+    otherOptions.push({
+      id: OUTCOME_TO_ASSIGN_DRIVER_V2,
       label: (dict.outcome as I18nRecord)[
-        OUTCOME_TO_CONSOLIDATE_LOAD
+        OUTCOME_TO_ASSIGN_DRIVER_V2
       ] as string,
       icon: HiOutlineArrowLeft,
     });
-  } */ else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
+  } else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
     otherOptions.push({
       id: OUTCOME_CONSOLIDATE_LOAD,
       label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,

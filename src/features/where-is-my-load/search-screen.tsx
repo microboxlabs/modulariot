@@ -30,6 +30,7 @@ export default function SearchScreen({
             "where-is-my-load" as keyof typeof navegation_params
           ]
         }
+        className="flex items-center gap-2 flex-col relative w-full md:w-fit"
       />
     </div>
   );

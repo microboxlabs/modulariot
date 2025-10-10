@@ -1529,6 +1529,13 @@
     "not_found": "No se han encontrado datos asignados a este ID.",
     "title": "¿En qué está mi carga?",
     "search": "Usa el buscador para encontrar el estado de tu carga.",
-    "timeline": "Timeline de la carga"
+    "timeline": "Timeline de la carga",
+    "estimated_start": "Inicio estimado",
+    "estimated_end": "Fin estimado",
+    "start": "Inicio",
+    "end": "Fin",
+    "delay_pre_start": "Inicio con Retraso de ",
+    "delay_pre_end": "Fin con Retraso de ",
+    "expedition_info": "Información de la expedición"
   }
 }

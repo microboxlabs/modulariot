@@ -5,14 +5,21 @@ export default function LoadableLabel({
   value,
   isLoading = false,
   icon,
+  className = "",
 }: {
   readonly label: string;
   readonly value: string | React.ReactNode;
   readonly isLoading?: boolean;
   readonly icon?: React.ReactNode;
+  readonly className?: string;
 }) {
   return (
-    <span className="text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-row items-center text-sm font-light w-full">
+    <span
+      className={
+        "text-gray-600 dark:text-gray-400 whitespace-nowrap flex flex-row items-center text-sm font-light w-full " +
+        className
+      }
+    >
       {icon && (
         <div className="flex items-center mr-1 text-gray-400">{icon}</div>
       )}

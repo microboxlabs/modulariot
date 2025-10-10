@@ -11,13 +11,15 @@ import { tr } from "../i18n/tr.service";
 //import { ShowNotification } from "../notifications/notification";
 import { useSearchLoad } from "../common/providers/client-api.provider";
 import SearchScreen from "./search-screen";
-import GenericComponent from "./components/state-components/generic";
 import { LoadSearchResponse } from "./types/load.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 import { HiExclamationCircle } from "react-icons/hi";
 import type { InformationBadge } from "@/features/common/components/custom-card/custom-card";
 import ModalTooltip from "@/features/shipping/components/modal-tooltip";
+import GenericComponent from "./components/state-components/generic";
+import FormattedDate from "../common/components/formatted-date";
+import { fromString } from "../common/services/days.service";
 
 const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
   if (icon === "TRUCK_LOADING") {
@@ -88,6 +90,22 @@ export default function Timeline({
           };
         })
       : [];
+  }, [data]);
+
+  // Calculate actualState based on the first element without real end
+  useEffect(() => {
+    if (data && data.length > 0) {
+      // Find the first index of an element that doesn't have end_time__ (not completed yet)
+      let firstActiveIndex = -1;
+      for (let i = 0; i < data.length; i++) {
+        if (!data[i].end_time__) {
+          firstActiveIndex = i;
+          break;
+        }
+      }
+      // If found, set actualState to that index, otherwise keep it at 0
+      setActualState(firstActiveIndex >= 0 ? firstActiveIndex : 0);
+    }
   }, [data]);
 
   useEffect(() => {
@@ -169,13 +187,14 @@ export default function Timeline({
   }
 
   return (
-    <div ref={timelineRef} className="w-fit h-fit flex flex-col md:flex-row">
+    <div ref={timelineRef} className="w-fit h-fit flex flex-col lg:flex-row">
       <ModalTooltip
         lang={lang}
         userGroups={userGroups}
         selectedTask={selectedTask}
         setSelectedTask={setSelectedTask}
         dict={dict}
+        isFinished={true}
       />
       <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2 hidden">
         <h1>Debug: {actualState}</h1>
@@ -186,8 +205,14 @@ export default function Timeline({
           <Button onClick={() => setActualState(actualState + 1)}>+1</Button>
         </div>
       </div>
-      <div className="block md:hidden mb-4">
-        <SideInfo badges={badges} />
+      <div className="block lg:hidden mb-4 w-full">
+        <SideInfo
+          badges={badges}
+          item={data ? data[actualState] : undefined}
+          state={states[actualState]}
+          dict={dict}
+          className="w-full"
+        />
       </div>
 
       <div className="w-fit h-full flex flex-col timeline-states-container">
@@ -209,42 +234,127 @@ export default function Timeline({
               state={state}
               statesCount={states.length}
               setSelectedTask={setSelectedTask}
+              dict={dict}
             />
           );
         })}
       </div>
-      <div className="hidden md:block sticky top-1/2 transform -translate-y-1/2 w-full h-fit ml-12">
-        <SideInfo badges={badges} />
+      <div className="hidden lg:block sticky top-1/2 transform -translate-y-1/2 w-full h-fit ml-12">
+        <SideInfo
+          badges={badges}
+          item={data ? data[actualState] : undefined}
+          state={states[actualState]}
+          dict={dict}
+        />
       </div>
     </div>
   );
 }
 
-function SideInfo({ badges }: { badges: InformationBadge[] }) {
+function SideInfo({
+  badges,
+  item,
+  state,
+  dict,
+  className = "",
+}: {
+  badges: InformationBadge[];
+  item: LoadSearchResponse | undefined;
+  state: State;
+  dict: I18nRecord;
+  className?: string;
+}) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-fit h-fit p-2">
-      <CustomCard
-        title="Información de la expedición"
-        subtitle="Detalles"
-        badges={badges}
-        style={{ title: "text-lg", subtitle: "text-sm" }}
-      >
-        <div className="grid grid-cols-[max-content_max-content] gap-2">
-          <LoadableLabel label="Código" value="3849494" />
-          <LoadableLabel label="N° de expedición" value="999904361569" />
-          <LoadableLabel label="Largo" value="130 cm" />
-          <LoadableLabel label="Ancho" value="90 cm" />
-          <LoadableLabel label="Alto" value="95 cm" />
-          <LoadableLabel label="Volumen" value="9.78 m³" />
-          <LoadableLabel label="Peso" value="2856 Kg" />
-          <LoadableLabel label="Bultos" value="2" />
-        </div>
+    <div className={`w-fit h-fit flex flex-col gap-2 ${className}`}>
+      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit p-2x">
+        <CustomCard
+          title={tr("wheres_my_load.expedition_info", dict)}
+          subtitle={null}
+          style={{ title: "text-xl", subtitle: "text-sm" }}
+        >
+          <div className="grid grid-cols-[max-content_max-content] gap-2">
+            <LoadableLabel
+              label="Código"
+              value="3849494"
+              className="!text-base"
+            />
+            <LoadableLabel
+              label="N° de expedición"
+              value="-"
+              className="!text-base"
+            />
+            <LoadableLabel label="Largo" value="-" className="!text-base" />
+            <LoadableLabel label="Ancho" value="-" className="!text-base" />
+            <LoadableLabel label="Alto" value="-" className="!text-base" />
+            <LoadableLabel label="Volumen" value="-" className="!text-base" />
+            <LoadableLabel label="Peso" value="-" className="!text-base" />
+            <LoadableLabel label="Bultos" value="-" className="!text-base" />
+          </div>
+        </CustomCard>
+      </div>
+      <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit p-2">
+        <CustomCard
+          title={state.name}
+          subtitle={null}
+          style={{ title: "text-xl", subtitle: "text-sm" }}
+          badges={badges.length > 0 ? badges : undefined}
+        >
+          {item && getComponent(item, "!text-base")}
+          <DateBox time={state.time} dict={dict} />
+        </CustomCard>
+      </div>
+    </div>
+  );
+}
+
+function DateBox({
+  time,
+  dict,
+}: {
+  time: {
+    start: string | null;
+    estimated_start: string | null;
+    end: string | null;
+    estimated_end: string | null;
+    duration: number | null;
+  };
+  dict: I18nRecord;
+}) {
+  const start = fromString(
+    (time.start ? time.start : time.estimated_start) as string
+  ).format("MM/DD/YYYY HH:mm");
+
+  const end = fromString(
+    (time.end ? time.end : time.estimated_end) as string
+  ).format("MM/DD/YYYY HH:mm");
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700 w-full h-fit">
+      <CustomCard title={null} subtitle={null}>
+        <LoadableLabel
+          label={
+            time.start
+              ? tr("wheres_my_load.start", dict)
+              : tr("wheres_my_load.estimated_start", dict)
+          }
+          value={<FormattedDate date={start} format="datetime" />}
+          className="!text-base"
+        />
+        <LoadableLabel
+          label={
+            time.end
+              ? tr("wheres_my_load.end", dict)
+              : tr("wheres_my_load.estimated_end", dict)
+          }
+          value={<FormattedDate date={end} format="datetime" />}
+          className="!text-base"
+        />
       </CustomCard>
     </div>
   );
 }
 
-function getComponent(item: LoadSearchResponse) {
+function getComponent(item: LoadSearchResponse, className?: string) {
   // Here we add "State Id": Component
   const states_data: { [key: string]: () => React.ReactElement } = {};
 
@@ -252,5 +362,5 @@ function getComponent(item: LoadSearchResponse) {
     return states_data[item.nombre_etapa_]();
   }
 
-  return <GenericComponent item={item} />;
+  return <GenericComponent item={item} badges={null} className={className} />;
 }

@@ -19,11 +19,13 @@ export default function ParametrizedSearchBar({
   messages,
   searchParams,
   navegation_params,
+  className = "",
 }: {
   dict: I18nRecord;
   messages: any;
   searchParams: any;
   navegation_params: any;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -75,11 +77,13 @@ export default function ParametrizedSearchBar({
     (param: any) => param.param.type === "bool"
   );
 
+  const style =
+    className != ""
+      ? className
+      : `flex items-center gap-2 flex-row w-full ${open ? "lg:relative absolute left-0 right-0 top-0 p-3 lg:p-0 bg-white z-30" : ""} `;
+
   return (
-    <div
-      ref={containerRef}
-      className={`flex items-center gap-2 flex-row w-full max-h- ${open ? "lg:relative absolute left-0 right-0 top-0 p-3 lg:p-0 bg-white z-30" : ""}`}
-    >
+    <div ref={containerRef} className={`${style} `}>
       <div
         className={`flex items-center gap-2 flex-col relative w-full lg:w-fit ${open ? "bg-gray-100 dark:bg-gray-700 rounded-t-lg" : ""}`}
       >

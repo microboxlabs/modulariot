@@ -78,7 +78,7 @@ export default function TimelineStates({
           }}
         >
           <div
-            className={`absolute top-1/2 left-0 -translate-y-1/2 bg-gray-400/10 rounded-lg ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-[100%]"}`}
+            className={`absolute top-1/2 left-0 -translate-y-1/2 bg-gray-400/10 ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-[100%]"}`}
             style={{ zIndex: 1 }}
           />
           <DataBox

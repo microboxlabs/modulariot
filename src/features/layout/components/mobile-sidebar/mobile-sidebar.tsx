@@ -2,7 +2,7 @@
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Sidebar } from "flowbite-react";
 import SidebarItem from "../sidebar-item/sidebar-item";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { pages } from "../../models/pages";
 /* import { externalPages } from "../../models/externalPages"; */

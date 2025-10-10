@@ -1503,6 +1503,13 @@
     "not_found": "There's no record of the entered load ID.",
     "title": "Track your load",
     "search": "Use the searchbar to track the state of your load.",
-    "timeline": "Timeline of the load"
+    "timeline": "Timeline of the load",
+    "estimated_start": "Estimated start",
+    "estimated_end": "Estimated end",
+    "start": "Start",
+    "end": "End",
+    "delay_pre_start": "Start with Delay of ",
+    "delay_pre_end": "End with Delay of ",
+    "expedition_info": "Expedition Information"
   }
 }

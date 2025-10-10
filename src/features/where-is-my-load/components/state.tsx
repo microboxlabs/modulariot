@@ -3,6 +3,8 @@ import { State } from "../timeline";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import { fromString } from "@/features/common/services/days.service";
 import React, { useState, useRef } from "react";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TimelineStates({
   index,
@@ -11,6 +13,7 @@ export default function TimelineStates({
   state,
   statesCount,
   setSelectedTask,
+  dict,
 }: {
   index: number;
   count: number;
@@ -18,13 +21,14 @@ export default function TimelineStates({
   state: State;
   statesCount: number;
   setSelectedTask: (taskId: string | null) => void;
+  dict: I18nRecord;
 }) {
   const [hovered, setHovered] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const is_urgent = state.urgent;
   const is_enabled = state;
-  const temporalData = TemporalComponent({ time: state.time });
-  const task_id = "2738090";
+  const temporalData = TemporalComponent({ time: state.time, dict });
+  const task_id = state.task_id;
 
   return (
     <>
@@ -56,6 +60,7 @@ export default function TimelineStates({
         <div
           className={`${index != count - 1 ? "mb-10" : ""} ${is_enabled ? "" : "opacity-50"} overflow-hidden w-full flex flex-col drop-shadow-md transition-all duration-200 border ${actualState == index ? "border-gray-500 p-2 drop-shadow-md bg-blue-50 dark:bg-blue-900" + (is_urgent ? " border-purple-500" : "") : "border-transparent p-1"} rounded-md relative cursor-pointer`}
           onMouseEnter={() => {
+            if (task_id == null) return;
             setHovered(true);
             // Set timer to select task after 1 second
             hoverTimeoutRef.current = setTimeout(() => {
@@ -63,6 +68,7 @@ export default function TimelineStates({
             }, 1000);
           }}
           onMouseLeave={() => {
+            if (task_id == null) return;
             setHovered(false);
             // Clear timer and reset selection immediately
             if (hoverTimeoutRef.current) {
@@ -75,37 +81,85 @@ export default function TimelineStates({
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-400/10 rounded-lg ${hovered ? "transition-all duration-1000 ease-out w-[100%] h-[100%]" : "w-0 h-0"}`}
             style={{ zIndex: 1 }}
           />
-          <div className="relative z-10">
-            {(() => {
-              return temporalData.component;
-            })()}
-            <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-100">
-              {state.name}
-            </h1>
-          </div>
-          <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
-            <div className="flex flex-col gap-1">
-              {/* Reemplaza por el valor de retraso entre inicio y inicio estimado o fin y fin estimado */}
-              <DelayComponent
-                label="Inicio con Retraso de "
-                delay={temporalData.start_delay}
-              />
-              <DelayComponent
-                label="Fin con Retraso de "
-                delay={temporalData.end_delay}
-              />
-            </div>
-
-            {state.description}
-          </div>
+          <DataBox
+            temporalData={temporalData}
+            state={state}
+            minimal={false}
+            dict={dict}
+          />
         </div>
       </div>
     </>
   );
 }
 
-function TemporalComponent({
+export function DataBox({
+  temporalData,
+  state,
+  minimal = true,
+  className = "",
+  dict,
+}: {
+  temporalData: {
+    component: React.ReactNode;
+    start_delay: number | null;
+    end_delay: number | null;
+  };
+  state: State;
+  minimal: boolean;
+  className?: string;
+  dict: I18nRecord;
+}) {
+  return (
+    <div className={className}>
+      {minimal == false ? (
+        <div className="relative z-10">
+          {(() => {
+            return temporalData.component;
+          })()}
+          <h1 className="text-lg font-semibold text-gray-700 dark:text-gray-100">
+            {state.name}
+          </h1>
+        </div>
+      ) : null}
+      <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
+        <DelayCalculations temporalData={temporalData} dict={dict} />
+        <div>{state.description}</div>
+      </div>
+    </div>
+  );
+}
+
+export function DelayCalculations({
+  temporalData,
+  dict,
+}: {
+  temporalData: {
+    start_delay: number | null;
+    end_delay: number | null;
+    component: React.ReactNode | null;
+  };
+  dict: I18nRecord;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-1 ${temporalData.start_delay || temporalData.end_delay ? "flex" : "hidden"}`}
+    >
+      <DelayComponent
+        label={tr("wheres_my_load.delay_pre_start", dict)}
+        delay={temporalData.start_delay}
+      />
+      <DelayComponent
+        label={tr("wheres_my_load.delay_pre_end", dict)}
+        delay={temporalData.end_delay}
+      />
+    </div>
+  );
+}
+
+export function TemporalComponent({
   time,
+  dict,
 }: {
   time: {
     start: string | null;
@@ -114,6 +168,7 @@ function TemporalComponent({
     estimated_end: string | null;
     duration: number | null;
   };
+  dict: I18nRecord;
 }) {
   if (
     time.start === null &&
@@ -158,9 +213,12 @@ function TemporalComponent({
 
   return {
     component: (
-      <div className="text-sm font-light text-gray-500 dark:text-gray-400 flex flex-row gap-2">
+      <div className="text-sm font-light text-gray-500 dark:text-gray-400 flex flex-col md:flex-row gap-2">
         <span>
-          {time.start ? "Inicio" : "Inicio Estimado"}:{" "}
+          {time.start
+            ? tr("wheres_my_load.start", dict)
+            : tr("wheres_my_load.estimated_start", dict)}
+          :{" "}
           <span
             className={`${start_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >
@@ -168,7 +226,10 @@ function TemporalComponent({
           </span>
         </span>
         <span>
-          {time.start ? "Fin" : "Fin Estimado"}:{" "}
+          {time.start
+            ? tr("wheres_my_load.end", dict)
+            : tr("wheres_my_load.estimated_end", dict)}
+          :{" "}
           <span
             className={`${end_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >

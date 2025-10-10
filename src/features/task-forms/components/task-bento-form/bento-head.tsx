@@ -79,18 +79,6 @@ export default function BentoHead({
     );
   }
 
-  console.log("----------------------------------------------------");
-  console.log("task_name_identifier", task_name_identifier);
-  console.log("task_name", task_name);
-  console.log("subtitle", subtitle);
-  console.log("task_name_identifier", task_name_identifier);
-  console.log("task_states", task_states);
-  console.log(
-    "task_states[task_name_identifier as keyof typeof task_states]",
-    task_states[task_name_identifier as keyof typeof task_states]
-  );
-  console.log("----------------------------------------------------");
-
   const workflowVersion = task.definitionVersion as number | undefined;
 
   return (

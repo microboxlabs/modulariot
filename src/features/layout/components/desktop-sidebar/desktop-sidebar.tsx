@@ -21,6 +21,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
+  PLANNING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
@@ -67,6 +68,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
           [
             ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
             ...DELIVERY_COORDINATOR_PROCESS_TASKS,
+            ...PLANNING_COORDINATOR_PROCESS_TASKS,
           ],
           false,
           0,
@@ -109,6 +111,13 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     totals["delivery"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as any)
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
+
+    totals["planning"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>
+        PLANNING_COORDINATOR_PROCESS_TASKS.includes(key as any)
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);

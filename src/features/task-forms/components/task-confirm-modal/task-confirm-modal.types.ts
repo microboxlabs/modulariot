@@ -2,6 +2,7 @@ import { AlfrescoErrorResponse } from "@/features/common/providers/alfresco-api/
 import {
   TaskOutcome,
   TaskOutcomeDelivery,
+  TaskOutcomePlanning,
   TaskOutcomeV2,
 } from "../../services/form.service.types";
 
@@ -10,7 +11,11 @@ export type TaskConfirmModalProps = {
   openModal: boolean;
   setOpenModal: (openModal: boolean) => void;
   commentsFieldEnabled: boolean;
-  outcome?: TaskOutcome | TaskOutcomeV2 | TaskOutcomeDelivery;
+  outcome?:
+    | TaskOutcome
+    | TaskOutcomeV2
+    | TaskOutcomeDelivery
+    | TaskOutcomePlanning;
   outcomeLabel?: string;
   taskType?: string;
   extraData?: Record<string, any>;

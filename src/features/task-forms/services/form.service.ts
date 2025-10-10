@@ -13,6 +13,10 @@ import {
   DeliveryProcessTask,
   TaskOutcomeDelivery,
   ShippingFinishedCoordinatorProcessTask,
+  PlanningProcessTask,
+  PlanningProcessForms,
+  TaskOutcomePlanning,
+  GeneralTaskOutcome,
 } from "./form.service.types";
 import {
   HiOutlineArrowLeft,
@@ -227,9 +231,6 @@ export const TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK: ShippingCoordinatorProcessFormsV
 export const TYPE_WFSHIP2_CLOSE_MONITORING_TASK: ShippingCoordinatorProcessFormsV2 =
   "wfship2:closeMonitoringTask";
 
-export const TASK_ASSIGN_DRIVER: ShippingCoordinatorProcessTaskV2 =
-  "assignDriver";
-
 export const TASK_PRESENT_DRIVER: ShippingCoordinatorProcessTaskV2 =
   "presentDriver";
 
@@ -250,7 +251,6 @@ export const TASK_CLOSE_MONITORING: ShippingCoordinatorProcessTaskV2 =
 
 export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTaskV2[] =
   [
-    TASK_ASSIGN_DRIVER,
     TASK_PRESENT_DRIVER,
     TASK_PREPARE_SERVICE,
     TASK_MISSION_CONTROL,
@@ -294,9 +294,12 @@ export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =
 export const OUTCOME_OVERLORD_REQUIRED_V2: TaskOutcomeV2 = "Requiere Overlord";
 
 export const getTransitionIdV2 = (
-  taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
+  taskType:
+    | ShippingCoordinatorProcessFormsV2
+    | DeliveryProcessForms
+    | PlanningProcessForms,
   outcome: TaskOutcomeV2
-): TaskOutcomeV2 | TaskOutcomeDelivery => {
+): GeneralTaskOutcome => {
   switch (taskType) {
     case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
       return OUTCOME_TO_ASSIGN_DRIVER_V2;
@@ -320,21 +323,30 @@ export const getTransitionIdV2 = (
       return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
       return OUTCOME_TO_CLOSE_MONITORING_V2;
+    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK:
+      return OUTCOME_TO_CONSOLIDATE_LOAD;
+    case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
+      return OUTCOME_TO_SEPARATE_DOCUMENTS;
+    case TYPE_WFPLANNING_PLAN_SERVICE_TASK:
+      return OUTCOME_TO_PLAN_SERVICE;
     default:
       return outcome;
   }
 };
 
 export const getSecondaryTransitionIdV2 = (
-  taskType: ShippingCoordinatorProcessFormsV2 | DeliveryProcessForms,
+  taskType:
+    | ShippingCoordinatorProcessFormsV2
+    | DeliveryProcessForms
+    | PlanningProcessForms,
   dict: I18nRecord
 ): {
-  id: TaskOutcomeV2 | TaskOutcomeDelivery;
+  id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
   label: string;
   icon: ElementType;
 }[] => {
   const otherOptions: {
-    id: TaskOutcomeV2 | TaskOutcomeDelivery;
+    id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
     label: string;
     icon: ElementType;
   }[] = [];
@@ -468,6 +480,71 @@ export const getSecondaryTransitionIdV2 = (
         icon: HiOutlineArrowRight,
       }
     );
+  } else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFPLANNING_PLAN_SERVICE_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFSHIP2_ASSIGN_DRIVER_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
   }
   otherOptions.push(
     {
@@ -535,4 +612,40 @@ export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_RECEIVE_DELIVERY,
   TASK_NOTIFY_TMS_ARRIVAL,
   TASK_NOTIFY_TMS_DELIVERY,
+];
+
+/* ------------------------------------------------------------- */
+/* Planning Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK: PlanningProcessForms =
+  "wfship2:consolidateLoadTask";
+export const TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK: PlanningProcessForms =
+  "wfship2:separateDocumentsTask";
+export const TYPE_WFPLANNING_PLAN_SERVICE_TASK: PlanningProcessForms =
+  "wfship2:planServiceTask";
+
+export const TASK_CONSOLIDATE_LOAD: PlanningProcessTask = "consolidateLoad";
+export const TASK_SEPARATE_DOCUMENTS: PlanningProcessTask = "separateDocuments";
+export const TASK_PLAN_SERVICE: PlanningProcessTask = "planService";
+export const TASK_ASSIGN_DRIVER: PlanningProcessTask = "assignDriver";
+
+export const OUTCOME_TO_CONSOLIDATE_LOAD: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_CONSOLIDATE_LOAD: TaskOutcomePlanning = "Consolidar Carga";
+export const OUTCOME_TO_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
+  "Planificar Servicio";
+export const OUTCOME_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_TO_PLAN_SERVICE: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
+export const OUTCOME_PLAN_SERVICE: TaskOutcomePlanning = "Planificar Servicio";
+export const OUTCOME_ASSIGN_DRIVER: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
+
+export const PLANNING_COORDINATOR_PROCESS_TASKS: PlanningProcessTask[] = [
+  TASK_CONSOLIDATE_LOAD,
+  TASK_SEPARATE_DOCUMENTS,
+  TASK_PLAN_SERVICE,
+  TASK_ASSIGN_DRIVER,
 ];

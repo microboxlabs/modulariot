@@ -11,7 +11,7 @@ import { tr } from "../i18n/tr.service";
 //import { ShowNotification } from "../notifications/notification";
 import { useSearchLoad } from "../common/providers/client-api.provider";
 import SearchScreen from "./search-screen";
-import { LoadSearchResponse } from "./types/load.types";
+import { LoadSearchResponse } from "@/types/load.types";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
 import { HiExclamationCircle } from "react-icons/hi";

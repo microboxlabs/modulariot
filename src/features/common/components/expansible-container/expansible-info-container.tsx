@@ -17,7 +17,8 @@ export default function ExpansibleInfoContainer({
 
   return (
     <div className="hover:cursor-pointer rounded-md transition-all duration-200 flex flex-col border border-gray-300 dark:border-gray-800 overflow-hidden">
-      <div
+      <a
+        href="#"
         onClick={() => setIsExpanded(!isExpanded)}
         className={`flex flex-row items-center gap-2 transition-all duration-200 hover:bg-gray-200 dark:hover:bg-gray-700 ${isExpanded ? " p-2 px-4" : "p-2"}`}
       >
@@ -29,7 +30,7 @@ export default function ExpansibleInfoContainer({
         <div className="flex flex-row w-full justify-between items-center">
           {head}
         </div>
-      </div>
+      </a>
       {isExpanded && (
         <hr className="border-t border-gray-300 dark:border-gray-700" />
       )}

@@ -26,11 +26,11 @@ export const pages: SidebarItem[] = [
       //   label: "logistics",
       //   totals: {},
       // },
-      /*  {
-        href: "/picking",
-        label: "picking",
+      {
+        href: "/planning",
+        label: "planning",
         totals: {},
-      }, */
+      },
       {
         href: "/shipping",
         label: "shipping",

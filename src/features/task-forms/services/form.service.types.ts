@@ -1,3 +1,8 @@
+export type GeneralTaskOutcome =
+  | TaskOutcomeV2
+  | TaskOutcomeDelivery
+  | TaskOutcomePlanning;
+
 export type TaskNextActionState = {
   success?: boolean;
   error?: string;
@@ -165,7 +170,6 @@ export type TaskOutcomeV2 =
   | CloseMonitoringTaskOutcome;
 
 export type ShippingCoordinatorProcessTaskV2 =
-  | "assignDriver"
   | "presentDriver"
   | "prepareService"
   | "missionControl"
@@ -211,3 +215,55 @@ export type DeliveryProcessTask =
   | "receiveDelivery"
   | "notifyTMSArrival"
   | "notifyTMSDelivery";
+
+/* ------------------------------------------------------------- */
+/* Planning Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export type PlanningProcessForms =
+  | "wfship2:consolidateLoadTask"
+  | "wfship2:separateDocumentsTask"
+  | "wfship2:planServiceTask"
+  | "wfship2:assignDriverTask";
+
+export type ConsolidateLoadOutcome =
+  | "Separar Documentos"
+  | "Planificar Servicio"
+  | "Presentar Conductor"
+  | "Preparar Servicio"
+  | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type SeparateDocumentsOutcome =
+  | "Consolidar Carga"
+  | "Planificar Servicio"
+  | "Presentar Conductor"
+  | "Preparar Servicio"
+  | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type PlanServiceOutcome =
+  | "Consolidar Carga"
+  | "Separar Documentos"
+  | "Presentar Conductor"
+  | "Preparar Servicio"
+  | "Torre de Control: Iniciar Viaje"
+  | "Asignar Conductor/Transporte"
+  | "Viaje Cancelado"
+  | "Viaje Anulado";
+
+export type TaskOutcomePlanning =
+  | ConsolidateLoadOutcome
+  | SeparateDocumentsOutcome
+  | PlanServiceOutcome
+  | AssignDriverTaskOutcome;
+
+export type PlanningProcessTask =
+  | "consolidateLoad"
+  | "separateDocuments"
+  | "planService"
+  | "assignDriver";

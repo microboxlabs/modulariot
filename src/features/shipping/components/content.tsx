@@ -44,6 +44,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
+  PLANNING_COORDINATOR_PROCESS_TASKS,
   // SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
   SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
@@ -56,7 +57,6 @@ import { transformBoardsToTableData } from "../utils/transform-data";
 import { configureLocale } from "@/features/common/services/days.service";
 import { CompactKanbanViewSwitcher } from "@/features/common/components/view-switcher/compact-kanban-view-switcher";
 import ModalTooltip from "./modal-tooltip";
-//import { logger } from "@/lib/logger";
 
 export default function PageContent({
   showFinishedTasks,
@@ -80,13 +80,22 @@ export default function PageContent({
   const pageSize = 100;
 
   configureLocale(lang);
-  const columns = showWorkflowTasks
-    ? showWorkflowTasks === "shipping"
-      ? [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2]
-      : showWorkflowTasks === "delivery"
-        ? [...DELIVERY_COORDINATOR_PROCESS_TASKS]
-        : []
-    : [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
+  let columns: string[] = [];
+  if (showWorkflowTasks) {
+    switch (showWorkflowTasks) {
+      case "shipping":
+        columns = [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2];
+        break;
+      case "delivery":
+        columns = [...DELIVERY_COORDINATOR_PROCESS_TASKS];
+        break;
+      case "planning":
+        columns = [...PLANNING_COORDINATOR_PROCESS_TASKS];
+        break;
+    }
+  } else {
+    columns = [...SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS];
+  }
 
   const {
     data: myTasksData,

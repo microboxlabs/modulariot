@@ -142,6 +142,78 @@
         "customerCode": "Customer"
       }
     },
+    "planning": {
+      "breadcrumb": {
+        "tasks": "My tasks",
+        "shipping": "Planning",
+        "finished": "Finished"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "consolidateLoad": "Consolidate Load",
+        "separateDocuments": "Separate Documents",
+        "planService": "Plan Service",
+        "assignDriver": "Assign Driver",
+        "departure": "Departure",
+        "arrival": "Arrival",
+        "compact": "Compact",
+        "expand": "Expand",
+        "weight": "Weight",
+        "loads": "Loads",
+        "volume": "Volume",
+        "expeditionNumber": "Expedition Number",
+        "code": "Code",
+        "noLoads": "No loads",
+        "kanban_movements": "Kanban Movements",
+        "load_table": "Load Table",
+        "length": "Length",
+        "width": "Width",
+        "height": "Height",
+        "finished": "Finished",
+        "finished_process": "Process Finished",
+        "taskType": "Task Type",
+        "taskAction": "Task Action"
+      },
+      "card": {
+        "origin": "Origin",
+        "destination": "Dest",
+        "service": "Service #",
+        "clientCode": "Client Code",
+        "clientName": "Client",
+        "departureDate": "Departure Date",
+        "serviceKind": "Service Type",
+        "executionType": "Execution Type",
+        "tripInformation": "Trip Information",
+        "patente": "License Plate",
+        "transportNumberCode": "Transport Number",
+        "truckLicensePlate": "License",
+        "withoutDriver": "No Assignment"
+      },
+      "views": {
+        "table": "Table",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Service",
+        "departureDateTime": "Date and time departure",
+        "serviceKind": "Service Kind",
+        "validations": "Validations",
+        "status": "Status",
+        "stage": "Stage",
+        "origin": "Origin",
+        "destination": "Destination",
+        "licensePlate": "License Plate",
+        "active": "Active",
+        "completed": "Completed",
+        "driverId": "Driver Rut",
+        "carrierId": "Carrier ID",
+        "carrierName": "Carrier",
+        "customerCode": "Customer Code",
+        "customer": "Customer"
+      }
+    },
     "shipping": {
       "breadcrumb": {
         "tasks": "My tasks",
@@ -226,6 +298,13 @@
         "Confirmar Arribo a Destino": "Confirm Destination Arrival",
         "Confirmar Entrega": "Confirm Delivery",
         "Confirmar Cierre del Monitoreo": "Confirm Monitoring Closure",
+        "Consolidar Carga": "Consolidate Load",
+        "Separar Documentos": "Separate Documents",
+        "Planificar Servicio": "Plan Service",
+        "Asignar Conductor": "Assign Driver",
+        "consolidateLoad": "Consolidate Load",
+        "separateDocuments": "Separate Documents",
+        "planService": "Plan Service",        
         "compact": "Compact",
         "expand": "Expand",
         "weight": "Weight",
@@ -499,7 +578,11 @@
         "Viaje Anulado": "Trip Voided",
         "Monitorear viaje en curso": "Monitor trip in progress",
         "Confirmar Cierre Monitoreo / Entrega": "Confirm Monitoring Closure / Delivery",
-        "Confirmar Arribo": "Confirm Destination Arrival"
+        "Confirmar Arribo": "Confirm Destination Arrival",
+        "Consolidar Carga": "Consolidate Load",
+        "Separar Documentos": "Separate Documents",
+        "Planificar Servicio": "Plan Service",
+        "Asignar Conductor": "Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -614,7 +697,11 @@
         "Recibir Entrega": "Receive Delivery",
         "Notificar Arribo (4.7)": "Notify Arrival",
         "Notificar Entrega (5.11)": "Notify Delivery",
-        "Viaje Finalizado": "Trip Finished"
+        "Viaje Finalizado": "Trip Finished",
+        "Consolidar Carga": "Consolidate Load",
+        "Separar Documentos": "Separate Documents",
+        "Planificar Servicio": "Plan Service",
+        "Asignar Conductor": "Assign Driver"
       },
       "modal": {
         "title": "You are trying to move the task to another process state",
@@ -843,6 +930,7 @@
         "tasks": "My tasks",
         "werehouse": "Werehouse",
         "logistics": "Logistics",
+        "planning": "Planning",
         "shipping": "Shipping",
         "shippingv1": "Shipping V1",
         "picking": "Picking",

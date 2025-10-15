@@ -1503,6 +1503,8 @@
     "not_found": "There's no record of the entered load ID.",
     "title": "Track your load",
     "search": "Use the searchbar to track the state of your load.",
+    "search_screen_title": "Search for your load",
+    "search_screen_subtitle": "Use the searchbar to track the state of your load",
     "timeline": "Timeline of the load",
     "estimated_start": "Estimated start",
     "estimated_end": "Estimated end",

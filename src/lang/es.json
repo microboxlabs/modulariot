@@ -876,7 +876,7 @@
         "settings": "Ajustes",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
-        "whereIsMyLoad": "¿En qué está mi carga?",
+        "whereIsMyLoad": "¿Donde está mi carga?",
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas"
       }
@@ -1529,6 +1529,8 @@
     "not_found": "No se han encontrado datos asignados a este ID.",
     "title": "¿En qué está mi carga?",
     "search": "Usa el buscador para encontrar el estado de tu carga.",
+    "search_screen_title": "Busca tu carga",
+    "search_screen_subtitle": "Usa el buscador para rastrear el estado de tu carga",
     "timeline": "Timeline de la carga",
     "estimated_start": "Inicio estimado",
     "estimated_end": "Fin estimado",

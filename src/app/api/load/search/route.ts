@@ -33,9 +33,6 @@ export async function GET(request: Request) {
 
     const apiData = (await response.json()) as LoadSearchResponse;
 
-    console.log("------------------------");
-    console.log(apiData);
-
     return NextResponse.json(apiData);
   } catch (error) {
     return NextResponse.json(

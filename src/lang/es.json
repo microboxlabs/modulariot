@@ -142,6 +142,78 @@
         "customerCode": "Cliente"
       }
     },
+    "planning": {
+      "breadcrumb": {
+        "tasks": "Mis tareas",
+        "shipping": "Planificación",
+        "finished": "Finalizados"
+      },
+      "taskCounter": {
+        "activeCount": "{count} visibles"
+      },
+      "kanban": {
+        "consolidateLoad": "Consolidar Carga",  
+        "separateDocuments": "Separar Documentos",
+        "planService": "Planificar Servicio",
+        "assignDriver": "Asignar Conductor",
+        "departure": "Salida",
+        "arrival": "Llegada",
+        "compact": "Compactar",
+        "expand": "Expandir",
+        "weight": "Peso",
+        "loads": "Bultos",
+        "volume": "Volumen",
+        "expeditionNumber": "N° de expedición",
+        "code": "Código",
+        "noLoads": "No hay cargas",
+        "kanban_movements": "Movimientos de Kanban",
+        "load_table": "Tabla de cargas",
+        "length": "Largo",
+        "width": "Ancho",
+        "height": "Alto",
+        "finished": "Finalizado",
+        "finished_process": "Proceso Terminado",
+        "taskType": "Tipo de tarea",
+        "taskAction": "Acción de la tarea"
+      },
+      "card": {
+        "origin": "Origen",
+        "destination": "Destino",
+        "service": "Servicio Nº",
+        "clientCode": "Código cliente",
+        "clientName": "Cliente",
+        "departureDate": "Fecha de salida",
+        "serviceKind": "Tipo de servicio",
+        "executionType": "Tipo de ejecución",
+        "tripInformation": "Información del viaje",
+        "patente": "Patente",
+        "transportNumberCode": "N° de transporte",
+        "truckLicensePlate": "Patente",
+        "withoutDriver": "Sin Asignación"
+      },
+      "views": {
+        "table": "Tabla",
+        "kanban": "Kanban"
+      },
+      "table": {
+        "service": "Servicio",
+        "departureDateTime": "Fecha y hora de salida",
+        "serviceKind": "Tipo de servicio",
+        "validations": "Validaciones",
+        "status": "Estado",
+        "stage": "Etapa",
+        "licensePlate": "Patente",
+        "origin": "Origen",
+        "destination": "Destino",
+        "active": "Activo",
+        "completed": "Completado",
+        "driverId": "RUT Conductor",
+        "carrierId": "ID Transportista",
+        "carrierName": "Transportista",
+        "customerCode": "Código Cliente",
+        "customer": "Cliente"
+      }
+    },
     "shipping": {
       "breadcrumb": {
         "tasks": "Mis tareas",
@@ -227,6 +299,13 @@
         "Confirmar Arribo a Destino": "Confirmar Arribo a Destino",
         "Confirmar Entrega": "Confirmar Entrega",
         "Confirmar Cierre del Monitoreo": "Confirmar Cierre del Monitoreo",
+        "Consolidar Carga": "Consolidar Carga",
+        "Separar Documentos": "Separar Documentos",
+        "Planificar Servicio": "Planificar Servicio",
+        "Asignar Conductor": "Asignar Conductor",
+        "consolidateLoad": "Consolidar Carga",
+        "separateDocuments": "Separar Documentos",
+        "planService": "Planificar Servicio",
         "compact": "Compactar",
         "expand": "Expandir",
         "weight": "Peso",
@@ -494,7 +573,11 @@
         "Viaje Finalizado": "Viaje Finalizado",
         "Viaje Rechazado": "Viaje Rechazado POD",
         "Requiere Overlord": "Requiere Overlord",
-        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega"
+        "Confirmar Cierre Monitoreo / Entrega": "Confirmar Cierre Monitoreo / Entrega",
+        "Consolidar Carga": "Consolidar Carga",
+        "Separar Documentos": "Separar Documentos",
+        "Planificar Servicio": "Planificar Servicio",
+        "Asignar Conductor": "Asignar Conductor"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -614,7 +697,11 @@
         "Notificar Arribo (4.7)": "Notificar Arribo",
         "Notificar Entrega (5.11)": "Notificar Entrega",
         "Viaje Finalizado": "Viaje Finalizado",
-        "Requiere Overlord": "Requiere Overlord"
+        "Requiere Overlord": "Requiere Overlord",
+        "Consolidar Carga": "Consolidar Carga",
+        "Separar Documentos": "Separar Documentos",
+        "Planificar Servicio": "Planificar Servicio",
+        "Asignar Conductor": "Asignar Conductor"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -861,6 +948,7 @@
         "pending_tasks": "Tareas pendientes",
         "werehouse": "Bodega",
         "logistics": "Logística",
+        "planning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
         "picking": "Retiros",

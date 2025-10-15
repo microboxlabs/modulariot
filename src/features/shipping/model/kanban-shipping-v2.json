@@ -1,13 +1,6 @@
 [
   {
     "id": 1,
-    "title": "assignDriver",
-    "finished": false,
-    "state": "pending",
-    "tasks": []
-  },
-  {
-    "id": 2,
     "title": "presentDriver",
     "description": "Presentar Conductor",
     "finished": false,
@@ -15,35 +8,35 @@
     "tasks": []
   },
   {
-    "id": 3,
+    "id": 2,
     "title": "prepareService",
     "finished": false,
     "state": "pending",
     "tasks": []
   },
   {
-    "id": 4,
+    "id": 3,
     "title": "missionControl",
     "finished": false,
     "state": "pending",
     "tasks": []
   },
   {
-    "id": 5,
+    "id": 4,
     "title": "monitorTrip",
     "finished": false,
     "state": "started",
     "tasks": []
   },
   {
-    "id": 6,
+    "id": 5,
     "title": "confirmArrival",
     "finished": false,
     "state": "started",
     "tasks": []
   },
   {
-    "id": 7,
+    "id": 6,
     "title": "closeMonitoring",
     "finished": false,
     "state": "done",

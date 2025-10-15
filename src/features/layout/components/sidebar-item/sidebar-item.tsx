@@ -103,7 +103,8 @@ export default function SidebarItem({
       className={twMerge(
         (pathname === href ||
           href === pathname + "?" + searchParams.toString()) &&
-          "bg-gray-100 dark:bg-gray-700"
+          "bg-gray-100 dark:bg-gray-700",
+        "[&_svg]:!w-6 [&_svg]:!h-6 [&_svg]:!min-w-6 [&_svg]:!min-h-6"
       )}
     >
       <span>{label}</span>

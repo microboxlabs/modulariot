@@ -44,10 +44,10 @@ export type State = {
     estimated_end: string | null;
     duration: number | null;
   };
-  urgent: boolean;
   visible: boolean;
   enabled: boolean;
   task_id: string | null;
+  urgency: boolean;
 };
 
 export default function Timeline({
@@ -55,14 +55,20 @@ export default function Timeline({
   userGroups,
   dict,
   messages,
+  debug = false,
 }: {
   lang: string;
   userGroups: string[];
   dict: I18nRecord;
   messages: I18nRecord;
+  debug?: boolean;
 }) {
   const [actualState, setActualState] = React.useState(6);
   const [selectedTask, setSelectedTask] = React.useState<string | null>(null);
+  const [debugPos, setDebugPos] = React.useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -86,7 +92,7 @@ export default function Timeline({
             description: getComponent(item),
             ended: item.end_time__ ? true : false,
             extradata: item.extradata,
-            urgent: item.oferta_producto_ === "UR",
+            urgency: item.urgency,
             visible: item.visible,
             enabled: item.enabled,
             task_id: item.task_id_ ?? null,
@@ -118,6 +124,10 @@ export default function Timeline({
         });
       }
     }
+    // Update debug element position when actual state changes
+    if (debug) {
+      updateDebugPosition();
+    }
   }, [actualState]);
 
   // Center on actualState when states are loaded (component initialization)
@@ -133,7 +143,38 @@ export default function Timeline({
         });
       }
     }
+    if (debug) {
+      updateDebugPosition();
+    }
   }, [states]);
+
+  // Helper to update debug position tracking the active timeline state
+  const updateDebugPosition = React.useCallback(() => {
+    if (!timelineRef.current) return;
+    const container = timelineRef.current.querySelector(
+      ".timeline-states-container"
+    ) as HTMLDivElement | null;
+    if (!container) return;
+    const activeEl = container.children[actualState] as HTMLElement | undefined;
+    if (!activeEl) return;
+    const rect = activeEl.getBoundingClientRect();
+    // Use viewport coordinates with position: fixed
+    setDebugPos({ top: rect.top, left: rect.right + 16 });
+  }, [actualState]);
+
+  // Attach scroll / resize listeners to keep debug panel aligned while scrolling
+  useEffect(() => {
+    if (!debug) return;
+    const handleScroll = () => updateDebugPosition();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    // Initial position
+    updateDebugPosition();
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [debug, updateDebugPosition]);
 
   if (!loadId) {
     return (
@@ -145,7 +186,7 @@ export default function Timeline({
     );
   }
 
-  if (data && data.length === 0) {
+  if ((data && data.length === 0) || (error && (error as any).status === 404)) {
     return (
       <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
         <EmptyAnimation />
@@ -172,16 +213,19 @@ export default function Timeline({
     );
   }
 
-  let urgent = true;
-
   const badges: InformationBadge[] = [];
 
-  if (urgent) {
-    badges.push({
-      text: (dict.bento as I18nRecord).urgency as string,
-      color: "purple" as const,
-      icon: HiExclamationCircle,
-    });
+  // Validate loadId after all hooks have executed to satisfy rules-of-hooks
+  const invalidLoadId = loadId != null && !/^[0-9]+$/.test(loadId);
+  if (invalidLoadId) {
+    return (
+      <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
+        <EmptyAnimation />
+        <p className="text-lg text-gray-500 mt-10">
+          {tr("wheres_my_load.not_found", dict as I18nRecord)}
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -194,15 +238,30 @@ export default function Timeline({
         dict={dict}
         isFinished={true}
       />
-      <div className="absolute bottom-2 right-2 h-fit w-fit bg-amber-500 rounded-md p-2 hidden">
-        <h1>Debug: {actualState}</h1>
-        <div className="flex flex-col gap-2">
-          <Button onClick={() => setActualState(Math.max(0, actualState - 1))}>
-            -1
-          </Button>
-          <Button onClick={() => setActualState(actualState + 1)}>+1</Button>
+      {debug && (
+        <div
+          className="h-fit w-fit bg-amber-500 rounded-md p-2 shadow-lg border border-amber-600"
+          style={{
+            position: "fixed",
+            top: debugPos ? debugPos.top : undefined,
+            left: debugPos ? debugPos.left : undefined,
+            zIndex: 1000,
+          }}
+        >
+          <h1 className="font-semibold">Debug: {actualState}</h1>
+          <div className="flex flex-col gap-2">
+            <Button
+              size="xs"
+              onClick={() => setActualState(Math.max(0, actualState - 1))}
+            >
+              -1
+            </Button>
+            <Button size="xs" onClick={() => setActualState(actualState + 1)}>
+              +1
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
       <div className="block lg:hidden mb-4 w-full">
         <SideInfo
           badges={badges}
@@ -215,8 +274,12 @@ export default function Timeline({
 
       <div className="w-fit h-full flex flex-col timeline-states-container">
         {states.map((state, index) => {
-          if (state.urgent) {
-            urgent = true;
+          if (state.urgency && index == actualState) {
+            badges.push({
+              text: (dict.bento as I18nRecord).urgency as string,
+              color: "purple" as const,
+              icon: HiExclamationCircle,
+            });
           }
 
           if (!state.visible) {

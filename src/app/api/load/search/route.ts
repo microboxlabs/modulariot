@@ -17,6 +17,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const loadId = searchParams.get("loadId");
 
+    if (!loadId || /[a-zA-Z]/.test(loadId)) {
+      return NextResponse.json([]);
+    }
+
     const response = await fetch(SYMPTOMS_API_URL, {
       method: "POST",
       body: JSON.stringify({ p_expedition_id: +(loadId ?? "") }),
@@ -27,14 +31,15 @@ export async function GET(request: Request) {
       },
     });
 
+    if (response.status === 404) {
+      return NextResponse.json({ status: 404 }, { status: 404 });
+    }
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const apiData = (await response.json()) as LoadSearchResponse;
-
-    console.log("------------------------");
-    console.log(apiData);
 
     return NextResponse.json(apiData);
   } catch (error) {

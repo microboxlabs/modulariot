@@ -304,7 +304,7 @@
         "Asignar Conductor": "Assign Driver",
         "consolidateLoad": "Consolidate Load",
         "separateDocuments": "Separate Documents",
-        "planService": "Plan Service",        
+        "planService": "Plan Service",
         "compact": "Compact",
         "expand": "Expand",
         "weight": "Weight",
@@ -1571,7 +1571,7 @@
     "date_range": "Date Range",
     "internal": "Internal",
     "external": "External",
-    "loadId": "Load ID"
+    "loadId": "Expedition ID"
   },
   "comments": {
     "title": "Comments",
@@ -1598,6 +1598,8 @@
     "end": "End",
     "delay_pre_start": "Start with Delay of ",
     "delay_pre_end": "End with Delay of ",
-    "expedition_info": "Expedition Information"
+    "expedition_info": "Expedition Information",
+    "search_for_your_load": "Search for your load",
+    "use_searchbar": "Use the searchbar to track the state of your load."
   }
 }

@@ -17,10 +17,10 @@ export default function SearchScreen({
   return (
     <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
       <h1 className="text-gray-700 dark:text-gray-200 font-bold text-2xl md:text-4xl text-center">
-        {(dict.wheres_my_load as I18nRecord).search_screen_title as string}
+        {tr("wheres_my_load.search_for_your_load", dict)}
       </h1>
       <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
-        {(dict.wheres_my_load as I18nRecord).search_screen_subtitle as string}
+        {tr("wheres_my_load.use_searchbar", dict)}
       </h1>
       <ParametrizedSearchBar
         dict={dict}

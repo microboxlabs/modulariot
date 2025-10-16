@@ -25,7 +25,7 @@ export default function TimelineStates({
 }) {
   const [hovered, setHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const is_urgent = state.urgent;
+  const is_urgent = state.urgency;
   const is_enabled = state;
   const temporalData = TemporalComponent({ time: state.time, dict });
   const task_id = state.task_id;

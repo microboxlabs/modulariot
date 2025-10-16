@@ -29,4 +29,5 @@ export interface LoadSearchResponse {
   visible: boolean;
   enabled: boolean;
   task_id_: string | null;
+  urgency: boolean;
 }

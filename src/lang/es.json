@@ -964,7 +964,7 @@
         "settings": "Ajustes",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
-        "whereIsMyLoad": "¿Donde está mi carga?",
+        "whereIsMyLoad": "¿Dónde está mi carga?",
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas"
       }
@@ -1597,7 +1597,8 @@
     "date_range": "Rango de fechas",
     "internal": "Interno",
     "external": "Externo",
-    "loadId": "ID de expedición"
+    "expeditionCode": "Código de expedición",
+    "expeditionNumber": "Número de expedición"
   },
   "comments": {
     "title": "Comentarios",
@@ -1617,7 +1618,7 @@
     "not_found": "No se han encontrado datos asignados a este ID.",
     "title": "¿En qué está mi carga?",
     "search": "Usa el buscador para encontrar el estado de tu carga.",
-    "search_screen_title": "Busca tu carga",
+    "search_screen_title": "¿Dónde está mi carga?",
     "search_screen_subtitle": "Usa el buscador para rastrear el estado de tu carga",
     "timeline": "Timeline de la carga",
     "projected_start": "Inicio proyectado",
@@ -1626,8 +1627,11 @@
     "end": "Fin",
     "delay_pre_start": "Inicio con Retraso de ",
     "delay_pre_end": "Fin con Retraso de ",
+    "delay_proj_start": "Inicio proyectado con Retraso de ",
+    "delay_proj_end": "Fin proyectado con Retraso de ",
     "expedition_info": "Información de la expedición",
-    "search_for_your_load": "Busca tu carga",
-    "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga"
+    "search_for_your_load": "¿Dónde está mi carga?",
+    "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga",
+    "wheres_my_load": "¿Dónde está mi carga?"
   }
 }

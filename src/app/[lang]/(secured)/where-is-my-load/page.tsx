@@ -9,7 +9,10 @@ import { RouteGuard } from "@/features/auth/components/route-guard";
 
 export default async function WheresMyLoadPage({
   params: { lang },
-}: ParamsWithLang) {
+  searchParams,
+}: ParamsWithLang & {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();
@@ -22,7 +25,10 @@ export default async function WheresMyLoadPage({
       requiredGroups={["GROUP_MINTRAL_BUSCADOR_CARGAS"]}
     >
       <div className="h-full flex flex-col">
-        <TimelineHeader dict={dictionary as I18nRecord} />
+        <TimelineHeader
+          dict={dictionary as I18nRecord}
+          searchParams={searchParams}
+        />
         <div className="h-full w-full flex flex-row justify-center overflow-auto p-4 relative">
           <Timeline
             dict={dictionary as I18nRecord}

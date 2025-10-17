@@ -39,6 +39,8 @@ export async function GET(request: Request) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
+    //console.log(await response.json());
+
     const apiData = (await response.json()) as LoadSearchResponse;
 
     return NextResponse.json(apiData);

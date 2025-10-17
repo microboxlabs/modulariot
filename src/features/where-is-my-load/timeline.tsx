@@ -84,7 +84,7 @@ export default function Timeline({
             time: {
               start: item.start_time__,
               end: item.end_time__,
-              estimated_start: item.base_start_time_,
+              estimated_start: item.estimated_start_time_,
               estimated_end: item.estimated_end_time_,
               duration: item.duration__,
             },
@@ -176,6 +176,22 @@ export default function Timeline({
     };
   }, [debug, updateDebugPosition]);
 
+  const badges: InformationBadge[] = useMemo(() => {
+    const badgeList: InformationBadge[] = [];
+
+    states.forEach((state, index) => {
+      if (state.urgency && index == actualState) {
+        badgeList.push({
+          text: (dict.bento as I18nRecord).urgency as string,
+          color: "purple" as const,
+          icon: HiExclamationCircle,
+        });
+      }
+    });
+
+    return badgeList;
+  }, [states, actualState, dict]);
+
   if (!loadId) {
     return (
       <SearchScreen
@@ -212,8 +228,6 @@ export default function Timeline({
       </div>
     );
   }
-
-  const badges: InformationBadge[] = [];
 
   // Validate loadId after all hooks have executed to satisfy rules-of-hooks
   const invalidLoadId = loadId != null && !/^[0-9]+$/.test(loadId);
@@ -274,14 +288,6 @@ export default function Timeline({
 
       <div className="w-fit h-full flex flex-col timeline-states-container">
         {states.map((state, index) => {
-          if (state.urgency && index == actualState) {
-            badges.push({
-              text: (dict.bento as I18nRecord).urgency as string,
-              color: "purple" as const,
-              icon: HiExclamationCircle,
-            });
-          }
-
           if (!state.visible) {
             return null;
           }

@@ -1,4 +1,4 @@
-import { FaCheck } from "react-icons/fa";
+import { FaCheck, FaMinus } from "react-icons/fa";
 import { State } from "../timeline";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import { fromString } from "@/features/common/services/days.service";
@@ -38,7 +38,11 @@ export default function TimelineStates({
             <div
               className={`h-12 w-12 bg-gray-800 dark:bg-gray-200 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 text-gray-100 dark:text-gray-700 ${is_urgent ? " bg-purple-500 dark:bg-purple-400" : ""}`}
             >
-              <FaCheck className="h-6 w-6" />
+              {!state.time.end ? (
+                <FaMinus className="h-6 w-6" />
+              ) : (
+                <FaCheck className="h-6 w-6" />
+              )}
             </div>
           ) : (
             <div
@@ -217,7 +221,7 @@ export function TemporalComponent({
         <span>
           {time.start
             ? tr("wheres_my_load.start", dict)
-            : tr("wheres_my_load.estimated_start", dict)}
+            : tr("wheres_my_load.projected_start", dict)}
           :{" "}
           <span
             className={`${start_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
@@ -226,9 +230,9 @@ export function TemporalComponent({
           </span>
         </span>
         <span>
-          {time.start
+          {time.end
             ? tr("wheres_my_load.end", dict)
-            : tr("wheres_my_load.estimated_end", dict)}
+            : tr("wheres_my_load.projected_end", dict)}
           :{" "}
           <span
             className={`${end_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}

@@ -26,6 +26,7 @@ export const ROUTE_PERMISSIONS = {
   "/reports": FULL_ACCESS_ROLES,
   "/geographic-view": FULL_ACCESS_ROLES,
   "/symptoms": FULL_ACCESS_ROLES,
+  "/where-is-my-load": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
 
   // Task routes
   "/task/edit": FULL_ACCESS_ROLES,

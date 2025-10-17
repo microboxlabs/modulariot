@@ -9,6 +9,64 @@ interface FormattedDateProps {
   fallback?: string;
 }
 
+const getDateByFormat = (
+  format: "date" | "time" | "datetime" | "relative",
+  dateObj: Date,
+  locale: string,
+  timeZone: string
+) => {
+  const now = new Date();
+  const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
+
+  switch (format) {
+    case "date":
+      return dateObj.toLocaleDateString(locale, {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+
+    case "time":
+      return dateObj.toLocaleTimeString(locale, {
+        timeZone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+    case "relative":
+      if (diffInHours < 1) {
+        const diffInMinutes = Math.floor(diffInHours * 60);
+        return `${diffInMinutes} min`;
+      } else if (diffInHours < 24) {
+        return `${Math.floor(diffInHours)}h`;
+      } else if (diffInHours < 168) {
+        // 7 days
+        const diffInDays = Math.floor(diffInHours / 24);
+        return `${diffInDays}d`;
+      } else {
+        return dateObj.toLocaleDateString(locale, {
+          timeZone,
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+    case "datetime":
+    default:
+      return dateObj.toLocaleString(locale, {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+  }
+};
+
 /**
  * Utility function to format a date and return only the string
  * @param date - The date to format
@@ -43,56 +101,10 @@ export const formatDateString = (
       return fallback;
     }
 
-    const now = new Date();
-    const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
+    /*  const now = new Date();
+    const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60); */
 
-    switch (format) {
-      case "date":
-        return dateObj.toLocaleDateString(locale, {
-          timeZone,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-
-      case "time":
-        return dateObj.toLocaleTimeString(locale, {
-          timeZone,
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-
-      case "relative":
-        if (diffInHours < 1) {
-          const diffInMinutes = Math.floor(diffInHours * 60);
-          return `${diffInMinutes} min`;
-        } else if (diffInHours < 24) {
-          return `${Math.floor(diffInHours)}h`;
-        } else if (diffInHours < 168) {
-          // 7 days
-          const diffInDays = Math.floor(diffInHours / 24);
-          return `${diffInDays}d`;
-        } else {
-          return dateObj.toLocaleDateString(locale, {
-            timeZone,
-            month: "short",
-            day: "numeric",
-          });
-        }
-
-      case "datetime":
-      default:
-        return dateObj.toLocaleString(locale, {
-          timeZone,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-    }
+    return getDateByFormat(format, dateObj, locale, timeZone);
   } catch (error) {
     return fallback;
   }
@@ -115,57 +127,11 @@ export const FormattedDate: React.FC<FormattedDateProps> = ({
         return fallback;
       }
 
-      const now = new Date();
+      /* const now = new Date();
       const diffInHours =
-        (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
+        (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60); */
 
-      switch (format) {
-        case "date":
-          return dateObj.toLocaleDateString(locale, {
-            timeZone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
-
-        case "time":
-          return dateObj.toLocaleTimeString(locale, {
-            timeZone,
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
-
-        case "relative":
-          if (diffInHours < 1) {
-            const diffInMinutes = Math.floor(diffInHours * 60);
-            return `${diffInMinutes} min`;
-          } else if (diffInHours < 24) {
-            return `${Math.floor(diffInHours)}h`;
-          } else if (diffInHours < 168) {
-            // 7 days
-            const diffInDays = Math.floor(diffInHours / 24);
-            return `${diffInDays}d`;
-          } else {
-            return dateObj.toLocaleDateString(locale, {
-              timeZone,
-              month: "short",
-              day: "numeric",
-            });
-          }
-
-        case "datetime":
-        default:
-          return dateObj.toLocaleString(locale, {
-            timeZone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
-      }
+      return getDateByFormat(format, dateObj, locale, timeZone);
     } catch (error) {
       return fallback;
     }

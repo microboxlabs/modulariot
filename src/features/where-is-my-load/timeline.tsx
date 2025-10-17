@@ -268,7 +268,7 @@ export default function Timeline({
   }
 
   return (
-    <div ref={timelineRef} className="w-fit h-fit flex flex-col lg:flex-row">
+    <div ref={timelineRef} className="w-fit h-fit flex flex-col xl:flex-row">
       <ModalTooltip
         lang={lang}
         userGroups={userGroups}
@@ -301,7 +301,7 @@ export default function Timeline({
           </div>
         </div>
       )}
-      <div className="block lg:hidden mb-4 w-full">
+      <div className="block xl:hidden mb-4 w-full">
         <SideInfo
           badges={badges}
           item={data ? data[actualState] : undefined}
@@ -331,7 +331,7 @@ export default function Timeline({
           );
         })}
       </div>
-      <div className="hidden lg:block sticky top-1/2 transform -translate-y-1/2 w-full h-fit ml-12">
+      <div className="hidden xl:block sticky top-1/2 transform -translate-y-1/2 w-full h-fit ml-12">
         <SideInfo
           badges={badges}
           item={data ? data[actualState] : undefined}

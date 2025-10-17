@@ -17,7 +17,10 @@ const kanban_params: ParamType[] = [
   setParam("date_range", "date_range"),
 ];
 
-const where_is_my_load_params: ParamType[] = [setParam("loadId", "text")];
+const where_is_my_load_params: ParamType[] = [
+  setParam("expeditionCode", "text"),
+  setParam("expeditionNumber", "text"),
+];
 
 function setParam(param: ParamType, type: "date_range" | "text" | "bool") {
   return { param, type } as ParamType;
@@ -29,14 +32,20 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     shipping: getParamsFixed(kanban_params, dict),
     delivery: getParamsFixed(kanban_params, dict),
     mytasks: getParamsFixed(kanban_params, dict),
-    "where-is-my-load": getParamsFixed(where_is_my_load_params, dict, size > 0),
+    "where-is-my-load": getParamsFixed(
+      where_is_my_load_params,
+      dict,
+      size > 0,
+      true
+    ),
   };
 }
 
 function getParamsFixed(
   params: ParamType[],
   dict: I18nRecord,
-  shouldExist: boolean = true
+  shouldExist: boolean = true,
+  unique: boolean = false
 ) {
   if (!shouldExist) {
     return null;
@@ -52,6 +61,7 @@ function getParamsFixed(
         key: paramKey,
         type: paramType,
       },
+      unique,
     };
   });
 }

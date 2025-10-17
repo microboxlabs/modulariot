@@ -943,9 +943,27 @@ export function useUserFilters() {
   };
 }
 
-export function useSearchLoad(loadId: string | undefined) {
+export function useSearchLoad(
+  expeditionCode: string | undefined,
+  expeditionNumber: string | undefined
+) {
+  // Build query parameters only for values that exist
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    if (expeditionCode) {
+      params.append("expeditionCode", expeditionCode);
+    }
+    if (expeditionNumber) {
+      params.append("expeditionNumber", expeditionNumber);
+    }
+    return params.toString();
+  };
+
+  const queryString = buildQueryString();
   const { data, error, isLoading } = useSWR<LoadSearchResponse[], FetcherError>(
-    loadId ? `/app/api/load/search?loadId=${loadId}` : null,
+    expeditionCode || expeditionNumber
+      ? `/app/api/load/search?${queryString}`
+      : null,
     fetcher
   );
   return {

@@ -1571,7 +1571,8 @@
     "date_range": "Date Range",
     "internal": "Internal",
     "external": "External",
-    "loadId": "Expedition ID"
+    "expeditionCode": "Expedition Code",
+    "expeditionNumber": "Expedition Number"
   },
   "comments": {
     "title": "Comments",
@@ -1600,8 +1601,11 @@
     "end": "End",
     "delay_pre_start": "Start with Delay of ",
     "delay_pre_end": "End with Delay of ",
+    "delay_proj_start": "Projected start with Delay of ",
+    "delay_proj_end": "Projected end with Delay of ",
     "expedition_info": "Expedition Information",
     "search_for_your_load": "Search for your load",
-    "use_searchbar": "Use the searchbar to track the state of your load."
+    "use_searchbar": "Use the searchbar to track the state of your load.",
+    "wheres_my_load": "Where's my load?"
   }
 }

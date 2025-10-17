@@ -39,15 +39,24 @@ export type State = {
   extradata: { [key: string]: string | number | boolean };
   time: {
     start: string | null;
-    estimated_start: string | null;
+    projected_start: string | null;
     end: string | null;
-    estimated_end: string | null;
+    projected_end: string | null;
+    lead_time_start: string | null;
+    lead_time_end: string | null;
     duration: number | null;
   };
   visible: boolean;
   enabled: boolean;
   task_id: string | null;
   urgency: boolean;
+  expedition: {
+    code: number | null;
+    number: number | null;
+  };
+  oferta_producto?: string | null;
+  origin?: string | null;
+  destination?: string | null;
 };
 
 export default function Timeline({
@@ -72,9 +81,13 @@ export default function Timeline({
 
   const timelineRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
-  const loadId = searchParams.get("loadId");
+  const expeditionCode = searchParams.get("expeditionCode") || undefined;
+  const expeditionNumber = searchParams.get("expeditionNumber") || undefined;
 
-  const { data, error, isLoading } = useSearchLoad(loadId ?? "");
+  const { data, error, isLoading } = useSearchLoad(
+    expeditionCode,
+    expeditionNumber
+  );
 
   const states = useMemo(() => {
     return data && data.length > 0
@@ -84,8 +97,10 @@ export default function Timeline({
             time: {
               start: item.start_time__,
               end: item.end_time__,
-              estimated_start: item.estimated_start_time_,
-              estimated_end: item.estimated_end_time_,
+              projected_start: item.projected_start_time_,
+              projected_end: item.projected_end_time_,
+              lead_time_start: item.start_lead_time_,
+              lead_time_end: item.end_lead_time_,
               duration: item.duration__,
             },
             icon: getLoadIcon(item.icon),
@@ -96,6 +111,13 @@ export default function Timeline({
             visible: item.visible,
             enabled: item.enabled,
             task_id: item.task_id_ ?? null,
+            expedition: {
+              code: item.expe_codigo_,
+              number: item.expe_numero_,
+            },
+            oferta_producto: item.oferta_producto_ ?? null,
+            origin: item.origen ?? null,
+            destination: item.destino ?? null,
           };
         })
       : [];
@@ -192,7 +214,7 @@ export default function Timeline({
     return badgeList;
   }, [states, actualState, dict]);
 
-  if (!loadId) {
+  if (!expeditionCode && !expeditionNumber) {
     return (
       <SearchScreen
         dict={dict}
@@ -229,9 +251,12 @@ export default function Timeline({
     );
   }
 
-  // Validate loadId after all hooks have executed to satisfy rules-of-hooks
-  const invalidLoadId = loadId != null && !/^[0-9]+$/.test(loadId);
-  if (invalidLoadId) {
+  // Validate expeditionCode and expeditionNumber after all hooks have executed to satisfy rules-of-hooks
+  const invalidExpeditionCode =
+    expeditionCode != null && !/^[0-9]+$/.test(expeditionCode);
+  const invalidExpeditionNumber =
+    expeditionNumber != null && !/^[0-9]+$/.test(expeditionNumber);
+  if (invalidExpeditionCode || invalidExpeditionNumber) {
     return (
       <div className="w-full h-full p-2 text-gray-900 dark:text-gray-100 flex flex-col justify-center items-center text-lg">
         <EmptyAnimation />
@@ -344,19 +369,31 @@ function SideInfo({
           <div className="grid grid-cols-[max-content_max-content] gap-2">
             <LoadableLabel
               label="Código"
-              value="3849494"
+              value={state.expedition.code ?? "-"}
               className="!text-base"
             />
             <LoadableLabel
               label="N° de expedición"
-              value="-"
+              value={state.expedition.number ?? "-"}
               className="!text-base"
             />
-            <LoadableLabel label="Largo" value="-" className="!text-base" />
-            <LoadableLabel label="Ancho" value="-" className="!text-base" />
-            <LoadableLabel label="Alto" value="-" className="!text-base" />
+            <LoadableLabel
+              label="Origen"
+              value={state.origin ?? "-"}
+              className="!text-base"
+            />
             <LoadableLabel label="Volumen" value="-" className="!text-base" />
+            <LoadableLabel
+              label="Destino"
+              value={state.destination ?? "-"}
+              className="!text-base"
+            />
             <LoadableLabel label="Peso" value="-" className="!text-base" />
+            <LoadableLabel
+              label="Oferta producto"
+              value={state.oferta_producto ?? "-"}
+              className="!text-base"
+            />
             <LoadableLabel label="Bultos" value="-" className="!text-base" />
           </div>
         </CustomCard>
@@ -383,19 +420,19 @@ function DateBox({
 }: {
   time: {
     start: string | null;
-    estimated_start: string | null;
+    projected_start: string | null;
     end: string | null;
-    estimated_end: string | null;
+    projected_end: string | null;
     duration: number | null;
   };
   dict: I18nRecord;
 }) {
   const start = fromString(
-    (time.start ? time.start : time.estimated_start) as string
+    (time.start ? time.start : time.projected_start) as string
   ).format("MM/DD/YYYY HH:mm");
 
   const end = fromString(
-    (time.end ? time.end : time.estimated_end) as string
+    (time.end ? time.end : time.projected_end) as string
   ).format("MM/DD/YYYY HH:mm");
 
   return (
@@ -405,7 +442,7 @@ function DateBox({
           label={
             time.start
               ? tr("wheres_my_load.start", dict)
-              : tr("wheres_my_load.estimated_start", dict)
+              : tr("wheres_my_load.projected_start", dict)
           }
           value={<FormattedDate date={start} format="datetime" />}
           className="!text-base"
@@ -414,7 +451,7 @@ function DateBox({
           label={
             time.end
               ? tr("wheres_my_load.end", dict)
-              : tr("wheres_my_load.estimated_end", dict)
+              : tr("wheres_my_load.projected_end", dict)
           }
           value={<FormattedDate date={end} format="datetime" />}
           className="!text-base"

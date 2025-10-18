@@ -19,11 +19,13 @@ export default function ParametrizedSearchBar({
   messages,
   searchParams,
   navegation_params,
+  className = "",
 }: {
   dict: I18nRecord;
   messages: any;
   searchParams: any;
   navegation_params: any;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -32,12 +34,28 @@ export default function ParametrizedSearchBar({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = useDebouncedCallback((term: string, param: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (term) {
+    // Check if this param is unique
+    const paramConfig = navegation_params.find(
+      (p: any) => p.param.key === param
+    );
+    const isUnique = paramConfig?.unique || false;
+
+    let params: URLSearchParams;
+
+    if (isUnique && term) {
+      // For unique params, create new URLSearchParams with only the new parameter
+      params = new URLSearchParams();
       params.set(param, term);
     } else {
-      params.delete(param);
+      // Normal behavior for non-unique params
+      params = new URLSearchParams(searchParams.toString());
+      if (term) {
+        params.set(param, term);
+      } else {
+        params.delete(param);
+      }
     }
+
     router.push(`${pathName}?${params.toString()}`);
   }, 300);
 
@@ -75,11 +93,13 @@ export default function ParametrizedSearchBar({
     (param: any) => param.param.type === "bool"
   );
 
+  const style =
+    className != ""
+      ? className
+      : `flex items-center gap-2 flex-row w-full ${open ? "lg:relative absolute left-0 right-0 top-0 p-3 lg:p-0 bg-white dark:bg-gray-800 z-30" : ""} `;
+
   return (
-    <div
-      ref={containerRef}
-      className={`flex items-center gap-2 flex-row w-full max-h- ${open ? "lg:relative absolute left-0 right-0 top-0 p-3 lg:p-0 bg-white z-30" : ""}`}
-    >
+    <div ref={containerRef} className={`${style} `}>
       <div
         className={`flex items-center gap-2 flex-col relative w-full lg:w-fit ${open ? "bg-gray-100 dark:bg-gray-700 rounded-t-lg" : ""}`}
       >

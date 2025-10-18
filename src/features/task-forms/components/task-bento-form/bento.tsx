@@ -102,7 +102,7 @@ export default function Bento({
         </div>
 
         {/* Historic Loads - spans full width */}
-        <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[300px] max-h-[360px] lg:max-h-[515px] 2xl:max-h-[360px]">
+        <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg min-h-[300px] max-h-[360px] lg:max-h-full">
           <HistoricLoads
             task={task}
             dictionary={dict as unknown as Record<string, string>}

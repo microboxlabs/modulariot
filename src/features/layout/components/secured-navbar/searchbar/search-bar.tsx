@@ -35,9 +35,9 @@ export default function SearchBar({
   );
 
   const final_path = pathName.split("/")[pathName.split("/").length - 1];
-  const navegation_params = getNavegationParams(dict);
+  const navegation_params = getNavegationParams(dict, searchParams.size);
 
-  if (!navegation_params[final_path as keyof typeof navegation_params]) {
+  if (!(final_path in navegation_params)) {
     return (
       <div className="flex items-center gap-2">
         <TextInput
@@ -56,16 +56,20 @@ export default function SearchBar({
       </Button> */}
       </div>
     );
-  } else {
-    return (
-      <ParametrizedSearchBar
-        dict={dict}
-        messages={messages}
-        searchParams={searchParams}
-        navegation_params={
-          navegation_params[final_path as keyof typeof navegation_params]
-        }
-      />
-    );
   }
+
+  if (!navegation_params[final_path as keyof typeof navegation_params]) {
+    return null;
+  }
+
+  return (
+    <ParametrizedSearchBar
+      dict={dict}
+      messages={messages}
+      searchParams={searchParams}
+      navegation_params={
+        navegation_params[final_path as keyof typeof navegation_params]
+      }
+    />
+  );
 }

@@ -10,7 +10,6 @@ import SymptomsCard from "@/features/task-forms/components/task-bento-form/compo
 import BentoHead from "@/features/task-forms/components/task-bento-form/bento-head";
 import { usePathname } from "next/navigation";
 import { pathNameWithoutLanguage } from "@/features/layout/utils/utils";
-import { useEffect } from "react";
 
 export default function ModalTooltip({
   selectedTask,
@@ -18,16 +17,18 @@ export default function ModalTooltip({
   dict,
   lang,
   userGroups,
+  isFinished,
 }: {
   readonly selectedTask: string | null;
   readonly setSelectedTask: (task: string | null) => void;
   readonly dict: I18nRecord;
   readonly lang: string;
   readonly userGroups: string[];
+  readonly isFinished: boolean;
 }) {
   const pathname = usePathname();
   const pathWithoutLang = pathNameWithoutLanguage(pathname);
-  const isFinishedPage = pathWithoutLang.includes("/finished");
+  const isFinishedPage = pathWithoutLang.includes("/finished") || isFinished;
 
   const { data, error, isLoading } = useGetTasksById(
     selectedTask ?? "",

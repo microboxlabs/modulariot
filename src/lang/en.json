@@ -304,7 +304,7 @@
         "Asignar Conductor": "Assign Driver",
         "consolidateLoad": "Consolidate Load",
         "separateDocuments": "Separate Documents",
-        "planService": "Plan Service",        
+        "planService": "Plan Service",
         "compact": "Compact",
         "expand": "Expand",
         "weight": "Weight",
@@ -942,6 +942,7 @@
         "settings": "Settings",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
+        "whereIsMyLoad": "Where is my load?",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms"
       }
@@ -1569,7 +1570,9 @@
     "originType": "Origin Type",
     "date_range": "Date Range",
     "internal": "Internal",
-    "external": "External"
+    "external": "External",
+    "expeditionCode": "Expedition Code",
+    "expeditionNumber": "Expedition Number"
   },
   "comments": {
     "title": "Comments",
@@ -1584,5 +1587,25 @@
     "route": "Route",
     "client": "Client",
     "no_more_tasks_to_load": "No more tasks to load"
+  },
+  "wheres_my_load": {
+    "not_found": "There's no record of the entered load ID.",
+    "title": "Track your load",
+    "search": "Use the searchbar to track the state of your load.",
+    "search_screen_title": "Search for your load",
+    "search_screen_subtitle": "Use the searchbar to track the state of your load",
+    "timeline": "Timeline of the load",
+    "projected_start": "Projected start",
+    "projected_end": "Projected end",
+    "start": "Start",
+    "end": "End",
+    "delay_pre_start": "Start with Delay of ",
+    "delay_pre_end": "End with Delay of ",
+    "delay_proj_start": "Projected start with Delay of ",
+    "delay_proj_end": "Projected end with Delay of ",
+    "expedition_info": "Expedition Information",
+    "search_for_your_load": "Search for your load",
+    "use_searchbar": "Use the searchbar to track the state of your load.",
+    "wheres_my_load": "Where's my load?"
   }
 }

@@ -1,6 +1,16 @@
 import type { Config } from "tailwindcss";
 import flowbite from "flowbite-react/tailwind";
 
+// Common animation keyframe properties
+const ANIMATION_PROPS = {
+  HIDDEN: { opacity: "0", display: "none", maxHeight: "0" },
+  VISIBLE_FLEX: { opacity: "1", display: "flex", maxHeight: "100%" },
+  VISIBLE_INLINE: { opacity: "1", display: "inline", maxHeight: "100%" },
+  HALF_HIDDEN: { opacity: "0", display: "none", maxHeight: "50%" },
+  SCALE_HIDDEN: { opacity: "0", width: "0", scale: "0" },
+  SCALE_VISIBLE: { opacity: "1", width: "100%", scale: "1" },
+};
+
 const config: Config = {
   content: [
     "./node_modules/flowbite-react/lib/**/*.js",
@@ -29,44 +39,46 @@ const config: Config = {
         "hide-flex": "hide-flex 0.2s ease-in-out forwards",
         "show-flex-middle": "show-flex-middle 0.2s ease-in-out forwards",
         "hide-flex-middle": "hide-flex-middle 0.2s ease-in-out forwards",
+        "hide-scale": "hide-scale 0.2s ease-in-out forwards",
+        "show-scale": "show-scale 0.2s ease-in-out forwards",
       },
       keyframes: {
         "hide-scale": {
-          "0%": { opacity: "1", scale: "1" },
-          "50%": { opacity: "0", scale: "0" },
-          "100%": { opacity: "0", scale: "0", display: "none" },
+          "0%": ANIMATION_PROPS.SCALE_VISIBLE,
+          "50%": ANIMATION_PROPS.SCALE_HIDDEN,
+          "100%": { ...ANIMATION_PROPS.SCALE_HIDDEN, display: "none" },
         },
         "show-scale": {
-          "0%": { opacity: "0", scale: "0", display: "flex" },
-          "50%": { opacity: "0", scale: "0" },
-          "100%": { opacity: "1", scale: "1" },
+          "0%": { ...ANIMATION_PROPS.SCALE_HIDDEN, display: "flex" },
+          "50%": ANIMATION_PROPS.SCALE_HIDDEN,
+          "100%": ANIMATION_PROPS.SCALE_VISIBLE,
         },
         "hide": {
-          "0%": { opacity: "1", display: "inline", maxHeight: "100%" },
-          "50%": { opacity: "0", display: "none", maxHeight: "50%" },
-          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+          "0%": ANIMATION_PROPS.VISIBLE_INLINE,
+          "50%": ANIMATION_PROPS.HALF_HIDDEN,
+          "100%": ANIMATION_PROPS.HIDDEN,
         },
         "hide-flex": {
-          "0%": { opacity: "1", display: "flex", maxHeight: "100%" },
-          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+          "0%": ANIMATION_PROPS.VISIBLE_FLEX,
+          "100%": ANIMATION_PROPS.HIDDEN,
         },
         "hide-flex-middle": {
-          "0%": { opacity: "1", display: "flex", maxHeight: "100%" },
-          "50%": { opacity: "0", display: "none", maxHeight: "50%" },
-          "100%": { opacity: "0", display: "none", maxHeight: "0" },
+          "0%": ANIMATION_PROPS.VISIBLE_FLEX,
+          "50%": ANIMATION_PROPS.HALF_HIDDEN,
+          "100%": ANIMATION_PROPS.HIDDEN,
         },
         "show-flex": {
-          "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
+          "0%": ANIMATION_PROPS.HIDDEN,
+          "100%": ANIMATION_PROPS.VISIBLE_FLEX,
         },
         "show-flex-middle": {
-          "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "50%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "flex", maxHeight: "100%" },
+          "0%": ANIMATION_PROPS.HIDDEN,
+          "50%": ANIMATION_PROPS.HIDDEN,
+          "100%": ANIMATION_PROPS.VISIBLE_FLEX,
         },
         "show": {
-          "0%": { opacity: "0", display: "none", maxHeight: "0" },
-          "100%": { opacity: "1", display: "inline", maxHeight: "100%" },
+          "0%": ANIMATION_PROPS.HIDDEN,
+          "100%": ANIMATION_PROPS.VISIBLE_INLINE,
         },
         "hide-width": {
           "0%": { opacity: "1", display: "flex", maxWidth: "100%" },

@@ -31,6 +31,7 @@ import {
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
+import { LoadSearchResponse } from "@/types/load.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -937,6 +938,36 @@ export function useUserFilters() {
   );
   return {
     data: data?.data,
+    error,
+    isLoading,
+  };
+}
+
+export function useSearchLoad(
+  expeditionCode: string | undefined,
+  expeditionNumber: string | undefined
+) {
+  // Build query parameters only for values that exist
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    if (expeditionCode) {
+      params.append("expeditionCode", expeditionCode);
+    }
+    if (expeditionNumber) {
+      params.append("expeditionNumber", expeditionNumber);
+    }
+    return params.toString();
+  };
+
+  const queryString = buildQueryString();
+  const { data, error, isLoading } = useSWR<LoadSearchResponse[], FetcherError>(
+    expeditionCode || expeditionNumber
+      ? `/app/api/load/search?${queryString}`
+      : null,
+    fetcher
+  );
+  return {
+    data,
     error,
     isLoading,
   };

@@ -232,6 +232,7 @@ export default function PageContent({
               selectedTask={selectedTask}
               setSelectedTask={setSelectedTask}
               dict={dictionary.general}
+              isFinished={false}
             />
             {list.map((board) => {
               if (showFinishedTasks) {

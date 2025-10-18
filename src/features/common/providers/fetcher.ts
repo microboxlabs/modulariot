@@ -122,7 +122,7 @@ export default async function httfetcher<T>(
       );
     }
 
-    if (!response.ok) {
+    if (!response.ok && response.status !== 401) {
       const error = new Error(response.statusText) as FetcherError;
       error.status = response.status;
       // Try to parse error response as JSON, but handle cases where there's no body

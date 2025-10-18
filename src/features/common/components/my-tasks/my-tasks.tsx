@@ -165,6 +165,7 @@ export default function MyTasks({
         selectedTask={selectedTask}
         setSelectedTask={setSelectedTask}
         dict={dict as I18nRecord}
+        isFinished={status === "finished"}
       />
       {hasScrolled && (
         <button

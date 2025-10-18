@@ -1,0 +1,41 @@
+# 🔔 Release Notes v1.22.0 — ModularIoT
+
+### Fecha: 17/10/2025
+
+**Objetivo**: implementar la nueva funcionalidad "¿Dónde está está mi carga?", un visualizador de trazabilidad avanzada integrado al Business Activity Monitor (BAM) de ModularIoT, que permite responder de forma inmediata y visual a la pregunta central del proceso logístico: ¿Dónde está etapa se encuentra mi carga?
+
+## 🚀 Evolutivos
+
+- **🧭 Visualizador de Trazabilidad "¿Dónde está está mi carga?"**
+  - Nueva **vista E2E (End to End)** que interpreta los datos de trazabilidad para mostrar el "camino" de cada carga desde su origen hasta la entrega.
+  - **Visualización dinámica según el tipo de ejecución**:
+    - Dependiendo de la configuración del servicio, el flujo mostrará uno, dos o más servicios asociados (directo, troncal, abastecimiento, entre otros).
+  - **Cálculo y despliegue automático de**:
+    - Fechas de inicio, fin y duración estimada.
+    - Cumplimiento de Lead Time y desviaciones detectadas.
+    - Incidencias de tipo urgencia y alertas asociadas.
+    - Campos paramétricos configurables por cliente y tipo de servicio.
+  - **Tooltip interactivo con**:
+    - Información contextual (viaje asignado, conductor, transportista).
+    - Navegación directa al expediente o al viaje correspondiente.
+  - **Filtro inteligente de búsqueda**:
+    - Permite búsqueda por código de expedición y número de expedición.
+    - Compatibilidad con cargas no asociadas a servicios, mostrando información directa de OC y estado actual.
+
+## 🧩 Integraciones
+
+- **Integrado al Business Activity Monitor (BAM)** para centralizar el análisis operativo.
+- **Sincronizado con el Coordinador de Viajes**, lo que permite correlacionar viajes, servicios troncales y actividades de abastecimiento.
+- **Enlace directo con el expediente de servicio**, permitiendo navegar a tareas o documentos relacionados en un clic.
+
+## 📊 Beneficios
+
+- **Responde en segundos** a la pregunta "¿Dónde está está mi carga?" con datos reales y actualizados.
+- **Mejora la transparencia y trazabilidad** para clientes y equipos operativos.
+- **Reduce tiempos de búsqueda y seguimiento manual**.
+- **Detecta desviaciones y cuellos de botella** con antelación.
+- **Aumenta la capacidad analítica** al incorporar KPIs de Lead Time y cumplimiento.
+
+## 📌 Conclusión
+
+La versión 1.22.0 de ModularIoT marca un avance clave en la gestión operativa y visibilidad logística, integrando la funcionalidad "¿Dónde está está mi carga?" dentro del BAM. Esta implementación amplía la trazabilidad de extremo a extremo, introduce búsqueda inteligente y visualización contextual, y consolida la información en una sola interfaz que interpreta el flujo logístico completo. Con ello, MicroBoxLabs y Mintral fortalecen su ecosistema operativo, habilitando decisiones más ágiles, transparentes y basadas en datos.

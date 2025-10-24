@@ -66,5 +66,8 @@ export function humanizeFrom(date: string): string {
 }
 
 export function fromString(date: string): dayjs.Dayjs {
+  if (!date) {
+    return dayjs("-");
+  }
   return dayjs.tz(date, "America/Santiago");
 }

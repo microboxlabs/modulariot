@@ -22,12 +22,20 @@ export default function TimelineStates({
   statesCount: number;
   setSelectedTask: (taskId: string | null) => void;
   dict: I18nRecord;
+  oferta_producto?: string | null;
+  origin?: string | null;
+  destination?: string | null;
 }) {
   const [hovered, setHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const is_urgent = state.urgency;
   const is_enabled = state;
-  const temporalData = TemporalComponent({ time: state.time, dict });
+  const temporalData = TemporalComponent({
+    time: state.time,
+    dict,
+    index,
+    actualState,
+  });
   const task_id = state.task_id;
 
   return (
@@ -38,7 +46,7 @@ export default function TimelineStates({
             <div
               className={`h-12 w-12 bg-gray-800 dark:bg-gray-200 rounded-full flex items-center justify-center border-4 border-gray-50 dark:border-gray-900 text-gray-100 dark:text-gray-700 ${is_urgent ? " bg-purple-500 dark:bg-purple-400" : ""}`}
             >
-              {!state.time.end ? (
+              {!state.time.end && !state.time.start ? (
                 <FaMinus className="h-6 w-6" />
               ) : (
                 <FaCheck className="h-6 w-6" />
@@ -139,6 +147,8 @@ export function DelayCalculations({
   dict,
 }: {
   temporalData: {
+    delay_projected_start?: boolean;
+    delay_projected_end?: boolean;
     start_delay: number | null;
     end_delay: number | null;
     component: React.ReactNode | null;
@@ -150,11 +160,19 @@ export function DelayCalculations({
       className={`flex flex-wrap gap-1 ${temporalData.start_delay || temporalData.end_delay ? "flex" : "hidden"}`}
     >
       <DelayComponent
-        label={tr("wheres_my_load.delay_pre_start", dict)}
+        label={
+          temporalData.delay_projected_start
+            ? tr("wheres_my_load.delay_proj_start", dict)
+            : tr("wheres_my_load.delay_pre_start", dict)
+        }
         delay={temporalData.start_delay}
       />
       <DelayComponent
-        label={tr("wheres_my_load.delay_pre_end", dict)}
+        label={
+          temporalData.delay_projected_end
+            ? tr("wheres_my_load.delay_proj_end", dict)
+            : tr("wheres_my_load.delay_pre_end", dict)
+        }
         delay={temporalData.end_delay}
       />
     </div>
@@ -164,56 +182,77 @@ export function DelayCalculations({
 export function TemporalComponent({
   time,
   dict,
+  index,
+  actualState,
 }: {
   time: {
     start: string | null;
-    estimated_start: string | null;
     end: string | null;
-    estimated_end: string | null;
+    projected_start: string | null;
+    projected_end: string | null;
+    lead_time_end: string | null;
+    lead_time_start: string | null;
     duration: number | null;
   };
   dict: I18nRecord;
+  index?: number;
+  actualState?: number;
 }) {
   if (
     time.start === null &&
-    time.estimated_start === null &&
+    time.projected_start === null &&
     time.end === null &&
-    time.estimated_end === null
+    time.projected_end === null
   ) {
     return {
+      delay_projected_start: false,
+      delay_projected_end: false,
       start_delay: null,
       end_delay: null,
       component: null,
     };
   }
 
-  const start = fromString(
-    (time.start ? time.start : time.estimated_start) as string
-  ).format("MM/DD/YYYY HH:mm");
+  // Agregar verificacion, si leadtime es nulo en inicio o fin, no hacer calculos afin
+  const startDate = (time.start ? time.start : time.projected_start) as string;
+  const endDate = (time.end ? time.end : time.projected_end) as string;
 
-  const start_delayed =
-    time.start && time.estimated_start
-      ? fromString(time.start).isAfter(fromString(time.estimated_start))
-      : false;
+  let start_delay = null;
+  let end_delay = null;
 
-  const start_delay =
-    start_delayed && time.start && time.estimated_start
-      ? fromString(time.start).diff(fromString(time.estimated_start))
-      : null;
+  const lead_time_start = time.lead_time_start;
+  const lead_time_end = time.lead_time_end;
 
-  const end = fromString(
-    (time.end ? time.end : time.estimated_end) as string
-  ).format("MM/DD/YYYY HH:mm");
+  // Use timezone-aware comparison for Santiago, Chile
+  const start_delayed = lead_time_start
+    ? fromString(startDate).isAfter(fromString(lead_time_start))
+    : false;
 
-  const end_delayed =
-    time.end != null && time.estimated_end != null
-      ? fromString(time.end).isAfter(fromString(time.estimated_end))
-      : false;
+  const end_delayed = lead_time_end
+    ? fromString(endDate).isAfter(fromString(lead_time_end))
+    : false;
 
-  const end_delay =
-    end_delayed && time.end && time.estimated_end
-      ? fromString(time.end).diff(fromString(time.estimated_end))
-      : null;
+  if (start_delayed && lead_time_start) {
+    start_delay = getDelay(startDate, lead_time_start);
+  }
+
+  if (end_delayed && lead_time_end) {
+    end_delay = getDelay(endDate, lead_time_end);
+  }
+
+  if (index !== undefined && actualState !== undefined) {
+    if (index < actualState) {
+      if (!time.start && !time.end) {
+        return {
+          delay_projected_start: false,
+          delay_projected_end: false,
+          component: null,
+          start_delay: null,
+          end_delay: null,
+        };
+      }
+    }
+  }
 
   return {
     component: (
@@ -226,7 +265,12 @@ export function TemporalComponent({
           <span
             className={`${start_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >
-            <FormattedDate date={start} format="datetime" />
+            <FormattedDate
+              date={startDate}
+              format="datetime"
+              locale="es-CL"
+              timeZone="America/Santiago"
+            />
           </span>
         </span>
         <span>
@@ -237,14 +281,25 @@ export function TemporalComponent({
           <span
             className={`${end_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
           >
-            <FormattedDate date={end} format="datetime" />
+            <FormattedDate
+              date={endDate}
+              format="datetime"
+              locale="es-CL"
+              timeZone="America/Santiago"
+            />
           </span>
         </span>
       </div>
     ),
     start_delay, // Duration object or null, if its a duration object paint the flag in the main component
     end_delay, // Duration object or null, if its a duration object paint the flag in the main component
+    delay_projected_start: time.start ? false : true,
+    delay_projected_end: time.end ? false : true,
   };
+}
+
+function getDelay(date: string, date_to_compare: string): number | null {
+  return fromString(date).diff(fromString(date_to_compare));
 }
 
 function DelayComponent({

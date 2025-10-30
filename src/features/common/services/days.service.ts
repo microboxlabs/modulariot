@@ -2,6 +2,8 @@ import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
 import updateLocale from "dayjs/plugin/updateLocale";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 
 import "dayjs/locale/es-mx";
 import "dayjs/locale/en";
@@ -10,6 +12,8 @@ import { defaultLocale } from "@/features/i18n/tr.service";
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 dayjs.extend(updateLocale);
+dayjs.extend(timezone);
+dayjs.extend(utc);
 
 dayjs.updateLocale("es-mx", {
   relativeTime: {
@@ -62,5 +66,8 @@ export function humanizeFrom(date: string): string {
 }
 
 export function fromString(date: string): dayjs.Dayjs {
-  return dayjs(date);
+  if (!date) {
+    return dayjs("-");
+  }
+  return dayjs.tz(date, "America/Santiago");
 }

@@ -15,15 +15,33 @@ export async function GET(request: Request) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const loadId = searchParams.get("loadId");
+    const expeditionCode = searchParams.get("expeditionCode");
+    const expeditionNumber = searchParams.get("expeditionNumber");
 
-    if (!loadId || /[a-zA-Z]/.test(loadId)) {
+    if (!expeditionCode && !expeditionNumber) {
       return NextResponse.json([]);
+    }
+
+    if (expeditionCode && /[a-zA-Z]/.test(expeditionCode)) {
+      return NextResponse.json([]);
+    }
+
+    if (expeditionNumber && /[a-zA-Z]/.test(expeditionNumber)) {
+      return NextResponse.json([]);
+    }
+
+    // Only include parameters that have values
+    const requestBody: { p_expedition_id?: string; p_expe_num?: string } = {};
+    if (expeditionCode) {
+      requestBody.p_expedition_id = expeditionCode;
+    }
+    if (expeditionNumber) {
+      requestBody.p_expe_num = expeditionNumber;
     }
 
     const response = await fetch(SYMPTOMS_API_URL, {
       method: "POST",
-      body: JSON.stringify({ p_expedition_id: +(loadId ?? "") }),
+      body: JSON.stringify(requestBody),
       headers: {
         accept: "application/json",
         Authorization: `Bearer ${TOKEN}`,
@@ -39,7 +57,7 @@ export async function GET(request: Request) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    //console.log(await response.json());
+    // console.log(await response.json());
 
     const apiData = (await response.json()) as LoadSearchResponse;
 

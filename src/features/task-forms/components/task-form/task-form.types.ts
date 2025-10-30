@@ -25,7 +25,7 @@ export interface ExtendedTaskResponse
   mintral_originDelegateCode: string;
   mintral_destinationDelegateCode: string;
   mintral_expectedDepartureDate: string;
-  mintral_estimatedArrivalDate: string;
+  mintral_estimatedArrivalDate?: string;
   mintral_truckLicensePlate: string;
   mintral_trailerLicensePlate: string;
   mintral_driver1Name: string;

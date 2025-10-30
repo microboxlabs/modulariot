@@ -375,8 +375,8 @@
       "kanban": {
         "confirmDelivery": "Confirmar Entrega",
         "confirmDeliveryCompact": "Confirmar Entrega",
-        "receiveDelivery": "Recibir Entrega",
-        "receiveDeliveryCompact": "Recibir Entrega",
+        "receiveDelivery": "Confirmar Recepción",
+        "receiveDeliveryCompact": "Confirmar Recepción",
         "notifyTMSArrival": "Notificar Arribo (4.7)",
         "notifyTMSArrivalCompact": "Notificar Arribo",
         "notifyTMSDelivery": "Notificar Entrega (5.11)",

@@ -59,7 +59,7 @@ export interface TripHistoryItem {
   wfship_missionControlValidationOutcome: string;
   missionControlTripInit: string[];
   wfship_startEventOutcome: string;
-  mintral_estimatedArrivalDate: string;
+  mintral_estimatedArrivalDate?: string;
   mintral_serviceKind: string;
   instanceId: string;
   monitoringInCourseTrip: string[];

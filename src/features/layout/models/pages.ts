@@ -113,7 +113,7 @@ export const pages: SidebarItem[] = [
     icon: ChartMixedIcon,
     label: "whereIsMyLoad",
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
     blockedGroups: [], // Hide reports section from revisors
   },
 ];

@@ -31,6 +31,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     finished: getParamsFixed(kanban_params, dict),
     shipping: getParamsFixed(kanban_params, dict),
     delivery: getParamsFixed(kanban_params, dict),
+    planning: getParamsFixed(kanban_params, dict),
     mytasks: getParamsFixed(kanban_params, dict),
     "where-is-my-load": getParamsFixed(
       where_is_my_load_params,

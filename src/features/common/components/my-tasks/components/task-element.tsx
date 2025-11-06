@@ -1,9 +1,9 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
-import { FormattedDate } from "../../formatted-date/formatted-date";
 import { GoToBentoButton } from "./go-to-bento-button";
 import { TaskPrimaryInfo } from "./task-primary-info";
+import { getTimeDifference } from "@/features/task-forms/components/task-bento-form/time-element";
 
 const TaskListElement = React.forwardRef<
   HTMLDivElement,
@@ -20,6 +20,11 @@ const TaskListElement = React.forwardRef<
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const alert_level = task.mintral_icuCondition || 0;
+
+  // Memoize the time difference calculation to prevent updates on every render
+  const timeDifference = useMemo(() => {
+    return getTimeDifference(task.cm_created as string);
+  }, [task.cm_created]);
 
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {
@@ -82,9 +87,7 @@ const TaskListElement = React.forwardRef<
       <div
         className={`flex items-center ${column_base_style} font-light border-x-0`}
       >
-        <p className="text-lg whitespace-nowrap">
-          <FormattedDate date={task.duration} format="time" />
-        </p>
+        <p className="text-lg whitespace-nowrap">{timeDifference}</p>
       </div>
       <div
         className={`flex items-center ${column_base_style} font-light border-x-0`}

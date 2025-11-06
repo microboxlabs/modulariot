@@ -16,7 +16,7 @@ export default function TimeElement({
   endTime: string;
 }) {
   const [_currentTime, setCurrentTime] = useState(new Date());
-  let timeDifference = getTimeDifference(task);
+  let timeDifference = getTimeDifference(task.cm_created as string);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -55,10 +55,10 @@ export default function TimeElement({
   );
 }
 
-function getTimeDifference(task: TaskResponse) {
+export function getTimeDifference(comparableDate: string) {
   // Handle different date formats and ensure proper timezone handling
   let creationDate: Date;
-  const dateString = task.cm_created as string;
+  const dateString = comparableDate;
 
   if (!dateString) {
     return "0s";

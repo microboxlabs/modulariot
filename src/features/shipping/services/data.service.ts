@@ -84,6 +84,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     mintral_priorityCode: task.mintral_priorityCode as string,
     mintral_icuCondition: task.mintral_icuCondition as number,
     isEditable: task.isEditable as boolean,
+    cm_created: task.cm_created as string,
   };
 }
 

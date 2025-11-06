@@ -105,6 +105,7 @@ export default function HistoricLoads({
         ) : (
           <Loads
             trip_id={task.mintral_serviceCode as string}
+            msg={dictionary as I18nRecord}
             dict={
               (dictionary.pages as unknown as I18nRecord)
                 .shipping as unknown as I18nRecord

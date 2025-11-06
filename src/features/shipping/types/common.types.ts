@@ -46,6 +46,7 @@ export type KanbanBoardTask = {
   taskType?: string;
   areaType?: string;
   duration?: string;
+  cm_created?: string;
 };
 
 export type KanbanBoardTaskMember = {

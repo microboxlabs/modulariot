@@ -67,9 +67,15 @@ export function humanizeFrom(date: string): string {
 
 export function fromString(date: string): dayjs.Dayjs {
   // Handle format with bracket notation: "2025-10-23T02:48:52.551341763[America/Santiago]"
+  if (date === null || date === undefined || date.trim() === "") {
+    return dayjs("-");
+  }
   const bracketTimezoneMatch = date.match(/^(.+)\[(.+)\]$/);
   if (bracketTimezoneMatch) {
     const [, dateTimePart, timezone] = bracketTimezoneMatch;
+    if (!isValidDate(dateTimePart)) {
+      return dayjs("-");
+    }
     return dayjs.tz(dateTimePart, timezone);
   }
 
@@ -78,9 +84,13 @@ export function fromString(date: string): dayjs.Dayjs {
   const normalizedDate =
     date.includes(" ") && !date.includes("T") ? date.replace(" ", "T") : date;
 
-  if (isNaN(new Date(normalizedDate).getTime())) {
+  if (!isValidDate(normalizedDate)) {
     return dayjs("-");
   }
 
   return dayjs.tz(normalizedDate, "America/Santiago");
+}
+
+export function isValidDate(date: string): boolean {
+  return !Number.isNaN(new Date(date).getTime());
 }

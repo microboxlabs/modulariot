@@ -73,7 +73,7 @@ export function fromString(date: string): dayjs.Dayjs {
   const bracketTimezoneMatch = date.match(/^(.+)\[(.+)\]$/);
   if (bracketTimezoneMatch) {
     const [, dateTimePart, timezone] = bracketTimezoneMatch;
-    if (isNaN(new Date(dateTimePart).getTime())) {
+    if (!isValidDate(dateTimePart)) {
       return dayjs("-");
     }
     return dayjs.tz(dateTimePart, timezone);
@@ -84,9 +84,13 @@ export function fromString(date: string): dayjs.Dayjs {
   const normalizedDate =
     date.includes(" ") && !date.includes("T") ? date.replace(" ", "T") : date;
 
-  if (isNaN(new Date(normalizedDate).getTime())) {
+  if (!isValidDate(normalizedDate)) {
     return dayjs("-");
   }
 
   return dayjs.tz(normalizedDate, "America/Santiago");
+}
+
+export function isValidDate(date: string): boolean {
+  return !Number.isNaN(new Date(date).getTime());
 }

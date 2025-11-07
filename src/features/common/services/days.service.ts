@@ -67,9 +67,15 @@ export function humanizeFrom(date: string): string {
 
 export function fromString(date: string): dayjs.Dayjs {
   // Handle format with bracket notation: "2025-10-23T02:48:52.551341763[America/Santiago]"
+  if (date === null || date === undefined || date.trim() === "") {
+    return dayjs("-");
+  }
   const bracketTimezoneMatch = date.match(/^(.+)\[(.+)\]$/);
   if (bracketTimezoneMatch) {
     const [, dateTimePart, timezone] = bracketTimezoneMatch;
+    if (isNaN(new Date(dateTimePart).getTime())) {
+      return dayjs("-");
+    }
     return dayjs.tz(dateTimePart, timezone);
   }
 

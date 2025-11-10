@@ -72,7 +72,7 @@ export default function Timeline({
   messages: I18nRecord;
   debug?: boolean;
 }) {
-  const [actualState, setActualState] = React.useState(6);
+  const [actualState, setActualState] = React.useState(0);
   const [selectedTask, setSelectedTask] = React.useState<string | null>(null);
   const [debugPos, setDebugPos] = React.useState<{
     top: number;

@@ -1306,7 +1306,7 @@
     "alcohol_test": "Test de alcohol",
     "finish": "Finalizar",
     "rut_invalid": "RUT inválido",
-    "no_trip_information": "Sin viaje asignado",
+    "no_trip_information": "Validación ya realizada para este conductor o Sin viaje asignado",
     "verify_secondary_driver": "Verificar al segundo conductor",
     "notify_control_center": "Hemos informado a la torre de control.",
     "biometric_verification_error": "Error al verificar datos biométricos",
@@ -1326,7 +1326,7 @@
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
     "multiple_tasks": "Más de un viaje asignado",
     "driver_without_trip1": "El conductor con rut",
-    "driver_without_trip2": "no posee un viaje asignado.",
+    "driver_without_trip2": "ya ha sido verificado o no posee un viaje asignado.",
     "unable_to_validate_rut": "No se ha podido validar el rut"
   },
   "notifications": {

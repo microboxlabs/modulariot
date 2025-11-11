@@ -1,13 +1,14 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
 import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
-import { Button } from "flowbite-react";
+//import { Button } from "flowbite-react";
 import Image from "next/image";
 import ErrorImage from "@assets/icons/totem/alert-hexagon.svg";
+import { Congratulation, GotoBox } from "./tests";
 
 export default function TripInformation({
   setCurrentStep,
-  currentStep,
+  //currentStep,
   dict,
   deviceId,
   deviceLocation,
@@ -16,9 +17,12 @@ export default function TripInformation({
   tripData,
   setTripData,
   idCardNumber,
+  setRutData,
+  setBiometricResult,
+  setIdCardNumber,
 }: {
   setCurrentStep: (step: number) => void;
-  currentStep: number;
+  //currentStep: number;
   dict: I18nRecord;
   deviceId: string | null;
   deviceLocation: string | null;
@@ -27,9 +31,13 @@ export default function TripInformation({
   tripData: any;
   setTripData: (tripData: any) => void;
   idCardNumber: string;
+  setRutData: (rutData: { rut: string; rut_validated: boolean }) => void;
+  setBiometricResult: (biometricResult: any) => void;
+  setIdCardNumber: (idCardNumber: string) => void;
 }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [testState, setTestState] = useState(false);
 
   const hasRun = useRef(false);
   useEffect(() => {
@@ -128,7 +136,18 @@ export default function TripInformation({
           {error}
         </p>
         <Image src={ErrorImage} alt="Ok" width={100} height={100} />
-        <Button
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
           color="white"
@@ -136,7 +155,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -149,7 +168,18 @@ export default function TripInformation({
           <span className="font-bold">{rutData?.rut}</span>
         </p>
         <Image src={ErrorImage} alt="Ok" width={100} height={100} />
-        <Button
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
           color="white"
@@ -157,7 +187,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -170,7 +200,18 @@ export default function TripInformation({
           <span className="font-bold">{rutData?.rut}</span>{" "}
           {(dict.totem as I18nRecord).driver_without_trip2 as string}
         </p>
-        <Image src={ErrorImage} alt="Ok" width={100} height={100} />
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Image src={ErrorImage} alt="Ok" width={100} height={100} />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
@@ -179,7 +220,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -253,7 +294,18 @@ export default function TripInformation({
           </h1>
         </div>
       )}
-      <Button
+      <Congratulation
+        testState={testState}
+        setTestState={setTestState}
+        dict={dict}
+        tripData={tripData}
+        setCurrentStep={setCurrentStep}
+        setRutData={setRutData}
+        setIdCardNumber={setIdCardNumber}
+        setBiometricResult={setBiometricResult}
+      />
+      <GotoBox testState={testState} dict={dict} />
+      {/* <Button
         onClick={() => setCurrentStep(currentStep + 1)}
         className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
         color="white"
@@ -261,7 +313,7 @@ export default function TripInformation({
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
-      </Button>
+      </Button> */}
     </div>
   );
 }

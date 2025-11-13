@@ -720,7 +720,16 @@
         "missionControlTripInitTaskReason4": "Other.",
         "confirm": "Confirm move to {outcome}",
         "reason": "Reason",
-        "multipleReasonsSelected": "options selected"
+        "multipleReasonsSelected": "options selected",
+        "etaModeLabel": "Arrival Calculation Mode",
+        "etaModeCalculated": "Calculated (Depart Now)",
+        "etaModeManual": "Manual Arrival Time",
+        "calculatedEtaLabel": "Estimated Arrival Time",
+        "estimatedArrivalDateLabel": "Estimated Arrival Date/Time",
+        "calculatingEta": "Calculating ETA...",
+        "etaCalculationError": "Unable to calculate ETA",
+        "etaNotAvailable": "ETA not available",
+        "distance": "Distance"
       }
     },
     "sovosVerificationForm": {

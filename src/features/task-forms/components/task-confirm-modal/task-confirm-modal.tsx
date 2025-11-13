@@ -4,6 +4,7 @@ import { Button, Label, Modal, Select, Textarea } from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
+  TaskFormConfig,
 } from "./task-confirm-modal.types";
 import {
   I18nRecord,
@@ -21,9 +22,14 @@ import {
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "../../services/form.service";
 import { useState, useMemo } from "react";
-import { getSelectConfig } from "./task-confirm-modal.config";
+import {
+  getSelectConfig,
+  getTaskFormConfig,
+} from "./task-confirm-modal.config";
 import { useTaskModalState } from "./hooks/use-task-modal-state";
+import { useCustomFormState } from "./hooks/use-custom-form-state";
 import { prepareFormData } from "./task-confirm-modal.utils";
+import { CustomFormField } from "./custom-form-field";
 import {
   DeliveryProcessTask,
   PlanningProcessTask,
@@ -45,12 +51,17 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
 
-  // Get select configuration based on current task type and outcome
-  const selectConfig = useMemo(() => {
-    return getSelectConfig(taskType, outcome);
+  // Get task form configuration (includes both select config and custom form config)
+  const taskFormConfig = useMemo<TaskFormConfig | null>(() => {
+    return getTaskFormConfig(taskType, outcome);
   }, [taskType, outcome]);
 
-  // Use consolidated state management
+  // For backward compatibility, also check old select config
+  const selectConfig = useMemo(() => {
+    return taskFormConfig?.selectConfig || getSelectConfig(taskType, outcome);
+  }, [taskFormConfig, taskType, outcome]);
+
+  // Use consolidated state management for select/reason fields
   const {
     selectedValues,
     setSelectedValues,
@@ -58,6 +69,10 @@ export default function TaskConfirmModal({
     setComments,
     resetState,
   } = useTaskModalState(openModal, selectConfig);
+
+  // Use custom form state management
+  const { formValues, setFormValue, resetFormValues, isFieldVisible } =
+    useCustomFormState(openModal, taskFormConfig?.customFormConfig);
 
   async function handleConfirm() {
     try {
@@ -71,6 +86,7 @@ export default function TaskConfirmModal({
         selectedValues,
         selectConfig,
         extraData,
+        customFormValues: formValues,
       });
 
       const response = await taskNextAction({}, formData);
@@ -119,7 +135,8 @@ export default function TaskConfirmModal({
   async function onClose() {
     setIsProcessing(false);
     setError(undefined);
-    resetState(); // Reset all form state when modal closes
+    resetState(); // Reset select/reason form state when modal closes
+    resetFormValues(); // Reset custom form state when modal closes
     setOpenModal(false);
   }
 
@@ -168,8 +185,27 @@ export default function TaskConfirmModal({
               </>
             )}
 
+            {/* Custom form fields */}
+            {taskFormConfig?.customFormConfig && (
+              <div className="flex flex-col gap-4 mt-4">
+                {taskFormConfig.customFormConfig.fields.map((field) => (
+                  <CustomFormField
+                    key={field.name}
+                    field={field}
+                    value={formValues[field.name] ?? field.defaultValue ?? ""}
+                    onChange={(value) => setFormValue(field.name, value)}
+                    dict={dict.modal as I18nRecord}
+                    isVisible={isFieldVisible(field)}
+                    allValues={formValues}
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center justify-center mt-4">
-              {!commentsFieldEnabled && <KanbanMove />}
+              {!commentsFieldEnabled && !taskFormConfig?.customFormConfig && (
+                <KanbanMove />
+              )}
             </div>
             {commentsFieldEnabled && (
               <div className="flex-1 flex flex-col gap-y-2">

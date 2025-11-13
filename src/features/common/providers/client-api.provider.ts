@@ -972,3 +972,94 @@ export function useSearchLoad(
     isLoading,
   };
 }
+
+interface ETAResponse {
+  estimatedArrival: string;
+  duration: number;
+  distance: number;
+}
+
+interface ETAParams {
+  origin: string;
+  destination: string;
+  doubleDriver?: boolean;
+  percentile?: string;
+  startDate?: string;
+}
+
+export function useLiveETA(
+  enabled: boolean,
+  origin?: string,
+  destination?: string,
+  mode: string = "calculated"
+) {
+  // Only fetch when in calculated mode and we have required data
+  const shouldFetch = enabled && mode === "calculated" && origin && destination;
+
+  const { data, error, isLoading, mutate } = useSWR<ETAResponse, FetcherError>(
+    shouldFetch
+      ? `/app/api/task/calculate-eta?origin=${origin}&destination=${destination}`
+      : null,
+    async (url: string) => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originGeofence: origin,
+          destinationGeofence: destination,
+          doubleDriver: false,
+          percentile: "p75",
+          startDate: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch ETA");
+      }
+
+      return response.json();
+    },
+    {
+      refreshInterval: 60000, // Refresh every minute
+      revalidateOnFocus: false,
+      dedupingInterval: 10000, // Dedupe requests within 10 seconds
+      errorRetryCount: 3,
+      errorRetryInterval: 5000,
+    }
+  );
+
+  return {
+    eta: data,
+    isLoading,
+    error,
+    refresh: mutate,
+  };
+}
+
+// ETA formatting helper functions
+export function formatETA(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+
+  const date = new Date(eta.estimatedArrival);
+  const hours = Math.floor(eta.duration / 60);
+  const minutes = eta.duration % 60;
+
+  return `${date.toLocaleString()} (${hours}h ${minutes}m)`;
+}
+
+export function formatArrivalTime(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+  return new Date(eta.estimatedArrival).toLocaleString();
+}
+
+export function formatDuration(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+
+  const hours = Math.floor(eta.duration / 60);
+  const minutes = eta.duration % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}

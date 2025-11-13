@@ -33,6 +33,21 @@ export async function POST(request: NextRequest) {
       prop_cm_owner: user!.email!,
     };
 
+    // Handle custom form properties (any prop_* fields from the request)
+    // This allows dynamic form fields to update Alfresco task properties
+    Object.entries(json).forEach(([key, value]) => {
+      if (key.startsWith("prop_") &&
+          key !== "prop_cm_owner" &&
+          key !== "prop_bpm_comment" &&
+          key !== "prop_mintral_commentPostContent" &&
+          key !== "prop_mintral_shouldBuildManifest" &&
+          key !== "prop_mintral_commentReasons" &&
+          key !== "prop_mintral_commentPostTitle") {
+        // Add custom property to update payload
+        updateTaskPayload[key as keyof UpdateTaskRequest] = value as any;
+      }
+    });
+
     if (comments) {
       updateTaskPayload.prop_bpm_comment = comments;
       updateTaskPayload.prop_mintral_commentPostContent = comments;

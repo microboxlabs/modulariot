@@ -1,5 +1,7 @@
 import { SelectConfig } from "./task-confirm-modal.types";
 
+export type CustomFormValues = Record<string, string | boolean>;
+
 export interface FormDataParams {
   taskId: string;
   outcome: string;
@@ -8,6 +10,7 @@ export interface FormDataParams {
   selectedValues: string[];
   selectConfig: SelectConfig | null;
   extraData?: Record<string, any>;
+  customFormValues?: CustomFormValues;
 }
 
 export function prepareFormData({
@@ -18,6 +21,7 @@ export function prepareFormData({
   selectedValues,
   selectConfig,
   extraData,
+  customFormValues,
 }: FormDataParams): FormData {
   const formData = new FormData();
 
@@ -39,6 +43,17 @@ export function prepareFormData({
       const reasonToSend = getSingleReason(selectedValues, selectConfig);
       formData.append("reason", reasonToSend);
     }
+  }
+
+  // Add custom form values if provided
+  if (customFormValues) {
+    Object.entries(customFormValues).forEach(([key, value]) => {
+      if (typeof value === "boolean") {
+        formData.append(key, value.toString());
+      } else {
+        formData.append(key, value);
+      }
+    });
   }
 
   // Add extra data if provided

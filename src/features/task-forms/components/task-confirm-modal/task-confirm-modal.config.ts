@@ -2,6 +2,9 @@ import {
   SelectOption,
   SelectConfig,
   SelectOptionsConfig,
+  TaskFormsConfig,
+  TaskFormConfig,
+  CustomFormConfig,
 } from "./task-confirm-modal.types";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
@@ -13,6 +16,8 @@ import {
   OUTCOME_RETURN_TO_TRANSPORT_VALIDATION,
   TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
+  TYPE_WFSHIP2_MONITOR_TRIP_TASK,
+  OUTCOME_MONITOR_TRIP_V2,
 } from "../../services/form.service";
 
 const option = (value: string, labelKey: string): SelectOption  => ({
@@ -118,4 +123,104 @@ export function getSelectConfig(
 ): SelectConfig | null {
   if (!taskType || !outcome) return null;
   return SELECT_OPTIONS_CONFIG[taskType]?.[outcome] || null;
+}
+
+/* ------------------------------------------------------------- */
+/* Task Forms Configuration (with custom form fields) */
+/* ------------------------------------------------------------- */
+
+// ETA Mode options for Monitor Trip Task
+const ETA_MODE_OPTIONS = [
+  { value: "calculated", labelKey: "etaModeCalculated" },
+  { value: "manual", labelKey: "etaModeManual" },
+];
+
+// Custom form configuration for Monitor Trip Task
+const MONITOR_TRIP_CUSTOM_FORM: CustomFormConfig = {
+  fields: [
+    {
+      name: "prop_mintral_etaMode",
+      labelKey: "etaModeLabel",
+      type: "select",
+      required: true,
+      defaultValue: "calculated",
+      options: ETA_MODE_OPTIONS,
+    },
+    {
+      name: "prop_mintral_calculatedEta",
+      labelKey: "calculatedEtaLabel",
+      type: "live",
+      dependsOn: {
+        fieldName: "prop_mintral_etaMode",
+        value: "calculated",
+      },
+      liveField: {
+        dataKey: "eta",
+        displayFormat: "datetime",
+        dependencies: ["prop_mintral_origin", "prop_mintral_destination"],
+      },
+    },
+    {
+      name: "prop_mintral_estimatedArrivalDate",
+      labelKey: "estimatedArrivalDateLabel",
+      type: "datetime-local",
+      required: true,
+      dependsOn: {
+        fieldName: "prop_mintral_etaMode",
+        value: "manual",
+      },
+    },
+  ],
+};
+
+// New unified configuration that supports both select configs and custom forms
+export const TASK_FORMS_CONFIG: TaskFormsConfig = {
+  // Existing select-only configs migrated
+  [TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK]: {
+    [OUTCOME_OVERLORD_CANCELED_SOVOS_V2]: {
+      selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK]?.[OUTCOME_OVERLORD_CANCELED_SOVOS_V2],
+    },
+  },
+  "wfship:sovosDigitalSignature": {
+    [OUTCOME_REDIRECT_TO_MISSION_CONTROL]: {
+      selectConfig: SELECT_OPTIONS_CONFIG["wfship:sovosDigitalSignature"]?.[OUTCOME_REDIRECT_TO_MISSION_CONTROL],
+    },
+  },
+  "wfship:missionControlTripInitTask": {
+    [OUTCOME_RETURN_TO_TRANSPORT_VALIDATION]: {
+      selectConfig: SELECT_OPTIONS_CONFIG["wfship:missionControlTripInitTask"]?.[OUTCOME_RETURN_TO_TRANSPORT_VALIDATION],
+    },
+  },
+  [TYPE_WFSHIP2_MISSION_CONTROL_TASK]: {
+    [OUTCOME_ASSIGN_DRIVER_V2]: {
+      selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFSHIP2_MISSION_CONTROL_TASK]?.[OUTCOME_ASSIGN_DRIVER_V2],
+    },
+    [OUTCOME_PRESENT_DRIVER_V2]: {
+      selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFSHIP2_MISSION_CONTROL_TASK]?.[OUTCOME_PRESENT_DRIVER_V2],
+    },
+    [OUTCOME_OVERLORD_REQUIRED_V2]: {
+      selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFSHIP2_MISSION_CONTROL_TASK]?.[OUTCOME_OVERLORD_REQUIRED_V2],
+    },
+    [OUTCOME_PREPARE_SERVICE_V2]: {
+      selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFSHIP2_MISSION_CONTROL_TASK]?.[OUTCOME_PREPARE_SERVICE_V2],
+    },
+    [OUTCOME_MONITOR_TRIP_V2]: {
+      customFormConfig: MONITOR_TRIP_CUSTOM_FORM,
+    },
+  },
+  // New Monitor Trip Task with custom form
+  // [TYPE_WFSHIP2_MISSION_CONTROL_TASK]: {
+  //   [OUTCOME_MONITOR_TRIP_V2]: {
+  //     customFormConfig: MONITOR_TRIP_CUSTOM_FORM,
+  //   },
+  // },
+};
+
+// Utility function to get task form configuration
+export function getTaskFormConfig(
+  taskType?: string,
+  outcome?: string
+): TaskFormConfig | null {
+  if (!taskType || !outcome) return null;
+  return TASK_FORMS_CONFIG[taskType]?.[outcome];
 }

@@ -102,6 +102,7 @@ export type FormFieldConfig = {
     dependencies?: string[]; // Fields that affect this value
   };
   customComponent?: string; // Name of custom component to use
+  useCalculatedValueFrom?: string; // Name of another field to use as default value (e.g., for manual ETA using calculated ETA)
 };
 
 export type CustomFormConfig = {

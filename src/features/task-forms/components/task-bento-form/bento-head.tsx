@@ -4,7 +4,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
-import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
 import TimeElement from "./time-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
@@ -47,7 +47,7 @@ export default function BentoHead({
   readonly userGroups?: string[];
 }) {
   const task_name_identifier =
-    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
+    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessFormsV2];
   const writable_dict = (
     (dict.pages as unknown as I18nRecord).shipping as I18nRecord
   ).kanban as I18nRecord;
@@ -139,15 +139,15 @@ export default function BentoHead({
             name="Carta Porte"
           />
         )}
-
         {showActions && task.isEditable && (
           <TaskActions
             taskId={task.id}
-            taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+            taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
             lang={lang}
             dict={msg}
             fluid={true}
             enableActions={enableActions}
+            extraData={task}
           />
         )}
       </div>

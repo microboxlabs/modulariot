@@ -16,7 +16,7 @@ import FormIcon from "@/features/icons/formIcon";
 import TaskDetailsAccordionTitle from "../task-details-accordion-title/task-details-accordion-title";
 import DetailsTextInput from "../details-text-input/details-text-input";
 import TaskActions from "../task-actions/task-actions";
-import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { HiClipboardList } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
@@ -73,11 +73,13 @@ export default async function ShippingDetailsTaskForm({
                 <FormIcon className="mr-3" />
                 {detailsTitle}
               </small>
+
               <TaskActions
                 taskId={task.id}
-                taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
                 lang={lang}
                 dict={dictionary.shippingDetailsTaskForm as I18nRecord}
+                extraData={task}
               />
               {/* <Validations
                 task={task}

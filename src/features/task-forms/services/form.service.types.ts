@@ -10,19 +10,6 @@ export type TaskNextActionState = {
 
 export type ShippingCoordinatorProcess = "shippingCoordinatorProcess";
 
-export type ShippingCoordinatorProcessForms =
-  | "wfship:transportValidationTask"
-  | "wfship:missionControlTripInitTask"
-  | "wfship:overlordTripInitTask"
-  | "wfship:sovosDigitalSignature"
-  | "wfship:tripOutsideInitiatedTask"
-  | "wfship:monitoringInCourseTrip"
-  | "wfship:confirmTripDestinationArrival"
-  | "wfship:confirmTripDestinationDeparture"
-  | "wfship:confirmDelivery"
-  | "wfship:confirmMonitoringFinalization"
-  | "wfship:monitoringFinalization";
-
 export type MissionControlValidationOutcome =
   | "Iniciado Normal"
   | "Iniciado Con Reparos"

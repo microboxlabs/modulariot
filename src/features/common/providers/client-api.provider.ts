@@ -979,13 +979,13 @@ interface ETAResponse {
   distance: number;
 }
 
-interface ETAParams {
-  origin: string;
-  destination: string;
-  doubleDriver?: boolean;
-  percentile?: string;
-  startDate?: string;
-}
+// interface ETAParams {
+//   origin: string;
+//   destination: string;
+//   doubleDriver?: boolean;
+//   percentile?: string;
+//   startDate?: string;
+// }
 
 export function useLiveETA(
   enabled: boolean,

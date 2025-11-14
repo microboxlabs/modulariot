@@ -1,14 +1,19 @@
 "use client";
 
 import { Badge, Spinner } from "flowbite-react";
-import { useLiveETA, formatETA, formatArrivalTime } from "@/features/common/providers/client-api.provider";
+import {
+  useLiveETA,
+  formatETA,
+  formatArrivalTime,
+  formatDuration,
+} from "@/features/common/providers/client-api.provider";
 import { FormFieldConfig } from "./task-confirm-modal.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 interface LiveFormFieldProps {
   field: FormFieldConfig;
-  allValues: Record<string, any>;
+  allValues: Record<string, unknown>;
   isVisible: boolean;
   dict: I18nRecord;
 }
@@ -24,9 +29,9 @@ export function LiveFormField({
 
   const { eta, isLoading, error } = useLiveETA(
     isETAField && isVisible,
-    allValues.prop_mintral_origin,
-    allValues.prop_mintral_destination,
-    allValues.prop_mintral_etaMode
+    allValues.mintral_originDelegateCode as string,
+    allValues.mintral_destinationDelegateCode as string,
+    allValues.mintral_etaMode as string
   );
 
   if (!isVisible) return null;
@@ -36,7 +41,7 @@ export function LiveFormField({
       <div className="flex items-center gap-2 p-2">
         <Spinner size="sm" color="info" />
         <span className="text-gray-500 dark:text-gray-400 text-sm">
-          {tr("modal.calculatingEta", dict) || "Calculating ETA..."}
+          {tr("calculatingEta", dict)}
         </span>
       </div>
     );
@@ -45,7 +50,7 @@ export function LiveFormField({
   if (error) {
     return (
       <div className="text-red-600 dark:text-red-400 text-sm p-2">
-        {tr("modal.etaCalculationError", dict) || "Unable to calculate ETA"}
+        {tr("etaCalculationError", dict)}
       </div>
     );
   }
@@ -53,7 +58,7 @@ export function LiveFormField({
   if (!eta && !isLoading) {
     return (
       <div className="text-gray-500 dark:text-gray-400 text-sm p-2">
-        {tr("etaNotAvailable", dict) || "ETA not available"}
+        {tr("etaNotAvailable", dict)}
       </div>
     );
   }
@@ -93,11 +98,18 @@ export function LiveFormField({
               {formattedValue}
             </span>
           </div>
-          {eta?.distance && (
-            <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6">
-              {tr("modal.distance", dict) || "Distance"}: {eta.distance} km
-            </div>
-          )}
+          <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
+            {eta?.duration && (
+              <div>
+                {tr("duration", dict)}: {formatDuration(eta)}
+              </div>
+            )}
+            {eta?.distance && (
+              <div>
+                {tr("distance", dict)}: {eta.distance.toFixed(2)} km
+              </div>
+            )}
+          </div>
         </div>
       );
 

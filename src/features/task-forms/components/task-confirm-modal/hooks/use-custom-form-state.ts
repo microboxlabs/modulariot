@@ -10,7 +10,9 @@ export interface CustomFormState {
   isFieldVisible: (field: FormFieldConfig) => boolean;
 }
 
-function getInitialFormValues(config: CustomFormConfig | undefined): CustomFormValues {
+function getInitialFormValues(
+  config: CustomFormConfig | undefined
+): CustomFormValues {
   if (!config) return {};
 
   const values: CustomFormValues = {};

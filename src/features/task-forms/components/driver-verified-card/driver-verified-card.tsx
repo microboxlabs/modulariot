@@ -13,7 +13,7 @@ import { taskNextAction } from "../../services/client-form.service";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ShippingCoordinatorProcessForms,
+  ShippingCoordinatorProcessFormsV2,
   TaskNextActionState,
   TaskOutcome,
 } from "../../services/form.service.types";
@@ -32,7 +32,7 @@ import {
   OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_NORMAL_INITIATION,
-  TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
 import { getComments } from "@/utils/comments";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
@@ -70,7 +70,7 @@ export default function DriverVerifiedCard({
   };
 
   const buildExtraData = () => {
-    if (task.taskFormKey === TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK) {
+    if (task.taskFormKey === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
       return {
         nativeGenerationEnabled,
       };
@@ -268,7 +268,7 @@ export default function DriverVerifiedCard({
             ) : (
               <TaskActions
                 taskId={task.id}
-                taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
                 lang={lang}
                 dict={msg?.shippingDetailsTaskForm as I18nRecord}
                 fluid={true}

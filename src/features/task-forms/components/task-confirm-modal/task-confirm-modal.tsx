@@ -20,8 +20,9 @@ import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   getSelectConfig,
   getTaskFormConfig,
@@ -30,6 +31,7 @@ import { useTaskModalState } from "./hooks/use-task-modal-state";
 import { useCustomFormState } from "./hooks/use-custom-form-state";
 import { prepareFormData } from "./task-confirm-modal.utils";
 import { CustomFormField } from "./custom-form-field";
+import { useLiveETA } from "@/features/common/providers/client-api.provider";
 import {
   DeliveryProcessTask,
   PlanningProcessTask,
@@ -73,6 +75,46 @@ export default function TaskConfirmModal({
   // Use custom form state management
   const { formValues, setFormValue, resetFormValues, isFieldVisible } =
     useCustomFormState(openModal, taskFormConfig?.customFormConfig);
+
+  // Fetch calculated ETA for Monitor Trip task
+  const isMonitorTripTask = taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK;
+  const shouldFetchETA =
+    isMonitorTripTask &&
+    openModal &&
+    !!extraData?.mintral_originDelegateCode &&
+    !!extraData?.mintral_destinationDelegateCode;
+
+  const { eta } = useLiveETA(
+    shouldFetchETA,
+    extraData?.mintral_originDelegateCode as string,
+    extraData?.mintral_destinationDelegateCode as string,
+    "calculated"
+  );
+
+  // Sync calculated ETA to manual field when switching to manual mode
+  useEffect(() => {
+    if (
+      eta?.estimatedArrival &&
+      formValues.mintral_etaMode === "manual" &&
+      !formValues.mintral_estimatedArrivalDate
+    ) {
+      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
+      const date = new Date(eta.estimatedArrival);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+      setFormValue("mintral_estimatedArrivalDate", datetimeLocal);
+    }
+  }, [
+    eta?.estimatedArrival,
+    formValues.mintral_etaMode,
+    formValues.mintral_estimatedArrivalDate,
+    setFormValue,
+  ]);
 
   async function handleConfirm() {
     try {
@@ -196,7 +238,7 @@ export default function TaskConfirmModal({
                     onChange={(value) => setFormValue(field.name, value)}
                     dict={dict.modal as I18nRecord}
                     isVisible={isFieldVisible(field)}
-                    allValues={formValues}
+                    allValues={{ ...extraData, ...formValues }}
                   />
                 ))}
               </div>

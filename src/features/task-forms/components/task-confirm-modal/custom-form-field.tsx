@@ -13,7 +13,7 @@ type CustomFormFieldProps = {
   onChange: (value: string | boolean) => void;
   dict: I18nRecord;
   isVisible: boolean;
-  allValues?: Record<string, any>; // For live fields that need other form values
+  allValues?: Record<string, unknown>; // For live fields that need other form values
 };
 
 export function CustomFormField({
@@ -50,9 +50,7 @@ export function CustomFormField({
   if (field.type === "display") {
     return (
       <div className="flex flex-col gap-2">
-        <Label>
-          {labelText}
-        </Label>
+        <Label>{labelText}</Label>
         <DisplayField field={field} value={value} />
       </div>
     );

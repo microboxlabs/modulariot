@@ -1123,3 +1123,45 @@ export async function unclaimTask(
 
   return result as { success: boolean };
 }
+
+export interface ETARequest {
+  originGeofence: string;
+  destinationGeofence: string;
+  doubleDriver?: boolean;
+  percentile?: string;
+  startDate?: string;
+}
+
+interface ETAResponse {
+  estimatedArrival: string;
+  duration: number;
+  distance: number;
+}
+
+export async function calculateETA(
+  session: Session,
+  etaRequest: ETARequest
+): Promise<ETAResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/tasks/calculate-eta`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  alfrescoApiLogger.debug(
+    {
+      origin: etaRequest.originGeofence,
+      destination: etaRequest.destinationGeofence,
+      user: session.user?.email,
+    },
+    "Calculating ETA"
+  );
+
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(etaRequest),
+  });
+
+  return result as ETAResponse;
+}

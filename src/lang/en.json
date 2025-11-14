@@ -724,6 +724,7 @@
         "etaModeLabel": "Arrival Calculation Mode",
         "etaModeCalculated": "Calculated (Depart Now)",
         "etaModeManual": "Manual Arrival Time",
+        "duration": "Duration",
         "calculatedEtaLabel": "Estimated Arrival Time",
         "estimatedArrivalDateLabel": "Estimated Arrival Date/Time",
         "calculatingEta": "Calculating ETA...",

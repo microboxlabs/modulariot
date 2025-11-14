@@ -1,12 +1,5 @@
 "use client";
-import { Button, TextInput } from "flowbite-react";
-import {
-  HiOutlineArrowLeft,
-  HiTrash,
-  HiOutlineArrowRight,
-  HiCheck,
-  HiOutlineHand,
-} from "react-icons/hi";
+import { Button } from "flowbite-react";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
 import {
@@ -17,18 +10,7 @@ import {
   OUTCOME_NORMAL_INITIATION,
   OUTCOME_CONFIRM_MONITORING_FINALIZATION,
   OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-  TYPE_WFSHIP_CONFIRM_DELIVERY,
-  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL,
-  TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE,
-  TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP,
-  TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION,
-  TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK,
-  OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS,
-  OUTCOME_OVERLORD_CANCELED,
-  OUTCOME_OVERLORD_ANULLED,
   OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-  TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK,
-  OUTCOME_OVERLORD_REQUIRED,
   TYPE_WFSHIP2_ASSIGN_DRIVER_TASK,
   TYPE_WFSHIP2_CLOSE_MONITORING_TASK,
   TYPE_WFSHIP2_PRESENT_DRIVER_TASK,
@@ -48,7 +30,6 @@ import {
   TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
   TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
   TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK,
-  TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK,
   OUTCOME_RECEIVE_DELIVERY_V2,
   OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
   OUTCOME_NOTIFY_TMS_DELIVERY_V2,
@@ -75,10 +56,7 @@ import {
   PlanningProcessForms,
   TaskOutcomePlanning,
 } from "../../services/form.service.types";
-import OtherOptions from "./other-options";
-import CanceledAnnulledOptions from "./canceled-annulled-options";
-import CanceledAnnulledEndOptions from "./canceled-annulled-end-options";
-import CanceledAnnulledAndOptions from "./canceled-annulled-and-options";
+
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 import { useFormState } from "react-dom";
@@ -93,7 +71,6 @@ export default function TaskActions({
   dict,
   fluid = false,
   extraData,
-  enableActions = true,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
@@ -105,8 +82,7 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
-  const [isLoading, setIsLoading] = useState(false);
-  const [state, formAction] = useFormState<TaskNextActionState, FormData>(
+  const [state, _formAction] = useFormState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
   );
@@ -117,9 +93,6 @@ export default function TaskActions({
   useEffect(() => {
     if (state?.success) {
       router.replace(`/${lang}/shipping`);
-    }
-    if (state?.error) {
-      setIsLoading(false);
     }
   }, [state]);
 
@@ -193,432 +166,52 @@ export default function TaskActions({
     );
   };
 
-  const formActionWrapper = async (formData: FormData) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      formAction(formData);
-    }, 100);
-  };
-
-  switch (taskType) {
-    case "wfship:missionControlTripInitTask":
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <OtherOptions dict={dict} handleSelection={handleSelection} />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_NORMAL_INITIATION}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_NORMAL_INITIATION,
-                    (dict.outcome as I18nRecord).normalInitiation as string
-                  )
-                }
-              />
-            </Button.Group>
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              taskType={taskType}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-              extraData={extraData}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    case TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledAndOptions
-                dict={dict}
-                handleSelection={handleSelection}
-                otherOptions={[
-                  {
-                    id: OUTCOME_REDIRECT_TO_MISSION_CONTROL,
-                    label: (dict.outcome as I18nRecord)
-                      .redirectToMissionControl as string,
-                    icon: HiOutlineArrowRight,
-                  },
-                  {
-                    id: OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS, //OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                    label: (dict.outcome as I18nRecord)
-                      .authorizedWithoutGPS as string, //.authorizedWithRepairs as string,
-                    icon: HiCheck,
-                  },
-                  {
-                    id: OUTCOME_OVERLORD_CANCELED,
-                    label: (dict.outcome as I18nRecord).canceled as string,
-                    icon: HiOutlineArrowLeft,
-                  },
-                  {
-                    id: OUTCOME_OVERLORD_ANULLED,
-                    label: (dict.outcome as I18nRecord).annulled as string,
-                    icon: HiTrash,
-                  },
-                ]}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS,
-                    (dict.outcome as I18nRecord).authorizedWithRepairs as string
-                  )
-                }
-              />
-            </Button.Group>
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-
-    case TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledOptions
-                dict={dict}
-                handleSelection={handleSelection}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
-                    (dict.outcome as I18nRecord)
-                      .confirmTripDestinationArrival as string
-                  )
-                }
-              />
-            </Button.Group>
-
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-
-    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledEndOptions
-                dict={dict}
-                handleSelection={handleSelection}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_CONFIRM_DELIVERY}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_CONFIRM_DELIVERY,
-                    (dict.outcome as I18nRecord).confirmDelivery as string
-                  )
-                }
-              />
-            </Button.Group>
-
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    case TYPE_WFSHIP_CONFIRM_DELIVERY:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledEndOptions
-                dict={dict}
-                handleSelection={handleSelection}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
-                    (dict.outcome as I18nRecord)
-                      .confirmTripDestinationDeparture as string
-                  )
-                }
-              />
-            </Button.Group>
-
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    case TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledOptions
-                dict={dict}
-                handleSelection={handleSelection}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_CONFIRM_MONITORING_FINALIZATION}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_CONFIRM_MONITORING_FINALIZATION,
-                    (dict.outcome as I18nRecord)
-                      .confirmMonitoringFinalization as string
-                  )
-                }
-              />
-            </Button.Group>
-
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    case TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION:
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <CanceledAnnulledOptions
-                dict={dict}
-                handleSelection={handleSelection}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={OUTCOME_MONITORING_FINALIZATION}
-                onClick={() =>
-                  handleSelection(
-                    OUTCOME_MONITORING_FINALIZATION,
-                    (dict.outcome as I18nRecord)
-                      .monitoringFinalization as string
-                  )
-                }
-              />
-            </Button.Group>
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-              dict={dict}
-              taskId={taskId}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    case TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK:
-      return (
-        <form action={formActionWrapper} className="flex flex-col">
-          <TextInput
-            id="taskId"
-            name="taskId"
-            type="hidden"
-            defaultValue={taskId}
+  const transitionId = getTransitionIdV2(
+    taskType as ShippingCoordinatorProcessFormsV2,
+    outcome as TaskOutcomeV2
+  );
+  const otherOptions = getSecondaryTransitionIdV2(
+    taskType as ShippingCoordinatorProcessFormsV2,
+    dict
+  );
+  return (
+    <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+      <GroupAllowed
+        notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+        userGroups={userGroups}
+      >
+        <Button.Group className="w-full">
+          <GroupButtonOptions
+            dict={dict}
+            handleSelection={handleSelection}
+            otherOptions={otherOptions}
           />
+          <TaskActionButton
+            fluid={fluid}
+            label={(dict.outcome as I18nRecord).continue as string}
+            taskId={taskId}
+            transitionId={transitionId}
+            onClick={() =>
+              handleSelection(
+                transitionId,
+                (dict.outcome as I18nRecord)[transitionId] as string
+              )
+            }
+          />
+        </Button.Group>
 
-          {enableActions ? (
-            <TaskActions
-              taskId={taskId}
-              taskType={taskType}
-              lang={lang}
-              dict={dict.shippingDetailsTaskForm as I18nRecord}
-              fluid={true}
-              extraData={extraData}
-            />
-          ) : (
-            <GroupAllowed
-              userGroups={userGroups}
-              notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            >
-              <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-                <Button.Group className="w-full">
-                  <CanceledAnnulledAndOptions
-                    dict={dict}
-                    handleSelection={handleSelection}
-                    otherOptions={[
-                      {
-                        id: OUTCOME_OVERLORD_REQUIRED,
-                        label: (dict.outcome as I18nRecord)
-                          .requiresOverlord as string,
-                        icon: HiOutlineHand,
-                      },
-                    ]}
-                  />
-                  <Button
-                    color="blue"
-                    type="submit"
-                    theme={{ inner: { base: "px-5 py-3" } }}
-                    isProcessing={isLoading}
-                    className="w-full px-0 py-px"
-                  >
-                    {(dict.buttons as I18nRecord).submit as string}
-                  </Button>
-                </Button.Group>
-
-                <TaskConfirmModal
-                  commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
-                  dict={dict}
-                  taskId={taskId}
-                  outcome={outcome!}
-                  outcomeLabel={outcomeLabel!}
-                  openModal={openModal}
-                  setOpenModal={setOpenModal}
-                />
-              </div>
-            </GroupAllowed>
-          )}
-        </form>
-      );
-    case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: /* V2 Tasks */
-    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
-    case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
-    case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
-    case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
-    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
-    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
-    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
-    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
-    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
-    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
-    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK: /** Planning Coordinator Process */
-    case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
-    case TYPE_WFPLANNING_PLAN_SERVICE_TASK: {
-      const transitionId = getTransitionIdV2(
-        taskType as ShippingCoordinatorProcessFormsV2,
-        outcome as TaskOutcomeV2
-      );
-      const otherOptions = getSecondaryTransitionIdV2(
-        taskType as ShippingCoordinatorProcessFormsV2,
-        dict
-      );
-      return (
-        <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-          <GroupAllowed
-            notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-            userGroups={userGroups}
-          >
-            <Button.Group className="w-full">
-              <GroupButtonOptions
-                dict={dict}
-                handleSelection={handleSelection}
-                otherOptions={otherOptions}
-              />
-              <TaskActionButton
-                fluid={fluid}
-                label={(dict.outcome as I18nRecord).continue as string}
-                taskId={taskId}
-                transitionId={transitionId}
-                onClick={() =>
-                  handleSelection(
-                    transitionId,
-                    (dict.outcome as I18nRecord)[transitionId] as string
-                  )
-                }
-              />
-            </Button.Group>
-
-            <TaskConfirmModal
-              commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}
-              dict={dict}
-              taskId={taskId}
-              taskType={taskType}
-              outcome={outcome!}
-              outcomeLabel={outcomeLabel!}
-              openModal={openModal}
-              setOpenModal={setOpenModal}
-            />
-          </GroupAllowed>
-        </div>
-      );
-    }
-    default:
-      return <div className="">{/* TODO: Add task actions*/}</div>;
-  }
+        <TaskConfirmModal
+          commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}
+          dict={dict}
+          taskId={taskId}
+          taskType={taskType}
+          outcome={outcome!}
+          outcomeLabel={outcomeLabel!}
+          openModal={openModal}
+          setOpenModal={setOpenModal}
+          extraData={extraData}
+        />
+      </GroupAllowed>
+    </div>
+  );
 }

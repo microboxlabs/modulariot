@@ -135,11 +135,22 @@ const ETA_MODE_OPTIONS = [
   { value: "manual", labelKey: "etaModeManual" },
 ];
 
+// Manual ETA Reasons
+const MANUAL_ETA_REASON_OPTIONS = [
+  { value: "TRAFFIC_CONDITIONS", labelKey: "manualEtaReasonTraffic" },
+  { value: "WEATHER_CONDITIONS", labelKey: "manualEtaReasonWeather" },
+  { value: "ROUTE_DEVIATION", labelKey: "manualEtaReasonRouteDeviation" },
+  { value: "DRIVER_REQUEST", labelKey: "manualEtaReasonDriverRequest" },
+  { value: "CLIENT_REQUEST", labelKey: "manualEtaReasonClientRequest" },
+  { value: "OPERATIONAL_DELAY", labelKey: "manualEtaReasonOperationalDelay" },
+  { value: "OTHER", labelKey: "manualEtaReasonOther" },
+];
+
 // Custom form configuration for Monitor Trip Task
 const MONITOR_TRIP_CUSTOM_FORM: CustomFormConfig = {
   fields: [
     {
-      name: "prop_mintral_etaMode",
+      name: "mintral_etaMode",
       labelKey: "etaModeLabel",
       type: "select",
       required: true,
@@ -147,27 +158,51 @@ const MONITOR_TRIP_CUSTOM_FORM: CustomFormConfig = {
       options: ETA_MODE_OPTIONS,
     },
     {
-      name: "prop_mintral_calculatedEta",
+      name: "mintral_calculatedEta",
       labelKey: "calculatedEtaLabel",
       type: "live",
       dependsOn: {
-        fieldName: "prop_mintral_etaMode",
+        fieldName: "mintral_etaMode",
         value: "calculated",
       },
       liveField: {
         dataKey: "eta",
         displayFormat: "datetime",
-        dependencies: ["prop_mintral_origin", "prop_mintral_destination"],
+        dependencies: ["mintral_originDelegateCode", "mintral_destinationDelegateCode"],
       },
     },
     {
-      name: "prop_mintral_estimatedArrivalDate",
+      name: "mintral_estimatedArrivalDate",
       labelKey: "estimatedArrivalDateLabel",
       type: "datetime-local",
       required: true,
       dependsOn: {
-        fieldName: "prop_mintral_etaMode",
+        fieldName: "mintral_etaMode",
         value: "manual",
+      },
+      useCalculatedValueFrom: "mintral_calculatedEta",
+    },
+    {
+      name: "mintral_manualEtaReason",
+      labelKey: "manualEtaReasonLabel",
+      type: "select",
+      required: true,
+      defaultValue: "TRAFFIC_CONDITIONS",
+      options: MANUAL_ETA_REASON_OPTIONS,
+      dependsOn: {
+        fieldName: "mintral_etaMode",
+        value: "manual",
+      },
+    },
+    {
+      name: "mintral_manualEtaReasonOther",
+      labelKey: "manualEtaReasonOtherLabel",
+      type: "textarea",
+      required: true,
+      placeholder: "Describe the reason...",
+      dependsOn: {
+        fieldName: "mintral_manualEtaReason",
+        value: "OTHER",
       },
     },
   ],

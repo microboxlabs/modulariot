@@ -66,8 +66,31 @@ export function humanizeFrom(date: string): string {
 }
 
 export function fromString(date: string): dayjs.Dayjs {
-  if (!date) {
+  // Handle format with bracket notation: "2025-10-23T02:48:52.551341763[America/Santiago]"
+  if (date === null || date === undefined || date.trim() === "") {
     return dayjs("-");
   }
-  return dayjs.tz(date, "America/Santiago");
+  const bracketTimezoneMatch = date.match(/^(.+)\[(.+)\]$/);
+  if (bracketTimezoneMatch) {
+    const [, dateTimePart, timezone] = bracketTimezoneMatch;
+    if (!isValidDate(dateTimePart)) {
+      return dayjs("-");
+    }
+    return dayjs.tz(dateTimePart, timezone);
+  }
+
+  // Handle space-separated format: "2025-10-19 21:00:00"
+  // Replace space with 'T' to make it ISO-like for better parsing
+  const normalizedDate =
+    date.includes(" ") && !date.includes("T") ? date.replace(" ", "T") : date;
+
+  if (!isValidDate(normalizedDate)) {
+    return dayjs("-");
+  }
+
+  return dayjs.tz(normalizedDate, "America/Santiago");
+}
+
+export function isValidDate(date: string): boolean {
+  return !Number.isNaN(new Date(date).getTime());
 }

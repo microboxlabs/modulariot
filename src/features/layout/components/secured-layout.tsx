@@ -14,8 +14,9 @@ import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 
 export default async function SecuredLayout({
   children,
-  params: { lang },
+  params,
 }: PropsWithChildren<ParamsWithLang>) {
+  const { lang } = await params;
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();

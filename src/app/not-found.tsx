@@ -13,10 +13,11 @@ import Image from "next/image";
 import { Card } from "flowbite-react";
 import Link from "next/link";
 import HomeAltIcon from "@/features/icons/home-alt";
+import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default async function NotFound() {
+export default async function NotFound(params: ParamsWithLang) {
   const lang = getLocaleFromHeaders(await headers());
   const [dict] = await getDictionary(lang);
   return (

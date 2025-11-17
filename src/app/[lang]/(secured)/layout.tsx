@@ -13,7 +13,6 @@ export default async function Layout({
   children,
   params,
 }: PropsWithChildren<ParamsWithLang>) {
-  const paramsResult = await params;
   return (
     <main
       className={twMerge(
@@ -23,7 +22,7 @@ export default async function Layout({
     >
       <SessionProvider basePath="/app/api/auth">
         <AuthProvider>
-          <SecuredLayout params={paramsResult}>{children}</SecuredLayout>
+          <SecuredLayout params={params}>{children}</SecuredLayout>
         </AuthProvider>
       </SessionProvider>
     </main>

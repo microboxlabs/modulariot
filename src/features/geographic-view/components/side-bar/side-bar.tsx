@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import MapButton from "../map-button";
 import { HiChevronLeft } from "react-icons/hi";
-import { Button } from "flowbite-react";
+import { Button, ButtonGroup } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
@@ -67,7 +67,7 @@ export default function SideBar({
           <div
             className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
-            <Button.Group>
+            <ButtonGroup>
               {inner_menu.map((menu, i) => (
                 <Button
                   className="z-10"
@@ -78,7 +78,7 @@ export default function SideBar({
                   {menu.button_text}
                 </Button>
               ))}
-            </Button.Group>
+            </ButtonGroup>
             <div className="flex flex-grow  w-full justify-center overflow-y-auto">
               {component}
             </div>

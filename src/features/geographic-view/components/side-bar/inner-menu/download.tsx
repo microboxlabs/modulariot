@@ -1,4 +1,4 @@
-import { Button, Label, Modal } from "flowbite-react";
+import { Button, Label, Modal, ModalBody, ModalFooter, ModalHeader } from "flowbite-react";
 import { FaCamera } from "react-icons/fa6";
 import { FaDownload, FaShare } from "react-icons/fa";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -180,13 +180,13 @@ export default function Download({
         onClose={() => setShowPreviewModal(false)}
         size="2xl"
       >
-        <Modal.Header>
+        <ModalHeader>
           {
             ((dict.symptoms as I18nRecord).document_preview ||
               "Previsualización del documento") as string
           }
-        </Modal.Header>
-        <Modal.Body>
+        </ModalHeader>
+        <ModalBody>
           <div className="flex flex-col items-center justify-center space-y-4">
             {/* Screenshot preview */}
             {screenshotDataUrl && (
@@ -206,8 +206,8 @@ export default function Download({
               </div>
             )}
           </div>
-        </Modal.Body>
-        <Modal.Footer>
+        </ModalBody>
+        <ModalFooter>
           <div className="w-full flex flex-col gap-2">
             <Label className="w-full flex text-left text-sm">
               {`vista-geografica-${new Date().toISOString().slice(0, 10)}.png`}
@@ -221,7 +221,7 @@ export default function Download({
               <FaShare className="h-4 w-4 text-white text-center" />
             </Button>
           </div>
-        </Modal.Footer>
+        </ModalFooter>
       </Modal>
     </div>
   );

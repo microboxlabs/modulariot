@@ -110,7 +110,7 @@ export default function SovosVerificationResultCard({
         {!success && (
           <div className="flex flex-row gap-2 w-full">
             <div className="flex-1">
-              <Button.Group className="w-full">
+              <ButtonGroup className="w-full">
                 <BlurrableDropdown
                   dict={msg as I18nRecord}
                   options={
@@ -171,7 +171,7 @@ export default function SovosVerificationResultCard({
                 >
                   {msg?.tryAgain as string}
                 </Button>
-              </Button.Group>
+              </ButtonGroup>
             </div>
           </div>
         )}

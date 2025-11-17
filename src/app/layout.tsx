@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   description: "Sistema de coordinación de viajes para Mintral.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const theme = cookies().get("theme")?.value === "dark" ? "dark" : "";
+  const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "";
 
   return (
     <html lang="es" className={theme}>

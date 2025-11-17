@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "flowbite-react";
+import { Button, ButtonGroup } from "flowbite-react";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
 import {
@@ -45,7 +45,7 @@ import {
   I18nRecord,
   PropsWithI18nDict,
 } from "@/features/i18n/i18n.service.types";
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   TaskNextActionState,
   ShippingCoordinatorProcessFormsV2,
@@ -59,7 +59,6 @@ import {
 
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
-import { useFormState } from "react-dom";
 import { useRouter } from "next/navigation";
 import { taskNextAction } from "../../services/client-form.service";
 import GroupButtonOptions from "./group-button-options";
@@ -82,7 +81,7 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
-  const [state, _formAction] = useFormState<TaskNextActionState, FormData>(
+  const [state, _formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
   );
@@ -180,7 +179,7 @@ export default function TaskActions({
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        <Button.Group className="w-full">
+        <ButtonGroup className="w-full">
           <GroupButtonOptions
             dict={dict}
             handleSelection={handleSelection}
@@ -198,7 +197,7 @@ export default function TaskActions({
               )
             }
           />
-        </Button.Group>
+        </ButtonGroup>
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

@@ -1,6 +1,9 @@
-import "server-only";
+"use client";
 import React from "react";
-import { Breadcrumb as FlowbiteBreadcrumb, BreadcrumbItem } from "flowbite-react";
+import {
+  Breadcrumb as FlowbiteBreadcrumb,
+  BreadcrumbItem,
+} from "flowbite-react";
 import { HiHome } from "react-icons/hi";
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -24,7 +27,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
 
   return (
     <div className="flex justify-between items-center">
-      <BreadcrumbItem aria-label="Breadcrumb">
+      <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (
             <BreadcrumbItem
@@ -43,7 +46,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             </BreadcrumbItem>
           )
         )}
-      </BreadcrumbItem>
+      </FlowbiteBreadcrumb>
       {rightContent.length > 0 && (
         <div className="flex items-center space-x-2">
           {rightContent.map((content, index) => (

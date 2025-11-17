@@ -21,21 +21,23 @@ export function TableView({ data, dict }: TableViewProps) {
       <div className="overflow-x-auto bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col border-2 border-gray-200 rounded-lg">
         <Table striped>
           <TableHead>
-            <TableHeadCell>{tr("table.service", dict)}</TableHeadCell>
-            <TableHeadCell>{tr("table.licensePlate", dict)}</TableHeadCell>
-            <TableHeadCell>
-              {tr("table.departureDateTime", dict)}
-            </TableHeadCell>
-            <TableHeadCell className="text-center">
-              {tr("table.serviceKind", dict)}
-            </TableHeadCell>
-            <TableHeadCell className="text-center">
-              {tr("table.stage", dict)}
-            </TableHeadCell>
-            <TableHeadCell className="text-center">
-              {tr("table.origin", dict)}-{tr("table.destination", dict)}
-            </TableHeadCell>
-            <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
+            <TableRow>
+              <TableHeadCell>{tr("table.service", dict)}</TableHeadCell>
+              <TableHeadCell>{tr("table.licensePlate", dict)}</TableHeadCell>
+              <TableHeadCell>
+                {tr("table.departureDateTime", dict)}
+              </TableHeadCell>
+              <TableHeadCell className="text-center">
+                {tr("table.serviceKind", dict)}
+              </TableHeadCell>
+              <TableHeadCell className="text-center">
+                {tr("table.stage", dict)}
+              </TableHeadCell>
+              <TableHeadCell className="text-center">
+                {tr("table.origin", dict)}-{tr("table.destination", dict)}
+              </TableHeadCell>
+              <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
+            </TableRow>
           </TableHead>
           <TableBody>
             {data.map((task) => {

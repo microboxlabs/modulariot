@@ -5,9 +5,8 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import ClientSymptoms from "../../../../features/symptoms/client-symptoms";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 
-export default async function SymptomsPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function SymptomsPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [, dict] = await getDictionary(lang);
   return (
     <RouteGuard path="/symptoms" fallbackPath={`/${lang}/shipping`}>

@@ -14,7 +14,7 @@ export default async function MyTasksPage(params: {
   const paramsResult = await params.params;
   const { lang } = await paramsResult;
   const [, dict] = await getDictionary(lang);
-  let status = (await params.searchParams).status || "pending";
+  let status = getStatus((await params.searchParams)?.status);
   const session = await auth();
   const userGroups = await getGroupsForPerson(session!);
 
@@ -39,7 +39,7 @@ export default async function MyTasksPage(params: {
       </div>
       <MyTasks
         dict={dict}
-        status={getStatus(status)}
+        status={status}
         userGroups={userGroups}
         lang={lang}
       />
@@ -47,9 +47,9 @@ export default async function MyTasksPage(params: {
   );
 }
 
-function getStatus(status: string | string[]): string {
-  if (Array.isArray(status)) {
-    return status[0]!;
+function getStatus(status: string | string[] | undefined): string {
+  if (typeof status === "string") {
+    return status;
   }
-  return status;
+  return status?.[0] ?? "pending";
 }

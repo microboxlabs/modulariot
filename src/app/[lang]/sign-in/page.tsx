@@ -7,9 +7,8 @@ import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
 import { buildSignInFormMessages } from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 
-export default async function SignInPage(params: ParamsWithLang) {
-  console.log("params", await params.params);
-  const { lang } =  await params.params;
+export default async function SignInPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [dict] = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
 

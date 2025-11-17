@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card } from "flowbite-react";
+import { Button, ButtonGroup, Card } from "flowbite-react";
 import { SovosVerificationCardProps } from "../sovos-start-verification-card/sovos-start-verification-card.types";
 import { useSession } from "next-auth/react";
 import FingerprintIcon from "@/features/icons/figerprint";
@@ -165,7 +165,7 @@ export default function SovosVerificationResultCard({
                 />
                 <Button
                   color="blue"
-                  theme={{ inner: { base: "px-5 py-3" } }}
+                  // theme={{ inner: { base: "px-5 py-3" } }}
                   className="w-full px-0 py-px"
                   onClick={() => stepperController.toStep("step1")}
                 >
@@ -178,10 +178,10 @@ export default function SovosVerificationResultCard({
         {success && (
           <Button
             color="blue"
-            theme={{ inner: { base: "px-5 py-3" } }}
+            // theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
             onClick={() => stepperController.toNextStep()}
-            isProcessing={stepperController.isLoading()}
+            disabled={stepperController.isLoading()}
           >
             {stepperController.hasNextStep()
               ? (msg?.continue as string)

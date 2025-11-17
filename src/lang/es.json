@@ -722,7 +722,7 @@
         "confirm": "Confirmar mover a {outcome}",
         "multipleReasonsSelected": "opciones seleccionadas",
         "etaModeLabel": "Modo de Cálculo de Arribo",
-        "etaModeCalculated": "Calculado (Salida Inmediata)",
+        "etaModeCalculated": "Calculado (ETA Automático)",
         "etaModeManual": "Hora de Arribo Manual",
         "calculatedEtaLabel": "Hora Estimada de Arribo",
         "estimatedArrivalDateLabel": "Fecha/Hora Estimada de Arribo",

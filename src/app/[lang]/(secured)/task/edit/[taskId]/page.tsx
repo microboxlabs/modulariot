@@ -12,11 +12,11 @@ import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form
 import { ErrorTripView } from "@/features/shipping/components/error-trip/error-trip-view";
 import { TaskBentoForm } from "@/features/task-forms/components/task-bento-form/task-bento";
 
-export default async function TaskEditPage(params: ParamsWithLang) {
+export default async function TaskEditPage(params: ParamsWithLang<TaskEditPageParams> ) {
   const paramsResult = await params.params;
-  console.log(paramsResult);
+  const { lang, taskId } = await paramsResult;
+
   try {
-    const { lang } = await paramsResult;
     const session = await auth();
     if (!session) {
       redirect(`/${lang}/sign-in`);

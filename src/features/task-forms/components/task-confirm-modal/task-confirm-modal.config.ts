@@ -137,12 +137,9 @@ const ETA_MODE_OPTIONS = [
 
 // Manual ETA Reasons
 const MANUAL_ETA_REASON_OPTIONS = [
-  { value: "TRAFFIC_CONDITIONS", labelKey: "manualEtaReasonTraffic" },
-  { value: "WEATHER_CONDITIONS", labelKey: "manualEtaReasonWeather" },
-  { value: "ROUTE_DEVIATION", labelKey: "manualEtaReasonRouteDeviation" },
-  { value: "DRIVER_REQUEST", labelKey: "manualEtaReasonDriverRequest" },
-  { value: "CLIENT_REQUEST", labelKey: "manualEtaReasonClientRequest" },
-  { value: "OPERATIONAL_DELAY", labelKey: "manualEtaReasonOperationalDelay" },
+  { value: "DESTINATION_SCHEDULE_RESTRICTIONS", labelKey: "manualEtaReasonDestinationSchedule" },
+  { value: "WEEKEND_OR_HOLIDAY", labelKey: "manualEtaReasonWeekendHoliday" },
+  { value: "AUTHORIZED_OVERNIGHT_WITH_CARGO", labelKey: "manualEtaReasonAuthorizedOvernight" },
   { value: "OTHER", labelKey: "manualEtaReasonOther" },
 ];
 
@@ -187,7 +184,7 @@ const MONITOR_TRIP_CUSTOM_FORM: CustomFormConfig = {
       labelKey: "manualEtaReasonLabel",
       type: "select",
       required: true,
-      defaultValue: "TRAFFIC_CONDITIONS",
+      defaultValue: "DESTINATION_SCHEDULE_RESTRICTIONS",
       options: MANUAL_ETA_REASON_OPTIONS,
       dependsOn: {
         fieldName: "mintral_etaMode",

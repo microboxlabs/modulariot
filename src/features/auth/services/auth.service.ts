@@ -80,7 +80,7 @@ export async function authenticateAction(
     const session = await auth();
     logger.info("session--------------------------------");
     logger.info(session);
-    redirectWithLang("/shipping");
+    await redirectWithLang("/shipping");
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

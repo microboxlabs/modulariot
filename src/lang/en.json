@@ -730,7 +730,13 @@
         "calculatingEta": "Calculating ETA...",
         "etaCalculationError": "Unable to calculate ETA",
         "etaNotAvailable": "ETA not available",
-        "distance": "Distance"
+        "distance": "Distance",
+        "manualEtaReasonLabel": "Manual Arrival Reason",
+        "manualEtaReasonDestinationSchedule": "Destination operating hours or entry restrictions",
+        "manualEtaReasonWeekendHoliday": "ETA falls on weekend or holiday",
+        "manualEtaReasonAuthorizedOvernight": "Trip authorized to overnight with cargo",
+        "manualEtaReasonOther": "Other",
+        "manualEtaReasonOtherLabel": "Reason Description"
       }
     },
     "sovosVerificationForm": {

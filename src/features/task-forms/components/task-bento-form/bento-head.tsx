@@ -57,25 +57,19 @@ export default function BentoHead({
   let title = "";
 
   if (task?.persistentState?.endTime) {
-    title = tr(
-      "finished_process",
-      (dict.bento as I18nRecord).titles as I18nRecord
-    );
+    title = tr("bento.titles.finished_process", dict);
   } else if (task_name) {
-    title = tr(
-      task_name as string,
-      (dict.bento as I18nRecord).titles as I18nRecord
-    );
+    title = tr(`bento.titles.${task_name}`, dict);
   }
 
   let subtitle = "";
 
   if (task?.persistentState?.endTime) {
-    subtitle = tr("finished", (dict.bento as I18nRecord).titles as I18nRecord);
+    subtitle = tr("bento.title.finished", dict);
   } else if (task_states[task_name_identifier as keyof typeof task_states]) {
     subtitle = tr(
-      task_states[task_name_identifier as keyof typeof task_states] as string,
-      dict.bento as I18nRecord
+      `bento.title.${task_states[task_name_identifier as keyof typeof task_states]}`,
+      dict
     );
   }
 
@@ -97,7 +91,7 @@ export default function BentoHead({
         <div className="flex flex-row gap-2">
           {subtitle && (
             <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-              {(dict.bento as I18nRecord).process_state as string}:{" "}
+              {tr("bento.process_state", dict)}:{" "}
               <span className="font-normal text-gray-800 dark:text-gray-200">
                 {subtitle}
               </span>
@@ -127,7 +121,7 @@ export default function BentoHead({
             <div className="flex flex-row gap-2 items-center">
               <FaRegEye className="text-gray-100 w-5 h-5" />
               <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
-                {(dict.bento as I18nRecord).go_to_bento as string}
+                {tr("bento.go_to_bento", dict)}
               </p>
             </div>
           </Button>

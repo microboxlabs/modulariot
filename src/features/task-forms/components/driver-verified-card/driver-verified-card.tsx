@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, TextInput } from "flowbite-react";
+import { Button, ButtonGroup, TextInput } from "flowbite-react";
 import { HiOutlineHand } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
@@ -235,8 +235,8 @@ export default function DriverVerifiedCard({
                     <Button
                       color="blue"
                       type="submit"
-                      theme={{ inner: { base: "px-5 py-3" } }}
-                      isProcessing={isLoading}
+                      // theme={{ inner: { base: "px-5 py-3" } }}
+                      disabled={isLoading}
                       className="w-full px-0 py-px"
                     >
                       {

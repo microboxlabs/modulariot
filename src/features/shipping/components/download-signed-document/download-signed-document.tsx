@@ -1,3 +1,5 @@
+"use client";
+
 import { Download } from "flowbite-react-icons/outline";
 import { Button } from "flowbite-react";
 import Link from "next/link";
@@ -27,6 +29,7 @@ export default function DownloadSignedDocument({
   if (asLink) {
     return (
       <Button
+        outline
         color="gray"
         className="h-10 transition-all duration-100 z-10 gap-2 w-fit"
         as={Link}

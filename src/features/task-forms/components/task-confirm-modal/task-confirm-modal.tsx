@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Label, Modal, Select, Textarea } from "flowbite-react";
+import { Button, Label, Modal, ModalBody, ModalFooter, ModalHeader, Select, Textarea } from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
@@ -185,7 +185,7 @@ export default function TaskConfirmModal({
   return (
     <Modal dismissible show={openModal} onClose={onClose} size="4xl">
       <form onSubmit={handleConfirm}>
-        <Modal.Header className="border-none">
+        <ModalHeader className="border-none">
           <div className="flex flex-col items-start">
             <h2 className="text-base font-semibold">
               {(dict.modal as I18nRecord).title as string}
@@ -194,8 +194,8 @@ export default function TaskConfirmModal({
               {(dict.modal as I18nRecord).subtitle as string}
             </p>
           </div>
-        </Modal.Header>
-        <Modal.Body>
+        </ModalHeader>
+        <ModalBody>
           <div className="flex flex-col">
             {selectConfig && (
               <>
@@ -266,11 +266,11 @@ export default function TaskConfirmModal({
           <div className="mt-4 px-6 space-y-2">
             {error && <ErrorAlert error={error} />}
           </div>
-        </Modal.Body>
-        <Modal.Footer className=" border-none">
+        </ModalBody>
+        <ModalFooter className=" border-none">
           <Button
             className="ml-auto mt-[-41px]"
-            isProcessing={isProcessing}
+            disabled={isProcessing}
             color="blue"
             onClick={handleConfirm}
           >
@@ -278,7 +278,7 @@ export default function TaskConfirmModal({
               outcome: outcomeLabel ?? "Next",
             })}
           </Button>
-        </Modal.Footer>
+        </ModalFooter>
       </form>
     </Modal>
   );

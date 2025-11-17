@@ -1,4 +1,4 @@
-import { Spinner, Table } from "flowbite-react";
+import { Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
 import { KanbanBoardTask } from "../../types/common.types";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -20,51 +20,51 @@ export function TableView({ data, dict }: TableViewProps) {
     return (
       <div className="overflow-x-auto bg-white dark:bg-gray-900 dark:text-white h-full flex flex-col border-2 border-gray-200 rounded-lg">
         <Table striped>
-          <Table.Head>
-            <Table.HeadCell>{tr("table.service", dict)}</Table.HeadCell>
-            <Table.HeadCell>{tr("table.licensePlate", dict)}</Table.HeadCell>
-            <Table.HeadCell>
+          <TableHead>
+            <TableHeadCell>{tr("table.service", dict)}</TableHeadCell>
+            <TableHeadCell>{tr("table.licensePlate", dict)}</TableHeadCell>
+            <TableHeadCell>
               {tr("table.departureDateTime", dict)}
-            </Table.HeadCell>
-            <Table.HeadCell className="text-center">
+            </TableHeadCell>
+            <TableHeadCell className="text-center">
               {tr("table.serviceKind", dict)}
-            </Table.HeadCell>
-            <Table.HeadCell className="text-center">
+            </TableHeadCell>
+            <TableHeadCell className="text-center">
               {tr("table.stage", dict)}
-            </Table.HeadCell>
-            <Table.HeadCell className="text-center">
+            </TableHeadCell>
+            <TableHeadCell className="text-center">
               {tr("table.origin", dict)}-{tr("table.destination", dict)}
-            </Table.HeadCell>
-            <Table.HeadCell>{tr("table.status", dict)}</Table.HeadCell>
-          </Table.Head>
-          <Table.Body>
+            </TableHeadCell>
+            <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
+          </TableHead>
+          <TableBody>
             {data.map((task) => {
               return (
-                <Table.Row
+                <TableRow
                   key={task.id}
                   className="bg-white dark:border-gray-700 dark:bg-gray-800"
                 >
-                  <Table.Cell className="font-medium text-gray-900 dark:text-white cursor-pointer">
+                  <TableCell className="font-medium text-gray-900 dark:text-white cursor-pointer">
                     <Link href={`/task/edit/${task.id}`} prefetch={false}>
                       {task.name}
                     </Link>
-                  </Table.Cell>
-                  <Table.Cell>{task.mintral_truckLicensePlate}</Table.Cell>
-                  <Table.Cell>
+                  </TableCell>
+                  <TableCell>{task.mintral_truckLicensePlate}</TableCell>
+                  <TableCell>
                     {task.expectedDepartureDate
                       ? new Date(task.expectedDepartureDate).toLocaleString()
                       : "-"}
-                  </Table.Cell>
-                  <Table.Cell className="text-center">
+                  </TableCell>
+                  <TableCell className="text-center">
                     {task.serviceKind}
-                  </Table.Cell>
-                  <Table.Cell className="text-center">
+                  </TableCell>
+                  <TableCell className="text-center">
                     {tr(`kanban.${task.title}`, dict)}
-                  </Table.Cell>
-                  <Table.Cell className="text-center">
+                  </TableCell>
+                  <TableCell className="text-center">
                     {task.origin}-{task.destination}
-                  </Table.Cell>
-                  <Table.Cell>
+                  </TableCell>
+                  <TableCell>
                     <div className="w-fit">
                       <DepartureDateShip
                         dict={dict}
@@ -76,11 +76,11 @@ export function TableView({ data, dict }: TableViewProps) {
                         }
                       />
                     </div>
-                  </Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </Table.Body>
+          </TableBody>
         </Table>
       </div>
     );

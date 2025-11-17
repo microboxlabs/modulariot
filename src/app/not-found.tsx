@@ -17,7 +17,7 @@ import HomeAltIcon from "@/features/icons/home-alt";
 const inter = Inter({ subsets: ["latin"] });
 
 export default async function NotFound() {
-  const lang = getLocaleFromHeaders(headers());
+  const lang = getLocaleFromHeaders(await headers());
   const [dict] = await getDictionary(lang);
   return (
     <div

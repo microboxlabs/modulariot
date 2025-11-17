@@ -59,7 +59,7 @@ export default function BentoHead({
   if (task?.persistentState?.endTime) {
     title = tr("bento.titles.finished_process", dict);
   } else if (task_name) {
-    title = tr(`bento.titles.${task_name}`, dict);
+    title = task_name as string;
   }
 
   let subtitle = "";

@@ -65,12 +65,9 @@ export default function BentoHead({
   let subtitle = "";
 
   if (task?.persistentState?.endTime) {
-    subtitle = tr("bento.title.finished", dict);
+    subtitle = tr("bento.titles.finished", dict);
   } else if (task_states[task_name_identifier as keyof typeof task_states]) {
-    subtitle = tr(
-      `bento.title.${task_states[task_name_identifier as keyof typeof task_states]}`,
-      dict
-    );
+    subtitle = tr(`bento.titles.${task_name_identifier}`, dict);
   }
 
   const workflowVersion = task.definitionVersion as number | undefined;

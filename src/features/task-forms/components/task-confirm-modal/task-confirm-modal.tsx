@@ -1,6 +1,15 @@
 "use client";
 
-import { Button, Label, Modal, ModalBody, ModalFooter, ModalHeader, Select, Textarea } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Select,
+  Textarea,
+} from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
@@ -116,7 +125,11 @@ export default function TaskConfirmModal({
     setFormValue,
   ]);
 
-  async function handleConfirm() {
+  async function handleConfirm(
+    e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+  ) {
+    e?.preventDefault();
+
     try {
       setIsProcessing(true);
 
@@ -130,6 +143,13 @@ export default function TaskConfirmModal({
         extraData,
         customFormValues: formValues,
       });
+
+      // Debug: Log what's being sent
+      console.log("Form values being sent:", formValues);
+      console.log("FormData entries:");
+      for (const [key, value] of formData.entries()) {
+        console.log(`  ${key}: ${value}`);
+      }
 
       const response = await taskNextAction({}, formData);
       if (response.success) {
@@ -267,12 +287,12 @@ export default function TaskConfirmModal({
             {error && <ErrorAlert error={error} />}
           </div>
         </ModalBody>
-        <ModalFooter className=" border-none">
+        <ModalFooter className="border-none">
           <Button
             className="ml-auto mt-[-41px]"
             disabled={isProcessing}
             color="blue"
-            onClick={handleConfirm}
+            type="submit"
           >
             {tr("modal.confirm", dict, {
               outcome: outcomeLabel ?? "Next",

@@ -51,13 +51,17 @@ export function prepareFormData({
     Object.entries(customFormValues).forEach(([key, value]) => {
       if (typeof value === "boolean") {
         formData.append(key, value.toString());
-      } else if (key === "mintral_estimatedArrivalDate" && typeof value === "string") {
+      } else if (
+        key === "mintral_estimatedArrivalDate" &&
+        typeof value === "string" &&
+        value.length > 0
+      ) {
         // Convert datetime-local format to ISO with timezone for server
         // The input gives us "YYYY-MM-DDTHH:mm" which is in local time
         // We need to convert it to ISO format with timezone
         const isoDate = dayjs(value).toISOString();
         formData.append(key, isoDate);
-      } else {
+      } else if (value && value.length > 0) {
         formData.append(key, value);
       }
     });

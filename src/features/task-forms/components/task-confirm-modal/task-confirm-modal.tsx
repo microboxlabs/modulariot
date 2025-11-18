@@ -181,6 +181,7 @@ export default function TaskConfirmModal({
     } catch (error) {
       setIsProcessing(false);
       setError(error as ErrorWithAlfrescoError);
+      console.error(error);
     }
   }
 

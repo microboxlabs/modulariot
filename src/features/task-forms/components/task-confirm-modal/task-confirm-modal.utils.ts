@@ -1,4 +1,5 @@
 import { SelectConfig } from "./task-confirm-modal.types";
+import dayjs from "dayjs";
 
 export type CustomFormValues = Record<string, string | boolean>;
 
@@ -50,6 +51,12 @@ export function prepareFormData({
     Object.entries(customFormValues).forEach(([key, value]) => {
       if (typeof value === "boolean") {
         formData.append(key, value.toString());
+      } else if (key === "mintral_estimatedArrivalDate" && typeof value === "string") {
+        // Convert datetime-local format to ISO with timezone for server
+        // The input gives us "YYYY-MM-DDTHH:mm" which is in local time
+        // We need to convert it to ISO format with timezone
+        const isoDate = dayjs(value).toISOString();
+        formData.append(key, isoDate);
       } else {
         formData.append(key, value);
       }
@@ -57,11 +64,11 @@ export function prepareFormData({
   }
 
   // Add extra data if provided
-  if (extraData) {
-    Object.entries(extraData).forEach(([key, value]) => {
-      formData.append(key, value as string);
-    });
-  }
+  // if (extraData) {
+  //   Object.entries(extraData).forEach(([key, value]) => {
+  //     formData.append(key, value as string);
+  //   });
+  // }
 
   return formData;
 }

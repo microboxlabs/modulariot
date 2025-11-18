@@ -7,6 +7,8 @@ export type EndTaskRequest = {
   reasonId?: string;
   reasons?: string; // JSON stringified array for multi-select
   isMultiReason?: string; // Flag to indicate multi-select mode
+  // Allow any additional fields from dynamic forms
+  [key: string]: unknown;
 };
 
 export type UpdateTaskRequest = {
@@ -17,4 +19,6 @@ export type UpdateTaskRequest = {
   prop_cm_owner?: string;
   // New properties for multi-select rejection handling
   prop_mintral_commentReasons?: string[];
+  // Allow any additional prop_* fields from dynamic forms
+  [key: string]: unknown;
 };

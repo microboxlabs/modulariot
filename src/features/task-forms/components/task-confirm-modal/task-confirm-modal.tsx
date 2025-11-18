@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import BrandedMultiSelect from "./branded-multi-select";
+import dayjs from "dayjs";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
@@ -107,15 +108,11 @@ export default function TaskConfirmModal({
       formValues.mintral_etaMode === "manual" &&
       !formValues.mintral_estimatedArrivalDate
     ) {
-      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
-      const date = new Date(eta.estimatedArrival);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
-
+      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm) for the input field
+      // dayjs will handle timezone conversion properly
+      const datetimeLocal = dayjs(eta.estimatedArrival).format(
+        "YYYY-MM-DDTHH:mm"
+      );
       setFormValue("mintral_estimatedArrivalDate", datetimeLocal);
     }
   }, [
@@ -143,13 +140,6 @@ export default function TaskConfirmModal({
         extraData,
         customFormValues: formValues,
       });
-
-      // Debug: Log what's being sent
-      console.log("Form values being sent:", formValues);
-      console.log("FormData entries:");
-      for (const [key, value] of formData.entries()) {
-        console.log(`  ${key}: ${value}`);
-      }
 
       const response = await taskNextAction({}, formData);
       if (response.success) {

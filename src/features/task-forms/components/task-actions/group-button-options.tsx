@@ -4,7 +4,7 @@ import { Dropdown, DropdownItem } from "flowbite-react";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
 import { TaskOutcome } from "../../services/form.service.types";
-import { ReusableDropdownButton } from "./reusable-dropdown-button";
+import { TaskActionDropdownButton } from "./task-action-dropdown-button";
 
 interface GroupButtonOptionsProps extends OtherOptionsProps {
   otherOptions: Array<{
@@ -52,7 +52,7 @@ export default function GroupButtonOptions({
         placement="bottom-start"
         label={false}
         renderTrigger={() => (
-          <ReusableDropdownButton isOpen={isOpen} dict={dict} />
+          <TaskActionDropdownButton isOpen={isOpen} dict={dict} />
         )}
       >
         {otherOptions.map(({ id, label, icon: Icon }) => (

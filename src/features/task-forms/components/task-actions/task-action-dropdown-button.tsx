@@ -4,17 +4,17 @@ import { twMerge } from "tailwind-merge";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-interface ReusableDropdownButtonProps {
+interface TaskActionDropdownButtonProps {
   isOpen: boolean;
   dict: I18nRecord;
   labelKey?: string;
 }
 
-export function ReusableDropdownButton({
+export function TaskActionDropdownButton({
   isOpen,
   dict,
   labelKey = "outcome.moreOptions",
-}: ReusableDropdownButtonProps) {
+}: TaskActionDropdownButtonProps) {
   return (
     <Button
       color="alternative"

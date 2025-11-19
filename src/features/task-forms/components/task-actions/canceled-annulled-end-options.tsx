@@ -14,7 +14,7 @@ import {
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
-import { ReusableDropdownButton } from "./reusable-dropdown-button";
+import { TaskActionDropdownButton } from "./task-action-dropdown-button";
 
 export default function CanceledAnnulledEndOptions({
   dict,
@@ -72,7 +72,7 @@ export default function CanceledAnnulledEndOptions({
         placement="bottom-start"
         label={false}
         renderTrigger={() => (
-          <ReusableDropdownButton isOpen={isOpen} dict={dict} />
+          <TaskActionDropdownButton isOpen={isOpen} dict={dict} />
         )}
         theme={{
           content: "z-20 w-full",

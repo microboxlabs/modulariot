@@ -16,19 +16,15 @@ export function ViewSwitcher({
   return (
     <ButtonGroup>
       <Button
-        outline
         color="alternative"
         onClick={() => onViewChange("kanban")}
-        size="sm"
         disabled={activeView === "kanban"}
       >
         {tr("views.kanban", dict)}
       </Button>
       <Button
-        outline
         color="alternative"
         onClick={() => onViewChange("table")}
-        size="sm"
         disabled={activeView === "table"}
       >
         {tr("views.table", dict)}

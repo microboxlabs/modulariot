@@ -96,4 +96,5 @@ export async function authenticateAction(
     }
     throw error;
   }
+  return { success: false, message: "An error occurred", status: 500 };
 }

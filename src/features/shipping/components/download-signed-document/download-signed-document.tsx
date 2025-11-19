@@ -9,13 +9,13 @@ import { FaRegFilePdf } from "react-icons/fa";
 interface DownloadSignedDocumentProps {
   documentId?: string;
   asLink?: boolean;
-  name?: string;
+  name: string;
 }
 
 export default function DownloadSignedDocument({
   documentId,
   asLink = false,
-  name = "carta porte",
+  name,
 }: DownloadSignedDocumentProps) {
   const documentPath =
     documentId && typeof documentId?.replace === "function"
@@ -23,23 +23,18 @@ export default function DownloadSignedDocument({
       : documentId;
 
   const href = `/api/document/download?documentId=${documentPath}`;
-  //const uuid = documentId?.split("/");
-  /* const { exists } = useVerifyDocument(uuid?.[uuid.length - 1] || ""); */
 
   if (asLink) {
     return (
       <Button
-        outline
-        color="gray"
+        color="alternative"
         className="h-10 transition-all duration-100 z-10 gap-2 w-fit"
         as={Link}
         href={href}
       >
         <div className="flex flex-row gap-2 items-center">
           <FaRegFilePdf className="w-5 h-5" width={20} height={20} />
-          <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-            {name}
-          </p>
+          <span className="lg:block hidden whitespace-nowrap">{name}</span>
         </div>
       </Button>
     );

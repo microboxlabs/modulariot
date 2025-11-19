@@ -11,9 +11,8 @@ import {
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 
-export default async function FinishedPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function FinishedPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();
   const userGroups = await getGroupsForPerson(session!);

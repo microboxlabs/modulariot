@@ -43,9 +43,10 @@ function LoadingConsole() {
 export default async function MessageTemplatesPage({
   params,
 }: {
-  params: { lang: string };
+  params: Promise<{ lang: string }>;
 }) {
-  const [, dictionary] = await getDictionary(params.lang);
+  const { lang } = await params;
+  const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.pages as I18nRecord)?.admin as I18nRecord;
   // Check admin access server-side
   await checkAdminAccess();

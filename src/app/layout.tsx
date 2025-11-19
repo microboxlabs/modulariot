@@ -4,6 +4,8 @@ import React from "react";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
+import { ThemeModeScript } from "flowbite-react";
+import { ThemeInit } from "../../.flowbite-react/init";
 
 export const metadata: Metadata = {
   title: "Coordinador Viajes Mintral",
@@ -19,7 +21,11 @@ export default async function RootLayout({
 
   return (
     <html lang="es" className={theme}>
+      <head>
+        <ThemeModeScript />
+      </head>
       <body className="dark:bg-gray-900">
+        <ThemeInit />
         <ThemeDetector>{children}</ThemeDetector>
         <Toaster
           position="bottom-center"

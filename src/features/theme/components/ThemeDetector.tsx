@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Spinner } from "flowbite-react";
+import { Spinner, ThemeProvider } from "flowbite-react";
 import { check_theme_cookie, set_theme_cookie } from "./CookieThemeChecking";
+import { flowbiteTheme } from "../flowbite-theme";
 
 type Theme = "light" | "dark";
 
@@ -75,5 +76,5 @@ export default function ClientThemeDetector({
     );
   }
 
-  return <>{children}</>;
+  return <ThemeProvider theme={flowbiteTheme}>{children}</ThemeProvider>;
 }

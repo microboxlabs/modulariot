@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Dropdown, DropdownItem } from "flowbite-react";
-import { HiOutlineArrowLeft, HiTrash, HiChevronUp } from "react-icons/hi";
+import { Dropdown, DropdownItem } from "flowbite-react";
+import { HiOutlineArrowLeft, HiTrash } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   OUTCOME_TRIP_ANNULLED,
@@ -9,6 +9,7 @@ import {
 } from "../../services/form.service";
 import { OtherOptionsProps } from "./other-options.types";
 import React, { useState, useEffect } from "react";
+import { ReusableDropdownButton } from "./reusable-dropdown-button";
 
 export default function CanceledAnnulledOptions({
   dict,
@@ -60,19 +61,7 @@ export default function CanceledAnnulledOptions({
         placement="bottom-start"
         label={false}
         renderTrigger={() => (
-          <Button
-            color="gray"
-            className="h-10 transition-all duration-100 z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
-          >
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                {(dict.outcome as I18nRecord).moreOptions as string}
-              </p>
-              <HiChevronUp
-                className={`text-gray-900 dark:text-gray-100 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
-              />
-            </div>
-          </Button>
+          <ReusableDropdownButton isOpen={isOpen} dict={dict} />
         )}
         theme={{
           content: "z-20 w-full",

@@ -7,9 +7,8 @@ import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import PageContent from "@/features/user-settings/components/page-content";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 
-export default async function ShippingPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function ShippingPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
 
   try {

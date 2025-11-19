@@ -52,9 +52,8 @@ function LoadingConsole() {
   );
 }
 
-export default async function LogManagementPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function LogManagementPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   // Check admin access server-side
   await checkAdminAccess();
   const [, dictionary] = await getDictionary(lang);

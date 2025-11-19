@@ -16,9 +16,8 @@ import Notifications from "@/features/common/components/notification/notificatio
 },
 */
 
-export default async function SymptomsPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function SymptomsPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 
   return (

@@ -4,16 +4,10 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import SymptomsIcuList from "@/features/symptoms/components/symptoms-list/symptoms-icu-list";
 
-interface SymptomsListParams extends ParamsWithLang {
-  condition: string;
-  lang: string;
-}
-
 export default async function SymptomsList({
-  params: { lang, condition },
-}: {
-  params: SymptomsListParams;
-}) {
+  params,
+}: ParamsWithLang<{ condition: string }>) {
+  const { lang, condition } = await params;
   const [, dict] = await getDictionary(lang);
 
   return (

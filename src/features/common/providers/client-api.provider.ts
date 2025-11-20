@@ -10,6 +10,7 @@ import {
   TaskResponse,
   UserGroupsResponse,
   VerifyDocumentResponse,
+  StatisticsTasksResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
@@ -73,6 +74,19 @@ export function useMyTasksCount() {
     `/app/api/task/mytasks/count`,
     fetcher
   );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useHistoricInstancesCount() {
+  const { data, error, isLoading } = useSWR<
+    StatisticsTasksResponse,
+    FetcherError
+  >(`/app/api/task/statistics?mode=historic_instances`, fetcher);
 
   return {
     data,

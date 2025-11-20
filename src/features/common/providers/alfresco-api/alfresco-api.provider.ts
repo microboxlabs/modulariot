@@ -29,6 +29,8 @@ import type {
   WebhookDefinition,
   WebhookDefinitionResponse,
   MessageTemplatesResponse,
+  StatisticsMode,
+  StatisticsTasksResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
@@ -431,6 +433,26 @@ export async function getCountTask(
     headers,
   });
   return result as TaskCountResponse;
+}
+
+export async function getStatisticsTasks(
+  session: Session,
+  mode: StatisticsMode = "running_tasks"
+): Promise<StatisticsTasksResponse> {
+  const queryParams = new URLSearchParams({
+    mode,
+  });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/statistics/tasks?${queryParams.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+  return result as StatisticsTasksResponse;
 }
 
 export async function formProcessor(

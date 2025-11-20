@@ -15,9 +15,8 @@ import {
   useSymptoms,
   useMapPositions,
   useMyTasksCount,
-  useMyTasks,
+  useHistoricInstancesCount,
 } from "@/features/common/providers/client-api.provider";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
 export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   // remove first element of pathname which is the language
@@ -25,12 +24,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   const { isOpen, close } = useSidebarContext().mobile;
 
   const { data, error, isLoading: _ } = useMyTasksCount();
-  const { data: finishedTasks } = useMyTasks(
-    SHIPPING_COORDINATOR_PROCESS_TASKS,
-    true,
-    1,
-    0
-  );
+  const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
@@ -47,9 +41,12 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
     const newTotals = { ...totals };
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
-    newTotals["finished"] = finishedTasks?.total ?? 0;
+    const historicInstancesTotal = Object.values(
+      historicInstances?.totals ?? {}
+    ).reduce((sum, count) => sum + count, 0);
+    newTotals["finished"] = historicInstancesTotal;
     setTotals(newTotals);
-  }, [mapCount, symptomsCount, finishedTasks]);
+  }, [mapCount, symptomsCount, historicInstances]);
 
   if (!isOpen) return null;
 

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { Toaster } from "sonner";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
+import { twMerge } from "tailwind-merge";
 
 export const metadata: Metadata = {
   title: "Coordinador Viajes Mintral",
@@ -20,7 +21,7 @@ export default async function RootLayout({
   const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "";
 
   return (
-    <html lang="es" className={theme}>
+    <html lang="es" className={twMerge(theme)}>
       <head>
         <ThemeModeScript />
       </head>

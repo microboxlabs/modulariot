@@ -1,6 +1,6 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Sidebar } from "flowbite-react";
+import { Sidebar, SidebarItemGroup, SidebarItems } from "flowbite-react";
 import SidebarItem from "../sidebar-item/sidebar-item";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
@@ -71,8 +71,8 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">
           <div className="py-2">
-            <Sidebar.Items>
-              <Sidebar.ItemGroup className="mt-0 border-t-0 pb-1 pt-0">
+            <SidebarItems>
+              <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
                 {pages.map((item) => (
                   <SidebarItem
                     key={item.label}
@@ -84,13 +84,13 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
                     totals={totals}
                   />
                 ))}
-              </Sidebar.ItemGroup>
+              </SidebarItemGroup>
               {/* <Sidebar.ItemGroup className="mt-2 pt-2">
                 {externalPages.map((item) => (
                   <SidebarItem key={item.label} {...item} pathname={pathname} />
                 ))}
               </Sidebar.ItemGroup> */}
-            </Sidebar.Items>
+            </SidebarItems>
           </div>
           <BottomMenu isCollapsed={false} dict={dict} pathname={pathname} />
         </div>

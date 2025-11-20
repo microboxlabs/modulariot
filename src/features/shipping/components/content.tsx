@@ -118,8 +118,6 @@ export default function PageContent({
     isLoading: _2,
   } = useSearchTasks(showFinishedTasks ? null : searchParams.get("search"));
 
-  const { data: _3, error: taskCountError } = useMyTasksCount();
-
   useEffect(() => {
     if (searchTasksData) {
       const newBoards = list.map((board) => ({
@@ -157,14 +155,9 @@ export default function PageContent({
     router.replace(`/${lang}/sign-in`);
   }
 
-  if (taskCountError || myTasksError || searchTasksError) {
+  if (myTasksError || searchTasksError) {
     return (
-      <div>
-        Error:{" "}
-        {taskCountError?.message ||
-          myTasksError?.message ||
-          searchTasksError?.message}
-      </div>
+      <div>Error: {myTasksError?.message || searchTasksError?.message}</div>
     );
   }
 

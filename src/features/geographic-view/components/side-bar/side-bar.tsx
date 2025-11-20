@@ -10,6 +10,7 @@ import {
   MapPositionResume,
   MapPosition,
 } from "@/features/geographic-view/types/map";
+import { tr } from "@/features/i18n/tr.service";
 export default function SideBar({
   dict,
   mapPositionsResume,
@@ -22,17 +23,17 @@ export default function SideBar({
   const inner_menu = React.useMemo(
     () => [
       {
-        button_text: (dict.symptoms as I18nRecord).monitoring as string,
+        button_text: tr("symptoms.monitoring", dict),
         component: mapPositionsResume && (
           <Monitoring dict={dict} mapPositionsResume={mapPositionsResume} />
         ),
       },
       {
-        button_text: (dict.symptoms as I18nRecord).symptoms as string,
+        button_text: tr("symptoms.symptoms", dict),
         component: <Symptoms dict={dict} />,
       },
       {
-        button_text: (dict.symptoms as I18nRecord).download as string,
+        button_text: tr("symptoms.download", dict),
         component: <Download dict={dict} mapPositions={mapPositions} />,
       },
     ],
@@ -73,7 +74,7 @@ export default function SideBar({
                   className="z-10"
                   onClick={() => set_openned_menu(i)}
                   key={i}
-                  color={i == openned_menu ? "blue" : "gray"}
+                  color={i == openned_menu ? "blue" : "alternative"}
                 >
                   {menu.button_text}
                 </Button>

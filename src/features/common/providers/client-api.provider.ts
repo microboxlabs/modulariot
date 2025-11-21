@@ -241,7 +241,10 @@ export function useSymptomsTable({
   search?: string;
   condition?: string;
 }) {
-  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<
+    SymptomTableResponse,
+    FetcherError
+  >(
     `/app/api/symptoms/table?page=${page}&limit=${pageSize}${search ? "&search=" + search : ""}${condition ? "&condition=" + condition : ""}`,
     fetcher,
     {
@@ -254,7 +257,9 @@ export function useSymptomsTable({
   return {
     tableData: data,
     loading: isLoading,
+    isValidating,
     error,
+    refetch: mutate,
   };
 }
 

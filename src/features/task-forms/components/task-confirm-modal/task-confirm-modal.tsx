@@ -1,9 +1,19 @@
 "use client";
 
-import { Button, Label, Modal, Select, Textarea } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Select,
+  Textarea,
+} from "flowbite-react";
 import {
   ErrorWithAlfrescoError,
   TaskConfirmModalProps,
+  TaskFormConfig,
 } from "./task-confirm-modal.types";
 import {
   I18nRecord,
@@ -15,15 +25,23 @@ import { useRouter } from "next/navigation";
 import KanbanMove from "@/features/icons/kanban-move";
 import { ErrorAlert } from "../error-alert";
 import BrandedMultiSelect from "./branded-multi-select";
+import dayjs from "dayjs";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
-import { useState, useMemo } from "react";
-import { getSelectConfig } from "./task-confirm-modal.config";
+import { useState, useMemo, useEffect } from "react";
+import {
+  getSelectConfig,
+  getTaskFormConfig,
+} from "./task-confirm-modal.config";
 import { useTaskModalState } from "./hooks/use-task-modal-state";
+import { useCustomFormState } from "./hooks/use-custom-form-state";
 import { prepareFormData } from "./task-confirm-modal.utils";
+import { CustomFormField } from "./custom-form-field";
+import { useLiveETA } from "@/features/common/providers/client-api.provider";
 import {
   DeliveryProcessTask,
   PlanningProcessTask,
@@ -45,12 +63,17 @@ export default function TaskConfirmModal({
   const [error, setError] = useState<ErrorWithAlfrescoError | undefined>();
   const router = useRouter();
 
-  // Get select configuration based on current task type and outcome
-  const selectConfig = useMemo(() => {
-    return getSelectConfig(taskType, outcome);
+  // Get task form configuration (includes both select config and custom form config)
+  const taskFormConfig = useMemo<TaskFormConfig | null>(() => {
+    return getTaskFormConfig(taskType, outcome);
   }, [taskType, outcome]);
 
-  // Use consolidated state management
+  // For backward compatibility, also check old select config
+  const selectConfig = useMemo(() => {
+    return taskFormConfig?.selectConfig || getSelectConfig(taskType, outcome);
+  }, [taskFormConfig, taskType, outcome]);
+
+  // Use consolidated state management for select/reason fields
   const {
     selectedValues,
     setSelectedValues,
@@ -59,7 +82,51 @@ export default function TaskConfirmModal({
     resetState,
   } = useTaskModalState(openModal, selectConfig);
 
-  async function handleConfirm() {
+  // Use custom form state management
+  const { formValues, setFormValue, resetFormValues, isFieldVisible } =
+    useCustomFormState(openModal, taskFormConfig?.customFormConfig);
+
+  // Fetch calculated ETA for Monitor Trip task
+  const isMonitorTripTask = taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK;
+  const shouldFetchETA =
+    isMonitorTripTask &&
+    openModal &&
+    !!extraData?.mintral_originDelegateCode &&
+    !!extraData?.mintral_destinationDelegateCode;
+
+  const { eta } = useLiveETA(
+    shouldFetchETA,
+    extraData?.mintral_originDelegateCode as string,
+    extraData?.mintral_destinationDelegateCode as string,
+    "calculated"
+  );
+
+  // Sync calculated ETA to manual field when switching to manual mode
+  useEffect(() => {
+    if (
+      eta?.estimatedArrival &&
+      formValues.mintral_etaMode === "manual" &&
+      !formValues.mintral_estimatedArrivalDate
+    ) {
+      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm) for the input field
+      // dayjs will handle timezone conversion properly
+      const datetimeLocal = dayjs(eta.estimatedArrival).format(
+        "YYYY-MM-DDTHH:mm"
+      );
+      setFormValue("mintral_estimatedArrivalDate", datetimeLocal);
+    }
+  }, [
+    eta?.estimatedArrival,
+    formValues.mintral_etaMode,
+    formValues.mintral_estimatedArrivalDate,
+    setFormValue,
+  ]);
+
+  async function handleConfirm(
+    e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+  ) {
+    e?.preventDefault();
+
     try {
       setIsProcessing(true);
 
@@ -71,6 +138,7 @@ export default function TaskConfirmModal({
         selectedValues,
         selectConfig,
         extraData,
+        customFormValues: formValues,
       });
 
       const response = await taskNextAction({}, formData);
@@ -113,20 +181,22 @@ export default function TaskConfirmModal({
     } catch (error) {
       setIsProcessing(false);
       setError(error as ErrorWithAlfrescoError);
+      console.error(error);
     }
   }
 
   async function onClose() {
     setIsProcessing(false);
     setError(undefined);
-    resetState(); // Reset all form state when modal closes
+    resetState(); // Reset select/reason form state when modal closes
+    resetFormValues(); // Reset custom form state when modal closes
     setOpenModal(false);
   }
 
   return (
     <Modal dismissible show={openModal} onClose={onClose} size="4xl">
       <form onSubmit={handleConfirm}>
-        <Modal.Header className="border-none">
+        <ModalHeader className="border-none">
           <div className="flex flex-col items-start">
             <h2 className="text-base font-semibold">
               {(dict.modal as I18nRecord).title as string}
@@ -135,8 +205,8 @@ export default function TaskConfirmModal({
               {(dict.modal as I18nRecord).subtitle as string}
             </p>
           </div>
-        </Modal.Header>
-        <Modal.Body>
+        </ModalHeader>
+        <ModalBody>
           <div className="flex flex-col">
             {selectConfig && (
               <>
@@ -168,8 +238,27 @@ export default function TaskConfirmModal({
               </>
             )}
 
+            {/* Custom form fields */}
+            {taskFormConfig?.customFormConfig && (
+              <div className="flex flex-col gap-4 mt-4">
+                {taskFormConfig.customFormConfig.fields.map((field) => (
+                  <CustomFormField
+                    key={field.name}
+                    field={field}
+                    value={formValues[field.name] ?? field.defaultValue ?? ""}
+                    onChange={(value) => setFormValue(field.name, value)}
+                    dict={dict.modal as I18nRecord}
+                    isVisible={isFieldVisible(field)}
+                    allValues={{ ...extraData, ...formValues }}
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center justify-center mt-4">
-              {!commentsFieldEnabled && <KanbanMove />}
+              {!commentsFieldEnabled && !taskFormConfig?.customFormConfig && (
+                <KanbanMove />
+              )}
             </div>
             {commentsFieldEnabled && (
               <div className="flex-1 flex flex-col gap-y-2">
@@ -188,19 +277,19 @@ export default function TaskConfirmModal({
           <div className="mt-4 px-6 space-y-2">
             {error && <ErrorAlert error={error} />}
           </div>
-        </Modal.Body>
-        <Modal.Footer className=" border-none">
+        </ModalBody>
+        <ModalFooter className="border-none">
           <Button
             className="ml-auto mt-[-41px]"
-            isProcessing={isProcessing}
+            disabled={isProcessing}
             color="blue"
-            onClick={handleConfirm}
+            type="submit"
           >
             {tr("modal.confirm", dict, {
               outcome: outcomeLabel ?? "Next",
             })}
           </Button>
-        </Modal.Footer>
+        </ModalFooter>
       </form>
     </Modal>
   );

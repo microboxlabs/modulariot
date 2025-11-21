@@ -28,6 +28,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
 import { logger } from "@/lib/logger";
+import { tr } from "@/features/i18n/tr.service";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -609,10 +610,7 @@ export default function MapVisualizationTrip({
         ) : !isLoading && positions?.length === 0 ? (
           <div className="flex items-center justify-center h-full p-2">
             <p className="text-gray-500 dark:text-gray-400 font-light">
-              {
-                ((dict as I18nRecord).geographic_view as I18nRecord)
-                  .no_data_found as string
-              }
+              {tr("geographic_view.no_data_found", dict)}
             </p>
           </div>
         ) : null}

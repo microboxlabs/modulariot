@@ -223,9 +223,9 @@ export default function SovosStartVerificationCard({
           >
             <Button
               color={pluginReady ? "blue" : "gray"}
-              theme={{ inner: { base: "px-5 py-3" } }}
+              // theme={{ inner: { base: "px-5 py-3" } }}
               className="w-full px-0 py-px"
-              isProcessing={!pluginReady}
+              disabled={!pluginReady}
               onClick={startVerification}
             >
               {pluginReady

@@ -1,7 +1,7 @@
 const withMDX = require("@next/mdx")({
   extension: /\.mdx?$/,
 });
-const { NormalModuleReplacementPlugin } = require("webpack");
+const withFlowbiteReact = require("flowbite-react/plugin/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -9,27 +9,15 @@ const nextConfig = {
   output: "standalone",
   basePath: "/app",
   images: {
-    domains: ['mintcargaimagenesprbfc3.blob.core.windows.net'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'mintcargaimagenesprbfc3.blob.core.windows.net',
+        pathname: '/**',
+      },
+    ],
   },
-  eslint: {
-    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
-  },
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  experimental: {
-    instrumentationHook: true,
-    serverComponentsExternalPackages: ['sequelize', 'pino', 'pino-pretty'],
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback.fs = false;
-      config.resolve.fallback.dns = false;
-      config.resolve.fallback.net = false;
-    }
-
-    return config;
-  },
+  serverExternalPackages: ["pino", "pino-pretty"]
 };
 
-module.exports = withMDX(nextConfig);
+module.exports = withFlowbiteReact(withMDX(nextConfig));

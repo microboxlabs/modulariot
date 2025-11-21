@@ -1,6 +1,14 @@
 "use client";
 
-import { Modal, Table } from "flowbite-react";
+import {
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GpsValidationModalProps } from "./gps-validation-modal.types";
 import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
@@ -36,15 +44,15 @@ export default function GpsValidationModal({
         },
       }}
     >
-      <Modal.Header className="border-none">
+      <ModalHeader className="border-none">
         <h2 className="text-base font-semibold">
           {msg?.cards
             ? ((msg!.cards as I18nRecord).gpsValidation as string)
             : ((msg as I18nRecord).gpsValidation as string)}
         </h2>
         <p className="text-sm text-gray-500 mt-1"></p>
-      </Modal.Header>
-      <Modal.Body>
+      </ModalHeader>
+      <ModalBody>
         <div className="flex flex-col gap-4">
           <MapProvider>
             <div id="map" className="h-[200px]">
@@ -60,7 +68,7 @@ export default function GpsValidationModal({
           </MapProvider>
           <div className="overflow-auto">
             <Table striped>
-              <Table.Body>
+              <TableBody>
                 {entityInfo &&
                   Object.entries(entityInfo!).map(
                     ([key, value]) =>
@@ -68,15 +76,15 @@ export default function GpsValidationModal({
                       value !== null &&
                       value !== undefined &&
                       value !== "" && (
-                        <Table.Row key={key}>
-                          <Table.Cell>
+                        <TableRow key={key}>
+                          <TableCell>
                             <strong>
                               {msg?.cards
-                                ? tr(key, msg!.cards as I18nRecord)
-                                : tr(key, msg as I18nRecord)}
+                                ? tr(`cards.${key}`, msg)
+                                : tr(key, msg ?? {})}
                             </strong>
-                          </Table.Cell>
-                          <Table.Cell>
+                          </TableCell>
+                          <TableCell>
                             {!date_values.includes(key) &&
                               ((typeof value === "string" &&
                                 `${value.replace("_", " ")}`) ||
@@ -95,15 +103,15 @@ export default function GpsValidationModal({
                               `${new Date(
                                 `${value as string}`
                               ).toLocaleString()}`}
-                          </Table.Cell>
-                        </Table.Row>
+                          </TableCell>
+                        </TableRow>
                       )
                   )}
-              </Table.Body>
+              </TableBody>
             </Table>
           </div>
         </div>
-      </Modal.Body>
+      </ModalBody>
     </Modal>
   );
 }

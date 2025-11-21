@@ -10,10 +10,9 @@ import {
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
-export default async function ShippingPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function ShippingPage(params: ParamsWithLang) {
   try {
+    const { lang } = await params.params;
     const [, dictionary] = await getDictionary(lang);
     const session = await auth();
 

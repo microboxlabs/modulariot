@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Breadcrumb as FlowbiteBreadcrumb } from "flowbite-react";
+import { Breadcrumb as FlowbiteBreadcrumb, BreadcrumbItem } from "flowbite-react";
 import { HiHome } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -31,13 +31,13 @@ export const ClientBreadcrumb: React.FC<ClientBreadcrumbProps> = ({
       <FlowbiteBreadcrumb aria-label="Breadcrumb">
         {translatedPath.map((item, index) =>
           index === 0 ? (
-            <FlowbiteBreadcrumb.Item icon={() => rootIcon} key={index}>
+            <BreadcrumbItem icon={() => rootIcon} key={index}>
               {item}
-            </FlowbiteBreadcrumb.Item>
+            </BreadcrumbItem>
           ) : (
-            <FlowbiteBreadcrumb.Item key={index}>
+            <BreadcrumbItem key={index}>
               {item}
-            </FlowbiteBreadcrumb.Item>
+            </BreadcrumbItem>
           )
         )}
       </FlowbiteBreadcrumb>

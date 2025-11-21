@@ -1,7 +1,7 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar } from "flowbite-react";
+import { Label, Navbar, NavbarBrand } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
@@ -116,9 +116,9 @@ export function SecuredNavbar({
             )}
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
-            <Navbar.Brand as={Link} href="/">
+            <NavbarBrand as={Link} href="/">
               <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
-            </Navbar.Brand>
+            </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">
             <div className="block w-full lg:hidden">

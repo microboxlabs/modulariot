@@ -95,10 +95,10 @@ export default function DriverVerificationCard({
         </div>
         <div>
           <Button
-            isProcessing={isLoading}
+            disabled={isLoading}
             color="blue"
             type="submit"
-            theme={{ inner: { base: "px-5 py-3" } }}
+            // theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
           >
             {(msg!.buttons as I18nRecord).submit as string}

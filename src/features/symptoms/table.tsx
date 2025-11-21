@@ -59,6 +59,7 @@ export default function SymptomsTable({
           <Button
             className={`flex justify-center items-center ${showCards ? "animate-hide" : "animate-show-flex"}`}
             color="alternative"
+            disabled={isValidating}
             onClick={() => {
               setCondition("");
               setSearchTerm("");

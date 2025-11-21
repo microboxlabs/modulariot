@@ -11,6 +11,8 @@ import { BsSignStop } from "react-icons/bs";
 import Screenshot from "./screenshot";
 import { Tooltip } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { twMerge } from "tailwind-merge";
 
 type ToolBarProps = {
   positions: MapPosition[] | null;
@@ -79,7 +81,19 @@ export default function ToolBar({
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none p-5">
       <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none relative">
         <div
-          className={`absolute bottom-0 left-0 p-2 rounded-lg shadow-lg pointer-events-auto flex flex-col items-center transition-all duration-300 ${selectedTool === "mapSelection" ? "animate-fade-in-fast" : "animate-fade-out-fast"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+          className={twMerge(
+            "absolute bottom-0 left-0",
+            "p-2",
+            "rounded-lg shadow-lg pointer-events-auto",
+            "flex flex-col items-center",
+            "transition-all duration-300",
+            selectedTool === "mapSelection"
+              ? "animate-fade-in-fast"
+              : "hidden animate-fade-out-fast",
+            mapstyles.find((style) => style.value === selectedStyle)?.isDark
+              ? "bg-white"
+              : "bg-gray-800"
+          )}
         >
           <MapSelector
             selectedStyle={selectedStyle}
@@ -87,7 +101,19 @@ export default function ToolBar({
           />
         </div>
         <div
-          className={`absolute bottom-0 left-0 p-4 right-0 rounded-lg shadow-lg pointer-events-auto flex flex-col items-center transition-all duration-300 ${selectedTool === "timeline" ? "animate-fade-in-fast" : "animate-fade-out-fast"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+          className={twMerge(
+            "absolute bottom-0 left-0 right-0",
+            "p-4",
+            "rounded-lg shadow-lg pointer-events-auto",
+            "flex flex-col items-center",
+            "transition-all duration-300",
+            selectedTool === "timeline"
+              ? "animate-fade-in-fast"
+              : "animate-fade-out-fast hidden",
+            mapstyles.find((style) => style.value === selectedStyle)?.isDark
+              ? "bg-white"
+              : "bg-gray-800"
+          )}
         >
           <PulseRange
             positions={positions ?? []}
@@ -114,10 +140,7 @@ export default function ToolBar({
         >
           <div className="flex flex-row gap-1">
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .mapSelection as string
-              }
+              content={tr("symptoms.mapSelection", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -136,10 +159,7 @@ export default function ToolBar({
               </div>
             </Tooltip>
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .timeline as string
-              }
+              content={tr("symptoms.timeline", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -161,10 +181,7 @@ export default function ToolBar({
           {/* Map toggles */}
           <div className="flex flex-row gap-1">
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .pulse as string
-              }
+              content={tr("symptoms.pulse", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -179,10 +196,7 @@ export default function ToolBar({
               </div>
             </Tooltip>
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .stops as string
-              }
+              content={tr("symptoms.stops", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -197,10 +211,7 @@ export default function ToolBar({
               </div>
             </Tooltip>
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .geofences as string
-              }
+              content={tr("symptoms.geofences", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -220,10 +231,7 @@ export default function ToolBar({
           {/* Action toggles */}
           <div className="flex flex-row gap-1">
             <Tooltip
-              content={
-                ((dictionary as I18nRecord).symptoms as I18nRecord)
-                  .cameraMovement as string
-              }
+              content={tr("symptoms.cameraMovement", dictionary)}
               style={
                 mapstyles.find((style) => style.value === selectedStyle)?.isDark
                   ? "light"
@@ -247,10 +255,7 @@ export default function ToolBar({
           {/* Action toggles */}
           {/* General Actions */}
           <Tooltip
-            content={
-              ((dictionary as I18nRecord).symptoms as I18nRecord)
-                .screenshot as string
-            }
+            content={tr("symptoms.screenshot", dictionary)}
             style={
               mapstyles.find((style) => style.value === selectedStyle)?.isDark
                 ? "light"

@@ -1,6 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@source "../../.flowbite-react/class-list.json";
+@plugin "flowbite-react/plugin/tailwindcss";
+
+@config "../../tailwind.config.ts";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer utilities {
   .no-dot {

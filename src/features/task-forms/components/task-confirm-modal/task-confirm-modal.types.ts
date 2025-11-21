@@ -65,3 +65,57 @@ export type SelectOptionsConfig = {
     [outcome: string]: SelectConfig;
   };
 };
+
+// Custom form field types
+export type FormFieldType =
+  | "text"
+  | "select"
+  | "date"
+  | "datetime-local"
+  | "textarea"
+  | "checkbox"
+  | "display"
+  | "live";
+
+export type FormFieldOption = {
+  value: string;
+  labelKey: string;
+};
+
+export type FormFieldConfig = {
+  name: string; // Property name to send to backend (e.g., "prop_mintral_estimatedArrivalDate")
+  labelKey: string; // i18n key for the label
+  type: FormFieldType;
+  required?: boolean;
+  defaultValue?: string | boolean;
+  options?: FormFieldOption[]; // For select fields
+  dependsOn?: {
+    fieldName: string; // Name of the field this depends on
+    value: string | boolean; // Value that makes this field visible
+  };
+  placeholder?: string;
+  readonly?: boolean; // Makes any field read-only
+  displayFormat?: "text" | "badge" | "datetime" | "custom"; // Display format for display/live fields
+  liveField?: {
+    dataKey: string; // Key to identify what data to fetch
+    displayFormat?: "text" | "badge" | "datetime";
+    dependencies?: string[]; // Fields that affect this value
+  };
+  customComponent?: string; // Name of custom component to use
+  useCalculatedValueFrom?: string; // Name of another field to use as default value (e.g., for manual ETA using calculated ETA)
+};
+
+export type CustomFormConfig = {
+  fields: FormFieldConfig[];
+};
+
+export type TaskFormConfig = {
+  selectConfig?: SelectConfig;
+  customFormConfig?: CustomFormConfig;
+};
+
+export type TaskFormsConfig = {
+  [taskType: string]: {
+    [outcome: string]: TaskFormConfig;
+  };
+};

@@ -721,6 +721,22 @@
         "reason": "Motivo",
         "confirm": "Confirmar mover a {outcome}",
         "multipleReasonsSelected": "opciones seleccionadas",
+        "etaModeLabel": "Modo de Cálculo de Arribo",
+        "etaModeCalculated": "Calculado (ETA Automático)",
+        "etaModeManual": "Hora de Arribo Manual",
+        "calculatedEtaLabel": "Hora Estimada de Arribo",
+        "estimatedArrivalDateLabel": "Fecha/Hora Estimada de Arribo",
+        "calculatingEta": "Calculando ETA...",
+        "etaCalculationError": "No se pudo calcular ETA",
+        "etaNotAvailable": "ETA no disponible",
+        "distance": "Distancia",
+        "duration": "Duración",
+        "manualEtaReasonLabel": "Motivo de Arribo Manual",
+        "manualEtaReasonDestinationSchedule": "Horario de atención del destino o restricciones de ingreso",
+        "manualEtaReasonWeekendHoliday": "ETA coincide con fin de semana o festivo",
+        "manualEtaReasonAuthorizedOvernight": "Viaje iniciado con autorización para pernoctar con la carga",
+        "manualEtaReasonOther": "Otro",
+        "manualEtaReasonOtherLabel": "Descripción del Motivo",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
 
@@ -972,6 +988,10 @@
   },
   "footer": {
     "rights": " MicroboxLabs. Todos los derechos reservados."
+  },
+  "common": {
+    "close": "Cerrar",
+    "open": "Abrir"
   },
   "symptoms": {
     "no_symptoms": "No hay síntomas",

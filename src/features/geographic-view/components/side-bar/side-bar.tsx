@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import MapButton from "../map-button";
 import { HiChevronLeft } from "react-icons/hi";
-import { Button } from "flowbite-react";
+import { Button, ButtonGroup } from "flowbite-react";
 import Monitoring from "./inner-menu/monitoring";
 import Download from "./inner-menu/download";
 import Symptoms from "./inner-menu/symptoms";
@@ -10,6 +10,7 @@ import {
   MapPositionResume,
   MapPosition,
 } from "@/features/geographic-view/types/map";
+import { tr } from "@/features/i18n/tr.service";
 export default function SideBar({
   dict,
   mapPositionsResume,
@@ -22,17 +23,17 @@ export default function SideBar({
   const inner_menu = React.useMemo(
     () => [
       {
-        button_text: (dict.symptoms as I18nRecord).monitoring as string,
+        button_text: tr("symptoms.monitoring", dict),
         component: mapPositionsResume && (
           <Monitoring dict={dict} mapPositionsResume={mapPositionsResume} />
         ),
       },
       {
-        button_text: (dict.symptoms as I18nRecord).symptoms as string,
+        button_text: tr("symptoms.symptoms", dict),
         component: <Symptoms dict={dict} />,
       },
       {
-        button_text: (dict.symptoms as I18nRecord).download as string,
+        button_text: tr("symptoms.download", dict),
         component: <Download dict={dict} mapPositions={mapPositions} />,
       },
     ],
@@ -56,7 +57,7 @@ export default function SideBar({
           main_color="m-5 bg-white dark:bg-gray-800"
           button_color="bg-white dark:bg-gray-800"
           icon={HiChevronLeft}
-          text={open ? "Close" : "Open"}
+          text={open ? tr("common.close", dict) : tr("common.open", dict)}
           open_to_left={true}
           onClick={() => set_open(!open)}
           activated={open}
@@ -67,18 +68,18 @@ export default function SideBar({
           <div
             className={`w-full flex flex-col gap-3 items-center p-4 transition-all duration-500 ease-in-out ${open ? "opacity-100" : "opacity-0"}`}
           >
-            <Button.Group>
+            <ButtonGroup>
               {inner_menu.map((menu, i) => (
                 <Button
                   className="z-10"
                   onClick={() => set_openned_menu(i)}
                   key={i}
-                  color={i == openned_menu ? "blue" : "gray"}
+                  color={i == openned_menu ? "blue" : "alternative"}
                 >
                   {menu.button_text}
                 </Button>
               ))}
-            </Button.Group>
+            </ButtonGroup>
             <div className="flex flex-grow  w-full justify-center overflow-y-auto">
               {component}
             </div>

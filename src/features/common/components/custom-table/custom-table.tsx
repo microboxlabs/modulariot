@@ -1,4 +1,4 @@
-import { Table, TableHead, TableBody, TableHeadCell } from "flowbite-react";
+import { Table, TableHead, TableBody, TableHeadCell, TableCell, TableRow } from "flowbite-react";
 import React from "react";
 
 type Style = {
@@ -51,9 +51,9 @@ export default function CustomTable({
   let body: React.ReactNode = content.map((item, index) => {
     if (Array.isArray(item)) {
       return (
-        <Table.Row key={`row-${index}`} className="bg-white dark:bg-gray-800">
+        <TableRow key={`row-${index}`} className="bg-white dark:bg-gray-800">
           {getListOrElement(item, false)}
-        </Table.Row>
+        </TableRow>
       );
     } else {
       return item;
@@ -128,7 +128,9 @@ export default function CustomTable({
           },
         }}
       >
-        <TableHead>{head}</TableHead>
+        <TableHead><TableRow>
+          {head}</TableRow>
+          </TableHead>
         <TableBody>{body}</TableBody>
       </Table>
     </div>
@@ -151,9 +153,9 @@ function getListOrElement(
         );
       } else {
         return (
-          <Table.Cell key={`cell-${index}`} className="whitespace-nowrap">
+          <TableCell key={`cell-${index}`} className="whitespace-nowrap">
             {cell}
-          </Table.Cell>
+          </TableCell>
         );
       }
     });

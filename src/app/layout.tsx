@@ -4,22 +4,29 @@ import React from "react";
 import ThemeDetector from "@/features/theme/components/ThemeDetector";
 import { cookies } from "next/headers";
 import { Toaster } from "sonner";
+import { ThemeModeScript } from "flowbite-react";
+import { ThemeInit } from "../../.flowbite-react/init";
+import { twMerge } from "tailwind-merge";
 
 export const metadata: Metadata = {
   title: "Coordinador Viajes Mintral",
   description: "Sistema de coordinación de viajes para Mintral.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const theme = cookies().get("theme")?.value === "dark" ? "dark" : "";
+  const theme = (await cookies()).get("theme")?.value === "dark" ? "dark" : "";
 
   return (
-    <html lang="es" className={theme}>
+    <html lang="es" className={twMerge(theme)}>
+      <head>
+        <ThemeModeScript />
+      </head>
       <body className="dark:bg-gray-900">
+        <ThemeInit />
         <ThemeDetector>{children}</ThemeDetector>
         <Toaster
           position="bottom-center"

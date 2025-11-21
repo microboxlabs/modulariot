@@ -1,4 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import KanbanViewSwitcherIcon from "@/features/svg_components/kanban_view_switcher_icon";
 import KanbanViewSwitcherIconCompressed from "@/features/svg_components/kanban_view_switcher_icon_compressed";
 import { Tooltip } from "flowbite-react";
@@ -17,11 +18,7 @@ export function CompactKanbanViewSwitcher({
 }: CompactKanbanViewSwitcherProps) {
   return (
     <Tooltip
-      content={
-        activeView
-          ? ((dict.kanban as I18nRecord).expand as string)
-          : ((dict.kanban as I18nRecord).compact as string)
-      }
+      content={tr(activeView ? "kanban.expand" : "kanban.compact", dict)}
     >
       <div className={`${kanbanView ? "flex" : "hidden"} gap-2 h-full`}>
         <div

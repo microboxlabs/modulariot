@@ -12,9 +12,10 @@ import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form
 import { ErrorTripView } from "@/features/shipping/components/error-trip/error-trip-view";
 import { TaskBentoForm } from "@/features/task-forms/components/task-bento-form/task-bento";
 
-export default async function TaskEditPage({
-  params: { taskId, lang },
-}: ParamsWithLang<TaskEditPageParams>) {
+export default async function TaskEditPage(params: ParamsWithLang<TaskEditPageParams> ) {
+  const paramsResult = await params.params;
+  const { lang, taskId } = await paramsResult;
+
   try {
     const session = await auth();
     if (!session) {
@@ -23,7 +24,7 @@ export default async function TaskEditPage({
 
     const [dictionaryTuple, taskResult, userGroups] = await Promise.all([
       getDictionary(lang),
-      getTaskById(session, taskId),
+      getTaskById(session, paramsResult.taskId),
       getGroupsForPerson(session),
     ]);
     const [, _dictionary] = dictionaryTuple;

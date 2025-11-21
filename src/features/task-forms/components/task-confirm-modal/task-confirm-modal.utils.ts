@@ -1,4 +1,7 @@
 import { SelectConfig } from "./task-confirm-modal.types";
+import dayjs from "dayjs";
+
+export type CustomFormValues = Record<string, string | boolean>;
 
 export interface FormDataParams {
   taskId: string;
@@ -8,6 +11,7 @@ export interface FormDataParams {
   selectedValues: string[];
   selectConfig: SelectConfig | null;
   extraData?: Record<string, any>;
+  customFormValues?: CustomFormValues;
 }
 
 export function prepareFormData({
@@ -18,6 +22,7 @@ export function prepareFormData({
   selectedValues,
   selectConfig,
   extraData,
+  customFormValues,
 }: FormDataParams): FormData {
   const formData = new FormData();
 
@@ -41,12 +46,33 @@ export function prepareFormData({
     }
   }
 
-  // Add extra data if provided
-  if (extraData) {
-    Object.entries(extraData).forEach(([key, value]) => {
-      formData.append(key, value as string);
+  // Add custom form values if provided
+  if (customFormValues) {
+    Object.entries(customFormValues).forEach(([key, value]) => {
+      if (typeof value === "boolean") {
+        formData.append(key, value.toString());
+      } else if (
+        key === "mintral_estimatedArrivalDate" &&
+        typeof value === "string" &&
+        value.length > 0
+      ) {
+        // Convert datetime-local format to ISO with timezone for server
+        // The input gives us "YYYY-MM-DDTHH:mm" which is in local time
+        // We need to convert it to ISO format with timezone
+        const isoDate = dayjs(value).toISOString();
+        formData.append(key, isoDate);
+      } else if (value && value.length > 0) {
+        formData.append(key, value);
+      }
     });
   }
+
+  // Add extra data if provided
+  // if (extraData) {
+  //   Object.entries(extraData).forEach(([key, value]) => {
+  //     formData.append(key, value as string);
+  //   });
+  // }
 
   return formData;
 }

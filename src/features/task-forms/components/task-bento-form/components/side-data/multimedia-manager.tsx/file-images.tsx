@@ -140,11 +140,7 @@ export default function FileImages({
 
         if (validFiles.length !== files.length) {
           alert(
-            tr(
-              "only_jpg_jpeg_png_pdf_allowed",
-              ((dictionary as I18nRecord).bento as I18nRecord)
-                .multimedia as I18nRecord
-            )
+            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
           );
           return;
         }
@@ -155,7 +151,7 @@ export default function FileImages({
     >
       {/* Drag and drop overlay */}
       <div
-        className={`absolute top-0 left-0 w-full h-full flex items-center justify-center rounded-lg bg-blue-500/40 z-20 transition-all duration-300 ${
+        className={`absolute hidden top-0 left-0 w-full h-full flex items-center justify-center rounded-lg bg-blue-500/40 z-20 transition-all duration-300 ${
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
       />
@@ -171,19 +167,11 @@ export default function FileImages({
         <div className="flex flex-col items-center justify-center pb-6 pt-5 gap-2">
           <div className="flex flex-col items-center justify-center">
             <p className="text-lg text-gray-500 dark:text-gray-100">
-              {tr(
-                "title",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
+              {tr("bento.multimedia.title", dictionary)}
             </p>
             <p className="text-sm font-light text-gray-500 dark:text-gray-400">
               <span className=" text-gray-700 dark:text-gray-200">
-                {tr(
-                  "subtitle",
-                  ((dictionary as I18nRecord).bento as I18nRecord)
-                    .multimedia as I18nRecord
-                )}
+                {tr("bento.multimedia.subtitle", dictionary)}
               </span>
             </p>
           </div>
@@ -210,9 +198,8 @@ export default function FileImages({
                   if (validFiles.length !== files.length) {
                     alert(
                       tr(
-                        "only_jpg_jpeg_png_pdf_allowed",
-                        ((dictionary as I18nRecord).bento as I18nRecord)
-                          .multimedia as I18nRecord
+                        "bento.multimedia.only_jpg_jpeg_png_pdf_allowed",
+                        dictionary
                       )
                     );
                     return;
@@ -224,24 +211,15 @@ export default function FileImages({
               }}
             />
             <Button
-              theme={{
-                size: {
-                  md: "h-5 px-2 text-sm",
-                },
-              }}
               color="blue"
-              className="flex flex-row items-center justify-center gap-2 bg-blue-500 text-white p-2 rounded-lg text-sm font-light hover:bg-blue-600 cursor-pointer"
+              // className="flex flex-row items-center justify-center gap-2 bg-blue-500 text-white p-2 rounded-lg text-sm font-light hover:bg-blue-600 cursor-pointer"
               onClick={() => {
                 document.getElementById("file-input")?.click();
               }}
             >
               <div className="flex flex-row items-center justify-center gap-2">
                 <FaUpload className="w-3 h-3" />
-                {tr(
-                  "upload",
-                  ((dictionary as I18nRecord).bento as I18nRecord)
-                    .multimedia as I18nRecord
-                )}
+                {tr("bento.multimedia.upload", dictionary)}
               </div>
             </Button>
           </div>
@@ -259,18 +237,8 @@ export default function FileImages({
         >
           <div className="flex flex-row justify-between items-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr(
-                "gallery",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}{" "}
-              ({images.length}{" "}
-              {tr(
-                "elements",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
-              )
+              {tr("bento.multimedia.gallery", dictionary)} ({images.length}{" "}
+              {tr("bento.multimedia.elements", dictionary)})
             </p>
             <a
               href="#"
@@ -282,11 +250,7 @@ export default function FileImages({
                 images.length == 0 ? "hidden" : "block"
               } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
             >
-              {tr(
-                "viewMore",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
+              {tr("bento.multimedia.viewMore", dictionary)}
             </a>
           </div>
           {images.length > 0 ? (
@@ -304,11 +268,7 @@ export default function FileImages({
           ) : (
             <div className="text-sm text-gray-500 dark:text-gray-400 h-80 flex flex-col items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg">
               <IoImagesOutline className="w-10 h-10" />
-              {tr(
-                "noImages",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
+              {tr("bento.multimedia.noImages", dictionary)}
             </div>
           )}
         </div>
@@ -323,18 +283,8 @@ export default function FileImages({
         >
           <div className="flex flex-row justify-between items-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr(
-                "documents",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}{" "}
-              ({documents.length}{" "}
-              {tr(
-                "elements",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
-              )
+              {tr("bento.multimedia.documents", dictionary)} ({documents.length}{" "}
+              {tr("bento.multimedia.elements", dictionary)})
             </p>
             <a
               href="#"
@@ -346,11 +296,7 @@ export default function FileImages({
                 documents.length == 0 ? "hidden" : "block"
               } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
             >
-              {tr(
-                "viewMore",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
+              {tr("bento.multimedia.viewMore", dictionary)}
             </a>
           </div>
           {documents.length > 0 ? (
@@ -367,11 +313,7 @@ export default function FileImages({
           ) : (
             <div className="text-sm bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 h-[9.5rem] flex flex-col items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg">
               <IoDocumentTextOutline className="w-10 h-10" />
-              {tr(
-                "noDocuments",
-                ((dictionary as I18nRecord).bento as I18nRecord)
-                  .multimedia as I18nRecord
-              )}
+              {tr("bento.multimedia.noDocuments", dictionary)}
             </div>
           )}
         </div>

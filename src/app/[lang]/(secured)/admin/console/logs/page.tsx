@@ -8,6 +8,7 @@ import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/Client
 import { HiClipboardList } from "react-icons/hi";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { redirectWithLang } from "@/features/auth/services/navigation.service";
 
 // Admin groups that can access log management
 const ADMIN_GROUPS = [
@@ -27,13 +28,13 @@ async function checkAdminAccess() {
     const hasAccess = userGroups.some((group) => ADMIN_GROUPS.includes(group));
 
     if (!hasAccess) {
-      redirect("/shipping"); // Redirect to home if not admin
+      redirectWithLang("/shipping"); // Redirect to home if not admin
     }
   } catch (error) {
     logError(error instanceof Error ? error : new Error(String(error)), {
       context: "checkAdminAccess",
     });
-    redirect("/shipping");
+    redirectWithLang("/shipping");
   }
 }
 

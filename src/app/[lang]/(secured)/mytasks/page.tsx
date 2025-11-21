@@ -12,7 +12,7 @@ export default async function MyTasksPage(params: {
   searchParams: Promise<SearchParams>;
 }) {
   const paramsResult = await params.params;
-  const { lang } = await paramsResult;
+  const { lang } = paramsResult;
   const [, dict] = await getDictionary(lang);
   let status = getStatus((await params.searchParams)?.status);
   const session = await auth();

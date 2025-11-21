@@ -9,7 +9,6 @@ import BottomMenu from "../bottom-menu/bottom-menu";
 import { pages } from "../../models/pages";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { sideBarTheme } from "../../models/sidebar-theme";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
   getMyTasks,
@@ -139,7 +138,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     >
       <Sidebar
         aria-label="Sidebar with multi-level dropdown example"
-        theme={sideBarTheme}
         id="sidebar"
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">

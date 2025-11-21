@@ -99,22 +99,14 @@ export default async function ShippingDetailsTaskForm({
           <Accordion
             className="rounded-none"
             theme={{
-              root: {
-                base: "divide-y divide-gray-200 dark:divide-gray-700 rounded1111none",
-              },
-              content: {
-                base: "p-5 dark:bg-gray-900",
-              },
-              title: {
-                base: "flex w-full items-center justify-between px-5 py-4 text-left font-medium text-gray-500 first:rounded-t-lg last:rounded-b-lg dark:text-gray-400",
-              },
+              base: "divide-y divide-gray-200 dark:divide-gray-700 rounded1111none",
             }}
           >
             <AccordionPanel>
               <TaskDetailsAccordionTitle
                 title={dict("pages.shippingDetailsTaskForm.trip")}
               />
-              <AccordionContent>
+              <AccordionContent theme={{ base: "p-5 dark:bg-gray-900" }}>
                 <div className="flex flex-col gap-4 text-sm">
                   <div className="w-full font-semibold text-gray-600">
                     {dict("pages.shippingDetailsTaskForm.tripCreation")}

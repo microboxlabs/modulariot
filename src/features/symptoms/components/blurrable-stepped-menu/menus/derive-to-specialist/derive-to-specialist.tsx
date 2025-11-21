@@ -1,6 +1,6 @@
 "use client";
 
-import { Dropdown, Textarea } from "flowbite-react";
+import { Dropdown, DropdownItem, Textarea } from "flowbite-react";
 import { useState } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import { HiCheck } from "react-icons/hi";
@@ -53,7 +53,7 @@ export default function DeriveToSpecialist({ dict }: { dict: any }) {
               )}
             >
               {specialists.map((specialist) => (
-                <Dropdown.Item
+                <DropdownItem
                   key={specialist.name}
                   onClick={() => setSelectedSpecialist(specialist.name)}
                 >
@@ -68,7 +68,7 @@ export default function DeriveToSpecialist({ dict }: { dict: any }) {
                       </p>
                     </div>
                   </div>
-                </Dropdown.Item>
+                </DropdownItem>
               ))}
             </Dropdown>
           </div>

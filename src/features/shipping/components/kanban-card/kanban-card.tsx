@@ -7,55 +7,6 @@ import { tr } from "@/features/i18n/tr.service";
 import DepartureDateShip from "../departure-date-ship/departure-date-ship";
 import DownloadSignedDocument from "../download-signed-document/download-signed-document";
 import { Tooltip } from "flowbite-react";
-//import { FaCheck } from "react-icons/fa";
-//import { TbExclamationMark } from "react-icons/tb";
-//import { GoX } from "react-icons/go";
-//import { KanbanBoardTask } from "../../types/common.types";
-
-/* function formatDate(date: string) {
-  if (!date) return "";
-  if (date.includes("T")) {
-    return date.split("T")[0].replaceAll("-", "/");
-  }
-  if (date.includes(" ")) {
-    return date.split(" ")[0].replaceAll("-", "/");
-  }
-  return date.replaceAll("-", "/");
-} */
-
-/* const ValidationIcon = ({ task }: { task: KanbanBoardTask }) => {
-  let status = "approved";
-
-  if (task.departureDate === null) {
-    status = "not_approved";
-  }
-
-  switch (status) {
-    case "approved":
-      return (
-        <div className="w-5 h-5 text-white bg-green-500 border border-gray-400 rounded-full flex items-center justify-center p-1">
-          <FaCheck className="w-full h-full" />
-        </div>
-      );
-    case "alert":
-      return (
-        <div className="w-5 h-5 text-white bg-yellow-300 border border-gray-400 rounded-full flex items-center justify-center">
-          <TbExclamationMark className="w-full h-full" />
-        </div>
-      );
-    case "not_approved":
-      return (
-        <div className="w-5 h-5 text-white bg-red-500 border border-gray-400 rounded-full flex items-center justify-center">
-          <GoX className="w-full h-full" />
-        </div>
-      );
-    case "pending":
-    default:
-      return (
-        <div className="w-5 h-5 bg-white border border-gray-400 rounded-full flex-shrink-0" />
-      );
-  }
-}; */
 
 export default function KanbanCard({
   task,
@@ -65,13 +16,6 @@ export default function KanbanCard({
   showFinishedTasks,
   isLoading = false,
 }: PropsWithI18nDict<KanBanCardProps>) {
-  /*  const executionType =
-    task.executionType === "T"
-      ? "Troncal"
-      : task.executionType === "F"
-        ? "Faena"
-        : task.executionType; */
-
   let cursor = "hover:shadow-lg cursor-pointer";
 
   if (!task.isEditable && !showFinishedTasks) {
@@ -123,19 +67,6 @@ export default function KanbanCard({
                       </span>
                     )}
                   </div>
-                  {/* <div className="flex justify-end gap-2">
-                  <DepartureDateShip
-                    dict={dict}
-                    table_name={table_name}
-                    date={
-                      task.departureDate ?? task.expectedDepartureDate ?? ""
-                    }
-                    compact={true}
-                  />
-                  {task.hoReference && (
-                    <DownloadSignedDocument documentId={task.hoReference} />
-                  )}
-                </div> */}
                 </div>
               ) : (
                 <strong>
@@ -144,7 +75,6 @@ export default function KanbanCard({
               )}
             </div>
           </Link>
-          {/* <EditCardModal /> */}
         </div>
         <div className="flex flex-col">
           {task.attachment && (
@@ -208,16 +138,6 @@ export default function KanbanCard({
                   </strong>
                 </Tooltip>
               </div>
-              {/* <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-              {tr("card.serviceKind", dict)}:{" "}
-              <strong>{task.serviceKind || "-"}</strong>
-            </div> */}
-              {/* {task.executionType !== "F" && (
-              <div className="pb-4 text-sm font-normal text-gray-700 dark:text-gray-400">
-                {tr("card.executionType", dict)}:{" "}
-                <strong>{executionType || "-"}</strong>
-              </div>
-            )} */}
               <div className="flex justify-between">
                 <div className="flex justify-start">
                   {task.hoReference && (

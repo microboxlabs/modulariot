@@ -1,0 +1,112 @@
+# 🔔 Release Notes v1.24.0 — Coordinador Inteligente
+
+### Fecha: 21/11/2025
+
+**Objetivo**: Fortalecer las capacidades de cálculo predictivo de tiempos de viaje, mejorar la experiencia de usuario en interfaces de monitoreo, ampliar las validaciones de seguridad en la App Conductor, y consolidar la infraestructura de alta disponibilidad con correcciones críticas de estabilidad en servicios backend.
+
+## 🚀 Evolutivos
+
+- **📍 Validación de Instalación de App Conductor**
+  - **Verificación automática** durante la preparación del servicio para confirmar que el conductor tiene la app instalada y funcionando.
+  - **Integración con expediente**: La validación ocurre en el flujo "Presentar Conductor → Preparar Servicio".
+  - **Estado de conectividad**: Monitoreo en tiempo real del estado de conexión del conductor y versión de la app.
+  - **Registro de dispositivos**: Base de datos de dispositivos asociados a cada conductor en su expediente.
+  - **Prevención de asignaciones fallidas**: Bloqueo de preparación del servicio si no cumple requisitos mínimos de conectividad.
+  - **Visibilidad 100%**: Panel de métricas de compliance (% conductores con app actualizada).
+
+- **🎯 Validación de Ubicación en Background - App Conductor**
+  - **Sistema de validación en tiempo real** para asegurar que los conductores tienen el tracking de ubicación activado en segundo plano.
+  - **Procesamiento de eventos MIOT**: Detección automática del estado `is_location_background` desde eventos de telemetría.
+  - **Código de validación `APP_DRIVER`**: Nuevo reason code integrado en el framework de validaciones.
+  - **Mapeo inteligente de estados**:
+    - `true` → 0 (válido)
+    - `false` → 1 (inválido)
+    - `missing` → -1 (no encontrado)
+  - **Almacenamiento en workflow**: Variable `mintral_appDriverValidation` en tareas de Activiti.
+  - **Cumplimiento normativo**: Satisface requerimientos de monitoreo de seguridad y compliance.
+
+- **🧮 Sistema de Cálculo de ETA en Webscript ECM**
+  - **Endpoint dedicado** `/alfresco/s/mintral/tasks/calculate-eta` para cálculo de tiempo estimado de arribo.
+  - **Cálculo basado en datos históricos**: Utiliza trips previos entre geofences de origen y destino.
+  - **Percentiles configurables**: Opciones p50 (optimista), p75 (recomendado), p90 (conservador) para ajustar estimaciones según riesgo.
+  - **Ajuste por patrones temporales**: Considera hora del día y patrones de tráfico históricos.
+  - **Soporte para conductores dobles**: Reducción de tiempo estimado del 15-20% para viajes con doble tripulación.
+  - **Estrategia de fallback**: Cálculo basado en distancia con velocidades promedio cuando no hay datos históricos suficientes.
+  - **Caché inteligente**: TTL de 5-10 minutos para optimizar performance en consultas repetidas.
+  - **Integración frontend**: API route `/app/api/task/calculate-eta` con hooks React (`useLiveETA()`) para actualización en tiempo real.
+
+- **✨ Mejora UX: Feedback Visual en Botón Refresh de Tabla de Síntomas**
+  - **Animación de carga**: El botón refresh ahora muestra una animación de rotación (`animate-spin`) durante la recarga de datos.
+  - **Utilización de estado `isValidating`**: Integración con hook SWR para reflejar el estado real de fetching de datos.
+  - **Feedback inmediato**: Los usuarios ahora saben instantáneamente cuando sus clicks han sido registrados.
+  - **Experiencia mejorada**: Eliminación de clics repetidos por falta de respuesta visual.
+
+## 🔧 Integraciones
+
+- **☸️ Corrección de Alta Disponibilidad en Service Enrichment**
+  - **Health checks implementados**: Endpoints `/q/health/live` y `/q/health/ready` en Quarkus.
+  - **Configuración de probes en Kubernetes**:
+    - Liveness probe para detectar crashes y reiniciar automáticamente pods fallidos.
+    - Readiness probe para remover pods no listos del load balancing.
+  - **Recuperación automática**: Kubernetes reinicia el servicio sin intervención manual cuando detecta fallos.
+  - **Eliminación de downtime**: Los pods se reemplazan automáticamente manteniendo disponibilidad del servicio.
+  - **Monitoreo mejorado**: Integración con Alfred Telemetry Platform para visibilidad de salud del servicio.
+
+## 🐛 Correcciones
+
+- **🔧 Reinicio Automático de Service Enrichment en Kubernetes**
+  - Corrección crítica de health probes apuntando a endpoint incorrecto (`/` en lugar de `/q/health`).
+  - Implementación de liveness y readiness probes funcionales.
+  - Eliminación de necesidad de intervención manual para reiniciar pods crasheados.
+  - Mejora significativa en disponibilidad del servicio de enriquecimiento.
+
+- **✅ Validaciones de Seguridad en App Conductor**
+  - Corrección del sistema de validación de ubicación en background.
+  - Implementación de checks automáticos para instalación de app.
+  - Prevención de asignación de servicios a conductores sin herramientas adecuadas.
+
+## 🚧 En Desarrollo (Release 1.24.0 - Segunda Fase)
+
+Las siguientes funcionalidades están actualmente en desarrollo activo y se incluirán en las siguientes iteraciones de la versión 1.24.0:
+
+- **🔄 Migración Next.js 14.x → 16.x con React 19**
+  - Actualización completa del framework frontend para aprovechar mejoras de performance y React 19.
+  - Modernización de dependencias (Flowbite React 0.12.10, Next Auth 5.0.0-beta.30).
+  - Compatibilidad con características concurrentes de React 19.
+- **🎨 Badges de Origen/Destino en Kanban Cards**
+  - Sistema de iconografía visual para identificar tipo de servicio (Cliente, Proveedor, Mintral).
+  - 7 combinaciones de badges con código de colores para scanning rápido.
+- **📊 Dashboard SPC - Componentes Expandidos y Tracking de Jaulas**
+  - Nuevo sistema de tracking para dispositivos tipo "jaula".
+  - Tablas expandidas con información completa de servicios.
+  - Componente de mapas con tracking en tiempo real.
+- **📱 Formulario Dinámico para Cálculo de ETA en MonitorTrip**
+  - Dos modos de operación: calculado automático vs manual.
+  - Integración con webscript de cálculo de ETA.
+- **⚙️ Optimizaciones de Performance Backend**
+  - Refactorización de PgRestService con abstracción HttpService.
+  - Query SQL optimizado para estadísticas de tareas.
+- **🔐 Firma Digital POD con Validación NFC y Biométrica**
+  - Implementación de prueba de entrega digital con validación avanzada.
+- **🏢 Mejoras App Tótem de Recepción**
+  - UX mejorada y calidad de señal GPS optimizada.
+- **📋 Flujo de Validación POD con Integración Diana y Alerce**
+  - Cierre de viajes mejorado con integración de sistemas externos.
+
+## 📊 Beneficios
+
+- **🛡️ Seguridad Aumentada**: Validación 100% de conductores con app instalada y ubicación activada antes de asignación de servicios.
+- **📍 Trazabilidad Garantizada**: Eliminación de servicios sin tracking por falta de configuración adecuada en app móvil.
+- **⚡ Estimaciones Precisas**: Cálculo de ETA basado en datos históricos reales con ajuste por percentiles y patrones temporales.
+- **🔄 Alta Disponibilidad**: Reinicio automático de servicios críticos sin intervención manual mejorando uptime del sistema.
+- **👁️ Visibilidad Operacional**: Monitoreo en tiempo real del estado de conectividad y compliance de conductores.
+- **📈 Datos Confiables**: Reducción de desvíos entre ETA estimado y arribo real mediante uso de patrones históricos.
+- **⏱️ Reducción de Downtime**: Recuperación automática de servicios fallidos sin necesidad de alertas manuales.
+
+## 📌 Conclusión
+
+La versión 1.24.0 del Coordinador de Viajes marca un avance significativo en la inteligencia predictiva del sistema y la garantía de calidad operacional. La implementación del sistema de cálculo de ETA basado en datos históricos, combinado con las validaciones automáticas de App Conductor, establece un nuevo estándar de confiabilidad en la asignación de servicios. Las correcciones críticas en la infraestructura de Kubernetes aseguran alta disponibilidad de servicios backend esenciales, mientras que las mejoras de UX demuestran el compromiso continuo con la experiencia del usuario final.
+
+Esta versión sienta las bases para funcionalidades avanzadas en desarrollo, incluyendo la migración a Next.js 16 con React 19, el sistema de tracking de jaulas en el Dashboard SPC, y el flujo completo de firma digital POD con validación biométrica. La arquitectura de formularios dinámicos implementada permitirá una flexibilidad sin precedentes en la configuración de workflows operacionales, preparando la plataforma para escalar hacia nuevos niveles de automatización e inteligencia predictiva.
+
+Con un enfoque claro en seguridad, trazabilidad y precisión, la versión 1.24.0 consolida al Coordinador de Viajes como una solución integral y confiable para la gestión logística de alta complejidad, estableciendo nuevos estándares de excelencia operacional en la industria.

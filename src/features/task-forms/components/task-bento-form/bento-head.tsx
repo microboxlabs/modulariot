@@ -4,7 +4,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { taskShippingBoardMap } from "@/features/shipping/services/data.service";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import DownloadSignedDocument from "@/features/shipping/components/download-signed-document/download-signed-document";
-import { ShippingCoordinatorProcessForms } from "../../services/form.service.types";
+import { ShippingCoordinatorProcessFormsV2 } from "../../services/form.service.types";
 import TimeElement from "./time-element";
 import Link from "next/link";
 import { Button } from "flowbite-react";
@@ -47,7 +47,7 @@ export default function BentoHead({
   readonly userGroups?: string[];
 }) {
   const task_name_identifier =
-    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessForms];
+    taskShippingBoardMap[task.taskFormKey as ShippingCoordinatorProcessFormsV2];
   const writable_dict = (
     (dict.pages as unknown as I18nRecord).shipping as I18nRecord
   ).kanban as I18nRecord;
@@ -57,26 +57,17 @@ export default function BentoHead({
   let title = "";
 
   if (task?.persistentState?.endTime) {
-    title = tr(
-      "finished_process",
-      (dict.bento as I18nRecord).titles as I18nRecord
-    );
+    title = tr("bento.titles.finished_process", dict);
   } else if (task_name) {
-    title = tr(
-      task_name as string,
-      (dict.bento as I18nRecord).titles as I18nRecord
-    );
+    title = task_name as string;
   }
 
   let subtitle = "";
 
   if (task?.persistentState?.endTime) {
-    subtitle = tr("finished", (dict.bento as I18nRecord).titles as I18nRecord);
+    subtitle = tr("bento.titles.finished", dict);
   } else if (task_states[task_name_identifier as keyof typeof task_states]) {
-    subtitle = tr(
-      task_states[task_name_identifier as keyof typeof task_states] as string,
-      dict.bento as I18nRecord
-    );
+    subtitle = tr(`bento.titles.${task_name_identifier}`, dict);
   }
 
   const workflowVersion = task.definitionVersion as number | undefined;
@@ -97,7 +88,7 @@ export default function BentoHead({
         <div className="flex flex-row gap-2">
           {subtitle && (
             <h2 className="text-xs font-light text-gray-500 dark:text-gray-400">
-              {(dict.bento as I18nRecord).process_state as string}:{" "}
+              {tr("bento.process_state", dict)}:{" "}
               <span className="font-normal text-gray-800 dark:text-gray-200">
                 {subtitle}
               </span>
@@ -118,16 +109,11 @@ export default function BentoHead({
           endTime={task?.persistentState?.endTime}
         />
         {show_go_to_bento && (
-          <Button
-            color="blue"
-            className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit p-0"
-            as={Link}
-            href={`/task/edit/${task.id}`}
-          >
+          <Button color="blue" as={Link} href={`/task/edit/${task.id}`}>
             <div className="flex flex-row gap-2 items-center">
               <FaRegEye className="text-gray-100 w-5 h-5" />
               <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">
-                {(dict.bento as I18nRecord).go_to_bento as string}
+                {tr("bento.go_to_bento", dict)}
               </p>
             </div>
           </Button>
@@ -139,15 +125,15 @@ export default function BentoHead({
             name="Carta Porte"
           />
         )}
-
         {showActions && task.isEditable && (
           <TaskActions
             taskId={task.id}
-            taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+            taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
             lang={lang}
             dict={msg}
             fluid={true}
             enableActions={enableActions}
+            extraData={task}
           />
         )}
       </div>

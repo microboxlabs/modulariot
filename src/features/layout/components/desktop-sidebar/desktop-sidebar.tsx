@@ -14,15 +14,14 @@ import { pathNameWithoutLanguage } from "../../utils/utils";
 import {
   getMyTasks,
   useMapPositions,
-  useMyTasks,
   useMyTasksCount,
   useSymptoms,
   useUserFilters,
+  useHistoricInstancesCount,
 } from "@/features/common/providers/client-api.provider";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
-  SHIPPING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
 
@@ -32,12 +31,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { isCollapsed } = useSidebarContext().desktop;
   const router = useRouter();
   const { data, error, isLoading: _ } = useMyTasksCount();
-  const { data: finishedTasks } = useMyTasks(
-    SHIPPING_COORDINATOR_PROCESS_TASKS,
-    true,
-    1,
-    0
-  );
+  const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
@@ -127,11 +121,14 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     const newTotals = { ...totals };
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
-    newTotals["finished"] = finishedTasks?.total ?? 0;
+    const historicInstancesTotal = Object.values(
+      historicInstances?.totals ?? {}
+    ).reduce((sum, count) => sum + count, 0);
+    newTotals["finished"] = historicInstancesTotal;
     newTotals["pending_tasks"] = totals["delivery"] + totals["shipping"];
-    newTotals["completed_tasks"] = finishedTasks?.total ?? 0;
+    newTotals["completed_tasks"] = historicInstancesTotal;
     setTotals(newTotals);
-  }, [mapCount, symptomsCount, finishedTasks]);
+  }, [mapCount, symptomsCount, historicInstances]);
 
   return (
     <div

@@ -14,13 +14,14 @@ import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 
 export default async function SecuredLayout({
   children,
-  params: { lang },
+  params,
 }: PropsWithChildren<ParamsWithLang>) {
+  const { lang } = await params;
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();
   return (
-    <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
+    <SidebarProvider initialCollapsed={(await sidebarCookie.get()).isCollapsed}>
       <SseListener dictionary={dictionary} tenantId={session!.user!.email} />
       <SecuredNavbar
         messages={navBarMessages}

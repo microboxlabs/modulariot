@@ -9,8 +9,9 @@ import { SimpleNavbar } from "./simple-navbar/simple-navbar";
 
 export default async function SimpleLayout({
   children,
-  params: { lang },
-}: PropsWithChildren<ParamsWithLang>) {
+  params,
+}: PropsWithChildren<{ params: { lang: string } }>) {
+  const { lang } = params;
   const [dict] = await getDictionary(lang);
   return (
     <>

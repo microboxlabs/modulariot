@@ -59,35 +59,42 @@ async function fetcherClient<T>(
   }
 }
 
+/**
+ * Converts FormData to a plain object, handling special cases for JSON strings
+ */
+function formDataToObject(formData: FormData): Record<string, unknown> {
+  const obj: Record<string, unknown> = {};
+
+  for (const [key, value] of formData.entries()) {
+    // Try to parse JSON strings (like "reasons" field)
+    if (typeof value === "string" && (value.startsWith("[") || value.startsWith("{"))) {
+      try {
+        obj[key] = JSON.parse(value);
+      } catch {
+        // If parsing fails, keep as string
+        obj[key] = value;
+      }
+    } else {
+      obj[key] = value;
+    }
+  }
+
+  return obj;
+}
+
 export async function taskNextAction(
   _prevState: TaskNextActionState,
   formData: FormData
 ): Promise<TaskNextActionState> {
-  const taskId = formData.get("taskId") as string;
-  const transitionId = formData.get("transitionId");
-  const comments = formData.get("comments");
-  const nativeGenerationEnabled = formData.get("nativeGenerationEnabled");
-
-  const reasonId = formData.get("reasonId");
-  const reason = formData.get("reason");
-  const reasons = formData.get("reasons");
-  const isMultiReason = formData.get("isMultiReason");
+  // Convert all FormData entries to a plain object dynamically
+  const payload = formDataToObject(formData);
 
   return fetcherClient<TaskNextActionState>("/app/api/task/end", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      taskId,
-      transitionId,
-      comments,
-      nativeGenerationEnabled,
-      reasonId,
-      reason,
-      reasons,
-      isMultiReason,
-    }),
+    body: JSON.stringify(payload),
   });
 }
 

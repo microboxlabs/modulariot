@@ -100,7 +100,7 @@ export default function SymptomsCards({
               <Image
                 className="w-[35px] h-[35px]"
                 src={hospitalImage}
-                alt="Sintomas criticos"
+                alt="Síntomas críticos"
                 width={35}
                 height={35}
               />

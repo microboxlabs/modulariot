@@ -12,11 +12,13 @@ export type MessageTypeClientSide = {
   messages: Record<string, string>;
 };
 
-export type ParamsWithLang<P = unknown> = {
-  params: {
-    lang: string;
-  };
-} & P;
+export type ParamsWithLang<P = Record<string, unknown>> = Readonly<{
+  params: Promise<
+    {
+      lang: string;
+    } & P
+  >;
+}>;
 
 export type PropsWithI18nDict<P = unknown> = {
   dict: I18nRecord;

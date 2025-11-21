@@ -5,9 +5,8 @@ import { HiClipboardList } from "react-icons/hi";
 import ClientMapStarter from "@/features/geographic-view/components/client-map-starter";
 //import { RouteGuard } from "@/features/auth/components/route-guard";
 
-export default async function GeographicViewPage({
-  params: { lang },
-}: ParamsWithLang) {
+export default async function GeographicViewPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 
   /* 

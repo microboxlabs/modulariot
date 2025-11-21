@@ -1,8 +1,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified-card.types";
 import { Checkbox, Label } from "flowbite-react";
-import { TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK } from "../../services/form.service";
-// import { TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK } from "../../services/form.service";
+import { TYPE_WFSHIP2_MISSION_CONTROL_TASK } from "../../services/form.service";
 
 type TripManifestParamsProps = DriverVerifiedCardProps & {
   nativeGenerationEnabled: boolean;
@@ -15,7 +14,7 @@ export function TripManifestParams({
   nativeGenerationEnabled,
   onNativeGenerationChange,
 }: TripManifestParamsProps) {
-  if (task.taskFormKey !== TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK) {
+  if (task.taskFormKey !== TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
     return null;
   }
 

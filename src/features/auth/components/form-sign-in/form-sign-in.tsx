@@ -7,8 +7,7 @@ import {
 import { Button } from "flowbite-react";
 import { Windows } from "flowbite-react-icons/solid";
 import { FormSignInProps } from "./form-sign-in.types";
-import React, { useEffect, useState } from "react";
-import { useFormState } from "react-dom";
+import React, { useActionState, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
@@ -23,7 +22,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   });
 
   const { register } = form;
-  const [_state, formAction] = useFormState(authenticateAction, {});
+  const [_state, formAction] = useActionState(authenticateAction, {});
   const [pending, setPending] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
@@ -63,7 +62,7 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
         <div className="flex flex-col gap-y-2">
           <Button
             color="blue"
-            theme={{ inner: { base: "px-5 py-3" } }}
+            // theme={{ inner: { base: "px-5 py-3" } }}
             className="w-full px-0 py-px"
             type="submit"
             formAction={signInWithMicrosoft}

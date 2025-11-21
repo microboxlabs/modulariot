@@ -73,7 +73,6 @@ export function UnclaimTaskModal({
               color="failure"
               onClick={handleUnclaim}
               disabled={isLoading}
-              isProcessing={isLoading}
             >
               {dict.unclaim_task_confirm}
             </Button>

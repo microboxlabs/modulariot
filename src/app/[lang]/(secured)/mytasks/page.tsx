@@ -5,13 +5,16 @@ import { FaBook } from "react-icons/fa";
 import MyTasks from "@/features/common/components/my-tasks/my-tasks";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { auth } from "@/auth";
+import { SearchParams } from "next/dist/server/request/search-params";
 
-export default async function MyTasksPage({
-  params: { lang },
-  searchParams,
-}: ParamsWithLang & { searchParams: { status: string } }) {
+export default async function MyTasksPage(params: {
+  params: Promise<{ lang: string }>;
+  searchParams: Promise<SearchParams>;
+}) {
+  const paramsResult = await params.params;
+  const { lang } = paramsResult;
   const [, dict] = await getDictionary(lang);
-  const status = searchParams.status || "pending";
+  let status = getStatus((await params.searchParams)?.status);
   const session = await auth();
   const userGroups = await getGroupsForPerson(session!);
 
@@ -42,4 +45,11 @@ export default async function MyTasksPage({
       />
     </div>
   );
+}
+
+function getStatus(status: string | string[] | undefined): string {
+  if (typeof status === "string") {
+    return status;
+  }
+  return status?.[0] ?? "pending";
 }

@@ -8,11 +8,12 @@ import { auth } from "@/auth";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 
 export default async function WheresMyLoadPage({
-  params: { lang },
+  params,
   searchParams,
 }: ParamsWithLang & {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
+  const { lang } = await params;
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();

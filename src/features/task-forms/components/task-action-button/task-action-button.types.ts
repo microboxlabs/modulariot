@@ -8,7 +8,7 @@ import {
 export type TaskActionButtonProps = {
   label: string;
   taskId: string;
-  transitionId:
+  transitionId?:
     | TaskOutcome
     | TaskOutcomeV2
     | TaskOutcomeDelivery

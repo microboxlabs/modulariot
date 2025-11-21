@@ -49,7 +49,7 @@ export default function SidebarItem({
         open={isOpen}
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
-        {items.map((item) => {
+        {items.map((item, index) => {
           // Check if user has any blocked groups for this sub-item
           const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
             (group) => userGroups.includes(group)
@@ -65,9 +65,8 @@ export default function SidebarItem({
 
           return (
             <FlowbiteSidebarItem
-              key={item.label}
+              key={index}
               href={item.href}
-              target={item.target}
               as={Link}
               icon={item.icon}
               className={twMerge(
@@ -76,7 +75,7 @@ export default function SidebarItem({
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              label={getTotalCountBagaes(totals[item.label])}
+              label={`${getTotalCountBagaes(totals[item.label])}`}
               labelColor={
                 getTotalCountBagaes(totals[item.label]) <= 0
                   ? "success"
@@ -97,7 +96,6 @@ export default function SidebarItem({
     <FlowbiteSidebarItem
       as={Link}
       href={href}
-      target={target}
       icon={icon}
       label={badge}
       className={twMerge(

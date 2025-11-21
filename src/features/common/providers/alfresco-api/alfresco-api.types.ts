@@ -130,6 +130,15 @@ export interface TaskCountResponse {
   };
 }
 
+export type StatisticsMode =
+  | "running_tasks"
+  | "historic_tasks"
+  | "historic_instances";
+
+export interface StatisticsTasksResponse {
+  totals: Record<string, number>;
+}
+
 export type TotalCount = {
   startevent1: number; //(Start): wfship:startEvent
   transportValidation: number; //(Validar Conductor / Transporte): wfship:transportValidationTask

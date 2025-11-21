@@ -967,6 +967,10 @@
   "footer": {
     "rights": " MicroboxLabs. All rights reserved."
   },
+  "common": {
+    "close": "Close",
+    "open": "Open"
+  },
   "symptoms": {
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",

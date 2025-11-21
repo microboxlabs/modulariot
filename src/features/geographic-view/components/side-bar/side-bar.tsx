@@ -57,7 +57,7 @@ export default function SideBar({
           main_color="m-5 bg-white dark:bg-gray-800"
           button_color="bg-white dark:bg-gray-800"
           icon={HiChevronLeft}
-          text={open ? "Close" : "Open"}
+          text={open ? tr("common.close", dict) : tr("common.open", dict)}
           open_to_left={true}
           onClick={() => set_open(!open)}
           activated={open}

@@ -109,12 +109,7 @@ export default function BentoHead({
           endTime={task?.persistentState?.endTime}
         />
         {show_go_to_bento && (
-          <Button
-            color="blue"
-            className="h-10 transition-all duration-300 hover:border-gray-800 dark:hover:border-gray-300 z-10 gap-2 w-fit p-0"
-            as={Link}
-            href={`/task/edit/${task.id}`}
-          >
+          <Button color="blue" as={Link} href={`/task/edit/${task.id}`}>
             <div className="flex flex-row gap-2 items-center">
               <FaRegEye className="text-gray-100 w-5 h-5" />
               <p className="text-sm text-gray-100 lg:block hidden whitespace-nowrap">

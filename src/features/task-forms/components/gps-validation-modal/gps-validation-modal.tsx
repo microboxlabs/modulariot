@@ -1,6 +1,14 @@
 "use client";
 
-import { Modal, ModalBody, ModalHeader, Table, TableBody, TableCell, TableRow } from "flowbite-react";
+import {
+  Modal,
+  ModalBody,
+  ModalHeader,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GpsValidationModalProps } from "./gps-validation-modal.types";
 import { MapProvider } from "@/features/google-maps/provider/google-maps.provider";
@@ -72,8 +80,8 @@ export default function GpsValidationModal({
                           <TableCell>
                             <strong>
                               {msg?.cards
-                                ? tr(key, msg!.cards as I18nRecord)
-                                : tr(key, msg as I18nRecord)}
+                                ? tr(`cards.${key}`, msg)
+                                : tr(key, msg ?? {})}
                             </strong>
                           </TableCell>
                           <TableCell>

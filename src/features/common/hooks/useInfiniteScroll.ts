@@ -22,7 +22,7 @@ interface UseInfiniteScrollReturn {
   hasMore: boolean;
   error: Error | null;
   loadMore: () => Promise<void>;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useInfiniteScroll({

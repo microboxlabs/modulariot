@@ -17,6 +17,7 @@ const nextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["pino", "pino-pretty"]
 };
 
 module.exports = withFlowbiteReact(withMDX(nextConfig));

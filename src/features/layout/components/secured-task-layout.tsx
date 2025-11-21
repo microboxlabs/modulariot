@@ -10,12 +10,14 @@ import FooterSecuredLayout from "./footer-secured/footer-secured";
 
 export default async function SecuredTaskLayout({
   children,
-  params: { lang },
+  params,
 }: PropsWithChildren<ParamsWithLang>) {
+  const { lang } = await params;
   const [dict] = await getDictionary(lang);
+  const cookie = await sidebarCookie.get();
   const navBarMessages = buildNavBarMessages({ messages: dict });
   return (
-    <SidebarProvider initialCollapsed={sidebarCookie.get().isCollapsed}>
+    <SidebarProvider initialCollapsed={cookie?.isCollapsed ?? false}>
       <SecuredNavbar
         messages={navBarMessages}
         isSidebarToggleEnabled={false}

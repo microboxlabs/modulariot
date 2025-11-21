@@ -44,8 +44,9 @@ import { getTaskByLicensePlate } from "@/features/common/providers/alfresco-api/
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { plate: string } }
-) {
+  { params }: { params: Promise<{ plate: string | undefined }> }
+): Promise<NextResponse> {
+  const { plate } = await params;
   const session = await auth();
   if (!session) {
     return NextResponse.json(
@@ -59,8 +60,6 @@ export async function GET(
   }
 
   try {
-    const { plate } = params;
-
     if (!plate) {
       return NextResponse.json(
         {

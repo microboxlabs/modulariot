@@ -1,6 +1,6 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Sidebar } from "flowbite-react";
+import { Sidebar, SidebarItemGroup, SidebarItems } from "flowbite-react";
 import SidebarItem from "../sidebar-item/sidebar-item";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
@@ -15,9 +15,8 @@ import {
   useSymptoms,
   useMapPositions,
   useMyTasksCount,
-  useMyTasks,
+  useHistoricInstancesCount,
 } from "@/features/common/providers/client-api.provider";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS } from "@/features/task-forms/services/form.service";
 
 export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   // remove first element of pathname which is the language
@@ -25,12 +24,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   const { isOpen, close } = useSidebarContext().mobile;
 
   const { data, error, isLoading: _ } = useMyTasksCount();
-  const { data: finishedTasks } = useMyTasks(
-    SHIPPING_COORDINATOR_PROCESS_TASKS,
-    true,
-    1,
-    0
-  );
+  const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const [totals, setTotals] = useState<{ [key: string]: number }>({});
@@ -47,9 +41,12 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
     const newTotals = { ...totals };
     newTotals["geographicView"] = mapCount;
     newTotals["symptoms"] = symptomsCount;
-    newTotals["finished"] = finishedTasks?.total ?? 0;
+    const historicInstancesTotal = Object.values(
+      historicInstances?.totals ?? {}
+    ).reduce((sum, count) => sum + count, 0);
+    newTotals["finished"] = historicInstancesTotal;
     setTotals(newTotals);
-  }, [mapCount, symptomsCount, finishedTasks]);
+  }, [mapCount, symptomsCount, historicInstances]);
 
   if (!isOpen) return null;
 
@@ -71,8 +68,8 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
       >
         <div className="flex h-full flex-col justify-between dark:border-gray-700">
           <div className="py-2">
-            <Sidebar.Items>
-              <Sidebar.ItemGroup className="mt-0 border-t-0 pb-1 pt-0">
+            <SidebarItems>
+              <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
                 {pages.map((item) => (
                   <SidebarItem
                     key={item.label}
@@ -84,13 +81,13 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
                     totals={totals}
                   />
                 ))}
-              </Sidebar.ItemGroup>
+              </SidebarItemGroup>
               {/* <Sidebar.ItemGroup className="mt-2 pt-2">
                 {externalPages.map((item) => (
                   <SidebarItem key={item.label} {...item} pathname={pathname} />
                 ))}
               </Sidebar.ItemGroup> */}
-            </Sidebar.Items>
+            </SidebarItems>
           </div>
           <BottomMenu isCollapsed={false} dict={dict} pathname={pathname} />
         </div>

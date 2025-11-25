@@ -1,3 +1,5 @@
+"use client";
+
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripData from "./trip-data";

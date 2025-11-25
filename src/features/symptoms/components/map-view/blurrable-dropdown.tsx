@@ -9,6 +9,8 @@ import { GiPoliceBadge } from "react-icons/gi";
 import { MdCancel } from "react-icons/md";
 import { SelectedOption } from "../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { twMerge } from "tailwind-merge";
 export default function BlurrableDropdown({
   isMenuOpen,
   setIsMenuOpen,
@@ -91,15 +93,26 @@ export default function BlurrableDropdown({
         label={false}
         renderTrigger={() => (
           <Button
-            color="gray"
-            className="h-10 transition-all duration-100 !z-20 bg-white dark:bg-gray-800 rounded-r-none gap-2 w-fit"
+            color="alternative"
+            theme={{
+              base: twMerge(
+                "relative",
+                "flex items-center justify-center",
+                "!rounded-lg !rounded-r-none !border-l-1",
+                "text-center font-medium",
+                "focus:outline-none focus:ring-4",
+                "cursor-pointer",
+                "h-10 transition-all duration-100 z-20",
+                "gap-2 w-fit"
+              ),
+            }}
           >
             <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-900 dark:text-gray-100 hidden whitespace-nowrap xl:flex lg:hidden">
-                {(dict.symptoms as I18nRecord).other_options as string}
-              </p>
+              <span className="lg:block hidden whitespace-nowrap">
+                {tr("symptoms.other_options", dict)}
+              </span>
               <HiChevronUp
-                className={`text-gray-900 dark:text-gray-100 w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
+                className={`w-5 h-5 transition-transform ease-in-out duration-300 ${isOpen ? "rotate-180" : ""}`}
               />
             </div>
           </Button>

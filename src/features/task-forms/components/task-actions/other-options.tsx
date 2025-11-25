@@ -106,7 +106,7 @@ export default function OtherOptions({
             <div className="flex items-center gap-2">
               {/* 
               <p className="text-sm text-gray-900 dark:text-gray-100 lg:block hidden whitespace-nowrap">
-                {(dict.outcome as I18nRecord).moreOptions as string}
+                {tr("outcome.moreOptions", dict)}
               </p>
               */}
               <HiChevronUp

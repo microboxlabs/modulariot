@@ -4,6 +4,9 @@ import {
   Button,
   Label,
   Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   Pagination,
   Textarea,
   TextInput,
@@ -115,8 +118,6 @@ export default function PageContent({
     isLoading: _2,
   } = useSearchTasks(showFinishedTasks ? null : searchParams.get("search"));
 
-  const { data: _3, error: taskCountError } = useMyTasksCount();
-
   useEffect(() => {
     if (searchTasksData) {
       const newBoards = list.map((board) => ({
@@ -154,14 +155,9 @@ export default function PageContent({
     router.replace(`/${lang}/sign-in`);
   }
 
-  if (taskCountError || myTasksError || searchTasksError) {
+  if (myTasksError || searchTasksError) {
     return (
-      <div>
-        Error:{" "}
-        {taskCountError?.message ||
-          myTasksError?.message ||
-          searchTasksError?.message}
-      </div>
+      <div>Error: {myTasksError?.message || searchTasksError?.message}</div>
     );
   }
 
@@ -375,8 +371,8 @@ export const EditCardModal: FC = function () {
         <HiPencilAlt className="h-5 w-5" />
       </button>
       <Modal onClose={() => setOpen(false)} show={isOpen}>
-        <Modal.Header>Edit task</Modal.Header>
-        <Modal.Body>
+        <ModalHeader>Edit task</ModalHeader>
+        <ModalBody>
           <div className="mb-3 text-2xl font-semibold leading-none text-gray-900 dark:text-white">
             Redesign Themesberg Homepage
           </div>
@@ -581,8 +577,8 @@ export const EditCardModal: FC = function () {
               </li>
             </ul>
           </div>
-        </Modal.Body>
-        <Modal.Footer>
+        </ModalBody>
+        <ModalFooter>
           <div className="grid w-full grid-cols-2 items-center gap-3 sm:grid-cols-5">
             <Button color="blue" onClick={() => setOpen(false)}>
               <div className="flex items-center gap-x-2">
@@ -615,7 +611,7 @@ export const EditCardModal: FC = function () {
               </div>
             </Button>
           </div>
-        </Modal.Footer>
+        </ModalFooter>
       </Modal>
     </>
   );
@@ -627,8 +623,8 @@ const AddAnotherCardModal: FC = function () {
   return (
     <>
       <Modal onClose={() => setOpen(false)} show={isOpen}>
-        <Modal.Header>Add new task</Modal.Header>
-        <Modal.Body>
+        <ModalHeader>Add new task</ModalHeader>
+        <ModalBody>
           <form>
             <div className="mb-6 grid grid-cols-1 gap-y-2">
               <Label htmlFor="taskName">Task name</Label>
@@ -671,8 +667,8 @@ const AddAnotherCardModal: FC = function () {
               </label>
             </div>
           </form>
-        </Modal.Body>
-        <Modal.Footer>
+        </ModalBody>
+        <ModalFooter>
           <div className="flex items-center gap-x-3">
             <Button color="blue" onClick={() => setOpen(false)}>
               <div className="flex items-center gap-x-2">
@@ -684,7 +680,7 @@ const AddAnotherCardModal: FC = function () {
               Close
             </Button>
           </div>
-        </Modal.Footer>
+        </ModalFooter>
       </Modal>
     </>
   );

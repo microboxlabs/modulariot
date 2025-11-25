@@ -2,14 +2,13 @@ import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import ReleaseNotes from "@/features/layout/components/release-view/release-notes";
 import OtherVersions from "@/features/layout/components/release-view/other-versions";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 export default async function Page({
   params,
-}: {
-  params: { lang: string; version: string };
-}) {
-  const [, dict] = await getDictionary(params.lang);
-  const version = params.version;
+}: ParamsWithLang<{ version: string }>) {
+  const paramsResult = await params;
+  const { lang, version } = paramsResult;
+  const [, dict] = await getDictionary(lang);
 
   return (
     <div className="flex flex-col w-full justify-center items-center">

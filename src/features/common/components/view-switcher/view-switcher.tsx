@@ -1,5 +1,5 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Button } from "flowbite-react";
+import { Button, ButtonGroup } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
 
 interface ViewSwitcherProps {
@@ -14,23 +14,21 @@ export function ViewSwitcher({
   dict,
 }: ViewSwitcherProps) {
   return (
-    <Button.Group>
+    <ButtonGroup>
       <Button
-        color="gray"
+        color="alternative"
         onClick={() => onViewChange("kanban")}
-        size="sm"
         disabled={activeView === "kanban"}
       >
         {tr("views.kanban", dict)}
       </Button>
       <Button
-        color="gray"
+        color="alternative"
         onClick={() => onViewChange("table")}
-        size="sm"
         disabled={activeView === "table"}
       >
         {tr("views.table", dict)}
       </Button>
-    </Button.Group>
+    </ButtonGroup>
   );
 }

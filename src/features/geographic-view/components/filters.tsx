@@ -13,6 +13,7 @@ import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import PinIcon from "@/features/icons/pin-icon";
 import { useState, useEffect } from "react";
 import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
+import { tr } from "@/features/i18n/tr.service";
 
 function set_filtered_positions(
   originalPositions: MapPosition[],
@@ -266,7 +267,7 @@ export default function Filters({
     <div className="flex flex-col gap-2 pl-5 pt-5">
       <div className="z-[9999]">
         <FilterComponent
-          label={(dict.symptoms as I18nRecord).conditions as string}
+          label={tr("symptoms.conditions", dict)}
           icon={alerta_critica.src as string}
           icon_size="w-8 h-8"
           options={activeFilters.conditions}

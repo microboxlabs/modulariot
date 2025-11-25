@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, TextInput } from "flowbite-react";
+import { Button, ButtonGroup, TextInput } from "flowbite-react";
 import { HiOutlineHand } from "react-icons/hi";
 import DriverUserIcon from "@/features/icons/driver-user";
 import DriverContactInfo from "../driver-contact-info/driver-contact-info";
@@ -8,12 +8,11 @@ import { Driver } from "../driver-contact-info/driver-contact-info.type";
 import DriverValidation from "../driver-validation-card/driver-validation-card";
 import TripInformation from "../trip-information-card/trip-information";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useFormState } from "react-dom";
 import { taskNextAction } from "../../services/client-form.service";
-import React, { useEffect, useState } from "react";
+import React, { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ShippingCoordinatorProcessForms,
+  ShippingCoordinatorProcessFormsV2,
   TaskNextActionState,
   TaskOutcome,
 } from "../../services/form.service.types";
@@ -32,7 +31,7 @@ import {
   OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION,
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_NORMAL_INITIATION,
-  TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK,
+  TYPE_WFSHIP2_MISSION_CONTROL_TASK,
 } from "../../services/form.service";
 import { getComments } from "@/utils/comments";
 import { ExtendedTaskResponse } from "../task-form/task-form.types";
@@ -49,7 +48,7 @@ export default function DriverVerifiedCard({
   enableActions = false,
   userGroups,
 }: DriverVerifiedCardProps) {
-  const [state, formAction] = useFormState<TaskNextActionState, FormData>(
+  const [state, formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
   );
@@ -70,7 +69,7 @@ export default function DriverVerifiedCard({
   };
 
   const buildExtraData = () => {
-    if (task.taskFormKey === TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK) {
+    if (task.taskFormKey === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
       return {
         nativeGenerationEnabled,
       };
@@ -212,7 +211,7 @@ export default function DriverVerifiedCard({
                 notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
               >
                 <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-                  <Button.Group className="w-full">
+                  <ButtonGroup className="w-full">
                     <CanceledAnnulledAndOptions
                       dict={
                         (msg!.pages as I18nRecord)
@@ -236,8 +235,8 @@ export default function DriverVerifiedCard({
                     <Button
                       color="blue"
                       type="submit"
-                      theme={{ inner: { base: "px-5 py-3" } }}
-                      isProcessing={isLoading}
+                      // theme={{ inner: { base: "px-5 py-3" } }}
+                      disabled={isLoading}
                       className="w-full px-0 py-px"
                     >
                       {
@@ -249,7 +248,7 @@ export default function DriverVerifiedCard({
                         ).submit as string
                       }
                     </Button>
-                  </Button.Group>
+                  </ButtonGroup>
 
                   <TaskConfirmModal
                     commentsFieldEnabled={isCommentsFieldEnabled(outcome!)}
@@ -268,7 +267,7 @@ export default function DriverVerifiedCard({
             ) : (
               <TaskActions
                 taskId={task.id}
-                taskType={task.taskFormKey as ShippingCoordinatorProcessForms}
+                taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
                 lang={lang}
                 dict={msg?.shippingDetailsTaskForm as I18nRecord}
                 fluid={true}

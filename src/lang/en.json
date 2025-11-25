@@ -720,7 +720,23 @@
         "missionControlTripInitTaskReason4": "Other.",
         "confirm": "Confirm move to {outcome}",
         "reason": "Reason",
-        "multipleReasonsSelected": "options selected"
+        "multipleReasonsSelected": "options selected",
+        "etaModeLabel": "Arrival Calculation Mode",
+        "etaModeCalculated": "Calculated (ETA Automatic)",
+        "etaModeManual": "Manual Arrival Time",
+        "duration": "Duration",
+        "calculatedEtaLabel": "Estimated Arrival Time",
+        "estimatedArrivalDateLabel": "Estimated Arrival Date/Time",
+        "calculatingEta": "Calculating ETA...",
+        "etaCalculationError": "Unable to calculate ETA",
+        "etaNotAvailable": "ETA not available",
+        "distance": "Distance",
+        "manualEtaReasonLabel": "Manual Arrival Reason",
+        "manualEtaReasonDestinationSchedule": "Destination operating hours or entry restrictions",
+        "manualEtaReasonWeekendHoliday": "ETA falls on weekend or holiday",
+        "manualEtaReasonAuthorizedOvernight": "Trip authorized to overnight with cargo",
+        "manualEtaReasonOther": "Other",
+        "manualEtaReasonOtherLabel": "Reason Description"
       }
     },
     "sovosVerificationForm": {
@@ -950,6 +966,10 @@
   },
   "footer": {
     "rights": " MicroboxLabs. All rights reserved."
+  },
+  "common": {
+    "close": "Close",
+    "open": "Open"
   },
   "symptoms": {
     "no_symptoms": "No symptoms",

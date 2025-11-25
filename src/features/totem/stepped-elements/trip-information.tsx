@@ -1,10 +1,15 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
-import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
+import {
+  FaExclamationCircle,
+  FaCheckCircle,
+  FaTimesCircle,
+} from "react-icons/fa";
 //import { Button } from "flowbite-react";
 import Image from "next/image";
 import ErrorImage from "@assets/icons/totem/alert-hexagon.svg";
 import { Congratulation, GotoBox } from "./tests";
+import { FormattedDate } from "@/features/common/components/formatted-date/formatted-date";
 
 export default function TripInformation({
   setCurrentStep,
@@ -38,8 +43,11 @@ export default function TripInformation({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [testState, setTestState] = useState(false);
+  const [_entityData, setEntityData] = useState<any>(null);
+  const [entityError, setEntityError] = useState<boolean>(false);
 
   const hasRun = useRef(false);
+  const entityFetched = useRef(false);
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
@@ -116,6 +124,50 @@ export default function TripInformation({
 
     verifyBiometric();
   }, []);
+
+  // Fetch entity info when tripData is available
+  useEffect(() => {
+    if (entityFetched.current || !tripData) return;
+
+    // Get license plate from tripData (could be in different fields)
+    const licencePlate =
+      tripData?.licencePlate ||
+      tripData?.tripInfo?.licencePlate ||
+      tripData?.truckLicensePlate ||
+      tripData?.tripInfo?.truckLicensePlate ||
+      tripData?.tripInfo?.tripInfo?.licencePlate ||
+      tripData?.tripInfo?.tripInfo?.truckLicensePlate ||
+      tripData?.tripInfo?.tripInfo?.trailerLicensePlate;
+
+    if (!licencePlate) return;
+
+    entityFetched.current = true;
+
+    const fetchEntityInfo = async () => {
+      try {
+        const url = `/app/api/entity/guest?licencePlate=${licencePlate}`;
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setEntityData(data);
+          setEntityError(false);
+        } else {
+          setEntityError(true);
+        }
+      } catch (err) {
+        setEntityError(true);
+      }
+    };
+
+    fetchEntityInfo();
+  }, [tripData]);
 
   if (!deviceId || !deviceLocation) return null;
 
@@ -294,6 +346,47 @@ export default function TripInformation({
           </h1>
         </div>
       )}
+
+      {(_entityData || entityError) && (
+        <div className="flex flex-row items-center gap-3 w-full my-2 px-2 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          {(() => {
+            // Determine icon based on status
+            if (entityError || !_entityData) {
+              return (
+                <FaTimesCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+              );
+            } else if (_entityData.is_active === false) {
+              return (
+                <FaExclamationCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
+              );
+            } else {
+              return (
+                <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+              );
+            }
+          })()}
+          <div className="flex flex-col gap-1 flex-1">
+            <span className="text-sm font-normal text-gray-800 dark:text-gray-200">
+              {(dict.totem as I18nRecord).gps_validation as string}
+              {_entityData?.ultimo_last_timestamp && (
+                <> : {(dict.totem as I18nRecord).last_signal as string}</>
+              )}
+            </span>
+            {_entityData?.ultimo_last_timestamp && (
+              <span className="text-sm font-normal text-gray-800 dark:text-gray-200">
+                <FormattedDate
+                  date={_entityData.ultimo_last_timestamp}
+                  locale="es-CL"
+                  timeZone="America/Santiago"
+                  format="datetime"
+                  fallback="-"
+                />
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <Congratulation
         testState={testState}
         setTestState={setTestState}
@@ -337,15 +430,14 @@ function DriverInfo({
     <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-[300px] w-full">
       <div className="flex flex-col justify-center w-full">
         <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 flex flex-row items-center gap-2 w-full">
-          <span className="break-words min-w-0">{name}</span>
-          {state && (
+          {state ? (
             <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
-          )}
-          {!state && (
+          ) : (
             <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
           )}
+          <span className="break-words min-w-0">{name}</span>
         </h1>
-        <h1 className="text-xs font-light text-gray-800 dark:text-gray-200">
+        <h1 className="text-xs font-light text-gray-800 dark:text-gray-200 ml-8">
           {(dict.totem as I18nRecord).driver as string} {number}
         </h1>
       </div>

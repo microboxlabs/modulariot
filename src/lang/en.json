@@ -1302,7 +1302,9 @@
     "multiple_tasks": "Multiple tasks assigned",
     "driver_without_trip1": "The driver with RUT",
     "driver_without_trip2": "is already verified or does not have a trip assigned.",
-    "unable_to_validate_rut": "Unable to validate RUT"
+    "unable_to_validate_rut": "Unable to validate RUT",
+    "gps_validation": "GPS Validation",
+    "last_signal": "Last signal"
   },
   "notifications": {
     "client": "Client",

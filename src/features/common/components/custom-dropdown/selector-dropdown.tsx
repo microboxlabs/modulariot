@@ -1,6 +1,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { Button, Dropdown } from "flowbite-react";
+import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import { useState, useEffect, useRef } from "react";
 import { HiChevronDown } from "react-icons/hi";
 
@@ -66,12 +66,7 @@ export default function SelectorDropdown({
         }}
         renderTrigger={() => (
           <Button
-            theme={{
-              size: {
-                md: "h-5 px-2 text-sm",
-              },
-            }}
-            color="gray"
+            color="alternative"
             className="flex flex-row items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2 rounded-lg text-sm font-light cursor-pointer w-full border border-gray-200 dark:border-gray-500 hover"
             disabled={disabled}
           >
@@ -89,10 +84,7 @@ export default function SelectorDropdown({
                 </span>
               ) : (
                 <span className="text-sm font-light">
-                  {tr(
-                    "select_document_type",
-                    (dictionary.bento as I18nRecord).multimedia as I18nRecord
-                  )}
+                  {tr("bento.multimedia.select_document_type", dictionary)}
                 </span>
               )}
               <HiChevronDown
@@ -105,7 +97,7 @@ export default function SelectorDropdown({
         style={{ width: "100%" }}
       >
         {categories.map((category) => (
-          <Dropdown.Item
+          <DropdownItem
             key={category.value}
             onClick={() => {
               setSelectedCategory(category);
@@ -113,7 +105,7 @@ export default function SelectorDropdown({
             }}
           >
             {category.label}
-          </Dropdown.Item>
+          </DropdownItem>
         ))}
       </Dropdown>
     </div>

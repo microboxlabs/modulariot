@@ -33,6 +33,49 @@ export async function POST(request: NextRequest) {
       prop_cm_owner: user!.email!,
     };
 
+    // List of fields to skip during dynamic property mapping
+    const skipFields = new Set([
+      "taskId",
+      "transitionId",
+      "comments",
+      "nativeGenerationEnabled",
+      "reason",
+      "reasonId",
+      "reasons",
+      "isMultiReason",
+      "prop_cm_owner",
+      "prop_bpm_comment",
+      "prop_mintral_commentPostContent",
+      "prop_mintral_shouldBuildManifest",
+      "prop_mintral_commentReasons",
+      "prop_mintral_commentPostTitle",
+    ]);
+
+    // Handle dynamic form properties
+    // 1. Fields already prefixed with "prop_" are passed through directly
+    // 2. Fields starting with "mintral_" are automatically prefixed with "prop_"
+    Object.entries(json).forEach(([key, value]) => {
+      if (skipFields.has(key)) {
+        return;
+      }
+
+      // If already has prop_ prefix, use as-is
+      if (key.startsWith("prop_")) {
+        updateTaskPayload[key] = value;
+      }
+      // If starts with mintral_, add prop_ prefix
+      else if (key.startsWith("mintral_")) {
+        const propKey = `prop_${key}`;
+        updateTaskPayload[propKey] = value;
+      }
+      // For any other custom fields, add prop_ prefix
+      // This allows maximum flexibility for future dynamic forms
+      else if (!key.startsWith("_")) { // Exclude internal Next.js fields
+        const propKey = `prop_${key}`;
+        updateTaskPayload[propKey] = value;
+      }
+    });
+
     if (comments) {
       updateTaskPayload.prop_bpm_comment = comments;
       updateTaskPayload.prop_mintral_commentPostContent = comments;

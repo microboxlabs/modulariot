@@ -1,3 +1,4 @@
+"use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
 import {

@@ -10,6 +10,7 @@ import {
   TaskResponse,
   UserGroupsResponse,
   VerifyDocumentResponse,
+  StatisticsTasksResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError } from "./fetcher.types";
@@ -73,6 +74,19 @@ export function useMyTasksCount() {
     `/app/api/task/mytasks/count`,
     fetcher
   );
+
+  return {
+    data,
+    error,
+    isLoading,
+  };
+}
+
+export function useHistoricInstancesCount() {
+  const { data, error, isLoading } = useSWR<
+    StatisticsTasksResponse,
+    FetcherError
+  >(`/app/api/task/statistics?mode=historic_instances`, fetcher);
 
   return {
     data,
@@ -227,7 +241,10 @@ export function useSymptomsTable({
   search?: string;
   condition?: string;
 }) {
-  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<
+    SymptomTableResponse,
+    FetcherError
+  >(
     `/app/api/symptoms/table?page=${page}&limit=${pageSize}${search ? "&search=" + search : ""}${condition ? "&condition=" + condition : ""}`,
     fetcher,
     {
@@ -240,7 +257,9 @@ export function useSymptomsTable({
   return {
     tableData: data,
     loading: isLoading,
+    isValidating,
     error,
+    refetch: mutate,
   };
 }
 
@@ -971,4 +990,95 @@ export function useSearchLoad(
     error,
     isLoading,
   };
+}
+
+interface ETAResponse {
+  estimatedArrival: string;
+  duration: number;
+  distance: number;
+}
+
+// interface ETAParams {
+//   origin: string;
+//   destination: string;
+//   doubleDriver?: boolean;
+//   percentile?: string;
+//   startDate?: string;
+// }
+
+export function useLiveETA(
+  enabled: boolean,
+  origin?: string,
+  destination?: string,
+  mode: string = "calculated"
+) {
+  // Only fetch when in calculated mode and we have required data
+  const shouldFetch = enabled && mode === "calculated" && origin && destination;
+
+  const { data, error, isLoading, mutate } = useSWR<ETAResponse, FetcherError>(
+    shouldFetch
+      ? `/app/api/task/calculate-eta?origin=${origin}&destination=${destination}`
+      : null,
+    async (url: string) => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          originGeofence: origin,
+          destinationGeofence: destination,
+          doubleDriver: false,
+          percentile: "p75",
+          startDate: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch ETA");
+      }
+
+      return response.json();
+    },
+    {
+      refreshInterval: 60000, // Refresh every minute
+      revalidateOnFocus: false,
+      dedupingInterval: 10000, // Dedupe requests within 10 seconds
+      errorRetryCount: 3,
+      errorRetryInterval: 5000,
+    }
+  );
+
+  return {
+    eta: data,
+    isLoading,
+    error,
+    refresh: mutate,
+  };
+}
+
+// ETA formatting helper functions
+export function formatETA(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+
+  const date = new Date(eta.estimatedArrival);
+  const hours = Math.floor(eta.duration / 60);
+  const minutes = eta.duration % 60;
+
+  return `${date.toLocaleString()} (${hours}h ${minutes}m)`;
+}
+
+export function formatArrivalTime(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+  return new Date(eta.estimatedArrival).toLocaleString();
+}
+
+export function formatDuration(eta: ETAResponse | undefined): string {
+  if (!eta) return "";
+
+  const hours = Math.floor(eta.duration / 60);
+  const minutes = eta.duration % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
 }

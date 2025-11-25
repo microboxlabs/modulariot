@@ -2,7 +2,6 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   MissionControlValidationOutcome,
   MonitoringInCourseTripOutcome,
-  ShippingCoordinatorProcessForms,
   ShippingCoordinatorProcessTask,
   SovosDigitalSignatureOutcome,
   OverlordTripInitOutcome,
@@ -24,39 +23,6 @@ import {
   HiTrash,
 } from "react-icons/hi";
 import { ElementType } from "react";
-
-export const TYPE_WFSHIP_TRANSPORT_VALIDATION_TASK: ShippingCoordinatorProcessForms =
-  "wfship:transportValidationTask";
-
-export const TYPE_WFSHIP_MISSION_CONTROL_TRIP_INIT_TASK: ShippingCoordinatorProcessForms =
-  "wfship:missionControlTripInitTask";
-
-export const TYPE_WFSHIP_OVERLORD_TRIP_INIT_TASK: ShippingCoordinatorProcessForms =
-  "wfship:overlordTripInitTask";
-
-export const TYPE_WFSHIP_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessForms =
-  "wfship:sovosDigitalSignature";
-
-export const TYPE_WFSHIP_TRIP_OUTSIDE_INITIATED_TASK: ShippingCoordinatorProcessForms =
-  "wfship:tripOutsideInitiatedTask";
-
-export const TYPE_WFSHIP_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessForms =
-  "wfship:monitoringInCourseTrip";
-
-export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessForms =
-  "wfship:confirmTripDestinationArrival";
-
-export const TYPE_WFSHIP_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessForms =
-  "wfship:confirmTripDestinationDeparture";
-
-export const TYPE_WFSHIP_CONFIRM_DELIVERY: ShippingCoordinatorProcessForms =
-  "wfship:confirmDelivery";
-
-export const TYPE_WFSHIP_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
-  "wfship:confirmMonitoringFinalization";
-
-export const TYPE_WFSHIP_MONITORING_FINALIZATION: ShippingCoordinatorProcessForms =
-  "wfship:monitoringFinalization";
 
 export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
   "Iniciado Normal";

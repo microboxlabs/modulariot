@@ -15,10 +15,10 @@ import {
   TaskResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TaskActions from "@/features/task-forms/components/task-actions/task-actions";
-import { ShippingCoordinatorProcessForms } from "@/features/task-forms/services/form.service.types";
 import { getComments } from "@/utils/comments";
 import { GeographicHistoric } from "../geographic-historic";
 import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+import { ShippingCoordinatorProcessFormsV2 } from "@/features/task-forms/services/form.service.types";
 
 /* const TaskHeader = ({ title, endTime }: { title: string; endTime: string }) => (
   <Card className="pb-4">
@@ -123,7 +123,7 @@ export async function NextCancelTripView({
                   <TaskActions
                     taskId={task.id ?? ""}
                     taskType={
-                      task.taskFormKey as ShippingCoordinatorProcessForms
+                      task.taskFormKey as ShippingCoordinatorProcessFormsV2
                     }
                     lang={lang}
                     dict={dictionary.shippingDetailsTaskForm as I18nRecord}

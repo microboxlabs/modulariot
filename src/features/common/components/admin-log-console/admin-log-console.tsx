@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, JSX } from "react";
 import { LogLevel, LogHandlerInfo } from "@/lib/logger";
 
 interface LogHandlerTreeNode {

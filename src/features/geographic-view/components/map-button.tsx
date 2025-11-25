@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Button } from "flowbite-react";
 import { IconType } from "react-icons";
 import Image from "next/image";
+import { twMerge } from "tailwind-merge";
 
 type MapButtonType = {
   main_color: string;
@@ -35,7 +36,11 @@ export default function MapButton({
 
   return (
     <div
-      className={`flex h-10 ${open_to_left ? "flex-row-reverse justify-self-end" : "flex-row"} ${main_color} transition-all duration-300 rounded-full w-fit ${expanded ? "max-w-full" : "max-w-10"}`}
+      className={twMerge(
+        "flex h-10 transition-all duration-300 rounded-full",
+        open_to_left ? "flex-row-reverse justify-self-end" : "flex-row",
+        main_color
+      )}
     >
       <Button
         onClick={() => {
@@ -52,35 +57,54 @@ export default function MapButton({
         onMouseLeave={() => {
           set_expanded(false);
         }}
-        color="gray"
-        className={`flex items-center justify-center h-10 w-10 transition-transform duration-100 z-20 ${button_color} rounded-full ${border}`}
-        theme={{
-          base: "group relative flex items-stretch justify-center p-0 text-center font-medium transition-[color,background-color,border-color,text-decoration-color,fill,stroke,box-shadow] focus:z-10 focus:outline-none",
-          color: {
-            gray: ":ring-cyan-700 bg-white text-gray-900 focus:text-cyan-700 focus:ring-4 enabled:hover:bg-gray-100 enabled:hover:text-cyan-700 dark:bg-transparent dark:text-gray-400 dark:enabled:hover:bg-gray-700 dark:enabled:hover:text-white",
-          },
-          size: {
-            md: "px-0 py-0 w-10 h-10 flex items-center justify-center",
-          },
-        }}
+        color="alternative"
+        pill
+        className={twMerge(
+          // "display-block w-10 h-10",
+          "flex items-center justify-center h-10 w-10 !p-0 transition-transform duration-100 z-20 rounded-full",
+          // button_color,
+          border
+        )}
+        // theme={{
+        //   base: "group relative flex items-stretch justify-center p-0 text-center font-medium transition-[color,background-color,border-color,text-decoration-color,fill,stroke,box-shadow] focus:z-10 focus:outline-none",
+        //   color: {
+        //     gray: ":ring-cyan-700 bg-white text-gray-900 focus:text-cyan-700 focus:ring-4 enabled:hover:bg-gray-100 enabled:hover:text-cyan-700 dark:bg-transparent dark:text-gray-400 dark:enabled:hover:bg-gray-700 dark:enabled:hover:text-white",
+        //   },
+        //   size: {
+        //     md: "px-0 py-0 w-10 h-10 flex items-center justify-center",
+        //   },
+        // }}
       >
         {typeof Icon === "string" ? (
-          <div className={`${icon_size} flex items-center justify-center`}>
+          <div
+            className={twMerge("flex items-center justify-center", icon_size)}
+          >
             <Image src={Icon} alt="icono" width={100} height={100} />
           </div>
         ) : React.isValidElement(Icon) ? (
-          <div className={`${icon_size} flex items-center justify-center`}>
+          <div
+            className={twMerge("flex items-center justify-center", icon_size)}
+          >
             {Icon}
           </div>
         ) : (
           <Icon
-            className={`${icon_size} transition-transform duration-600 ${activated ? "rotate-180" : "rotate-0"} `}
+            className={twMerge(
+              "transition-transform duration-600",
+              icon_size,
+              activated ? "rotate-180" : "rotate-0"
+            )}
           />
         )}
       </Button>
       <p
         style={{ pointerEvents: "none" }}
-        className={`text-gray-800 dark:text-white text-[14px] font-size mx-5 h-10 flex items-center transition-all duration-300 whitespace-nowrap overflow-hidden ${expanded ? "opacity-100" : "opacity-0 overflow-hidden"}`}
+        className={twMerge(
+          "text-gray-800 dark:text-white text-[14px] font-size mx-5 h-10 flex items-center transition-all duration-300 whitespace-nowrap overflow-hidden",
+          expanded
+            ? "opacity-100 max-w-96"
+            : "w-0 opacity-0 overflow-hidden m-0"
+        )}
       >
         {text}
       </p>

@@ -2,15 +2,12 @@ import Totem from "@/features/totem/totem";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import { Footer, FooterCopyright } from "flowbite-react";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import TotemNavbar from "./totem-navbar";
 import ReleaseView from "@/features/layout/components/release-view/release-view";
 
-export default async function TotemPage({
-  params: { lang },
-}: {
-  params: { lang: string };
-}) {
+export default async function TotemPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
 
   return (

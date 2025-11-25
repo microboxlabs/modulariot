@@ -6,16 +6,15 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import PageContent from "@/features/shipping/components/content";
 import { getStaticPlanningData } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
-export default async function PlanningPage({
-  params: { lang },
-}: Readonly<ParamsWithLang>) {
+export default async function PlanningPage({ params }: ParamsWithLang) {
+  const { lang } = await params;
   try {
     const [, dictionary] = await getDictionary(lang);
     const session = await auth();
     if (!session) {
-      redirectWithLang(`/sign-in`);
+      await redirectWithLang(`/sign-in`);
     }
-    const userGroups = await getGroupsForPerson(session);
+    const userGroups = await getGroupsForPerson(session!);
     const staticData = getStaticPlanningData();
 
     return (

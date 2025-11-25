@@ -1,7 +1,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { KanbanBoardTask } from "@/features/shipping/types/common.types";
-import { Table } from "flowbite-react";
+import { Table, TableCell, TableRow } from "flowbite-react";
 import { FormattedDate } from "../../formatted-date/formatted-date";
 import Link from "next/link";
 
@@ -13,8 +13,8 @@ export default function TableElement({
   dict: I18nRecord;
 }) {
   return (
-    <Table.Row className="bg-white dark:bg-gray-800">
-      <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
+    <TableRow className="bg-white dark:bg-gray-800">
+      <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
         <div className="flex flex-col text-xl">
           <Link href={`/task/edit/${task.id}`}>
             {tr(`myTasks.${task.taskType}`, dict)}
@@ -31,25 +31,25 @@ export default function TableElement({
             </span>
           </div>
         </div>
-      </Table.Cell>
-      <Table.Cell>
+      </TableCell>
+      <TableCell>
         <p className="text-lg whitespace-nowrap">
           <FormattedDate date={task.duration} format="time" />
         </p>
-      </Table.Cell>
-      <Table.Cell>
+      </TableCell>
+      <TableCell>
         <p className="text-lg whitespace-nowrap">
           {task.mintral_truckLicensePlate}
         </p>
-      </Table.Cell>
-      <Table.Cell>
+      </TableCell>
+      <TableCell>
         <p className="text-lg whitespace-nowrap">
           {task.origin}-{task.destination}
         </p>
-      </Table.Cell>
-      <Table.Cell>
+      </TableCell>
+      <TableCell>
         <p className="text-lg whitespace-nowrap">{task.client}</p>
-      </Table.Cell>
-    </Table.Row>
+      </TableCell>
+    </TableRow>
   );
 }

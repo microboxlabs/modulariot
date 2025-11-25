@@ -5,10 +5,10 @@ import { HiClipboardList } from "react-icons/hi";
 import GeneralMap from "@/features/symptoms/components/map-view/general-map";
 
 interface MapViewParams {
-  params: {
+  params: Promise<{
     lang: string;
     id: string;
-  };
+  }>;
   searchParams: {
     tripId?: string;
     assetId?: string;
@@ -16,9 +16,10 @@ interface MapViewParams {
 }
 
 export default async function SymptomList({
-  params: { lang, id },
+  params,
   searchParams,
 }: MapViewParams) {
+  const { lang, id } = await params;
   const [, dict] = await getDictionary(lang);
   // Get tripId from query parameters if available
   const tripId = searchParams.tripId;

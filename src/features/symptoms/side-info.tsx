@@ -1,7 +1,7 @@
 "use client";
 
 import { HiArrowRight } from "react-icons/hi";
-import { Button, Tooltip } from "flowbite-react";
+import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "./components/map-view/blurrable-dropdown";
 import { useState } from "react";
 //import BlurrableSteppedMenu from "./components/blurrable-stepped-menu/blurrable-stepped-menu";
@@ -129,7 +129,7 @@ export default function SideInfo({
           notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
           userGroups={userGroups}
         >
-          <Button.Group className="w-full">
+          <ButtonGroup className="w-full">
             <BlurrableDropdown
               dict={dict}
               isMenuOpen={isMenuOpen}
@@ -148,7 +148,7 @@ export default function SideInfo({
               {(dict.symptoms as I18nRecord).call_driver as string}
               <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
             </Button>
-          </Button.Group>
+          </ButtonGroup>
         </GroupAllowed>
       </div>
     </div>

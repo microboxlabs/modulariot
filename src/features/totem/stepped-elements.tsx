@@ -104,7 +104,7 @@ export default function Stepped({
   return (
     <div className="flex flex-col justify-between h-full p-5 relative w-full sm:gap-4">
       {/* Stepper */}
-      <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content">
+      <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content mt-5">
         <StepperMarker
           id={0}
           selected={currentStep === 0}

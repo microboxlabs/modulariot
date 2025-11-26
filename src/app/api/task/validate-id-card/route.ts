@@ -121,12 +121,11 @@ export async function POST(request: NextRequest) {
       // status: 200,
       response,
     });
-  } catch (error: any) {
-    console.error(error);
+  } catch (error: any) {    
     return NextResponse.json({
       success: false,
-      status: 500,
-      message: error.message,
+      status: error.status,
+      message: error.info ? JSON.parse(error.info).message as string : error.message,
     });
   }
 }

@@ -8,6 +8,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ data: JSON.parse((error as any)?.info) }, { status: (error as any)?.status || 500 });
+    return NextResponse.json(JSON.parse((error as any)?.info) , { status: (error as any)?.status || 500 });
   }
 }

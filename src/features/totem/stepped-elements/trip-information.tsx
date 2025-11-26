@@ -78,11 +78,29 @@ export default function TripInformation({
             fingerprintData: biometricResult, // Add if available
             driverSerieId: idCardNumber, // Add if available
           }),
-        });
+        });        
         if (!response.ok) {
           const errorData = await response.json();
           if (errorData?.error?.code === "multiple_tasks") {
             setError((dict.totem as I18nRecord).multiple_tasks as string);
+            return;
+          }
+          if (errorData?.success === false) {
+            if (errorData?.message == "Driver already verified") {
+              setError(
+                ((dict.totem as I18nRecord)[
+                  errorData.message as keyof I18nRecord
+                ] as string) ?? errorData.message
+              );
+              return;
+            }
+            setError(
+              errorData?.errorMessage ? errorData?.errorMessage : 
+              errorData?.message ? ((dict.totem as I18nRecord)[
+                errorData?.message as keyof I18nRecord
+              ] as string) : ((dict.totem as I18nRecord)
+                .biometric_verification_error as string)
+            );
             return;
           }
           throw new Error(
@@ -94,29 +112,11 @@ export default function TripInformation({
                   .biometric_verification_error as string)
           );
         }
-        const data = await response.json();
-        if (data?.success === false) {
-          if (data?.message == "Driver already verified") {
-            setError(
-              ((dict.totem as I18nRecord)[
-                data.message as keyof I18nRecord
-              ] as string) ?? data.message
-            );
-            return;
-          }
-          setError(
-            ((dict.totem as I18nRecord)[
-              data?.message as keyof I18nRecord
-            ] as string) ??
-              ((dict.totem as I18nRecord)
-                .biometric_verification_error as string)
-          );
-          return;
-        }
+        const data = await response.json();        
         setTripData({
           ...data,
         });
-      } catch (err) {
+      } catch (err) {        
         // setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
@@ -188,7 +188,7 @@ export default function TripInformation({
         <p className="text-lg text-gray-800 dark:text-gray-200 text-center">
           {error}
         </p>
-        <Image src={ErrorImage} alt="Ok" width={100} height={100} />
+        <Image src={ErrorImage} alt="image error" width={100} height={100} />
         <Congratulation
           testState={testState}
           setTestState={setTestState}
@@ -251,7 +251,7 @@ export default function TripInformation({
         <p className="text-center font-light text-base text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).driver_without_trip1 as string}{" "}
           <span className="font-bold">{rutData?.rut}</span>{" "}
-          {(dict.totem as I18nRecord).driver_without_trip2 as string}
+          {(dict.totem as I18nRecord).driver_without_trip2 as string}          
         </p>
         <Congratulation
           testState={testState}
@@ -331,9 +331,9 @@ export default function TripInformation({
               <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 {(dict.totem as I18nRecord).trip_information_schedule as string}
                 :{" "}
-                <span className="font-light">
-                  {tripData?.tripInfo?.tripInfo?.startTime?.split("T")[1]} -{" "}
-                  {tripData?.tripInfo?.tripInfo?.endTime?.split("T")[1]}
+                <span className="font-light">                
+                  {tripData?.tripInfo?.tripInfo?.startTime} -{" "}
+                  {tripData?.tripInfo?.tripInfo?.endTime}
                 </span>
               </h1>
             </div>
@@ -349,7 +349,7 @@ export default function TripInformation({
       )}
 
       {(_entityData || entityError) && (
-        <div className="flex flex-row items-center gap-3 w-full my-2 px-2 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+        <div className="flex flex-row items-center gap-3 w-full my-2 py-2 rounded-lg">
           {(() => {
             // Determine icon based on status
             if (entityError || !_entityData) {
@@ -429,18 +429,20 @@ function DriverInfo({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-[300px] w-full">
-      <div className="flex flex-col justify-center w-full">
-        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 flex flex-row items-center gap-2 w-full">
-          {state ? (
-            <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
-          ) : (
-            <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
-          )}
-          <span className="break-words min-w-0">{name}</span>
-        </h1>
-        <h1 className="text-xs font-light text-gray-800 dark:text-gray-200 ml-8">
-          {(dict.totem as I18nRecord).driver as string} {number}
-        </h1>
+      <div className="flex flex-row items-center gap-2 w-full">
+        {state ? (
+          <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+        ) : (
+          <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0" />
+        )}
+        <div className="flex flex-col gap-1 flex-1">
+          <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 break-words min-w-0">
+            {name}
+          </h1>
+          <h1 className="text-xs font-light text-gray-800 dark:text-gray-200">
+            {(dict.totem as I18nRecord).driver as string} {number}
+          </h1>
+        </div>
       </div>
       {/*  <div className="flex flex-col justify-center gap-2 w-full">
         <div className="flex flex-col justify-center gap-1 w-full">

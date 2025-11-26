@@ -1346,7 +1346,7 @@
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
     "multiple_tasks": "Más de un viaje asignado",
     "driver_without_trip1": "El conductor con rut",
-    "driver_without_trip2": "ya ha sido verificado o no posee un viaje asignado.",
+    "driver_without_trip2": "no posee un viaje asignado.",
     "unable_to_validate_rut": "No se ha podido validar el rut",
     "gps_validation": "Validación GPS",
     "last_signal": "Última señal"

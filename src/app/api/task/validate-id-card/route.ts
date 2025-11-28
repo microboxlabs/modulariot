@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
       // status: 200,
       response,
     });
-  } catch (error: any) {    
+  } catch (error: any) {
+    console.error(error);
     return NextResponse.json({
       success: false,
       status: error.status,

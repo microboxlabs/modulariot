@@ -1320,6 +1320,7 @@
     "verification_success_subtext": "ID card scan successful",
     "id_card_manual_access_error": "Invalid serial number. Please try again.",
     "id_card_manual_access_error_400": "Sovos service is not available. Please try again later.",
+    "already_verified": "The driver has already been verified for this service.",
     "multiple_tasks": "Multiple tasks assigned",
     "driver_without_trip1": "The driver with RUT",
     "driver_without_trip2": "is already verified or does not have a trip assigned.",

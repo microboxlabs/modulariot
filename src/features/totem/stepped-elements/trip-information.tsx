@@ -186,7 +186,8 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-lg text-gray-800 dark:text-gray-200 text-center">
-          {error}
+          { error && error.includes("ya ha sido verificado para este servicio.") ? (dict.totem as I18nRecord).already_verified as string :
+           error && error.includes("No se encontró servicio activo para el conductor") ? (dict.totem as I18nRecord).no_active_task_found as string : error}
         </p>
         <Image src={ErrorImage} alt="image error" width={100} height={100} />
         <Congratulation

@@ -1344,6 +1344,7 @@
     "verification_success": "Verificación exitosa",
     "verification_success_subtext": "Escaneo de cédula exitoso",
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
+    "id_card_manual_access_error_400": "Servicio Sovos no disponible. Por favor, inténtelo más tarde.",
     "multiple_tasks": "Más de un viaje asignado",
     "driver_without_trip1": "El conductor con rut",
     "driver_without_trip2": "no posee un viaje asignado.",

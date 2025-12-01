@@ -1326,7 +1326,7 @@
     "alcohol_test": "Test de alcohol",
     "finish": "Finalizar",
     "rut_invalid": "RUT inválido",
-    "no_trip_information": "Sin viaje asignado",
+    "no_trip_information": "Validación ya realizada para este conductor o Sin viaje asignado",
     "verify_secondary_driver": "Verificar al segundo conductor",
     "notify_control_center": "Hemos informado a la torre de control.",
     "biometric_verification_error": "Error al verificar datos biométricos",
@@ -1344,10 +1344,15 @@
     "verification_success": "Verificación exitosa",
     "verification_success_subtext": "Escaneo de cédula exitoso",
     "id_card_manual_access_error": "No de serie ingresado no válido. Reintentar por favor.",
-    "multiple_tasks": "Más de un viaje asignado",
+    "id_card_manual_access_error_400": "Servicio Sovos no disponible. Por favor, inténtelo más tarde.",
+    "already_verified": "Tu identidad ya fue validada. Puedes continuar con el proceso.",
+    "no_active_task_found": "⁠No tienes un viaje asignado para el día de hoy. Por favor, verifica con el área de Transporte.",
+    "multiple_tasks": "Tienes más de un viaje asignado para hoy. Lo regularizaremos a la brevedad, continua con el proceso.",
     "driver_without_trip1": "El conductor con rut",
     "driver_without_trip2": "no posee un viaje asignado.",
-    "unable_to_validate_rut": "No se ha podido validar el rut"
+    "unable_to_validate_rut": "No se ha podido validar el rut",
+    "gps_validation": "Validación GPS",
+    "last_signal": "Última señal"
   },
   "notifications": {
     "client": "Cliente",

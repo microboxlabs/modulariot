@@ -1304,7 +1304,7 @@
     "alcohol_test": "Alcohol test",
     "finish": "Finish",
     "rut_invalid": "Invalid RUT",
-    "no_trip_information": "No trip information",
+    "no_trip_information": "validation alredy performed for this driver or No trip information",
     "verify_secondary_driver": "Verify secondary driver",
     "notify_control_center": "We have notified the control center.",
     "to_qrcode": "Go to QR code scanner",
@@ -1319,10 +1319,14 @@
     "verification_success": "Verification successful",
     "verification_success_subtext": "ID card scan successful",
     "id_card_manual_access_error": "Invalid serial number. Please try again.",
+    "id_card_manual_access_error_400": "Sovos service is not available. Please try again later.",
+    "already_verified": "The driver has already been verified for this service.",
     "multiple_tasks": "Multiple tasks assigned",
     "driver_without_trip1": "The driver with RUT",
-    "driver_without_trip2": "does not have a trip assigned.",
-    "unable_to_validate_rut": "Unable to validate RUT"
+    "driver_without_trip2": "is already verified or does not have a trip assigned.",
+    "unable_to_validate_rut": "Unable to validate RUT",
+    "gps_validation": "GPS Validation",
+    "last_signal": "Last signal"
   },
   "notifications": {
     "client": "Client",

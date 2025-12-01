@@ -1,14 +1,20 @@
 "use client";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useEffect, useRef, useState } from "react";
-import { FaExclamationCircle, FaCheckCircle } from "react-icons/fa";
-import { Button } from "flowbite-react";
+import {
+  FaExclamationCircle,
+  FaCheckCircle,
+  FaTimesCircle,
+} from "react-icons/fa";
+//import { Button } from "flowbite-react";
 import Image from "next/image";
 import ErrorImage from "@assets/icons/totem/alert-hexagon.svg";
+import { Congratulation, GotoBox } from "./tests";
+import { FormattedDate } from "@/features/common/components/formatted-date/formatted-date";
 
 export default function TripInformation({
   setCurrentStep,
-  currentStep,
+  //currentStep,
   dict,
   deviceId,
   deviceLocation,
@@ -17,9 +23,12 @@ export default function TripInformation({
   tripData,
   setTripData,
   idCardNumber,
+  setRutData,
+  setBiometricResult,
+  setIdCardNumber,
 }: {
   setCurrentStep: (step: number) => void;
-  currentStep: number;
+  //currentStep: number;
   dict: I18nRecord;
   deviceId: string | null;
   deviceLocation: string | null;
@@ -28,11 +37,18 @@ export default function TripInformation({
   tripData: any;
   setTripData: (tripData: any) => void;
   idCardNumber: string;
+  setRutData: (rutData: { rut: string; rut_validated: boolean }) => void;
+  setBiometricResult: (biometricResult: any) => void;
+  setIdCardNumber: (idCardNumber: string) => void;
 }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [testState, setTestState] = useState(false);
+  const [_entityData, setEntityData] = useState<any>(null);
+  const [entityError, setEntityError] = useState<boolean>(false);
 
   const hasRun = useRef(false);
+  const entityFetched = useRef(false);
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
@@ -62,11 +78,29 @@ export default function TripInformation({
             fingerprintData: biometricResult, // Add if available
             driverSerieId: idCardNumber, // Add if available
           }),
-        });
+        });        
         if (!response.ok) {
           const errorData = await response.json();
           if (errorData?.error?.code === "multiple_tasks") {
             setError((dict.totem as I18nRecord).multiple_tasks as string);
+            return;
+          }
+          if (errorData?.success === false) {
+            if (errorData?.message == "Driver already verified") {
+              setError(
+                ((dict.totem as I18nRecord)[
+                  errorData.message as keyof I18nRecord
+                ] as string) ?? errorData.message
+              );
+              return;
+            }
+            setError(
+              errorData?.errorMessage ? errorData?.errorMessage : 
+              errorData?.message ? ((dict.totem as I18nRecord)[
+                errorData?.message as keyof I18nRecord
+              ] as string) : ((dict.totem as I18nRecord)
+                .biometric_verification_error as string)
+            );
             return;
           }
           throw new Error(
@@ -78,29 +112,11 @@ export default function TripInformation({
                   .biometric_verification_error as string)
           );
         }
-        const data = await response.json();
-        if (data?.success === false) {
-          if (data?.message == "Driver already verified") {
-            setError(
-              ((dict.totem as I18nRecord)[
-                data.message as keyof I18nRecord
-              ] as string) ?? data.message
-            );
-            return;
-          }
-          setError(
-            ((dict.totem as I18nRecord)[
-              data?.message as keyof I18nRecord
-            ] as string) ??
-              ((dict.totem as I18nRecord)
-                .biometric_verification_error as string)
-          );
-          return;
-        }
+        const data = await response.json();        
         setTripData({
           ...data,
         });
-      } catch (err) {
+      } catch (err) {        
         // setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
@@ -109,6 +125,50 @@ export default function TripInformation({
 
     verifyBiometric();
   }, []);
+
+  // Fetch entity info when tripData is available
+  useEffect(() => {
+    if (entityFetched.current || !tripData) return;
+
+    // Get license plate from tripData (could be in different fields)
+    const licencePlate =
+      tripData?.licencePlate ||
+      tripData?.tripInfo?.licencePlate ||
+      tripData?.truckLicensePlate ||
+      tripData?.tripInfo?.truckLicensePlate ||
+      tripData?.tripInfo?.tripInfo?.licencePlate ||
+      tripData?.tripInfo?.tripInfo?.truckLicensePlate ||
+      tripData?.tripInfo?.tripInfo?.trailerLicensePlate;
+
+    if (!licencePlate) return;
+
+    entityFetched.current = true;
+
+    const fetchEntityInfo = async () => {
+      try {
+        const url = `/app/api/entity/guest?licencePlate=${licencePlate}`;
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setEntityData(data);
+          setEntityError(false);
+        } else {
+          setEntityError(true);
+        }
+      } catch (err) {
+        setEntityError(true);
+      }
+    };
+
+    fetchEntityInfo();
+  }, [tripData]);
 
   if (!deviceId || !deviceLocation) return null;
 
@@ -126,10 +186,22 @@ export default function TripInformation({
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl p-4 gap-2 bg-gray-100 dark:bg-gray-800 w-full portrait:w-full">
         <p className="text-lg text-gray-800 dark:text-gray-200 text-center">
-          {error}
+          { error && error.includes("ya ha sido verificado para este servicio.") ? (dict.totem as I18nRecord).already_verified as string :
+           error && error.includes("No se encontró servicio activo para el conductor") ? (dict.totem as I18nRecord).no_active_task_found as string : error}
         </p>
-        <Image src={ErrorImage} alt="Ok" width={100} height={100} />
-        <Button
+        <Image src={ErrorImage} alt="image error" width={100} height={100} />
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
           color="white"
@@ -137,7 +209,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -150,7 +222,18 @@ export default function TripInformation({
           <span className="font-bold">{rutData?.rut}</span>
         </p>
         <Image src={ErrorImage} alt="Ok" width={100} height={100} />
-        <Button
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
           color="white"
@@ -158,7 +241,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -169,9 +252,20 @@ export default function TripInformation({
         <p className="text-center font-light text-base text-gray-800 dark:text-gray-200">
           {(dict.totem as I18nRecord).driver_without_trip1 as string}{" "}
           <span className="font-bold">{rutData?.rut}</span>{" "}
-          {(dict.totem as I18nRecord).driver_without_trip2 as string}
+          {(dict.totem as I18nRecord).driver_without_trip2 as string}          
         </p>
-        <Image src={ErrorImage} alt="Ok" width={100} height={100} />
+        <Congratulation
+          testState={testState}
+          setTestState={setTestState}
+          dict={dict}
+          tripData={tripData}
+          setCurrentStep={setCurrentStep}
+          setRutData={setRutData}
+          setIdCardNumber={setIdCardNumber}
+          setBiometricResult={setBiometricResult}
+        />
+        <GotoBox testState={testState} dict={dict} />
+        {/* <Image src={ErrorImage} alt="Ok" width={100} height={100} />
         <Button
           onClick={() => setCurrentStep(currentStep + 1)}
           className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
@@ -180,7 +274,7 @@ export default function TripInformation({
           <p className="text-base font-light">
             {(dict.totem as I18nRecord).continue as string}
           </p>
-        </Button>
+        </Button> */}
       </div>
     );
   }
@@ -238,9 +332,9 @@ export default function TripInformation({
               <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 {(dict.totem as I18nRecord).trip_information_schedule as string}
                 :{" "}
-                <span className="font-light">
-                  {tripData?.tripInfo?.tripInfo?.startTime?.split("T")[1]} -{" "}
-                  {tripData?.tripInfo?.tripInfo?.endTime?.split("T")[1]}
+                <span className="font-light">                
+                  {tripData?.tripInfo?.tripInfo?.startTime} -{" "}
+                  {tripData?.tripInfo?.tripInfo?.endTime}
                 </span>
               </h1>
             </div>
@@ -254,7 +348,59 @@ export default function TripInformation({
           </h1>
         </div>
       )}
-      <Button
+
+      {(_entityData || entityError) && (
+        <div className="flex flex-row items-center gap-3 w-full my-2 py-2 rounded-lg">
+          {(() => {
+            // Determine icon based on status
+            if (entityError || !_entityData) {
+              return (
+                <FaTimesCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+              );
+            } else if (_entityData.is_active === false) {
+              return (
+                <FaExclamationCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />
+              );
+            } else {
+              return (
+                <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+              );
+            }
+          })()}
+          <div className="flex flex-col gap-1 flex-1">
+            <span className="text-sm font-normal text-gray-800 dark:text-gray-200">
+              {(dict.totem as I18nRecord).gps_validation as string}
+              {_entityData?.ultimo_last_timestamp && (
+                <> : {(dict.totem as I18nRecord).last_signal as string}</>
+              )}
+            </span>
+            {_entityData?.ultimo_last_timestamp && (
+              <span className="text-sm font-normal text-gray-800 dark:text-gray-200">
+                <FormattedDate
+                  date={_entityData.ultimo_last_timestamp}
+                  locale="es-CL"
+                  timeZone="America/Santiago"
+                  format="datetime"
+                  fallback="-"
+                />
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <Congratulation
+        testState={testState}
+        setTestState={setTestState}
+        dict={dict}
+        tripData={tripData}
+        setCurrentStep={setCurrentStep}
+        setRutData={setRutData}
+        setIdCardNumber={setIdCardNumber}
+        setBiometricResult={setBiometricResult}
+      />
+      <GotoBox testState={testState} dict={dict} />
+      {/* <Button
         onClick={() => setCurrentStep(currentStep + 1)}
         className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
         color="white"
@@ -262,7 +408,7 @@ export default function TripInformation({
         <p className="text-base font-light">
           {(dict.totem as I18nRecord).continue as string}
         </p>
-      </Button>
+      </Button> */}
     </div>
   );
 }
@@ -284,19 +430,20 @@ function DriverInfo({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-[300px] w-full">
-      <div className="flex flex-col justify-center w-full">
-        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 flex flex-row items-center gap-2 w-full">
-          <span className="break-words min-w-0">{name}</span>
-          {state && (
-            <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
-          )}
-          {!state && (
-            <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-0.5" />
-          )}
-        </h1>
-        <h1 className="text-xs font-light text-gray-800 dark:text-gray-200">
-          {(dict.totem as I18nRecord).driver as string} {number}
-        </h1>
+      <div className="flex flex-row items-center gap-2 w-full">
+        {state ? (
+          <FaCheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+        ) : (
+          <FaExclamationCircle className="w-6 h-6 text-yellow-300 flex-shrink-0" />
+        )}
+        <div className="flex flex-col gap-1 flex-1">
+          <h1 className="text-sm font-bold text-gray-800 dark:text-gray-200 break-words min-w-0">
+            {name}
+          </h1>
+          <h1 className="text-xs font-light text-gray-800 dark:text-gray-200">
+            {(dict.totem as I18nRecord).driver as string} {number}
+          </h1>
+        </div>
       </div>
       {/*  <div className="flex flex-col justify-center gap-2 w-full">
         <div className="flex flex-col justify-center gap-1 w-full">

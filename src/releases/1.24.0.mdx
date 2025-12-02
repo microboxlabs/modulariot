@@ -1,6 +1,6 @@
-# 🔔 Release Notes v1.24.0 — Coordinador Inteligente
+# 🔔 Release Notes v1.24.0 — ModularIoT
 
-### Fecha: 21/11/2025
+### Fecha: 01/12/2025
 
 **Objetivo**: Fortalecer las capacidades de cálculo predictivo de tiempos de viaje, mejorar la experiencia de usuario en interfaces de monitoreo, ampliar las validaciones de seguridad en la App Conductor, y consolidar la infraestructura de alta disponibilidad con correcciones críticas de estabilidad en servicios backend.
 
@@ -8,13 +8,9 @@
 
 - **📍 Validación de Instalación de App Conductor**
   - **Verificación automática** durante la preparación del servicio para confirmar que el conductor tiene la app instalada y funcionando.
-  - **Integración con expediente**: La validación ocurre en el flujo "Presentar Conductor → Preparar Servicio".
+  - **Integración con el expediente de servicio**: La validación ocurre en el flujo "Presentar Conductor → Controlar Servicio".
   - **Estado de conectividad**: Monitoreo en tiempo real del estado de conexión del conductor y versión de la app.
-  - **Registro de dispositivos**: Base de datos de dispositivos asociados a cada conductor en su expediente.
-  - **Prevención de asignaciones fallidas**: Bloqueo de preparación del servicio si no cumple requisitos mínimos de conectividad.
-  - **Visibilidad 100%**: Panel de métricas de compliance (% conductores con app actualizada).
 
-- **🎯 Validación de Ubicación en Background - App Conductor**
   - **Sistema de validación en tiempo real** para asegurar que los conductores tienen el tracking de ubicación activado en segundo plano.
   - **Procesamiento de eventos MIOT**: Detección automática del estado `is_location_background` desde eventos de telemetría.
   - **Código de validación `APP_DRIVER`**: Nuevo reason code integrado en el framework de validaciones.
@@ -64,10 +60,6 @@
   - Corrección del sistema de validación de ubicación en background.
   - Implementación de checks automáticos para instalación de app.
   - Prevención de asignación de servicios a conductores sin herramientas adecuadas.
-
-## 🚧 En Desarrollo (Release 1.24.0 - Segunda Fase)
-
-Las siguientes funcionalidades están actualmente en desarrollo activo y se incluirán en las siguientes iteraciones de la versión 1.24.0:
 
 - **🔄 Migración Next.js 14.x → 16.x con React 19**
   - Actualización completa del framework frontend para aprovechar mejoras de performance y React 19.

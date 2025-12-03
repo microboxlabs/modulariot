@@ -7,6 +7,10 @@ export interface SymptomsTableRequest {
 
 export interface SymptomsTableResponse {
   data: SymptomsTable[];
+  page: number;
+  page_size: number;
+  total_rows: number;
+  total_pages: number;
   status: number;
   message: string;
 }

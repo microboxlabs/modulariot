@@ -73,10 +73,6 @@ export async function GET(req: NextRequest) {
     params.set("p_page", (url.searchParams.get("page") ?? "").trim());
   }
 
-  console.log("-------------------------");
-  console.log("page: " + url.searchParams.get("page"));
-  console.log("items per page (page size): " + url.searchParams.get("limit"));
-
   try {
     const token = await authToken.getToken();
 
@@ -107,14 +103,11 @@ export async function GET(req: NextRequest) {
         status: item?.treatment_count === 0 ? "" : "Tratado",
         last_assigned_to: item?.last_assigned_to,
       })),
-      total: data.data.length,
-      page: 1,
-      pageSize: data.data.length,
       pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalRecords: data.data.length,
-        limit: data.data.length,
+        total_rows: data.total_rows,
+        total_pages: data.total_pages,
+        currentPage: data.page,
+        page_size: data.page_size,
       },
     };
 

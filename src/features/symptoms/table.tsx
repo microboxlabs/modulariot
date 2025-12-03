@@ -21,6 +21,8 @@ export default function SymptomsTable({
   showCards: boolean;
   dict: I18nRecord;
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -45,6 +47,7 @@ export default function SymptomsTable({
                 if (date_from && date_to) {
                   params.delete("date_from");
                   params.delete("date_to");
+                  setCurrentPage(1);
                   router.push(`?${params.toString()}`);
                 }
               }}
@@ -77,7 +80,13 @@ export default function SymptomsTable({
           </Button>
         </div>
       </div>
-      <TableComponent dict={dict} />
+      <TableComponent
+        dict={dict}
+        pagination={{
+          currentPage: currentPage,
+          setCurrentPage: setCurrentPage,
+        }}
+      />
     </div>
   );
 }

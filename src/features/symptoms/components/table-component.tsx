@@ -7,7 +7,7 @@ import CustomTable from "@/features/common/components/custom-table/custom-table"
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-const pageSize = 12;
+const pageSize = 10;
 
 export default function SymptomsTable({
   dict,

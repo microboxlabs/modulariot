@@ -66,17 +66,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Pagination
-  if (url.searchParams.get("page")) {
-    params.set("p_page", "1");
-  }
-
   if (url.searchParams.get("limit")) {
-    params.set("p_page_size", "1");
+    params.set("p_page_size", (url.searchParams.get("limit") ?? "").trim());
+  }
+  if (url.searchParams.get("page")) {
+    params.set("p_page", (url.searchParams.get("page") ?? "").trim());
   }
 
   console.log("-------------------------");
-  console.log(url.searchParams.get("page"));
-  console.log(url.searchParams.get("limit"));
+  console.log("page: " + url.searchParams.get("page"));
+  console.log("items per page (page size): " + url.searchParams.get("limit"));
 
   try {
     const token = await authToken.getToken();

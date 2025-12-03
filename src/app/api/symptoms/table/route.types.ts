@@ -12,6 +12,7 @@ export interface SymptomsTableResponse {
 }
 
 export interface SymptomsTable {
+  icu_code: string;
   id: number;
   client: string;
   driver: string;

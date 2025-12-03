@@ -204,9 +204,12 @@ export function useVerifyDocument(documentId: string) {
   };
 }
 
-export function useSymptoms() {
+export function useSymptoms(date_range?: { from: string; to: string }) {
   const { data, error, isLoading } = useSWR<SymptomDashboard, FetcherError>(
-    "/app/api/symptoms/dashboard",
+    "/app/api/symptoms/dashboard" +
+      (date_range && date_range.from && date_range.to
+        ? `?from=${date_range.from}&to=${date_range.to}`
+        : ""),
     fetcher,
     {
       refreshInterval: 30000,
@@ -230,22 +233,66 @@ export function useSymptoms() {
   };
 }
 
+/*
+  setParam("asset_id", "text"),
+  setParam("trip_id", "text"),
+  setParam("driver_id", "text"),
+  setParam("carrier_id", "text"),
+  setParam("origin", "text"),
+  setParam("destination", "text"),
+*/
+
+function param_set(
+  value_to_pass: string | null,
+  parameter_name: string
+): string {
+  return `${value_to_pass ? "&" + parameter_name + "=" + value_to_pass : ""}`;
+}
+
 export function useSymptomsTable({
   page = 1,
   pageSize = 10,
-  search = "",
-  condition = "",
+  icu_code = "",
+  trip_id = "",
+  asset_id = "",
+  driver_id = "",
+  carrier_id = "",
+  origin = "",
+  destination = "",
+  symptom_name = "",
+  date_range,
 }: {
   page?: number;
   pageSize?: number;
-  search?: string;
-  condition?: string;
+  icu_code?: string;
+  trip_id?: string;
+  asset_id?: string;
+  driver_id?: string;
+  carrier_id?: string;
+  origin?: string;
+  destination?: string;
+  symptom_name?: string;
+  date_range?: {
+    from: string;
+    to: string;
+  };
 }) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<
     SymptomTableResponse,
     FetcherError
   >(
-    `/app/api/symptoms/table?page=${page}&limit=${pageSize}${search ? "&search=" + search : ""}${condition ? "&condition=" + condition : ""}`,
+    `/app/api/symptoms/table?page=${page}
+    &limit=${pageSize}
+    ${param_set(trip_id, "trip_id")}
+    ${param_set(icu_code, "icu_code")}
+    ${param_set(asset_id, "asset_id")}
+    ${param_set(driver_id, "driver_id")}
+    ${param_set(carrier_id, "carrier_id")}
+    ${param_set(origin, "origin")}
+    ${param_set(destination, "destination")}
+    ${param_set(symptom_name, "symptom_name")}
+    ${date_range?.from ? `&from=${date_range.from}` : ""}
+    ${date_range?.to ? `&to=${date_range.to}` : ""}`,
     fetcher,
     {
       refreshInterval: 30000,

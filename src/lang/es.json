@@ -996,6 +996,8 @@
   "symptoms": {
     "no_symptoms": "No hay síntomas",
     "active_symptoms": "Síntomas activos",
+    "historic_symptoms": "Síntomas históricos",
+    "live": "En vivo",
     "symptoms": "Síntomas",
     "symptom": "Síntoma",
     "client": "Cliente",

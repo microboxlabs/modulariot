@@ -22,6 +22,17 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
+const symptoms_params: ParamType[] = [
+  setParam("asset_id", "text"),
+  setParam("trip_id", "text"),
+  setParam("driver_id", "text"),
+  setParam("carrier_id", "text"),
+  setParam("origin", "text"),
+  // setParam("symptom_name", "text"),
+  setParam("destination", "text"),
+  setParam("date", "date_range"),
+];
+
 function setParam(param: ParamType, type: "date_range" | "text" | "bool") {
   return { param, type } as ParamType;
 }
@@ -39,6 +50,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       size > 0,
       true
     ),
+    symptoms: getParamsFixed(symptoms_params, dict),
   };
 }
 

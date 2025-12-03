@@ -101,6 +101,13 @@ export const pages: SidebarItem[] = [
         requiredGroups: [],
         blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
       },
+      {
+        href: "/signal-history",
+        label: "signalHistory",
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
+      },
     ],
     /* eslint-enable */
 

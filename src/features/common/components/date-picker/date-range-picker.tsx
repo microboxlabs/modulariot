@@ -19,9 +19,11 @@ declare global {
 export default function DateRangePicker({
   label = "",
   onDateChange,
+  className,
 }: {
   label?: string;
   onDateChange?: (startDate: string, endDate: string) => void;
+  className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -59,12 +61,12 @@ export default function DateRangePicker({
   }, []);
 
   return (
-    <div className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap">
+    <div className=" cursor-pointer transition-all duration-300 flex items-center text-sm font-light gap-1 whitespace-nowrap">
       {label}
       <input
         ref={inputRef}
         type="text"
-        className="border px-2 py-1 rounded w-full text-sm font-light"
+        className="block w-full border focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50 border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-500 dark:focus:ring-primary-500 p-2.5 text-sm rounded-lg"
       />
     </div>
   );

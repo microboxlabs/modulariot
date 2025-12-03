@@ -7,20 +7,24 @@ import CustomTable from "@/features/common/components/custom-table/custom-table"
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-const pageSize = 10;
+const pageSize = 12;
 
 export default function SymptomsTable({
   dict,
   compact = false,
+  pagination,
 }: {
   dict: I18nRecord;
   compact?: boolean;
+  pagination: {
+    currentPage: number;
+    setCurrentPage: (page: number) => void;
+  };
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
   const searchParams = useSearchParams();
 
   const { tableData, loading, error } = useSymptomsTable({
-    page: currentPage,
+    page: pagination.currentPage,
     pageSize,
     icu_code: searchParams.get("icu_code") || "",
     trip_id: searchParams.get("trip_id") || "",
@@ -58,13 +62,13 @@ export default function SymptomsTable({
 
   const handlePageChange = (page: number) => {
     const totalPages = Math.ceil(
-      (tableData?.pagination.totalRecords || 0) / pageSize
+      (tableData?.pagination.total_rows || 0) / pageSize
     );
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    pagination.setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
   const totalPages = Math.ceil(
-    (tableData?.pagination.totalRecords || 0) / pageSize
+    (tableData?.pagination.total_rows || 0) / pageSize
   );
 
   const startItem = tableData?.pagination.currentPage
@@ -74,7 +78,7 @@ export default function SymptomsTable({
   const endItem = tableData?.pagination.currentPage
     ? Math.min(
         tableData?.pagination.currentPage * pageSize,
-        tableData?.pagination.totalRecords || 0
+        tableData?.pagination.total_rows || 0
       )
     : 0;
 
@@ -106,8 +110,6 @@ export default function SymptomsTable({
       : []),
   ];
 
-  console.log(tableData);
-
   return (
     <div className="flex flex-col flex-grow">
       <div className="h-10 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg w-full border-2 border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
@@ -124,7 +126,7 @@ export default function SymptomsTable({
                 </span>{" "}
                 {(dict.symptoms as I18nRecord).of as string}{" "}
                 <span className="font-bold">
-                  {tableData?.pagination.totalRecords}
+                  {tableData?.pagination.total_rows}
                 </span>
               </>
             ) : (

@@ -28,7 +28,7 @@ const symptoms_params: ParamType[] = [
   setParam("driver_id", "text"),
   setParam("carrier_id", "text"),
   setParam("origin", "text"),
-  // setParam("symptom_name", "text"),
+  setParam("symptom_name", "text"),
   setParam("destination", "text"),
   setParam("date", "date_range"),
 ];

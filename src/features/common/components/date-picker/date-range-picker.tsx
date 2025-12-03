@@ -61,7 +61,9 @@ export default function DateRangePicker({
   }, []);
 
   return (
-    <div className=" cursor-pointer transition-all duration-300 flex items-center text-sm font-light gap-1 whitespace-nowrap">
+    <div
+      className={` cursor-pointer transition-all duration-300 flex items-center text-sm font-light gap-1 whitespace-nowrap ${className}`}
+    >
       {label}
       <input
         ref={inputRef}

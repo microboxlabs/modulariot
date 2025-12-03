@@ -959,6 +959,7 @@
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
+        "signalHistory": "Signal history",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms"
       }

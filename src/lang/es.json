@@ -981,6 +981,7 @@
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
+        "signalHistory": "Historial de señales",
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas"
       }

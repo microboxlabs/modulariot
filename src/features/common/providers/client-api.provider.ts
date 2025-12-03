@@ -291,8 +291,8 @@ export function useSymptomsTable({
     ${param_set(origin, "origin")}
     ${param_set(destination, "destination")}
     ${param_set(symptom_name, "symptom_name")}
-    ${date_range?.from ? `&from=${date_range.from}` : ""}
-    ${date_range?.to ? `&to=${date_range.to}` : ""}`,
+    ${param_set(date_range?.from ?? null, "from")}
+    ${param_set(date_range?.to ?? null, "to")}`,
     fetcher,
     {
       refreshInterval: 30000,

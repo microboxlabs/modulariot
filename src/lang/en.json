@@ -974,6 +974,8 @@
   "symptoms": {
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
+    "historic_symptoms": "Historic symptoms",
+    "live": "Live",
     "symptoms": "Symptoms",
     "symptom": "Symptom",
     "client": "Client",

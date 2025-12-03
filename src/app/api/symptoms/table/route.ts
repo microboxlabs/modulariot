@@ -30,14 +30,53 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const params = new URLSearchParams();
-  //params.set("page", url.searchParams.get("page") ?? "1");
-  //params.set("limit", url.searchParams.get("limit") ?? "10");
-  if (url.searchParams.get("search")) {
-    params.set("p_asset_id", `${url.searchParams.get("search") ?? ""}`);
+
+  // params
+  if (url.searchParams.get("asset_id")) {
+    params.set("p_asset_id", `${url.searchParams.get("asset_id") ?? ""}`);
   }
-  if (url.searchParams.get("condition")) {
-    params.set("p_icu_code", url.searchParams.get("condition") ?? "");
+  if (url.searchParams.get("icu_code")) {
+    params.set("p_icu_code", url.searchParams.get("icu_code") ?? "");
   }
+  if (url.searchParams.get("trip_id")) {
+    params.set("p_trip_id", url.searchParams.get("trip_id") ?? "");
+  }
+  if (url.searchParams.get("driver_id")) {
+    params.set("p_driver_id", url.searchParams.get("driver_id") ?? "");
+  }
+  if (url.searchParams.get("carrier_id")) {
+    params.set("p_carrier_id", url.searchParams.get("carrier_id") ?? "");
+  }
+  if (url.searchParams.get("origin")) {
+    params.set("p_origin", url.searchParams.get("origin") ?? "");
+  }
+  if (url.searchParams.get("destination")) {
+    params.set("p_destination", url.searchParams.get("destination") ?? "");
+  }
+  if (url.searchParams.get("symptom_name")) {
+    params.set("p_symptom_name", "Plan de Ruta Adelantado");
+  }
+
+  // Historic
+  if (url.searchParams.get("from")) {
+    params.set("p_start_date_historic", url.searchParams.get("from") ?? "");
+  }
+  if (url.searchParams.get("to")) {
+    params.set("p_end_date_historic", url.searchParams.get("to") ?? "");
+  }
+
+  // Pagination
+  if (url.searchParams.get("page")) {
+    params.set("p_page", "1");
+  }
+
+  if (url.searchParams.get("limit")) {
+    params.set("p_page_size", "1");
+  }
+
+  console.log("-------------------------");
+  console.log(url.searchParams.get("page"));
+  console.log(url.searchParams.get("limit"));
 
   try {
     const token = await authToken.getToken();
@@ -58,6 +97,7 @@ export async function GET(req: NextRequest) {
       data: data?.data.map((item) => ({
         id: String(item.id),
         condition: item?.icu_condition?.toLowerCase(),
+        icu_code: item?.icu_code,
         licensePlate: item?.asset_id,
         time: item?.duration_sec?.toString(),
         trip: item?.trip_id,

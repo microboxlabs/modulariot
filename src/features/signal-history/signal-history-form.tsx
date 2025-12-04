@@ -47,7 +47,6 @@ export default function SignalHistoryForm({
             </label>
             <DateRangePicker
               onDateChange={(startDate: string, endDate: string) => {}}
-              className="w-full"
             />
           </div>
 

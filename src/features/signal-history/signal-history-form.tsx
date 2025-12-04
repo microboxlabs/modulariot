@@ -5,6 +5,9 @@ import ParametrizedSearchBar from "../layout/components/secured-navbar/searchbar
 import { getNavegationParams } from "../layout/components/secured-navbar/searchbar/navegation_params";
 import { useSearchParams } from "next/navigation";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import MapHistoryView from "./map-history-view";
 
 export default function SignalHistoryForm({
   dict,
@@ -14,7 +17,74 @@ export default function SignalHistoryForm({
   messages: any;
 }) {
   const searchParams = useSearchParams();
-  const navegation_params = getNavegationParams(dict, 1);
+  
+  // Check if all required parameters exist to determine initial state
+  const hasLicensePlate = searchParams.get("license_plate");
+  const hasStartDate = searchParams.get("start_date");
+  const hasEndDate = searchParams.get("end_date");
+  const initialState = (hasLicensePlate && hasStartDate && hasEndDate) ? 2 : 0;
+  
+  const [state, setState] = useState(initialState);
+  const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
+  const router = useRouter();
+
+  const pageStates = [
+    LicensePlateInput({
+      messages,
+      searchParams,
+      router,
+      next: () => {
+        setState(1);
+      },
+    }),
+    DateRangeInput({
+      messages,
+      searchParams,
+      router,
+      dateRange,
+      setDateRange,
+      next: () => setState(1),
+      back: () => setState(0),
+    }),
+    <MapHistoryView dict={dict} messages={messages} />,
+  ];
+
+  return pageStates[state];
+}
+
+function LicensePlateInput({
+  messages,
+  searchParams,
+  router,
+  next,
+}: {
+  messages: any;
+  searchParams: URLSearchParams;
+  router: any;
+  next: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+
+  const handleNext = () => {
+    const licensePlate = inputRef.current?.value?.trim() || "";
+
+    // Validate license plate is not empty
+    if (!licensePlate) {
+      setError("La patente es requerida");
+      return;
+    }
+
+    // Clear error if validation passes
+    setError("");
+
+    // Update URL with license plate parameter
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("license_plate", licensePlate);
+
+    router.push(`?${params.toString()}`);
+    next();
+  };
 
   return (
     <div className="w-fit h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
@@ -22,36 +92,89 @@ export default function SignalHistoryForm({
         Historial de señales
       </h1>
       <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
-        Busca señales historicas por fecha y patente
+        Ingresa una patente
       </h1>
-      <div className="w-fit h-fit flex flex-col gap-4">
-        <div className="w-fit h-fit flex flex-col gap-1">
-          <Label htmlFor="search" className="text-left !text-gray-400">
-            Patente
-          </Label>
+      <div className="w-full max-w-96 h-fit flex flex-col gap-2">
+        <div className="w-full h-fit flex flex-col gap-1">
           <TextInput
-            className="w-full lg:w-96"
+            ref={inputRef}
+            className="w-full"
             id="search"
             placeholder={messages.search}
-            defaultValue={searchParams.get("search") || ""}
+            defaultValue={searchParams.get("license_plate") || ""}
             autoComplete="off"
+            onChange={() => setError("")} // Clear error on input change
           />
+          {error && (
+            <span className="text-red-500 text-sm font-medium">{error}</span>
+          )}
         </div>
-        <div className="w-full h-fit flex flex-col gap-1">
-          <div>
-            <label
-              htmlFor="first_name"
-              className="block mb-2.5 text-sm font-medium text-heading"
-            >
-              Rango de fechas
-            </label>
-            <DateRangePicker
-              onDateChange={(startDate: string, endDate: string) => {}}
-              className="w-full"
-            />
-          </div>
+        <Button type="submit" className="w-full" onClick={handleNext}>
+          Siguiente
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-          <Button type="submit" className="w-full">
+function DateRangeInput({
+  messages,
+  searchParams,
+  router,
+  dateRange,
+  setDateRange,
+  next,
+  back,
+}: {
+  messages: any;
+  searchParams: URLSearchParams;
+  router: any;
+  dateRange: { startDate: string; endDate: string };
+  setDateRange: (range: { startDate: string; endDate: string }) => void;
+  next: () => void;
+  back: () => void;
+}) {
+  const handleDateChange = (startDate: string, endDate: string) => {
+    setDateRange({ startDate, endDate });
+    // Don't update URL here - only update local state
+  };
+
+  const handleSearch = () => {
+    // Add date range parameters to URL only when searching
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (dateRange.startDate) {
+      params.set("start_date", dateRange.startDate);
+    }
+
+    if (dateRange.endDate) {
+      params.set("end_date", dateRange.endDate);
+    }
+
+    // Remove the action parameter since you don't want it
+    // params.set("action", "search");
+
+    router.push(`?${params.toString()}`);
+    next();
+  };
+
+  return (
+    <div className="w-fit h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+      <h1 className="text-gray-700 dark:text-gray-200 font-bold text-2xl md:text-4xl text-center">
+        Historial de señales
+      </h1>
+      <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
+        Selecciona el rango de fechas
+      </h1>
+      <div className="w-full max-w-96 h-fit flex flex-col gap-2">
+        <div className="w-full h-fit flex flex-col gap-1">
+          <DateRangePicker onDateChange={handleDateChange} className="w-full" />
+        </div>
+        <div className="flex flex-row gap-2">
+          <Button className="w-full" color="alternative" onClick={back}>
+            Atrás
+          </Button>
+          <Button className="w-full" onClick={handleSearch}>
             Buscar
           </Button>
         </div>

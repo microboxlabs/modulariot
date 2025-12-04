@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     params.set("p_destination", url.searchParams.get("destination") ?? "");
   }
   if (url.searchParams.get("symptom_name")) {
-    params.set("p_symptom_name", "Plan de Ruta Adelantado");
+    params.set("p_symptom_name", url.searchParams.get("symptom_name") ?? "");
   }
 
   // Historic
@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
         currentPage: data.page,
         page_size: data.page_size,
       },
+      symptoms_list: data.symptom_name_list,
     };
 
     return NextResponse.json(formattedResponse);

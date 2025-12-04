@@ -26,6 +26,7 @@ export interface SymptomDashboard {
 export interface SymptomTableResponse {
   data: TableItemType[];
   pagination: SymptomTablePagination;
+  symptoms_list: string[];
 }
 
 export interface SymptomTablePagination {

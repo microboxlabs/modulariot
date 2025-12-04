@@ -17,13 +17,13 @@ export default function SignalHistoryForm({
   messages: any;
 }) {
   const searchParams = useSearchParams();
-  
+
   // Check if all required parameters exist to determine initial state
   const hasLicensePlate = searchParams.get("license_plate");
   const hasStartDate = searchParams.get("start_date");
   const hasEndDate = searchParams.get("end_date");
-  const initialState = (hasLicensePlate && hasStartDate && hasEndDate) ? 2 : 0;
-  
+  const initialState = hasLicensePlate && hasStartDate && hasEndDate ? 2 : 0;
+
   const [state, setState] = useState(initialState);
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function SignalHistoryForm({
       router,
       dateRange,
       setDateRange,
-      next: () => setState(1),
+      next: () => setState(2),
       back: () => setState(0),
     }),
     <MapHistoryView dict={dict} messages={messages} />,

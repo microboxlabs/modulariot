@@ -5,9 +5,9 @@ import { useSymptomsTable } from "@/features/common/providers/client-api.provide
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
 
-const pageSize = 12;
+const pageSize = 13;
 
 export default function SymptomsTable({
   dict,
@@ -39,6 +39,20 @@ export default function SymptomsTable({
       to: searchParams.get("date_to") || "",
     },
   });
+
+  // Store symptoms list in localStorage when data changes
+  React.useEffect(() => {
+    if (tableData?.symptoms_list && tableData.symptoms_list.length > 0) {
+      localStorage.setItem("selector", JSON.stringify(tableData.symptoms_list));
+
+      // Dispatch custom event to notify other components of localStorage change
+      window.dispatchEvent(
+        new CustomEvent("localStorageUpdated", {
+          detail: { key: "selector", value: tableData.symptoms_list },
+        })
+      );
+    }
+  }, [tableData?.symptoms_list]);
 
   if (loading) {
     return (

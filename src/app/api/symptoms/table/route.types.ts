@@ -13,6 +13,7 @@ export interface SymptomsTableResponse {
   total_pages: number;
   status: number;
   message: string;
+  symptom_name_list: string[];
 }
 
 export interface SymptomsTable {

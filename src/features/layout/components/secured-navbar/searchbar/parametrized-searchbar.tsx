@@ -14,24 +14,63 @@ import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 
+interface ParametrizedSearchBarProps {
+  readonly dict: I18nRecord;
+  readonly messages: any;
+  readonly searchParams: any;
+  readonly navegation_params: any;
+  readonly className?: string;
+}
+
 export default function ParametrizedSearchBar({
   dict,
   messages,
   searchParams,
   navegation_params,
   className = "",
-}: {
-  dict: I18nRecord;
-  messages: any;
-  searchParams: any;
-  navegation_params: any;
-  className?: string;
-}) {
+}: ParametrizedSearchBarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [localStorageOptions, setLocalStorageOptions] = useState<string[]>([]);
   const router = useRouter();
   const pathName = usePathname();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Listen for localStorage changes
+  useEffect(() => {
+    const updateOptionsFromLocalStorage = () => {
+      try {
+        const storedOptions = localStorage.getItem("selector");
+        if (storedOptions) {
+          const parsed = JSON.parse(storedOptions);
+          setLocalStorageOptions(Array.isArray(parsed) ? parsed : []);
+        }
+      } catch (error) {
+        console.error("Error parsing localStorage selector:", error);
+        setLocalStorageOptions([]);
+      }
+    };
+
+    // Initial load
+    updateOptionsFromLocalStorage();
+
+    // Listen for storage changes from other tabs/windows
+    globalThis.addEventListener("storage", updateOptionsFromLocalStorage);
+
+    // Listen for custom event when localStorage is updated in the same tab
+    globalThis.addEventListener(
+      "localStorageUpdated",
+      updateOptionsFromLocalStorage
+    );
+
+    return () => {
+      globalThis.removeEventListener("storage", updateOptionsFromLocalStorage);
+      globalThis.removeEventListener(
+        "localStorageUpdated",
+        updateOptionsFromLocalStorage
+      );
+    };
+  }, []);
 
   const handleSearch = useDebouncedCallback((term: string, param: string) => {
     // Check if this param is unique
@@ -91,6 +130,9 @@ export default function ParametrizedSearchBar({
   );
   const bool_params = navegation_params.filter(
     (param: any) => param.param.type === "bool"
+  );
+  const selector_params = navegation_params.filter(
+    (param: any) => param.param.type === "selector"
   );
 
   const style =
@@ -205,6 +247,14 @@ export default function ParametrizedSearchBar({
               pathName={pathName}
               router={router}
             />
+            <SelectorParams
+              selector_elements={selector_params}
+              dict={dict}
+              searchParams={searchParams}
+              pathName={pathName}
+              router={router}
+              dynamicOptions={localStorageOptions}
+            />
           </div>
         )}
       </div>
@@ -216,6 +266,79 @@ export default function ParametrizedSearchBar({
         navegation_params={navegation_params}
       />
     </div>
+  );
+}
+
+function SelectorParams({
+  searchParams,
+  selector_elements,
+  dict,
+  pathName,
+  router,
+  dynamicOptions,
+}: {
+  searchParams: URLSearchParams;
+  selector_elements: any[];
+  dict: I18nRecord;
+  pathName: string;
+  router: any;
+  dynamicOptions: string[];
+}) {
+  if (selector_elements.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <hr className="border-gray-200 dark:border-gray-700" />
+      {selector_elements.map((param: any, index: number) => {
+        // Use dynamic options from localStorage for specific params, or fallback to param.options
+        let options: { value: string; label: string }[] = [];
+
+        if (dynamicOptions.length > 0) {
+          // For symptom_name in symptoms page, use dynamic options from localStorage
+          options = [
+            { value: "", label: "-" },
+            ...dynamicOptions.map((option) => ({
+              value: option,
+              label: option,
+            })),
+          ];
+        } else if (param.options && Array.isArray(param.options)) {
+          // For other selectors (like originType), use their predefined options
+          options = param.options;
+        } else {
+          // Fallback to empty options
+          options = [{ value: "", label: "-" }];
+        }
+
+        return (
+          <div
+            key={index}
+            className=" cursor-pointer transition-all duration-300 flex items-center py-2 px-4 text-sm font-light gap-1 whitespace-nowrap"
+          >
+            {param.label}
+            <CustomSelector
+              options={options}
+              base_value={searchParams.get(param.param.key || "selector") || ""}
+              onChange={(value) => {
+                const paramName = param.param.key || "selector";
+
+                const params = new URLSearchParams(searchParams.toString());
+
+                if (value) {
+                  params.set(paramName, value);
+                } else {
+                  params.delete(paramName);
+                }
+
+                router.push(`${pathName}?${params.toString()}`);
+              }}
+            />
+          </div>
+        );
+      })}
+    </>
   );
 }
 

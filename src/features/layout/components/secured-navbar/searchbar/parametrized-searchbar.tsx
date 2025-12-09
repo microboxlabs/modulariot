@@ -14,19 +14,21 @@ import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 
+interface ParametrizedSearchBarProps {
+  readonly dict: I18nRecord;
+  readonly messages: any;
+  readonly searchParams: any;
+  readonly navegation_params: any;
+  readonly className?: string;
+}
+
 export default function ParametrizedSearchBar({
   dict,
   messages,
   searchParams,
   navegation_params,
   className = "",
-}: {
-  dict: I18nRecord;
-  messages: any;
-  searchParams: any;
-  navegation_params: any;
-  className?: string;
-}) {
+}: ParametrizedSearchBarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [localStorageOptions, setLocalStorageOptions] = useState<string[]>([]);
@@ -53,17 +55,17 @@ export default function ParametrizedSearchBar({
     updateOptionsFromLocalStorage();
 
     // Listen for storage changes from other tabs/windows
-    window.addEventListener("storage", updateOptionsFromLocalStorage);
+    globalThis.addEventListener("storage", updateOptionsFromLocalStorage);
 
     // Listen for custom event when localStorage is updated in the same tab
-    window.addEventListener(
+    globalThis.addEventListener(
       "localStorageUpdated",
       updateOptionsFromLocalStorage
     );
 
     return () => {
-      window.removeEventListener("storage", updateOptionsFromLocalStorage);
-      window.removeEventListener(
+      globalThis.removeEventListener("storage", updateOptionsFromLocalStorage);
+      globalThis.removeEventListener(
         "localStorageUpdated",
         updateOptionsFromLocalStorage
       );

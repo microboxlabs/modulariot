@@ -60,7 +60,8 @@ export default function StatusCard({
       )}
     >
       {new_condition_filtering === "true" ? (
-        <a
+        <button
+          className="w-full text-left"
           onClick={() => {
             // add to the route params icu_code with the icu_condition value
             const url = new URLSearchParams(window.location.search);
@@ -94,7 +95,7 @@ export default function StatusCard({
               </span>
             </div>
           </div>
-        </a>
+        </button>
       ) : (
         <Link href={`/symptoms/symptoms-list/${icu_condition}`}>
           <div className="flex flex-row justify-between gap-4">

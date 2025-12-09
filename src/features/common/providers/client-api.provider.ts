@@ -207,7 +207,7 @@ export function useVerifyDocument(documentId: string) {
 export function useSymptoms(date_range?: { from: string; to: string }) {
   const { data, error, isLoading } = useSWR<SymptomDashboard, FetcherError>(
     "/app/api/symptoms/dashboard" +
-      (date_range && date_range.from && date_range.to
+      (date_range?.from && date_range?.to
         ? `?from=${date_range.from}&to=${date_range.to}`
         : ""),
     fetcher,

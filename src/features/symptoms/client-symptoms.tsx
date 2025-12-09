@@ -11,11 +11,12 @@ import { CiGift } from "react-icons/ci";
 import { FaGift } from "react-icons/fa6";
 import Image from "next/image";
 import new_functionality_gif from "@assets/images/table-new-functionality.gif";
+import { tr } from "../i18n/tr.service";
 
 export default function ClientSymptoms({ dict }: { dict: I18nRecord }) {
   const [showCards, setShowCards] = useState(true);
   const [showModal, setShowModal] = useState<boolean | null>(null);
-  const [newConditionFiltering, setNewConditionFiltering] = useState<
+  const [_newConditionFiltering, setNewConditionFiltering] = useState<
     string | null
   >(null);
 
@@ -75,44 +76,45 @@ export default function ClientSymptoms({ dict }: { dict: I18nRecord }) {
           </div>
           <div className="flex flex-col p-4 gap-2">
             <div className="flex flex-row justify-center items-center p-1 px-2 text-sm bg-blue-300 w-fit rounded-full gap-1 text-blue-800">
-              <FaGift className="h-4 w-4" /> New
+              <FaGift className="h-4 w-4" /> {tr("new_functionality.new", dict)}
             </div>
             <div className="flex flex-col gap-2 dark:text-gray-200">
               <h1 className="text-2xl text-left w-full font-bold leading-tight">
-                Prueba el nuevo filtro por condiciones.
+                {tr("new_functionality.title", dict)}
               </h1>
               <div className="flex flex-col gap-2">
                 <p className="text-md">
-                  Hemos implementado una nueva funcionalidad para{" "}
-                  <b>filtrar por condición</b>.
+                  {tr(
+                    "new_functionality.we_added_a_new_functionality_for",
+                    dict
+                  )}{" "}
+                  <b>{tr("new_functionality.filter_by_condition", dict)}</b>.
                 </p>
                 <p className="text-md">
-                  Ahora puedes filtrar directamente desde los contadores de
-                  condición, sin necesidad de navegar a otra página.
+                  {tr("new_functionality.second_paragraph", dict)}
                 </p>
                 <p className="text-md">
-                  Por ahora <b>es opcional</b>, pero{" "}
-                  <b>
-                    en el futuro será la única forma de filtrar por condiciones
-                  </b>
-                  .
+                  {tr("new_functionality.for_now", dict)}{" "}
+                  <b>{tr("new_functionality.its_optional", dict)}</b>
+                  {tr("new_functionality.but", dict)}{" "}
+                  <b>{tr("new_functionality.in_the_future", dict)}</b>
                 </p>
                 <p className="text-md font-bold text-blue-500 dark:text-blue-400 animate-bounce">
-                  ¡Anímate a probarla!
+                  {tr("new_functionality.try_it_now", dict)}
                 </p>
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <div className="flex flex-col md:flex-row gap-2">
                 <Button color="blue" className="w-full" onClick={handle_accept}>
-                  ¡Quiero probar esta funcionalidad!
+                  {tr("new_functionality.i_want_to_try", dict)}
                 </Button>
                 <Button
                   color="alternative"
                   className="w-full bg-transparent dark:bg-transparent dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-400"
                   onClick={handle_decline}
                 >
-                  No me interesa esta funcionalidad.
+                  {tr("new_functionality.not_interested", dict)}
                 </Button>
               </div>
             </div>

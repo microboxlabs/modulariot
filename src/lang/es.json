@@ -1655,5 +1655,19 @@
     "search_for_your_load": "¿Dónde está mi carga?",
     "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga",
     "wheres_my_load": "¿Dónde está mi carga?"
+  },
+  "new_functionality": {
+    "new": "NUEVO",
+    "title": "Prueba el nuevo filtro por condiciones.",
+    "we_added_a_new_functionality_for": "Hemos implementado una nueva funcionalidad para",
+    "filter_by_condition": "filtrar por condición",
+    "second_paragraph": "Ahora puedes filtrar directamente desde los contadores de condición, sin necesidad de navegar a otra página.",
+    "for_now": "Por ahora",
+    "its_optional": "es opcional",
+    "but": ", pero",
+    "in_the_future": "en el futuro será la única forma de filtrar por condiciones.",
+    "try_it_now": "¡Anímate a probarla!",
+    "i_want_to_try": "¡Quiero probar esta funcionalidad!",
+    "not_interested": "No me interesa esta funcionalidad."
   }
 }

@@ -22,7 +22,7 @@ export default function CustomSelector({
   const [selected, setSelected] = useState(() => {
     if (base_value && options.length > 0) {
       const index = options.findIndex((option) => option.value === base_value);
-      return index >= 0 ? index : 0;
+      return Math.max(index, 0);
     }
     return 0;
   });
@@ -41,7 +41,7 @@ export default function CustomSelector({
         const index = options.findIndex(
           (option) => option.value === base_value
         );
-        setSelected(index >= 0 ? index : 0);
+        setSelected(Math.max(index, 0));
       } else {
         // If no base_value and current selected is out of bounds, reset to 0
         setSelected((current) => (current >= options.length ? 0 : current));

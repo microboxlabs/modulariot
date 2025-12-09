@@ -1,4 +1,11 @@
-import { Table, TableHead, TableBody, TableHeadCell, TableCell, TableRow } from "flowbite-react";
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableHeadCell,
+  TableCell,
+  TableRow,
+} from "flowbite-react";
 import React from "react";
 
 type Style = {
@@ -111,7 +118,7 @@ export default function CustomTable({
           head: {
             base: `group/head text-xs uppercase text-gray-700 dark:text-gray-400 ${style.innerScroll ? "sticky top-0 bottom-0" : ""} z-10`,
             cell: {
-              base: `bg-gray-50 px-6 py-3 dark:bg-gray-700 py-2 ${style.innerScroll ? "sticky top-0" : ""} ${style.headClassName}`,
+              base: `bg-gray-50 px-6 py-3 dark:bg-gray-700 py-2  ${style.innerScroll ? "sticky top-0" : ""} ${style.headClassName}`,
             },
           },
           body: {
@@ -128,9 +135,9 @@ export default function CustomTable({
           },
         }}
       >
-        <TableHead><TableRow>
-          {head}</TableRow>
-          </TableHead>
+        <TableHead>
+          <TableRow>{head}</TableRow>
+        </TableHead>
         <TableBody>{body}</TableBody>
       </Table>
     </div>

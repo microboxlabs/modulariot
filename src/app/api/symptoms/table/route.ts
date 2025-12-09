@@ -20,6 +20,69 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
+// Parameter mapping configuration
+const PARAM_MAPPING = {
+  // Standard params
+  asset_id: "p_asset_id",
+  icu_code: "p_icu_code",
+  trip_id: "p_trip_id",
+  driver_id: "p_driver_id",
+  carrier_id: "p_carrier_id",
+  origin: "p_origin",
+  destination: "p_destination",
+  symptom_name: "p_symptom_name",
+  // Historic params
+  from: "p_start_date_historic",
+  to: "p_end_date_historic",
+  // Pagination params
+  limit: "p_page_size",
+  page: "p_page",
+} as const;
+
+function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
+  const params = new URLSearchParams();
+
+  Object.entries(PARAM_MAPPING).forEach(([inputParam, apiParam]) => {
+    const value = searchParams.get(inputParam);
+    if (value) {
+      // Trim all parameter values to remove leading/trailing whitespace
+      const processedValue = value.trim();
+      if (processedValue) {
+        // Only add non-empty values
+        params.set(apiParam, processedValue);
+      }
+    }
+  });
+
+  return params;
+}
+
+function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
+  return {
+    data: data?.data.map((item) => ({
+      id: String(item.id),
+      condition: item?.icu_condition?.toLowerCase(),
+      icu_code: item?.icu_code,
+      licensePlate: item?.asset_id,
+      time: item?.duration_sec?.toString(),
+      trip: item?.trip_id,
+      driver: item?.driver,
+      date: item?.start_time,
+      service: item?.asset_id,
+      alertType: item?.type_of_incidence,
+      status: item?.treatment_count === 0 ? "" : "Tratado",
+      last_assigned_to: item?.last_assigned_to,
+    })),
+    pagination: {
+      total_rows: data.total_rows,
+      total_pages: data.total_pages,
+      currentPage: data.page,
+      page_size: data.page_size,
+    },
+    symptoms_list: data.symptom_name_list,
+  };
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -29,17 +92,9 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const params = new URLSearchParams();
-  //params.set("page", url.searchParams.get("page") ?? "1");
-  //params.set("limit", url.searchParams.get("limit") ?? "10");
-  if (url.searchParams.get("search")) {
-    params.set("p_asset_id", `${url.searchParams.get("search") ?? ""}`);
-  }
-  if (url.searchParams.get("condition")) {
-    params.set("p_icu_code", url.searchParams.get("condition") ?? "");
-  }
+  const params = buildApiParams(url.searchParams);
 
-  try {
+  async function fetchSymptomsData(params: URLSearchParams) {
     const token = await authToken.getToken();
 
     const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
@@ -52,33 +107,13 @@ export async function GET(req: NextRequest) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = (await response.json()) as SymptomsTableResponse;
 
-    const formattedResponse: SymptomTableResponse = {
-      data: data?.data.map((item) => ({
-        id: String(item.id),
-        condition: item?.icu_condition?.toLowerCase(),
-        licensePlate: item?.asset_id,
-        time: item?.duration_sec?.toString(),
-        trip: item?.trip_id,
-        driver: item?.driver,
-        date: item?.start_time,
-        service: item?.asset_id,
-        alertType: item?.type_of_incidence,
-        status: item?.treatment_count === 0 ? "" : "Tratado",
-        last_assigned_to: item?.last_assigned_to,
-      })),
-      total: data.data.length,
-      page: 1,
-      pageSize: data.data.length,
-      pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalRecords: data.data.length,
-        limit: data.data.length,
-      },
-    };
+    return (await response.json()) as SymptomsTableResponse;
+  }
 
+  try {
+    const data = await fetchSymptomsData(params);
+    const formattedResponse = formatSymptomData(data);
     return NextResponse.json(formattedResponse);
   } catch (error) {
     console.error(error);

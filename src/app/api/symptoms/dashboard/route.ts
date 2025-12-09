@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { SymptomsDashboardResponse, SymptomsDashboard } from "./route.type";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_symptoms_dashboard`;
@@ -19,7 +19,7 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({
@@ -27,9 +27,19 @@ export async function GET() {
     });
   }
 
+  const url = new URL(req.url);
+  const params = new URLSearchParams();
+
+  if (url.searchParams.get("from")) {
+    params.set("p_start_date_historic", url.searchParams.get("from") ?? "");
+  }
+  if (url.searchParams.get("to")) {
+    params.set("p_end_date_historic", url.searchParams.get("to") ?? "");
+  }
+
   try {
     const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL, {
+    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
       headers: {
         accept: "application/json",
         Authorization: ` Bearer ${token}`,
@@ -41,6 +51,7 @@ export async function GET() {
     }
 
     const apiData = (await response.json()) as SymptomsDashboardResponse;
+
     // Transform API data into our desired structure
     const formattedResponse: SymptomsDashboard = {
       critic: apiData.data["Critical condition"] || 0,

@@ -11,15 +11,26 @@ import CustomCard from "./components/card/custom-card";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import icuConditions from "./model/icu_condition.json";
 import { useSymptoms } from "../common/providers/client-api.provider";
+import { useSearchParams } from "next/navigation";
+import { Button } from "flowbite-react";
+import { FaGear } from "react-icons/fa6";
 
 export default function SymptomsCards({
   showCards,
   dict,
+  settingsFunction,
 }: {
   showCards: boolean;
   dict: I18nRecord;
+  settingsFunction: () => void;
 }) {
-  const { symptoms, loading, error } = useSymptoms();
+  const searchParams = useSearchParams();
+  const date_range = {
+    from: searchParams.get("date_from") || "",
+    to: searchParams.get("date_to") || "",
+  };
+
+  const { symptoms, loading, error } = useSymptoms(date_range);
 
   // Handle loading and error states
   if (loading) {
@@ -47,12 +58,22 @@ export default function SymptomsCards({
       ${showCards ? "max-h-[1000px] overflow-visible" : "max-h-0 overflow-hidden"}
       `}
     >
-      <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-        {(dict.symptoms as I18nRecord).symptoms as string}
-      </h1>
+      <div className="w-full flex flex-row justify-between">
+        <h1 className="ml-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white leading-tight flex items-center">
+          {(dict.symptoms as I18nRecord).symptoms as string}
+        </h1>
+        <Button
+          color="alternative"
+          className="mr-5 h-10 w-10 p-0"
+          onClick={settingsFunction}
+        >
+          <FaGear className="h-4 w-4 border-blue-500" />
+        </Button>
+      </div>
+
       <div className="relative pb-3 px-5 pt-2 flex flex-row md:flex-row gap-4 overflow-x-auto">
         <CustomCard
-          className={`${showCards && (codeBlack > 0 || critic > 0) ? "animate-shadow-toggle" : ""}`}
+          className={`${showCards && (codeBlack > 0 || critic > 0) && !date_range.from && !date_range.to ? "animate-shadow-toggle" : ""}`}
         >
           <div className="flex items-center gap-2">
             <div className="h-[35px] w-[35px]">
@@ -180,48 +201,6 @@ export default function SymptomsCards({
               title={(dict.symptoms as I18nRecord).in_treatment as string}
               icu_condition={icuConditions.under_treatment}
               count={treatment.toString().padStart(2, "0")}
-            />
-          </div>
-        </CustomCard>
-        <CustomCard>
-          <div className="flex items-center gap-2">
-            <div className="h-[35px] w-[35px]">
-              <Image
-                className="w-[35px] h-[35px]"
-                src={patchImage}
-                alt="Síntomas Siendo tratados"
-                width={35}
-                height={35}
-              />
-            </div>
-            <h5 className="tracking-tight text-gray-900 dark:text-white hidden lg:block text-nowrap leading-tight text-base font-semibold">
-              {(dict.symptoms as I18nRecord).restablished_symptoms as string}
-            </h5>
-          </div>
-          <div className="flex gap-3">
-            {/*
-              <StatusCard
-                dict={dict}
-                icon={
-                  <ConditionIcon
-                    condition="remission"
-                    size="h-7 w-7"
-                    dict={dict}
-                  />
-                }
-                title={(dict.symptoms as I18nRecord).in_remission as string}
-                icu_condition={icuConditions.remission_state}
-                count={remission.toString().padStart(2, "0")}
-              />  
-              */}
-            <StatusCard
-              dict={dict}
-              icon={
-                <ConditionIcon condition="stable" size="h-7 w-7" dict={dict} />
-              }
-              title={(dict.symptoms as I18nRecord).stable as string}
-              icu_condition={icuConditions.stable}
-              count={stable.toString().padStart(2, "0")}
             />
           </div>
         </CustomCard>

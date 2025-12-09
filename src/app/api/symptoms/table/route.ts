@@ -20,6 +20,40 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
+// Parameter mapping configuration
+const PARAM_MAPPING = {
+  // Standard params
+  asset_id: "p_asset_id",
+  icu_code: "p_icu_code",
+  trip_id: "p_trip_id",
+  driver_id: "p_driver_id",
+  carrier_id: "p_carrier_id",
+  origin: "p_origin",
+  destination: "p_destination",
+  symptom_name: "p_symptom_name",
+  // Historic params
+  from: "p_start_date_historic",
+  to: "p_end_date_historic",
+  // Pagination params
+  limit: "p_page_size",
+  page: "p_page",
+} as const;
+
+function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
+  const params = new URLSearchParams();
+
+  Object.entries(PARAM_MAPPING).forEach(([inputParam, apiParam]) => {
+    const value = searchParams.get(inputParam);
+    if (value) {
+      const processedValue =
+        inputParam === "limit" || inputParam === "page" ? value.trim() : value;
+      params.set(apiParam, processedValue);
+    }
+  });
+
+  return params;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -29,66 +63,12 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const params = new URLSearchParams();
+  const params = buildApiParams(url.searchParams);
 
-  // params
-  if (url.searchParams.get("asset_id")) {
-    params.set("p_asset_id", `${url.searchParams.get("asset_id") ?? ""}`);
-  }
-  if (url.searchParams.get("icu_code")) {
-    params.set("p_icu_code", url.searchParams.get("icu_code") ?? "");
-  }
-  if (url.searchParams.get("trip_id")) {
-    params.set("p_trip_id", url.searchParams.get("trip_id") ?? "");
-  }
-  if (url.searchParams.get("driver_id")) {
-    params.set("p_driver_id", url.searchParams.get("driver_id") ?? "");
-  }
-  if (url.searchParams.get("carrier_id")) {
-    params.set("p_carrier_id", url.searchParams.get("carrier_id") ?? "");
-  }
-  if (url.searchParams.get("origin")) {
-    params.set("p_origin", url.searchParams.get("origin") ?? "");
-  }
-  if (url.searchParams.get("destination")) {
-    params.set("p_destination", url.searchParams.get("destination") ?? "");
-  }
-  if (url.searchParams.get("symptom_name")) {
-    params.set("p_symptom_name", url.searchParams.get("symptom_name") ?? "");
-  }
-
-  // Historic
-  if (url.searchParams.get("from")) {
-    params.set("p_start_date_historic", url.searchParams.get("from") ?? "");
-  }
-  if (url.searchParams.get("to")) {
-    params.set("p_end_date_historic", url.searchParams.get("to") ?? "");
-  }
-
-  // Pagination
-  if (url.searchParams.get("limit")) {
-    params.set("p_page_size", (url.searchParams.get("limit") ?? "").trim());
-  }
-  if (url.searchParams.get("page")) {
-    params.set("p_page", (url.searchParams.get("page") ?? "").trim());
-  }
-
-  try {
-    const token = await authToken.getToken();
-
-    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = (await response.json()) as SymptomsTableResponse;
-
-    const formattedResponse: SymptomTableResponse = {
+  function formatSymptomData(
+    data: SymptomsTableResponse
+  ): SymptomTableResponse {
+    return {
       data: data?.data.map((item) => ({
         id: String(item.id),
         condition: item?.icu_condition?.toLowerCase(),
@@ -111,7 +91,28 @@ export async function GET(req: NextRequest) {
       },
       symptoms_list: data.symptom_name_list,
     };
+  }
 
+  async function fetchSymptomsData(params: URLSearchParams) {
+    const token = await authToken.getToken();
+
+    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
+      headers: {
+        accept: "application/json",
+        Authorization: ` Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return (await response.json()) as SymptomsTableResponse;
+  }
+
+  try {
+    const data = await fetchSymptomsData(params);
+    const formattedResponse = formatSymptomData(data);
     return NextResponse.json(formattedResponse);
   } catch (error) {
     console.error(error);

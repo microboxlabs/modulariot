@@ -19,9 +19,13 @@ export default function CustomSelector({
   base_value?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(
-    base_value ? options.findIndex((option) => option.value === base_value) : 0
-  );
+  const [selected, setSelected] = useState(() => {
+    if (base_value && options.length > 0) {
+      const index = options.findIndex((option) => option.value === base_value);
+      return Math.max(index, 0);
+    }
+    return 0;
+  });
   const triggerRef = useRef<HTMLAnchorElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({
@@ -29,6 +33,23 @@ export default function CustomSelector({
     left: 0,
     width: 0,
   });
+
+  // Update selected index when options or base_value changes
+  useEffect(() => {
+    if (options.length > 0) {
+      if (base_value) {
+        const index = options.findIndex(
+          (option) => option.value === base_value
+        );
+        setSelected(Math.max(index, 0));
+      } else {
+        // If no base_value and current selected is out of bounds, reset to 0
+        setSelected((current) => (current >= options.length ? 0 : current));
+      }
+    } else {
+      setSelected(0);
+    }
+  }, [options, base_value]);
 
   useEffect(() => {
     if (open && triggerRef.current) {
@@ -82,7 +103,9 @@ export default function CustomSelector({
             setOpen(!open);
           }}
         >
-          {options[selected].label}
+          {options.length > 0 && options[selected]
+            ? options[selected].label
+            : "-"}
           <HiChevronDown
             className={`w-4 h-4 inline-block ml-2 transition-transform duration-200 ${open ? "transform rotate-180" : ""}`}
           />

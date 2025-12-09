@@ -974,6 +974,8 @@
   "symptoms": {
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
+    "historic_symptoms": "Historic symptoms",
+    "live": "Live",
     "symptoms": "Symptoms",
     "symptom": "Symptom",
     "client": "Client",
@@ -1627,5 +1629,19 @@
     "search_for_your_load": "Search for your load",
     "use_searchbar": "Use the searchbar to track the state of your load.",
     "wheres_my_load": "Where's my load?"
+  },
+  "new_functionality": {
+    "new": "New",
+    "title": "Try the new filter by conditions.",
+    "we_added_a_new_functionality_for": "We have implemented a new functionality to",
+    "filter_by_condition": "filter by condition",
+    "second_paragraph": "Now you can filter directly from the condition counters, without needing to navigate to another page.",
+    "for_now": "For now",
+    "its_optional": "its optional",
+    "but": ", but",
+    "in_the_future": "in the future it will be the only way to filter by conditions.",
+    "try_it_now": "Try it now!",
+    "i_want_to_try": "I want to try this functionality!",
+    "not_interested": "I'm not interested in this functionality."
   }
 }

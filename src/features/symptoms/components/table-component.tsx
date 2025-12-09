@@ -4,30 +4,55 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
+import { useSearchParams } from "next/navigation";
+import React, { useState } from "react";
+
+const pageSize = 13;
 
 export default function SymptomsTable({
   dict,
-  currentPage,
-  pageSize,
-  searchTerm,
-  setCurrentPage,
   compact = false,
-  condition,
+  pagination,
 }: {
   dict: I18nRecord;
-  currentPage: number;
-  pageSize: number;
-  searchTerm: string;
-  setCurrentPage: (page: number) => void;
   compact?: boolean;
-  condition: string;
+  pagination: {
+    currentPage: number;
+    setCurrentPage: (page: number) => void;
+  };
 }) {
+  const searchParams = useSearchParams();
+
   const { tableData, loading, error } = useSymptomsTable({
-    page: currentPage,
+    page: pagination.currentPage,
     pageSize,
-    search: searchTerm,
-    condition,
+    icu_code: searchParams.get("icu_code") || "",
+    trip_id: searchParams.get("trip_id") || "",
+    asset_id: searchParams.get("asset_id") || "",
+    driver_id: searchParams.get("driver_id") || "",
+    carrier_id: searchParams.get("carrier_id") || "",
+    origin: searchParams.get("origin") || "",
+    destination: searchParams.get("destination") || "",
+    symptom_name: searchParams.get("symptom_name") || "",
+    date_range: {
+      from: searchParams.get("date_from") || "",
+      to: searchParams.get("date_to") || "",
+    },
   });
+
+  // Store symptoms list in localStorage when data changes
+  React.useEffect(() => {
+    if (tableData?.symptoms_list && tableData.symptoms_list.length > 0) {
+      localStorage.setItem("selector", JSON.stringify(tableData.symptoms_list));
+
+      // Dispatch custom event to notify other components of localStorage change
+      window.dispatchEvent(
+        new CustomEvent("localStorageUpdated", {
+          detail: { key: "selector", value: tableData.symptoms_list },
+        })
+      );
+    }
+  }, [tableData?.symptoms_list]);
 
   if (loading) {
     return (
@@ -50,10 +75,15 @@ export default function SymptomsTable({
   }
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(
-      Math.max(1, Math.min(page, tableData?.pagination.totalPages || 0))
+    const totalPages = Math.ceil(
+      (tableData?.pagination.total_rows || 0) / pageSize
     );
+    pagination.setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
+
+  const totalPages = Math.ceil(
+    (tableData?.pagination.total_rows || 0) / pageSize
+  );
 
   const startItem = tableData?.pagination.currentPage
     ? (tableData?.pagination.currentPage - 1) * pageSize + 1
@@ -62,7 +92,7 @@ export default function SymptomsTable({
   const endItem = tableData?.pagination.currentPage
     ? Math.min(
         tableData?.pagination.currentPage * pageSize,
-        tableData?.pagination.totalPages
+        tableData?.pagination.total_rows || 0
       )
     : 0;
 
@@ -102,7 +132,7 @@ export default function SymptomsTable({
       {!compact && (
         <div className="flex justify-between items-center">
           <p className="text-sm text-gray-500">
-            {tableData && tableData?.pagination.totalPages > 0 ? (
+            {tableData && totalPages > 0 ? (
               <>
                 {(dict.symptoms as I18nRecord).showing as string}{" "}
                 <span className="font-bold">
@@ -110,20 +140,20 @@ export default function SymptomsTable({
                 </span>{" "}
                 {(dict.symptoms as I18nRecord).of as string}{" "}
                 <span className="font-bold">
-                  {tableData?.pagination.totalPages}
+                  {tableData?.pagination.total_rows}
                 </span>
               </>
             ) : (
               "No hay resultados"
             )}
           </p>
-          {tableData && tableData?.pagination.totalPages > 0 && (
+          {tableData && totalPages > 0 && (
             <Pagination
               layout="pagination"
               nextLabel=""
               previousLabel=""
               currentPage={tableData?.pagination.currentPage}
-              totalPages={Math.max(1, tableData?.pagination.totalPages)}
+              totalPages={Math.max(1, totalPages)}
               showIcons={true}
               onPageChange={handlePageChange}
               theme={{

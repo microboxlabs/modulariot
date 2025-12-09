@@ -1,8 +1,6 @@
 "use client";
 
 import { Button, Label, TextInput } from "flowbite-react";
-import ParametrizedSearchBar from "../layout/components/secured-navbar/searchbar/parametrized-searchbar";
-import { getNavegationParams } from "../layout/components/secured-navbar/searchbar/navegation_params";
 import { useSearchParams } from "next/navigation";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 
@@ -14,7 +12,6 @@ export default function SignalHistoryForm({
   messages: any;
 }) {
   const searchParams = useSearchParams();
-  const navegation_params = getNavegationParams(dict, 1);
 
   return (
     <div className="w-fit h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">

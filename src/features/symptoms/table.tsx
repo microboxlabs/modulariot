@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "flowbite-react";
 import { FiMaximize, FiMinimize } from "react-icons/fi";
-import { FaArrowsRotate } from "react-icons/fa6";
 import TableComponent from "./components/table-component";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import UserStateCounter from "./components/user-counter";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { tr } from "../i18n/tr.service";
-import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 
 export default function SymptomsTable({
   setShowCards,
@@ -26,10 +23,8 @@ export default function SymptomsTable({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [icuCode, setIcuCode] = useState<string>("");
   const date_from = searchParams.get("date_from");
   const date_to = searchParams.get("date_to");
-  const date_now = new Date().toISOString().split("T")[0];
 
   return (
     <div className="px-5 flex flex-col flex-grow gap-2 w-full overflow-visible">

@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { SymptomsDashboardResponse, SymptomsDashboard } from "./route.type";
-import { NextRequest } from "next/server";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_symptoms_dashboard`;
 //const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/alerts/dashboard";

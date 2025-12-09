@@ -45,13 +45,42 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
   Object.entries(PARAM_MAPPING).forEach(([inputParam, apiParam]) => {
     const value = searchParams.get(inputParam);
     if (value) {
-      const processedValue =
-        inputParam === "limit" || inputParam === "page" ? value.trim() : value;
-      params.set(apiParam, processedValue);
+      // Trim all parameter values to remove leading/trailing whitespace
+      const processedValue = value.trim();
+      if (processedValue) {
+        // Only add non-empty values
+        params.set(apiParam, processedValue);
+      }
     }
   });
 
   return params;
+}
+
+function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
+  return {
+    data: data?.data.map((item) => ({
+      id: String(item.id),
+      condition: item?.icu_condition?.toLowerCase(),
+      icu_code: item?.icu_code,
+      licensePlate: item?.asset_id,
+      time: item?.duration_sec?.toString(),
+      trip: item?.trip_id,
+      driver: item?.driver,
+      date: item?.start_time,
+      service: item?.asset_id,
+      alertType: item?.type_of_incidence,
+      status: item?.treatment_count === 0 ? "" : "Tratado",
+      last_assigned_to: item?.last_assigned_to,
+    })),
+    pagination: {
+      total_rows: data.total_rows,
+      total_pages: data.total_pages,
+      currentPage: data.page,
+      page_size: data.page_size,
+    },
+    symptoms_list: data.symptom_name_list,
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -64,34 +93,6 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const params = buildApiParams(url.searchParams);
-
-  function formatSymptomData(
-    data: SymptomsTableResponse
-  ): SymptomTableResponse {
-    return {
-      data: data?.data.map((item) => ({
-        id: String(item.id),
-        condition: item?.icu_condition?.toLowerCase(),
-        icu_code: item?.icu_code,
-        licensePlate: item?.asset_id,
-        time: item?.duration_sec?.toString(),
-        trip: item?.trip_id,
-        driver: item?.driver,
-        date: item?.start_time,
-        service: item?.asset_id,
-        alertType: item?.type_of_incidence,
-        status: item?.treatment_count === 0 ? "" : "Tratado",
-        last_assigned_to: item?.last_assigned_to,
-      })),
-      pagination: {
-        total_rows: data.total_rows,
-        total_pages: data.total_pages,
-        currentPage: data.page,
-        page_size: data.page_size,
-      },
-      symptoms_list: data.symptom_name_list,
-    };
-  }
 
   async function fetchSymptomsData(params: URLSearchParams) {
     const token = await authToken.getToken();

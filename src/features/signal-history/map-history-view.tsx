@@ -8,6 +8,7 @@ import CustomCard from "../symptoms/components/card/custom-card";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import SideBar from "./sidebar";
 import { useHistoricSignals } from "../common/providers/client-api.provider";
+import { HistoricSignal } from "./types/historic-signal.type";
 
 const test_data = [
   {
@@ -42,8 +43,18 @@ export default function MapHistoryView({
   });
 
   console.log(data);
-  console.log(error);
-  console.log(isLoading);
+
+  /*
+  {
+    asset_id: "SVZR11"
+    heading: 2
+    location: "0101000020E610000058552FBFD3B851C04B3D0B42798140C0"
+    speed: 90
+    timestamp: "2025-12-09T18:40:31+00:00"
+  }
+  */
+
+  console.log("Some update?");
 
   // from the path get the value of "license_plate", "start_date" and "end_date" to show as tags
   const tags = [
@@ -57,18 +68,33 @@ export default function MapHistoryView({
     },
   ];
 
-  const layers = [
-    new ScatterplotLayer({
-      id: "test-positions",
-      data: test_data,
-      getPosition: (d: any) => d.position,
-      getRadius: 50,
-      getFillColor: [255, 0, 0, 180], // Red color
-      pickable: true,
-      radiusMinPixels: 3,
-      radiusMaxPixels: 30,
-    }),
-  ];
+  const layers = isLoading
+    ? []
+    : [
+        new ScatterplotLayer({
+          id: "test-positions",
+          data: Array.isArray(data) ? (data as HistoricSignal[]) : [],
+          getPosition: (d: HistoricSignal) => {
+            // Assuming the location is a WKT POINT string, you might need to parse it
+            // For example: "POINT(-70.64827 -33.45694)"
+            console.log(d);
+            const match = d.location.match(
+              /POINT\((-?\d+\.?\d*) (-?\d+\.?\d*)\)/
+            );
+            if (match) {
+              const longitude = parseFloat(match[1]);
+              const latitude = parseFloat(match[2]);
+              return [longitude, latitude];
+            }
+            return [0, 0]; // Default fallback
+          },
+          getRadius: 50,
+          getFillColor: [255, 0, 0, 180], // Red color
+          pickable: true,
+          radiusMinPixels: 3,
+          radiusMaxPixels: 30,
+        }),
+      ];
 
   console.log("Rendering again the container");
 

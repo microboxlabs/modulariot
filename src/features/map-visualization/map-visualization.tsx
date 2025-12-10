@@ -85,7 +85,7 @@ export default function MapVisualization({
   console.log("Rendering again the map");
 
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full relative rounded-lg overflow-hidden">
       <Map
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
         mapStyle={mapStyles[mapStyle]}

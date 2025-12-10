@@ -100,16 +100,16 @@ export default function TagManager({
       )}
       {hiddenCount > 0 && (
         <Tooltip
+          placement="bottom"
           theme={{
             arrow: {
-              base: "absolute z-10 h-2 w-2 rotate-45 border-b border-r border-gray-400 dark:border-gray-600",
+              base: "absolute z-10 h-2 w-2 rotate-45 border-t border-l border-gray-200 dark:border-none",
               style: {
-                auto: "bg-gray-100 dark:bg-gray-800",
+                auto: "bg-white dark:bg-gray-700",
               },
             },
-            base: "absolute z-10 inline-block rounded-lg px-3 py-2 text-sm font-medium shadow-sm border border-gray-400 dark:border-gray-600",
             style: {
-              auto: "bg-gray-100 dark:bg-gray-800",
+              auto: "border border-gray-200 bg-white text-gray-900 dark:border-none dark:bg-gray-700 dark:text-white",
             },
           }}
           style="auto"
@@ -120,7 +120,7 @@ export default function TagManager({
                   tag.text && (
                     <div
                       key={index}
-                      className="flex items-center gap-2 whitespace-nowrap border-2 border-gray-300 dark:border-gray-600 rounded-lg px-2 py-0.5 text-sm font-light !bg-gray-100 text-gray-900 dark:!bg-gray-800 dark:text-white"
+                      className="flex items-center gap-2 whitespace-nowrap rounded-lg px-2 py-0.5 text-sm font-light"
                     >
                       {tag.icon}
                       <span className="font-light">

@@ -15,7 +15,7 @@ export default async function WheresMyLoadPage({
   const userGroups = await getGroupsForPerson(session!);
 
   return (
-    <div className="h-full w-full flex flex-row justify-center overflow-auto relative">
+    <div className="h-full w-full flex justify-center items-start p-2">
       <SignalHistoryForm dict={dictionary} messages={navBarMessages} />
     </div>
   );

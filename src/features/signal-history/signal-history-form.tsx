@@ -1,8 +1,6 @@
 "use client";
 
-import { Button, Label, TextInput } from "flowbite-react";
-import ParametrizedSearchBar from "../layout/components/secured-navbar/searchbar/parametrized-searchbar";
-import { getNavegationParams } from "../layout/components/secured-navbar/searchbar/navegation_params";
+import { Button, TextInput } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import { useState, useRef } from "react";
@@ -22,10 +20,28 @@ export default function SignalHistoryForm({
   const hasLicensePlate = searchParams.get("license_plate");
   const hasStartDate = searchParams.get("start_date");
   const hasEndDate = searchParams.get("end_date");
-  const initialState = hasLicensePlate && hasStartDate && hasEndDate ? 2 : 0;
+
+  // Determine initial state based on available parameters
+  let initialState = 0; // Default to license plate input
+  if (hasLicensePlate) {
+    if (hasStartDate && hasEndDate) {
+      initialState = 2; // All parameters present, go to map view
+    } else {
+      initialState = 1; // Only license plate present, go to date selection
+    }
+  }
+
+  // Create default date range of 24 hours from now
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const defaultStartDate = now.toISOString().split("T")[0];
+  const defaultEndDate = tomorrow.toISOString().split("T")[0];
 
   const [state, setState] = useState(initialState);
-  const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
+  const [dateRange, setDateRange] = useState({
+    startDate: hasStartDate || defaultStartDate,
+    endDate: hasEndDate || defaultEndDate,
+  });
   const router = useRouter();
 
   const pageStates = [
@@ -46,7 +62,14 @@ export default function SignalHistoryForm({
       next: () => setState(2),
       back: () => setState(0),
     }),
-    <MapHistoryView dict={dict} messages={messages} />,
+    <MapHistoryView 
+      dict={dict} 
+      messages={messages} 
+      onBackClick={() => {
+        // Force rerender by updating state
+        setState(1); // Go back to date selection
+      }}
+    />,
   ];
 
   return pageStates[state];

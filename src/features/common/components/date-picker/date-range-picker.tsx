@@ -31,8 +31,7 @@ export default function DateRangePicker({
     if (inputRef.current) {
       $(inputRef.current).daterangepicker(
         {
-          timePicker: true,
-          timePicker24Hour: true,
+          timePicker: false,
           startDate: moment(),
           endDate: moment().add(1, "days"),
           locale: {

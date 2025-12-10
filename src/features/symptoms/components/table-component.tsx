@@ -5,8 +5,7 @@ import { useSymptomsTable } from "@/features/common/providers/client-api.provide
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import { useSearchParams } from "next/navigation";
-import React, { useState } from "react";
-import { table } from "console";
+import React from "react";
 
 const pageSize = 13;
 

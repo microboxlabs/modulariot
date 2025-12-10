@@ -1594,7 +1594,13 @@
     "internal": "Internal",
     "external": "External",
     "expeditionCode": "Expedition Code",
-    "expeditionNumber": "Expedition Number"
+    "expeditionNumber": "Expedition Number",
+    "asset_id": "Asset ID",
+    "trip_id": "Trip ID",
+    "driver_id": "Driver ID",
+    "carrier_id": "Carrier ID",
+    "date": "Date",
+    "symptom_name": "Symptom Name"
   },
   "comments": {
     "title": "Comments",

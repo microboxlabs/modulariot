@@ -1620,7 +1620,13 @@
     "internal": "Interno",
     "external": "Externo",
     "expeditionCode": "Código de expedición",
-    "expeditionNumber": "Número de expedición"
+    "expeditionNumber": "Número de expedición",
+    "asset_id": "Patente",
+    "trip_id": "ID de viaje",
+    "driver_id": "RUT conductor",
+    "carrier_id": "RUT transportista",
+    "date": "Fecha",
+    "symptom_name": "Nombre del síntoma"
   },
   "comments": {
     "title": "Comentarios",

@@ -5,7 +5,7 @@ import CustomCard from "../symptoms/components/card/custom-card";
 
 export default function SideBar() {
   return (
-    <CustomCard className="w-[35%] h-full p-1!">
+    <CustomCard className="w-[500px] h-full p-1!">
       <div className="w-full h-full">
         <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
           <div className="flex flex-row items-center gap-2 pl-2 py-1">

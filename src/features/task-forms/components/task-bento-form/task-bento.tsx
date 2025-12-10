@@ -12,7 +12,6 @@ import {
 } from "../../services/form.service";
 import { ExtendedTaskViewProps } from "../task-form/task-form.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { defaultLocale } from "@/features/i18n/tr.service";
 import Bento from "./bento";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
@@ -23,7 +22,9 @@ export async function TaskBentoForm({
   userGroups,
   active = true,
 }: ExtendedTaskViewProps) {
-  const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
+  const [_dict, dictionary] = await getDictionary(
+    lang ?? defaultLocale
+  );
 
   // Handle historical tasks
   if (task?.persistentState?.endTime) {
@@ -34,11 +35,8 @@ export async function TaskBentoForm({
             lang={lang ?? defaultLocale}
             task={task as TaskResponse}
             userGroups={userGroups}
-            dict={dictionary as I18nRecord}
-            msg={
-              (dictionary.pages as I18nRecord)
-                .transportValidationForm as I18nRecord
-            }
+            dict={dictionary}
+            msg={dictionary.pages.transportValidationForm}
             active={active}
             showActions={false}
           />
@@ -59,11 +57,8 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
           userGroups={userGroups}
-          dict={dictionary as I18nRecord}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .shippingDetailsTaskForm as I18nRecord
-          }
+          dict={dictionary}
+          msg={dictionary.pages.shippingDetailsTaskForm}
           active={active}
         />
       );
@@ -75,11 +70,8 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
           userGroups={userGroups}
-          dict={dictionary as I18nRecord}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          dict={dictionary}
+          msg={dictionary.pages.transportValidationForm}
           active={active}
         />
       );
@@ -89,11 +81,8 @@ export async function TaskBentoForm({
           lang={lang ?? defaultLocale}
           task={task as TaskResponse}
           userGroups={userGroups}
-          dict={dictionary as I18nRecord}
-          msg={
-            (dictionary.pages as I18nRecord)
-              .transportValidationForm as I18nRecord
-          }
+          dict={dictionary}
+          msg={dictionary.pages.transportValidationForm}
           active={active}
         />
       );

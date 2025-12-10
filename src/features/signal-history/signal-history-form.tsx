@@ -62,9 +62,9 @@ export default function SignalHistoryForm({
       next: () => setState(2),
       back: () => setState(0),
     }),
-    <MapHistoryView 
-      dict={dict} 
-      messages={messages} 
+    <MapHistoryView
+      dict={dict}
+      messages={messages}
       onBackClick={() => {
         // Force rerender by updating state
         setState(1); // Go back to date selection

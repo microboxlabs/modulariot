@@ -2,11 +2,12 @@ import { Card, Tooltip } from "flowbite-react";
 import MapVisualization from "../map-visualization/map-visualization";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import TagManager from "../symptoms/components/tag-manager";
-import { FaHistory, FaClock } from "react-icons/fa";
+import { FaHistory, FaClock, FaTruck, FaRegClock } from "react-icons/fa";
 import { TbSortAscendingShapes } from "react-icons/tb";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import SideBar from "./sidebar";
+import { useHistoricSignals } from "../common/providers/client-api.provider";
 
 const test_data = [
   {
@@ -20,12 +21,6 @@ const test_data = [
   },
 ];
 
-const tags = [
-  {
-    text: "Ejemplo",
-  },
-];
-
 export default function MapHistoryView({
   dict,
   messages,
@@ -35,6 +30,33 @@ export default function MapHistoryView({
   messages: any;
   onBackClick?: () => void;
 }) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const assetId = urlParams.get("license_plate") || "";
+  const p_from = urlParams.get("start_date") || "";
+  const p_to = urlParams.get("end_date") || "";
+
+  const { data, error, isLoading } = useHistoricSignals({
+    assetId,
+    p_from,
+    p_to,
+  });
+
+  console.log(data);
+  console.log(error);
+  console.log(isLoading);
+
+  // from the path get the value of "license_plate", "start_date" and "end_date" to show as tags
+  const tags = [
+    {
+      text: (
+        <div className="flex flex-row justify-center items-center gap-1">
+          <FaTruck className="inline mr-1" />
+          {new URLSearchParams(window.location.search).get("license_plate")}
+        </div>
+      ),
+    },
+  ];
+
   const layers = [
     new ScatterplotLayer({
       id: "test-positions",
@@ -69,11 +91,12 @@ export default function MapHistoryView({
             </div>
             <div className="w-px h-full rounded-full bg-gray-100 dark:bg-gray-500 mr-4"></div>
             <h1
-              className={`flex flex-row gap-1 text-lg font-bold tracking-tight whitespace-nowrap ${"text-gray-900 dark:text-white"}`}
+              className={`flex flex-row gap-2 text-lg font-bold tracking-tight whitespace-nowrap justify-center items-center ${"text-gray-900 dark:text-white"}`}
             >
+              <FaRegClock className="h-5 w-5" />
               Señales Historicas
             </h1>
-            <div className="flex align-middle mx-2 gap-1">
+            <div className="flex align-middle mx-2 gap-1 w-full">
               <TagManager
                 tag_style="bg-transparent border-gray-300 dark:border-gray-500 dark:text-white"
                 tags={tags}

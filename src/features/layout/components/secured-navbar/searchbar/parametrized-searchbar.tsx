@@ -301,7 +301,7 @@ function SelectorParams({
             { value: "", label: "-" },
             ...dynamicOptions.map((option) => ({
               value: option,
-              label: option,
+              label: tr("symptoms." + option, dict),
             })),
           ];
         } else if (param.options && Array.isArray(param.options)) {

@@ -6,6 +6,7 @@ import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
 import { useSearchParams } from "next/navigation";
 import React, { useState } from "react";
+import { table } from "console";
 
 const pageSize = 13;
 

@@ -273,7 +273,28 @@ export function useHistoricSignals({
   p_to: string;
 }) {
   const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
-    `/app/api/signals/historic?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
+    `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
+    fetcher
+  );
+
+  return {
+    data,
+    isLoading,
+    error,
+  };
+}
+
+export function useHistoricTimeline({
+  assetId,
+  p_from,
+  p_to,
+}: {
+  assetId: string;
+  p_from: string;
+  p_to: string;
+}) {
+  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+    `/app/api/signals/timeline?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
     fetcher
   );
 

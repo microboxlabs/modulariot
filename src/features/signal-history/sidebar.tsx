@@ -2,11 +2,25 @@ import { Tooltip } from "flowbite-react";
 import { FaClock } from "react-icons/fa";
 import { TbSortAscendingShapes } from "react-icons/tb";
 import CustomCard from "../symptoms/components/card/custom-card";
+import { useHistoricTimeline } from "../common/providers/client-api.provider";
 
 export default function SideBar() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const assetId = urlParams.get("license_plate") || "";
+  const p_from = urlParams.get("start_date") || "";
+  const p_to = urlParams.get("end_date") || "";
+
+  const { data, error, isLoading } = useHistoricTimeline({
+    assetId,
+    p_from,
+    p_to,
+  });
+
+  console.log(data);
+
   return (
     <CustomCard className="w-[500px] h-full p-1!">
-      <div className="w-full h-full">
+      <div className="w-full h-full flex flex-col gap-2">
         <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">
           <div className="flex flex-row items-center gap-2 pl-2 py-1">
             <div
@@ -31,6 +45,9 @@ export default function SideBar() {
             </div>
           </Tooltip>
         </div>
+        <CustomCard className="dark:text-white transition-colors duration-200 dark:hover:border-gray-300!  hover:border-gray-700!">
+          Viaje: 1232310
+        </CustomCard>
       </div>
     </CustomCard>
   );

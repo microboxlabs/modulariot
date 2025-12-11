@@ -9,6 +9,7 @@ import { ChevronLeft } from "flowbite-react-icons/outline";
 import SideBar from "./sidebar";
 import { useHistoricSignals } from "../common/providers/client-api.provider";
 import { HistoricSignal } from "./types/historic-signal.type";
+import { parseWKBPoint } from "@/utils/map-conversion";
 
 const test_data = [
   {
@@ -75,18 +76,8 @@ export default function MapHistoryView({
           id: "test-positions",
           data: Array.isArray(data) ? (data as HistoricSignal[]) : [],
           getPosition: (d: HistoricSignal) => {
-            // Assuming the location is a WKT POINT string, you might need to parse it
-            // For example: "POINT(-70.64827 -33.45694)"
-            console.log(d);
-            const match = d.location.match(
-              /POINT\((-?\d+\.?\d*) (-?\d+\.?\d*)\)/
-            );
-            if (match) {
-              const longitude = parseFloat(match[1]);
-              const latitude = parseFloat(match[2]);
-              return [longitude, latitude];
-            }
-            return [0, 0]; // Default fallback
+            // The location is in WKB (Well-Known Binary) format as hex string
+            return parseWKBPoint(d.location);
           },
           getRadius: 50,
           getFillColor: [255, 0, 0, 180], // Red color

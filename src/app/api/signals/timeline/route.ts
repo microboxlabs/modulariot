@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_overview_historic_position`;
+const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_overview_historic_timeline`;
 
 import {
   AuthToken,
@@ -47,8 +47,6 @@ export async function GET(req: NextRequest) {
         Authorization: ` Bearer ${token}`,
       },
     });
-
-    console.log("------------ response ----------------");
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

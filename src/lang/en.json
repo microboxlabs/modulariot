@@ -1441,6 +1441,8 @@
       "select_document_type_error": "You must select a document type",
       "categories": {
         "PROOF_OF_DELIVERY": "Proof of delivery",
+        "PROOF_OF_LOAD_FLOOR": "Proof of load floor",
+        "PROOF_OF_LOAD_RECEIPT": "Proof of load receipt",
         "PROOF_OF_PICKUP": "Proof of pickup",
         "CARGO_MANIFEST": "Cargo manifest",
         "PICKUP_FRONT_IMAGE": "Pickup front image",

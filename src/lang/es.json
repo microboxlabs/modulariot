@@ -1467,6 +1467,8 @@
       "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
+        "PROOF_OF_LOAD_FLOOR": "Prueba Carga Piso",
+        "PROOF_OF_LOAD_RECEIPT": "Prueba de Recepcion de Carga",
         "PROOF_OF_PICKUP": "Prueba de Retiro",
         "CARGO_MANIFEST": "Carta de Porte",
         "PICKUP_FRONT_IMAGE": "Imagen delantera del retiro",

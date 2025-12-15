@@ -45,7 +45,7 @@ export default function Tests({
   );
 }
 
-function Congratulation({
+export function Congratulation({
   testState,
   setTestState,
   dict,
@@ -148,7 +148,7 @@ function Congratulation({
   );
 }
 
-function GotoBox({
+export function GotoBox({
   testState,
   dict,
 }: {

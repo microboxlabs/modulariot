@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
     console.error(error);
     return NextResponse.json({
       success: false,
-      status: 500,
-      message: error.message,
+      status: error.status,
+      message: error.info ? JSON.parse(error.info).message as string : error.message,
     });
   }
 }

@@ -4,6 +4,7 @@ import {
   NodeChildAssociationPaging,
   GroupPaging,
   NodeEntry,
+  AlfrescoApi,
 } from "@alfresco/js-api";
 import type {
   EndTaskResponse,
@@ -792,6 +793,48 @@ export async function getValidationByServiceCode(
     method: "GET",
     headers,
   }) as Promise<ValidationsResponse>;
+}
+
+export async function getInfoEntityGuest(
+  licencePlate: string
+): Promise<GetEntityInfoResponse> {
+  const guestEmail = process.env.TOTEMSA_EMAIL || "guest";
+  const guestPassword = process.env.TOTEMSA_PASSWORD || "guest";
+
+  try {
+    // Login with guest credentials
+    const alfrescoApi = new AlfrescoApi({
+      hostEcm: process.env.ECM_API_URL,
+      provider: process.env.AUTH_PROVIDER,
+      contextRoot: process.env.CONTEXT_ROOT,
+    });
+    const ticket: string = (await alfrescoApi.login(
+      guestEmail,
+      guestPassword
+    )) as string;
+
+    // Build query params
+    const queryParams = new URLSearchParams({
+      licencePlate,
+    });
+
+    // Call entity endpoint with guest ticket
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/mintral/service/last-info-gps-service?${queryParams.toString()}`;
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    const url = `${baseUrl}${separator}alf_ticket=${ticket}`;
+
+    const result = await fetcher(url, {
+      method: "GET",
+      headers: {},
+    });
+    return result as GetEntityInfoResponse;
+  } catch (error) {
+    alfrescoApiLogger.error(
+      { error, licencePlate },
+      "Failed to get entity info with guest account"
+    );
+    throw error;
+  }
 }
 
 // Forum API integrations

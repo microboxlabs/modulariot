@@ -1,13 +1,17 @@
 import "server-only";
-import { I18nDictionries, I18nRecord } from "./i18n.service.types";
+import {
+  I18nDictionries,
+  I18nDictionary,
+  I18nRecord,
+} from "./i18n.service.types";
 import Negotiator from "negotiator";
 import { match } from "@formatjs/intl-localematcher";
 import type { NextRequest } from "next/server";
 import { defaultLocale, locales, tr } from "./tr.service";
 
-const dictionaries: I18nDictionries = {
-  en: () => import("@/lang/en.json").then((m) => m.default as I18nRecord),
-  es: () => import("@/lang/es.json").then((m) => m.default as I18nRecord),
+const dictionaries: I18nDictionries<I18nDictionary> = {
+  en: () => import("@/lang/en.json").then((m) => m.default as I18nDictionary),
+  es: () => import("@/lang/es.json").then((m) => m.default as unknown as I18nDictionary),
 };
 
 export async function getDictionary(locale: string) {
@@ -27,7 +31,10 @@ export async function getDictionary(locale: string) {
       return value;
     },
     dictionary,
-  ] as [(path: string, params?: Record<string, string>) => string, I18nRecord];
+  ] as [
+    (path: string, params?: Record<string, string>) => string,
+    I18nDictionary,
+  ];
 }
 
 export function getLocaleFromHeaders(headers: Headers) {

@@ -52,6 +52,7 @@ export default function Huella({
     useState(false);
   const [verificatioSuccess, setVerificatioSuccess] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   let idCardNumberOnce = false;
 
   // Device detection hook
@@ -172,6 +173,7 @@ export default function Huella({
       setStatus("success");
     } else {
       setStatus("error-id-card");
+      setErrorMessage(response.status);//response.message
       if (countIdCard >= 2) {
         setCurrentStep(currentStep + 1);
         setRutData({
@@ -300,7 +302,8 @@ export default function Huella({
           </div>
           {status === "error-id-card" && (
             <p className="text-xs text-red-500 text-center px-14">
-              {(dict.totem as I18nRecord).id_card_manual_access_error as string}
+              {/*errorMessage ? errorMessage : (dict.totem as I18nRecord).id_card_manual_access_error as string*/}
+              {errorMessage && errorMessage == "400" ? (dict.totem as I18nRecord).id_card_manual_access_error_400 as string : (dict.totem as I18nRecord).id_card_manual_access_error as string}
             </p>
           )}
           <Button

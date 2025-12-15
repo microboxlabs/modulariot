@@ -1,10 +1,10 @@
 import { IoMdPin } from "react-icons/io";
 import Huella from "./stepped-elements/huella";
 import Rut from "./stepped-elements/rut";
-import { FaBell, FaFingerprint, FaIdCard } from "react-icons/fa";
+import { FaFingerprint, FaIdCard } from "react-icons/fa"; //FaBell,
 import TripInformation from "./stepped-elements/trip-information";
 import { RxCheck } from "react-icons/rx";
-import Tests from "./stepped-elements/tests";
+//import Tests from "./stepped-elements/tests";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import React, { useState } from "react";
 import SovosDeps from "../task-forms/components/sovos-deps/sovos-deps";
@@ -68,12 +68,15 @@ export default function Stepped({
       interface: (
         <TripInformation
           setCurrentStep={setCurrentStep}
-          currentStep={currentStep}
+          //currentStep={currentStep}
           dict={dict}
           deviceId={deviceId}
           deviceLocation={deviceLocation}
           rutData={rutData}
+          setRutData={setRutData}
           biometricResult={biometricResult}
+          setBiometricResult={setBiometricResult}
+          setIdCardNumber={setIdCardNumber}
           tripData={tripData}
           setTripData={setTripData}
           idCardNumber={idCardNumber}
@@ -82,7 +85,7 @@ export default function Stepped({
       title: (dict.totem as I18nRecord).assigned_trip as string,
       icon: <IoMdPin className="w-[1.5rem] h-[1.5rem]" />,
     },
-    {
+    /* {
       interface: (
         <Tests
           dict={dict}
@@ -95,13 +98,13 @@ export default function Stepped({
       ),
       title: (dict.totem as I18nRecord).tests as string,
       icon: <FaBell className="w-[1.5rem] h-[1.5rem]" />,
-    },
+    }, */
   ];
 
   return (
     <div className="flex flex-col justify-between h-full p-5 relative w-full sm:gap-4">
       {/* Stepper */}
-      <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content">
+      <div className="flex justify-center portrait:justify-between flex-row gap-4 scale-100 sm:scale-110 md:scale-125 lg:scale-150 xl:scale-175 2xl:scale-200 portrait:scale-100 portrait:sm:scale-110 portrait:md:scale-125 portrait:lg:scale-150 portrait:xl:scale-175 portrait:2xl:scale-200 scale-content mt-5">
         <StepperMarker
           id={0}
           selected={currentStep === 0}
@@ -133,14 +136,14 @@ export default function Stepped({
             setCurrentStep(2)
           }
         />
-        <StepperMarker
+        {/* <StepperMarker
           id={3}
           selected={currentStep === 3}
           text={steps[3].title}
           icon={steps[3].icon}
           current_step={currentStep}
           onClick={() => currentStep > 3 && setCurrentStep(3)}
-        />
+        /> */}
       </div>
       <div className="flex items-start justify-center">
         <div className="origin-top flex items-start justify-center w-[20rem] scale-[1.0]  portrait:scale-100 portrait:xs:scale-110 portrait:sm:scale-125 portrait:md:scale-150 portrait:lg:scale-175 portrait:xl:scale-200 portrait:2xl:scale-225 scale-content">
@@ -175,7 +178,7 @@ function StepperMarker({
       onClick={onClick}
     >
       <div
-        className={`relative w-[3rem] h-[3rem] rounded-full border-2 flex items-center justify-center ${current_step > id ? "border-[#F1B300]" : selected ? "border-[#F1B300]" : "border-gray-500"}`}
+        className={`relative w-[3rem] h-[3rem] rounded-full border-2 flex items-center justify-center transition-all duration-300 ${current_step > id ? "border-[#F1B300]" : selected ? "border-[#F1B300] animate-[pulse_2s_ease-in-out_infinite]" : "border-gray-500"}`}
       >
         {icon}
         <div

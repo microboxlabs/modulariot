@@ -18,6 +18,7 @@ import {
   TYPE_WFSHIP2_MISSION_CONTROL_TASK,
   TYPE_WFSHIP2_MONITOR_TRIP_TASK,
   OUTCOME_MONITOR_TRIP_V2,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
 } from "../../services/form.service";
 
 const option = (value: string, labelKey: string): SelectOption  => ({
@@ -94,14 +95,11 @@ export const SELECT_OPTIONS_CONFIG: SelectOptionsConfig = {
       "NOT_VALID_DOCUMENT"
     ),
   },
-  "wfship:sovosDigitalSignature": {
-    [OUTCOME_REDIRECT_TO_MISSION_CONTROL]: createConfig(
-      DIGITAL_SIGNATURE_OPTIONS,
-      "FINGERPRINT_DEVICES_TECH_ISSUES"
+  [TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK]: {
+    [OUTCOME_OVERLORD_CANCELED_SOVOS_V2]: createConfig(
+      POD_REJECTION_OPTIONS,
+      "NOT_VALID_DOCUMENT"
     ),
-  },
-  "wfship:missionControlTripInitTask": {
-    [OUTCOME_RETURN_TO_TRANSPORT_VALIDATION]: commonValidationConfig,
   },
   [TYPE_WFSHIP2_MISSION_CONTROL_TASK]: {
     [OUTCOME_ASSIGN_DRIVER_V2]: commonValidationConfig,

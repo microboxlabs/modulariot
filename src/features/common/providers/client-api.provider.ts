@@ -267,13 +267,18 @@ export function useHistoricSignals({
   assetId,
   p_from,
   p_to,
+  enabled,
 }: {
   assetId: string;
   p_from: string;
   p_to: string;
+  enabled: boolean;
 }) {
   const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
-    `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
+    // Pass null to prevent the request from executing
+    enabled && assetId && p_from && p_to
+      ? `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`
+      : null,
     fetcher
   );
 
@@ -293,7 +298,7 @@ export function useHistoricTimeline({
   p_from: string;
   p_to: string;
 }) {
-  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
     `/app/api/signals/timeline?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
     fetcher
   );

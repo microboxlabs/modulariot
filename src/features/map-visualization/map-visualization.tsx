@@ -1,13 +1,10 @@
-import type {
-  LayersList,
-  MapViewState,
-  ViewStateChangeParameters,
-} from "@deck.gl/core";
-import { useCallback, useState, useMemo } from "react";
-import Map, { useControl } from "react-map-gl";
-import DeckGL from "deck.gl";
+import type { LayersList } from "@deck.gl/core";
+import { useMemo } from "react";
+import Map, { useControl, MapRef } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
+import { Spinner } from "flowbite-react";
+import type { RefObject } from "react";
 
 const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -16,15 +13,6 @@ const mapStyles = {
   light: "mapbox://styles/mapbox/light-v10",
   outdoors: "mapbox://styles/mapbox/outdoors-v11",
   hybrid: "mapbox://styles/mapbox/hybrid-v10",
-};
-
-// Default viewState for Chile
-const INITIAL_VIEW_STATE = {
-  longitude: -71.543, // Santiago, Chile coordinates
-  latitude: -33.459,
-  zoom: 10,
-  pitch: 0,
-  bearing: 0,
 };
 
 function DeckGLOverlay(props: DeckProps) {
@@ -36,16 +24,14 @@ function DeckGLOverlay(props: DeckProps) {
 export default function MapVisualization({
   mapStyle,
   layers,
+  isLoading = false,
+  mapRef,
 }: {
   mapStyle: keyof typeof mapStyles;
   layers: LayersList;
+  isLoading?: boolean;
+  mapRef: RefObject<MapRef | null>;
 }) {
-  const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
-
-  const onViewStateChange = useCallback((e: ViewStateChangeParameters) => {
-    setViewState(e.viewState);
-  }, []);
-
   const mapboxStyles = useMemo(
     () => (
       <style>
@@ -82,14 +68,18 @@ export default function MapVisualization({
     []
   );
 
-  console.log("Rendering again the map");
-
   return (
     <div className="h-full w-full relative rounded-lg overflow-hidden">
       <Map
+        ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
         mapStyle={mapStyles[mapStyle]}
       >
+        {isLoading && (
+          <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">
+            <Spinner />
+          </div>
+        )}
         <DeckGLOverlay layers={layers} />
       </Map>
       {mapboxStyles}

@@ -58,8 +58,8 @@ export default function SignalsHistory({
   } | null>(null);
   const [hoveredRoute, setHoveredRoute] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<{
-    from: string;
-    to: string;
+    from: string | undefined;
+    to: string | undefined;
   } | null>(null);
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -129,8 +129,8 @@ export default function SignalsHistory({
           trip_id: "-" + initialGroups.length,
           trip_start: item.trip_end,
           trip_end: p_to,
-          trip_origin: item.trip_origin,
-          trip_origin_coordinates: item.trip_origin_coordinates,
+          trip_origin: item.trip_destination,
+          trip_origin_coordinates: item.trip_destination_coordinates,
           trip_destination: undefined,
           trip_destination_coordinates: undefined,
           timeline_elements: [],
@@ -227,11 +227,11 @@ export default function SignalsHistory({
       const route_data = generateRouteUsable({
         selectedRoute:
           hovered_item &&
-          typeof hovered_item.trip_origin_coordinates === "string" &&
-          typeof hovered_item.trip_destination_coordinates === "string"
+          (typeof hovered_item.trip_origin_coordinates === "string" ||
+            typeof hovered_item.trip_destination_coordinates === "string")
             ? {
-                from: hovered_item.trip_origin_coordinates,
-                to: hovered_item.trip_destination_coordinates,
+                from: hovered_item.trip_origin_coordinates ?? undefined,
+                to: hovered_item.trip_destination_coordinates ?? undefined,
               }
             : null,
       });
@@ -456,37 +456,42 @@ const parsePoint = (pointStr: string): [number, number] | null => {
 function generateRouteUsable({
   selectedRoute,
 }: {
-  selectedRoute: { from: string; to: string } | null;
+  selectedRoute: { from: string | undefined; to: string | undefined } | null;
 }) {
+  const features = [];
+
+  if (selectedRoute?.from != null) {
+    features.push({
+      type: "Feature",
+      id: 0,
+      geometry: {
+        type: "Point",
+        coordinates: parsePoint(selectedRoute.from),
+      },
+      properties: {
+        id: 0,
+        location_type: 1,
+      },
+    });
+  }
+
+  if (selectedRoute?.to != null) {
+    features.push({
+      type: "Feature",
+      id: 1,
+      geometry: {
+        type: "Point",
+        coordinates: parsePoint(selectedRoute.to),
+      },
+      properties: {
+        id: 1,
+        location_type: 2,
+      },
+    });
+  }
+
   return {
     type: "FeatureCollection",
-    features: selectedRoute
-      ? [
-          {
-            type: "Feature",
-            id: 0,
-            geometry: {
-              type: "Point",
-              coordinates: parsePoint(selectedRoute?.from),
-            },
-            properties: {
-              id: 0,
-              location_type: 1,
-            },
-          },
-          {
-            type: "Feature",
-            id: 1,
-            geometry: {
-              type: "Point",
-              coordinates: parsePoint(selectedRoute?.to),
-            },
-            properties: {
-              id: 1,
-              location_type: 2,
-            },
-          },
-        ]
-      : [],
+    features: features,
   };
 }

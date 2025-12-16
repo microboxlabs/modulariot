@@ -1,27 +1,10 @@
-import { Card, Tooltip } from "flowbite-react";
-import MapVisualization from "../map-visualization/map-visualization";
-import { ScatterplotLayer } from "@deck.gl/layers";
 import TagManager from "../symptoms/components/tag-manager";
-import { FaHistory, FaClock, FaTruck, FaRegClock } from "react-icons/fa";
-import { TbSortAscendingShapes } from "react-icons/tb";
+import { FaTruck, FaRegClock } from "react-icons/fa";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { ChevronLeft } from "flowbite-react-icons/outline";
-import SideBar from "./sidebar";
-import { useHistoricSignals } from "../common/providers/client-api.provider";
-import { HistoricSignal } from "./types/historic-signal.type";
-import { parseWKBPoint } from "@/utils/map-conversion";
-
-const test_data = [
-  {
-    position: [-70.64827, -33.45694],
-  },
-  {
-    position: [-70.6508, -33.455],
-  },
-  {
-    position: [-70.645, -33.457],
-  },
-];
+import { useHistoricTimeline } from "../common/providers/client-api.provider";
+import SignalsHistory from "./main-content";
+import { error } from "console";
 
 export default function MapHistoryView({
   dict,
@@ -37,25 +20,17 @@ export default function MapHistoryView({
   const p_from = urlParams.get("start_date") || "";
   const p_to = urlParams.get("end_date") || "";
 
-  const { data, error, isLoading } = useHistoricSignals({
+  const {
+    data: timelineData,
+    error: timelineError,
+    isLoading: timelineIsLoading,
+  } = useHistoricTimeline({
     assetId,
     p_from,
     p_to,
   });
 
-  console.log(data);
-
-  /*
-  {
-    asset_id: "SVZR11"
-    heading: 2
-    location: "0101000020E610000058552FBFD3B851C04B3D0B42798140C0"
-    speed: 90
-    timestamp: "2025-12-09T18:40:31+00:00"
-  }
-  */
-
-  console.log("Some update?");
+  //console.log(timelineData);
 
   // from the path get the value of "license_plate", "start_date" and "end_date" to show as tags
   const tags = [
@@ -69,28 +44,8 @@ export default function MapHistoryView({
     },
   ];
 
-  const layers = isLoading
-    ? []
-    : [
-        new ScatterplotLayer({
-          id: "test-positions",
-          data: Array.isArray(data) ? (data as HistoricSignal[]) : [],
-          getPosition: (d: HistoricSignal) => {
-            // The location is in WKB (Well-Known Binary) format as hex string
-            return parseWKBPoint(d.location);
-          },
-          getRadius: 50,
-          getFillColor: [255, 0, 0, 180], // Red color
-          pickable: true,
-          radiusMinPixels: 3,
-          radiusMaxPixels: 30,
-        }),
-      ];
-
-  console.log("Rendering again the container");
-
   return (
-    <div className="w-full h-full relative flex flex-col p-2 gap-2">
+    <div className="w-full h-full relative flex flex-col gap-2">
       <div className={`relative flex flex-col gap-10 rounded-lg`}>
         <CustomCard className="flex flex-row p-0 overflow-hidden">
           <div className="flex flex-row items-center w-full">
@@ -122,10 +77,7 @@ export default function MapHistoryView({
           </div>
         </CustomCard>
       </div>
-      <div className="flex flex-row gap-2 h-full">
-        <SideBar />
-        <MapVisualization mapStyle="satellite" layers={layers} />
-      </div>
+      <SignalsHistory timelineData={timelineData?.data?.timeline} dict={dict} />
     </div>
   );
 }

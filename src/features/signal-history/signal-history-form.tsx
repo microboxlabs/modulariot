@@ -174,9 +174,6 @@ function DateRangeInput({
       params.set("end_date", dateRange.endDate);
     }
 
-    // Remove the action parameter since you don't want it
-    // params.set("action", "search");
-
     router.push(`?${params.toString()}`);
     next();
   };

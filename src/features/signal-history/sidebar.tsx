@@ -8,6 +8,7 @@ import {
   HistoricTimeline,
   HistoricTrip,
   ResumedTimeline,
+  RouteState,
 } from "./types/historic-signal.type";
 import FormattedDate from "../common/components/formatted-date";
 import TimelineComponent from "../symptoms/components/map-view/timeline";
@@ -30,10 +31,7 @@ export default function SideBar({
     hoveredRoute: string | null;
     setHoveredRoute: (route: string | null) => void;
   };
-  route: {
-    selectedRoute: { from: string; to: string } | null;
-    setSelectedRoute: (route: { from: string; to: string } | null) => void;
-  };
+  route: RouteState;
   dict: I18nRecord;
 }) {
   const [selectedTrip, setSelectedTrip] = useState<number | null>(null);
@@ -78,10 +76,7 @@ function RouteTimeline({
     pulseDates: { from: string; to: string } | null;
     setPulseDates: (dates: { from: string; to: string } | null) => void;
   };
-  route: {
-    selectedRoute: { from: string; to: string } | null;
-    setSelectedRoute: (route: { from: string; to: string } | null) => void;
-  };
+  route: RouteState;
   selectedTrip: number | null;
   setSelectedTrip: (index: number | null) => void;
   dict: I18nRecord;
@@ -181,10 +176,7 @@ function TripSelector({
   hover: {
     setHoveredRoute: (route: string | null) => void;
   };
-  route: {
-    selectedRoute: { from: string; to: string } | null;
-    setSelectedRoute: (route: { from: string; to: string } | null) => void;
-  };
+  route: RouteState;
 }) {
   const urlParams = new URLSearchParams(window.location.search);
   const p_to = urlParams.get("end_date") || "";
@@ -254,15 +246,10 @@ function TripSelector({
               onClick={() => {
                 setSelectedTrip(index);
 
-                if (
-                  trip.trip_origin_coordinates &&
-                  trip.trip_destination_coordinates
-                ) {
-                  route.setSelectedRoute({
-                    from: trip.trip_origin_coordinates,
-                    to: trip.trip_destination_coordinates,
-                  });
-                }
+                route.setSelectedRoute({
+                  from: trip.trip_origin_coordinates,
+                  to: trip.trip_destination_coordinates,
+                });
 
                 // Helper function to convert UTC date to Chilean timezone
                 const toChileanTime = (dateStr: string) => {

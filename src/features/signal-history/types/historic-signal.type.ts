@@ -51,3 +51,10 @@ export type ResumedTimeline = {
 
   timeline_elements: HistoricTimeline[];
 };
+
+export type RouteState = {
+  selectedRoute: { from: string | undefined; to: string | undefined } | null;
+  setSelectedRoute: (
+    route: { from: string | undefined; to: string | undefined } | null
+  ) => void;
+};

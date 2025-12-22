@@ -4,6 +4,35 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { date } from "zod";
 
+// Common date/time utilities to reduce duplication
+const createDateBounds = (fromParam: string, toParam: string) => {
+  const startDate = new Date(fromParam);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(toParam);
+  endDate.setHours(23, 59, 59, 999);
+
+  return {
+    startDate,
+    endDate,
+    totalDuration: endDate.getTime() - startDate.getTime(),
+  };
+};
+
+const calculatePositionInRange = (
+  timestamp: Date,
+  startDate: Date,
+  totalDuration: number
+) => {
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      ((timestamp.getTime() - startDate.getTime()) / totalDuration) * 100
+    )
+  );
+};
+
 export type TimeRange = {
   startTime: string;
   endTime: string;
@@ -59,14 +88,10 @@ function TimeRangeSelector({
         endPosition: 100,
       };
 
-    // Parse dates and set them to start of day (00:00) and end of day (23:59)
-    const startDate = new Date(p_from);
-    startDate.setHours(0, 0, 0, 0); // Set to 00:00:00
-
-    const endDate = new Date(p_to);
-    endDate.setHours(23, 59, 59, 999); // Set to 23:59:59
-
-    const totalDuration = endDate.getTime() - startDate.getTime();
+    const { startDate, endDate, totalDuration } = createDateBounds(
+      p_from,
+      p_to
+    );
 
     // Calculate selected start and end times based on position percentages
     const selectedStartTime = new Date(
@@ -157,13 +182,7 @@ function TimeRangeSelector({
   const generateTimeMarkers = useCallback(() => {
     if (!p_from || !p_to) return [];
 
-    const startDate = new Date(p_from);
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(p_to);
-    endDate.setHours(23, 59, 59, 999);
-
-    const totalDuration = endDate.getTime() - startDate.getTime();
+    const { startDate, totalDuration } = createDateBounds(p_from, p_to);
     const markers = [];
 
     // Determine the number of markers based on screen size and duration
@@ -304,142 +323,69 @@ function TimeRangeSelector({
 
   const timeMarkers = generateTimeMarkers();
 
-  // Generate trip line segments from timeMarks prop
-  const generateTripLines = useCallback(() => {
-    if (!timeMarks || timeMarks.length === 0 || !p_from || !p_to) return [];
+  // Unified line generation utility
+  const generateLineSegments = useCallback(
+    (marks: { start: string; end: string }[], indexKey: string) => {
+      if (!marks || marks.length === 0 || !p_from || !p_to) return [];
 
-    const startDate = new Date(p_from);
-    startDate.setHours(0, 0, 0, 0);
+      const { startDate, totalDuration } = createDateBounds(p_from, p_to);
 
-    const endDate = new Date(p_to);
-    endDate.setHours(23, 59, 59, 999);
+      return marks
+        .map((mark, index) => {
+          const markStartTime = new Date(mark.start);
+          const markEndTime = new Date(mark.end);
 
-    const totalDuration = endDate.getTime() - startDate.getTime();
+          const startPosition = calculatePositionInRange(
+            markStartTime,
+            startDate,
+            totalDuration
+          );
+          const endPosition = calculatePositionInRange(
+            markEndTime,
+            startDate,
+            totalDuration
+          );
+          const width = Math.max(0, endPosition - startPosition);
 
-    return timeMarks
-      .map((mark, index) => {
-        const markStartTime = new Date(mark.start);
-        const markEndTime = new Date(mark.end);
+          if (width > 0 && startPosition < 100 && endPosition > 0) {
+            return {
+              startPosition,
+              width,
+              [indexKey]: index,
+              startTime: mark.start,
+              endTime: mark.end,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+    },
+    [p_from, p_to]
+  );
 
-        const startPosition = Math.max(
-          0,
-          Math.min(
-            100,
-            ((markStartTime.getTime() - startDate.getTime()) / totalDuration) *
-              100
-          )
-        );
+  const tripLines = generateLineSegments(timeMarks, "tripIndex");
+  const movementLines = generateLineSegments(movementTimes, "movementIndex");
 
-        const endPosition = Math.max(
-          0,
-          Math.min(
-            100,
-            ((markEndTime.getTime() - startDate.getTime()) / totalDuration) *
-              100
-          )
-        );
-
-        const width = Math.max(0, endPosition - startPosition);
-
-        // Only show if segment is within visible range and has width
-        if (width > 0 && startPosition < 100 && endPosition > 0) {
-          return {
-            startPosition,
-            width,
-            tripIndex: index,
-            startTime: mark.start,
-            endTime: mark.end,
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  }, [timeMarks, p_from, p_to]);
-
-  const tripLines = generateTripLines();
-
-  // Generate movement line segments from movementTimes prop
-  const generateMovementLines = useCallback(() => {
-    if (!movementTimes || movementTimes.length === 0 || !p_from || !p_to)
-      return [];
-
-    const startDate = new Date(p_from);
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(p_to);
-    endDate.setHours(23, 59, 59, 999);
-
-    const totalDuration = endDate.getTime() - startDate.getTime();
-
-    return movementTimes
-      .map((mark, index) => {
-        const markStartTime = new Date(mark.start);
-        const markEndTime = new Date(mark.end);
-
-        const startPosition = Math.max(
-          0,
-          Math.min(
-            100,
-            ((markStartTime.getTime() - startDate.getTime()) / totalDuration) *
-              100
-          )
-        );
-
-        const endPosition = Math.max(
-          0,
-          Math.min(
-            100,
-            ((markEndTime.getTime() - startDate.getTime()) / totalDuration) *
-              100
-          )
-        );
-
-        const width = Math.max(0, endPosition - startPosition);
-
-        // Only show if segment is within visible range and has width
-        if (width > 0 && startPosition < 100 && endPosition > 0) {
-          return {
-            startPosition,
-            width,
-            movementIndex: index,
-            startTime: mark.start,
-            endTime: mark.end,
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  }, [movementTimes, p_from, p_to]);
-
-  const movementLines = generateMovementLines();
-
-  // Generate trip indicators based on test_trips data
-  const generateTripIndicators = useCallback(() => {
+  // Generate trip indicators using common utilities
+  const tripIndicators = useMemo(() => {
     if (!p_from || !p_to) return [];
 
-    const startDate = new Date(p_from);
-    startDate.setHours(0, 0, 0, 0);
-
-    const endDate = new Date(p_to);
-    endDate.setHours(23, 59, 59, 999);
-
-    const totalDuration = endDate.getTime() - startDate.getTime();
+    const { startDate, totalDuration } = createDateBounds(p_from, p_to);
 
     return timeMarks.map((trip, index) => {
       const tripStart = new Date(trip.start);
       const tripEnd = new Date(trip.end);
 
-      // Calculate positions as percentages
-      const startPosition = Math.max(
-        0,
-        ((tripStart.getTime() - startDate.getTime()) / totalDuration) * 100
+      const startPosition = calculatePositionInRange(
+        tripStart,
+        startDate,
+        totalDuration
       );
-      const endPosition = Math.min(
-        100,
-        ((tripEnd.getTime() - startDate.getTime()) / totalDuration) * 100
+      const endPosition = calculatePositionInRange(
+        tripEnd,
+        startDate,
+        totalDuration
       );
-
-      // Calculate width, ensuring it's visible if the trip overlaps with the date range
       const width = Math.max(0, endPosition - startPosition);
 
       return {
@@ -452,8 +398,6 @@ function TimeRangeSelector({
       };
     });
   }, [p_from, p_to, timeMarks]);
-
-  const tripIndicators = generateTripIndicators();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragDataRef = useRef({
@@ -646,7 +590,7 @@ function TimeRangeSelector({
                   left: `${line.startPosition}%`,
                   width: `${line.width}%`,
                 }}
-                title={`Trip ${line.tripIndex + 1}: ${line.startTime} - ${line.endTime}`}
+                title={`Trip ${Number(line.tripIndex) + 1}: ${line.startTime} - ${line.endTime}`}
               />
             ) : null
           )}

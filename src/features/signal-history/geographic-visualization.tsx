@@ -201,7 +201,10 @@ export default function GeographicVisualization({
             data: renderizableData,
             zoom: zoomValue,
             selectedPulse: [],
-            displayRange: dateRangeDisplayed,
+            displayRange: {
+              startDate: new Date(dateRangeDisplayed.startDate),
+              endDate: new Date(dateRangeDisplayed.endDate),
+            },
             pickable: true,
             onClick: (d: any) => {
               d.object.properties.icu_code = 1;
@@ -209,7 +212,10 @@ export default function GeographicVisualization({
             updateTriggers: {
               data: renderizableData,
               zoom: zoomValue,
-              displayRange: dateRangeDisplayed,
+              displayRange: {
+                startDate: new Date(dateRangeDisplayed.startDate),
+                endDate: new Date(dateRangeDisplayed.endDate),
+              },
             },
           }),
         ];

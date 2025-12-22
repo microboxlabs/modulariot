@@ -997,6 +997,8 @@
   "symptoms": {
     "no_symptoms": "No hay síntomas",
     "active_symptoms": "Síntomas activos",
+    "historic_symptoms": "Síntomas históricos",
+    "live": "En vivo",
     "symptoms": "Síntomas",
     "symptom": "Síntoma",
     "client": "Cliente",
@@ -1466,6 +1468,8 @@
       "select_document_type_error": "Debe seleccionar un tipo de documento",
       "categories": {
         "PROOF_OF_DELIVERY": "Prueba de Entrega",
+        "PROOF_OF_LOAD_FLOOR": "Prueba Carga Piso",
+        "PROOF_OF_LOAD_RECEIPT": "Prueba de Recepcion de Carga",
         "PROOF_OF_PICKUP": "Prueba de Retiro",
         "CARGO_MANIFEST": "Carta de Porte",
         "PICKUP_FRONT_IMAGE": "Imagen delantera del retiro",
@@ -1624,7 +1628,13 @@
     "internal": "Interno",
     "external": "Externo",
     "expeditionCode": "Código de expedición",
-    "expeditionNumber": "Número de expedición"
+    "expeditionNumber": "Número de expedición",
+    "asset_id": "Patente",
+    "trip_id": "ID de viaje",
+    "driver_id": "RUT conductor",
+    "carrier_id": "RUT transportista",
+    "date": "Fecha",
+    "symptom_name": "Nombre del síntoma"
   },
   "comments": {
     "title": "Comentarios",
@@ -1678,5 +1688,19 @@
     "location": "Ubicación",
     "distance_traveled": "Distancia Recorrida",
     "download_csv": "Descargar CSV"
+  }
+  "new_functionality": {
+    "new": "NUEVO",
+    "title": "Prueba el nuevo filtro por condiciones.",
+    "we_added_a_new_functionality_for": "Hemos implementado una nueva funcionalidad para",
+    "filter_by_condition": "filtrar por condición",
+    "second_paragraph": "Ahora puedes filtrar directamente desde los contadores de condición, sin necesidad de navegar a otra página.",
+    "for_now": "Por ahora",
+    "its_optional": "es opcional",
+    "but": ", pero",
+    "in_the_future": "en el futuro será la única forma de filtrar por condiciones.",
+    "try_it_now": "¡Anímate a probarla!",
+    "i_want_to_try": "¡Quiero probar esta funcionalidad!",
+    "not_interested": "No me interesa esta funcionalidad."
   }
 }

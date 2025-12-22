@@ -126,7 +126,7 @@ export async function NextCancelTripView({
                       task.taskFormKey as ShippingCoordinatorProcessFormsV2
                     }
                     lang={lang}
-                    dict={dictionary.shippingDetailsTaskForm as I18nRecord}
+                    dict={dictionary.pages.shippingDetailsTaskForm}
                   />
                 </div>
               </GroupAllowed>

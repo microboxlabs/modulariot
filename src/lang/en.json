@@ -975,6 +975,8 @@
   "symptoms": {
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",
+    "historic_symptoms": "Historic symptoms",
+    "live": "Live",
     "symptoms": "Symptoms",
     "symptom": "Symptom",
     "client": "Client",
@@ -1440,6 +1442,8 @@
       "select_document_type_error": "You must select a document type",
       "categories": {
         "PROOF_OF_DELIVERY": "Proof of delivery",
+        "PROOF_OF_LOAD_FLOOR": "Proof of load floor",
+        "PROOF_OF_LOAD_RECEIPT": "Proof of load receipt",
         "PROOF_OF_PICKUP": "Proof of pickup",
         "CARGO_MANIFEST": "Cargo manifest",
         "PICKUP_FRONT_IMAGE": "Pickup front image",
@@ -1597,7 +1601,13 @@
     "internal": "Internal",
     "external": "External",
     "expeditionCode": "Expedition Code",
-    "expeditionNumber": "Expedition Number"
+    "expeditionNumber": "Expedition Number",
+    "asset_id": "Asset ID",
+    "trip_id": "Trip ID",
+    "driver_id": "Driver ID",
+    "carrier_id": "Carrier ID",
+    "date": "Date",
+    "symptom_name": "Symptom Name"
   },
   "comments": {
     "title": "Comments",
@@ -1651,5 +1661,19 @@
     "location": "Location",
     "distance_traveled": "Distance Traveled",
     "download_csv": "Download CSV"
+  }
+  "new_functionality": {
+    "new": "New",
+    "title": "Try the new filter by conditions.",
+    "we_added_a_new_functionality_for": "We have implemented a new functionality to",
+    "filter_by_condition": "filter by condition",
+    "second_paragraph": "Now you can filter directly from the condition counters, without needing to navigate to another page.",
+    "for_now": "For now",
+    "its_optional": "its optional",
+    "but": ", but",
+    "in_the_future": "in the future it will be the only way to filter by conditions.",
+    "try_it_now": "Try it now!",
+    "i_want_to_try": "I want to try this functionality!",
+    "not_interested": "I'm not interested in this functionality."
   }
 }

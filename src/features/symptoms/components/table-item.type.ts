@@ -22,6 +22,7 @@ import movementWithCargo from "@assets/timeline/movement-with-cargo.svg";
 export type TableItemType = {
   id: string;
   condition: string;
+  icu_code: string;
   licensePlate: string;
   time: string;
   trip: string;

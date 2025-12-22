@@ -7,6 +7,8 @@ import { HiArrowRight } from "react-icons/hi";
 import Link from "next/link";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { FormattedDate } from "@/features/common/components/formatted-date";
+import icu_condition from "@/features/symptoms/model/icu_condition.json";
+import { FaChevronRight } from "react-icons/fa6";
 
 export default function TableItem({
   data,
@@ -17,6 +19,8 @@ export default function TableItem({
   dict: I18nRecord;
   compact?: boolean;
 }) {
+  const searchParams = new URLSearchParams(window.location.search);
+
   if (!compact) {
     return (
       <TableRow
@@ -25,6 +29,19 @@ export default function TableItem({
       >
         <TableCell className=" whitespace-nowrap font-medium text-gray-900 dark:text-white">
           <div className="flex items-center gap-2">
+            {searchParams.get("icu_code") === "6" && (
+              <>
+                <ConditionIcon
+                  condition={icu_condition[
+                    data.icu_code as keyof typeof icu_condition
+                  ].toLowerCase()}
+                  size="h-7 w-7"
+                  dict={dict}
+                />
+                <FaChevronRight className="w-3 h-3" />
+              </>
+            )}
+
             <ConditionIcon
               condition={data.condition}
               size="h-7 w-7"

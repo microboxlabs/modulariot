@@ -1,11 +1,15 @@
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 
 export type HistoricSignal = {
-  asset_id: string;
+  assetid: string;
   heading: number;
   location: string;
   speed: number;
   timestamp: string;
+  tripid: string;
+  distance: number;
+  latitude: number;
+  longitude: number;
 };
 
 export type HistoricTrip = {

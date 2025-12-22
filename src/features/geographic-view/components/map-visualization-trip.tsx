@@ -29,6 +29,7 @@ import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
+import PulseRange from "./tool-bar/pulse-range";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -585,21 +586,49 @@ export default function MapVisualizationTrip({
         <ToolBar
           dictionary={dict}
           positions={positions ?? []}
-          displayPosition={displayPosition}
-          setDisplayPosition={setDisplayPosition}
-          zoom_on_pin={zoom_on_pin}
-          setViewState={setViewState}
-          viewState={viewState}
-          selectedStyle={mapStyle}
-          setSelectedStyle={setMapStyle}
-          camera_movement={camera_movement}
-          setCameraMovement={setCameraMovement}
-          showStops={showStops}
-          setShowStops={setShowStops}
-          showGeofences={showGeofences}
-          setShowGeofences={setShowGeofences}
-          showPulse={showPulse}
-          setShowPulse={setShowPulse}
+          display_position={{
+            displayPosition,
+            setDisplayPosition,
+          }}
+          selected_style={{
+            selectedStyle: mapStyle,
+            setSelectedStyle: setMapStyle,
+          }}
+          camera_movement={{
+            camera_movement,
+            setCameraMovement,
+          }}
+          show_stops={{
+            showStops,
+            setShowStops,
+          }}
+          show_geofences={{
+            showGeofences,
+            setShowGeofences,
+          }}
+          show_pulse={{
+            showPulse,
+            setShowPulse,
+          }}
+          timelineComponent={
+            <PulseRange
+              positions={positions ?? []}
+              displayPosition={displayPosition}
+              setDisplayPosition={setDisplayPosition}
+              onZoom={(e) => {
+                if (positions) {
+                  zoom_on_pin(
+                    positions[Number(e.target.value)]?.longitude ?? 0,
+                    positions[Number(e.target.value)]?.latitude ?? 0,
+                    setViewState,
+                    viewState,
+                    camera_movement,
+                    10
+                  );
+                }
+              }}
+            />
+          }
         />
       </div>
       <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">

@@ -1,7 +1,6 @@
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { buildNavBarMessages } from "@/features/layout/utils/utils";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { auth } from "@/auth";
 import SignalHistoryForm from "@/features/signal-history/signal-history-form";
 
@@ -10,13 +9,11 @@ export default async function WheresMyLoadPage({
 }: ParamsWithLang & {}) {
   const { lang } = await params;
   const [dict, dictionary] = await getDictionary(lang);
-  const navBarMessages = buildNavBarMessages({ messages: dict });
-  const session = await auth();
-  const userGroups = await getGroupsForPerson(session!);
+  // const _session = await auth();
 
   return (
     <div className="h-full w-full flex justify-center items-start p-2">
-      <SignalHistoryForm dict={dictionary} messages={navBarMessages} />
+      <SignalHistoryForm dict={dictionary} />
     </div>
   );
 }

@@ -3,8 +3,11 @@ import { useMemo } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
-import { Spinner } from "flowbite-react";
+import { Button, Spinner } from "flowbite-react";
 import type { RefObject } from "react";
+import MapTooltip from "../geographic-view/components/map-tooltip";
+import CustomTable from "../common/components/custom-table/custom-table";
+import content from "../shipping/components/content";
 
 const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -26,11 +29,13 @@ export default function MapVisualization({
   layers,
   isLoading = false,
   mapRef,
+  onZoomChange,
 }: {
   mapStyle: keyof typeof mapStyles;
   layers: LayersList;
   isLoading?: boolean;
   mapRef: RefObject<MapRef | null>;
+  onZoomChange?: (zoom: number) => void;
 }) {
   const mapboxStyles = useMemo(
     () => (
@@ -74,6 +79,13 @@ export default function MapVisualization({
         ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
         mapStyle={mapStyles[mapStyle]}
+        onLoad={(e) => onZoomChange?.(e.target.getZoom())}
+        onZoom={(e) => onZoomChange?.(e.viewState.zoom)}
+        initialViewState={{
+          longitude: -62.136105, // South America longitude (centered)
+          latitude: -21.756514, // South America latitude (centered)
+          zoom: 2.5,
+        }}
       >
         {isLoading && (
           <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">

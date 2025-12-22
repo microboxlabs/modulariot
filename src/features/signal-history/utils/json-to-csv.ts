@@ -1,7 +1,5 @@
-import { HistoricSignal } from "../types/historic-signal.type";
-
 export function convertJSONToCSV(
-  jsonData: HistoricSignal[],
+  jsonData: any[],
   columnKeys: string[],
   columnHeaders?: string[]
 ): string {

@@ -2,7 +2,18 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { FiMoreVertical } from "react-icons/fi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { date } from "zod";
+
+// Debounce hook
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 // Common date/time utilities to reduce duplication
 const createDateBounds = (fromParam: string, toParam: string) => {
@@ -68,94 +79,109 @@ function TimeRangeSelector({
   const p_from = urlParams.get("start_date") || "";
   const p_to = urlParams.get("end_date") || "";
 
-  // State for drag indicator positions (as percentages of container width)
-  const [startPosition, setStartPosition] = useState(0); // Start indicator position (0-100%)
-  const [endPosition, setEndPosition] = useState(100); // End indicator position (0-100%)
+  // Immediate state for smooth UI
+  const [startPosition, setStartPosition] = useState(0);
+  const [endPosition, setEndPosition] = useState(100);
   const [isDragging, setIsDragging] = useState<
     "start" | "end" | "range" | null
   >(null);
 
+  // Debounced positions - only these trigger onChange (150ms delay)
+  const debouncedStartPosition = useDebouncedValue(startPosition, 150);
+  const debouncedEndPosition = useDebouncedValue(endPosition, 150);
+
   // Calculate selected time range
-  const calculateSelectedTimeRange = useCallback(() => {
-    if (!p_from || !p_to)
-      return {
-        startTime: "",
-        endTime: "",
-        duration: "",
-        startDate: new Date(),
-        endDate: new Date(),
-        startPosition: 0,
-        endPosition: 100,
+  const calculateSelectedTimeRange = useCallback(
+    (start: number, end: number) => {
+      if (!p_from || !p_to)
+        return {
+          startTime: "",
+          endTime: "",
+          duration: "",
+          startDate: new Date(),
+          endDate: new Date(),
+          startPosition: 0,
+          endPosition: 100,
+        };
+
+      const { startDate, endDate, totalDuration } = createDateBounds(
+        p_from,
+        p_to
+      );
+
+      // Calculate selected start and end times based on position percentages
+      const selectedStartTime = new Date(
+        startDate.getTime() + (totalDuration * start) / 100
+      );
+      const selectedEndTime = new Date(
+        startDate.getTime() + (totalDuration * end) / 100
+      );
+
+      // Calculate duration between selected points
+      const selectedDuration =
+        selectedEndTime.getTime() - selectedStartTime.getTime();
+
+      // Calculate days, hours, and minutes
+      const days = Math.floor(selectedDuration / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(
+        (selectedDuration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const minutes = Math.floor(
+        (selectedDuration % (1000 * 60 * 60)) / (1000 * 60)
+      );
+
+      const formatTime = (date: Date) => {
+        return date.toLocaleString("es-ES", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       };
 
-    const { startDate, endDate, totalDuration } = createDateBounds(
-      p_from,
-      p_to
-    );
+      // Format duration string
+      let durationStr = "";
+      if (days > 0) {
+        durationStr += `${days}d `;
+      }
+      if (hours > 0) {
+        durationStr += `${hours}h `;
+      }
+      durationStr += `${minutes}m`;
 
-    // Calculate selected start and end times based on position percentages
-    const selectedStartTime = new Date(
-      startDate.getTime() + (totalDuration * startPosition) / 100
-    );
-    const selectedEndTime = new Date(
-      startDate.getTime() + (totalDuration * endPosition) / 100
-    );
-
-    // Calculate duration between selected points
-    const selectedDuration =
-      selectedEndTime.getTime() - selectedStartTime.getTime();
-
-    // Calculate days, hours, and minutes
-    const days = Math.floor(selectedDuration / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(
-      (selectedDuration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-    );
-    const minutes = Math.floor(
-      (selectedDuration % (1000 * 60 * 60)) / (1000 * 60)
-    );
-
-    const formatTime = (date: Date) => {
-      return date.toLocaleString("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    };
-
-    // Format duration string
-    let durationStr = "";
-    if (days > 0) {
-      durationStr += `${days}d `;
-    }
-    if (hours > 0) {
-      durationStr += `${hours}h `;
-    }
-    durationStr += `${minutes}m`;
-
-    return {
-      startTime: formatTime(selectedStartTime),
-      endTime: formatTime(selectedEndTime),
-      startDate: selectedStartTime,
-      endDate: selectedEndTime,
-      duration: durationStr.trim(),
-      startPosition,
-      endPosition,
-    };
-  }, [p_from, p_to, startPosition, endPosition]);
-
-  const selectedRange = useMemo(
-    () => calculateSelectedTimeRange(),
-    [p_from, p_to, startPosition, endPosition]
+      return {
+        startTime: formatTime(selectedStartTime),
+        endTime: formatTime(selectedEndTime),
+        startDate: selectedStartTime,
+        endDate: selectedEndTime,
+        duration: durationStr.trim(),
+        startPosition: start,
+        endPosition: end,
+      };
+    },
+    [p_from, p_to]
   );
 
-  // Call onChange when range changes
+  // Immediate display range (for smooth UI)
+  const displayRange = useMemo(
+    () => calculateSelectedTimeRange(startPosition, endPosition),
+    [calculateSelectedTimeRange, startPosition, endPosition]
+  );
+
+  // Debounced range for onChange callback
+  const debouncedRange = useMemo(
+    () =>
+      calculateSelectedTimeRange(debouncedStartPosition, debouncedEndPosition),
+    [calculateSelectedTimeRange, debouncedStartPosition, debouncedEndPosition]
+  );
+
+  // Call onChange only with debounced values
   useEffect(() => {
-    if (onChange && selectedRange.startTime && selectedRange.endTime) {
-      onChange(selectedRange);
+    if (onChange && debouncedRange.startTime && debouncedRange.endTime) {
+      onChange(debouncedRange);
     }
-  }, [onChange, p_from, p_to, startPosition, endPosition]);
+  }, [onChange, debouncedRange]);
 
   // Responsive screen size detection
   const [screenSize, setScreenSize] = useState("medium");
@@ -467,14 +493,18 @@ function TimeRangeSelector({
 
         if (isDragging === "start") {
           // Ensure start position doesn't exceed end position (minimum 0.5% gap)
-          setStartPosition(Math.min(newPosition, endPosition - 2));
+          setStartPosition(
+            Math.min(newPosition, dragDataRef.current.initialEnd - 2)
+          );
         } else if (isDragging === "end") {
           // Ensure end position doesn't go below start position (minimum 0.5% gap)
-          setEndPosition(Math.max(newPosition, startPosition + 2));
+          setEndPosition(
+            Math.max(newPosition, dragDataRef.current.initialStart + 2)
+          );
         }
       }
     },
-    [isDragging, startPosition, endPosition]
+    [isDragging]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -497,11 +527,11 @@ function TimeRangeSelector({
       <div className="w-full flex justify-center items-center text-sm font-light">
         <div className="text-center w-full md:w-fit">
           <div className="text-xs font-medium text-blue-600">
-            {tr("signal_historic.duration", dict)}: {selectedRange.duration}
+            {tr("signal_historic.duration", dict)}: {displayRange.duration}
           </div>
           <div className="text-xs text-gray-600 mb-1">
             {tr("signal_historic.selected_range", dict)}:{" "}
-            {selectedRange.startTime} - {selectedRange.endTime}
+            {displayRange.startTime} - {displayRange.endTime}
           </div>
         </div>
       </div>

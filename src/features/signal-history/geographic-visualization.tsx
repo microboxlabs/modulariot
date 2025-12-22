@@ -10,6 +10,7 @@ import SummaryTooltip from "./summary-tooltip";
 import { Button } from "flowbite-react";
 import { tr } from "../i18n/tr.service";
 import { convertJSONToCSV } from "./utils/json-to-csv";
+import { handleDownloadCsv } from "./utils/download-csv";
 
 export default function GeographicVisualization({
   data,
@@ -117,8 +118,6 @@ export default function GeographicVisualization({
 
       // For each trip group, get first and last timestamp
       tripGroups.forEach((signals, tripId) => {
-        console.log(signals);
-
         if (signals.length > 0) {
           // Sort signals by timestamp to ensure correct order
           signals.sort(
@@ -244,9 +243,18 @@ export default function GeographicVisualization({
   }, [zoomValue]);
 
   const onTimelineChange = useCallback((range: any) => {
-    setDateRangeDisplayed({
-      startDate: range.startDate,
-      endDate: range.endDate,
+    setDateRangeDisplayed((prev) => {
+      // Skip update if nothing changed
+      if (
+        prev.startDate === range.startDate &&
+        prev.endDate === range.endDate
+      ) {
+        return prev;
+      }
+      return {
+        startDate: range.startDate,
+        endDate: range.endDate,
+      };
     });
   }, []);
 
@@ -298,26 +306,7 @@ export default function GeographicVisualization({
       );
     });
 
-    console.log(filteredData);
-
-    const csvData = convertJSONToCSV(
-      filteredData,
-      ["assetid", "tripid", "timestamp", "speed", "location"],
-      [
-        tr("signal_historic.assetid", dict),
-        tr("signal_historic.tripid", dict),
-        tr("signal_historic.timestamp", dict),
-        tr("signal_historic.speed", dict),
-        tr("signal_historic.location", dict),
-      ]
-    );
-    const blob = new Blob([csvData], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Historico de viajes ${data && data.length > 0 ? data[0].assetid : ""} ${dateRangeDisplayed.startDate} - ${dateRangeDisplayed.endDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    handleDownloadCsv(filteredData, dict, dateRangeDisplayed);
   }
 
   return (

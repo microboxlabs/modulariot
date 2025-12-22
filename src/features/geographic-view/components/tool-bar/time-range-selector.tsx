@@ -1,7 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { MapPosition } from "../../types/map";
 import { FiMoreVertical } from "react-icons/fi";
-import { I18NDomains } from "next/dist/server/config-shared";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -566,7 +564,7 @@ function TimeRangeSelector({
       {/* Selected time range display */}
       <div className="relative">
         {/* Time markers above the bar */}
-        <div className="relative h-6 mb-1">
+        <div className="relative h-6 mb-1 hidden sm:block">
           {timeMarkers.map((marker, index) => (
             <div
               key={`time-${index}`}
@@ -582,7 +580,7 @@ function TimeRangeSelector({
         </div>
 
         {/* Time tick marks - positioned behind the main bar */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 hidden sm:block">
           {timeMarkers.map((marker, index) => (
             <div
               key={`tick-${index}`}

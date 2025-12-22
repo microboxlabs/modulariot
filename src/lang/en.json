@@ -1661,7 +1661,7 @@
     "location": "Location",
     "distance_traveled": "Distance Traveled",
     "download_csv": "Download CSV"
-  }
+  },
   "new_functionality": {
     "new": "New",
     "title": "Try the new filter by conditions.",

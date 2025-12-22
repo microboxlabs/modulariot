@@ -7,11 +7,17 @@ export interface SymptomsTableRequest {
 
 export interface SymptomsTableResponse {
   data: SymptomsTable[];
+  page: number;
+  page_size: number;
+  total_rows: number;
+  total_pages: number;
   status: number;
   message: string;
+  symptom_name_list: string[];
 }
 
 export interface SymptomsTable {
+  icu_code: string;
   id: number;
   client: string;
   driver: string;

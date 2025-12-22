@@ -25,15 +25,13 @@ export interface SymptomDashboard {
 
 export interface SymptomTableResponse {
   data: TableItemType[];
-  total: number;
-  page: number;
-  pageSize: number;
   pagination: SymptomTablePagination;
+  symptoms_list: string[];
 }
 
 export interface SymptomTablePagination {
+  total_rows: number;
+  total_pages: number;
   currentPage: number;
-  totalPages: number;
-  totalRecords: number;
-  limit: number;
+  page_size: number;
 }

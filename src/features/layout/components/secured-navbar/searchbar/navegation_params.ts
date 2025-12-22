@@ -3,7 +3,13 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-export type ParamType = string | { param: string; type: "date_range" | "text" };
+export type ParamType =
+  | string
+  | {
+      param: string;
+      type: "date_range" | "text" | "bool" | "selector";
+      options?: any[];
+    };
 
 const kanban_params: ParamType[] = [
   setParam("service", "text"),
@@ -13,7 +19,20 @@ const kanban_params: ParamType[] = [
   setParam("origin", "text"),
   setParam("destination", "text"),
   setParam("customer", "text"),
-  setParam("originType", "bool"),
+  setParam("originType", "selector", [
+    {
+      value: "",
+      label: "-",
+    },
+    {
+      value: "INTERNAL",
+      label: "Interno",
+    },
+    {
+      value: "EXTERNAL",
+      label: "Externo",
+    },
+  ]),
   setParam("date_range", "date_range"),
 ];
 
@@ -22,8 +41,29 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
-function setParam(param: ParamType, type: "date_range" | "text" | "bool") {
-  return { param, type } as ParamType;
+const symptoms_params: ParamType[] = [
+  setParam("asset_id", "text"),
+  setParam("trip_id", "text"),
+  setParam("driver_id", "text"),
+  setParam("carrier_id", "text"),
+  setParam("origin", "text"),
+  setParam("destination", "text"),
+  setParam("date", "date_range"),
+  setParam(
+    "symptom_name",
+    "selector",
+    localStorage.getItem("selector")
+      ? JSON.parse(localStorage.getItem("selector")!)
+      : []
+  ), // here add a call on the cookies local data, search for a value called "selector" to load everything
+];
+
+function setParam(
+  param: ParamType,
+  type: "date_range" | "text" | "bool" | "selector",
+  options?: any[]
+) {
+  return { param, type, options } as ParamType;
 }
 
 export function getNavegationParams(dict: I18nRecord, size: number) {
@@ -39,6 +79,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       size > 0,
       true
     ),
+    symptoms: getParamsFixed(symptoms_params, dict),
   };
 }
 
@@ -63,6 +104,7 @@ function getParamsFixed(
         type: paramType,
       },
       unique,
+      options: typeof param === "string" ? undefined : param.options,
     };
   });
 }

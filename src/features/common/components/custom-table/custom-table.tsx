@@ -47,7 +47,7 @@ export default function CustomTable({
 }: {
   hoverable?: boolean;
   header: string[] | React.ReactElement;
-  content: (string[] | React.ReactElement)[];
+  content: ((string | React.ReactElement)[] | React.ReactElement)[];
   style?: Style;
   isLoading?: boolean;
   error?: any;
@@ -147,7 +147,7 @@ export default function CustomTable({
 // <div className="flex flex-col h-full overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
 
 function getListOrElement(
-  item: string[] | React.ReactElement,
+  item: (string | React.ReactElement)[] | React.ReactElement,
   isHeader: boolean
 ) {
   if (Array.isArray(item)) {

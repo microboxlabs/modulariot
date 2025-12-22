@@ -1660,7 +1660,10 @@
     "speed": "Speed",
     "location": "Location",
     "distance_traveled": "Distance Traveled",
-    "download_csv": "Download CSV"
+    "download_csv": "Download CSV",
+    "no_trip": "No Trip",
+    "distance_between_signals": "Distance between signals (Km)",
+    "selected_signals": "Selected Signals"
   },
   "new_functionality": {
     "new": "New",

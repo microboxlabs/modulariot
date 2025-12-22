@@ -48,7 +48,6 @@ export default function MapHistoryView({
         <CustomCard className="flex flex-row p-0 overflow-hidden">
           <div className="flex flex-row items-center w-full">
             <a
-              href=""
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
               onClick={() => {
                 // Trigger rerender in parent and go back

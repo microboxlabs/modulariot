@@ -13,24 +13,6 @@ export default function MapHistoryView({
   dict: I18nRecord;
   onBackClick?: () => void;
 }) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const assetId = urlParams.get("license_plate") || "";
-  const p_from = urlParams.get("start_date") || "";
-  const p_to = urlParams.get("end_date") || "";
-
-  /*
-  const {
-    data: timelineData,
-    error: timelineError,
-    isLoading: timelineIsLoading,
-  } = useHistoricTimeline({
-    assetId,
-    p_from,
-    p_to,
-  });
-  */
-
-  // from the path get the value of "license_plate", "start_date" and "end_date" to show as tags
   const tags = [
     {
       text: (

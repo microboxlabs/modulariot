@@ -36,6 +36,7 @@ export interface PulseLayerProps {
   data?: { features: any[] };
   displayPosition?: number;
   displayRange?: { startDate: Date; endDate: Date };
+  getPosition?: (d: any) => [number, number];
   [key: string]: any; // Allow additional props
 }
 
@@ -50,7 +51,8 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
 
     return {
       getRadius: 200000 / Math.pow(1.85, zoomLevel),
-      getPosition: (d: any) => d.geometry.coordinates,
+      getPosition:
+        this.props.getPosition || ((d: any) => d.geometry.coordinates),
       parameters: { depthTest: false },
       pickable: true,
       transitions,
@@ -67,7 +69,8 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
 
     return {
       getRadius: 280000 / Math.pow(1.85, zoomLevel),
-      getPosition: (d: any) => d.geometry.coordinates,
+      getPosition:
+        this.props.getPosition || ((d: any) => d.geometry.coordinates),
       parameters: { depthTest: false },
       transitions,
     };

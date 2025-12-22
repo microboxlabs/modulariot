@@ -959,6 +959,7 @@
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
+        "signalHistory": "Signal history",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms"
       }
@@ -1641,6 +1642,25 @@
     "search_for_your_load": "Search for your load",
     "use_searchbar": "Use the searchbar to track the state of your load.",
     "wheres_my_load": "Where's my load?"
+  },
+  "signal_historic": {
+    "search": "Search",
+    "next": "Next",
+    "back": "Back",
+    "enter_license_plate": "Enter License Plate",
+    "license_plate_required": "License plate is required",
+    "signals_historic": "Historic Signals",
+    "select_date_range": "Select Date Range",
+    "historic_signals": "Historic Signals",
+    "duration": "Duration",
+    "selected_range": "Selected Range",
+    "asset_id": "Asset ID",
+    "tripid": "Trip ID",
+    "timestamp": "Timestamp",
+    "speed": "Speed",
+    "location": "Location",
+    "distance_traveled": "Distance Traveled",
+    "download_csv": "Download CSV"
   },
   "new_functionality": {
     "new": "New",

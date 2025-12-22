@@ -1,6 +1,5 @@
 export function parseWKBPoint(wkbPoint: string): [number, number] {
   try {
-    // Skip first 8 bytes (endian + type + srid) by starting from position 18
     const lonHex = wkbPoint.substring(18, 34);
     const latHex = wkbPoint.substring(34, 50);
 

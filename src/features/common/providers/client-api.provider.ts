@@ -310,6 +310,51 @@ export function useSymptomsTable({
   };
 }
 
+export function useHistoricSignals({
+  assetId,
+  p_from,
+  p_to,
+}: {
+  assetId: string;
+  p_from: string;
+  p_to: string;
+}) {
+  const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
+    // Pass null to prevent the request from executing
+    assetId && p_from && p_to
+      ? `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`
+      : null,
+    fetcher
+  );
+
+  return {
+    data,
+    isLoading,
+    error,
+  };
+}
+
+export function useHistoricTimeline({
+  assetId,
+  p_from,
+  p_to,
+}: {
+  assetId: string;
+  p_from: string;
+  p_to: string;
+}) {
+  const { data, error, isLoading } = useSWR<any, FetcherError>(
+    `/app/api/signals/timeline?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`,
+    fetcher
+  );
+
+  return {
+    data,
+    isLoading,
+    error,
+  };
+}
+
 export function useSymptomsIcu(condition?: string) {
   const url = condition
     ? `/app/api/symptoms/icu?p_icu_code=${condition}`

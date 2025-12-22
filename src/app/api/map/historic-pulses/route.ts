@@ -3,17 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { parse } from "csv-parse";
 import { Readable } from "stream";
 
-const FLEET_TRIP_API_URL =
-  "https://iot.streamhub.cl/api/v1/avl/fleet/streaming/positions";
-
-// `/app/api/map/historic-pulses?assetId=${assetId}&p_from=${p_from}&p_to=${p_to}`
-
 import {
   AuthToken,
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { HistoricSignal } from "@/features/signal-history/types/historic-signal.type";
+
+const FLEET_TRIP_API_URL =
+  "https://iot.streamhub.cl/api/v1/avl/fleet/streaming/positions";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,

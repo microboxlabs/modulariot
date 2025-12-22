@@ -1,12 +1,11 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_overview_historic_timeline`;
-
 import {
   AuthToken,
   AuthTokenConfig,
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
+
+const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_overview_historic_timeline`;
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -28,15 +27,9 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const params = new URLSearchParams();
 
-  if (url.searchParams.get("asset_id")) {
-    params.set("p_asset_id", `${url.searchParams.get("asset_id") ?? ""}`);
-  }
-  if (url.searchParams.get("p_from")) {
-    params.set("p_start_date_historic", url.searchParams.get("p_from") ?? "");
-  }
-  if (url.searchParams.get("p_to")) {
-    params.set("p_end_date_historic", url.searchParams.get("p_to") ?? "");
-  }
+  set_param(url, params, "asset_id", "p_asset_id");
+  set_param(url, params, "p_from", "p_start_date_historic");
+  set_param(url, params, "p_to", "p_end_date_historic");
 
   try {
     const token = await authToken.getToken();
@@ -60,5 +53,16 @@ export async function GET(req: NextRequest) {
       { error: "Failed to fetch symptoms data", errorMessage: error },
       { status: 500 }
     );
+  }
+}
+
+function set_param(
+  url: URL,
+  params: URLSearchParams,
+  variable_name: string,
+  param_name: string
+) {
+  if (url.searchParams.get(variable_name)) {
+    params.set(param_name, url.searchParams.get(variable_name) ?? "");
   }
 }

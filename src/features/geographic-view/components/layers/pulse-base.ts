@@ -41,19 +41,35 @@ export interface PulseLayerProps {
 
 export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   protected getCommonLayerProps(zoomLevel: number) {
+    const transitions = {
+      getRadius: {
+        duration: 300,
+        easing: (t: number) => t * t * (3 - 2 * t),
+      },
+    };
+
     return {
       getRadius: 200000 / Math.pow(1.85, zoomLevel),
       getPosition: (d: any) => d.geometry.coordinates,
       parameters: { depthTest: false },
       pickable: true,
+      transitions,
     };
   }
 
   protected getBackgroundLayerProps(zoomLevel: number) {
+    const transitions = {
+      getRadius: {
+        duration: 300,
+        easing: (t: number) => t * t * (3 - 2 * t),
+      },
+    };
+
     return {
       getRadius: 280000 / Math.pow(1.85, zoomLevel),
       getPosition: (d: any) => d.geometry.coordinates,
       parameters: { depthTest: false },
+      transitions,
     };
   }
 

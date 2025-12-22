@@ -41,7 +41,7 @@ export function setParam(
 /**
  * Generic handler for StreamHub API endpoints
  */
-export async function createStreamHubApiHandler(
+export function createStreamHubApiHandler(
   apiEndpoint: string,
   paramMapping?: Array<{ source: string; target: string }>
 ) {

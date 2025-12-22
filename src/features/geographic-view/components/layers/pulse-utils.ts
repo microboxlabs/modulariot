@@ -93,10 +93,5 @@ export function isWithinDateRange(
   const startTime = new Date(displayRange.startDate);
   const endTime = new Date(displayRange.endDate);
 
-  // Handle timezone properly - normalize both timestamps to local timezone for comparison
-  const localSignalTimestamp = new Date(
-    signalTimestamp.getTime() + signalTimestamp.getTimezoneOffset() * 60000
-  );
-
-  return localSignalTimestamp >= startTime && localSignalTimestamp <= endTime;
+  return signalTimestamp >= startTime && signalTimestamp <= endTime;
 }

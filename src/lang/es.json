@@ -1687,7 +1687,10 @@
     "speed": "Velocidad",
     "location": "Ubicación",
     "distance_traveled": "Distancia Recorrida",
-    "download_csv": "Descargar CSV"
+    "download_csv": "Descargar CSV",
+    "no_trip": "Sin viaje",
+    "distance_between_signals": "Distancia entre señales (Km)",
+    "selected_signals": "Señales Seleccionadas"
   },
   "new_functionality": {
     "new": "NUEVO",

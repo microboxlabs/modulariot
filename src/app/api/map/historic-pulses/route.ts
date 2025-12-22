@@ -12,7 +12,7 @@ const FLEET_TRIP_API_URL =
 
 const authToken = getSharedAuthToken();
 
-// Function to format date to StreamHub API format: YYYY-MM-DDTHH:mm:ss -0000
+// Function to format date to StreamHub API format: YYYY-MM-DDTHH:mm:ss +/-HHMM
 function formatDateForStreamHub(dateString: string): string {
   // Handle different input formats
   let date: Date;
@@ -36,7 +36,14 @@ function formatDateForStreamHub(dateString: string): string {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const seconds = String(date.getSeconds()).padStart(2, "0");
 
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds} -0000`;
+  // Get timezone offset in minutes and format as +/-HHMM
+  const timezoneOffset = date.getTimezoneOffset();
+  const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+  const offsetMinutes = Math.abs(timezoneOffset) % 60;
+  const offsetSign = timezoneOffset <= 0 ? "+" : "-";
+  const timezoneString = `${offsetSign}${String(offsetHours).padStart(2, "0")}${String(offsetMinutes).padStart(2, "0")}`;
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds} ${timezoneString}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -91,9 +98,6 @@ async function streamPositions(
   const formattedEndDate = formatDateForStreamHub(p_to);
 
   try {
-    const startTime = Date.now();
-    console.log(`🚀 Starting fetch at: ${new Date(startTime).toISOString()}`);
-
     const response = await fetch(
       `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}`,
       {
@@ -103,40 +107,9 @@ async function streamPositions(
       }
     );
 
-    const fetchTime = Date.now() - startTime;
-    console.log(`⏱️  Fetch completed in: ${fetchTime}ms`);
-
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-
-    // Log headers to check if streaming is supported
-    console.log("=== RESPONSE HEADERS ===");
-    response.headers.forEach((value, key) => {
-      console.log(`${key}: ${value}`);
-    });
-
-    // Check specific streaming indicators
-    const transferEncoding = response.headers.get("transfer-encoding");
-    const contentLength = response.headers.get("content-length");
-
-    console.log(`Transfer-Encoding: ${transferEncoding}`);
-    console.log(`Content-Length: ${contentLength}`);
-
-    if (transferEncoding === "chunked") {
-      console.log("✅ API supports chunked transfer encoding - TRUE STREAMING");
-    } else if (!contentLength) {
-      console.log("⚠️  No content-length - might be streaming");
-    } else {
-      console.log(
-        "❌ Fixed content-length - NOT streaming, all data sent at once"
-      );
-    }
-
-    // Read the entire response as text first, then create a readable stream
-    console.log(
-      "🔄 Processing response as TRUE STREAM (not waiting for full download)"
-    );
 
     if (!response.body) {
       throw new Error("No response body available");
@@ -173,18 +146,9 @@ async function streamPositions(
     });
 
     let recordCount = 0;
-    const streamStartTime = Date.now();
 
     for await (const record of nodeStream.pipe(parser)) {
       recordCount++;
-      const processingTime = Date.now() - streamStartTime;
-
-      // Log every 100 records to see streaming in action
-      if (recordCount % 100 === 0) {
-        console.log(
-          `📊 Processed ${recordCount} records in ${processingTime}ms`
-        );
-      }
 
       const [longitude, latitude] = parseWKBPoint(
         (record as HistoricSignal).location
@@ -200,10 +164,6 @@ async function streamPositions(
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
 
-    const totalStreamTime = Date.now() - streamStartTime;
-    console.log(
-      `🏁 Stream completed: ${recordCount} total records in ${totalStreamTime}ms`
-    );
     await writer.close();
   } catch (error) {
     // Send error event

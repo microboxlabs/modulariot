@@ -3,22 +3,10 @@ import CustomTable from "../common/components/custom-table/custom-table";
 import { Button } from "flowbite-react";
 import { HistoricSignal } from "./types/historic-signal.type";
 import { useEffect, useState, useCallback, memo } from "react";
-import { convertJSONToCSV } from "./utils/json-to-csv";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
-
-export type HistoricSignalCsv = {
-  assetid: string;
-  heading: number;
-  location: string;
-  speed: number;
-  timestamp: string;
-  tripid: string;
-  distance: number;
-  has_symptoms: boolean;
-  latitude: number;
-  longitude: number;
-};
+import FormattedDate from "../common/components/formatted-date";
+import { handleDownloadCsv } from "./utils/download-csv";
 
 const SummaryTooltip = memo(function SummaryTooltip({
   data,
@@ -34,7 +22,9 @@ const SummaryTooltip = memo(function SummaryTooltip({
 }) {
   const [loadingTable, setLoadingTable] = useState<boolean>(true);
   const [selectedData, setSelectedData] = useState<HistoricSignal[]>([]);
-  const [tableData, setTableData] = useState<string[][]>([]);
+  const [tableData, setTableData] = useState<(string | React.ReactElement)[][]>(
+    []
+  );
   const [distance, setDistance] = useState<number>(0);
 
   // Process filtered data and distance calculation in useEffect
@@ -65,85 +55,55 @@ const SummaryTooltip = memo(function SummaryTooltip({
     setDistance(totalDistance);
   }, [data, dateRangeDisplayed]);
 
-  // Non-blocking table data processing
-  const processTableData = useCallback(async (data: HistoricSignal[]) => {
-    setLoadingTable(true);
-
-    // Process data in chunks to avoid blocking the UI
-    const chunkSize = 100;
-    const chunks = [];
-    for (let i = 0; i < data.length; i += chunkSize) {
-      chunks.push(data.slice(i, i + chunkSize));
-    }
-
-    const table_elements: string[][] = [];
-
-    for (const chunk of chunks) {
-      // Process each chunk asynchronously
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          const chunkElements = chunk.map((element: HistoricSignal) => {
-            // Format timestamp to DD/MM/YYYY HH:MM and handle timezone
-            const date = new Date(element.timestamp);
-            const adjustedDate = new Date(
-              date.getTime() + date.getTimezoneOffset() * 60000
-            );
-            const formattedTimestamp =
-              adjustedDate.toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              }) +
-              " " +
-              adjustedDate.toLocaleTimeString("es-ES", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              });
-
-            return [
-              String(element.assetid || ""),
-              String(element.tripid || "N/A"),
-              formattedTimestamp,
-              String(element.speed || 0),
-              `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
-            ];
-          });
-
-          table_elements.push(...chunkElements);
-          resolve(void 0);
-        }, 0); // setTimeout with 0ms allows the browser to process other tasks
-      });
-    }
-
-    setTableData(table_elements);
-    setLoadingTable(false);
-  }, []);
-
   useEffect(() => {
-    processTableData(selectedData);
-  }, [selectedData, processTableData]);
+    let cancelled = false;
 
-  function handleDownload() {
-    const csvData = convertJSONToCSV(
-      selectedData,
-      ["assetid", "tripid", "timestamp", "speed", "location"],
-      [
-        tr("signal_historic.assetid", dict),
-        tr("signal_historic.tripid", dict),
-        tr("signal_historic.timestamp", dict),
-        tr("signal_historic.speed", dict),
-        tr("signal_historic.location", dict),
-      ]
-    );
-    const blob = new Blob([csvData], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Historico de viajes ${data[0].assetid} ${dateRangeDisplayed.startDate} - ${dateRangeDisplayed.endDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+    const processTableData = async () => {
+      setLoadingTable(true);
+
+      const chunkSize = 100;
+      const table_elements: (string | React.ReactElement)[][] = [];
+
+      for (let i = 0; i < selectedData.length; i += chunkSize) {
+        if (cancelled) return; // Exit if this effect was cleaned up
+
+        const chunk = selectedData.slice(i, i + chunkSize);
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        if (cancelled) return;
+
+        const chunkElements = chunk.map((element: HistoricSignal) => {
+          const date = new Date(element.timestamp);
+          return [
+            String(element.assetid || ""),
+            String(
+              element.tripid !== "null"
+                ? element.tripid
+                : tr("signal_historic.no_trip", dict)
+            ),
+            <FormattedDate key={element.timestamp} date={date} />,
+            String(element.speed || 0) + " Km/h",
+            String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
+            `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
+          ];
+        });
+
+        table_elements.push(...chunkElements);
+      }
+
+      if (!cancelled) {
+        setTableData(table_elements);
+        setLoadingTable(false);
+      }
+    };
+
+    processTableData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedData, dict]);
 
   return (
     <MapTooltip
@@ -158,6 +118,12 @@ const SummaryTooltip = memo(function SummaryTooltip({
       }}
     >
       <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 gap-2">
+        <p>
+          {tr("signal_historic.selected_signals", dict)}:{" "}
+          <span className="text-gray-700 font-semibold">
+            {tableData.length}
+          </span>
+        </p>
         <p>
           {tr("signal_historic.distance_traveled", dict)}:{" "}
           <span className="text-gray-700 font-semibold">
@@ -174,6 +140,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
                 tr("signal_historic.tripid", dict),
                 tr("signal_historic.timestamp", dict),
                 tr("signal_historic.speed", dict),
+                tr("signal_historic.distance_between_signals", dict),
                 tr("signal_historic.location", dict),
               ]}
               content={tableData}
@@ -181,7 +148,12 @@ const SummaryTooltip = memo(function SummaryTooltip({
             />
           )}
         </div>
-        <Button onClick={handleDownload} disabled={selectedData.length === 0}>
+        <Button
+          onClick={() =>
+            handleDownloadCsv(selectedData, dict, dateRangeDisplayed)
+          }
+          disabled={selectedData.length === 0}
+        >
           {tr("signal_historic.download_csv", dict)}
         </Button>
       </div>

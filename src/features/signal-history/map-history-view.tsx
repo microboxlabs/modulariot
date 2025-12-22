@@ -2,17 +2,15 @@ import TagManager from "../symptoms/components/tag-manager";
 import { FaTruck, FaRegClock } from "react-icons/fa";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { ChevronLeft } from "flowbite-react-icons/outline";
-import { useHistoricTimeline } from "../common/providers/client-api.provider";
 import SignalsHistory from "./main-content";
-import { error } from "console";
+import { I18nRecord } from "../i18n/i18n.service.types";
+import { tr } from "../i18n/tr.service";
 
 export default function MapHistoryView({
   dict,
-  messages,
   onBackClick,
 }: {
-  dict: any;
-  messages: any;
+  dict: I18nRecord;
   onBackClick?: () => void;
 }) {
   const urlParams = new URLSearchParams(window.location.search);
@@ -20,6 +18,7 @@ export default function MapHistoryView({
   const p_from = urlParams.get("start_date") || "";
   const p_to = urlParams.get("end_date") || "";
 
+  /*
   const {
     data: timelineData,
     error: timelineError,
@@ -29,8 +28,7 @@ export default function MapHistoryView({
     p_from,
     p_to,
   });
-
-  //console.log(timelineData);
+  */
 
   // from the path get the value of "license_plate", "start_date" and "end_date" to show as tags
   const tags = [
@@ -66,7 +64,7 @@ export default function MapHistoryView({
               className={`flex flex-row gap-2 text-lg font-bold tracking-tight whitespace-nowrap justify-center items-center ${"text-gray-900 dark:text-white"}`}
             >
               <FaRegClock className="h-5 w-5" />
-              Señales Historicas
+              {tr("signal_historic.historic_signals", dict)}
             </h1>
             <div className="flex align-middle mx-2 gap-1 w-full">
               <TagManager
@@ -77,7 +75,7 @@ export default function MapHistoryView({
           </div>
         </CustomCard>
       </div>
-      <SignalsHistory timelineData={timelineData?.data?.timeline} dict={dict} />
+      <SignalsHistory dict={dict} />
     </div>
   );
 }

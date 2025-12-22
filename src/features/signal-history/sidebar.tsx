@@ -240,7 +240,6 @@ function TripSelector({
               title={`Trip ID: ${trip.trip_id}`}
               className="flex flex-col items-center justify-center rounded-lg pt-1 px-1 pb-1 bg-transparent  border border-gray-200 dark:border-gray-700 hover:border-gray-700 dark:hover:border-gray-200 transition-colors duration-200 cursor-pointer"
               onMouseEnter={() => {
-                console.log(trip);
                 setHoveredRoute((trip.trip_id ?? "-").toString());
               }}
               onClick={() => {

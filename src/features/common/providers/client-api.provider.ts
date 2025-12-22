@@ -267,16 +267,14 @@ export function useHistoricSignals({
   assetId,
   p_from,
   p_to,
-  enabled,
 }: {
   assetId: string;
   p_from: string;
   p_to: string;
-  enabled: boolean;
 }) {
   const { data, error, isLoading } = useSWR<SymptomTableResponse, FetcherError>(
     // Pass null to prevent the request from executing
-    enabled && assetId && p_from && p_to
+    assetId && p_from && p_to
       ? `/app/api/signals/historic-signals?asset_id=${assetId}&p_from=${p_from}&p_to=${p_to}`
       : null,
     fetcher

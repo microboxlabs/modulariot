@@ -6,14 +6,11 @@ import DateRangePicker from "@/features/common/components/date-picker/date-range
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MapHistoryView from "./map-history-view";
+import { I18nRecord } from "../i18n/i18n.service.types";
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { tr } from "../i18n/tr.service";
 
-export default function SignalHistoryForm({
-  dict,
-  messages,
-}: {
-  dict: any;
-  messages: any;
-}) {
+export default function SignalHistoryForm({ dict }: { dict: I18nRecord }) {
   const searchParams = useSearchParams();
 
   // Check if all required parameters exist to determine initial state
@@ -46,7 +43,7 @@ export default function SignalHistoryForm({
 
   const pageStates = [
     LicensePlateInput({
-      messages,
+      dict,
       searchParams,
       router,
       next: () => {
@@ -54,7 +51,7 @@ export default function SignalHistoryForm({
       },
     }),
     DateRangeInput({
-      messages,
+      dict,
       searchParams,
       router,
       dateRange,
@@ -64,7 +61,6 @@ export default function SignalHistoryForm({
     }),
     <MapHistoryView
       dict={dict}
-      messages={messages}
       onBackClick={() => {
         // Force rerender by updating state
         setState(1); // Go back to date selection
@@ -76,14 +72,14 @@ export default function SignalHistoryForm({
 }
 
 function LicensePlateInput({
-  messages,
+  dict,
   searchParams,
   router,
   next,
 }: {
-  messages: any;
+  dict: I18nRecord;
   searchParams: URLSearchParams;
-  router: any;
+  router: AppRouterInstance;
   next: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +90,7 @@ function LicensePlateInput({
 
     // Validate license plate is not empty
     if (!licensePlate) {
-      setError("La patente es requerida");
+      setError(tr("signal_historic.license_plate_required", dict));
       return;
     }
 
@@ -112,10 +108,10 @@ function LicensePlateInput({
   return (
     <div className="w-fit h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
       <h1 className="text-gray-700 dark:text-gray-200 font-bold text-2xl md:text-4xl text-center">
-        Historial de señales
+        {tr("signal_historic.signals_historic", dict)}
       </h1>
       <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
-        Ingresa una patente
+        {tr("signal_historic.enter_license_plate", dict)}
       </h1>
       <div className="w-full max-w-96 h-fit flex flex-col gap-2">
         <div className="w-full h-fit flex flex-col gap-1">
@@ -123,7 +119,7 @@ function LicensePlateInput({
             ref={inputRef}
             className="w-full"
             id="search"
-            placeholder={messages.search}
+            placeholder={tr("signal_historic.search", dict)}
             defaultValue={searchParams.get("license_plate") || ""}
             autoComplete="off"
             onChange={() => setError("")} // Clear error on input change
@@ -133,7 +129,7 @@ function LicensePlateInput({
           )}
         </div>
         <Button type="submit" className="w-full" onClick={handleNext}>
-          Siguiente
+          {tr("signal_historic.next", dict)}
         </Button>
       </div>
     </div>
@@ -141,7 +137,7 @@ function LicensePlateInput({
 }
 
 function DateRangeInput({
-  messages,
+  dict,
   searchParams,
   router,
   dateRange,
@@ -149,9 +145,9 @@ function DateRangeInput({
   next,
   back,
 }: {
-  messages: any;
+  dict: I18nRecord;
   searchParams: URLSearchParams;
-  router: any;
+  router: AppRouterInstance;
   dateRange: { startDate: string; endDate: string };
   setDateRange: (range: { startDate: string; endDate: string }) => void;
   next: () => void;
@@ -181,10 +177,10 @@ function DateRangeInput({
   return (
     <div className="w-fit h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
       <h1 className="text-gray-700 dark:text-gray-200 font-bold text-2xl md:text-4xl text-center">
-        Historial de señales
+        {tr("signal_historic.signals_historic", dict)}
       </h1>
       <h1 className="text-gray-600 dark:text-gray-400 font-light text-lg mb-4 text-center px-10 md:px-0">
-        Selecciona el rango de fechas
+        {tr("signal_historic.select_date_range", dict)}
       </h1>
       <div className="w-full max-w-96 h-fit flex flex-col gap-2">
         <div className="w-full h-fit flex flex-col gap-1">
@@ -192,10 +188,10 @@ function DateRangeInput({
         </div>
         <div className="flex flex-row gap-2">
           <Button className="w-full" color="alternative" onClick={back}>
-            Atrás
+            {tr("signal_historic.back", dict)}
           </Button>
           <Button className="w-full" onClick={handleSearch}>
-            Buscar
+            {tr("signal_historic.search", dict)}
           </Button>
         </div>
       </div>

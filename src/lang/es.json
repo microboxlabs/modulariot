@@ -1659,5 +1659,24 @@
     "search_for_your_load": "¿Dónde está mi carga?",
     "use_searchbar": "Usa la barra de búsqueda para encontrar el estado de tu carga",
     "wheres_my_load": "¿Dónde está mi carga?"
+  },
+  "signal_historic": {
+    "search": "Buscar",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "enter_license_plate": "Ingresa la Patente",
+    "license_plate_required": "La patente es requerida",
+    "signals_historic": "Señales Históricas",
+    "select_date_range": "Seleccionar Rango de Fechas",
+    "historic_signals": "Señales Históricas",
+    "duration": "Duración",
+    "selected_range": "Rango Seleccionado",
+    "asset_id": "ID del Activo",
+    "tripid": "ID del Viaje",
+    "timestamp": "Marca de Tiempo",
+    "speed": "Velocidad",
+    "location": "Ubicación",
+    "distance_traveled": "Distancia Recorrida",
+    "download_csv": "Descargar CSV"
   }
 }

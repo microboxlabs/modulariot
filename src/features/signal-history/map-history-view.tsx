@@ -47,7 +47,8 @@ export default function MapHistoryView({
       <div className={`relative flex flex-col gap-10 rounded-lg`}>
         <CustomCard className="flex flex-row p-0 overflow-hidden">
           <div className="flex flex-row items-center w-full">
-            <div
+            <a
+              href=""
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
               onClick={() => {
                 // Trigger rerender in parent and go back
@@ -58,7 +59,7 @@ export default function MapHistoryView({
               }}
             >
               <ChevronLeft className="w-7 h-7 p-0 dark:text-gray-400" />
-            </div>
+            </a>
             <div className="w-px h-full rounded-full bg-gray-100 dark:bg-gray-500 mr-4"></div>
             <h1
               className={`flex flex-row gap-2 text-lg font-bold tracking-tight whitespace-nowrap justify-center items-center ${"text-gray-900 dark:text-white"}`}

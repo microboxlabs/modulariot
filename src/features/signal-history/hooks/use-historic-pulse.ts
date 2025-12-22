@@ -40,17 +40,18 @@ export function useHistoricPulse(
       }
     };
 
-    eventSource.onerror = (_error) => {
+    const closeConnection = () => {
       setPositions([...positionBuffer.slice()]);
-      if (eventSource.readyState === 2) {
-        eventSource.close();
-        setIsLoading(false);
-      }
-      if (eventSource.readyState === 0) {
-        eventSource.close();
-        setIsLoading(false);
+      eventSource.close();
+      setIsLoading(false);
+    };
+
+    eventSource.onerror = (_error) => {
+      if (eventSource.readyState === 2 || eventSource.readyState === 0) {
+        closeConnection();
       }
     };
+
     // Cleanup function
     return () => {
       if (eventSourceRef.current) {

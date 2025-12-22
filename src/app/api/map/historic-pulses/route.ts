@@ -3,24 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { parse } from "csv-parse";
 import { Readable } from "stream";
 
-import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
+import { getSharedAuthToken } from "../../utils/streamhub-api-client";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { HistoricSignal } from "@/features/signal-history/types/historic-signal.type";
 
 const FLEET_TRIP_API_URL =
   "https://iot.streamhub.cl/api/v1/avl/fleet/streaming/positions";
 
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
+const authToken = getSharedAuthToken();
 
 // Function to format date to StreamHub API format: YYYY-MM-DDTHH:mm:ss -0000
 function formatDateForStreamHub(dateString: string): string {

@@ -2,8 +2,7 @@ import MapTooltip from "../geographic-view/components/map-tooltip";
 import CustomTable from "../common/components/custom-table/custom-table";
 import { Button } from "flowbite-react";
 import { HistoricSignal } from "./types/historic-signal.type";
-import { useEffect, useState, useMemo, useCallback, memo } from "react";
-import LoadableLabel from "../common/components/loadable-label/loadable-label";
+import { useEffect, useState, useCallback, memo } from "react";
 import { convertJSONToCSV } from "./utils/json-to-csv";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
@@ -47,9 +46,14 @@ const SummaryTooltip = memo(function SummaryTooltip({
     // Single pass: filter and calculate distance simultaneously
     let totalDistance = 0;
     const selected_data = data.filter((signal) => {
-      const signalTimestamp = new Date(signal.timestamp).getTime();
+      const signalTimestamp = new Date(signal.timestamp);
+      // Apply timezone adjustment to match the pulse-range layer behavior
+      const localSignalTimestamp = new Date(
+        signalTimestamp.getTime() + signalTimestamp.getTimezoneOffset() * 60000
+      );
       const isInRange =
-        signalTimestamp >= startTimestamp && signalTimestamp <= endTimestamp;
+        localSignalTimestamp.getTime() >= startTimestamp &&
+        localSignalTimestamp.getTime() <= endTimestamp;
 
       // If signal is in range, add to distance calculation (convert meters to kilometers)
       if (isInRange && signal.distance > 0) {
@@ -123,13 +127,17 @@ const SummaryTooltip = memo(function SummaryTooltip({
   }, [selectedData, processTableData]);
 
   function handleDownload() {
-    const csvData = convertJSONToCSV(selectedData, [
-      tr("signal_historic.assetid", dict),
-      tr("signal_historic.tripid", dict),
-      tr("signal_historic.timestamp", dict),
-      tr("signal_historic.speed", dict),
-      tr("signal_historic.location", dict),
-    ]);
+    const csvData = convertJSONToCSV(
+      selectedData,
+      ["assetid", "tripid", "timestamp", "speed", "location"],
+      [
+        tr("signal_historic.assetid", dict),
+        tr("signal_historic.tripid", dict),
+        tr("signal_historic.timestamp", dict),
+        tr("signal_historic.speed", dict),
+        tr("signal_historic.location", dict),
+      ]
+    );
     const blob = new Blob([csvData], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

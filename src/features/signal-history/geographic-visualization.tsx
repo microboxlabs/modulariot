@@ -7,6 +7,9 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import ToolBar from "../geographic-view/components/tool-bar/tool-bar";
 import TimeRangeSelector from "../geographic-view/components/tool-bar/time-range-selector";
 import SummaryTooltip from "./summary-tooltip";
+import { Button } from "flowbite-react";
+import { tr } from "../i18n/tr.service";
+import { convertJSONToCSV } from "./utils/json-to-csv";
 
 export default function GeographicVisualization({
   data,
@@ -271,13 +274,55 @@ export default function GeographicVisualization({
     ]
   );
 
+  function handleDownload() {
+    // Filter data to only include elements within the displayed date range
+    const startTimestamp = new Date(dateRangeDisplayed.startDate).getTime();
+    const endTimestamp = new Date(dateRangeDisplayed.endDate).getTime();
+
+    const filteredData = (data ?? []).filter((signal) => {
+      const signalTimestamp = new Date(signal.timestamp).getTime();
+      return (
+        signalTimestamp >= startTimestamp && signalTimestamp <= endTimestamp
+      );
+    });
+
+    console.log(filteredData);
+
+    const csvData = convertJSONToCSV(
+      filteredData,
+      ["assetid", "tripid", "timestamp", "speed", "location"],
+      [
+        tr("signal_historic.assetid", dict),
+        tr("signal_historic.tripid", dict),
+        tr("signal_historic.timestamp", dict),
+        tr("signal_historic.speed", dict),
+        tr("signal_historic.location", dict),
+      ]
+    );
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Historico de viajes ${data && data.length > 0 ? data[0].assetid : ""} ${dateRangeDisplayed.startDate} - ${dateRangeDisplayed.endDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="w-full h-full overflow-hidden relative">
-      <SummaryTooltip
-        dict={dict}
-        data={data as HistoricSignal[]}
-        dateRangeDisplayed={dateRangeDisplayed}
-      />
+      <div className="absolute top-4 left-4 right-4 z-20 block sm:hidden">
+        <Button className="w-full" onClick={handleDownload}>
+          {tr("signal_historic.download_csv", dict)}
+        </Button>
+      </div>
+      <div className="hidden sm:block">
+        <SummaryTooltip
+          dict={dict}
+          data={data as HistoricSignal[]}
+          dateRangeDisplayed={dateRangeDisplayed}
+        />
+      </div>
+
       <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
         {memoizedToolBar}
       </div>

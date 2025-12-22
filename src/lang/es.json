@@ -1681,14 +1681,14 @@
     "historic_signals": "Señales Históricas",
     "duration": "Duración",
     "selected_range": "Rango Seleccionado",
-    "asset_id": "ID del Activo",
+    "assetid": "ID del Activo",
     "tripid": "ID del Viaje",
     "timestamp": "Marca de Tiempo",
     "speed": "Velocidad",
     "location": "Ubicación",
     "distance_traveled": "Distancia Recorrida",
     "download_csv": "Descargar CSV"
-  }
+  },
   "new_functionality": {
     "new": "NUEVO",
     "title": "Prueba el nuevo filtro por condiciones.",

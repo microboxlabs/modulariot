@@ -48,9 +48,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
     const selected_data = data.filter((signal) => {
       const signalTimestamp = new Date(signal.timestamp);
       // Apply timezone adjustment to match the pulse-range layer behavior
-      const localSignalTimestamp = new Date(
-        signalTimestamp.getTime() + signalTimestamp.getTimezoneOffset() * 60000
-      );
+      const localSignalTimestamp = new Date(signalTimestamp.getTime());
       const isInRange =
         localSignalTimestamp.getTime() >= startTimestamp &&
         localSignalTimestamp.getTime() <= endTimestamp;
@@ -104,10 +102,10 @@ const SummaryTooltip = memo(function SummaryTooltip({
               });
 
             return [
-              String(element.assetid),
-              String(element.tripid),
+              String(element.assetid || ""),
+              String(element.tripid || "N/A"),
               formattedTimestamp,
-              String(element.speed),
+              String(element.speed || 0),
               `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
             ];
           });

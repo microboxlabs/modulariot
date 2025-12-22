@@ -102,7 +102,11 @@ export default function GeographicVisualization({
       const tripGroups = new Map<string, HistoricSignal[]>();
 
       signalsData.forEach((signal: HistoricSignal) => {
-        if (signal.tripid != null) {
+        if (
+          signal.tripid != null &&
+          signal.tripid !== "" &&
+          signal.tripid !== "null"
+        ) {
           const tripId = signal.tripid.toString();
           if (!tripGroups.has(tripId)) {
             tripGroups.set(tripId, []);
@@ -113,6 +117,8 @@ export default function GeographicVisualization({
 
       // For each trip group, get first and last timestamp
       tripGroups.forEach((signals, tripId) => {
+        console.log(signals);
+
         if (signals.length > 0) {
           // Sort signals by timestamp to ensure correct order
           signals.sort(

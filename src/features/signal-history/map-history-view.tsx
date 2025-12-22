@@ -47,8 +47,9 @@ export default function MapHistoryView({
       <div className={`relative flex flex-col gap-10 rounded-lg`}>
         <CustomCard className="flex flex-row p-0 overflow-hidden">
           <div className="flex flex-row items-center w-full">
-            <a
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
+            <button
+              type="button"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               onClick={() => {
                 // Trigger rerender in parent and go back
                 if (onBackClick) {
@@ -56,9 +57,10 @@ export default function MapHistoryView({
                 }
                 window.history.back();
               }}
+              aria-label="Go back"
             >
               <ChevronLeft className="w-7 h-7 p-0 dark:text-gray-400" />
-            </a>
+            </button>
             <div className="w-px h-full rounded-full bg-gray-100 dark:bg-gray-500 mr-4"></div>
             <h1
               className={`flex flex-row gap-2 text-lg font-bold tracking-tight whitespace-nowrap justify-center items-center ${"text-gray-900 dark:text-white"}`}

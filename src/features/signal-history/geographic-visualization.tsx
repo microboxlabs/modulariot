@@ -188,28 +188,25 @@ export default function GeographicVisualization({
   }, [data, isLoading]);
 
   useEffect(() => {
-    if (!renderizableData) {
-      setLayers([]);
-      return;
-    }
+    console.log(data?.length);
 
     const layers = isLoading
       ? []
       : [
           new PulsePinLayer({
-            data: renderizableData,
+            data: data,
             zoom: zoomValue,
             selectedPulse: [],
             displayRange: {
               startDate: new Date(dateRangeDisplayed.startDate),
               endDate: new Date(dateRangeDisplayed.endDate),
             },
-            pickable: true,
-            onClick: (d: any) => {
-              d.object.properties.icu_code = 1;
+            getPosition: (d: any) => {
+              return [d.longitude, d.latitude];
             },
+            pickable: true,
             updateTriggers: {
-              data: renderizableData,
+              data: data?.length, // This will trigger updates when data length changes
               zoom: zoomValue,
               displayRange: {
                 startDate: new Date(dateRangeDisplayed.startDate),
@@ -220,7 +217,7 @@ export default function GeographicVisualization({
         ];
 
     setLayers(layers);
-  }, [renderizableData, isLoading, displayPosition, dateRangeDisplayed]);
+  }, [data?.length, isLoading, displayPosition, dateRangeDisplayed, zoomValue]);
 
   // Separate effect to handle zoom changes without recreating layers
   useEffect(() => {

@@ -29,7 +29,7 @@ export function useHistoricPulse(
       try {
         const position = JSON.parse(event.data as string) as HistoricSignal;
         positionBuffer[size++] = position;
-
+        setPositions([...positionBuffer.slice(0, size)]);
         // Update positions immediately
         /* setTimeout(() => {
           setPositions([...positionBuffer.slice()]);

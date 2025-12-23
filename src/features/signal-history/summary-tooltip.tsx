@@ -76,16 +76,16 @@ const SummaryTooltip = memo(function SummaryTooltip({
         const chunkElements = chunk.map((element: HistoricSignal) => {
           const date = new Date(element.timestamp);
           return [
-            String(element.assetid || ""),
+            <FormattedDate key={element.timestamp} date={date} />,
             String(
               element.tripid !== "null"
                 ? element.tripid
                 : tr("signal_historic.no_trip", dict)
             ),
-            <FormattedDate key={element.timestamp} date={date} />,
             String(element.speed || 0) + " Km/h",
             String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
             `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
+            String(element.assetid || ""),
           ];
         });
 
@@ -136,12 +136,12 @@ const SummaryTooltip = memo(function SummaryTooltip({
           ) : (
             <CustomTable
               header={[
-                tr("signal_historic.assetid", dict),
-                tr("signal_historic.tripid", dict),
                 tr("signal_historic.timestamp", dict),
+                tr("signal_historic.tripid", dict),
                 tr("signal_historic.speed", dict),
                 tr("signal_historic.distance_between_signals", dict),
                 tr("signal_historic.location", dict),
+                tr("signal_historic.assetid", dict),
               ]}
               content={tableData}
               hoverable={true}

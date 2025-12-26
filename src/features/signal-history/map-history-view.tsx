@@ -16,27 +16,30 @@ export default function MapHistoryView({
   onBackClick?: () => void;
 }) {
   const searchParams = useSearchParams();
+  const assetId = searchParams.get("license_plate") || "";
+  const p_from = searchParams.get("start_date") || "";
+  const p_to = searchParams.get("end_date") || "";
 
   const tags = [
     {
       text: (
         <div className="flex flex-row justify-center items-center gap-1">
           <FaTruck className="inline mr-1" />
-          {searchParams.get("license_plate")}
+          {assetId}
         </div>
       ),
     },
     {
       text: (
         <div className="flex flex-row justify-center items-center gap-1">
-          <FormattedDate date={searchParams.get("start_date") || ""} />
+          <FormattedDate date={p_from} />
         </div>
       ),
     },
     {
       text: (
         <div className="flex flex-row justify-center items-center gap-1">
-          <FormattedDate date={searchParams.get("end_date") || ""} />
+          <FormattedDate date={p_to} />
         </div>
       ),
     },

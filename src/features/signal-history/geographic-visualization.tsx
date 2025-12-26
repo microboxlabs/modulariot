@@ -8,6 +8,7 @@ import ToolBar from "../geographic-view/components/tool-bar/tool-bar";
 import TimeRangeSelector from "../geographic-view/components/tool-bar/time-range-selector";
 import SummaryTooltip from "./summary-tooltip";
 import { Button } from "flowbite-react";
+import { useSearchParams } from "next/navigation";
 import { tr } from "../i18n/tr.service";
 import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
@@ -22,9 +23,9 @@ export default function GeographicVisualization({
   isLoading: boolean;
   dict: I18nRecord;
 }) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const p_from = urlParams.get("start_date") || "";
-  const p_to = urlParams.get("end_date") || "";
+  const searchParams = useSearchParams();
+  const p_from = searchParams.get("start_date") || "";
+  const p_to = searchParams.get("end_date") || "";
 
   const [zoomValue, setZoomValue] = useState<number>(10);
   const [renderizableData, setRenderizableData] = useState<any | null>(null);

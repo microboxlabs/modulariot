@@ -1,12 +1,13 @@
 import { I18nRecord } from "../i18n/i18n.service.types";
 import GeographicVisualization from "./geographic-visualization";
 import { useHistoricPulse } from "./hooks/use-historic-pulse";
+import { useSearchParams } from "next/navigation";
 
 export default function SignalsHistory({ dict }: { dict: I18nRecord }) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const assetId = urlParams.get("license_plate") || "";
-  const p_from = urlParams.get("start_date") || "";
-  const p_to = urlParams.get("end_date") || "";
+  const searchParams = useSearchParams();
+  const assetId = searchParams.get("license_plate") || "";
+  const p_from = searchParams.get("start_date") || "";
+  const p_to = searchParams.get("end_date") || "";
 
   const {
     positions,

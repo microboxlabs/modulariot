@@ -33,7 +33,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
   const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
-  const [totals, setTotals] = useState<{ [key: string]: number }>({});
+  const [totals, setTotals] = useState<{ [key: string]: number | string }>({});
 
   //const searchParams = useSearchParams();
   const {
@@ -122,9 +122,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     const historicInstancesTotal = Object.values(
       historicInstances?.totals ?? {}
     ).reduce((sum, count) => sum + count, 0);
+
     newTotals["finished"] = historicInstancesTotal;
-    newTotals["pending_tasks"] = totals["delivery"] + totals["shipping"];
+    newTotals["pending_tasks"] =
+      (totals["delivery"] as number) + (totals["shipping"] as number);
     newTotals["completed_tasks"] = historicInstancesTotal;
+    newTotals["signalHistory"] = "-";
     setTotals(newTotals);
   }, [mapCount, symptomsCount, historicInstances]);
 

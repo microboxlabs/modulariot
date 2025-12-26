@@ -76,16 +76,16 @@ const SummaryTooltip = memo(function SummaryTooltip({
         const chunkElements = chunk.map((element: HistoricSignal) => {
           const date = new Date(element.timestamp);
           return [
-            String(element.assetid || ""),
+            <FormattedDate key={element.timestamp} date={date} />,
             String(
               element.tripid !== "null"
                 ? element.tripid
                 : tr("signal_historic.no_trip", dict)
             ),
-            <FormattedDate key={element.timestamp} date={date} />,
             String(element.speed || 0) + " Km/h",
             String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
             `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
+            String(element.assetid || ""),
           ];
         });
 
@@ -116,17 +116,18 @@ const SummaryTooltip = memo(function SummaryTooltip({
       onExitAction={() => {
         // This should do something
       }}
+      canExit={false}
     >
-      <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 gap-2">
+      <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 dark:text-gray-300 gap-2">
         <p>
           {tr("signal_historic.selected_signals", dict)}:{" "}
-          <span className="text-gray-700 font-semibold">
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">
             {tableData.length}
           </span>
         </p>
         <p>
           {tr("signal_historic.distance_traveled", dict)}:{" "}
-          <span className="text-gray-700 font-semibold">
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">
             {distance.toFixed(1)}km
           </span>
         </p>
@@ -136,12 +137,12 @@ const SummaryTooltip = memo(function SummaryTooltip({
           ) : (
             <CustomTable
               header={[
-                tr("signal_historic.assetid", dict),
-                tr("signal_historic.tripid", dict),
                 tr("signal_historic.timestamp", dict),
+                tr("signal_historic.tripid", dict),
                 tr("signal_historic.speed", dict),
                 tr("signal_historic.distance_between_signals", dict),
                 tr("signal_historic.location", dict),
+                tr("signal_historic.assetid", dict),
               ]}
               content={tableData}
               hoverable={true}

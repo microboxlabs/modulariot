@@ -5,6 +5,8 @@ import { ChevronLeft } from "flowbite-react-icons/outline";
 import SignalsHistory from "./main-content";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
+import FormattedDate from "../common/components/formatted-date";
+import { useSearchParams } from "next/navigation";
 
 export default function MapHistoryView({
   dict,
@@ -13,12 +15,28 @@ export default function MapHistoryView({
   dict: I18nRecord;
   onBackClick?: () => void;
 }) {
+  const searchParams = useSearchParams();
+
   const tags = [
     {
       text: (
         <div className="flex flex-row justify-center items-center gap-1">
           <FaTruck className="inline mr-1" />
-          {new URLSearchParams(window.location.search).get("license_plate")}
+          {searchParams.get("license_plate")}
+        </div>
+      ),
+    },
+    {
+      text: (
+        <div className="flex flex-row justify-center items-center gap-1">
+          <FormattedDate date={searchParams.get("start_date") || ""} />
+        </div>
+      ),
+    },
+    {
+      text: (
+        <div className="flex flex-row justify-center items-center gap-1">
+          <FormattedDate date={searchParams.get("end_date") || ""} />
         </div>
       ),
     },

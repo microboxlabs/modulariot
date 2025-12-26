@@ -7,6 +7,7 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { useSearchParams } from "next/navigation";
+import moment from "moment";
 
 export default function MapHistoryView({
   dict,
@@ -17,8 +18,16 @@ export default function MapHistoryView({
 }) {
   const searchParams = useSearchParams();
   const assetId = searchParams.get("license_plate") || "";
-  const p_from = searchParams.get("start_date") || "";
-  const p_to = searchParams.get("end_date") || "";
+  const startDate = searchParams.get("start_date") || "";
+  const endDate = searchParams.get("end_date") || "";
+
+  // Format dates with time: start_date at 00:00, end_date at 23:59
+  const p_from = startDate
+    ? moment(startDate).startOf("day").format("YYYY-MM-DD HH:mm")
+    : "";
+  const p_to = endDate
+    ? moment(endDate).endOf("day").format("YYYY-MM-DD HH:mm")
+    : "";
 
   const tags = [
     {
@@ -54,7 +63,6 @@ export default function MapHistoryView({
               type="button"
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               onClick={() => {
-                // Trigger rerender in parent and go back
                 if (onBackClick) {
                   onBackClick();
                 }
@@ -80,6 +88,7 @@ export default function MapHistoryView({
           </div>
         </CustomCard>
       </div>
+      {/* Pass the formatted dates to SignalsHistory */}
       <SignalsHistory dict={dict} />
     </div>
   );

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { FiMoreVertical } from "react-icons/fi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useSearchParams } from "next/navigation";
 
 // Debounce hook
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -75,9 +76,9 @@ function TimeRangeSelector({
   timeMarks,
   movementTimes,
 }: TimeRangeSelectorProps) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const p_from = urlParams.get("start_date") || "";
-  const p_to = urlParams.get("end_date") || "";
+  const searchParams = useSearchParams();
+  const p_from = searchParams.get("start_date") || "";
+  const p_to = searchParams.get("end_date") || "";
 
   // Immediate state for smooth UI
   const [startPosition, setStartPosition] = useState(0);

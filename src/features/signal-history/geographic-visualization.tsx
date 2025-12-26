@@ -11,6 +11,7 @@ import { Button } from "flowbite-react";
 import { tr } from "../i18n/tr.service";
 import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
+import CustomCard from "../symptoms/components/card/custom-card";
 
 export default function GeographicVisualization({
   data,
@@ -188,59 +189,75 @@ export default function GeographicVisualization({
   }, [data, isLoading]);
 
   useEffect(() => {
-    if (!renderizableData) {
-      setLayers([]);
-      return;
-    }
-
-    const layers = isLoading
-      ? []
-      : [
-          new PulsePinLayer({
-            data: renderizableData,
-            zoom: zoomValue,
-            selectedPulse: [],
-            displayRange: {
-              startDate: new Date(dateRangeDisplayed.startDate),
-              endDate: new Date(dateRangeDisplayed.endDate),
-            },
-            pickable: true,
-            onClick: (d: any) => {
-              d.object.properties.icu_code = 1;
-            },
-            updateTriggers: {
-              data: renderizableData,
-              zoom: zoomValue,
-              displayRange: {
-                startDate: new Date(dateRangeDisplayed.startDate),
-                endDate: new Date(dateRangeDisplayed.endDate),
-              },
-            },
-          }),
-        ];
+    const layers = [
+      new PulsePinLayer({
+        data: data, // Use the data as it is when we reach 200
+        zoom: zoomValue,
+        selectedPulse: [],
+        displayRange: {
+          startDate: new Date(dateRangeDisplayed.startDate),
+          endDate: new Date(dateRangeDisplayed.endDate),
+        },
+        getPosition: (d: any) => {
+          return [d.longitude, d.latitude];
+        },
+        pickable: true,
+        updateTriggers: {
+          zoom: zoomValue,
+          displayRange: {
+            startDate: new Date(dateRangeDisplayed.startDate),
+            endDate: new Date(dateRangeDisplayed.endDate),
+          },
+        },
+      }),
+    ];
 
     setLayers(layers);
-  }, [renderizableData, isLoading, displayPosition, dateRangeDisplayed]);
+  }, [data?.length, isLoading, displayPosition, dateRangeDisplayed, zoomValue]);
 
-  // Separate effect to handle zoom changes without recreating layers
   useEffect(() => {
-    if (layers.length > 0 && layers[0]) {
-      // Update zoom in existing layer without recreating the entire layer array
-      const updatedLayers = layers.map((layer) => {
-        if (layer instanceof PulsePinLayer) {
-          return layer.clone({
-            zoom: zoomValue,
-            updateTriggers: {
-              ...layer.props.updateTriggers,
-              zoom: zoomValue,
-            },
-          });
-        }
-        return layer;
-      });
-      setLayers(updatedLayers);
+    // Here each time data gets updated, we will get the 2 farthest coordinates, and generate a zoom in screen
+    // To have visualization between both of them
+    if (!data || data.length === 0 || !mapRef.current) return;
+
+    const coordinates = data.map((signal) => [
+      signal.longitude,
+      signal.latitude,
+    ]);
+
+    if (isLoading == false) {
+      if (coordinates.length === 1 && coordinates[0].length === 2) {
+        // If only one point, center on it with a reasonable zoom level
+        mapRef.current.flyTo({
+          center: [coordinates[0][0], coordinates[0][1]] as [number, number],
+          zoom: 15,
+          duration: 1000,
+        });
+      } else if (coordinates.length > 1) {
+        // Calculate bounding box
+        const lngs = coordinates.map((coord) => coord[0]);
+        const lats = coordinates.map((coord) => coord[1]);
+
+        const minLng = Math.min(...lngs);
+        const maxLng = Math.max(...lngs);
+        const minLat = Math.min(...lats);
+        const maxLat = Math.max(...lats);
+
+        // Fit map to bounds with padding
+        mapRef.current.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          {
+            padding: 50,
+            duration: 1000,
+            maxZoom: 18,
+          }
+        );
+      }
     }
-  }, [zoomValue]);
+  }, [data, isLoading]);
 
   const onTimelineChange = useCallback((range: any) => {
     setDateRangeDisplayed((prev) => {
@@ -273,15 +290,6 @@ export default function GeographicVisualization({
           setSelectedStyle: setMapStyle,
         }}
         allow_screenshot={false}
-        defaultOpenTimeline={true}
-        timelineComponent={
-          <TimeRangeSelector
-            onChange={onTimelineChange}
-            timeMarks={dateRanges}
-            movementTimes={movementTimes}
-            dict={dict}
-          />
-        }
       />
     ),
     [
@@ -310,38 +318,48 @@ export default function GeographicVisualization({
   }
 
   return (
-    <div className="w-full h-full overflow-hidden relative">
-      <div className="absolute top-4 left-4 right-4 z-20 block sm:hidden">
-        <Button className="w-full" onClick={handleDownload}>
-          {tr("signal_historic.download_csv", dict)}
-        </Button>
-      </div>
-      <div className="hidden sm:block">
-        <SummaryTooltip
-          dict={dict}
-          data={data as HistoricSignal[]}
-          dateRangeDisplayed={dateRangeDisplayed}
+    <div className="flex flex-col w-full h-full gap-2">
+      <div className="w-full h-full overflow-hidden relative">
+        <div className="absolute top-4 left-4 right-4 z-20 block sm:hidden">
+          <Button className="w-full" onClick={handleDownload}>
+            {tr("signal_historic.download_csv", dict)}
+          </Button>
+        </div>
+        <div className={data && data.length > 0 ? "hidden sm:block" : "hidden"}>
+          <SummaryTooltip
+            dict={dict}
+            data={data as HistoricSignal[]}
+            dateRangeDisplayed={dateRangeDisplayed}
+          />
+        </div>
+
+        <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
+          {memoizedToolBar}
+        </div>
+        <MapVisualization
+          mapStyle={
+            mapStyle as
+              | "satellite"
+              | "streets"
+              | "dark"
+              | "light"
+              | "outdoors"
+              | "hybrid"
+          }
+          layers={layers}
+          isLoading={isLoading}
+          mapRef={mapRef}
+          onZoomChange={handleZoomChange}
         />
       </div>
-
-      <div className="absolute bottom-0 left-0 w-full z-10 pointer-events-none">
-        {memoizedToolBar}
-      </div>
-      <MapVisualization
-        mapStyle={
-          mapStyle as
-            | "satellite"
-            | "streets"
-            | "dark"
-            | "light"
-            | "outdoors"
-            | "hybrid"
-        }
-        layers={layers}
-        isLoading={isLoading}
-        mapRef={mapRef}
-        onZoomChange={handleZoomChange}
-      />
+      <CustomCard className="p-4">
+        <TimeRangeSelector
+          onChange={onTimelineChange}
+          timeMarks={dateRanges}
+          movementTimes={movementTimes}
+          dict={dict}
+        />
+      </CustomCard>
     </div>
   );
 }

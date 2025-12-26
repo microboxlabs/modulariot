@@ -15,6 +15,9 @@ export function useHistoricPulse(
     const positionBuffer: HistoricSignal[] = [];
     let size = 0;
 
+    // Ensure loading is true when starting
+    setIsLoading(true);
+
     eventSourceRef.current = new EventSource(
       `/app/api/map/historic-pulses?assetId=${assetId}&p_from=${p_from}&p_to=${p_to}`
     );
@@ -29,7 +32,7 @@ export function useHistoricPulse(
       try {
         const position = JSON.parse(event.data as string) as HistoricSignal;
         positionBuffer[size++] = position;
-
+        setPositions([...positionBuffer.slice(0, size)]);
         // Update positions immediately
         /* setTimeout(() => {
           setPositions([...positionBuffer.slice()]);

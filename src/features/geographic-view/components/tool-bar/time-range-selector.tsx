@@ -526,10 +526,10 @@ function TimeRangeSelector({
     <div className="w-full h-full flex flex-col gap-2">
       <div className="w-full flex justify-center items-center text-sm font-light">
         <div className="text-center w-full md:w-fit">
-          <div className="text-xs font-medium text-blue-600">
+          <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
             {tr("signal_historic.duration", dict)}: {displayRange.duration}
           </div>
-          <div className="text-xs text-gray-600 mb-1">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
             {tr("signal_historic.selected_range", dict)}:{" "}
             {displayRange.startTime} - {displayRange.endTime}
           </div>
@@ -543,7 +543,7 @@ function TimeRangeSelector({
           {timeMarkers.map((marker, index) => (
             <div
               key={`time-${index}`}
-              className={`absolute text-xs transform -translate-x-1/2 whitespace-nowrap text-gray-500 font-medium`}
+              className={`absolute text-xs transform -translate-x-1/2 whitespace-nowrap text-gray-500 dark:text-gray-400 font-medium`}
               style={{
                 left: `${marker.position}%`,
                 top: marker.isMajor ? "0px" : "8px",

@@ -25,14 +25,14 @@ export function handleDownloadCsv(
 
   const csvData = convertJSONToCSV(
     fixed_data,
-    ["assetid", "tripid", "timestamp", "speed", "distance", "location"],
+    ["timestamp", "tripid", "speed", "distance", "location", "assetid"],
     [
-      tr("signal_historic.assetid", dict),
-      tr("signal_historic.tripid", dict),
       tr("signal_historic.timestamp", dict),
+      tr("signal_historic.tripid", dict),
       tr("signal_historic.speed", dict),
       tr("signal_historic.distance_between_signals", dict),
       tr("signal_historic.location", dict),
+      tr("signal_historic.assetid", dict),
     ]
   );
   const blob = new Blob([csvData], { type: "text/csv" });

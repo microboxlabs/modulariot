@@ -20,10 +20,20 @@ export default function DateRangePicker({
   label = "",
   onDateChange,
   className,
+  minDate,
+  maxDate,
+  maxRangeDays,
+  defaultStartDate,
+  defaultEndDate,
 }: {
   label?: string;
   onDateChange?: (startDate: string, endDate: string) => void;
   className?: string;
+  minDate?: moment.Moment;
+  maxDate?: moment.Moment;
+  maxRangeDays?: number;
+  defaultStartDate?: moment.Moment;
+  defaultEndDate?: moment.Moment;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -32,8 +42,17 @@ export default function DateRangePicker({
       $(inputRef.current).daterangepicker(
         {
           timePicker: false,
-          startDate: moment(),
-          endDate: moment().add(1, "days"),
+          startDate: (defaultStartDate || moment().subtract(3, "days")).startOf(
+            "day"
+          ),
+          endDate: (defaultEndDate || moment()).endOf("day"),
+          minDate: minDate || moment().subtract(1, "year"),
+          maxDate: maxDate || moment(),
+          ...(maxRangeDays && {
+            dateLimit: {
+              days: maxRangeDays,
+            },
+          }),
           locale: {
             format: "YYYY-MM-DD HH:mm",
           },
@@ -42,8 +61,12 @@ export default function DateRangePicker({
         },
         function (start, end) {
           // Callback on date range selection
-          const startFormatted = start.format("YYYY-MM-DD HH:mm");
-          const endFormatted = end.format("YYYY-MM-DD HH:mm");
+          // Set start date to 00:00 and end date to 23:59
+          const startWithTime = start.startOf("day");
+          const endWithTime = end.endOf("day");
+
+          const startFormatted = startWithTime.format("YYYY-MM-DD HH:mm");
+          const endFormatted = endWithTime.format("YYYY-MM-DD HH:mm");
 
           if (onDateChange) {
             onDateChange(startFormatted, endFormatted);

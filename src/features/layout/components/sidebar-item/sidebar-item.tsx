@@ -75,7 +75,11 @@ export default function SidebarItem({
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              label={`${getTotalCountBagaes(totals[item.label])}`}
+              label={
+                totals[item.label] == undefined
+                  ? undefined
+                  : `${getTotalCountBagaes(totals[item.label])}`
+              }
               labelColor={
                 getTotalCountBagaes(totals[item.label]) <= 0
                   ? "success"

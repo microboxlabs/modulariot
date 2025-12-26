@@ -104,7 +104,9 @@ export const pages: SidebarItem[] = [
       {
         href: "/signal-history",
         label: "signalHistory",
-        totals: {},
+        totals: {
+          totals: 10,
+        },
         requiredGroups: [],
         blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
       },

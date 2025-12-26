@@ -80,7 +80,6 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
               totals: { [label]: total.total },
             });
           }
-          totals[label] = total.total;
           setTotals({ ...totals });
         });
       });

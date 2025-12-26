@@ -155,8 +155,14 @@ function DateRangeInput({
   back: () => void;
 }) {
   const handleDateChange = (startDate: string, endDate: string) => {
-    setDateRange({ startDate, endDate });
-    // Don't update URL here - only update local state
+    // Format dates to YYYY-MM-DD format
+    const formattedStartDate = moment(startDate).format("YYYY-MM-DD");
+    const formattedEndDate = moment(endDate).format("YYYY-MM-DD");
+
+    setDateRange({
+      startDate: formattedStartDate,
+      endDate: formattedEndDate,
+    });
   };
 
   const handleSearch = () => {
@@ -191,7 +197,7 @@ function DateRangeInput({
             minDate={moment().subtract(1, "year")}
             maxDate={moment()}
             maxRangeDays={2}
-            defaultStartDate={moment().subtract(2, "days")}
+            defaultStartDate={moment().subtract(3, "days")}
             defaultEndDate={moment()}
           />
         </div>

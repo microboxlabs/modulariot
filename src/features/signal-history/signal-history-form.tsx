@@ -3,6 +3,7 @@
 import { Button, TextInput } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
+import moment from "moment";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MapHistoryView from "./map-history-view";
@@ -184,7 +185,15 @@ function DateRangeInput({
       </h1>
       <div className="w-full max-w-96 h-fit flex flex-col gap-2">
         <div className="w-full h-fit flex flex-col gap-1">
-          <DateRangePicker onDateChange={handleDateChange} className="w-full" />
+          <DateRangePicker
+            onDateChange={handleDateChange}
+            className="w-full"
+            minDate={moment().subtract(1, "year")}
+            maxDate={moment()}
+            maxRangeDays={2}
+            defaultStartDate={moment().subtract(2, "days")}
+            defaultEndDate={moment()}
+          />
         </div>
         <div className="flex flex-row gap-2">
           <Button className="w-full" color="alternative" onClick={back}>

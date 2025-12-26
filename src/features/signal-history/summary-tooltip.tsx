@@ -116,17 +116,18 @@ const SummaryTooltip = memo(function SummaryTooltip({
       onExitAction={() => {
         // This should do something
       }}
+      canExit={false}
     >
-      <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 gap-2">
+      <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 dark:text-gray-300 gap-2">
         <p>
           {tr("signal_historic.selected_signals", dict)}:{" "}
-          <span className="text-gray-700 font-semibold">
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">
             {tableData.length}
           </span>
         </p>
         <p>
           {tr("signal_historic.distance_traveled", dict)}:{" "}
-          <span className="text-gray-700 font-semibold">
+          <span className="text-gray-700 dark:text-gray-300 font-semibold">
             {distance.toFixed(1)}km
           </span>
         </p>

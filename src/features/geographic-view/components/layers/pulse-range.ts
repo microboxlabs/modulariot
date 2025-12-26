@@ -36,8 +36,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;
 
-    console.log("data: ", this.props.data);
-
     // Check if data exists and is an array (raw HistoricSignal[])
     if (!this.props.data || !Array.isArray(this.props.data)) {
       return [];

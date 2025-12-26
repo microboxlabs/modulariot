@@ -45,7 +45,7 @@ type ToolBarProps = {
   allow_screenshot?: boolean;
   dictionary: I18nRecord;
   defaultOpenTimeline?: boolean;
-  timelineComponent: React.ReactNode;
+  timelineComponent?: React.ReactNode;
 };
 
 export default function ToolBar({
@@ -111,21 +111,23 @@ export default function ToolBar({
             setSelectedStyle={setSelectedStyle}
           />
         </div>
-        <div
-          className={twMerge(
-            "absolute bottom-0 left-0 right-0",
-            "p-4",
-            "rounded-lg shadow-lg pointer-events-auto",
-            "flex flex-col items-center",
-            "transition-all duration-300",
-            selectedTool === "timeline"
-              ? "animate-fade-in-fast"
-              : "animate-fade-out-fast hidden",
-            style_bg
-          )}
-        >
-          {timelineComponent}
-        </div>
+        {timelineComponent && (
+          <div
+            className={twMerge(
+              "absolute bottom-0 left-0 right-0",
+              "p-4",
+              "rounded-lg shadow-lg pointer-events-auto",
+              "flex flex-col items-center",
+              "transition-all duration-300",
+              selectedTool === "timeline"
+                ? "animate-fade-in-fast"
+                : "animate-fade-out-fast hidden",
+              style_bg
+            )}
+          >
+            {timelineComponent}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-row items-center gap-2">
@@ -156,21 +158,23 @@ export default function ToolBar({
                   <FaMap size={20} />
                 </div>
               </Tooltip>
-              <Tooltip
-                content={tr("symptoms.timeline", dictionary)}
-                style={style_theme}
-              >
-                <div
-                  className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                  onClick={() =>
-                    setSelectedTool(
-                      selectedTool === "timeline" ? null : "timeline"
-                    )
-                  }
+              {timelineComponent && (
+                <Tooltip
+                  content={tr("symptoms.timeline", dictionary)}
+                  style={style_theme}
                 >
-                  <MdOutlineTimeline size={20} />
-                </div>
-              </Tooltip>
+                  <div
+                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                    onClick={() =>
+                      setSelectedTool(
+                        selectedTool === "timeline" ? null : "timeline"
+                      )
+                    }
+                  >
+                    <MdOutlineTimeline size={20} />
+                  </div>
+                </Tooltip>
+              )}
             </div>
           )}
           {/* Map toggles */}

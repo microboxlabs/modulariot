@@ -9,8 +9,6 @@ export default function SignalsHistory({ dict }: { dict: I18nRecord }) {
   const p_from = searchParams.get("start_date") || "";
   const p_to = searchParams.get("end_date") || "";
 
-  console.log(p_from, p_to);
-
   const {
     positions,
     error: pulseError,

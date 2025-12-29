@@ -207,7 +207,7 @@ export default function TaskConfirmModal({
           </div>
         </ModalHeader>
         <ModalBody>
-          <div className="flex flex-col">
+          <div className="flex flex-col my-4">
             {selectConfig && (
               <>
                 <Label className="mt-4">
@@ -255,11 +255,11 @@ export default function TaskConfirmModal({
               </div>
             )}
 
-            <div className="flex items-center justify-center mt-4">
-              {!commentsFieldEnabled && !taskFormConfig?.customFormConfig && (
+            {!commentsFieldEnabled && !taskFormConfig?.customFormConfig && (
+              <div className="flex items-center justify-center mt-4">
                 <KanbanMove />
-              )}
-            </div>
+              </div>
+            )}
             {commentsFieldEnabled && (
               <div className="flex-1 flex flex-col gap-y-2">
                 <Label htmlFor="comments">{tr("modal.reason", dict)}:</Label>
@@ -274,9 +274,11 @@ export default function TaskConfirmModal({
               </div>
             )}
           </div>
-          <div className="mt-4 px-6 space-y-2">
-            {error && <ErrorAlert error={error} />}
-          </div>
+          {error && (
+            <div className="mt-4 mb-4 space-y-2">
+              <ErrorAlert error={error} />
+            </div>
+          )}
         </ModalBody>
         <ModalFooter className="border-none">
           <Button

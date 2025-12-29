@@ -1,4 +1,4 @@
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import Geographic from "@/features/shipping/components/geographic";
 import HistoricLoads from "@/features/shipping/components/historic-loads";
@@ -27,7 +27,7 @@ export default function Bento({
   lang: string;
   task: TaskResponse;
   userGroups: string[];
-  dict: I18nRecord;
+  dict: I18nDictionary;
   msg: I18nRecord;
   active?: boolean;
   enableActions?: boolean;
@@ -56,8 +56,6 @@ export default function Bento({
             <TripInformation
               task={task}
               msg={dict}
-              /* lang={lang}
-              userGroups={userGroups} */
             />
           </div>
 

@@ -11,6 +11,7 @@ import Image from "next/image";
 import ErrorImage from "@assets/icons/totem/alert-hexagon.svg";
 import { Congratulation, GotoBox } from "./tests";
 import { FormattedDate } from "@/features/common/components/formatted-date/formatted-date";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TripInformation({
   setCurrentStep,
@@ -330,7 +331,7 @@ export default function TripInformation({
                 </span>
               </h1>
               <h1 className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                {(dict.totem as I18nRecord).trip_information_schedule as string}
+                {tr("totem.trip_information_schedule", dict)}
                 :{" "}
                 <span className="font-light">                
                   {tripData?.tripInfo?.tripInfo?.startTime} -{" "}

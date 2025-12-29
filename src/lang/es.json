@@ -490,6 +490,8 @@
         "origin": "Origen",
         "destination": "Destino",
         "scheduling": "Horario",
+        "departure": "Salida",
+        "arrival": "Llegada",
         "comments": "Comentarios",
         "consolidation": "Consolidación",
         "documentSeparation": "Separación Documental",
@@ -603,16 +605,12 @@
         "multipleReasonsSelected": "opciones seleccionadas",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-
         "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-
         "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
@@ -737,18 +735,22 @@
         "manualEtaReasonAuthorizedOvernight": "Viaje iniciado con autorización para pernoctar con la carga",
         "manualEtaReasonOther": "Otro",
         "manualEtaReasonOtherLabel": "Descripción del Motivo",
+        "editEtaTitle": "Modificar Hora de Llegada",
+        "editEtaButtonLabel": "Modificar ETA",
+        "editEtaSubtitle": "Modifica el modo de cálculo y la hora estimada de arribo.",
+        "noEtaAvailable": "ETA no disponible",
+        "otherReasonPlaceholder": "Ingrese el motivo...",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "saving": "Guardando...",
         "rejectedGuide": "Guía rechazada",
         "rejectedGuideDesc": "El documento guía presenta errores o está incompleto",
-
         "rejectedLeftSide": "Lado izquierdo rechazado",
         "rejectedLeftSideDesc": "La imagen del lado izquierdo del vehículo no es clara o válida",
-
         "rejectedRightSide": "Lado derecho rechazado",
         "rejectedRightSideDesc": "La imagen del lado derecho del vehículo no es clara o válida",
-
         "rejectedFront": "Frontal rechazado",
         "rejectedFrontDesc": "La imagen frontal del vehículo no es clara o válida",
-
         "rejectedBack": "Posterior rechazado",
         "rejectedBackDesc": "La imagen posterior del vehículo no es clara o válida",
         "noGpsValidationDesc": "El sistema no pudo validar la ubicación GPS del vehículo",
@@ -992,7 +994,16 @@
   },
   "common": {
     "close": "Cerrar",
-    "open": "Abrir"
+    "open": "Abrir",
+    "edit": "Editar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "retry": "Reintentar",
+    "editableField": {
+      "saveError": "Error al guardar los cambios",
+      "saveSuccess": "Cambios guardados correctamente"
+    }
   },
   "symptoms": {
     "no_symptoms": "No hay síntomas",
@@ -1568,6 +1579,8 @@
     "origin": "Origen",
     "destination": "Destino",
     "scheduling": "Horario",
+    "departure": "Salida",
+    "arrival": "Llegada",
     "comments": "Comentarios",
     "consolidation": "Consolidación",
     "documentSeparation": "Separación Documental",

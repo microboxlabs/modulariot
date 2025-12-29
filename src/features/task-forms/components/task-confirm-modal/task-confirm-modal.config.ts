@@ -4,7 +4,6 @@ import {
   SelectOptionsConfig,
   TaskFormsConfig,
   TaskFormConfig,
-  CustomFormConfig,
 } from "./task-confirm-modal.types";
 import {
   OUTCOME_ASSIGN_DRIVER_V2,
@@ -20,6 +19,8 @@ import {
   OUTCOME_MONITOR_TRIP_V2,
   TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
 } from "../../services/form.service";
+// Import shared ETA form configuration - single source of truth
+import { ETA_EDIT_FORM_CONFIG } from "../eta-edit-modal/eta-edit-modal.config";
 
 const option = (value: string, labelKey: string): SelectOption  => ({
   value,
@@ -127,81 +128,10 @@ export function getSelectConfig(
 /* Task Forms Configuration (with custom form fields) */
 /* ------------------------------------------------------------- */
 
-// ETA Mode options for Monitor Trip Task
-const ETA_MODE_OPTIONS = [
-  { value: "calculated", labelKey: "etaModeCalculated" },
-  { value: "manual", labelKey: "etaModeManual" },
-];
-
-// Manual ETA Reasons
-const MANUAL_ETA_REASON_OPTIONS = [
-  { value: "DESTINATION_SCHEDULE_RESTRICTIONS", labelKey: "manualEtaReasonDestinationSchedule" },
-  { value: "WEEKEND_OR_HOLIDAY", labelKey: "manualEtaReasonWeekendHoliday" },
-  { value: "AUTHORIZED_OVERNIGHT_WITH_CARGO", labelKey: "manualEtaReasonAuthorizedOvernight" },
-  { value: "OTHER", labelKey: "manualEtaReasonOther" },
-];
-
-// Custom form configuration for Monitor Trip Task
-const MONITOR_TRIP_CUSTOM_FORM: CustomFormConfig = {
-  fields: [
-    {
-      name: "mintral_etaMode",
-      labelKey: "etaModeLabel",
-      type: "select",
-      required: true,
-      defaultValue: "calculated",
-      options: ETA_MODE_OPTIONS,
-    },
-    {
-      name: "mintral_calculatedEta",
-      labelKey: "calculatedEtaLabel",
-      type: "live",
-      dependsOn: {
-        fieldName: "mintral_etaMode",
-        value: "calculated",
-      },
-      liveField: {
-        dataKey: "eta",
-        displayFormat: "datetime",
-        dependencies: ["mintral_originDelegateCode", "mintral_destinationDelegateCode"],
-      },
-    },
-    {
-      name: "mintral_estimatedArrivalDate",
-      labelKey: "estimatedArrivalDateLabel",
-      type: "datetime-local",
-      required: true,
-      dependsOn: {
-        fieldName: "mintral_etaMode",
-        value: "manual",
-      },
-      useCalculatedValueFrom: "mintral_calculatedEta",
-    },
-    {
-      name: "mintral_manualEtaReason",
-      labelKey: "manualEtaReasonLabel",
-      type: "select",
-      required: true,
-      defaultValue: "DESTINATION_SCHEDULE_RESTRICTIONS",
-      options: MANUAL_ETA_REASON_OPTIONS,
-      dependsOn: {
-        fieldName: "mintral_etaMode",
-        value: "manual",
-      },
-    },
-    {
-      name: "mintral_manualEtaReasonOther",
-      labelKey: "manualEtaReasonOtherLabel",
-      type: "textarea",
-      required: true,
-      placeholder: "Describe the reason...",
-      dependsOn: {
-        fieldName: "mintral_manualEtaReason",
-        value: "OTHER",
-      },
-    },
-  ],
-};
+// ETA form configuration is imported from eta-edit-modal.config.ts
+// This ensures the ETA form is consistent across all places it's used:
+// - ETAEditModal (standalone ETA editing)
+// - TaskConfirmModal (Monitor Trip transition)
 
 // New unified configuration that supports both select configs and custom forms
 export const TASK_FORMS_CONFIG: TaskFormsConfig = {
@@ -235,7 +165,7 @@ export const TASK_FORMS_CONFIG: TaskFormsConfig = {
       selectConfig: SELECT_OPTIONS_CONFIG[TYPE_WFSHIP2_MISSION_CONTROL_TASK]?.[OUTCOME_PREPARE_SERVICE_V2],
     },
     [OUTCOME_MONITOR_TRIP_V2]: {
-      customFormConfig: MONITOR_TRIP_CUSTOM_FORM,
+      customFormConfig: ETA_EDIT_FORM_CONFIG,
     },
   },
   // New Monitor Trip Task with custom form

@@ -1,7 +1,11 @@
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+"use client";
+
+import { useState } from "react";
+import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { fromString } from "@/features/common/services/days.service";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
+import ETAEditModal, { ETAMode, ManualETAReason } from "@/features/task-forms/components/eta-edit-modal/eta-edit-modal";
 import {
   FaCalendarAlt,
   FaClipboardList,
@@ -11,23 +15,35 @@ import {
 } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
 import { FormattedDate } from "@/features/common/components/formatted-date";
+import { tr } from "@/features/i18n/tr.service";
 
 export default function TripData({
   task,
+  taskId,
   msg,
   isLoading = false,
 }: {
   task: TaskResponse;
-  msg: I18nRecord;
+  taskId: string;
+  msg: I18nDictionary;
   isLoading?: boolean;
 }) {
-  const eta = fromString(
-    task.mintral_arrivalDate
-      ? (task.mintral_arrivalDate as string)
-      : task.mintral_estimatedArrivalDate
-        ? (task.mintral_estimatedArrivalDate as string)
-        : ""
-  );
+  // Get the raw arrival date string for editing
+  const arrivalDateRaw = task.mintral_arrivalDate
+    ? (task.mintral_arrivalDate as string)
+    : task.mintral_estimatedArrivalDate
+      ? (task.mintral_estimatedArrivalDate as string)
+      : "";
+
+  // Get current ETA mode and reason from task
+  const currentEtaMode = (task.mintral_etaMode as ETAMode) || "calculated";
+  const currentEtaReason = (task.mintral_manualEtaReason as ManualETAReason) || "DESTINATION_SCHEDULE_RESTRICTIONS";
+  const currentEtaReasonOther = (task.mintral_manualEtaReasonOther as string) || "";
+
+  // State to track the current ETA value (updated after successful edit)
+  const [currentArrivalDate, setCurrentArrivalDate] = useState(arrivalDateRaw);
+
+  const eta = fromString(currentArrivalDate);
   const etd = fromString(
     task.mintral_departureDate
       ? (task.mintral_departureDate as string)
@@ -35,6 +51,15 @@ export default function TripData({
         ? (task.mintral_expectedDepartureDate as string)
         : (task.mintral_estimatedDepartureDate as string)
   );
+
+  // Handle ETA update from modal (updates all fields)
+  const handleETAUpdate = (values: Record<string, unknown>) => {
+    // Update the local arrival date state for display
+    const arrivalDate = values.mintral_arrivalDate || values.mintral_estimatedArrivalDate;
+    if (arrivalDate) {
+      setCurrentArrivalDate(arrivalDate as string);
+    }
+  };
 
   const executionType =
     task.mintral_executionType === "T"
@@ -118,7 +143,7 @@ export default function TripData({
   ];
 
   // All elements whose data can variate a lot (to long texts) will be here
-  const variable_length_data = [
+  const variableLengthData = [
     {
       icon: <FaTruck className="w-4 h-4" />,
       label: (msg!.cards as I18nRecord).supplierName as string,
@@ -126,23 +151,23 @@ export default function TripData({
     },
     {
       icon: <FaCalendarAlt className="w-4 h-4" />,
-      label: (msg!.cards as I18nRecord).scheduling as string,
+      label: tr("cards.departure", msg!),
       value: (
-        <>
-          <FormattedDate
-            date={etd.format("MM/DD/YYYY HH:mm")}
-            format="datetime"
-          />
-          <span className="mx-2">-</span>
-          <FormattedDate
-            date={eta.format("MM/DD/YYYY HH:mm")}
-            format="datetime"
-          />
-        </>
+        <FormattedDate
+          date={etd.format("MM/DD/YYYY HH:mm")}
+          format="datetime"
+        />
       ),
-      /* value: `${etd.format("DD/MM/YYYY HH:mm")} - ${eta.format("DD/MM/YYYY HH:mm")}`, */
     },
   ];
+
+  // Editable arrival date field - rendered separately for inline editing
+  const arrivalLabel = tr("cards.arrival", msg!);
+  const arrivalDisplayValue = eta.isValid() ? (
+    <FormattedDate date={eta.format("MM/DD/YYYY HH:mm")} format="datetime" />
+  ) : (
+    "-"
+  );
 
   return (
     <div className="flex flex-col gap-2 w-fit">
@@ -170,7 +195,7 @@ export default function TripData({
           ))}
         </div>
       </div>
-      {variable_length_data.map((item, index) => (
+      {variableLengthData.map((item, index) => (
         <LoadableLabel
           key={index}
           label={item.label}
@@ -179,6 +204,22 @@ export default function TripData({
           icon={item.icon}
         />
       ))}
+      {/* Editable ETA field with multi-field modal */}
+      <ETAEditModal
+        taskId={taskId}
+        currentMode={currentEtaMode}
+        currentArrivalDate={currentArrivalDate}
+        currentReason={currentEtaReason}
+        currentReasonOther={currentEtaReasonOther}
+        originGeofence={task.mintral_originDelegateCode as string}
+        destinationGeofence={task.mintral_destinationDelegateCode as string}
+        onUpdate={handleETAUpdate}
+        triggerLabel={arrivalLabel}
+        displayValue={arrivalDisplayValue}
+        icon={<FaCalendarAlt className="w-4 h-4" />}
+        disabled={isLoading}
+        dict={msg}
+      />
     </div>
   );
 }

@@ -29,7 +29,6 @@ export async function GET() {
     const token = await authToken.getToken();
     const params = new URLSearchParams();
     //params.set("lastUpdatedSince", new Date().toISOString());
-    params.set("limit", "100");
 
     const response = await fetch(
       SYMPTOMS_API_URL + "?" + params.toString() + "&p_is_dev=true",

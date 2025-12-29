@@ -50,8 +50,11 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       {
-        error: "Failed to fetch symptoms data",
-        errorMessage: error,
+        error: "Failed to fetch map positions",
+        errorMessage:
+          typeof error === "object" && error !== null && "message" in error
+            ? (error as { message: string }).message
+            : String(error),
       },
       { status: 500 }
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripData from "./trip-data";
 // import TripVerifications from "./trip-verifications";
@@ -15,7 +15,7 @@ export default function TripInformation({
   isLoading = false,
 }: {
   task: TaskResponse;
-  msg: I18nRecord;
+  msg: I18nDictionary;
   isLoading?: boolean;
 }) {
   let originIsSitrans = null;
@@ -53,9 +53,7 @@ export default function TripInformation({
 
   if (originIsSitrans !== null && originIsSitrans !== undefined) {
     badges.push({
-      text: (msg.bento as I18nRecord)[
-        originIsSitransValue as keyof I18nRecord
-      ] as string,
+      text: msg.bento[originIsSitransValue as keyof I18nDictionary['bento']] as string,
       color: "gray" as const,
       icon: HiOutlineClock,
     });
@@ -63,7 +61,7 @@ export default function TripInformation({
 
   if (task.mintral_priorityCode === "UR") {
     badges.push({
-      text: (msg.bento as I18nRecord).urgency as string,
+      text: msg.bento.urgency as string,
       color: "purple" as const,
       icon: HiExclamationCircle,
     });
@@ -71,15 +69,15 @@ export default function TripInformation({
 
   return (
     <CustomCard
-      title={tr("trip_information", msg.bento as I18nRecord)}
-      /* subtitle={task.mintral_serviceCode + "-V"} */
-      subtitle={(msg.bento as I18nRecord).trip as string}
+      title={msg.bento.trip_information}
+      subtitle={msg.bento.trip}
       badges={badges}
     >
       <div className="flex flex-col w-fit gap-2">
         <TripData
           task={task}
-          msg={(msg.pages as I18nRecord).transportValidationForm as I18nRecord}
+          taskId={task.id as string}
+          msg={msg}
           isLoading={isLoading}
         />
       </div>

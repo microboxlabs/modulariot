@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - trunk
-      - based/develop
+      - trash
   pull_request:
 
 env:
@@ -76,7 +76,7 @@ jobs:
           # Strip refs/heads/ prefix if present
           CLEAN_BRANCH_NAME=${BRANCH_NAME#refs/heads/}
           # Check if it starts with based/
-          if [[ "$CLEAN_BRANCH_NAME" =~ ^based/ ]]; then
+          if [[ "$CLEAN_BRANCH_NAME" =~ ^based/ || "$CLEAN_BRANCH_NAME" =~ ^trash ]]; then
             export NEXT_PUBLIC_ECM_API_URL=${{ env.DEV_NEXT_PUBLIC_ECM_API_URL }}
             export NEXT_PUBLIC_DISPLAY_GEOGRAPHIC_VIEW=true
           else

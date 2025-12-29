@@ -23,6 +23,9 @@ COPY --chown=nextjs:nodejs .next/static ./.next/static
 # Note: Source maps (.map files) are already in .next/static for client-side
 COPY --chown=nextjs:nodejs .next/server ./.next/server
 
+# Remove write permissions from all files for security
+RUN chmod -R a-w /app
+
 USER nextjs
 
 EXPOSE 3000

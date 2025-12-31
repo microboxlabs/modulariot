@@ -10,6 +10,7 @@ type MapTooltipProps = {
   isOpen?: boolean;
   onExitAction?: () => void;
   start_right?: boolean;
+  canExit?: boolean;
 };
 
 export default function MapTooltip({
@@ -20,6 +21,7 @@ export default function MapTooltip({
   isOpen = false,
   onExitAction,
   start_right,
+  canExit = true,
 }: MapTooltipProps) {
   const [position, setPosition] = useState({
     left: initialLeft,
@@ -118,15 +120,17 @@ export default function MapTooltip({
           >
             <MdDragHandle size={20} />
           </div>
-          <div
-            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
-            onClick={() => {
-              setHoverInfo(null);
-              onExitAction?.();
-            }}
-          >
-            <IoClose size={20} />
-          </div>
+          {canExit && (
+            <div
+              className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+              onClick={() => {
+                setHoverInfo(null);
+                onExitAction?.();
+              }}
+            >
+              <IoClose size={20} />
+            </div>
+          )}
         </div>
         {children}
       </div>

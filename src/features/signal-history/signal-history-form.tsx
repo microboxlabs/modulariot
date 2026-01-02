@@ -146,6 +146,7 @@ function DateRangeInput({
   back: () => void;
 }) {
   const pathname = usePathname(); // Import from 'next/navigation'
+  const params = new URLSearchParams(searchParams.toString());
 
   const handleDateChange = (startDate: string, endDate: string) => {
     // Format dates with local timezone and proper times (00:00 for start, 23:59 for end)
@@ -153,7 +154,6 @@ function DateRangeInput({
     const formattedEndDate = moment(endDate).endOf("day").format();
 
     // Update URL parameters directly
-    const params = new URLSearchParams(searchParams.toString());
     params.set("start_date", formattedStartDate);
     params.set("end_date", formattedEndDate);
 
@@ -161,8 +161,6 @@ function DateRangeInput({
   };
 
   const handleSearch = () => {
-    const params = new URLSearchParams(searchParams.toString());
-
     // If no start_date and end_date are set, use yesterday and today with local times
     if (!params.get("start_date") || !params.get("end_date")) {
       const startDate = moment().subtract(1, "day").startOf("day").format();
@@ -192,9 +190,17 @@ function DateRangeInput({
             className="w-full"
             minDate={moment().subtract(1, "year")}
             maxDate={moment()}
-            maxRangeDays={2}
-            defaultStartDate={moment().subtract(3, "days")}
-            defaultEndDate={moment()}
+            maxRangeDays={1}
+            defaultStartDate={
+              params.get("start_date")
+                ? moment(params.get("start_date")!)
+                : moment().subtract(1, "days")
+            }
+            defaultEndDate={
+              params.get("end_date")
+                ? moment(params.get("end_date")!)
+                : moment()
+            }
           />
         </div>
         <div className="flex flex-row gap-2">

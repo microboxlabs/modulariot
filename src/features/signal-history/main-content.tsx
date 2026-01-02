@@ -15,6 +15,8 @@ export default function SignalsHistory({
   const searchParams = useSearchParams();
   const assetId = searchParams.get("license_plate") || "";
 
+  console.log("new execution -----------------");
+
   const {
     positions,
     error: pulseError,

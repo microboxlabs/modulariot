@@ -6,6 +6,8 @@ export function useHistoricPulse(
   p_from: string,
   p_to: string
 ) {
+  console.log("p_from: ", p_from, " p_to: ", p_to);
+
   const [positions, setPositions] = useState<HistoricSignal[]>([]);
   const [error, _setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);

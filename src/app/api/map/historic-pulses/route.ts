@@ -12,40 +12,6 @@ const FLEET_TRIP_API_URL =
 
 const authToken = getSharedAuthToken();
 
-// Function to format date to StreamHub API format: YYYY-MM-DDTHH:mm:ss +/-HHMM
-function formatDateForStreamHub(dateString: string): string {
-  // Handle different input formats
-  let date: Date;
-
-  if (dateString.includes("T")) {
-    // Already has time part
-    date = new Date(dateString);
-  } else if (dateString.includes(" ")) {
-    // Format like "2025-12-21 00:00"
-    date = new Date(dateString.replace(" ", "T") + ":00");
-  } else {
-    // Just date, assume start of day
-    date = new Date(dateString + "T00:00:00");
-  }
-
-  // Format to StreamHub required format
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  // Get timezone offset in minutes and format as +/-HHMM
-  const timezoneOffset = date.getTimezoneOffset();
-  const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-  const offsetMinutes = Math.abs(timezoneOffset) % 60;
-  const offsetSign = timezoneOffset <= 0 ? "+" : "-";
-  const timezoneString = `${offsetSign}${String(offsetHours).padStart(2, "0")}${String(offsetMinutes).padStart(2, "0")}`;
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds} ${timezoneString}`;
-}
-
 export async function GET(req: NextRequest) {
   const session = await auth();
 
@@ -93,13 +59,53 @@ async function streamPositions(
   const writer = writable.getWriter();
   const token = await authToken.getToken();
 
-  // Format dates to StreamHub API format
-  const formattedStartDate = formatDateForStreamHub(p_from);
-  const formattedEndDate = formatDateForStreamHub(p_to);
+  // Format dates to StreamHub API format before encoding
+  const formatToISO = (dateStr: string) => {
+    // Handle formats like "2025-12-31 00:00" or "2025-12-31T00:00"
+    const cleanDate = decodeURIComponent(dateStr);
+
+    console.log(`Input date string: ${cleanDate}`);
+
+    // Parse the input date without timezone conversion
+    let inputDate: Date;
+
+    // Ensure we have a proper ISO format for parsing
+    if (!cleanDate.includes("T")) {
+      // Convert "2025-12-31 00:00" to "2025-12-31T00:00:00"
+      const normalizedDate =
+        cleanDate.replace(" ", "T") +
+        (cleanDate.includes(":") ? ":00" : ":00:00");
+      inputDate = new Date(normalizedDate);
+    } else {
+      inputDate = new Date(cleanDate);
+    }
+
+    if (isNaN(inputDate.getTime())) {
+      throw new Error(`Invalid date format: ${dateStr}`);
+    }
+
+    console.log(
+      `Parsed date (no timezone conversion): ${inputDate.toISOString()}`
+    );
+
+    // Format to StreamHub API expected format: YYYY-MM-DDTHH:mm:ss -0000
+    const year = inputDate.getFullYear();
+    const month = String(inputDate.getMonth() + 1).padStart(2, "0");
+    const day = String(inputDate.getDate()).padStart(2, "0");
+    const hours = String(inputDate.getHours()).padStart(2, "0");
+    const minutes = String(inputDate.getMinutes()).padStart(2, "0");
+    const seconds = String(inputDate.getSeconds()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds} -0000`;
+  };
+
+  // URL encode the properly formatted dates
+  const encodedStartDate = encodeURIComponent(formatToISO(p_from));
+  const encodedEndDate = encodeURIComponent(formatToISO(p_to));
 
   try {
     const response = await fetch(
-      `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${formattedStartDate}&endDate=${formattedEndDate}`,
+      `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -108,6 +114,7 @@ async function streamPositions(
     );
 
     if (!response.ok) {
+      console.error(`API Error: ${response.status} - ${response.statusText}`);
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 

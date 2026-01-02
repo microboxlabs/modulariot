@@ -21,7 +21,7 @@ export function useHistoricPulse(
     setIsLoading(true);
 
     eventSourceRef.current = new EventSource(
-      `/app/api/map/historic-pulses?assetId=PDKY35&p_from=2026-01-02&p_to=2026-01-03`
+      `/app/api/map/historic-pulses?assetId=${assetId}&p_from=${p_from}&p_to=${p_to}`
     );
 
     const eventSource = eventSourceRef.current;

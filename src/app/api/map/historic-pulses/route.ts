@@ -60,48 +60,48 @@ async function streamPositions(
   const token = await authToken.getToken();
 
   // Format dates to StreamHub API format before encoding
-  const formatToISO = (dateStr: string) => {
-    // Handle formats like "2025-12-31 00:00" or "2025-12-31T00:00"
-    const cleanDate = decodeURIComponent(dateStr);
+  const formatToStreamHub = (dateStr: string) => {
+    const clean = decodeURIComponent(dateStr);
 
-    console.log(`Input date string: ${cleanDate}`);
+    let normalized = clean;
 
-    // Parse the input date without timezone conversion
-    let inputDate: Date;
-
-    // Ensure we have a proper ISO format for parsing
-    if (!cleanDate.includes("T")) {
-      // Convert "2025-12-31 00:00" to "2025-12-31T00:00:00"
-      const normalizedDate =
-        cleanDate.replace(" ", "T") +
-        (cleanDate.includes(":") ? ":00" : ":00:00");
-      inputDate = new Date(normalizedDate);
-    } else {
-      inputDate = new Date(cleanDate);
+    // "2025-12-28 00:00" → "2025-12-28T00:00:00"
+    if (!normalized.includes("T")) {
+      normalized = normalized.replace(" ", "T");
     }
 
-    if (isNaN(inputDate.getTime())) {
-      throw new Error(`Invalid date format: ${dateStr}`);
+    if (normalized.length === 16) {
+      normalized += ":00";
     }
 
-    console.log(
-      `Parsed date (no timezone conversion): ${inputDate.toISOString()}`
-    );
+    const date = new Date(normalized);
 
-    // Format to StreamHub API expected format: YYYY-MM-DDTHH:mm:ss -0000
-    const year = inputDate.getFullYear();
-    const month = String(inputDate.getMonth() + 1).padStart(2, "0");
-    const day = String(inputDate.getDate()).padStart(2, "0");
-    const hours = String(inputDate.getHours()).padStart(2, "0");
-    const minutes = String(inputDate.getMinutes()).padStart(2, "0");
-    const seconds = String(inputDate.getSeconds()).padStart(2, "0");
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid date: ${dateStr}`);
+    }
 
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds} -0000`;
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(date.getUTCDate()).padStart(2, "0");
+    const hh = String(date.getUTCHours()).padStart(2, "0");
+    const mi = String(date.getUTCMinutes()).padStart(2, "0");
+    const ss = String(date.getUTCSeconds()).padStart(2, "0");
+
+    // IMPORTANT: space before -0000
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss} -0000`;
   };
 
   // URL encode the properly formatted dates
-  const encodedStartDate = encodeURIComponent(formatToISO(p_from));
-  const encodedEndDate = encodeURIComponent(formatToISO(p_to));
+  const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
+  const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
+
+  /*
+    console.log(`
+      curl -X GET '${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}' \\
+      -H 'Authorization: Bearer ${token}' \\
+      -N
+    `);
+  */
 
   try {
     const response = await fetch(

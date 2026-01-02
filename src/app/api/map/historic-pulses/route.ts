@@ -95,14 +95,6 @@ async function streamPositions(
   const encodedStartDate = encodeURIComponent(formatToStreamHub(p_from));
   const encodedEndDate = encodeURIComponent(formatToStreamHub(p_to));
 
-  /*
-    console.log(`
-      curl -X GET '${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}' \\
-      -H 'Authorization: Bearer ${token}' \\
-      -N
-    `);
-  */
-
   try {
     const response = await fetch(
       `${FLEET_TRIP_API_URL}?assetId=${assetId}&startDate=${encodedStartDate}&endDate=${encodedEndDate}`,

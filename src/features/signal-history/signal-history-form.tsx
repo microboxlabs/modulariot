@@ -10,6 +10,7 @@ import MapHistoryView from "./map-history-view";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { tr } from "../i18n/tr.service";
+import { usePathname } from "next/navigation";
 
 export default function SignalHistoryForm({ dict }: { dict: I18nRecord }) {
   const searchParams = useSearchParams();
@@ -36,10 +37,6 @@ export default function SignalHistoryForm({ dict }: { dict: I18nRecord }) {
   const defaultEndDate = tomorrow.toISOString().split("T")[0];
 
   const [state, setState] = useState(initialState);
-  const [dateRange, setDateRange] = useState({
-    startDate: hasStartDate || defaultStartDate,
-    endDate: hasEndDate || defaultEndDate,
-  });
   const router = useRouter();
 
   const pageStates = [
@@ -55,8 +52,6 @@ export default function SignalHistoryForm({ dict }: { dict: I18nRecord }) {
       dict,
       searchParams,
       router,
-      dateRange,
-      setDateRange,
       next: () => setState(2),
       back: () => setState(0),
     }),
@@ -141,43 +136,44 @@ function DateRangeInput({
   dict,
   searchParams,
   router,
-  dateRange,
-  setDateRange,
   next,
   back,
 }: {
   dict: I18nRecord;
   searchParams: URLSearchParams;
   router: AppRouterInstance;
-  dateRange: { startDate: string; endDate: string };
-  setDateRange: (range: { startDate: string; endDate: string }) => void;
   next: () => void;
   back: () => void;
 }) {
-  const handleDateChange = (startDate: string, endDate: string) => {
-    // Format dates to YYYY-MM-DD format
-    const formattedStartDate = moment(startDate).format("YYYY-MM-DD");
-    const formattedEndDate = moment(endDate).format("YYYY-MM-DD");
+  const pathname = usePathname(); // Import from 'next/navigation'
 
-    setDateRange({
-      startDate: formattedStartDate,
-      endDate: formattedEndDate,
-    });
+  const handleDateChange = (startDate: string, endDate: string) => {
+    // Format dates with local timezone and proper times (00:00 for start, 23:59 for end)
+    const formattedStartDate = moment(startDate).startOf("day").format();
+    const formattedEndDate = moment(endDate).endOf("day").format();
+
+    // Update URL parameters directly
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("start_date", formattedStartDate);
+    params.set("end_date", formattedEndDate);
+
+    router.replace(`${pathname}?${params.toString()}`);
   };
 
   const handleSearch = () => {
-    // Add date range parameters to URL only when searching
     const params = new URLSearchParams(searchParams.toString());
 
-    if (dateRange.startDate) {
-      params.set("start_date", dateRange.startDate);
+    // If no start_date and end_date are set, use yesterday and today with local times
+    if (!params.get("start_date") || !params.get("end_date")) {
+      const startDate = moment().subtract(1, "day").startOf("day").format();
+      const endDate = moment().endOf("day").format();
+
+      params.set("start_date", startDate);
+      params.set("end_date", endDate);
+
+      router.replace(`${pathname}?${params.toString()}`);
     }
 
-    if (dateRange.endDate) {
-      params.set("end_date", dateRange.endDate);
-    }
-
-    router.push(`?${params.toString()}`);
     next();
   };
 

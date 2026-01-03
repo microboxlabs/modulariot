@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Get the current branch name
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# Check if branch is based/develop or develop
+if [ "$branch" = "based/develop" ] || [ "$branch" = "develop" ]; then
+    echo ""
+    echo "❌ No se aceptan ramas based/develop, si quieres desplegar en desarrollo usa la rama trash, no hagar pr hacia el trash"
+    echo ""
+    exit 1
+fi
+
+exit 0
+

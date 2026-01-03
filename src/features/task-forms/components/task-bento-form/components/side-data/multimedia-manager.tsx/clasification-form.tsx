@@ -282,75 +282,47 @@ export function getCategories(dict: I18nRecord) {
   return {
     PROOF_OF_DELIVERY: {
       value: "PROOF_OF_DELIVERY",
-      label: tr(
-        "PROOF_OF_DELIVERY",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PROOF_OF_DELIVERY", dict),
+    },
+    PROOF_OF_LOAD_FLOOR: {
+      value: "PROOF_OF_LOAD_FLOOR",
+      label: tr("bento.multimedia.categories.PROOF_OF_LOAD_FLOOR", dict),
     },
     PROOF_OF_PICKUP: {
       value: "PROOF_OF_PICKUP",
-      label: tr(
-        "PROOF_OF_PICKUP",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PROOF_OF_PICKUP", dict),
+    },
+    PROOF_OF_LOAD_RECEIPT: {
+      value: "PROOF_OF_LOAD_RECEIPT",
+      label: tr("bento.multimedia.categories.PROOF_OF_LOAD_RECEIPT", dict),
     },
     CARGO_MANIFEST: {
       value: "CARGO_MANIFEST",
-      label: tr(
-        "CARGO_MANIFEST",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.CARGO_MANIFEST", dict),
     },
     PICKUP_FRONT_IMAGE: {
       value: "PICKUP_FRONT_IMAGE",
-      label: tr(
-        "PICKUP_FRONT_IMAGE",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PICKUP_FRONT_IMAGE", dict),
     },
     PICKUP_RIGHT_IMAGE: {
       value: "PICKUP_RIGHT_IMAGE",
-      label: tr(
-        "PICKUP_RIGHT_IMAGE",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PICKUP_RIGHT_IMAGE", dict),
     },
     PICKUP_LEFT_IMAGE: {
       value: "PICKUP_LEFT_IMAGE",
-      label: tr(
-        "PICKUP_LEFT_IMAGE",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PICKUP_LEFT_IMAGE", dict),
     },
     PICKUP_REAR_IMAGE: {
       value: "PICKUP_REAR_IMAGE",
-      label: tr(
-        "PICKUP_REAR_IMAGE",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PICKUP_REAR_IMAGE", dict),
     },
     PICKUP_GUIDE_IMAGE: {
       value: "PICKUP_GUIDE_IMAGE",
-      label: tr(
-        "PICKUP_GUIDE_IMAGE",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.PICKUP_GUIDE_IMAGE", dict),
     },
     OTHER: {
       value: "OTHER",
-      label: tr(
-        "OTHER",
-        ((dict.bento as I18nRecord).multimedia as I18nRecord)
-          .categories as I18nRecord
-      ),
+      label: tr("bento.multimedia.categories.OTHER", dict),
     },
   };
 }

@@ -301,7 +301,7 @@ function SelectorParams({
             { value: "", label: "-" },
             ...dynamicOptions.map((option) => ({
               value: option,
-              label: option,
+              label: tr("symptoms.types." + option, dict),
             })),
           ];
         } else if (param.options && Array.isArray(param.options)) {
@@ -364,6 +364,7 @@ function DateParams({
         {(() => {
           return date_elements.map((param: any, index: number) => (
             <DateRangePicker
+              className="mx-4 mb-2"
               key={index}
               label={param.label}
               onDateChange={(startDate: string, endDate: string) => {

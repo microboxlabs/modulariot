@@ -29,7 +29,6 @@ export async function GET() {
     const token = await authToken.getToken();
     const params = new URLSearchParams();
     //params.set("lastUpdatedSince", new Date().toISOString());
-    params.set("limit", "100");
 
     const response = await fetch(
       SYMPTOMS_API_URL + "?" + params.toString() + "&p_is_dev=true",
@@ -42,7 +41,16 @@ export async function GET() {
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorBody = await response.text();
+      console.error("API Error Details:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorBody,
+      });
+      throw new Error(
+        `HTTP error! status: ${response.status}, body: ${errorBody}`
+      );
     }
 
     const data = await response.json();
@@ -51,8 +59,11 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       {
-        error: "Failed to fetch symptoms data",
-        errorMessage: error,
+        error: "Failed to fetch map positions",
+        errorMessage:
+          typeof error === "object" && error !== null && "message" in error
+            ? (error as { message: string }).message
+            : String(error),
       },
       { status: 500 }
     );

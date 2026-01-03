@@ -27,7 +27,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
   const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
-  const [totals, setTotals] = useState<{ [key: string]: number }>({});
+  const [totals, setTotals] = useState<{ [key: string]: number | string }>({});
 
   if (!error) {
     totals["shipping"] = Object.entries(data?.totals ?? {})
@@ -45,6 +45,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
       historicInstances?.totals ?? {}
     ).reduce((sum, count) => sum + count, 0);
     newTotals["finished"] = historicInstancesTotal;
+    newTotals["signalHistory"] = "-";
     setTotals(newTotals);
   }, [mapCount, symptomsCount, historicInstances]);
 

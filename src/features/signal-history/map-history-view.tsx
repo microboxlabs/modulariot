@@ -66,7 +66,6 @@ export default function MapHistoryView({
                 if (onBackClick) {
                   onBackClick();
                 }
-                window.history.back();
               }}
               aria-label="Go back"
             >
@@ -89,7 +88,7 @@ export default function MapHistoryView({
         </CustomCard>
       </div>
       {/* Pass the formatted dates to SignalsHistory */}
-      <SignalsHistory dict={dict} />
+      <SignalsHistory dict={dict} p_from={p_from} p_to={p_to} />
     </div>
   );
 }

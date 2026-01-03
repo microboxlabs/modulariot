@@ -66,7 +66,6 @@ export default function MapHistoryView({
                 if (onBackClick) {
                   onBackClick();
                 }
-                window.history.back();
               }}
               aria-label="Go back"
             >

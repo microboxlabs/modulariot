@@ -41,7 +41,16 @@ export async function GET() {
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorBody = await response.text();
+      console.error("API Error Details:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorBody,
+      });
+      throw new Error(
+        `HTTP error! status: ${response.status}, body: ${errorBody}`
+      );
     }
 
     const data = await response.json();

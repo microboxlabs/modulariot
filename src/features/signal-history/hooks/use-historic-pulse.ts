@@ -12,6 +12,13 @@ export function useHistoricPulse(
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // Don't make API call if required parameters are missing
+    if (!assetId || !p_from || !p_to) {
+      setIsLoading(false);
+      setPositions([]);
+      return;
+    }
+
     const positionBuffer: HistoricSignal[] = [];
     let size = 0;
 

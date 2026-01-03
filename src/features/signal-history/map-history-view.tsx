@@ -89,7 +89,7 @@ export default function MapHistoryView({
         </CustomCard>
       </div>
       {/* Pass the formatted dates to SignalsHistory */}
-      <SignalsHistory dict={dict} />
+      <SignalsHistory dict={dict} p_from={p_from} p_to={p_to} />
     </div>
   );
 }

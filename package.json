@@ -14,7 +14,9 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "upgrade": "next upgrade"
+    "upgrade": "next upgrade",
+    "install:hooks": "./scripts/install-hooks.sh",
+    "postinstall": "npm run install:hooks"
   },
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",

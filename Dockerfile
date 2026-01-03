@@ -11,10 +11,20 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY public ./public
 
+# Copy source code for source map debugging (needed for source maps to resolve)
+COPY --chown=root:root --chmod=755 src ./src
+
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --chown=nextjs:nodejs .next/standalone ./
-COPY --chown=nextjs:nodejs .next/static ./.next/static
+COPY --chown=root:root --chmod=755 .next/standalone ./
+COPY --chown=root:root --chmod=755 .next/static ./.next/static
+
+# Copy server-side source maps for server-side debugging
+# Note: Source maps (.map files) are already in .next/static for client-side
+COPY --chown=root:root  --chmod=755 .next/server ./.next/server
+
+# Remove write permissions from all files for security
+RUN chmod -R a-w /app
 
 USER nextjs
 

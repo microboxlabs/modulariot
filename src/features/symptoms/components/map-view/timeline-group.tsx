@@ -333,11 +333,13 @@ export default function TimelineGroup({
                         subItem.type
                       ] as string) ?? subItem.type}
                     </p>
-                    <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-                      {((dict.symptoms as I18nRecord)[
-                        subItem.symptom_description
-                      ] as string) ?? subItem.symptom_description}
-                    </p>
+                    {typeof subItem.symptom_description == "string" && (
+                      <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+                        {((dict.symptoms as I18nRecord)[
+                          subItem.symptom_description
+                        ] as string) ?? subItem.symptom_description}
+                      </p>
+                    )}
                     {subItem.treatments.length > 0 && (
                       <div className="mt-2 text-xs font-light bg-amber-200 dark:bg-amber-700 text-amber-900 dark:text-amber-100 rounded-md p-1 ">
                         <p className="font-medium">

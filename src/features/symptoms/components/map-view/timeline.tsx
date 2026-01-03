@@ -45,12 +45,14 @@ export default function TimelineComponent({
   setSelectedTreatment,
   setSelectedTreatmentIndex,
   order,
+  className = "",
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   setSelectedTreatment: (treatment: TreatmentsGeneralResponseItem) => void;
   setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
   order: "asc" | "desc";
+  className?: string;
 }) {
   if (!treatmentData || !treatmentData?.timeline) {
     return <p className="text-center dark:text-red-500">No data</p>;
@@ -66,16 +68,21 @@ export default function TimelineComponent({
       }
     })
     .reduce((acc: Record<string, TimelineElement[]>, item) => {
-      const date = new Date(item.start).toISOString().split("T")[0];
-      if (!acc[date]) {
-        acc[date] = [];
+      if (item.start != "") {
+        const date = new Date(item.start).toISOString().split("T")[0];
+        if (!acc[date]) {
+          acc[date] = [];
+        }
+        acc[date].push(item);
+        return acc;
       }
-      acc[date].push(item);
       return acc;
     }, {});
 
   return (
-    <div className="flex flex-col gap-4 bg-gray-50 dark:bg-gray-800 rounded-md p-4">
+    <div
+      className={`flex flex-col gap-4 bg-gray-50 dark:bg-gray-800 rounded-md p-4 ${className}`}
+    >
       {TimelineGroupedByDate &&
         Object.entries(TimelineGroupedByDate).map(([date, items]) => {
           return (

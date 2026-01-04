@@ -71,6 +71,9 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
+      - name: Check for dead code with Knip
+        run: ${{ steps.detect-package-manager.outputs.runner }} knip --no-exit-code || true
+
       - name: Build with Next.js
         run: |
           # Strip refs/heads/ prefix if present

@@ -14,7 +14,8 @@
         "src/**/*.test.{js,ts,jsx,tsx}",
         "src/**/*.spec.{js,ts,jsx,tsx}",
         "**/*.d.ts",
-        "public/autentia/**"
+        "public/autentia/**",
+        "src/releases/**/*.mdx"
     ],
     "ignoreDependencies": [
         "eslint",

@@ -13,7 +13,8 @@
     "ignore": [
         "src/**/*.test.{js,ts,jsx,tsx}",
         "src/**/*.spec.{js,ts,jsx,tsx}",
-        "**/*.d.ts"
+        "**/*.d.ts",
+        "public/autentia/**"
     ],
     "ignoreDependencies": [
         "eslint",

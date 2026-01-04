@@ -28,6 +28,34 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
 
+---
+
+## Dead Code Detection
+
+This project uses [Knip](https://knip.dev) to automatically detect and eliminate dead code. The dead code detection is integrated into:
+
+- **Pre-commit hooks**: Automatically checks for dead code before each commit
+- **CI/CD pipeline**: Runs during the build process
+- **Development workflow**: Manual commands available for regular checks
+
+### Quick Commands
+
+```bash
+# Check for dead code
+npm run knip:check
+
+# Full analysis
+npm run knip
+
+# Focus on unused exports
+npm run knip:exports
+
+# Focus on unused files
+npm run knip:files
+```
+
+For detailed documentation, see [docs/DEAD_CODE_DETECTION.md](./docs/DEAD_CODE_DETECTION.md).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

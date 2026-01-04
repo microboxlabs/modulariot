@@ -11,5 +11,35 @@ if [ "$branch" = "based/develop" ] || [ "$branch" = "develop" ]; then
     exit 1
 fi
 
+# Check for dead code using Knip
+echo ""
+echo "🔍 Checking for dead code with Knip..."
+echo ""
+
+# Run knip and capture output
+KNIP_OUTPUT=$(npx knip 2>&1)
+KNIP_EXIT_CODE=$?
+
+if [ $KNIP_EXIT_CODE -ne 0 ]; then
+    # Check if there are actual issues (look for issue indicators in output)
+    if echo "$KNIP_OUTPUT" | grep -qE "(✂️|unused|Unused)"; then
+        echo ""
+        echo "⚠️  Dead code detected! Please review and remove unused code before committing."
+        echo ""
+        echo "To see the full report, run: npm run knip"
+        echo "To focus on unused exports: npm run knip:exports"
+        echo "To focus on unused files: npm run knip:files"
+        echo ""
+        echo "If you want to commit anyway, use: git commit --no-verify"
+        echo ""
+        # Uncomment the line below to make it blocking (fail the commit)
+        # exit 1
+    fi
+else
+    echo "✅ No dead code detected"
+fi
+
+echo ""
+
 exit 0
 

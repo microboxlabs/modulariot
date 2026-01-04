@@ -81,18 +81,6 @@ export default async function ShippingDetailsTaskForm({
                 dict={dictionary.pages.shippingDetailsTaskForm}
                 extraData={task}
               />
-              {/* <Validations
-                task={task}
-                lang={lang}
-                userGroups={userGroups}
-                msg={{
-                  check1Subtitle,
-                  check2Subtitle,
-                  check3Subtitle,
-                  check4Subtitle,
-                  cards: cardsMsg,
-                }}
-              /> */}
             </div>
           </div>
 

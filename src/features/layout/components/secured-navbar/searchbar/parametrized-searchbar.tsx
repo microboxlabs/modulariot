@@ -258,7 +258,6 @@ export default function ParametrizedSearchBar({
           </div>
         )}
       </div>
-      {/*<DateSelections />*/}
       <Tags
         searchParams={searchParams}
         router={router}

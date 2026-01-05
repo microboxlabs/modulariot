@@ -9,7 +9,6 @@ import { useCustomFormState } from "@/features/task-forms/components/task-confir
 import { updateTaskProperties } from "@/features/task-forms/services/client-form.service";
 import { useLiveETA } from "@/features/common/providers/client-api.provider";
 import { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
 import { ETA_EDIT_FORM_CONFIG } from "./eta-edit-modal.config";
 import dayjs from "dayjs";
 
@@ -21,7 +20,7 @@ export type ManualETAReason =
   | "AUTHORIZED_OVERNIGHT_WITH_CARGO"
   | "OTHER";
 
-export type ETAEditModalProps = {
+export type ETAEditModalProps = Readonly<{
   /** The task ID to update */
   taskId: string;
   /** Current ETA mode */
@@ -50,7 +49,7 @@ export type ETAEditModalProps = {
   disabled?: boolean;
   /** i18n dictionary */
   dict: I18nDictionary;
-};
+}>;
 
 /**
  * ETAEditModal - A modal component for editing ETA with multiple related fields.

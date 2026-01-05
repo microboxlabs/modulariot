@@ -489,6 +489,8 @@
         "origin": "Origin",
         "destination": "Destination",
         "scheduling": "Scheduling",
+        "departure": "Departure",
+        "arrival": "Arrival",
         "comments": "Comments",
         "consolidation": "Consolidation",
         "documentSeparation": "Document Separation",
@@ -736,7 +738,15 @@
         "manualEtaReasonWeekendHoliday": "ETA falls on weekend or holiday",
         "manualEtaReasonAuthorizedOvernight": "Trip authorized to overnight with cargo",
         "manualEtaReasonOther": "Other",
-        "manualEtaReasonOtherLabel": "Reason Description"
+        "manualEtaReasonOtherLabel": "Reason Description",
+        "editEtaTitle": "Edit Arrival Time",
+        "editEtaButtonLabel": "Edit ETA",
+        "editEtaSubtitle": "Modify the calculation mode and estimated arrival time.",
+        "noEtaAvailable": "ETA not available",
+        "otherReasonPlaceholder": "Enter the reason...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saving": "Saving..."
       }
     },
     "sovosVerificationForm": {
@@ -970,7 +980,16 @@
   },
   "common": {
     "close": "Close",
-    "open": "Open"
+    "open": "Open",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "retry": "Retry",
+    "editableField": {
+      "saveError": "Failed to save changes",
+      "saveSuccess": "Changes saved successfully"
+    }
   },
   "symptoms": {
     "no_symptoms": "No symptoms",
@@ -1542,6 +1561,8 @@
     "origin": "Origin",
     "destination": "Destination",
     "scheduling": "Scheduling",
+    "departure": "Departure",
+    "arrival": "Arrival",
     "comments": "Comments",
     "consolidation": "Consolidation",
     "documentSeparation": "Document Separation",

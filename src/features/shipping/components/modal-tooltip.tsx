@@ -1,7 +1,7 @@
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripInformation from "@/features/task-forms/components/task-bento-form/components/trip-information/trip-information";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useGetTasksById } from "@/features/common/providers/client-api.provider";
 import DriverInfo from "@/features/task-forms/components/task-bento-form/components/driver/driver";
 import { Spinner } from "flowbite-react";
@@ -86,7 +86,7 @@ export default function ModalTooltip({
               <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-grow w-full xl:w-fit">
                 <TripInformation
                   task={data.taskResponse as unknown as TaskResponse}
-                  msg={dict}
+                  msg={dict as I18nDictionary}
                   isLoading={isLoading}
                 />
               </div>

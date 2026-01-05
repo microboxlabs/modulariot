@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CustomFormConfig, FormFieldConfig } from "../task-confirm-modal.types";
 
 export type CustomFormValues = Record<string, string | boolean>;
@@ -33,13 +33,15 @@ export function useCustomFormState(
   customFormConfig: CustomFormConfig | undefined
 ): CustomFormState {
   const [formValues, setFormValues] = useState<CustomFormValues>({});
+  const wasOpenRef = useRef(false);
 
-  // Initialize form values when modal opens or config changes
+  // Initialize form values only when modal opens (transitions from closed to open)
   useEffect(() => {
-    if (openModal && customFormConfig) {
+    if (openModal && !wasOpenRef.current && customFormConfig) {
       const initialValues = getInitialFormValues(customFormConfig);
       setFormValues(initialValues);
     }
+    wasOpenRef.current = openModal;
   }, [openModal, customFormConfig]);
 
   const setFormValue = (fieldName: string, value: string | boolean) => {

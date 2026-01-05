@@ -64,7 +64,7 @@ export default function EditableField({
 
   const renderDisplayMode = () => (
     <div
-      className={`group flex items-center gap-1 ${!disabled ? "cursor-pointer" : ""}`}
+      className={`group flex items-center gap-1 ${disabled ? "" : "cursor-pointer"}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -94,9 +94,7 @@ export default function EditableField({
 
   const renderEditMode = () => (
     <div className="flex items-center gap-2">
-      {icon && (
-        <div className="flex items-center text-gray-400">{icon}</div>
-      )}
+      {icon && <div className="flex items-center text-gray-400">{icon}</div>}
       <span className="text-gray-600 dark:text-gray-400 text-sm font-light whitespace-nowrap">
         {label}:
       </span>
@@ -151,9 +149,7 @@ export default function EditableField({
 
   const renderSavingMode = () => (
     <div className="flex items-center gap-2">
-      {icon && (
-        <div className="flex items-center text-gray-400">{icon}</div>
-      )}
+      {icon && <div className="flex items-center text-gray-400">{icon}</div>}
       <span className="text-gray-600 dark:text-gray-400 text-sm font-light">
         {label}:
       </span>
@@ -167,9 +163,7 @@ export default function EditableField({
   const renderErrorMode = () => (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        {icon && (
-          <div className="flex items-center text-gray-400">{icon}</div>
-        )}
+        {icon && <div className="flex items-center text-gray-400">{icon}</div>}
         <span className="text-gray-600 dark:text-gray-400 text-sm font-light">
           {label}:
         </span>
@@ -185,9 +179,7 @@ export default function EditableField({
           <HiExclamationCircle className="w-4 h-4" />
         </button>
       </div>
-      {error && (
-        <span className="text-xs text-red-500 ml-6">{error}</span>
-      )}
+      {error && <span className="text-xs text-red-500 ml-6">{error}</span>}
     </div>
   );
 
@@ -200,4 +192,3 @@ export default function EditableField({
     </div>
   );
 }
-

@@ -1,0 +1,86 @@
+# 🔔 Release Notes v1.25.0 — ModularIoT
+
+### Fecha: 06/01/2026
+
+**Objetivo**: Fortalecer la mantenibilidad y calidad del código mediante la implementación de un flujo de detección de código muerto (Knip), mejorar la flexibilidad de edición en componentes Bento, implementar visualización histórica de señales y consolidar integraciones críticas con servicios backend y externos.
+
+## 🚀 Evolutivos
+
+- **🧹 Sistema de Detección y Eliminación de Código Muerto con Knip**
+  - **Integración de Knip**: Herramienta especializada para detección automatizada de código no utilizado en el proyecto.
+  - **Scripts y Hooks**: Comandos `knip` integrados en `package.json` y validación automática en pre-commit.
+  - **Limpieza Masiva**: Eliminación de más de 30 componentes, hooks, servicios e íconos obsoletos identificados por la herramienta.
+  - **Optimización de Bundle**: Mejora en los tiempos de construcción y reducción del tamaño del código enviado al navegador.
+
+- **✏️ Sistema de Campos Editables en Bento Forms**
+  - **Edición Inline Genérica**: Nuevo sistema para editar propiedades de tareas directamente desde los componentes Bento (TripInformation, DriverInfo, etc.).
+  - **Endpoint de Actualización**: Nueva ruta API `/api/task/update` para modificar propiedades sin necesidad de finalizar la tarea.
+  - **Experiencia de Usuario**: Feedback inmediato durante la edición con soporte para diversos tipos de entrada (texto, fecha, selección).
+
+- **📱 Modal de Edición Multi-Campo para ETA**
+  - **Gestión Avanzada de ETA**: Modal dedicado para editar el tiempo estimado de arribo con soporte para modos "calculado" y "manual".
+  - **Motivos de Cambio**: Registro obligatorio de razones cuando se utiliza el modo manual.
+  - **Integración con Live ETA**: Capacidad de consultar el cálculo dinámico durante la edición.
+
+- **🗺️ Visualización Histórica de Señales**
+  - **Mapeo de Pulsos**: Nueva funcionalidad para visualizar el recorrido histórico de un dispositivo en un rango de tiempo determinado.
+  - **Exportación de Datos**: Capacidad de descargar los datos históricos visualizados en formato CSV.
+  - **Control de Tiempo**: Selector de rango de tiempo integrado para una navegación fluida por la cronología del servicio.
+
+- **📊 Report Scheduler Service (Quarkus)**
+  - **Automatización de Reportes**: Nuevo microservicio basado en Quarkus para la programación y generación automática de reportes.
+  - **Integración con Pulsar**: Comunicación asíncrona para la distribución de solicitudes de generación de reportes.
+  - **Reglas de Negocio**: Soporte para ventanas de tiempo, días permitidos e intervalos configurables por grupo de reporte.
+
+- **⚙️ PropertiesService Adapter para Alfresco**
+  - **Modificación de Propiedades**: Adapter que permite la modificación persistente de propiedades globales desde scripts JavaScript en Alfresco.
+  - **Mejora en PgRestService**: Soporte para nombres de tablas y funciones directos sin necesidad de mapeo previo en propiedades.
+
+- **🌐 Diccionarios i18n Type-safe**
+  - **Tipado Estricto**: Mejora en la definición de tipos para el sistema de internacionalización.
+  - **Acceso Anidado**: Validación por TypeScript de claves de traducción anidadas, evitando errores de "undefined" en tiempo de ejecución.
+
+## 🔧 Integraciones
+
+- **🤖 Automatización con Dependabot**
+  - **Mantenimiento de Dependencias**: Integración de Dependabot para actualizaciones automáticas de paquetes npm.
+  - **Pipeline Optimizado**: Ajustes en CI/CD para validar actualizaciones de dependencias de forma eficiente.
+
+- **🌲 StatusAlerceService - Validación de Integración**
+  - **Chequeo Previo**: Nuevo servicio para verificar condiciones de servicios antes de disparar notificaciones hacia Alerce.
+  - **Prevención de Duplicados**: Verificación del estado `arrival_alerce` para evitar notificaciones redundantes.
+
+- **🔒 Protección de Ramas mediante Git Hooks**
+  - **Control Local**: Hooks de Git para prevenir commits accidentales en ramas protegidas como `develop` y `based/develop`.
+  - **Garantía de Flujo**: Asegura el cumplimiento de la política de versionado del proyecto en todo el equipo.
+
+- **🗺️ Source Maps en Ambiente de Staging**
+  - **Debugging Mejorado**: Habilitación de mapas de fuente en el build de producción para el ambiente de staging.
+  - **Resolución de Errores**: Facilita la identificación de la ubicación exacta de fallos en el código TypeScript original.
+
+## 🐛 Correcciones
+
+- **💬 Solución a Errores en API de Foros**
+  - **AccessDeniedException**: Corrección de fallo de permisos al recuperar asociaciones de discusiones.
+  - **Búsqueda Multi-Parámetro**: Mejora en la lógica de búsqueda para soportar consultas simultáneas por `taskId`, `instanceId` y `serviceCode`.
+  - **Soporte para Servicios Finalizados**: Capacidad de recuperar discusiones de foros para tareas que ya han pasado a estado histórico.
+
+- **🧹 Limpieza de Código Muerto (Knip)**
+  - Eliminación de componentes de formularios antiguos reemplazados por el sistema Bento.
+  - Remoción de íconos y utilidades de links no utilizados.
+  - Eliminación de servicios y hooks obsoletos en los módulos de síntomas y navegación.
+
+- **🔧 Refactorización de Notificaciones Alerce**
+  - Reemplazo de cadenas de texto hardcodeadas por constantes estandarizadas en los listeners de tareas.
+
+## 📊 Beneficios
+
+- **⚡ Mayor Calidad de Código**: La eliminación sistemática de código muerto reduce la deuda técnica y facilita la incorporación de nuevos desarrolladores.
+- **🛠️ Flexibilidad Operacional**: La capacidad de editar campos inline y el nuevo modal de ETA permiten ajustes rápidos sin interrumpir el flujo de trabajo.
+- **👁️ Visibilidad Histórica**: La nueva visualización de señales permite análisis post-servicio detallados directamente desde la plataforma.
+- **🔄 Mantenimiento Automatizado**: Dependabot y Knip reducen la carga manual de mantenimiento preventivo y correctivo del repositorio.
+- **🛡️ Seguridad y Estabilidad**: Las validaciones pre-integración y la protección de ramas aumentan la confiabilidad general del sistema.
+
+## 📌 Conclusión
+
+La versión 1.25.0 representa un avance fundamental en la infraestructura técnica del Coordinador de Viajes. Al priorizar la limpieza del código y la automatización de procesos de mantenimiento, esta entrega sienta las bases para un desarrollo más ágil y menos propenso a errores. Las nuevas capacidades de edición inline y visualización histórica no solo mejoran la herramienta para el usuario final, sino que también demuestran la robustez de la arquitectura orientada a servicios y componentes modulares que el proyecto sigue consolidando.

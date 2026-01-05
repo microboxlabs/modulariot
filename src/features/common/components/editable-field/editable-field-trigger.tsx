@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "flowbite-react";
 import { HiPencil } from "react-icons/hi";
 import { EditableFieldTriggerProps } from "./editable-field.types";
 
@@ -17,22 +18,14 @@ export default function EditableFieldTrigger({
   disabled = false,
   className = "",
 }: EditableFieldTriggerProps) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClick();
-    }
-  };
-
   return (
-    <div
-      className={`group flex items-center gap-1 ${disabled ? "" : "cursor-pointer"} ${className}`}
+    <Button
+      color="light"
+      size="sm"
       onClick={disabled ? undefined : onClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={disabled ? undefined : 0}
-      role={disabled ? undefined : "button"}
-      aria-disabled={disabled}
+      disabled={disabled}
+      aria-label={label ? `Edit ${label}` : "Edit field"}
+      className={`group border-0 bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0 ${className}`}
     >
       {icon && (
         <div className="flex items-center mr-1 text-gray-400">{icon}</div>
@@ -46,18 +39,10 @@ export default function EditableFieldTrigger({
         {value ?? "-"}
       </span>
       {!disabled && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className="ml-1 p-1 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-opacity duration-200 opacity-0 group-hover:opacity-100"
-          aria-label={`Edit ${label || "field"}`}
-        >
+        <span className="ml-1 p-1 text-gray-400 group-hover:text-primary-600 dark:group-hover:text-primary-400 rounded transition-opacity duration-200 opacity-0 group-hover:opacity-100 pointer-events-none">
           <HiPencil className="w-3.5 h-3.5" />
-        </button>
+        </span>
       )}
-    </div>
+    </Button>
   );
 }

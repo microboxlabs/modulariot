@@ -64,12 +64,7 @@ export async function POST(
       if (key.startsWith("prop_")) {
         updatePayload[key] = value;
       }
-      // If starts with mintral_, add prop_ prefix
-      else if (key.startsWith("mintral_")) {
-        const propKey = `prop_${key}`;
-        updatePayload[propKey] = value;
-      }
-      // For any other custom fields, add prop_ prefix
+      // For any other custom fields (including mintral_*), add prop_ prefix
       // This allows maximum flexibility for future editable fields
       else if (!key.startsWith("_")) {
         // Exclude internal fields
@@ -104,4 +99,3 @@ export async function POST(
     );
   }
 }
-

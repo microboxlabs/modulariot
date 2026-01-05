@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { Spinner, TextInput, Select } from "flowbite-react";
+import { Button, Spinner, TextInput, Select } from "flowbite-react";
 import { HiPencil, HiCheck, HiX, HiExclamationCircle } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 import { useEditableField } from "./use-editable-field";
 import { EditableFieldProps } from "./editable-field.types";
 
@@ -63,10 +64,15 @@ export default function EditableField({
   }, [state]);
 
   const renderDisplayMode = () => (
-    <div
-      className={`group flex items-center gap-1 ${disabled ? "" : "cursor-pointer"}`}
+    <Button
+      color="light"
+      size="sm"
+      onClick={disabled ? undefined : startEditing}
+      disabled={disabled}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      aria-label={`Edit ${label}`}
+      className="group border-0 bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0"
     >
       {icon && (
         <div className="flex items-center mr-1 text-gray-400">{icon}</div>
@@ -78,18 +84,25 @@ export default function EditableField({
         {displayValue ?? value}
       </span>
       {!disabled && (
-        <button
-          type="button"
-          onClick={startEditing}
-          className={`ml-1 p-1 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-opacity duration-200 ${
+        <span
+          className={twMerge(
+            // Spacing & shape
+            "ml-1 p-1 rounded",
+            // Colors
+            "text-gray-400",
+            "group-hover:text-primary-600 dark:group-hover:text-primary-400",
+            // Animation
+            "transition-opacity duration-200",
+            // Interaction
+            "pointer-events-none",
+            // Visibility
             isHovered ? "opacity-100" : "opacity-0"
-          }`}
-          aria-label={`Edit ${label}`}
+          )}
         >
           <HiPencil className="w-3.5 h-3.5" />
-        </button>
+        </span>
       )}
-    </div>
+    </Button>
   );
 
   const renderEditMode = () => (

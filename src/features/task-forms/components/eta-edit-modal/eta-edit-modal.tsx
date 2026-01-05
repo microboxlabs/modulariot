@@ -120,7 +120,7 @@ export default function ETAEditModal({
     shouldFetchETA,
     originGeofence || "",
     destinationGeofence || "",
-    formValues.mintral_etaMode as string || "calculated"
+    (formValues.mintral_etaMode as string) || "calculated"
   );
 
   // Sync calculated ETA to manual field when switching to manual mode
@@ -130,7 +130,9 @@ export default function ETAEditModal({
       formValues.mintral_etaMode === "manual" &&
       !formValues.mintral_estimatedArrivalDate
     ) {
-      const datetimeLocal = dayjs(eta.estimatedArrival).format("YYYY-MM-DDTHH:mm");
+      const datetimeLocal = dayjs(eta.estimatedArrival).format(
+        "YYYY-MM-DDTHH:mm"
+      );
       setFormValue("mintral_estimatedArrivalDate", datetimeLocal);
     }
   }, [
@@ -152,57 +154,81 @@ export default function ETAEditModal({
     resetFormValues();
   }, [resetFormValues]);
 
+  const buildManualModeProperties = useCallback(() => {
+    const properties: Record<string, unknown> = {};
+
+    if (formValues.mintral_estimatedArrivalDate) {
+      const isoDate = dayjs(
+        formValues.mintral_estimatedArrivalDate as string
+      ).toISOString();
+      properties.mintral_estimatedArrivalDate = isoDate;
+      properties.mintral_arrivalDate = isoDate;
+    }
+
+    if (formValues.mintral_manualEtaReason) {
+      properties.mintral_manualEtaReason = formValues.mintral_manualEtaReason;
+    }
+
+    const isOtherReasonWithText =
+      formValues.mintral_manualEtaReason === "OTHER" &&
+      formValues.mintral_manualEtaReasonOther;
+
+    if (isOtherReasonWithText) {
+      properties.mintral_manualEtaReasonOther =
+        formValues.mintral_manualEtaReasonOther;
+    }
+
+    return properties;
+  }, [formValues]);
+
+  const buildCalculatedModeProperties = useCallback(() => {
+    if (!eta?.estimatedArrival) return {};
+
+    return {
+      mintral_estimatedArrivalDate: eta.estimatedArrival,
+      mintral_arrivalDate: eta.estimatedArrival,
+    };
+  }, [eta]);
+
+  const buildSubmitProperties = useCallback(() => {
+    const isManualMode = formValues.mintral_etaMode === "manual";
+    const modeProperties = isManualMode
+      ? buildManualModeProperties()
+      : buildCalculatedModeProperties();
+
+    return {
+      mintral_etaMode: formValues.mintral_etaMode,
+      ...modeProperties,
+    };
+  }, [
+    formValues.mintral_etaMode,
+    buildManualModeProperties,
+    buildCalculatedModeProperties,
+  ]);
+
   const handleSubmit = useCallback(async () => {
     setIsProcessing(true);
     setError(null);
 
     try {
-      // Build the properties to update
-      const properties: Record<string, unknown> = {
-        mintral_etaMode: formValues.mintral_etaMode,
-      };
-
-      // Only include manual mode fields if mode is manual
-      if (formValues.mintral_etaMode === "manual") {
-        if (formValues.mintral_estimatedArrivalDate) {
-          // Convert to ISO format for backend
-          const isoDate = dayjs(formValues.mintral_estimatedArrivalDate as string).toISOString();
-          properties.mintral_estimatedArrivalDate = isoDate;
-          properties.mintral_arrivalDate = isoDate;
-        }
-
-        if (formValues.mintral_manualEtaReason) {
-          properties.mintral_manualEtaReason = formValues.mintral_manualEtaReason;
-        }
-
-        if (
-          formValues.mintral_manualEtaReason === "OTHER" &&
-          formValues.mintral_manualEtaReasonOther
-        ) {
-          properties.mintral_manualEtaReasonOther = formValues.mintral_manualEtaReasonOther;
-        }
-      } else {
-        // For calculated mode, use the calculated ETA
-        if (eta?.estimatedArrival) {
-          properties.mintral_estimatedArrivalDate = eta.estimatedArrival;
-          properties.mintral_arrivalDate = eta.estimatedArrival;
-        }
-      }
-
+      const properties = buildSubmitProperties();
       const result = await updateTaskProperties(taskId, properties);
 
-      if (result.success) {
-        setIsOpen(false);
-        onUpdate?.(properties);
-      } else {
+      if (!result.success) {
         setError(new Error(result.error || "Failed to save ETA changes"));
+        return;
       }
+
+      setIsOpen(false);
+      onUpdate?.(properties);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("An error occurred"));
+      const errorMessage =
+        err instanceof Error ? err : new Error("An error occurred");
+      setError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
-  }, [taskId, formValues, eta, onUpdate]);
+  }, [taskId, buildSubmitProperties, onUpdate]);
 
   // Build allValues for LiveFormField
   const allValues = {
@@ -214,10 +240,22 @@ export default function ETAEditModal({
   // Render the trigger element (pencil icon by default)
   const renderTrigger = () => {
     if (trigger) {
+      const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpen();
+        }
+      };
+
       return (
         <div
           onClick={handleOpen}
+          onKeyDown={handleKeyDown}
           className={`group ${!disabled ? "cursor-pointer" : ""}`}
+          tabIndex={disabled ? undefined : 0}
+          role={disabled ? undefined : "button"}
+          aria-disabled={disabled}
         >
           {trigger}
         </div>
@@ -225,9 +263,7 @@ export default function ETAEditModal({
     }
 
     return (
-      <div
-        className={`group flex items-center gap-1`}
-      >
+      <div className={`group flex items-center gap-1`}>
         {icon && (
           <div className="flex items-center mr-1 text-gray-400">{icon}</div>
         )}
@@ -261,11 +297,11 @@ export default function ETAEditModal({
   return (
     <>
       {renderTrigger()}
-    
+
       <FormModal
         isOpen={isOpen}
         onClose={handleClose}
-        title={modalDict.editEtaTitle }
+        title={modalDict.editEtaTitle}
         subtitle={modalDict.editEtaSubtitle}
         submitLabel={modalDict.save}
         cancelLabel={modalDict.cancel}

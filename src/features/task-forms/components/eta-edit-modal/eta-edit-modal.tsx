@@ -240,25 +240,17 @@ export default function ETAEditModal({
   // Render the trigger element (pencil icon by default)
   const renderTrigger = () => {
     if (trigger) {
-      const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleOpen();
-        }
-      };
-
       return (
-        <div
-          onClick={handleOpen}
-          onKeyDown={handleKeyDown}
-          className={`group ${!disabled ? "cursor-pointer" : ""}`}
-          tabIndex={disabled ? undefined : 0}
-          role={disabled ? undefined : "button"}
-          aria-disabled={disabled}
+        <Button
+          color="light"
+          size="sm"
+          onClick={disabled ? undefined : handleOpen}
+          disabled={disabled}
+          aria-label={modalDict.editEtaButtonLabel}
+          className="group border-0 bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0"
         >
           {trigger}
-        </div>
+        </Button>
       );
     }
 

@@ -12,7 +12,7 @@ import {
 import { ErrorWithAlfrescoError } from "@/features/task-forms/components/task-confirm-modal/task-confirm-modal.types";
 import { ErrorAlert } from "@/features/task-forms/components/error-alert";
 
-export type FormModalProps = {
+export type FormModalProps = Readonly<{
   /** Whether the modal is open */
   isOpen: boolean;
   /** Callback when modal closes */
@@ -34,21 +34,35 @@ export type FormModalProps = {
   /** Form submit handler */
   onSubmit: () => void;
   /** Modal size */
-  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "7xl";
+  size?:
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "5xl"
+    | "6xl"
+    | "7xl";
   /** Whether to show cancel button */
   showCancelButton?: boolean;
-};
+}>;
 
 /**
  * Check if error is an Alfresco-specific error
  */
-function isAlfrescoError(error: Error | ErrorWithAlfrescoError): error is ErrorWithAlfrescoError {
-  return "info" in error && typeof error.info === "object" && error.info !== null;
+function isAlfrescoError(
+  error: Error | ErrorWithAlfrescoError
+): error is ErrorWithAlfrescoError {
+  return (
+    "info" in error && typeof error.info === "object" && error.info !== null
+  );
 }
 
 /**
  * FormModal - A standardized modal shell for forms.
- * 
+ *
  * This component provides a consistent look and feel matching the task transition modal.
  * Use this as the base for any form modal in the application.
  */
@@ -83,9 +97,7 @@ export default function FormModal({
           </div>
         </ModalHeader>
         <ModalBody>
-          <div className="flex flex-col my-4">
-            {children}
-          </div>
+          <div className="flex flex-col my-4">{children}</div>
           {error && (
             <div className="mt-4 mb-4 space-y-2">
               {isAlfrescoError(error) ? (
@@ -98,11 +110,7 @@ export default function FormModal({
         </ModalBody>
         <ModalFooter className="border-none">
           {showCancelButton && (
-            <Button
-              color="gray"
-              onClick={onClose}
-              disabled={isProcessing}
-            >
+            <Button color="gray" onClick={onClose} disabled={isProcessing}>
               {cancelLabel}
             </Button>
           )}
@@ -119,4 +127,3 @@ export default function FormModal({
     </Modal>
   );
 }
-

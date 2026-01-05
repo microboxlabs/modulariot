@@ -5,7 +5,10 @@ import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { fromString } from "@/features/common/services/days.service";
 import LoadableLabel from "@/features/common/components/loadable-label/loadable-label";
-import ETAEditModal, { ETAMode, ManualETAReason } from "@/features/task-forms/components/eta-edit-modal/eta-edit-modal";
+import ETAEditModal, {
+  ETAMode,
+  ManualETAReason,
+} from "@/features/task-forms/components/eta-edit-modal/eta-edit-modal";
 import {
   FaCalendarAlt,
   FaClipboardList,
@@ -37,8 +40,11 @@ export default function TripData({
 
   // Get current ETA mode and reason from task
   const currentEtaMode = (task.mintral_etaMode as ETAMode) || "calculated";
-  const currentEtaReason = (task.mintral_manualEtaReason as ManualETAReason) || "DESTINATION_SCHEDULE_RESTRICTIONS";
-  const currentEtaReasonOther = (task.mintral_manualEtaReasonOther as string) || "";
+  const currentEtaReason =
+    (task.mintral_manualEtaReason as ManualETAReason) ||
+    "DESTINATION_SCHEDULE_RESTRICTIONS";
+  const currentEtaReasonOther =
+    (task.mintral_manualEtaReasonOther as string) || "";
 
   // State to track the current ETA value (updated after successful edit)
   const [currentArrivalDate, setCurrentArrivalDate] = useState(arrivalDateRaw);
@@ -55,7 +61,8 @@ export default function TripData({
   // Handle ETA update from modal (updates all fields)
   const handleETAUpdate = (values: Record<string, unknown>) => {
     // Update the local arrival date state for display
-    const arrivalDate = values.mintral_arrivalDate || values.mintral_estimatedArrivalDate;
+    const arrivalDate =
+      values.mintral_arrivalDate || values.mintral_estimatedArrivalDate;
     if (arrivalDate) {
       setCurrentArrivalDate(arrivalDate as string);
     }
@@ -151,7 +158,7 @@ export default function TripData({
     },
     {
       icon: <FaCalendarAlt className="w-4 h-4" />,
-      label: tr("cards.departure", msg!),
+      label: tr("cards.departure", msg),
       value: (
         <FormattedDate
           date={etd.format("MM/DD/YYYY HH:mm")}
@@ -162,7 +169,7 @@ export default function TripData({
   ];
 
   // Editable arrival date field - rendered separately for inline editing
-  const arrivalLabel = tr("cards.arrival", msg!);
+  const arrivalLabel = tr("cards.arrival", msg);
   const arrivalDisplayValue = eta.isValid() ? (
     <FormattedDate date={eta.format("MM/DD/YYYY HH:mm")} format="datetime" />
   ) : (

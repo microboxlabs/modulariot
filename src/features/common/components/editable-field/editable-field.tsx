@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { Spinner, TextInput, Select } from "flowbite-react";
+import { Button, Spinner, TextInput, Select } from "flowbite-react";
 import { HiPencil, HiCheck, HiX, HiExclamationCircle } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 import { useEditableField } from "./use-editable-field";
 import { EditableFieldProps } from "./editable-field.types";
 
@@ -63,10 +64,15 @@ export default function EditableField({
   }, [state]);
 
   const renderDisplayMode = () => (
-    <div
-      className={`group flex items-center gap-1 ${!disabled ? "cursor-pointer" : ""}`}
+    <Button
+      color="light"
+      size="sm"
+      onClick={disabled ? undefined : startEditing}
+      disabled={disabled}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      aria-label={`Edit ${label}`}
+      className="group border-0 bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0"
     >
       {icon && (
         <div className="flex items-center mr-1 text-gray-400">{icon}</div>
@@ -78,25 +84,30 @@ export default function EditableField({
         {displayValue ?? value}
       </span>
       {!disabled && (
-        <button
-          type="button"
-          onClick={startEditing}
-          className={`ml-1 p-1 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-opacity duration-200 ${
+        <span
+          className={twMerge(
+            // Spacing & shape
+            "ml-1 p-1 rounded",
+            // Colors
+            "text-gray-400",
+            "group-hover:text-primary-600 dark:group-hover:text-primary-400",
+            // Animation
+            "transition-opacity duration-200",
+            // Interaction
+            "pointer-events-none",
+            // Visibility
             isHovered ? "opacity-100" : "opacity-0"
-          }`}
-          aria-label={`Edit ${label}`}
+          )}
         >
           <HiPencil className="w-3.5 h-3.5" />
-        </button>
+        </span>
       )}
-    </div>
+    </Button>
   );
 
   const renderEditMode = () => (
     <div className="flex items-center gap-2">
-      {icon && (
-        <div className="flex items-center text-gray-400">{icon}</div>
-      )}
+      {icon && <div className="flex items-center text-gray-400">{icon}</div>}
       <span className="text-gray-600 dark:text-gray-400 text-sm font-light whitespace-nowrap">
         {label}:
       </span>
@@ -151,9 +162,7 @@ export default function EditableField({
 
   const renderSavingMode = () => (
     <div className="flex items-center gap-2">
-      {icon && (
-        <div className="flex items-center text-gray-400">{icon}</div>
-      )}
+      {icon && <div className="flex items-center text-gray-400">{icon}</div>}
       <span className="text-gray-600 dark:text-gray-400 text-sm font-light">
         {label}:
       </span>
@@ -167,9 +176,7 @@ export default function EditableField({
   const renderErrorMode = () => (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        {icon && (
-          <div className="flex items-center text-gray-400">{icon}</div>
-        )}
+        {icon && <div className="flex items-center text-gray-400">{icon}</div>}
         <span className="text-gray-600 dark:text-gray-400 text-sm font-light">
           {label}:
         </span>
@@ -185,9 +192,7 @@ export default function EditableField({
           <HiExclamationCircle className="w-4 h-4" />
         </button>
       </div>
-      {error && (
-        <span className="text-xs text-red-500 ml-6">{error}</span>
-      )}
+      {error && <span className="text-xs text-red-500 ml-6">{error}</span>}
     </div>
   );
 
@@ -200,4 +205,3 @@ export default function EditableField({
     </div>
   );
 }
-

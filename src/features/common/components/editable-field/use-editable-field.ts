@@ -81,7 +81,7 @@ export function useEditableField({
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        void saveValue();
+        saveValue();
       } else if (e.key === "Escape") {
         cancelEditing();
       }
@@ -103,4 +103,3 @@ export function useEditableField({
     handleKeyDown,
   };
 }
-

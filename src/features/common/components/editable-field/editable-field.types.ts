@@ -7,7 +7,7 @@ export type EditableFieldOption = {
   label: string;
 };
 
-export type EditableFieldProps = {
+export type EditableFieldProps = Readonly<{
   /** The task ID this field belongs to */
   taskId: string;
   /** The field name (property key) to update, e.g., "mintral_arrivalDate" */
@@ -32,7 +32,7 @@ export type EditableFieldProps = {
   placeholder?: string;
   /** Additional CSS classes */
   className?: string;
-};
+}>;
 
 export type EditableFieldState = "display" | "editing" | "saving" | "error";
 

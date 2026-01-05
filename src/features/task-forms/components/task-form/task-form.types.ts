@@ -2,13 +2,13 @@ import {
   HistoricalWorkflow,
   TaskResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import type { Session } from "next-auth";
 
 export type TaskFormProps = {
   task: TaskResponse;
   lang: string;
-  msg?: I18nRecord;
+  msg?: I18nDictionary;
   ticket?: string;
   user?: string;
   userGroups: string[];
@@ -36,7 +36,7 @@ export interface ExtendedTaskResponse
 export interface ExtendedTaskViewProps {
   task: ExtendedTaskResponse;
   user: string;
-  msg: I18nRecord;
+  msg: I18nDictionary;
   lang: string;
   session: Session;
   userGroups: string[];

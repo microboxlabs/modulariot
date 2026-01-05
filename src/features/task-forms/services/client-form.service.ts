@@ -194,3 +194,44 @@ export function toLatLngLiteral(
     lng: coordinates.coordinates[0],
   };
 }
+
+/**
+ * Response type for updateTaskProperties
+ */
+export type UpdateTaskPropertiesResponse = {
+  success: boolean;
+  error?: string;
+  updatedProperties?: Record<string, unknown>;
+};
+
+/**
+ * Updates task properties without ending the task.
+ * This is used for inline editing in bento components.
+ *
+ * @param taskId - The task ID to update
+ * @param properties - Object containing property names and values to update
+ * @returns Promise with the update result
+ *
+ * @example
+ * ```typescript
+ * // Update arrival date
+ * await updateTaskProperties("123456", {
+ *   mintral_arrivalDate: "2025-01-15T10:30:00Z"
+ * });
+ * ```
+ */
+export async function updateTaskProperties(
+  taskId: string,
+  properties: Record<string, unknown>
+): Promise<UpdateTaskPropertiesResponse> {
+  return fetcherClient<UpdateTaskPropertiesResponse>("/app/api/task/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      taskId,
+      properties,
+    }),
+  });
+}

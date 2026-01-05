@@ -61,7 +61,7 @@ export type UseEditableFieldReturn = {
   handleKeyDown: (e: React.KeyboardEvent) => void;
 };
 
-export type EditableFieldTriggerProps = {
+export type EditableFieldTriggerProps = Readonly<{
   /** Label text for the field */
   label?: string;
   /** Current value to display */
@@ -74,5 +74,4 @@ export type EditableFieldTriggerProps = {
   disabled?: boolean;
   /** Additional CSS classes */
   className?: string;
-};
-
+}>;

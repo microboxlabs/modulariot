@@ -1,11 +1,9 @@
 "use client";
 
-import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import TripData from "./trip-data";
-// import TripVerifications from "./trip-verifications";
 import CustomCard from "@/features/common/components/custom-card/custom-card";
-import { tr } from "@/features/i18n/tr.service";
 import { HiExclamationCircle, HiOutlineClock } from "react-icons/hi";
 import { logError } from "@/lib/logger";
 
@@ -53,7 +51,9 @@ export default function TripInformation({
 
   if (originIsSitrans !== null && originIsSitrans !== undefined) {
     badges.push({
-      text: msg.bento[originIsSitransValue as keyof I18nDictionary['bento']] as string,
+      text: msg.bento[
+        originIsSitransValue as keyof I18nDictionary["bento"]
+      ] as string,
       color: "gray" as const,
       icon: HiOutlineClock,
     });
@@ -61,7 +61,7 @@ export default function TripInformation({
 
   if (task.mintral_priorityCode === "UR") {
     badges.push({
-      text: msg.bento.urgency as string,
+      text: msg.bento.urgency,
       color: "purple" as const,
       icon: HiExclamationCircle,
     });
@@ -76,7 +76,7 @@ export default function TripInformation({
       <div className="flex flex-col w-fit gap-2">
         <TripData
           task={task}
-          taskId={task.id as string}
+          taskId={task.id}
           msg={msg}
           isLoading={isLoading}
         />

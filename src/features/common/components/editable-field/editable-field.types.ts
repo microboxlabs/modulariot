@@ -7,7 +7,7 @@ export type EditableFieldOption = {
   label: string;
 };
 
-export type EditableFieldProps = {
+export type EditableFieldProps = Readonly<{
   /** The task ID this field belongs to */
   taskId: string;
   /** The field name (property key) to update, e.g., "mintral_arrivalDate" */
@@ -32,7 +32,7 @@ export type EditableFieldProps = {
   placeholder?: string;
   /** Additional CSS classes */
   className?: string;
-};
+}>;
 
 export type EditableFieldState = "display" | "editing" | "saving" | "error";
 
@@ -61,7 +61,7 @@ export type UseEditableFieldReturn = {
   handleKeyDown: (e: React.KeyboardEvent) => void;
 };
 
-export type EditableFieldTriggerProps = {
+export type EditableFieldTriggerProps = Readonly<{
   /** Label text for the field */
   label?: string;
   /** Current value to display */
@@ -74,5 +74,4 @@ export type EditableFieldTriggerProps = {
   disabled?: boolean;
   /** Additional CSS classes */
   className?: string;
-};
-
+}>;

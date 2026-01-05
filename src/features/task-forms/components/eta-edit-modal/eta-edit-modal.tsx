@@ -8,8 +8,7 @@ import { CustomFormField } from "@/features/task-forms/components/task-confirm-m
 import { useCustomFormState } from "@/features/task-forms/components/task-confirm-modal/hooks/use-custom-form-state";
 import { updateTaskProperties } from "@/features/task-forms/services/client-form.service";
 import { useLiveETA } from "@/features/common/providers/client-api.provider";
-import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { ETA_EDIT_FORM_CONFIG } from "./eta-edit-modal.config";
 import dayjs from "dayjs";
 
@@ -21,7 +20,7 @@ export type ManualETAReason =
   | "AUTHORIZED_OVERNIGHT_WITH_CARGO"
   | "OTHER";
 
-export type ETAEditModalProps = {
+export type ETAEditModalProps = Readonly<{
   /** The task ID to update */
   taskId: string;
   /** Current ETA mode */
@@ -50,7 +49,7 @@ export type ETAEditModalProps = {
   disabled?: boolean;
   /** i18n dictionary */
   dict: I18nDictionary;
-};
+}>;
 
 /**
  * ETAEditModal - A modal component for editing ETA with multiple related fields.
@@ -240,25 +239,17 @@ export default function ETAEditModal({
   // Render the trigger element (pencil icon by default)
   const renderTrigger = () => {
     if (trigger) {
-      const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleOpen();
-        }
-      };
-
       return (
-        <div
-          onClick={handleOpen}
-          onKeyDown={handleKeyDown}
-          className={`group ${!disabled ? "cursor-pointer" : ""}`}
-          tabIndex={disabled ? undefined : 0}
-          role={disabled ? undefined : "button"}
-          aria-disabled={disabled}
+        <Button
+          color="light"
+          size="sm"
+          onClick={disabled ? undefined : handleOpen}
+          disabled={disabled}
+          aria-label={modalDict.editEtaButtonLabel}
+          className="group border-0 bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0"
         >
           {trigger}
-        </div>
+        </Button>
       );
     }
 

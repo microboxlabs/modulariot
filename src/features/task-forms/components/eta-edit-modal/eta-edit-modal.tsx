@@ -120,7 +120,7 @@ export default function ETAEditModal({
     shouldFetchETA,
     originGeofence || "",
     destinationGeofence || "",
-    formValues.mintral_etaMode as string || "calculated"
+    (formValues.mintral_etaMode as string) || "calculated"
   );
 
   // Sync calculated ETA to manual field when switching to manual mode
@@ -130,7 +130,9 @@ export default function ETAEditModal({
       formValues.mintral_etaMode === "manual" &&
       !formValues.mintral_estimatedArrivalDate
     ) {
-      const datetimeLocal = dayjs(eta.estimatedArrival).format("YYYY-MM-DDTHH:mm");
+      const datetimeLocal = dayjs(eta.estimatedArrival).format(
+        "YYYY-MM-DDTHH:mm"
+      );
       setFormValue("mintral_estimatedArrivalDate", datetimeLocal);
     }
   }, [
@@ -166,20 +168,24 @@ export default function ETAEditModal({
       if (formValues.mintral_etaMode === "manual") {
         if (formValues.mintral_estimatedArrivalDate) {
           // Convert to ISO format for backend
-          const isoDate = dayjs(formValues.mintral_estimatedArrivalDate as string).toISOString();
+          const isoDate = dayjs(
+            formValues.mintral_estimatedArrivalDate as string
+          ).toISOString();
           properties.mintral_estimatedArrivalDate = isoDate;
           properties.mintral_arrivalDate = isoDate;
         }
 
         if (formValues.mintral_manualEtaReason) {
-          properties.mintral_manualEtaReason = formValues.mintral_manualEtaReason;
+          properties.mintral_manualEtaReason =
+            formValues.mintral_manualEtaReason;
         }
 
         if (
           formValues.mintral_manualEtaReason === "OTHER" &&
           formValues.mintral_manualEtaReasonOther
         ) {
-          properties.mintral_manualEtaReasonOther = formValues.mintral_manualEtaReasonOther;
+          properties.mintral_manualEtaReasonOther =
+            formValues.mintral_manualEtaReasonOther;
         }
       } else {
         // For calculated mode, use the calculated ETA
@@ -214,10 +220,22 @@ export default function ETAEditModal({
   // Render the trigger element (pencil icon by default)
   const renderTrigger = () => {
     if (trigger) {
+      const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleOpen();
+        }
+      };
+
       return (
         <div
           onClick={handleOpen}
+          onKeyDown={handleKeyDown}
           className={`group ${!disabled ? "cursor-pointer" : ""}`}
+          tabIndex={disabled ? undefined : 0}
+          role={disabled ? undefined : "button"}
+          aria-disabled={disabled}
         >
           {trigger}
         </div>
@@ -225,9 +243,7 @@ export default function ETAEditModal({
     }
 
     return (
-      <div
-        className={`group flex items-center gap-1`}
-      >
+      <div className={`group flex items-center gap-1`}>
         {icon && (
           <div className="flex items-center mr-1 text-gray-400">{icon}</div>
         )}
@@ -261,11 +277,11 @@ export default function ETAEditModal({
   return (
     <>
       {renderTrigger()}
-    
+
       <FormModal
         isOpen={isOpen}
         onClose={handleClose}
-        title={modalDict.editEtaTitle }
+        title={modalDict.editEtaTitle}
         subtitle={modalDict.editEtaSubtitle}
         submitLabel={modalDict.save}
         cancelLabel={modalDict.cancel}

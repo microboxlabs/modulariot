@@ -1,9 +1,11 @@
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { DriverVerifiedCardProps } from "../driver-verified-card/driver-verified-card.types";
 import { Checkbox, Label } from "flowbite-react";
 import { TYPE_WFSHIP2_MISSION_CONTROL_TASK } from "../../services/form.service";
 
-type TripManifestParamsProps = DriverVerifiedCardProps & {
+type TripManifestParamsProps = {
+  task: TaskResponse;
+  msg?: I18nRecord;
   nativeGenerationEnabled: boolean;
   onNativeGenerationChange: (nativeGenerationEnabled: boolean) => void;
 };

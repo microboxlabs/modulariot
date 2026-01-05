@@ -27,7 +27,7 @@ export default function EditableFieldTrigger({
 
   return (
     <div
-      className={`group flex items-center gap-1 ${!disabled ? "cursor-pointer" : ""} ${className}`}
+      className={`group flex items-center gap-1 ${disabled ? "" : "cursor-pointer"} ${className}`}
       onClick={disabled ? undefined : onClick}
       onKeyDown={handleKeyDown}
       tabIndex={disabled ? undefined : 0}

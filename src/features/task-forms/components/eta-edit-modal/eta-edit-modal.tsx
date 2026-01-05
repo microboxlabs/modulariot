@@ -8,7 +8,7 @@ import { CustomFormField } from "@/features/task-forms/components/task-confirm-m
 import { useCustomFormState } from "@/features/task-forms/components/task-confirm-modal/hooks/use-custom-form-state";
 import { updateTaskProperties } from "@/features/task-forms/services/client-form.service";
 import { useLiveETA } from "@/features/common/providers/client-api.provider";
-import { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
+import { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ETA_EDIT_FORM_CONFIG } from "./eta-edit-modal.config";
 import dayjs from "dayjs";

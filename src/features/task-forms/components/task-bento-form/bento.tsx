@@ -110,7 +110,6 @@ export default function Bento({
 
         {/* Conditions */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden col-span-2 lg:col-span-1">
-          {/* <Conditions dict={dict as I18nRecord} task={task} /> */}
           <SymptomsCard task={task} dict={dict as I18nRecord} />
         </div>
 

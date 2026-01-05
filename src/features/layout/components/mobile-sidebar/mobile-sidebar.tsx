@@ -5,7 +5,6 @@ import SidebarItem from "../sidebar-item/sidebar-item";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { pages } from "../../models/pages";
-/* import { externalPages } from "../../models/externalPages"; */
 import BottomMenu from "../bottom-menu/bottom-menu";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
@@ -83,11 +82,6 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
                   />
                 ))}
               </SidebarItemGroup>
-              {/* <Sidebar.ItemGroup className="mt-2 pt-2">
-                {externalPages.map((item) => (
-                  <SidebarItem key={item.label} {...item} pathname={pathname} />
-                ))}
-              </Sidebar.ItemGroup> */}
             </SidebarItems>
           </div>
           <BottomMenu isCollapsed={false} dict={dict} pathname={pathname} />

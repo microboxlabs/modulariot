@@ -79,6 +79,30 @@ export function fromString(date: string): dayjs.Dayjs {
     return dayjs.tz(dateTimePart, timezone);
   }
 
+  // Handle ISO 8601 format with timezone: "2025-10-23T02:48:52Z" or "2025-10-23T02:48:52+05:00"
+  const isoWithTimezoneMatch = date.match(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
+  );
+  if (isoWithTimezoneMatch) {
+    if (!isValidDate(date)) {
+      return dayjs("-");
+    }
+    // dayjs natively handles ISO format with timezone
+    return dayjs(date);
+  }
+
+  // Handle ISO 8601 format without timezone: "2025-10-23T02:48:52"
+  const isoWithoutTimezoneMatch = date.match(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/
+  );
+  if (isoWithoutTimezoneMatch) {
+    if (!isValidDate(date)) {
+      return dayjs("-");
+    }
+    // Default to America/Santiago for ISO dates without timezone
+    return dayjs.tz(date, "America/Santiago");
+  }
+
   // Handle space-separated format: "2025-10-19 21:00:00"
   // Replace space with 'T' to make it ISO-like for better parsing
   const normalizedDate =

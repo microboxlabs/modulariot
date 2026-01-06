@@ -8,7 +8,13 @@ interface Release {
   // Add other release properties as needed
 }
 
-export default function ReleaseView({ className }: { className?: string }) {
+export default function ReleaseView({
+  className,
+  onClick,
+}: {
+  className?: string;
+  onClick?: () => void;
+}) {
   const { releases, error, isLoading } = useReleases();
 
   if (isLoading) {
@@ -56,6 +62,7 @@ export default function ReleaseView({ className }: { className?: string }) {
       href={`/release/${version}`}
       className={`hover:underline text-sm text-gray-500 dark:text-gray-400 sm:text-center ${className}`}
       target="_blank"
+      onClick={onClick}
     >
       {version}
     </Link>

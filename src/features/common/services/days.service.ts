@@ -80,9 +80,9 @@ export function fromString(date: string): dayjs.Dayjs {
   }
 
   // Handle ISO 8601 format with timezone: "2025-10-23T02:48:52Z" or "2025-10-23T02:48:52+05:00"
-  const isoWithTimezoneMatch = date.match(
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
-  );
+  const isoWithTimezoneRegex =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+  const isoWithTimezoneMatch = isoWithTimezoneRegex.exec(date);
   if (isoWithTimezoneMatch) {
     if (!isValidDate(date)) {
       return dayjs("-");
@@ -92,9 +92,9 @@ export function fromString(date: string): dayjs.Dayjs {
   }
 
   // Handle ISO 8601 format without timezone: "2025-10-23T02:48:52"
-  const isoWithoutTimezoneMatch = date.match(
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/
-  );
+  const isoWithoutTimezoneRegex =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/;
+  const isoWithoutTimezoneMatch = isoWithoutTimezoneRegex.exec(date);
   if (isoWithoutTimezoneMatch) {
     if (!isValidDate(date)) {
       return dayjs("-");

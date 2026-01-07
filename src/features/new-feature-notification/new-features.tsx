@@ -51,7 +51,6 @@ function getFeatureDescriptors({ dict }: { dict: I18nRecord }) {
                 dict
               )}
             </b>
-            .
           </p>
           <p className="text-md">
             {tr("new_functionality.signal_historic.second_paragraph", dict)}{" "}
@@ -88,7 +87,6 @@ function getFeatureDescriptors({ dict }: { dict: I18nRecord }) {
                 dict
               )}
             </b>
-            .
           </p>
           <p className="text-md">
             {tr("new_functionality.symptom_historic.second_paragraph", dict)}

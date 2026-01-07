@@ -19,7 +19,7 @@ import { getDictionary } from "../i18n/i18n.service";
 export default async function NewFeatureNotification({
   lang,
 }: {
-  lang: string;
+  readonly lang: string;
 }) {
   const [, dict] = await getDictionary(lang);
 

@@ -3,12 +3,12 @@ export default function Fadeable({
   children,
   className,
   delayMs,
-}: {
+}: Readonly<{
   isActive: boolean;
   children: React.ReactNode;
   className?: string;
   delayMs?: number;
-}) {
+}>) {
   return (
     <div
       className={`gap-2 px-4 animate-fade-in-fast opacity-0 transition-opacity ${className}`}

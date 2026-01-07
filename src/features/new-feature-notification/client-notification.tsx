@@ -18,7 +18,11 @@ export enum FeatureState {
   Declined,
 }
 
-export default function ClientNotification({ dict }: { dict: I18nRecord }) {
+export default function ClientNotification({
+  dict,
+}: {
+  readonly dict: I18nRecord;
+}) {
   const [lastPath, setLastPath] = useState<string | null>(null);
   const [showModal, setShowModal] = useState<boolean | null>(null); // This will be true if the element dont exists in localStorage or if it exists but is not marked as not show again
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -117,6 +121,7 @@ export default function ClientNotification({ dict }: { dict: I18nRecord }) {
           setIsGeneralSlider(false);
           setShowModal(null);
         }}
+        dict={dict}
       />
     );
   } else {

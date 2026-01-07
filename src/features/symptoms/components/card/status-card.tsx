@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import Link from "next/link";
 import StatusCardSkeleton from "./status-card-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { FeatureState } from "@/features/new-feature-notification/client-notification";
 
 interface StatusCardProps {

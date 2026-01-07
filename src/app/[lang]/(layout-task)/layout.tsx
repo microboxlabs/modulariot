@@ -1,11 +1,9 @@
-import React from "react";
 import type { PropsWithChildren } from "react";
 import { SessionProvider } from "next-auth/react";
 import { Inter } from "next/font/google";
 import { twMerge } from "tailwind-merge";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import SecuredTaskLayout from "@/features/layout/components/secured-task-layout";
-import NewFeatureNotification from "@/features/new-feature-notification/new-feature-notification";
 
 const inter = Inter({ subsets: ["latin"] });
 

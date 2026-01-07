@@ -1672,10 +1672,13 @@
     "not_interested": "I'm not interested in this functionality.",
     "dont_show_again": "Don't show me this message again.",
     "continue": "Continue",
+    "next": "Next",
+    "previous": "Previous",
+    "done": "Done",
     "symptom_historic": {
       "title": "Try the new filter by conditions.",
       "we_added_a_new_functionality_for": "We have implemented a new functionality to",
-      "filter_by_condition": "filter by condition",
+      "filter_by_condition": "filter by condition.",
       "second_paragraph": "Now you can filter directly from the condition counters, without needing to navigate to another page.",
       "for_now": "For now",
       "its_optional": "its optional",
@@ -1685,7 +1688,7 @@
     "signal_historic": {
       "title": "Try the new Signal Historic Feature!",
       "we_added_a_new_functionality_for": "We have implemented a new functionality to",
-      "search_historic_pulses": "search historic pulses",
+      "search_historic_pulses": "search historic pulses.",
       "second_paragraph": "Now you can search specific pulses filtering by",
       "license_plate_and_date_range": "license plate and date range."
     },

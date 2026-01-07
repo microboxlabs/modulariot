@@ -20,7 +20,7 @@ export default function Slider(dict: I18nRecord) {
           className="w-full flex flex-col"
           delayMs={200}
         >
-          <div className="flex flex-row justify-start text-blue-200 font-light text-2xl">
+          <div className="flex flex-row justify-start text-blue-200 dark:text-blue-50 font-light text-2xl">
             {tr("new_functionality.slider.new_features_appeared", dict)}
           </div>
         </Fadeable>
@@ -29,7 +29,7 @@ export default function Slider(dict: I18nRecord) {
           className="w-full flex flex-col"
           delayMs={500}
         >
-          <div className="flex flex-row justify-center text-blue-400 font-medium text-2xl">
+          <div className="flex flex-row justify-center text-blue-400 dark:text-blue-200 font-medium text-2xl">
             {tr("new_functionality.slider.new_features_appeared", dict)}
           </div>
         </Fadeable>
@@ -38,7 +38,7 @@ export default function Slider(dict: I18nRecord) {
           className="w-full flex flex-col"
           delayMs={800}
         >
-          <div className="flex flex-row justify-end text-blue-600 text-2xl font-bold">
+          <div className="flex flex-row justify-end text-blue-600 dark:text-blue-400 text-2xl font-bold">
             {tr("new_functionality.slider.new_features_appeared", dict)}
           </div>
         </Fadeable>
@@ -58,13 +58,13 @@ export default function Slider(dict: I18nRecord) {
               />
             </div>
             <p
-              className={`text-xl font-bold text-blue-600 w-full flex justify-center mt-2 ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
+              className={`text-xl font-bold text-blue-600 dark:text-blue-500 w-full flex justify-center mt-2 ${isActive ? "opacity-0 animate-fade-in-opacity ease-in-out" : "opacity-0"}`}
               style={isActive ? { animationDelay: "500ms" } : {}}
             >
               {tr("new_functionality.slider.test_pulse_historic_feature", dict)}
             </p>
             <p
-              className={`text-sm text-blue-500 w-full text-center ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
+              className={`text-sm text-gray-500 dark:text-gray-300 w-full text-center ${isActive ? "opacity-0 animate-fade-in-opacity ease-in-out" : "opacity-0"}`}
               style={isActive ? { animationDelay: "1000ms" } : {}}
             >
               {tr("new_functionality.slider.description", dict)}
@@ -81,7 +81,7 @@ export default function Slider(dict: I18nRecord) {
           className="w-full flex flex-col"
           delayMs={200}
         >
-          <div className="text-center text-blue-600 font-light text-xl">
+          <div className="text-center text-gray-500 dark:text-gray-300 font-light text-xl">
             {tr("new_functionality.slider.learn_more", dict)}
           </div>
         </Fadeable>
@@ -90,7 +90,7 @@ export default function Slider(dict: I18nRecord) {
           className="w-full flex flex-col"
           delayMs={800}
         >
-          <ReleaseView className="text-2xl! text-blue-600!" />
+          <ReleaseView className="text-2xl! text-blue-600! dark:text-blue-500!" />
         </Fadeable>
       </div>,
     ],

@@ -6,7 +6,8 @@ import { twMerge } from "tailwind-merge";
 import Link from "next/link";
 import StatusCardSkeleton from "./status-card-skeleton";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Button } from "flowbite-react";
+import { usePathname } from "next/navigation";
+import { FeatureState } from "@/features/new-feature-notification/client-notification";
 
 interface StatusCardProps {
   icon: React.ReactNode;
@@ -26,6 +27,8 @@ export default function StatusCard({
   icu_condition = "CODE_BLACK",
   loading = false,
 }: StatusCardProps) {
+  const pathname = usePathname();
+  const this_path = pathname.split("/")[2];
   const router = useRouter();
 
   const bgColor = variant === "critical" ? "bg-rose-100" : "bg-gray-200";
@@ -36,9 +39,7 @@ export default function StatusCard({
     return <StatusCardSkeleton />;
   }
 
-  const new_condition_filtering = localStorage.getItem(
-    "new_condition_filtering"
-  );
+  const new_condition_filtering = localStorage.getItem(this_path);
 
   return (
     <div
@@ -59,7 +60,7 @@ export default function StatusCard({
         "w-full"
       )}
     >
-      {new_condition_filtering === "true" ? (
+      {new_condition_filtering === FeatureState.Accepted.toString() ? (
         <button
           className="w-full text-left"
           onClick={() => {

@@ -58,13 +58,13 @@ export default function Slider(dict: I18nRecord) {
               />
             </div>
             <p
-              className={`text-xl font-bold text-blue-600 mt-2 ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
+              className={`text-xl font-bold text-blue-600 w-full flex justify-center mt-2 ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
               style={isActive ? { animationDelay: "500ms" } : {}}
             >
               {tr("new_functionality.slider.test_pulse_historic_feature", dict)}
             </p>
             <p
-              className={`flex flex-row text-left text-sm text-blue-500 ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
+              className={`text-sm text-blue-500 w-full text-center ${isActive ? "opacity-0 animate-fade-in-fast ease-in-out" : "opacity-0"}`}
               style={isActive ? { animationDelay: "1000ms" } : {}}
             >
               {tr("new_functionality.slider.description", dict)}

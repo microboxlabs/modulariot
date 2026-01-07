@@ -14,7 +14,6 @@ export default function ClientSymptoms({ dict }: { dict: I18nRecord }) {
   function handle_clean() {
     localStorage.removeItem("symptoms");
     setNewConditionFiltering(null);
-    // trigger a reload
     window.location.reload();
   }
 

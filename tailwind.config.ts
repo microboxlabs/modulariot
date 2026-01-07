@@ -23,6 +23,8 @@ const config: Config = {
         "orbit-2": "orbit-2 6s linear infinite",
         "fade-in": "fade-in 5s ease-in-out forwards",
         "fade-in-fast": "fade-in 0.2s ease-in-out forwards",
+        "fade-in-opacity": "fade-in-opacity 0.2s ease-in-out forwards",
+        "fade-out-opacity": "fade-out-opacity 0.2s ease-in-out forwards",
         "fade-out": "fade-out 5s ease-in-out forwards",
         "fade-out-fast": "fade-out 0.2s ease-in-out forwards",
         "hide-flex": "hide-flex 0.2s ease-in-out forwards",
@@ -93,6 +95,14 @@ const config: Config = {
         "fade-out": {
           "0%": { opacity: "1", display: "flex" },
           "100%": { opacity: "0", display: "none" },
+        },
+        "fade-in-opacity": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "fade-out-opacity": {
+          "0%": { opacity: "1" },
+          "100%": { opacity: "0" },
         },
       },
     },

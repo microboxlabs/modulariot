@@ -21,25 +21,26 @@ export default function GeneralSlider({
   const slide_count = slideContent.length;
 
   const getIndicatorBackgroundClass = (index: number): string => {
-    if (index === slider) return "bg-blue-600";
-    if (index > slider) return "bg-blue-50";
+    if (index === slider) return "bg-blue-600 dark:bg-blue-500";
+    if (index > slider) return "bg-gray-50 dark:bg-gray-600";
     return "bg-blue-400";
   };
 
   return (
     <AbsoluteModal
-      maxWidth="1500px"
+      maxWidth="90vw"
       maxHeight="90vh"
-      height="fit-content"
+      height="900px"
       selected={true}
       setSelected={() => {}}
+      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-800 dark:border-gray-600 w-[500px]"
     >
-      <div className="h-[900px] w-[500px] bg-blue-300 flex flex-col overflow-hidden relative">
-        <div className="flex flex-row gap-2 w-full mb-4 pt-4 px-4">
+      <div className="h-full w-full flex flex-col overflow-hidden relative">
+        <div className="flex flex-row gap-2 w-full mb-4 pt-2 px-2">
           {Array.from({ length: slide_count }).map((_, index) => (
             <div
               key={`${selected_feature.id}-indicator-${index}`}
-              className={`transition-all duration-300 ease-in-out w-full h-1.5 bg-white rounded-full overflow-hidden border border-blue-200`}
+              className={`transition-all duration-300 ease-in-out w-full h-1.5 bg-white dark:bg-gray-500 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700`}
             >
               <div
                 className={`w-full h-full ${getIndicatorBackgroundClass(index)}`}
@@ -58,7 +59,7 @@ export default function GeneralSlider({
             {slider === 0 ? null : (
               <Button
                 color="alternative"
-                className="w-full bg-blue-300 border-2 border-blue-600 text-blue-600 hover:bg-blue-400 hover:text-white transition-colors duration-300"
+                className="w-full transition-colors duration-300 dark:bg-transparent dark:text-gray-200"
                 onClick={() => {
                   setSlider(slider - 1);
                 }}

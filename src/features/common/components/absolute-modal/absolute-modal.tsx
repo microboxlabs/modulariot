@@ -7,6 +7,7 @@ export default function AbsoluteModal({
   maxWidth,
   maxHeight,
   height,
+  className,
 }: {
   children: React.ReactNode;
   selected: any;
@@ -14,6 +15,7 @@ export default function AbsoluteModal({
   maxWidth?: string;
   maxHeight?: string;
   height?: string;
+  className?: string;
 }) {
   return (
     <div
@@ -35,7 +37,7 @@ export default function AbsoluteModal({
       aria-label="Close modal"
     >
       <div
-        className="flex flex-col items-center justify-center bg-white dark:bg-gray-700 rounded-lg border border-gray-800 overflow-hidden"
+        className={`flex flex-col items-center justify-center overflow-hidden  ${className || "bg-white dark:bg-gray-700 rounded-lg border border-gray-800"}`}
         style={{
           maxWidth: maxWidth || "100%",
           maxHeight: maxHeight || "100%",

@@ -54,20 +54,24 @@ export async function GET(request: Request) {
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}. ` +
+          `URL: ${SYMPTOMS_API_URL}. ` +
+          `Response: ${errorText || "No response body"}`
+      );
     }
 
     // console.log(await response.json());
 
     const apiData = (await response.json()) as LoadSearchResponse;
-
     return NextResponse.json(apiData);
   } catch (error) {
     return NextResponse.json(
       {
         data: [],
         status: 500,
-        message: error,
+        message: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
     );

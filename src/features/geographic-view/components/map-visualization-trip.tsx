@@ -30,6 +30,13 @@ import ImageSelector from "./image-viewer/image-selector";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
+import MapVisualization from "@/features/map-visualization/map-visualization";
+import { MapRef } from "react-map-gl";
+import { useRef } from "react";
+import {
+  center_in_bounds,
+  zoom_on_position,
+} from "@/features/map-visualization/map-view-utils";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -125,64 +132,10 @@ type GeometryFeatureProperties = {
   name: string;
 };
 
-function zoom_on_pin(
-  longitude: number,
-  latitude: number,
-  setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType,
-  camera_movement: boolean,
-  zoom?: number
-) {
-  if (latitude && longitude) {
-    const newViewState = {
-      ...viewState,
-      longitude,
-      latitude,
-      transitionDuration: 500,
-      transitionInterpolator: camera_movement
-        ? new FlyToInterpolator({
-            curve: 1,
-            speed: 1,
-          })
-        : new LinearInterpolator(),
-      transitionEasing: (t: number) => t,
-    };
-
-    // Only update zoom if camera_movement is true and a zoom value is provided
-    if (camera_movement && zoom !== undefined) {
-      newViewState.zoom = zoom;
-    }
-
-    setViewState(newViewState);
-  }
-}
-
-function move_to_pin(
-  averagePosition: {
-    latitude: number;
-    longitude: number;
-  },
-  setViewState: (viewState: ViewStateType) => void,
-  viewState: ViewStateType,
-  camera_movement: boolean
-) {
-  if (camera_movement) {
-    setViewState({
-      ...viewState,
-      longitude: averagePosition.longitude,
-      latitude: averagePosition.latitude,
-      zoom: 6.5,
-      transitionDuration: 500,
-      transitionInterpolator: new FlyToInterpolator(),
-    });
-  }
-}
-
 export default function MapVisualizationTrip({
   tripId,
   positions,
   isLoading,
-  averagePosition,
   filteredLocationData,
   dict,
   selectedTreatmentIndex,
@@ -202,6 +155,8 @@ export default function MapVisualizationTrip({
   const [displayPosition, setDisplayPosition] = useState<number>(0);
   const [pictures_list, setPicturesList] = useState<string[]>([]);
 
+  const mapRef = useRef<MapRef>(null);
+
   useEffect(() => {
     if (selectedTreatmentIndex && selectedTreatmentIndex.evidences) {
       setPicturesList(selectedTreatmentIndex.evidences as string[]);
@@ -220,22 +175,28 @@ export default function MapVisualizationTrip({
   const [showPulse, setShowPulse] = useState(true);
 
   // Handle initial zoom when positions are loaded
+  /*
   useEffect(() => {
-    if (positions && positions.length > 0) {
-      move_to_pin(averagePosition, setViewState, viewState, true);
-    }
+    center_in_bounds(positions || [], mapRef.current!, isLoading);
+  }, [positions]);
+  */
+
+  useEffect(() => {
+    center_in_bounds(positions || [], mapRef.current!, isLoading);
+  }, [positions]);
+
+  useEffect(() => {
     if (filteredLocationData && filteredLocationData.features.length > 0) {
-      move_to_pin(
-        {
-          latitude: filteredLocationData.features[0].latitude ?? 0,
-          longitude: filteredLocationData.features[0].longitude ?? 0,
-        },
-        setViewState,
-        viewState,
-        true
+      zoom_on_position(
+        mapRef.current!,
+        [
+          filteredLocationData.features[0].longitude ?? 0,
+          filteredLocationData.features[0].latitude ?? 0,
+        ],
+        6.5
       );
     }
-  }, [positions, filteredLocationData]);
+  }, [filteredLocationData]);
 
   // Transform API data to GeoJSON format
   const geoJson = useMemo(
@@ -377,13 +338,12 @@ export default function MapVisualizationTrip({
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
-            zoom_on_pin(
-              info.object?.geometry.coordinates[0] ?? 0,
-              info.object?.geometry.coordinates[1] ?? 0,
-              setViewState,
-              viewState,
-              camera_movement
-            );
+            if (camera_movement) {
+              zoom_on_position(
+                mapRef.current!,
+                info.object?.geometry.coordinates ?? [0, 0]
+              );
+            }
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
               setSelectedTreatment(null);
               setSelectedTreatmentIndex(null);
@@ -413,13 +373,12 @@ export default function MapVisualizationTrip({
           data: processedGeofence,
           zoom: viewState.zoom,
           onClick: (info: any) => {
-            zoom_on_pin(
-              info.object.coordinates[0],
-              info.object.coordinates[1],
-              setViewState,
-              viewState,
-              camera_movement
-            );
+            if (camera_movement) {
+              zoom_on_position(
+                mapRef.current!,
+                info.object?.coordinates ?? [0, 0]
+              );
+            }
             return true;
           },
           showGeofences,
@@ -458,13 +417,12 @@ export default function MapVisualizationTrip({
             };
 
             setHoverInfo(formattedInfo as any);
-            zoom_on_pin(
-              info.object?.longitude,
-              info.object?.latitude,
-              setViewState,
-              viewState,
-              camera_movement
-            );
+            if (camera_movement) {
+              zoom_on_position(mapRef.current!, [
+                info.object?.longitude ?? 0,
+                info.object?.latitude ?? 0,
+              ]);
+            }
           },
           updateTriggers: {
             data: positions,
@@ -479,7 +437,6 @@ export default function MapVisualizationTrip({
     positions,
     processedGeofence,
     rotation,
-    viewState.zoom,
     filteredLocationData,
     selectedPulse,
     displayPosition,
@@ -489,97 +446,9 @@ export default function MapVisualizationTrip({
     showPulse,
   ]);
 
-  // Handle errors and loading states
-  React.useEffect(() => {
-    if (geofence_error) {
-      logger.error(geofence_error, "Error loading geofences:");
-    }
-
-    if (geofence_isLoading) {
-      logger.info("Loading geofences...");
-    }
-  }, [geofence_error, geofence_isLoading]);
-
-  const onViewStateChange = useCallback((e: any) => {
-    setViewState(e.viewState);
-  }, []);
-
   return (
     <div className="h-full w-full relative overflow-hidden">
-      <DeckGL
-        layers={layers}
-        controller
-        onViewStateChange={onViewStateChange}
-        viewState={viewState}
-        getCursor={({ isHovering }) => {
-          if (isHovering) return "pointer";
-          return "grab";
-        }}
-      >
-        <Map
-          mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
-          attributionControl={true}
-          preserveDrawingBuffer={true}
-          style={{ position: "relative" }}
-        >
-          <style jsx global>{`
-            .mapboxgl-ctrl-logo {
-              display: none !important;
-            }
-          `}</style>
-        </Map>
-      </DeckGL>
-      {/*
-      <div className="absolute bottom-10 left-5 z-40 flex flex-col gap-2">
-        <MapButton
-          main_color="bg-white dark:bg-gray-800"
-          button_color="bg-white dark:bg-gray-800"
-          border={
-            showStops ? "border-2 border-gray-700 dark:border-gray-300" : ""
-          }
-          icon={BsSignStop}
-          text={
-            showStops
-              ? (((dict as I18nRecord).geographic_view as I18nRecord)
-                  .hide_stops as string)
-              : (((dict as I18nRecord).geographic_view as I18nRecord)
-                  .show_stops as string)
-          }
-          open_to_left={false}
-          onClick={() => {
-            setShowStops(!showStops);
-          }}
-          disable_label_after_click={true}
-        />
-        <MapStyleSelector
-          dict={dict}
-          selectedStyle={mapStyle}
-          setSelectedStyle={setMapStyle}
-        />
-      </div>
-      */}
-      {hoverInfo && (
-        <MapTooltip
-          start_right={true}
-          left={hoverInfo.x}
-          top={hoverInfo.y}
-          setHoverInfo={setHoverInfo}
-          onExitAction={() => {
-            setSelectedPulse([]);
-            if (setSelectedTreatment && setSelectedTreatmentIndex) {
-              setSelectedTreatment(null);
-              setSelectedTreatmentIndex(null);
-            }
-          }}
-        >
-          <PulseTooltip
-            object={hoverInfo.object as PulseListType | PulseType}
-            dict={dict}
-          />
-        </MapTooltip>
-      )}
-      <div className="absolute w-full h-full flex flex-row justify-end items-start pointer-events-none">
+      <div className="z-20 absolute bottom-0 left-0">
         {pictures_list.length > 0 && !minimized ? (
           <ImageSelector images={pictures_list} dictionary={dict} />
         ) : null}
@@ -617,20 +486,52 @@ export default function MapVisualizationTrip({
               setDisplayPosition={setDisplayPosition}
               onZoom={(e) => {
                 if (positions) {
-                  zoom_on_pin(
+                  zoom_on_position(mapRef.current!, [
                     positions[Number(e.target.value)]?.longitude ?? 0,
                     positions[Number(e.target.value)]?.latitude ?? 0,
-                    setViewState,
-                    viewState,
-                    camera_movement,
-                    10
-                  );
+                  ]);
                 }
               }}
             />
           }
         />
       </div>
+      <MapVisualization
+        mapStyle={
+          mapStyle as
+            | "satellite"
+            | "streets"
+            | "dark"
+            | "light"
+            | "outdoors"
+            | "hybrid"
+        }
+        layers={layers}
+        isLoading={false}
+        mapRef={mapRef}
+        onZoomChange={() => {}}
+      />
+      {hoverInfo && (
+        <MapTooltip
+          start_right={true}
+          left={hoverInfo.x}
+          top={hoverInfo.y}
+          setHoverInfo={setHoverInfo}
+          onExitAction={() => {
+            setSelectedPulse([]);
+            if (setSelectedTreatment && setSelectedTreatmentIndex) {
+              setSelectedTreatment(null);
+              setSelectedTreatmentIndex(null);
+            }
+          }}
+        >
+          <PulseTooltip
+            object={hoverInfo.object as PulseListType | PulseType}
+            dict={dict}
+          />
+        </MapTooltip>
+      )}
+
       <div className="absolute right-0 top-5 bg-white dark:bg-gray-800 rounded-l-full border-r border-y border-gray-400 dark:border-gray-700">
         {isLoading ? (
           <div className="flex items-center justify-center h-full p-2">

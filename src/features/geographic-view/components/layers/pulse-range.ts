@@ -51,14 +51,11 @@ export class PulsePinLayer extends CompositeLayer<any> {
         id: "pulse-background-layer",
         data: validData,
         getFillColor: () => [255, 255, 255, 255],
-        getRadius: 280000 / Math.pow(1.85, zoomLevel),
+        getRadius: 7,
         getPosition:
           this.props.getPosition || ((d: any) => [d.longitude, d.latitude]),
         parameters: {
           depthTest: false,
-        },
-        updateTriggers: {
-          getRadius: [zoomLevel],
         },
         transitions: {
           getRadius: {
@@ -66,6 +63,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
             easing: (t: number) => t * t * (3 - 2 * t), // smooth step
           },
         },
+        radiusUnits: "pixels",
         pickable: true,
       }) as Layer,
       new ScatterplotLayer({
@@ -104,7 +102,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
             return [0, 0, 0, 0];
           }
         },
-        getRadius: 200000 / Math.pow(1.85, zoomLevel),
+        getRadius: 5,
         getPosition:
           this.props.getPosition || ((d: any) => [d.longitude, d.latitude]),
 
@@ -115,7 +113,6 @@ export class PulsePinLayer extends CompositeLayer<any> {
         updateTriggers: {
           getFillColor: [displayRange],
           getPosition: [showStops],
-          getRadius: [zoomLevel],
         },
         transitions: {
           getRadius: {
@@ -124,6 +121,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
           },
         },
         getZIndex: 1000,
+        radiusUnits: "pixels",
       }) as Layer,
     ];
   }

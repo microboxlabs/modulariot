@@ -41,7 +41,7 @@ export interface PulseLayerProps {
 }
 
 export abstract class BasePulsePinLayer extends CompositeLayer<any> {
-  protected getCommonLayerProps(zoomLevel: number) {
+  protected getCommonLayerProps() {
     const transitions = {
       getRadius: {
         duration: 300,
@@ -50,7 +50,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     };
 
     return {
-      getRadius: 200000 / Math.pow(1.85, zoomLevel),
+      getRadius: 5,
       getPosition:
         this.props.getPosition || ((d: any) => d.geometry.coordinates),
       parameters: { depthTest: false },
@@ -59,7 +59,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     };
   }
 
-  protected getBackgroundLayerProps(zoomLevel: number) {
+  protected getBackgroundLayerProps() {
     const transitions = {
       getRadius: {
         duration: 300,
@@ -68,7 +68,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     };
 
     return {
-      getRadius: 280000 / Math.pow(1.85, zoomLevel),
+      getRadius: 7,
       getPosition:
         this.props.getPosition || ((d: any) => d.geometry.coordinates),
       parameters: { depthTest: false },
@@ -157,16 +157,17 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           255,
           selectedPulse.length === 0 ? 255 : 0,
         ],
-        ...this.getBackgroundLayerProps(zoomLevel),
+        ...this.getBackgroundLayerProps(),
         updateTriggers: { getFillColor: [selectedPulse] },
         pickable: true,
+        radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
         id: "pulse-moving-vehicles-layer",
         data: movingVehicles,
         getFillColor: this.getMovingVehicleColor.bind(this),
-        ...this.getCommonLayerProps(zoomLevel),
+        ...this.getCommonLayerProps(),
         updateTriggers: {
           getFillColor: [
             selectedPulse,
@@ -176,13 +177,14 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           getPosition: [showStops],
         },
         getZIndex: 1000,
+        radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
         getFillColor: () => [240, 50, 50, 255],
-        ...this.getCommonLayerProps(zoomLevel),
+        ...this.getCommonLayerProps(),
         updateTriggers: {
           getFillColor: [
             selectedPulse,
@@ -191,17 +193,19 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           ],
           getPosition: [showStops],
         },
+        radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
         id: "pulse-selected-background-layer",
         data: selectedVehicles,
         getFillColor: () => [255, 255, 255, 255],
-        ...this.getBackgroundLayerProps(zoomLevel),
+        ...this.getBackgroundLayerProps(),
         updateTriggers: {
           getFillColor: [selectedPulse],
           getPosition: [showStops],
         },
+        radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
@@ -211,16 +215,18 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           d.properties.speed > 0 || !showStops
             ? getColor(d.properties.icu_code)
             : [240, 50, 50, 255],
-        ...this.getCommonLayerProps(zoomLevel),
+        ...this.getCommonLayerProps(),
         updateTriggers: { getFillColor: [selectedPulse, showStops] },
+        radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
         getFillColor: () => [240, 50, 50, 255],
-        ...this.getCommonLayerProps(zoomLevel),
+        ...this.getCommonLayerProps(),
         updateTriggers: { getFillColor: [selectedPulse, showStops] },
+        radiusUnits: "pixels",
       }) as Layer,
     ];
   }

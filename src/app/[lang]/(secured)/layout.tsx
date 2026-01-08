@@ -6,6 +6,7 @@ import { twMerge } from "tailwind-merge";
 import SecuredLayout from "@/features/layout/components/secured-layout";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { AuthProvider } from "@/features/auth/context/auth-context";
+import NewFeatureNotification from "@/features/new-feature-notification/new-feature-notification";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,6 +21,7 @@ export default async function Layout({
         "bg-gray-50 dark:bg-gray-900 h-screen flex flex-col"
       )}
     >
+      <NewFeatureNotification lang={(await params).lang} />
       <SessionProvider basePath="/app/api/auth">
         <AuthProvider>
           <SecuredLayout params={params}>{children}</SecuredLayout>

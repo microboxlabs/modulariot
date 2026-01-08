@@ -1,4 +1,3 @@
-import React from "react";
 import type { PropsWithChildren } from "react";
 import { SessionProvider } from "next-auth/react";
 import { Inter } from "next/font/google";

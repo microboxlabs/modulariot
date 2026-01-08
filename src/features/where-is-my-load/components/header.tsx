@@ -4,15 +4,18 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 
-export default function TimelineHeader({
+export default async function TimelineHeader({
   dict,
   searchParams,
 }: {
   dict: I18nRecord;
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  const expedition_code = searchParams?.expeditionCode as string | null;
-  const expedition_number = searchParams?.expeditionNumber as string | null;
+  const resolvedSearchParams = await searchParams;
+  const expedition_code = resolvedSearchParams?.expeditionCode as string | null;
+  const expedition_number = resolvedSearchParams?.expeditionNumber as
+    | string
+    | null;
 
   if (!expedition_code && !expedition_number) {
     return null;

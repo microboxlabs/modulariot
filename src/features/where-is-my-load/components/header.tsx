@@ -4,7 +4,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 
-export default function TimelineHeader({
+export default async function TimelineHeader({
   dict,
   searchParams,
 }: {

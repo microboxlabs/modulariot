@@ -17,6 +17,7 @@ env:
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
   DEV_NEXT_PUBLIC_ECM_API_URL: https://coordinador-dev.mintral.cl
   PROD_NEXT_PUBLIC_ECM_API_URL: https://coordinador.mintral.cl
+  NEXT_PUBLIC_MAPBOX_API_KEY: ${{ secrets.NEXT_PUBLIC_MAPBOX_API_KEY }}
 
 jobs:
   build:
@@ -78,6 +79,7 @@ jobs:
         run: |
           # Strip refs/heads/ prefix if present
           CLEAN_BRANCH_NAME=${BRANCH_NAME#refs/heads/}
+          export NEXT_PUBLIC_MAPBOX_API_KEY=${{ env.NEXT_PUBLIC_MAPBOX_API_KEY }}
           # Check if it starts with based/
           if [[ "$CLEAN_BRANCH_NAME" =~ ^based/ ]]; then
             export NEXT_PUBLIC_ECM_API_URL=${{ env.DEV_NEXT_PUBLIC_ECM_API_URL }}

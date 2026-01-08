@@ -4,10 +4,10 @@ export default function Fadeable({
   className,
   delayMs,
 }: {
-  isActive: boolean;
-  children: React.ReactNode;
-  className?: string;
-  delayMs?: number;
+  readonly isActive: boolean;
+  readonly children: React.ReactNode;
+  readonly className?: string;
+  readonly delayMs?: number;
 }) {
   return (
     <div

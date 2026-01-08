@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import SymptomsCards from "./cards";
 import SymptomsTable from "./table";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -14,7 +14,7 @@ export default function ClientSymptoms({ dict }: { dict: I18nRecord }) {
   function handle_clean() {
     localStorage.removeItem("symptoms");
     setNewConditionFiltering(null);
-    window.location.reload();
+    globalThis.location.reload();
   }
 
   return (

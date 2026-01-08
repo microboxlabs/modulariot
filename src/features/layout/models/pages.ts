@@ -1,3 +1,4 @@
+import CalendarIcon from "@/features/icons/calendar";
 import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
@@ -11,6 +12,13 @@ export const pages: SidebarItem[] = [
     label: "home",
     totals: {},
     requiredGroups: [], // Public route
+  },
+  {
+    href: "/calendar",
+    icon: CalendarIcon,
+    label: "calendar",
+    totals: {},
+    requiredGroups: [],
   },
   {
     icon: ClipboardIcon,

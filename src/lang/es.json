@@ -960,6 +960,7 @@
       "search": "Buscar",
       "sidebar": {
         "home": "Home",
+        "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",
         "completed_tasks": "Tareas completadas",

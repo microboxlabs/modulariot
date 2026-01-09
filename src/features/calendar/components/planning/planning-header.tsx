@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -10,6 +11,19 @@ import { CalendarNavigation } from "./calendar-navigation";
 import { CalendarViewSwitcher } from "./calendar-view-switcher";
 
 dayjs.extend(weekOfYear);
+
+const VIEW_MODES: ViewMode[] = ["day", "week", "month"];
+const DATE_FORMAT = "YYYY-MM-DD";
+
+function isValidViewMode(value: string | null): value is ViewMode {
+  return value !== null && VIEW_MODES.includes(value as ViewMode);
+}
+
+function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
+  if (!dateStr) return null;
+  const parsed = dayjs(dateStr, DATE_FORMAT, true);
+  return parsed.isValid() ? parsed : null;
+}
 
 function getLocaleCode(lang: string): string {
   return lang === "es" ? "es" : "en";
@@ -57,10 +71,31 @@ export default function PlanningHeader({
   onDateChange,
   onViewModeChange,
 }: PlanningHeaderProps) {
-  const [currentDate, setCurrentDate] = useState<dayjs.Dayjs>(
-    dayjs(initialDate)
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read state from URL, fallback to props/defaults
+  const currentDate = useMemo(() => {
+    const urlDate = parseUrlDate(searchParams.get("date"));
+    return urlDate ?? dayjs(initialDate);
+  }, [searchParams, initialDate]);
+
+  const viewMode = useMemo(() => {
+    const urlView = searchParams.get("view");
+    return isValidViewMode(urlView) ? urlView : initialViewMode;
+  }, [searchParams, initialViewMode]);
+
+  // Update URL with new params
+  const updateUrl = useCallback(
+    (date: dayjs.Dayjs, view: ViewMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("date", date.format(DATE_FORMAT));
+      params.set("view", view);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
   );
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
 
   const calendarDict = dict.layout?.calendar ?? {
     today: "Today",
@@ -71,24 +106,24 @@ export default function PlanningHeader({
 
   const handlePrev = () => {
     const newDate = navigateDate(currentDate, viewMode, -1);
-    setCurrentDate(newDate);
+    updateUrl(newDate, viewMode);
     onDateChange?.(newDate.toDate());
   };
 
   const handleNext = () => {
     const newDate = navigateDate(currentDate, viewMode, 1);
-    setCurrentDate(newDate);
+    updateUrl(newDate, viewMode);
     onDateChange?.(newDate.toDate());
   };
 
   const handleToday = () => {
     const today = dayjs();
-    setCurrentDate(today);
+    updateUrl(today, viewMode);
     onDateChange?.(today.toDate());
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
+    updateUrl(currentDate, mode);
     onViewModeChange?.(mode);
   };
 

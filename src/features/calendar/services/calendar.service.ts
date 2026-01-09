@@ -1,4 +1,11 @@
-import type { TimeSlot } from "./calendar.service.types";
+import type { TimeSlot, ViewMode } from "./calendar.service.types";
+
+export const DATE_FORMAT = "YYYY-MM-DD";
+export const VIEW_MODES = new Set<ViewMode>(["day", "week", "month"]);
+
+export function isValidViewMode(value: string | null): value is ViewMode {
+  return value !== null && VIEW_MODES.has(value as ViewMode);
+}
 
 export function generateTimeSlots(
   startHour: number,

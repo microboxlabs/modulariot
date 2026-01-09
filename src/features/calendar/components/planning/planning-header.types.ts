@@ -1,6 +1,8 @@
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 
-export type ViewMode = "day" | "week" | "month";
+// Re-export ViewMode from calendar service
+export type { ViewMode };
 
 export interface PlanningHeaderProps {
   lang: string;

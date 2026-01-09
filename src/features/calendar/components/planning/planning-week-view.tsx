@@ -11,9 +11,9 @@ dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
 import type {
   PlanningWeekViewProps,
-  TimeSlot,
   WeekDay,
 } from "./planning-week-view.types";
+import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -22,18 +22,6 @@ function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
   if (!dateStr) return null;
   const parsed = dayjs(dateStr, DATE_FORMAT, true);
   return parsed.isValid() ? parsed : null;
-}
-
-function generateTimeSlots(startHour: number, endHour: number): TimeSlot[] {
-  const slots: TimeSlot[] = [];
-  for (let hour = startHour; hour < endHour; hour++) {
-    const hourStr = hour.toString().padStart(2, "0");
-    slots.push(
-      { hour, minutes: 0, label: `${hourStr}:00` },
-      { hour, minutes: 30, label: `${hourStr}:30` }
-    );
-  }
-  return slots;
 }
 
 function generateWeekDays(currentDate: Date, lang: string): WeekDay[] {

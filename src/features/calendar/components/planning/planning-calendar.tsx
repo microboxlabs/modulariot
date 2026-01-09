@@ -3,19 +3,13 @@
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
-import type { ViewMode } from "./planning-header.types";
 import PlanningWeekView from "./planning-week-view";
 import PlanningDayView from "./planning-day-view";
+import { isValidViewMode } from "@/features/calendar/services/calendar.service";
 
 interface PlanningCalendarProps {
   lang: string;
   dict: I18nDictionary;
-}
-
-const VIEW_MODES: ViewMode[] = ["day", "week", "month"];
-
-function isValidViewMode(value: string | null): value is ViewMode {
-  return value !== null && VIEW_MODES.includes(value as ViewMode);
 }
 
 export default function PlanningCalendar({

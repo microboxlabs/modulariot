@@ -13,10 +13,12 @@ import type {
   PlanningWeekViewProps,
   WeekDay,
 } from "./planning-week-view.types";
-import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
+import {
+  DATE_FORMAT,
+  generateTimeSlots,
+} from "@/features/calendar/services/calendar.service";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
-const DATE_FORMAT = "YYYY-MM-DD";
 
 function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
   if (!dateStr) return null;

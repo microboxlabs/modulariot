@@ -3,3 +3,5 @@ export interface TimeSlot {
   minutes: number;
   label: string;
 }
+
+export type ViewMode = "day" | "week" | "month";

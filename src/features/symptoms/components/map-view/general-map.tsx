@@ -75,17 +75,6 @@ export default function GeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  // this is wrong, we should get the average of the positions but im getting an acumulated value
-  const averagePosition = positions?.reduce(
-    (acc, curr) => {
-      return {
-        latitude: acc.latitude + curr.latitude / positions.length,
-        longitude: acc.longitude + curr.longitude / positions.length,
-      };
-    },
-    { latitude: 0, longitude: 0 }
-  );
-
   if (error) {
     return <div>Error: {error.message}</div>;
   }
@@ -258,7 +247,6 @@ export default function GeneralMap({
             error={error}
             isLoading={isLoading}
             tripId={tripId ?? ""}
-            averagePosition={averagePosition}
             filteredLocationData={filteredLocationData ?? null}
             dict={dict}
             selectedTreatmentIndex={selectedTreatmentIndex ?? null}

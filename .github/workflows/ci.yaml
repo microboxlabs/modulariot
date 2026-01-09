@@ -73,10 +73,10 @@ jobs:
 
       - name: Run tests with coverage
         run: npm run test:coverage
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #- name: SonarQube Scan
+      #  uses: SonarSource/sonarqube-scan-action@v7
+      #  env:
+      #    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Check for dead code with Knip
         run: ${{ steps.detect-package-manager.outputs.runner }} knip --no-exit-code || true

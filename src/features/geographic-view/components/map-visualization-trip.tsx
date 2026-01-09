@@ -35,7 +35,7 @@ import { MapRef } from "react-map-gl";
 import { useRef } from "react";
 import {
   center_in_bounds,
-  zoom_on_position,
+  fly_to,
 } from "@/features/map-visualization/map-view-utils";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
@@ -187,7 +187,7 @@ export default function MapVisualizationTrip({
 
   useEffect(() => {
     if (filteredLocationData && filteredLocationData.features.length > 0) {
-      zoom_on_position(
+      fly_to(
         mapRef.current!,
         [
           filteredLocationData.features[0].longitude ?? 0,
@@ -339,9 +339,10 @@ export default function MapVisualizationTrip({
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
             if (camera_movement) {
-              zoom_on_position(
+              fly_to(
                 mapRef.current!,
-                info.object?.geometry.coordinates ?? [0, 0]
+                info.object?.geometry.coordinates ?? [0, 0],
+                15
               );
             }
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
@@ -374,10 +375,7 @@ export default function MapVisualizationTrip({
           zoom: viewState.zoom,
           onClick: (info: any) => {
             if (camera_movement) {
-              zoom_on_position(
-                mapRef.current!,
-                info.object?.coordinates ?? [0, 0]
-              );
+              fly_to(mapRef.current!, info.object?.coordinates ?? [0, 0], 15);
             }
             return true;
           },
@@ -418,10 +416,11 @@ export default function MapVisualizationTrip({
 
             setHoverInfo(formattedInfo as any);
             if (camera_movement) {
-              zoom_on_position(mapRef.current!, [
-                info.object?.longitude ?? 0,
-                info.object?.latitude ?? 0,
-              ]);
+              fly_to(
+                mapRef.current!,
+                [info.object?.longitude ?? 0, info.object?.latitude ?? 0],
+                15
+              );
             }
           },
           updateTriggers: {
@@ -448,7 +447,7 @@ export default function MapVisualizationTrip({
 
   return (
     <div className="h-full w-full relative overflow-hidden">
-      <div className="z-20 absolute bottom-0 left-0">
+      <div className="z-[700] absolute bottom-0 left-0">
         {pictures_list.length > 0 && !minimized ? (
           <ImageSelector images={pictures_list} dictionary={dict} />
         ) : null}
@@ -486,10 +485,14 @@ export default function MapVisualizationTrip({
               setDisplayPosition={setDisplayPosition}
               onZoom={(e) => {
                 if (positions) {
-                  zoom_on_position(mapRef.current!, [
-                    positions[Number(e.target.value)]?.longitude ?? 0,
-                    positions[Number(e.target.value)]?.latitude ?? 0,
-                  ]);
+                  fly_to(
+                    mapRef.current!,
+                    [
+                      positions[Number(e.target.value)]?.longitude ?? 0,
+                      positions[Number(e.target.value)]?.latitude ?? 0,
+                    ],
+                    15
+                  );
                 }
               }}
             />

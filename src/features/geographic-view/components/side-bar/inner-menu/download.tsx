@@ -1,4 +1,11 @@
-import { Button, Label, Modal, ModalBody, ModalFooter, ModalHeader } from "flowbite-react";
+import {
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "flowbite-react";
 import { FaCamera } from "react-icons/fa6";
 import { FaDownload, FaShare } from "react-icons/fa";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -27,84 +34,76 @@ export default function Download({
     setStatus("Preparing screenshot...");
 
     try {
-      // First find the map canvases to create a preview
-      const deckGLCanvas = document.querySelector(
-        "canvas#deckgl-overlay"
-      ) as HTMLCanvasElement;
+      // Wait for any pending rendering to complete
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      const containerImg = await captureMapContainer();
+      if (containerImg && containerImg.length > 50000) {
+        setScreenshotDataUrl(containerImg);
+        setShowPreviewModal(true);
+        return;
+      }
+
+      // Fallback: try direct canvas capture
       const mapboxCanvas = document.querySelector(
         "canvas.mapboxgl-canvas"
       ) as HTMLCanvasElement;
-
-      if (mapboxCanvas && deckGLCanvas) {
-        // Create a new canvas for the combined image
-        const combinedCanvas = document.createElement("canvas");
-        const ctx = combinedCanvas.getContext("2d");
-
-        if (!ctx) {
-          throw new Error("Could not get canvas context");
+      if (mapboxCanvas) {
+        const mapboxImg = mapboxCanvas.toDataURL("image/png");
+        if (mapboxImg.length > 10000) {
+          setScreenshotDataUrl(mapboxImg);
+          setShowPreviewModal(true);
+          return;
         }
-
-        // Use the dimensions of the Mapbox canvas
-        combinedCanvas.width = mapboxCanvas.width;
-        combinedCanvas.height = mapboxCanvas.height;
-
-        // First draw the Mapbox map (base layer)
-        ctx.drawImage(mapboxCanvas, 0, 0);
-
-        // Then draw the DeckGL overlay (pins, markers, etc.)
-        ctx.drawImage(deckGLCanvas, 0, 0);
-
-        // Get the data URL for preview
-        const imgData = combinedCanvas.toDataURL("image/png");
-        setScreenshotDataUrl(imgData);
-        setShowPreviewModal(true);
-      } else {
-        // If we can't get canvases for preview, try the regular download
-        await downloadScreenshot();
       }
+
+      setStatus("Screenshot failed. Please try again.");
     } catch (error) {
-      console.error("Screenshot preview error:", error);
-      setStatus(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      console.error("Screenshot error:", error);
+      setStatus("Error capturing screenshot");
     } finally {
       setIsCapturing(false);
     }
   };
 
-  // Function to download the screenshot
-  const downloadScreenshot = async () => {
-    setStatus("Downloading screenshot...");
-
+  // Capture the entire map container
+  const captureMapContainer = async () => {
     try {
-      // Use the native map screenshot approach with combined canvases
-      const success = await captureAndDownloadMap({
-        filename: `map-screenshot-${new Date().toISOString().slice(0, 10)}.png`,
-        fileType: "image/png",
-        debugMode: true, // Keep debug mode enabled temporarily
-        onStatusChange: (newStatus) => {
-          setStatus(newStatus);
-        },
-      });
+      const mapContainer =
+        document.querySelector(".mapboxgl-map")?.parentElement;
+      if (!mapContainer) return null;
 
-      if (!success) {
-        setStatus("Failed to capture screenshot");
-        console.error("Screenshot capture failed");
-      } else {
-        setStatus("Screenshot saved!");
-        // Close the modal if it was open
-        setShowPreviewModal(false);
+      const containerRect = mapContainer.getBoundingClientRect();
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+
+      canvas.width = containerRect.width * (window.devicePixelRatio || 1);
+      canvas.height = containerRect.height * (window.devicePixelRatio || 1);
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+      const allCanvases = mapContainer.querySelectorAll("canvas");
+      for (const canvasEl of allCanvases) {
+        try {
+          const canvasRect = canvasEl.getBoundingClientRect();
+          const relativeX = canvasRect.left - containerRect.left;
+          const relativeY = canvasRect.top - containerRect.top;
+          ctx.drawImage(
+            canvasEl,
+            relativeX,
+            relativeY,
+            canvasRect.width,
+            canvasRect.height
+          );
+        } catch (e) {
+          // Skip canvases that can't be drawn
+        }
       }
+
+      return canvas.toDataURL("image/png");
     } catch (error) {
-      console.error("Screenshot error:", error);
-      setStatus(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
-    } finally {
-      // Reset status after a delay
-      setTimeout(() => {
-        setStatus("");
-      }, 2000);
+      console.error("Error capturing map container:", error);
+      return null;
     }
   };
 

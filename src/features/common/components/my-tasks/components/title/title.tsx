@@ -92,7 +92,7 @@ export default function TaskListTitle({
     <div className="flex flex-row items-center p-2 bg-gray-200 dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white">
       {/* Title */}
       <div className="flex flex-row justify-between w-full">
-        <div className="flex flex-row items-center gap-2 whitespace-nowrap pr-4 flex-shrink-0">
+        <div className="flex flex-row items-center gap-2 whitespace-nowrap pr-4 shrink-0">
           <div className="text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200  rounded-md w-10 h-10 p-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
             {/* <FaBook className="h-4 w-4" /> */}
             {icon}

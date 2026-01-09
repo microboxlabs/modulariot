@@ -1,15 +1,20 @@
 import { MapRef } from "react-map-gl";
 
-export function zoom_on_position(
+export function fly_to(
   mapRef: MapRef,
   coordinates: [number, number],
-  zoom: number = 15
+  zoom?: number
 ) {
-  mapRef.flyTo({
+  const flyToOptions: any = {
     center: [coordinates[0], coordinates[1]] as [number, number],
-    zoom: zoom,
     duration: 1000,
-  });
+  };
+
+  if (zoom) {
+    flyToOptions.zoom = zoom;
+  }
+
+  mapRef.flyTo(flyToOptions);
 }
 
 export function center_in_bounds(
@@ -26,7 +31,7 @@ export function center_in_bounds(
   if (isLoading == false) {
     if (coordinates.length === 1 && coordinates[0].length === 2) {
       // If only one point, center on it with a reasonable zoom level
-      zoom_on_position(mapRef, [coordinates[0][0], coordinates[0][1]], 15);
+      fly_to(mapRef, [coordinates[0][0], coordinates[0][1]], 15);
     } else if (coordinates.length > 1) {
       // Calculate bounding box
       const lngs = coordinates.map((coord) => coord[0]);

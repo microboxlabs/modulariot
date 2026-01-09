@@ -16,8 +16,21 @@ const mapStyles = {
 };
 
 function DeckGLOverlay(props: DeckProps) {
-  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
-  overlay.setProps(props);
+  const overlay = useControl<MapboxOverlay>(
+    () =>
+      new MapboxOverlay({
+        ...props,
+        parameters: {
+          ...props.parameters,
+        },
+      })
+  );
+  overlay.setProps({
+    ...props,
+    parameters: {
+      ...props.parameters,
+    },
+  });
   return null;
 }
 
@@ -89,6 +102,8 @@ export default function MapVisualization({
           latitude: -21.756514,
           zoom: 2.5,
         }}
+        preserveDrawingBuffer={true}
+        antialias={true}
       >
         {isLoading && (
           <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">

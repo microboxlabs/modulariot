@@ -18,7 +18,7 @@ export default async function CalendarPlanningPage(
 
   return (
     <div className="h-full overflow-hidden">
-      <Planning lang={lang} dict={dictionary} />
+      <Planning dict={dictionary} />
     </div>
   );
 }

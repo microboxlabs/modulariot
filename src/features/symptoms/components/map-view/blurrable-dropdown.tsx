@@ -80,9 +80,9 @@ export default function BlurrableDropdown({
   const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
   return (
-    <div className="z-50" onClick={() => setIsOpen(!isOpen)}>
+    <div className="z-[900]" onClick={() => setIsOpen(!isOpen)}>
       <div
-        className={`fixed inset-0 flex justify-center items-center transition-all duration-300 ${isOpen ? blurred : clean}`}
+        className={`fixed inset-0 flex justify-center items-center transition-all duration-300 z-[900] ${isOpen ? blurred : clean}`}
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(false);
@@ -102,7 +102,7 @@ export default function BlurrableDropdown({
                 "text-center font-medium",
                 "focus:outline-none focus:ring-4",
                 "cursor-pointer",
-                "h-10 transition-all duration-100 z-20",
+                "h-10 transition-all duration-100 z-[900]",
                 "gap-2 w-fit"
               ),
             }}
@@ -118,9 +118,9 @@ export default function BlurrableDropdown({
           </Button>
         )}
         theme={{
-          content: "z-20 w-full",
+          content: "z-[900] w-full",
           floating: {
-            base: "overflow-hidden rounded-lg z-20",
+            base: "overflow-hidden rounded-lg z-[900]",
             item: {
               container: "w-full",
             },

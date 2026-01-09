@@ -38,6 +38,7 @@ export default function ClientMapStarter({ dict }: { dict: I18nRecord }) {
       dict={dict}
       mapPositions={mapPositions}
       mapPositionsResume={mapPositionsResume as MapPositionResume}
+      isLoading={isLoading}
     />
   );
 }

@@ -1,13 +1,10 @@
 import type { LayersList } from "@deck.gl/core";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
-import { Button, Spinner } from "flowbite-react";
+import { Spinner } from "flowbite-react";
 import type { RefObject } from "react";
-import MapTooltip from "../geographic-view/components/map-tooltip";
-import CustomTable from "../common/components/custom-table/custom-table";
-import content from "../shipping/components/content";
 
 const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -19,8 +16,21 @@ const mapStyles = {
 };
 
 function DeckGLOverlay(props: DeckProps) {
-  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
-  overlay.setProps(props);
+  const overlay = useControl<MapboxOverlay>(
+    () =>
+      new MapboxOverlay({
+        ...props,
+        parameters: {
+          ...props.parameters,
+        },
+      })
+  );
+  overlay.setProps({
+    ...props,
+    parameters: {
+      ...props.parameters,
+    },
+  });
   return null;
 }
 
@@ -37,6 +47,9 @@ export default function MapVisualization({
   mapRef: RefObject<MapRef | null>;
   onZoomChange?: (zoom: number) => void;
 }) {
+  const [cursor, setCursor] = useState<string>("grab");
+  const [isMapDragging, setIsMapDragging] = useState(false);
+
   const mapboxStyles = useMemo(
     () => (
       <style>
@@ -81,18 +94,37 @@ export default function MapVisualization({
         mapStyle={mapStyles[mapStyle]}
         onLoad={(e) => onZoomChange?.(e.target.getZoom())}
         onZoom={(e) => onZoomChange?.(e.viewState.zoom)}
+        onDragStart={() => setIsMapDragging(true)}
+        onDragEnd={() => setIsMapDragging(false)}
+        cursor={cursor}
         initialViewState={{
-          longitude: -62.136105, // South America longitude (centered)
-          latitude: -21.756514, // South America latitude (centered)
+          longitude: -62.136105,
+          latitude: -21.756514,
           zoom: 2.5,
         }}
+        preserveDrawingBuffer={true}
+        antialias={true}
       >
         {isLoading && (
           <div className="absolute top-4 left-0 bg-gray-200 dark:bg-gray-800 p-2 rounded-r-full z-10">
             <Spinner />
           </div>
         )}
-        <DeckGLOverlay layers={layers} />
+        <DeckGLOverlay
+          layers={layers}
+          getCursor={({ isHovering }) => {
+            let newCursor: string;
+            if (isMapDragging) {
+              newCursor = "grabbing";
+            } else if (isHovering) {
+              newCursor = "pointer";
+            } else {
+              newCursor = "grab";
+            }
+            setCursor(newCursor);
+            return newCursor;
+          }}
+        />
       </Map>
       {mapboxStyles}
     </div>

@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator, type MapViewState } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
-import Map from "react-map-gl";
 import { useSearchParams } from "next/navigation";
 import {
   MapPosition,
@@ -18,6 +16,8 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
 import MapStyleSelector from "./map-style-selector";
+import { MapRef } from "react-map-gl";
+import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 
 const mapboxStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
@@ -32,53 +32,19 @@ type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
   dict: I18nRecord;
   mapPositionsResume: MapPositionResume;
+  isLoading: boolean;
 };
 
-function zoom_on_position(
-  positions: MapPosition[],
-  setViewState: (viewState: MapViewState) => void,
-  viewState: MapViewState
-) {
-  if (positions && positions.length > 0) {
-    const validPositions = positions.filter(
-      (pos: MapPosition) =>
-        typeof pos.longitude === "number" &&
-        typeof pos.latitude === "number" &&
-        !isNaN(pos.longitude) &&
-        !isNaN(pos.latitude)
-    );
-
-    if (validPositions.length > 0) {
-      const avgLongitude =
-        validPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
-        validPositions.length;
-      const avgLatitude =
-        validPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
-        validPositions.length;
-
-      const newViewState = {
-        ...viewState,
-        longitude: avgLongitude,
-        latitude: avgLatitude,
-        zoom: validPositions.length === 1 ? 12.0 : 4.0,
-        transitionDuration: 1000,
-        transitionInterpolator: new FlyToInterpolator(),
-        transitionEasing: (t: number) =>
-          t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-      };
-
-      // Defer the setState call to avoid updating during render
-      setTimeout(() => {
-        setViewState(newViewState);
-      }, 0);
-    }
-  }
-}
+import {
+  center_in_bounds,
+  fly_to,
+} from "@/features/map-visualization/map-view-utils";
 
 export default function MapVisualization({
   mapPositions,
   mapPositionsResume,
   dict,
+  isLoading,
 }: MapVisualizationProps) {
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<MapPositionProperties>>();
@@ -87,6 +53,10 @@ export default function MapVisualization({
   const [mapStyle, setMapStyle] = useState("satellite");
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
+
+  const [zoom, setZoom] = useState(2);
+
+  const mapRef = useRef<MapRef>(null);
 
   useEffect(() => {
     if (mapPositions) {
@@ -100,70 +70,61 @@ export default function MapVisualization({
   }, [searchParams.get("search")]);
 
   useEffect(() => {
+    if (
+      !isLoading &&
+      mapRef.current &&
+      mapPositions &&
+      mapPositions.length > 0
+    ) {
+      center_in_bounds(positions || [], mapRef.current, isLoading);
+    }
+  }, [isLoading, mapRef.current]);
+
+  useEffect(() => {
     if (search && search != "") {
       const filteredPositions = originalPositions.filter((position: any) =>
         position.asset_id.toLowerCase().includes(search.toLowerCase())
       );
       setPositions(filteredPositions || []);
-      if (filteredPositions && filteredPositions.length > 0) {
-        zoom_on_position(filteredPositions, setViewState, viewState);
+      if (filteredPositions && filteredPositions.length > 0 && mapRef.current) {
+        center_in_bounds(filteredPositions, mapRef.current, false);
       }
-    } else {
+    } else if (originalPositions.length != positions.length) {
       setPositions(originalPositions);
-      if (originalPositions && originalPositions.length > 0) {
-        zoom_on_position(originalPositions, setViewState, viewState);
-      }
     }
   }, [search, originalPositions]);
 
-  const [viewState, setViewState] = useState<MapViewState>({
-    longitude:
-      mapPositions && mapPositions.length > 0
-        ? mapPositions.reduce((acc, pos) => acc + pos.longitude, 0) /
-          mapPositions.length
-        : 0,
-    latitude:
-      mapPositions && mapPositions.length > 0
-        ? mapPositions.reduce((acc, pos) => acc + pos.latitude, 0) /
-          mapPositions.length
-        : 0,
-    zoom: 2,
-    pitch: 45,
-    bearing: 45,
-  });
-
   const onPinClick = useCallback(
     ({ object, viewport }: { object: any; viewport: any }) => {
-      setViewState((prevViewState) => ({
-        ...prevViewState,
-        zoom: object.properties.cluster
-          ? prevViewState.zoom + 2
-          : prevViewState.zoom,
-        longitude: object.geometry.coordinates[0],
-        latitude: object.geometry.coordinates[1],
-        transitionInterpolator: new FlyToInterpolator({ speed: 2 }),
-        transitionDuration: 500,
-        transitionEasing: (t: number) =>
-          t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-      }));
       // Only show tooltip for non-clustered pins
-      if (!object.properties.cluster) {
+      if (!object.properties.cluster && mapRef.current) {
+        fly_to(mapRef.current, [
+          object.geometry.coordinates[0],
+          object.geometry.coordinates[1],
+        ]);
         setHoverInfo({
           object,
           x: viewport.width / 2, // Center horizontally
           y: viewport.height / 2, // Center vertically + offset down by 100px
         } as PickingInfo<MapPositionProperties>);
       } else {
+        if (mapRef.current) {
+          fly_to(
+            mapRef.current,
+            [object.geometry.coordinates[0], object.geometry.coordinates[1]],
+            zoom + 2
+          );
+        }
         setHoverInfo(undefined);
       }
     },
-    [setHoverInfo]
+    [setHoverInfo, zoom]
   );
 
   const layers = [
     new PinLayer({
       data: positions || [],
-      zoom: viewState.zoom,
+      zoom: zoom,
       onClick: ({ object, viewport }: { object: any; viewport: any }) => {
         onPinClick({ object, viewport });
       },
@@ -174,35 +135,25 @@ export default function MapVisualization({
     }),
   ];
 
-  const onViewStateChange = useCallback((e: any) => {
-    setViewState(e.viewState);
-  }, []);
-
   return (
     <div className="h-full w-full relative overflow-hidden">
-      <DeckGL
+      <MapVisualizationGeneric
+        mapStyle={
+          mapStyle as
+            | "satellite"
+            | "streets"
+            | "dark"
+            | "light"
+            | "outdoors"
+            | "hybrid"
+        }
         layers={layers}
-        controller
-        onViewStateChange={onViewStateChange}
-        viewState={viewState}
-        getCursor={({ isDragging, isHovering }) => {
-          if (isDragging) return "grabbing";
-          if (isHovering) return "pointer";
-          return "grab";
+        isLoading={false}
+        mapRef={mapRef}
+        onZoomChange={(zoom) => {
+          setZoom(zoom || 2);
         }}
-      >
-        <Map
-          mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_API_KEY}
-          mapStyle={mapboxStyles[mapStyle as keyof typeof mapboxStyles]}
-          preserveDrawingBuffer={true}
-        >
-          <style jsx global>{`
-            .mapboxgl-ctrl-logo {
-              display: none !important;
-            }
-          `}</style>
-        </Map>
-      </DeckGL>
+      />
       <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
         <MapStyleSelector
           dict={dict}
@@ -219,7 +170,7 @@ export default function MapVisualization({
           />
         </div>
       </div>
-      <div className="absolute right-0 top-0 bottom-0 ">
+      <div className="absolute right-0 top-0 bottom-0 pointer-events-none">
         {mapPositionsResume && mapPositionsResume?.sections?.length > 0 && (
           <SideBar
             dict={dict}

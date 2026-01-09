@@ -19,7 +19,7 @@ export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
   renderLayers(): Layer[] {
     const getScaledOffset: (d: any) => [number, number] = (d) => {
       const count = d.properties.cluster ? d.properties.point_count : 1;
-      const baseOffset: [number, number] = [-22, 17];
+      const baseOffset: [number, number] = [-20, 17];
       const scale = Math.min(100, count) / 100 + 1;
 
       return [baseOffset[0] * scale, baseOffset[1] * scale];
@@ -45,7 +45,7 @@ export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
           width: 480,
           height: 480,
         }),
-        sizeScale: 1,
+        sizeScale: 1.6,
         getPixelOffset: getScaledOffset,
         getSize: (d) => {
           const baseSize = 35;
@@ -77,7 +77,7 @@ export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
         },
         getPixelOffset: ((d) => {
           let offset = getScaledOffset(d);
-          offset[1] -= 6 * getScale(d);
+          offset[1] += getScale(d);
           return offset;
         }) as (d: any) => [number, number],
       }) as Layer,

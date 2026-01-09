@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { FaCamera, FaDownload, FaShare } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
-import { captureAndDownloadMap } from "../../utils/map-screenshot";
 import { Button, Label } from "flowbite-react";
 import Image from "next/image";
 import { handleScreenshot } from "./screenshot-utils";

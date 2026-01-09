@@ -1,9 +1,9 @@
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
-// Re-export TimeSlot from calendar service
-export type { TimeSlot } from "@/features/calendar/services/calendar.service.types";
+// Reuse TimeSlot from week view
+export type { TimeSlot } from "./planning-week-view.types";
 
-export interface PlanningWeekViewProps {
+export interface PlanningDayViewProps {
   lang: string;
   dict: I18nDictionary;
   currentDate?: Date;
@@ -11,9 +11,11 @@ export interface PlanningWeekViewProps {
   endHour?: number;
 }
 
-export interface WeekDay {
+export interface DayInfo {
   date: Date;
   dayName: string;
   dayNumber: number;
+  monthName: string;
+  year: number;
   isToday: boolean;
 }

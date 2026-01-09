@@ -1,20 +1,19 @@
 import "server-only";
 
-import { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import PlanningHeader from "./planning-header";
 import PlanningSidebar from "./planning-sidebar";
 
 interface PlanningLayoutProps {
+  lang: string;
   dict: I18nDictionary;
 }
 
-export default function PlanningLayout({
-  dict,
-}: Readonly<PlanningLayoutProps>) {
+export default function PlanningLayout({ lang, dict }: Readonly<PlanningLayoutProps>) {
   return (
     <div className="flex flex-col h-full w-full">
       {/* Header */}
-      <PlanningHeader dict={dict} />
+      <PlanningHeader lang={lang} dict={dict} />
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">

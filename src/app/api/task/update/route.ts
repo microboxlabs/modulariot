@@ -92,7 +92,10 @@ export async function POST(
     logError(error as Error, { context: "updating task properties" });
 
     const status = getErrorStatus(error);
-    const errorMessage = getErrorMessage(error, "Failed to update task. Please try again.");
+    const errorMessage = getErrorMessage(
+      error,
+      "Failed to update task. Please try again."
+    );
 
     return NextResponse.json(
       {

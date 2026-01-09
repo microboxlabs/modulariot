@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, ButtonGroup } from "flowbite-react";
-import type { ViewMode } from "./planning-header.types";
+import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 
 interface CalendarViewSwitcherProps {
   activeView: ViewMode;

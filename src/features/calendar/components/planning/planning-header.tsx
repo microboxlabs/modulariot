@@ -6,18 +6,16 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
-import type { PlanningHeaderProps, ViewMode } from "./planning-header.types";
+import type { PlanningHeaderProps } from "./planning-header.types";
+import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 import { CalendarNavigation } from "./calendar-navigation";
 import { CalendarViewSwitcher } from "./calendar-view-switcher";
+import {
+  DATE_FORMAT,
+  isValidViewMode,
+} from "@/features/calendar/services/calendar.service";
 
 dayjs.extend(weekOfYear);
-
-const VIEW_MODES = new Set<ViewMode>(["day", "week", "month"]);
-const DATE_FORMAT = "YYYY-MM-DD";
-
-function isValidViewMode(value: string | null): value is ViewMode {
-  return value !== null && VIEW_MODES.has(value as ViewMode);
-}
 
 function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
   if (!dateStr) return null;

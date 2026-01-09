@@ -14,11 +14,17 @@ export const pages: SidebarItem[] = [
     requiredGroups: [], // Public route
   },
   {
-    href: "/calendar",
     icon: CalendarIcon,
     label: "calendar",
+    items: [
+      {
+        href: "/calendar/planning",
+        label: "planning",
+        totals: {},
+      },
+    ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
   },
   {
     icon: ClipboardIcon,

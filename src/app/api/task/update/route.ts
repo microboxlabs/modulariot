@@ -6,6 +6,10 @@ import {
   UpdateTaskPropertiesResponse,
 } from "./route.types";
 import { logger, logError } from "@/lib/logger";
+import {
+  getErrorMessage,
+  getErrorStatus,
+} from "@/app/api/utils/api-error-handler";
 
 /**
  * API Route for updating task properties without ending the task.
@@ -84,18 +88,18 @@ export async function POST(
       success: true,
       updatedProperties: updatePayload,
     });
-  } catch (_error: unknown) {
-    logError(_error as Error);
+  } catch (error: unknown) {
+    logError(error as Error, { context: "updating task properties" });
 
-    const errorMessage =
-      _error instanceof Error ? _error.message : "Unknown error occurred";
+    const status = getErrorStatus(error);
+    const errorMessage = getErrorMessage(error, "Failed to update task. Please try again.");
 
     return NextResponse.json(
       {
         success: false,
         error: errorMessage,
       },
-      { status: 500 }
+      { status }
     );
   }
 }

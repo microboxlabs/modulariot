@@ -6,7 +6,8 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
-import type { PlanningHeaderProps, ViewMode } from "./planning-header.types";
+import type { PlanningHeaderProps } from "./planning-header.types";
+import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 import { CalendarNavigation } from "./calendar-navigation";
 import { CalendarViewSwitcher } from "./calendar-view-switcher";
 import {

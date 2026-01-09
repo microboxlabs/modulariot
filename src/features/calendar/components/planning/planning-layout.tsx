@@ -3,7 +3,7 @@ import "server-only";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import PlanningHeader from "./planning-header";
 import PlanningSidebar from "./planning-sidebar";
-import PlanningWeekView from "./planning-week-view";
+import PlanningCalendar from "./planning-calendar";
 
 interface PlanningLayoutProps {
   lang: string;
@@ -24,7 +24,7 @@ export default function PlanningLayout({
         {/* Main Area - Calendar */}
         <div className="flex-1 p-4 overflow-hidden bg-gray-50 dark:bg-gray-900">
           <div className="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
-            <PlanningWeekView lang={lang} dict={dict} />
+            <PlanningCalendar lang={lang} dict={dict} />
           </div>
         </div>
 

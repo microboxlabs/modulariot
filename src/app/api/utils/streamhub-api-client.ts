@@ -79,15 +79,41 @@ export function createStreamHubApiHandler(
       });
 
       if (!response.ok) {
+        // Check if response is HTML (error page)
+        const contentType = response.headers.get("content-type");
+        if (contentType?.includes("text/html")) {
+          return NextResponse.json(
+            { error: "Service temporarily unavailable. Please try again." },
+            { status: response.status >= 500 ? response.status : 502 }
+          );
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Verify content-type is JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        return NextResponse.json(
+          { error: "Service returned an unexpected response. Please try again." },
+          { status: 502 }
+        );
       }
 
       const data = await response.json();
       return NextResponse.json(data);
     } catch (error) {
       console.error(error);
+      
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError && error.message.includes("Unexpected token")) {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable. Please try again." },
+          { status: 502 }
+        );
+      }
+      
       return NextResponse.json(
-        { error: "Failed to fetch data", errorMessage: error },
+        { error: "Failed to fetch data. Please try again." },
         { status: 500 }
       );
     }

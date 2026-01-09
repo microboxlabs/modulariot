@@ -10,6 +10,11 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { EndTaskRequest, UpdateTaskRequest } from "./route.types";
 import { logger, logError } from "@/lib/logger";
+import {
+  getErrorMessage,
+  getErrorStatus,
+  isFetcherError,
+} from "@/app/api/utils/api-error-handler";
 
 export async function POST(request: NextRequest) {
   try {
@@ -113,25 +118,59 @@ export async function POST(request: NextRequest) {
       status: 200,
       ...response,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (_error: any) {
-    logError(_error as Error);
-    if (_error instanceof Error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const error = parseErrorAsJson(_error);
-      return NextResponse.json({ success: false, error }, { status: 500 });
+  } catch (error: unknown) {
+    logError(error as Error, { context: "ending task" });
+    
+    // Handle FetcherErrors (timeout, non-JSON responses, etc.) with user-friendly messages
+    if (isFetcherError(error)) {
+      const status = getErrorStatus(error);
+      const message = getErrorMessage(error, "Failed to complete task. Please try again.");
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: error.code || "UNKNOWN_ERROR", 
+            message 
+          } 
+        }, 
+        { status }
+      );
     }
+    
+    // For other errors, try to parse Alfresco-specific error format
+    if (error instanceof Error) {
+      const parsedError = parseErrorAsJson(error);
+      return NextResponse.json({ success: false, error: parsedError }, { status: 500 });
+    }
+    
     return NextResponse.json({
       success: false,
       status: 500,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      error: (_error?.message as string) ?? "Unknown error",
+      error: { code: "UNKNOWN_ERROR", message: "An unexpected error occurred. Please try again." },
     });
   }
 }
 
+/**
+ * Check if a string contains HTML content (indicating a non-JSON response)
+ */
+function isHtmlContent(content: string): boolean {
+  const trimmed = content.trim();
+  return trimmed.startsWith("<") || trimmed.toLowerCase().includes("<!doctype");
+}
+
 function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
   try {
+    // Check if error.info is HTML (timeout page, error page, etc.)
+    if (error.info && isHtmlContent(error.info)) {
+      return {
+        code: "SERVICE_ERROR",
+        message: "Service temporarily unavailable. Please try again.",
+        exceptionType: "ServiceError",
+        details: {},
+      };
+    }
+    
     if (error.info) {
       const parsedError = JSON.parse(error.info) as Record<string, unknown>;
       const errorMessage = parsedError.message as string;
@@ -142,7 +181,29 @@ function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
         details: {},
       };
     }
+    
+    // Check if error.message contains HTML
+    if (error.message && isHtmlContent(error.message)) {
+      return {
+        code: "SERVICE_ERROR",
+        message: "Service temporarily unavailable. Please try again.",
+        exceptionType: "ServiceError",
+        details: {},
+      };
+    }
+    
     if (error.message) {
+      // Check if message contains JSON parsing error patterns
+      if (error.message.includes("Unexpected token") || 
+          error.message.includes("is not valid JSON")) {
+        return {
+          code: "SERVICE_ERROR",
+          message: "Service temporarily unavailable. Please try again.",
+          exceptionType: "ServiceError",
+          details: {},
+        };
+      }
+      
       const parsedError = JSON.parse(error.message) as Record<string, unknown>;
       const errorMessage = parsedError.message as string;
       // Regex to extract exception type and JSON details
@@ -204,9 +265,10 @@ function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
 
     throw new Error(JSON.stringify(error));
   } catch (parseError) {
+    // If JSON parsing fails, return a generic user-friendly error
     return {
-      code: "PARSE_ERROR",
-      message: JSON.stringify(parseError) ?? "Failed to parse error message",
+      code: "SERVICE_ERROR",
+      message: "An error occurred. Please try again.",
       exceptionType: "UnknownError",
       details: {},
     };

@@ -1,9 +1,96 @@
-import { FetcherError } from "./fetcher.types";
+import { FetcherError, FetcherErrorCode } from "./fetcher.types";
 import { apiLogger, logError } from "@/lib/logger";
 import {
   buildAccessLogFields,
   generateRequestId,
 } from "@/features/common/utils/access-log";
+
+/**
+ * Checks if the response content-type indicates JSON
+ */
+const isJsonContentType = (response: Response): boolean => {
+  const contentType = response.headers.get("content-type");
+  return contentType?.includes("application/json") ?? false;
+};
+
+/**
+ * Creates a FetcherError with proper structure
+ */
+const createFetcherError = (
+  message: string,
+  status: number,
+  code: string,
+  info?: unknown
+): FetcherError => {
+  const error = new Error(message) as FetcherError;
+  error.status = status;
+  error.code = code;
+  error.info = info;
+  return error;
+};
+
+/**
+ * Attempts to parse JSON response, handling non-JSON responses gracefully
+ */
+const parseJsonResponse = async <T>(response: Response): Promise<T> => {
+  const contentType = response.headers.get("content-type");
+
+  // If content-type is not JSON, this is likely an error page (HTML timeout, gateway error, etc.)
+  if (!isJsonContentType(response)) {
+    const text = await response.text();
+    const isHtml = text.trim().startsWith("<") || contentType?.includes("html");
+
+    // Detect common error patterns
+    let errorMessage = "Server returned an unexpected response format";
+    if (isHtml) {
+      // Check for common timeout/gateway error indicators
+      if (
+        text.toLowerCase().includes("timeout") ||
+        text.toLowerCase().includes("timed out")
+      ) {
+        errorMessage = "The request timed out. Please try again.";
+      } else if (
+        text.toLowerCase().includes("502") ||
+        text.toLowerCase().includes("bad gateway")
+      ) {
+        errorMessage = "Service temporarily unavailable. Please try again.";
+      } else if (
+        text.toLowerCase().includes("503") ||
+        text.toLowerCase().includes("service unavailable")
+      ) {
+        errorMessage = "Service temporarily unavailable. Please try again.";
+      } else if (
+        text.toLowerCase().includes("504") ||
+        text.toLowerCase().includes("gateway timeout")
+      ) {
+        errorMessage = "The service took too long to respond. Please try again.";
+      } else {
+        errorMessage = "Service unavailable. Please try again later.";
+      }
+    }
+
+    throw createFetcherError(
+      errorMessage,
+      response.status || 502,
+      FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+      { contentType, responsePreview: text.substring(0, 200) }
+    );
+  }
+
+  // Try to parse JSON
+  try {
+    return (await response.json()) as T;
+  } catch (parseError) {
+    // JSON parsing failed - this shouldn't happen if content-type was JSON
+    // but handle it gracefully anyway
+    throw createFetcherError(
+      "Failed to parse server response",
+      response.status || 500,
+      FetcherErrorCode.JSON_PARSE_ERROR,
+      { parseError: parseError instanceof Error ? parseError.message : String(parseError) }
+    );
+  }
+};
 
 // moved const shouldLog =
 const shouldLog =
@@ -155,16 +242,11 @@ export default async function httfetcher<T>(
 
     // Handle 204 No Content and other responses with no body
     if (response.status === 204) {
-      console.log("undefined response", response);
       return null as T;
     }
 
-    /* if (response.headers.get("content-type")?.includes("application/json")) {
-      console.error("content-type is not application/json");
-      return response.text() as T;
-    } */
-
-    return (await response.json()) as T;
+    // Parse JSON response with proper error handling for non-JSON responses
+    return await parseJsonResponse<T>(response);
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const status = response?.status ?? 0;
@@ -186,6 +268,65 @@ export default async function httfetcher<T>(
         err,
       });
     }
+
+    // If it's already a FetcherError, re-throw it
+    if (err instanceof Error && "code" in err && "status" in err) {
+      throw err;
+    }
+
+    // Handle network-level errors (timeout, connection refused, etc.)
+    if (err instanceof Error) {
+      const errorMessage = err.message.toLowerCase();
+      const errorCause =
+        err.cause && typeof err.cause === "object" && "code" in err.cause
+          ? (err.cause as { code: string }).code
+          : "";
+
+      // Check for timeout errors
+      if (
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("timed out") ||
+        errorCause === "ETIMEDOUT" ||
+        errorCause === "UND_ERR_CONNECT_TIMEOUT"
+      ) {
+        throw createFetcherError(
+          "The request timed out. Please try again.",
+          504,
+          FetcherErrorCode.NETWORK_ERROR,
+          { originalError: err.message }
+        );
+      }
+
+      // Check for connection errors
+      if (
+        errorMessage.includes("econnrefused") ||
+        errorMessage.includes("enotfound") ||
+        errorMessage.includes("network") ||
+        errorCause === "ECONNREFUSED" ||
+        errorCause === "ENOTFOUND"
+      ) {
+        throw createFetcherError(
+          "Unable to connect to the server. Please try again.",
+          503,
+          FetcherErrorCode.NETWORK_ERROR,
+          { originalError: err.message }
+        );
+      }
+
+      // Check for abort/cancel errors
+      if (
+        errorMessage.includes("aborted") ||
+        err.name === "AbortError"
+      ) {
+        throw createFetcherError(
+          "The request was cancelled.",
+          499,
+          FetcherErrorCode.NETWORK_ERROR,
+          { originalError: err.message }
+        );
+      }
+    }
+
     throw err;
   }
 }

@@ -1,4 +1,24 @@
 export type FetcherError = Error & {
-  info: any;
+  info: unknown;
   status: number;
+  code?: string;
 };
+
+/**
+ * Error codes for fetcher errors
+ */
+export const FetcherErrorCode = {
+  /** Server returned non-JSON response (HTML error page, timeout page, etc.) */
+  INVALID_RESPONSE_FORMAT: "INVALID_RESPONSE_FORMAT",
+  /** JSON parsing failed */
+  JSON_PARSE_ERROR: "JSON_PARSE_ERROR",
+  /** Network timeout or connection error */
+  NETWORK_ERROR: "NETWORK_ERROR",
+  /** Server error (5xx) */
+  SERVER_ERROR: "SERVER_ERROR",
+  /** Client error (4xx) */
+  CLIENT_ERROR: "CLIENT_ERROR",
+} as const;
+
+export type FetcherErrorCodeType =
+  (typeof FetcherErrorCode)[keyof typeof FetcherErrorCode];

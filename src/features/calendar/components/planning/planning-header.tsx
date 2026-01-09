@@ -12,11 +12,11 @@ import { CalendarViewSwitcher } from "./calendar-view-switcher";
 
 dayjs.extend(weekOfYear);
 
-const VIEW_MODES: ViewMode[] = ["day", "week", "month"];
+const VIEW_MODES = new Set<ViewMode>(["day", "week", "month"]);
 const DATE_FORMAT = "YYYY-MM-DD";
 
 function isValidViewMode(value: string | null): value is ViewMode {
-  return value !== null && VIEW_MODES.includes(value as ViewMode);
+  return value !== null && VIEW_MODES.has(value as ViewMode);
 }
 
 function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
@@ -70,7 +70,7 @@ export default function PlanningHeader({
   initialViewMode = "week",
   onDateChange,
   onViewModeChange,
-}: PlanningHeaderProps) {
+}: Readonly<PlanningHeaderProps>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

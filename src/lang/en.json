@@ -974,6 +974,12 @@
         "geographicView": "Geographic view",
         "symptoms": "Symptoms"
       }
+    },
+    "calendar": {
+      "today": "Today",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
     }
   },
   "footer": {

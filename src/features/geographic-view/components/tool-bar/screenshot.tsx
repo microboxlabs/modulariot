@@ -5,6 +5,7 @@ import { IoClose } from "react-icons/io5";
 import { captureAndDownloadMap } from "../../utils/map-screenshot";
 import { Button, Label } from "flowbite-react";
 import Image from "next/image";
+import { handleScreenshot } from "./screenshot-utils";
 
 export default function Screenshot() {
   const [openScreenshot, setOpenScreenshot] = useState(false);
@@ -14,80 +15,6 @@ export default function Screenshot() {
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(
     null
   );
-
-  const handleScreenshot = async () => {
-    setIsCapturing(true);
-    setStatus("Preparing screenshot...");
-
-    try {
-      // Wait for any pending rendering to complete
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-
-      const containerImg = await captureMapContainer();
-      if (containerImg && containerImg.length > 50000) {
-        setScreenshotDataUrl(containerImg);
-        setShowPreviewModal(true);
-        return;
-      }
-
-      // Fallback: try direct canvas capture
-      const mapboxCanvas = document.querySelector(
-        "canvas.mapboxgl-canvas"
-      ) as HTMLCanvasElement;
-      if (mapboxCanvas) {
-        const mapboxImg = mapboxCanvas.toDataURL("image/png");
-        if (mapboxImg.length > 10000) {
-          setScreenshotDataUrl(mapboxImg);
-          setShowPreviewModal(true);
-          return;
-        }
-      }
-
-      setStatus("Screenshot failed. Please try again.");
-    } catch (error) {
-      console.error("Screenshot error:", error);
-      setStatus("Error capturing screenshot");
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
-  // Capture the entire map container
-  const captureMapContainer = async () => {
-    try {
-      const mapContainer =
-        document.querySelector(".mapboxgl-map")?.parentElement;
-      if (!mapContainer) return null;
-
-      const containerRect = mapContainer.getBoundingClientRect();
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      canvas.width = containerRect.width * (window.devicePixelRatio || 1);
-      canvas.height = containerRect.height * (window.devicePixelRatio || 1);
-      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-
-      const allCanvases = mapContainer.querySelectorAll("canvas");
-      for (const canvasEl of allCanvases) {
-        const canvasRect = canvasEl.getBoundingClientRect();
-        const relativeX = canvasRect.left - containerRect.left;
-        const relativeY = canvasRect.top - containerRect.top;
-        ctx.drawImage(
-          canvasEl,
-          relativeX,
-          relativeY,
-          canvasRect.width,
-          canvasRect.height
-        );
-      }
-
-      return canvas.toDataURL("image/png");
-    } catch (error) {
-      console.error("Error capturing map container:", error);
-      return null;
-    }
-  };
 
   // Function to share the screenshot (could be expanded)
   const handleShare = (e: React.MouseEvent) => {
@@ -135,7 +62,12 @@ export default function Screenshot() {
     <div
       className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center`}
       onClick={() => {
-        handleScreenshot();
+        handleScreenshot(
+          setIsCapturing,
+          setStatus,
+          setScreenshotDataUrl,
+          setShowPreviewModal
+        );
         setOpenScreenshot(!openScreenshot);
       }}
     >

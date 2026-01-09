@@ -12,6 +12,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
 import DownloadCSV from "./components/download_csv";
 import { MapPosition } from "@/features/geographic-view/types/map";
+import { handleScreenshot } from "../../tool-bar/screenshot-utils";
 
 export default function Download({
   dict,
@@ -26,81 +27,6 @@ export default function Download({
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(
     null
   );
-
-  // Function to take a screenshot of the map and show in modal
-  const handleScreenshot = async () => {
-    setIsCapturing(true);
-    setStatus("Preparing screenshot...");
-
-    try {
-      // Wait for any pending rendering to complete
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-
-      const containerImg = await captureMapContainer();
-      if (containerImg && containerImg.length > 50000) {
-        setScreenshotDataUrl(containerImg);
-        setShowPreviewModal(true);
-        return;
-      }
-
-      // Fallback: try direct canvas capture
-      const mapboxCanvas = document.querySelector(
-        "canvas.mapboxgl-canvas"
-      ) as HTMLCanvasElement;
-      if (mapboxCanvas) {
-        const mapboxImg = mapboxCanvas.toDataURL("image/png");
-        if (mapboxImg.length > 10000) {
-          setScreenshotDataUrl(mapboxImg);
-          setShowPreviewModal(true);
-          return;
-        }
-      }
-
-      setStatus("Screenshot failed. Please try again.");
-    } catch (error) {
-      console.error("Screenshot error:", error);
-      setStatus("Error capturing screenshot");
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
-  // Capture the entire map container
-  const captureMapContainer = async () => {
-    try {
-      const mapContainer =
-        document.querySelector(".mapboxgl-map")?.parentElement;
-      if (!mapContainer) return null;
-
-      const containerRect = mapContainer.getBoundingClientRect();
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      canvas.width = containerRect.width * (window.devicePixelRatio || 1);
-      canvas.height = containerRect.height * (window.devicePixelRatio || 1);
-      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-
-      const allCanvases = mapContainer.querySelectorAll("canvas");
-      for (const canvasEl of allCanvases) {
-        const canvasRect = canvasEl.getBoundingClientRect();
-        const relativeX = canvasRect.left - containerRect.left;
-        const relativeY = canvasRect.top - containerRect.top;
-        ctx.drawImage(
-          canvasEl,
-          relativeX,
-          relativeY,
-          canvasRect.width,
-          canvasRect.height
-        );
-      }
-
-      return canvas.toDataURL("image/png");
-    } catch (error) {
-      console.error("Error capturing map container:", error);
-      return null;
-    }
-  };
 
   // Function to download directly from preview
   const downloadFromPreview = () => {
@@ -151,7 +77,14 @@ export default function Download({
         <Button
           color="blue"
           className="flex align-middle justify-center"
-          onClick={handleScreenshot}
+          onClick={() => {
+            handleScreenshot(
+              setIsCapturing,
+              setStatus,
+              setScreenshotDataUrl,
+              setShowPreviewModal
+            );
+          }}
           disabled={isCapturing}
         >
           <FaCamera className="h-4 w-4 mr-2" />{" "}

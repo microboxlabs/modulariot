@@ -28,7 +28,7 @@ export function center_in_bounds(
 
   const coordinates = data.map((signal) => [signal.longitude, signal.latitude]);
 
-  if (isLoading == false) {
+  if (!isLoading) {
     if (coordinates.length === 1 && coordinates[0].length === 2) {
       // If only one point, center on it with a reasonable zoom level
       fly_to(mapRef, [coordinates[0][0], coordinates[0][1]], 15);

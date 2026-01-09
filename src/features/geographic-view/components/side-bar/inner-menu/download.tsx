@@ -10,7 +10,6 @@ import { FaCamera } from "react-icons/fa6";
 import { FaDownload, FaShare } from "react-icons/fa";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useState } from "react";
-import { captureAndDownloadMap } from "../../../utils/map-screenshot";
 import DownloadCSV from "./components/download_csv";
 import { MapPosition } from "@/features/geographic-view/types/map";
 
@@ -84,20 +83,16 @@ export default function Download({
 
       const allCanvases = mapContainer.querySelectorAll("canvas");
       for (const canvasEl of allCanvases) {
-        try {
-          const canvasRect = canvasEl.getBoundingClientRect();
-          const relativeX = canvasRect.left - containerRect.left;
-          const relativeY = canvasRect.top - containerRect.top;
-          ctx.drawImage(
-            canvasEl,
-            relativeX,
-            relativeY,
-            canvasRect.width,
-            canvasRect.height
-          );
-        } catch (e) {
-          // Skip canvases that can't be drawn
-        }
+        const canvasRect = canvasEl.getBoundingClientRect();
+        const relativeX = canvasRect.left - containerRect.left;
+        const relativeY = canvasRect.top - containerRect.top;
+        ctx.drawImage(
+          canvasEl,
+          relativeX,
+          relativeY,
+          canvasRect.width,
+          canvasRect.height
+        );
       }
 
       return canvas.toDataURL("image/png");

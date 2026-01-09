@@ -135,7 +135,6 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   ): [number, number, number, number];
 
   renderLayers(): Layer[] {
-    const zoomLevel = this.props.zoom;
     const selectedPulse = this.props.selectedPulse || [];
     const showStops = this.props.showStops || false;
 

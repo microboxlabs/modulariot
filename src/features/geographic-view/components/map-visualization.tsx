@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import { FlyToInterpolator, type MapViewState } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer_clustered";
 import SideBar from "./side-bar/side-bar";
@@ -18,7 +17,6 @@ import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
 import MapStyleSelector from "./map-style-selector";
 import { MapRef } from "react-map-gl";
-import { useRef } from "react";
 import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 
 const mapboxStyles = {
@@ -89,7 +87,7 @@ export default function MapVisualization({
       );
       setPositions(filteredPositions || []);
       if (filteredPositions && filteredPositions.length > 0 && mapRef.current) {
-        center_in_bounds(filteredPositions || [], mapRef.current, false);
+        center_in_bounds(filteredPositions, mapRef.current, false);
       }
     } else if (originalPositions.length != positions.length) {
       setPositions(originalPositions);
@@ -99,8 +97,8 @@ export default function MapVisualization({
   const onPinClick = useCallback(
     ({ object, viewport }: { object: any; viewport: any }) => {
       // Only show tooltip for non-clustered pins
-      if (!object.properties.cluster) {
-        fly_to(mapRef.current!, [
+      if (!object.properties.cluster && mapRef.current) {
+        fly_to(mapRef.current, [
           object.geometry.coordinates[0],
           object.geometry.coordinates[1],
         ]);
@@ -110,11 +108,13 @@ export default function MapVisualization({
           y: viewport.height / 2, // Center vertically + offset down by 100px
         } as PickingInfo<MapPositionProperties>);
       } else {
-        fly_to(
-          mapRef.current!,
-          [object.geometry.coordinates[0], object.geometry.coordinates[1]],
-          zoom + 2
-        );
+        if (mapRef.current) {
+          fly_to(
+            mapRef.current,
+            [object.geometry.coordinates[0], object.geometry.coordinates[1]],
+            zoom + 2
+          );
+        }
         setHoverInfo(undefined);
       }
     },

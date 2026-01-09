@@ -15,7 +15,7 @@ export function CalendarNavigation({
   onNext,
   onToday,
   todayLabel,
-}: CalendarNavigationProps) {
+}: Readonly<CalendarNavigationProps>) {
   return (
     <div className="flex items-center gap-2">
       <Button color="alternative" size="sm" onClick={onToday}>

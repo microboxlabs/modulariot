@@ -6,7 +6,9 @@ interface PlanningSidebarProps {
   dict: I18nDictionary;
 }
 
-export default function PlanningSidebar({ dict }: PlanningSidebarProps) {
+export default function PlanningSidebar({
+  dict,
+}: Readonly<PlanningSidebarProps>) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">

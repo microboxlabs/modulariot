@@ -9,7 +9,7 @@ interface PlanningLayoutProps {
   dict: I18nDictionary;
 }
 
-export default function PlanningLayout({ lang, dict }: PlanningLayoutProps) {
+export default function PlanningLayout({ lang, dict }: Readonly<PlanningLayoutProps>) {
   return (
     <div className="flex flex-col h-full w-full">
       {/* Header */}

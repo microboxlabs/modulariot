@@ -8,6 +8,6 @@ interface PlanningProps {
   dict: I18nDictionary;
 }
 
-export default function Planning({ lang, dict }: PlanningProps) {
+export default function Planning({ lang, dict }: Readonly<PlanningProps>) {
   return <PlanningLayout lang={lang} dict={dict} />;
 }

@@ -20,7 +20,7 @@ export function CalendarViewSwitcher({
   activeView,
   onViewChange,
   labels,
-}: CalendarViewSwitcherProps) {
+}: Readonly<CalendarViewSwitcherProps>) {
   return (
     <ButtonGroup>
       <Button

@@ -84,7 +84,7 @@ export class GeofencePinLayer extends CompositeLayer<any> {
         getPosition: (d: GeofencePinData) => d.coordinates,
         iconAtlas: pin_atlas.src,
         iconMapping: icon_definition,
-        getSize: () => 35 / Math.pow(1.0, this.props.zoom),
+        getSize: () => 35,
         sizeScale: 1,
         parameters: {
           depthTest: false,

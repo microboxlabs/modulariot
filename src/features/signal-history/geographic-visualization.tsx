@@ -27,7 +27,6 @@ export default function GeographicVisualization({
   const p_from = searchParams.get("start_date") || "";
   const p_to = searchParams.get("end_date") || "";
 
-  const [zoomValue, setZoomValue] = useState<number>(10);
   const [renderizableData, setRenderizableData] = useState<any | null>(null);
   const [dateRanges, setDateRanges] = useState<
     { start: string; end: string }[]

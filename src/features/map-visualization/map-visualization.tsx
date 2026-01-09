@@ -113,11 +113,14 @@ export default function MapVisualization({
         <DeckGLOverlay
           layers={layers}
           getCursor={({ isHovering }) => {
-            const newCursor = isMapDragging
-              ? "grabbing"
-              : isHovering
-                ? "pointer"
-                : "grab";
+            let newCursor: string;
+            if (isMapDragging) {
+              newCursor = "grabbing";
+            } else if (isHovering) {
+              newCursor = "pointer";
+            } else {
+              newCursor = "grab";
+            }
             setCursor(newCursor);
             return newCursor;
           }}

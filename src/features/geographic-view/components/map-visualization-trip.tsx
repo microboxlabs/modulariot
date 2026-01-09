@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css"; // for the base style of mapbox maps
-import DeckGL, { FlyToInterpolator, LinearInterpolator } from "deck.gl";
+import { FlyToInterpolator, LinearInterpolator } from "deck.gl";
 import type { PickingInfo } from "@deck.gl/core";
 import { PinLayer } from "./layers/pin_layer";
 import { PulsePinLayer } from "./layers/pulse";
-import Map from "react-map-gl";
 import { MapPosition, PulseProps } from "../types/map";
 import { useGeofences } from "@/features/common/providers/client-api.provider";
 import wkx, { Geometry } from "wkx";
@@ -32,7 +31,6 @@ import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
 import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
-import { useRef } from "react";
 import {
   center_in_bounds,
   fly_to,
@@ -107,10 +105,6 @@ type MapVisualizationProps = {
   positions: MapPosition[] | null;
   isLoading: boolean;
   error: Error | null;
-  averagePosition: {
-    latitude: number;
-    longitude: number;
-  };
   filteredLocationData: TreatmentsLocationResponseItem | null;
   dict: I18nRecord;
   selectedTreatmentIndex: ConditionsAgg | null;
@@ -145,11 +139,9 @@ export default function MapVisualizationTrip({
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
-  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<PulseProps | PulseListType>>();
-  const { geofence_data, geofence_error, geofence_isLoading } =
-    useGeofences(tripId);
+  const { geofence_data } = useGeofences(tripId);
   const [selectedPulse, setSelectedPulse] = useState<number[]>([]);
   const [camera_movement, setCameraMovement] = useState<boolean>(true);
   const [displayPosition, setDisplayPosition] = useState<number>(0);
@@ -174,21 +166,20 @@ export default function MapVisualizationTrip({
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
 
-  // Handle initial zoom when positions are loaded
-  /*
   useEffect(() => {
-    center_in_bounds(positions || [], mapRef.current!, isLoading);
-  }, [positions]);
-  */
-
-  useEffect(() => {
-    center_in_bounds(positions || [], mapRef.current!, isLoading);
+    if (mapRef.current) {
+      center_in_bounds(positions || [], mapRef.current, isLoading);
+    }
   }, [positions]);
 
   useEffect(() => {
-    if (filteredLocationData && filteredLocationData.features.length > 0) {
+    if (
+      filteredLocationData &&
+      filteredLocationData.features.length > 0 &&
+      mapRef.current
+    ) {
       fly_to(
-        mapRef.current!,
+        mapRef.current,
         [
           filteredLocationData.features[0].longitude ?? 0,
           filteredLocationData.features[0].latitude ?? 0,
@@ -313,7 +304,6 @@ export default function MapVisualizationTrip({
       baseLayers.push(
         new GeofenceLayer({
           data: processedGeofence,
-          zoom: viewState.zoom,
           updateTriggers: {
             showGeofences,
           },
@@ -326,7 +316,6 @@ export default function MapVisualizationTrip({
         new PulsePinLayer({
           data: geoJson,
           rotation,
-          zoom: viewState.zoom,
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
             if (info.viewport) {
@@ -338,9 +327,9 @@ export default function MapVisualizationTrip({
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
-            if (camera_movement) {
+            if (camera_movement && mapRef.current) {
               fly_to(
-                mapRef.current!,
+                mapRef.current,
                 info.object?.geometry.coordinates ?? [0, 0],
                 15
               );
@@ -372,10 +361,9 @@ export default function MapVisualizationTrip({
       baseLayers.push(
         new GeofencePinLayer({
           data: processedGeofence,
-          zoom: viewState.zoom,
           onClick: (info: any) => {
-            if (camera_movement) {
-              fly_to(mapRef.current!, info.object?.coordinates ?? [0, 0], 15);
+            if (camera_movement && mapRef.current) {
+              fly_to(mapRef.current, info.object?.coordinates ?? [0, 0], 15);
             }
             return true;
           },
@@ -391,7 +379,6 @@ export default function MapVisualizationTrip({
       baseLayers.push(
         new PinLayer({
           data: positions ? [positions[displayPosition]] : [],
-          zoom: viewState.zoom,
           onClick: (info: PickingInfo<any>) => {
             if (info.viewport) {
               info.x = info.viewport.width / 2;
@@ -415,9 +402,9 @@ export default function MapVisualizationTrip({
             };
 
             setHoverInfo(formattedInfo as any);
-            if (camera_movement) {
+            if (camera_movement && mapRef.current) {
               fly_to(
-                mapRef.current!,
+                mapRef.current,
                 [info.object?.longitude ?? 0, info.object?.latitude ?? 0],
                 15
               );
@@ -484,9 +471,9 @@ export default function MapVisualizationTrip({
               displayPosition={displayPosition}
               setDisplayPosition={setDisplayPosition}
               onZoom={(e) => {
-                if (positions) {
+                if (positions && mapRef.current) {
                   fly_to(
-                    mapRef.current!,
+                    mapRef.current,
                     [
                       positions[Number(e.target.value)]?.longitude ?? 0,
                       positions[Number(e.target.value)]?.latitude ?? 0,

@@ -70,20 +70,16 @@ export default function Screenshot() {
 
       const allCanvases = mapContainer.querySelectorAll("canvas");
       for (const canvasEl of allCanvases) {
-        try {
-          const canvasRect = canvasEl.getBoundingClientRect();
-          const relativeX = canvasRect.left - containerRect.left;
-          const relativeY = canvasRect.top - containerRect.top;
-          ctx.drawImage(
-            canvasEl,
-            relativeX,
-            relativeY,
-            canvasRect.width,
-            canvasRect.height
-          );
-        } catch (e) {
-          // Skip canvases that can't be drawn
-        }
+        const canvasRect = canvasEl.getBoundingClientRect();
+        const relativeX = canvasRect.left - containerRect.left;
+        const relativeY = canvasRect.top - containerRect.top;
+        ctx.drawImage(
+          canvasEl,
+          relativeX,
+          relativeY,
+          canvasRect.width,
+          canvasRect.height
+        );
       }
 
       return canvas.toDataURL("image/png");
@@ -121,42 +117,6 @@ export default function Screenshot() {
     }
   };
 
-  // Function to download the screenshot
-  const downloadScreenshot = async () => {
-    setStatus("Downloading screenshot...");
-
-    try {
-      // Use the native map screenshot approach with combined canvases
-      const success = await captureAndDownloadMap({
-        filename: `map-screenshot-${new Date().toISOString().slice(0, 10)}.png`,
-        fileType: "image/png",
-        debugMode: true, // Keep debug mode enabled temporarily
-        onStatusChange: (newStatus) => {
-          setStatus(newStatus);
-        },
-      });
-
-      if (!success) {
-        setStatus("Failed to capture screenshot");
-        console.error("Screenshot capture failed");
-      } else {
-        setStatus("Screenshot saved!");
-        // Close the modal if it was open
-        setShowPreviewModal(false);
-      }
-    } catch (error) {
-      console.error("Screenshot error:", error);
-      setStatus(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
-    } finally {
-      // Reset status after a delay
-      setTimeout(() => {
-        setStatus("");
-      }, 2000);
-    }
-  };
-
   // Function to download directly from preview
   const downloadFromPreview = (e: React.MouseEvent) => {
     e.stopPropagation(); // Stop event from bubbling up
@@ -181,7 +141,7 @@ export default function Screenshot() {
     >
       <FaCamera size={20} />
       {openScreenshot &&
-        typeof window !== "undefined" &&
+        typeof globalThis !== "undefined" &&
         createPortal(
           <div
             className="fixed inset-0 z-[9999] overflow-hidden pointer-events-none flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm cursor-pointer"

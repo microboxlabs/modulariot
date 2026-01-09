@@ -32,7 +32,6 @@ function isValidCoordinate(coords: any): boolean {
 
 export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
-    const zoomLevel = this.props.zoom;
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;
 

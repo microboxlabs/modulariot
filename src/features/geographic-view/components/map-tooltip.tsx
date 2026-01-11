@@ -100,7 +100,7 @@ export default function MapTooltip({
 
   return (
     <div
-      className="absolute inset-0 z-10 tooltip"
+      className="absolute inset-0 z-[800] tooltip"
       onClick={handleBackdropClick}
       style={{ pointerEvents: "none" }}
     >

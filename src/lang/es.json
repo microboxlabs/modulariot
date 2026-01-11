@@ -960,6 +960,7 @@
       "search": "Buscar",
       "sidebar": {
         "home": "Home",
+        "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",
         "completed_tasks": "Tareas completadas",
@@ -987,6 +988,12 @@
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas"
       }
+    },
+    "calendar": {
+      "today": "Hoy",
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes"
     }
   },
   "footer": {

@@ -27,7 +27,6 @@ export default function GeographicVisualization({
   const p_from = searchParams.get("start_date") || "";
   const p_to = searchParams.get("end_date") || "";
 
-  const [zoomValue, setZoomValue] = useState<number>(10);
   const [renderizableData, setRenderizableData] = useState<any | null>(null);
   const [dateRanges, setDateRanges] = useState<
     { start: string; end: string }[]
@@ -57,23 +56,6 @@ export default function GeographicVisualization({
   }, [renderizableData?.features?.length]);
 
   const mapRef = useRef<MapRef>(null);
-
-  // Getter function that always returns current zoom from the map ref
-  const getZoom = useCallback(() => {
-    return mapRef.current?.getZoom() ?? 10;
-  }, []);
-
-  // Update zoom state only when integer value changes
-  const handleZoomChange = useCallback(() => {
-    const currentZoom = getZoom();
-    const currentZoomInt = Math.round(currentZoom);
-    const currentStateZoomInt = Math.round(zoomValue);
-
-    // Only update state if the integer zoom level has changed
-    if (currentZoomInt !== currentStateZoomInt) {
-      setZoomValue(currentZoom);
-    }
-  }, [getZoom, zoomValue]);
 
   useEffect(() => {
     const signalsData = Array.isArray(data) ? (data as HistoricSignal[]) : [];
@@ -193,7 +175,6 @@ export default function GeographicVisualization({
     const layers = [
       new PulsePinLayer({
         data: data, // Use the data as it is when we reach 200
-        zoom: zoomValue,
         selectedPulse: [],
         displayRange: {
           startDate: new Date(dateRangeDisplayed.startDate),
@@ -204,7 +185,6 @@ export default function GeographicVisualization({
         },
         pickable: true,
         updateTriggers: {
-          zoom: zoomValue,
           displayRange: {
             startDate: new Date(dateRangeDisplayed.startDate),
             endDate: new Date(dateRangeDisplayed.endDate),
@@ -214,7 +194,7 @@ export default function GeographicVisualization({
     ];
 
     setLayers(layers);
-  }, [data?.length, isLoading, displayPosition, dateRangeDisplayed, zoomValue]);
+  }, [data?.length, isLoading, displayPosition, dateRangeDisplayed]);
 
   useEffect(() => {
     // Here each time data gets updated, we will get the 2 farthest coordinates, and generate a zoom in screen
@@ -350,7 +330,6 @@ export default function GeographicVisualization({
           layers={layers}
           isLoading={isLoading}
           mapRef={mapRef}
-          onZoomChange={handleZoomChange}
         />
       </div>
       <CustomCard className="p-4">

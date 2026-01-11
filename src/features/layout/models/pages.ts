@@ -1,3 +1,4 @@
+import CalendarIcon from "@/features/icons/calendar";
 import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
@@ -11,6 +12,19 @@ export const pages: SidebarItem[] = [
     label: "home",
     totals: {},
     requiredGroups: [], // Public route
+  },
+  {
+    icon: CalendarIcon,
+    label: "calendar",
+    items: [
+      {
+        href: "/calendar/planning",
+        label: "planning",
+        totals: {},
+      },
+    ],
+    totals: {},
+    requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
   },
   {
     icon: ClipboardIcon,

@@ -950,6 +950,7 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "calendar": "Calendar",
         "kanban": "Kanban",
         "completed_tasks": "Completed tasks",
         "pending_tasks": "Pending tasks",
@@ -973,6 +974,12 @@
         "geographicView": "Geographic view",
         "symptoms": "Symptoms"
       }
+    },
+    "calendar": {
+      "today": "Today",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
     }
   },
   "footer": {

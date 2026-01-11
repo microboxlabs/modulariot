@@ -37,7 +37,7 @@ export default function MapButton({
   return (
     <div
       className={twMerge(
-        "flex h-10 transition-all duration-300 rounded-full",
+        "flex h-10 transition-all duration-300 rounded-full pointer-events-auto",
         open_to_left ? "flex-row-reverse justify-self-end" : "flex-row",
         main_color
       )}

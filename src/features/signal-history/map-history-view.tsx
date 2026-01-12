@@ -7,7 +7,7 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { useSearchParams } from "next/navigation";
-import moment from "moment";
+import dayjs from "dayjs";
 
 export default function MapHistoryView({
   dict,
@@ -23,10 +23,10 @@ export default function MapHistoryView({
 
   // Format dates with time: start_date at 00:00, end_date at 23:59
   const p_from = startDate
-    ? moment(startDate).startOf("day").format("YYYY-MM-DD HH:mm")
+    ? dayjs(startDate).startOf("day").format("YYYY-MM-DD HH:mm")
     : "";
   const p_to = endDate
-    ? moment(endDate).endOf("day").format("YYYY-MM-DD HH:mm")
+    ? dayjs(endDate).endOf("day").format("YYYY-MM-DD HH:mm")
     : "";
 
   const tags = [

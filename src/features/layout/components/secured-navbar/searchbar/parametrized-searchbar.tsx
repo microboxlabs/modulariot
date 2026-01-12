@@ -13,6 +13,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
+import dayjs from "dayjs";
 
 interface ParametrizedSearchBarProps {
   readonly dict: I18nRecord;
@@ -366,6 +367,7 @@ function DateParams({
               className="mx-4 mb-2"
               key={index}
               label={param.label}
+              maxDate={dayjs()}
               onDateChange={(startDate: string, endDate: string) => {
                 const paramName = param.param.key || "date_range";
 

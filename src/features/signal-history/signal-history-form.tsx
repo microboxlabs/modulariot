@@ -3,7 +3,7 @@
 import { Button, TextInput } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
-import moment from "moment";
+import dayjs from "dayjs";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MapHistoryView from "./map-history-view";
@@ -150,8 +150,8 @@ function DateRangeInput({
 
   const handleDateChange = (startDate: string, endDate: string) => {
     // Format dates with local timezone and proper times (00:00 for start, 23:59 for end)
-    const formattedStartDate = moment(startDate).startOf("day").format();
-    const formattedEndDate = moment(endDate).endOf("day").format();
+    const formattedStartDate = dayjs(startDate).startOf("day").format();
+    const formattedEndDate = dayjs(endDate).endOf("day").format();
 
     // Update URL parameters directly
     params.set("start_date", formattedStartDate);
@@ -163,8 +163,8 @@ function DateRangeInput({
   const handleSearch = () => {
     // If no start_date and end_date are set, use yesterday and today with local times
     if (!params.get("start_date") || !params.get("end_date")) {
-      const startDate = moment().subtract(1, "day").startOf("day").format();
-      const endDate = moment().endOf("day").format();
+      const startDate = dayjs().subtract(1, "day").startOf("day").format();
+      const endDate = dayjs().endOf("day").format();
 
       params.set("start_date", startDate);
       params.set("end_date", endDate);
@@ -188,18 +188,16 @@ function DateRangeInput({
           <DateRangePicker
             onDateChange={handleDateChange}
             className="w-full"
-            minDate={moment().subtract(1, "year")}
-            maxDate={moment()}
+            minDate={dayjs().subtract(1, "year")}
+            maxDate={dayjs()}
             maxRangeDays={1}
             defaultStartDate={
               params.get("start_date")
-                ? moment(params.get("start_date")!)
-                : moment().subtract(1, "days")
+                ? dayjs(params.get("start_date")!)
+                : dayjs().subtract(1, "days")
             }
             defaultEndDate={
-              params.get("end_date")
-                ? moment(params.get("end_date")!)
-                : moment()
+              params.get("end_date") ? dayjs(params.get("end_date")!) : dayjs()
             }
           />
         </div>

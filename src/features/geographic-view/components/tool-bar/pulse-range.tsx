@@ -19,7 +19,7 @@ function PulseRangeComponent({
 }: PulseRangeProps) {
   return (
     <div className="w-full h-full flex flex-col">
-      <style jsx>{`
+      <style>{`
         .range-slider {
           box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }

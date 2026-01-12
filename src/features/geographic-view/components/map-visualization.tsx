@@ -37,7 +37,7 @@ type MapVisualizationProps = {
 
 import {
   center_in_bounds,
-  fly_to,
+  flyTo,
 } from "@/features/map-visualization/map-view-utils";
 
 export default function MapVisualization({
@@ -98,7 +98,7 @@ export default function MapVisualization({
     ({ object, viewport }: { object: any; viewport: any }) => {
       // Only show tooltip for non-clustered pins
       if (!object.properties.cluster && mapRef.current) {
-        fly_to(mapRef.current, [
+        flyTo(mapRef.current, [
           object.geometry.coordinates[0],
           object.geometry.coordinates[1],
         ]);
@@ -109,7 +109,7 @@ export default function MapVisualization({
         } as PickingInfo<MapPositionProperties>);
       } else {
         if (mapRef.current) {
-          fly_to(
+          flyTo(
             mapRef.current,
             [object.geometry.coordinates[0], object.geometry.coordinates[1]],
             zoom + 2

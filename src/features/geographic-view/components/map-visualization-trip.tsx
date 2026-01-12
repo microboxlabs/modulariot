@@ -434,7 +434,7 @@ export default function MapVisualizationTrip({
 
   return (
     <div className="h-full w-full relative overflow-hidden">
-      <div className="z-[700] absolute bottom-0 left-0">
+      <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
         {pictures_list.length > 0 && !minimized ? (
           <ImageSelector images={pictures_list} dictionary={dict} />
         ) : null}

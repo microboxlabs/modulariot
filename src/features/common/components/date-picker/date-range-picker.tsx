@@ -4,7 +4,7 @@ import "daterangepicker/daterangepicker.css";
 import React, { useEffect, useRef } from "react";
 import $ from "jquery";
 import "daterangepicker";
-import moment from "moment";
+import dayjs from "dayjs";
 
 // Extend JQuery type to include daterangepicker
 declare global {
@@ -29,11 +29,11 @@ export default function DateRangePicker({
   label?: string;
   onDateChange?: (startDate: string, endDate: string) => void;
   className?: string;
-  minDate?: moment.Moment;
-  maxDate?: moment.Moment;
+  minDate?: dayjs.Dayjs;
+  maxDate?: dayjs.Dayjs;
   maxRangeDays?: number;
-  defaultStartDate?: moment.Moment;
-  defaultEndDate?: moment.Moment;
+  defaultStartDate?: dayjs.Dayjs;
+  defaultEndDate?: dayjs.Dayjs;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -42,12 +42,12 @@ export default function DateRangePicker({
       $(inputRef.current).daterangepicker(
         {
           timePicker: false,
-          startDate: (defaultStartDate || moment().subtract(3, "days")).startOf(
+          startDate: (defaultStartDate || dayjs().subtract(3, "days")).startOf(
             "day"
-          ),
-          endDate: (defaultEndDate || moment()).endOf("day"),
-          minDate: minDate || moment().subtract(1, "year"),
-          maxDate: maxDate || moment(),
+          ).toDate(),
+          endDate: (defaultEndDate || dayjs()).endOf("day").toDate(),
+          ...(minDate && { minDate: minDate.toDate() }),
+          ...(maxDate && { maxDate: maxDate.toDate() }),
           ...(maxRangeDays && {
             dateLimit: {
               days: maxRangeDays,
@@ -60,10 +60,10 @@ export default function DateRangePicker({
           opens: "left",
         },
         function (start, end) {
-          // Callback on date range selection
+          // Callback on date range selection - convert moment objects to dayjs
           // Set start date to 00:00 and end date to 23:59
-          const startWithTime = start.startOf("day");
-          const endWithTime = end.endOf("day");
+          const startWithTime = dayjs(start.toDate()).startOf("day");
+          const endWithTime = dayjs(end.toDate()).endOf("day");
 
           const startFormatted = startWithTime.format("YYYY-MM-DD HH:mm");
           const endFormatted = endWithTime.format("YYYY-MM-DD HH:mm");

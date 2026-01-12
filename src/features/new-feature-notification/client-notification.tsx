@@ -70,7 +70,6 @@ export default function ClientNotification({
   }, [this_path]);
 
   if (selected_feature === undefined && !isGeneralSlider) {
-    console.log("No selected feature and not general slider");
     return <div></div>;
   }
 

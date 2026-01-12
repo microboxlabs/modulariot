@@ -33,7 +33,7 @@ import MapVisualization from "@/features/map-visualization/map-visualization";
 import { MapRef } from "react-map-gl";
 import {
   center_in_bounds,
-  fly_to,
+  flyTo,
 } from "@/features/map-visualization/map-view-utils";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
@@ -178,7 +178,7 @@ export default function MapVisualizationTrip({
       filteredLocationData.features.length > 0 &&
       mapRef.current
     ) {
-      fly_to(
+      flyTo(
         mapRef.current,
         [
           filteredLocationData.features[0].longitude ?? 0,
@@ -328,7 +328,7 @@ export default function MapVisualizationTrip({
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
             if (camera_movement && mapRef.current) {
-              fly_to(
+              flyTo(
                 mapRef.current,
                 info.object?.geometry.coordinates ?? [0, 0],
                 15
@@ -363,7 +363,7 @@ export default function MapVisualizationTrip({
           data: processedGeofence,
           onClick: (info: any) => {
             if (camera_movement && mapRef.current) {
-              fly_to(mapRef.current, info.object?.coordinates ?? [0, 0], 15);
+              flyTo(mapRef.current, info.object?.coordinates ?? [0, 0], 15);
             }
             return true;
           },
@@ -403,7 +403,7 @@ export default function MapVisualizationTrip({
 
             setHoverInfo(formattedInfo as any);
             if (camera_movement && mapRef.current) {
-              fly_to(
+              flyTo(
                 mapRef.current,
                 [info.object?.longitude ?? 0, info.object?.latitude ?? 0],
                 15
@@ -472,7 +472,7 @@ export default function MapVisualizationTrip({
               setDisplayPosition={setDisplayPosition}
               onZoom={(e) => {
                 if (positions && mapRef.current) {
-                  fly_to(
+                  flyTo(
                     mapRef.current,
                     [
                       positions[Number(e.target.value)]?.longitude ?? 0,

@@ -210,15 +210,59 @@ export default async function httfetcher<T>(
     }
 
     if (!response.ok && response.status !== 401) {
-      const error = new Error(response.statusText) as FetcherError;
-      error.status = response.status;
-      // Try to parse error response as JSON, but handle cases where there's no body
+      // Get response body for error handling
+      let responseText = "";
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        error.info = await response.text();
-      } catch (err) {
-        error.info = null;
+        responseText = await response.text();
+      } catch {
+        responseText = "";
       }
+
+      // Check if response is HTML (error page, timeout page, etc.)
+      const isHtmlResponse =
+        responseText.trim().startsWith("<") ||
+        response.headers.get("content-type")?.includes("html");
+
+      // Create user-friendly error message based on response content and status
+      let errorMessage = response.statusText || "Request failed";
+      let errorCode: string = FetcherErrorCode.SERVER_ERROR;
+
+      if (isHtmlResponse) {
+        errorCode = FetcherErrorCode.INVALID_RESPONSE_FORMAT;
+        const lowerText = responseText.toLowerCase();
+
+        // Detect specific error patterns in HTML
+        if (lowerText.includes("timeout") || lowerText.includes("timed out")) {
+          errorMessage = "The request timed out. Please try again.";
+        } else if (
+          response.status === 502 ||
+          lowerText.includes("bad gateway")
+        ) {
+          errorMessage = "Service temporarily unavailable. Please try again.";
+        } else if (
+          response.status === 503 ||
+          lowerText.includes("service unavailable")
+        ) {
+          errorMessage = "Service temporarily unavailable. Please try again.";
+        } else if (
+          response.status === 504 ||
+          lowerText.includes("gateway timeout")
+        ) {
+          errorMessage =
+            "The service took too long to respond. Please try again.";
+        } else {
+          errorMessage = "Service unavailable. Please try again later.";
+        }
+      } else if (response.status >= 500) {
+        errorMessage = "A server error occurred. Please try again.";
+      }
+
+      const error = createFetcherError(
+        errorMessage,
+        response.status,
+        errorCode,
+        { responseText: responseText.substring(0, 500) }
+      );
 
       if (shouldLog) {
         logError(error, {

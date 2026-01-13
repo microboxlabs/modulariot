@@ -159,118 +159,131 @@ function isHtmlContent(content: string): boolean {
   return trimmed.startsWith("<") || trimmed.toLowerCase().includes("<!doctype");
 }
 
-function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
-  try {
-    // Check if error.info is HTML (timeout page, error page, etc.)
-    if (error.info && isHtmlContent(error.info)) {
+/**
+ * Check if a string contains JSON parsing error patterns
+ */
+function isJsonParsingError(message: string): boolean {
+  return (
+    message.includes("Unexpected token") || message.includes("is not valid JSON")
+  );
+}
+
+/**
+ * Creates a service error response for non-recoverable errors
+ */
+function createServiceErrorResponse(
+  message = "Service temporarily unavailable. Please try again."
+): AlfrescoErrorResponse {
+  return {
+    code: "SERVICE_ERROR",
+    message,
+    exceptionType: "ServiceError",
+    details: {},
+  };
+}
+
+/**
+ * Known error patterns and their corresponding response mappings
+ */
+const ERROR_PATTERNS: Array<{
+  regex: RegExp;
+  code: string;
+  exceptionType: string;
+}> = [
+  {
+    regex: /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/,
+    code: "REQUIRED_DATA_MISSING",
+    exceptionType: "RequiredDataMissingError",
+  },
+  {
+    regex: /com\.alerce\.errors\.AlerceLoginError: (.*)/,
+    code: "ALERCE_LOGIN_ERROR",
+    exceptionType: "AlerceLoginError",
+  },
+  {
+    regex:
+      /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/,
+    code: "DUPLICATE_LICENSE_PLATE_ERROR",
+    exceptionType: "DuplicateLicensePlateError",
+  },
+];
+
+/**
+ * Attempts to match error message against known error patterns
+ */
+function matchKnownErrorPattern(
+  errorMessage: string
+): AlfrescoErrorResponse | null {
+  // Try to match generic exception with JSON details
+  const genericMatch = errorMessage.match(/(\w+(?:\.\w+)*Error): ({.*})/);
+  if (genericMatch) {
+    const [, exceptionType, jsonDetails] = genericMatch;
+    const details = JSON.parse(jsonDetails) as Record<string, unknown>;
+    return {
+      code: (details.code as string) || "UNKNOWN_ERROR",
+      message: (details.message as string) || "An unknown error occurred",
+      exceptionType,
+      details,
+    };
+  }
+
+  // Try known error patterns
+  for (const pattern of ERROR_PATTERNS) {
+    const match = errorMessage.match(pattern.regex);
+    if (match) {
       return {
-        code: "SERVICE_ERROR",
-        message: "Service temporarily unavailable. Please try again.",
-        exceptionType: "ServiceError",
+        code: pattern.code,
+        message: match[1],
+        exceptionType: pattern.exceptionType,
         details: {},
       };
     }
-    
+  }
+
+  return null;
+}
+
+function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
+  try {
+    // Handle HTML content in error.info (timeout page, error page, etc.)
+    if (error.info && isHtmlContent(error.info)) {
+      return createServiceErrorResponse();
+    }
+
+    // Parse error.info if available
     if (error.info) {
       const parsedError = JSON.parse(error.info) as Record<string, unknown>;
-      const errorMessage = parsedError.message as string;
       return {
         code: "ERROR",
-        message: errorMessage,
+        message: parsedError.message as string,
         exceptionType: "Error",
         details: {},
       };
     }
-    
-    // Check if error.message contains HTML
+
+    // Handle HTML content in error.message
     if (error.message && isHtmlContent(error.message)) {
-      return {
-        code: "SERVICE_ERROR",
-        message: "Service temporarily unavailable. Please try again.",
-        exceptionType: "ServiceError",
-        details: {},
-      };
+      return createServiceErrorResponse();
     }
-    
+
+    // Handle JSON parsing errors in error.message
+    if (error.message && isJsonParsingError(error.message)) {
+      return createServiceErrorResponse();
+    }
+
+    // Try to parse error.message as JSON and match known patterns
     if (error.message) {
-      // Check if message contains JSON parsing error patterns
-      if (error.message.includes("Unexpected token") || 
-          error.message.includes("is not valid JSON")) {
-        return {
-          code: "SERVICE_ERROR",
-          message: "Service temporarily unavailable. Please try again.",
-          exceptionType: "ServiceError",
-          details: {},
-        };
-      }
-      
       const parsedError = JSON.parse(error.message) as Record<string, unknown>;
       const errorMessage = parsedError.message as string;
-      // Regex to extract exception type and JSON details
-      let regex = /(\w+(?:\.\w+)*Error): ({.*})/;
-      let match = errorMessage.match(regex);
-
-      if (match) {
-        let [, exceptionType, jsonDetails] = match;
-        const details = JSON.parse(jsonDetails) as Record<string, unknown>;
-
-        return {
-          code: (details.code as string) || "UNKNOWN_ERROR",
-          message: (details.message as string) || "An unknown error occurred",
-          exceptionType,
-          details,
-        };
-      }
-
-      regex = /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/;
-      match = errorMessage.match(regex);
-
-      if (match) {
-        let [, message] = match;
-        return {
-          code: "REQUIRED_DATA_MISSING",
-          message,
-          exceptionType: "RequiredDataMissingError",
-          details: {},
-        };
-      }
-
-      regex = /com\.alerce\.errors\.AlerceLoginError: (.*)/;
-      match = errorMessage.match(regex);
-
-      if (match) {
-        let [, message] = match;
-        return {
-          code: "ALERCE_LOGIN_ERROR",
-          message,
-          exceptionType: "AlerceLoginError",
-          details: {},
-        };
-      }
-
-      regex =
-        /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/;
-      match = errorMessage.match(regex);
-      if (match) {
-        let [, message] = match;
-        return {
-          code: "DUPLICATE_LICENSE_PLATE_ERROR",
-          message,
-          exceptionType: "DuplicateLicensePlateError",
-          details: {},
-        };
+      const matchedResponse = matchKnownErrorPattern(errorMessage);
+      if (matchedResponse) {
+        return matchedResponse;
       }
       throw new Error(error.message);
     }
 
     throw new Error(JSON.stringify(error));
-  } catch (parseError) {
-    // If JSON parsing fails, return a generic user-friendly error
-    return {
-      code: "SERVICE_ERROR",
-      message: "An error occurred. Please try again.",
-      exceptionType: "UnknownError",
-      details: {},
-    };
+  } catch {
+    return createServiceErrorResponse("An error occurred. Please try again.");
   }
 }

@@ -6,8 +6,26 @@ import { GPSValidityType, TaskNextActionState } from "./form.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 
 import { ShowNotification } from "@/features/notifications/notification";
-import { FetcherError } from "@/features/common/providers/fetcher.types";
+import {
+  FetcherError,
+  FetcherErrorInfo,
+} from "@/features/common/providers/fetcher.types";
 import { InfoError } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+
+/**
+ * Type guard to check if info has the expected error structure
+ */
+function hasErrorInfo(
+  info: unknown
+): info is FetcherErrorInfo & { error: NonNullable<FetcherErrorInfo["error"]> } {
+  return (
+    typeof info === "object" &&
+    info !== null &&
+    "error" in info &&
+    typeof (info as FetcherErrorInfo).error === "object" &&
+    (info as FetcherErrorInfo).error !== null
+  );
+}
 
 async function fetcherClient<T>(
   input: RequestInfo | URL,
@@ -20,34 +38,33 @@ async function fetcherClient<T>(
     let errorMessage = fetcherError.message;
 
     if (typeof fetcherError?.info === "string") {
-      const parsedError = JSON.parse(fetcherError.info) as Record<
-        string,
-        InfoError
-      >;
-      if (parsedError?.error?.message) {
-        errorMessage = parsedError.error.message;
+      try {
+        const parsedError = JSON.parse(fetcherError.info) as Record<
+          string,
+          InfoError
+        >;
+        if (parsedError?.error?.message) {
+          errorMessage = parsedError.error.message;
+        }
+      } catch {
+        // If JSON parsing fails, keep the original error message
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (fetcherError?.info?.error?.code === "ALERCE_LOGIN_ERROR") {
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (fetcherError?.info?.error?.message as string) ??
-        "Error al iniciar sesión";
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    } else if (fetcherError?.info?.error?.code === "ERROR_ACCION") {
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (fetcherError?.info?.error?.details?.involvedObject
-          ?.respuesta as string) ?? "Error al realizar la acción";
-    } else if (
-      fetcherError?.info?.error?.code === "DUPLICATE_LICENSE_PLATE_ERROR"
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        fetcherError?.info?.error?.message ?? "Error al realizar la acción";
+
+    // Check for specific error codes when info has error structure
+    if (hasErrorInfo(fetcherError?.info)) {
+      const errorInfo = fetcherError.info.error;
+      if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
+        errorMessage = errorInfo.message ?? "Error al iniciar sesión";
+      } else if (errorInfo.code === "ERROR_ACCION") {
+        errorMessage =
+          errorInfo.details?.involvedObject?.respuesta ??
+          "Error al realizar la acción";
+      } else if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
+        errorMessage = errorInfo.message ?? "Error al realizar la acción";
+      }
     }
+
     ShowNotification({
       message: errorMessage,
       type: "error",

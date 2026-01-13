@@ -1,8 +1,4 @@
-// import { useState, memo, useRef, useEffect } from "react";
 import { MapPosition } from "../../types/map";
-import { ViewStateType } from "../map-visualization-trip";
-// import { HiChevronUp } from "react-icons/hi";
-// import ReactEcharts from "echarts-for-react";
 
 type PulseRangeProps = {
   positions: MapPosition[];
@@ -31,7 +27,14 @@ function PulseRangeComponent({
             }
             setDisplayPosition(Number(e.target.value));
           }}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          style={{
+            background: `linear-gradient(to right, rgb(37 99 235) 0%, rgb(37 99 235) ${
+              (displayPosition / (positions?.length ?? 1)) * 100
+            }%, rgb(229 231 235) ${
+              (displayPosition / (positions?.length ?? 1)) * 100
+            }%, rgb(229 231 235) 100%)`,
+          }}
         />
       </div>
     </div>

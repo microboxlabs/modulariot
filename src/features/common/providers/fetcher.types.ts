@@ -1,5 +1,22 @@
+/**
+ * Structure of error info that may be returned from API responses
+ */
+export interface FetcherErrorInfo {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: {
+      involvedObject?: {
+        respuesta?: string;
+      };
+      [key: string]: unknown;
+    };
+  };
+  [key: string]: unknown;
+}
+
 export type FetcherError = Error & {
-  info: unknown;
+  info: FetcherErrorInfo | string | null | unknown;
   status: number;
   code?: string;
 };

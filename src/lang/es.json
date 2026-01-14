@@ -212,6 +212,40 @@
         "carrierName": "Transportista",
         "customerCode": "Código Cliente",
         "customer": "Cliente"
+      },
+      "sidebar": {
+        "title": "Planificar viaje",
+        "servicesList": "Servicios del día",
+        "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
+        "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",
+        "searchPlaceholder": "Buscar servicio...",
+        "form": {
+          "serviceNumber": "Servicio Nº",
+          "slot": "Slot",
+          "selectService": "Seleccionar Servicio",
+          "selectServicePlaceholder": "Seleccione un servicio...",
+          "sort": "Ordenar",
+          "flags": "Flags",
+          "urgent": "URGENTE",
+          "shutdown": "SHUTDOWN",
+          "incidents": "Incidencias",
+          "kpis": "KPIs",
+          "onTime": "A tiempo",
+          "atRisk": "En riesgo",
+          "delayed": "Retrasado",
+          "occupancy": "Ocupación",
+          "information": "Información",
+          "client": "Cliente",
+          "origin": "Origen",
+          "loadingPlace": "Lugar Cargío",
+          "destination": "Destino",
+          "tripType": "Tipo Viaje",
+          "permanence": "Permanencia",
+          "notes": "Observaciones",
+          "cancel": "Cancelar",
+          "assign": "Asignar",
+          "back": "Volver"
+        }
       }
     },
     "shipping": {

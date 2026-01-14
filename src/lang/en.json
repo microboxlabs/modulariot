@@ -212,6 +212,40 @@
         "carrierName": "Carrier",
         "customerCode": "Customer Code",
         "customer": "Customer"
+      },
+      "sidebar": {
+        "title": "Plan Trip",
+        "servicesList": "Today's Services",
+        "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
+        "selectServiceHint": "Select a service to assign driver and vehicle",
+        "searchPlaceholder": "Search service...",
+        "form": {
+          "serviceNumber": "Service Nº",
+          "slot": "Slot",
+          "selectService": "Select Service",
+          "selectServicePlaceholder": "Select a service...",
+          "sort": "Sort",
+          "flags": "Flags",
+          "urgent": "URGENT",
+          "shutdown": "SHUTDOWN",
+          "incidents": "Incidents",
+          "kpis": "KPIs",
+          "onTime": "On time",
+          "atRisk": "At risk",
+          "delayed": "Delayed",
+          "occupancy": "Occupancy",
+          "information": "Information",
+          "client": "Client",
+          "origin": "Origin",
+          "loadingPlace": "Loading Place",
+          "destination": "Destination",
+          "tripType": "Trip Type",
+          "permanence": "Permanence",
+          "notes": "Notes",
+          "cancel": "Cancel",
+          "assign": "Assign",
+          "back": "Back"
+        }
       }
     },
     "shipping": {

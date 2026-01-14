@@ -216,11 +216,49 @@ const ERROR_PATTERNS: Array<{
 const MAX_ERROR_MESSAGE_LENGTH = 5000;
 
 /**
+ * Validates that a string looks like a Java-style exception type
+ * e.g., "com.example.MyError" or "MyError"
+ * Uses character-by-character validation to avoid regex backtracking
+ */
+function isValidExceptionType(str: string): boolean {
+  if (str.length === 0 || str.length > 200) {
+    return false;
+  }
+
+  // Must end with "Error"
+  if (!str.endsWith("Error")) {
+    return false;
+  }
+
+  // Check each character: must be word char or dot, no consecutive dots
+  let lastWasDot = true; // Start true to ensure first char is not a dot
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const isWordChar =
+      (char >= "a" && char <= "z") ||
+      (char >= "A" && char <= "Z") ||
+      (char >= "0" && char <= "9") ||
+      char === "_";
+    const isDot = char === ".";
+
+    if (!isWordChar && !isDot) {
+      return false;
+    }
+    if (isDot && lastWasDot) {
+      return false; // No consecutive dots or starting with dot
+    }
+    lastWasDot = isDot;
+  }
+
+  // Must not end with a dot (already checked by endsWith("Error"))
+  return true;
+}
+
+/**
  * Safely extracts JSON object from error message
- * Uses a bounded pattern to prevent catastrophic backtracking
+ * Uses brace counting to prevent catastrophic backtracking
  */
 function extractJsonFromError(errorMessage: string): string | null {
-  // Find the position of the first '{' after the error type
   const jsonStart = errorMessage.indexOf("{");
   if (jsonStart === -1) {
     return null;
@@ -229,7 +267,9 @@ function extractJsonFromError(errorMessage: string): string | null {
   // Find matching closing brace by counting braces (bounded approach)
   let braceCount = 0;
   let jsonEnd = -1;
-  for (let i = jsonStart; i < errorMessage.length && i < jsonStart + 2000; i++) {
+  const maxLength = Math.min(errorMessage.length, jsonStart + 2000);
+
+  for (let i = jsonStart; i < maxLength; i++) {
     if (errorMessage[i] === "{") {
       braceCount++;
     } else if (errorMessage[i] === "}") {
@@ -249,6 +289,32 @@ function extractJsonFromError(errorMessage: string): string | null {
 }
 
 /**
+ * Parses exception type and rest from an error message
+ * Uses string operations instead of regex to avoid ReDoS
+ * Expected format: "ExceptionType: rest of message"
+ */
+function parseExceptionMessage(
+  errorMessage: string
+): { exceptionType: string; rest: string } | null {
+  const colonIndex = errorMessage.indexOf(":");
+  if (colonIndex === -1 || colonIndex > 200) {
+    return null;
+  }
+
+  const exceptionType = errorMessage.substring(0, colonIndex).trim();
+  if (!isValidExceptionType(exceptionType)) {
+    return null;
+  }
+
+  const rest = errorMessage.substring(colonIndex + 1).trim();
+  if (rest.length === 0) {
+    return null;
+  }
+
+  return { exceptionType, rest };
+}
+
+/**
  * Attempts to match error message against known error patterns
  */
 function matchKnownErrorPattern(
@@ -259,19 +325,17 @@ function matchKnownErrorPattern(
     return null;
   }
 
-  // Try to match generic exception with JSON details
-  // Use a safer pattern: match exception type, then extract JSON separately
-  const exceptionMatch = errorMessage.match(/^(\w+(?:\.\w+)*Error):\s*(.+)$/);
-  if (exceptionMatch) {
-    const [, exceptionType, rest] = exceptionMatch;
-    const jsonDetails = extractJsonFromError(rest);
+  // Try to parse generic exception with JSON details using string operations
+  const parsed = parseExceptionMessage(errorMessage);
+  if (parsed) {
+    const jsonDetails = extractJsonFromError(parsed.rest);
     if (jsonDetails) {
       try {
         const details = JSON.parse(jsonDetails) as Record<string, unknown>;
         return {
           code: (details.code as string) || "UNKNOWN_ERROR",
           message: (details.message as string) || "An unknown error occurred",
-          exceptionType,
+          exceptionType: parsed.exceptionType,
           details,
         };
       } catch {
@@ -280,7 +344,7 @@ function matchKnownErrorPattern(
     }
   }
 
-  // Try known error patterns (these are safe as they're anchored and specific)
+  // Try known error patterns (these are safe: anchored, specific, bounded)
   for (const pattern of ERROR_PATTERNS) {
     const match = errorMessage.match(pattern.regex);
     if (match) {

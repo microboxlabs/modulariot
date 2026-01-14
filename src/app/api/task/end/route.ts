@@ -360,54 +360,63 @@ function matchKnownErrorPattern(
   return null;
 }
 
+/**
+ * Truncates a string to the maximum allowed length for error messages
+ */
+function truncateErrorString(str: string | undefined): string | undefined {
+  if (!str) {
+    return str;
+  }
+  return str.length > MAX_ERROR_MESSAGE_LENGTH
+    ? str.substring(0, MAX_ERROR_MESSAGE_LENGTH)
+    : str;
+}
+
+/**
+ * Attempts to parse error.info and return an appropriate response
+ */
+function tryParseErrorInfo(errorInfo: string): AlfrescoErrorResponse {
+  if (isHtmlContent(errorInfo)) {
+    return createServiceErrorResponse();
+  }
+
+  const parsedError = JSON.parse(errorInfo) as Record<string, unknown>;
+  return {
+    code: "ERROR",
+    message: parsedError.message as string,
+    exceptionType: "Error",
+    details: {},
+  };
+}
+
+/**
+ * Attempts to parse error.message and return an appropriate response
+ */
+function tryParseErrorMessage(errorMessage: string): AlfrescoErrorResponse | null {
+  if (isHtmlContent(errorMessage) || isJsonParsingError(errorMessage)) {
+    return createServiceErrorResponse();
+  }
+
+  const parsedError = JSON.parse(errorMessage) as Record<string, unknown>;
+  const message = parsedError.message as string;
+  return matchKnownErrorPattern(message);
+}
+
 function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
   try {
-    // Limit input size to prevent ReDoS attacks
     const errorInfoStr =
-      typeof error.info === "string" && error.info.length > MAX_ERROR_MESSAGE_LENGTH
-        ? error.info.substring(0, MAX_ERROR_MESSAGE_LENGTH)
-        : error.info;
+      typeof error.info === "string" ? truncateErrorString(error.info) : undefined;
+    const errorMessageStr = truncateErrorString(error.message);
 
-    const errorMessageStr =
-      error.message && error.message.length > MAX_ERROR_MESSAGE_LENGTH
-        ? error.message.substring(0, MAX_ERROR_MESSAGE_LENGTH)
-        : error.message;
-
-    // Handle HTML content in error.info (timeout page, error page, etc.)
-    if (errorInfoStr && typeof errorInfoStr === "string" && isHtmlContent(errorInfoStr)) {
-      return createServiceErrorResponse();
+    if (errorInfoStr) {
+      return tryParseErrorInfo(errorInfoStr);
     }
 
-    // Parse error.info if available
-    if (errorInfoStr && typeof errorInfoStr === "string") {
-      const parsedError = JSON.parse(errorInfoStr) as Record<string, unknown>;
-      return {
-        code: "ERROR",
-        message: parsedError.message as string,
-        exceptionType: "Error",
-        details: {},
-      };
-    }
-
-    // Handle HTML content in error.message
-    if (errorMessageStr && isHtmlContent(errorMessageStr)) {
-      return createServiceErrorResponse();
-    }
-
-    // Handle JSON parsing errors in error.message
-    if (errorMessageStr && isJsonParsingError(errorMessageStr)) {
-      return createServiceErrorResponse();
-    }
-
-    // Try to parse error.message as JSON and match known patterns
     if (errorMessageStr) {
-      const parsedError = JSON.parse(errorMessageStr) as Record<string, unknown>;
-      const errorMessage = parsedError.message as string;
-      const matchedResponse = matchKnownErrorPattern(errorMessage);
-      if (matchedResponse) {
-        return matchedResponse;
+      const result = tryParseErrorMessage(errorMessageStr);
+      if (result) {
+        return result;
       }
-      throw new Error(errorMessageStr);
     }
 
     throw new Error(JSON.stringify(error));

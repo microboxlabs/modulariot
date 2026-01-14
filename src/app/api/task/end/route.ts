@@ -346,7 +346,7 @@ function matchKnownErrorPattern(
 
   // Try known error patterns (these are safe: anchored, specific, bounded)
   for (const pattern of ERROR_PATTERNS) {
-    const match = errorMessage.match(pattern.regex);
+    const match = pattern.regex.exec(errorMessage);
     if (match) {
       return {
         code: pattern.code,

@@ -16,138 +16,202 @@ import {
   isFetcherError,
 } from "@/app/api/utils/api-error-handler";
 
+/**
+ * Fields to skip during dynamic property mapping
+ */
+const SKIP_FIELDS = new Set([
+  "taskId",
+  "transitionId",
+  "comments",
+  "nativeGenerationEnabled",
+  "reason",
+  "reasonId",
+  "reasons",
+  "isMultiReason",
+  "prop_cm_owner",
+  "prop_bpm_comment",
+  "prop_mintral_commentPostContent",
+  "prop_mintral_shouldBuildManifest",
+  "prop_mintral_commentReasons",
+  "prop_mintral_commentPostTitle",
+]);
+
+/**
+ * Maps a form field key to its Alfresco property key
+ */
+function mapFieldToPropertyKey(key: string): string | null {
+  if (SKIP_FIELDS.has(key)) {
+    return null;
+  }
+  if (key.startsWith("prop_")) {
+    return key;
+  }
+  if (key.startsWith("mintral_") || !key.startsWith("_")) {
+    return `prop_${key}`;
+  }
+  return null;
+}
+
+/**
+ * Builds dynamic properties from form fields
+ */
+function buildDynamicProperties(
+  json: EndTaskRequest
+): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(json)) {
+    const propKey = mapFieldToPropertyKey(key);
+    if (propKey) {
+      properties[propKey] = value;
+    }
+  }
+
+  return properties;
+}
+
+/**
+ * Adds comment properties to payload
+ */
+function addCommentProperties(
+  payload: UpdateTaskRequest,
+  comments: string | undefined
+): void {
+  if (!comments) {
+    return;
+  }
+  payload.prop_bpm_comment = comments;
+  payload.prop_mintral_commentPostContent = comments;
+}
+
+/**
+ * Adds native generation property to payload
+ */
+function addNativeGenerationProperty(
+  payload: UpdateTaskRequest,
+  nativeGenerationEnabled: string | undefined
+): void {
+  if (!nativeGenerationEnabled) {
+    return;
+  }
+  payload.prop_mintral_shouldBuildManifest =
+    nativeGenerationEnabled.toLowerCase() === "true" ? "true" : "false";
+}
+
+/**
+ * Parses multi-reason array and adds to payload
+ */
+function addMultiReasonProperties(
+  payload: UpdateTaskRequest,
+  reasons: string
+): boolean {
+  try {
+    const reasonArray = JSON.parse(reasons) as string[];
+    if (reasonArray.length > 0) {
+      payload.prop_mintral_commentReasons = reasonArray;
+      payload.prop_mintral_commentPostTitle = `Multiple reasons: ${reasonArray.length} items`;
+      return true;
+    }
+  } catch {
+    logger.info(`Failed to parse reasons array: ${reasons}`);
+  }
+  return false;
+}
+
+/**
+ * Adds reason properties to payload (single or multi)
+ */
+function addReasonProperties(
+  payload: UpdateTaskRequest,
+  reason: string | undefined,
+  reasons: string | undefined,
+  isMultiReason: boolean
+): void {
+  if (isMultiReason && reasons) {
+    const success = addMultiReasonProperties(payload, reasons);
+    if (success) {
+      return;
+    }
+    // Fallback to single reason
+    if (reasons.trim() !== "") {
+      payload.prop_mintral_commentPostTitle = reasons;
+    }
+    return;
+  }
+
+  if (reason?.trim()) {
+    payload.prop_mintral_commentPostTitle = reason;
+  }
+}
+
+/**
+ * Builds the complete update task payload
+ */
+function buildUpdateTaskPayload(
+  json: EndTaskRequest,
+  ownerEmail: string
+): UpdateTaskRequest {
+  const payload: UpdateTaskRequest = {
+    prop_cm_owner: ownerEmail,
+    ...buildDynamicProperties(json),
+  };
+
+  addCommentProperties(payload, json.comments);
+  addNativeGenerationProperty(payload, json.nativeGenerationEnabled);
+  addReasonProperties(
+    payload,
+    json.reason,
+    json.reasons,
+    json.isMultiReason === "true"
+  );
+
+  return payload;
+}
+
+/**
+ * Handles error responses for the POST endpoint
+ */
+function handlePostError(error: unknown): NextResponse {
+  logError(error as Error, { context: "ending task" });
+
+  if (isFetcherError(error)) {
+    const status = getErrorStatus(error);
+    const message = getErrorMessage(error, "Failed to complete task. Please try again.");
+    return NextResponse.json(
+      { success: false, error: { code: error.code ?? "UNKNOWN_ERROR", message } },
+      { status }
+    );
+  }
+
+  if (error instanceof Error) {
+    const parsedError = parseErrorAsJson(error);
+    return NextResponse.json({ success: false, error: parsedError }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: false,
+    status: 500,
+    error: { code: "UNKNOWN_ERROR", message: "An unexpected error occurred. Please try again." },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json({
-        status: 401,
-      });
+      return NextResponse.json({ status: 401 });
     }
-    const { user } = session;
+
     const json = (await request.json()) as EndTaskRequest;
-    const taskId = json.taskId;
-    const transitionId = json.transitionId;
-    const comments = json.comments;
-    const nativeGenerationEnabled = json.nativeGenerationEnabled;
-    const reason = json.reason;
-    const reasons = json.reasons;
-    const isMultiReason = json.isMultiReason === "true";
+    const updateTaskPayload = buildUpdateTaskPayload(json, session.user!.email!);
 
-    let updateTaskPayload: UpdateTaskRequest = {
-      prop_cm_owner: user!.email!,
-    };
-
-    // List of fields to skip during dynamic property mapping
-    const skipFields = new Set([
-      "taskId",
-      "transitionId",
-      "comments",
-      "nativeGenerationEnabled",
-      "reason",
-      "reasonId",
-      "reasons",
-      "isMultiReason",
-      "prop_cm_owner",
-      "prop_bpm_comment",
-      "prop_mintral_commentPostContent",
-      "prop_mintral_shouldBuildManifest",
-      "prop_mintral_commentReasons",
-      "prop_mintral_commentPostTitle",
-    ]);
-
-    // Handle dynamic form properties
-    // 1. Fields already prefixed with "prop_" are passed through directly
-    // 2. Fields starting with "mintral_" are automatically prefixed with "prop_"
-    Object.entries(json).forEach(([key, value]) => {
-      if (skipFields.has(key)) {
-        return;
-      }
-
-      // If already has prop_ prefix, use as-is
-      if (key.startsWith("prop_")) {
-        updateTaskPayload[key] = value;
-      }
-      // If starts with mintral_, add prop_ prefix
-      else if (key.startsWith("mintral_")) {
-        const propKey = `prop_${key}`;
-        updateTaskPayload[propKey] = value;
-      }
-      // For any other custom fields, add prop_ prefix
-      // This allows maximum flexibility for future dynamic forms
-      else if (!key.startsWith("_")) { // Exclude internal Next.js fields
-        const propKey = `prop_${key}`;
-        updateTaskPayload[propKey] = value;
-      }
-    });
-
-    if (comments) {
-      updateTaskPayload.prop_bpm_comment = comments;
-      updateTaskPayload.prop_mintral_commentPostContent = comments;
-    }
-    if (nativeGenerationEnabled) {
-      updateTaskPayload.prop_mintral_shouldBuildManifest =
-        nativeGenerationEnabled.toLowerCase() === "true" ? "true" : "false";
-    }
-    // Handle both single and multi-reason scenarios
-    if (isMultiReason && reasons) {
-      try {
-        const reasonArray = JSON.parse(reasons) as string[];
-        if (reasonArray.length > 0) {
-          // Use custom metadata for multi-select rejection handling
-          updateTaskPayload.prop_mintral_commentReasons = reasonArray;
-          updateTaskPayload.prop_mintral_commentPostTitle = `Multiple reasons: ${reasonArray.length} items`;
-        }
-      } catch (error) {
-        logger.info(`Failed to parse reasons array: ${reasons}`);
-        // Fallback to treating as single reason if parsing fails
-        if (reasons.trim() !== "") {
-          updateTaskPayload.prop_mintral_commentPostTitle = reasons;
-        }
-      }
-    } else if (reason && reason.trim() !== "") {
-      // Single reason handling (existing logic)
-      updateTaskPayload.prop_mintral_commentPostTitle = reason;
-    }
     logger.info(`updateTaskPayload=${JSON.stringify(updateTaskPayload)}`);
-    await updateTask(session, "activiti$" + taskId, updateTaskPayload);
+    await updateTask(session, "activiti$" + json.taskId, updateTaskPayload);
 
-    const response = await endTask(session, taskId, transitionId);
-    return NextResponse.json({
-      success: true,
-      status: 200,
-      ...response,
-    });
+    const response = await endTask(session, json.taskId, json.transitionId);
+    return NextResponse.json({ success: true, status: 200, ...response });
   } catch (error: unknown) {
-    logError(error as Error, { context: "ending task" });
-    
-    // Handle FetcherErrors (timeout, non-JSON responses, etc.) with user-friendly messages
-    if (isFetcherError(error)) {
-      const status = getErrorStatus(error);
-      const message = getErrorMessage(error, "Failed to complete task. Please try again.");
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: error.code || "UNKNOWN_ERROR", 
-            message 
-          } 
-        }, 
-        { status }
-      );
-    }
-    
-    // For other errors, try to parse Alfresco-specific error format
-    if (error instanceof Error) {
-      const parsedError = parseErrorAsJson(error);
-      return NextResponse.json({ success: false, error: parsedError }, { status: 500 });
-    }
-    
-    return NextResponse.json({
-      success: false,
-      status: 500,
-      error: { code: "UNKNOWN_ERROR", message: "An unexpected error occurred. Please try again." },
-    });
+    return handlePostError(error);
   }
 }
 

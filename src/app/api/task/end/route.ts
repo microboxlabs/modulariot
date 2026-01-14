@@ -232,8 +232,7 @@ function isValidExceptionType(str: string): boolean {
 
   // Check each character: must be word char or dot, no consecutive dots
   let lastWasDot = true; // Start true to ensure first char is not a dot
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
+  for (const char of str) {
     const isWordChar =
       (char >= "a" && char <= "z") ||
       (char >= "A" && char <= "Z") ||

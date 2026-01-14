@@ -10,7 +10,6 @@ import { tr } from "../i18n/tr.service";
 import { usePathname } from "next/navigation";
 import { getFeatureDescriptors, typeDescriptor } from "./new-features";
 import GeneralSlider from "./general-slider";
-import { convertSegmentPathToStaticExportFilename } from "next/dist/shared/lib/segment-cache/segment-value-encoding";
 
 export enum FeatureState {
   Dismissed,

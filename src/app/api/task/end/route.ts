@@ -184,6 +184,8 @@ function createServiceErrorResponse(
 
 /**
  * Known error patterns and their corresponding response mappings
+ * Uses [^\n]* instead of .* to prevent catastrophic backtracking
+ * and limit matching to a single line
  */
 const ERROR_PATTERNS: Array<{
   regex: RegExp;
@@ -191,22 +193,60 @@ const ERROR_PATTERNS: Array<{
   exceptionType: string;
 }> = [
   {
-    regex: /cl\.mintral\.errors\.RequiredDataMissingError: (.*)/,
+    regex: /cl\.mintral\.errors\.RequiredDataMissingError: ([^\n]{0,1000})/,
     code: "REQUIRED_DATA_MISSING",
     exceptionType: "RequiredDataMissingError",
   },
   {
-    regex: /com\.alerce\.errors\.AlerceLoginError: (.*)/,
+    regex: /com\.alerce\.errors\.AlerceLoginError: ([^\n]{0,1000})/,
     code: "ALERCE_LOGIN_ERROR",
     exceptionType: "AlerceLoginError",
   },
   {
     regex:
-      /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: (.*)/,
+      /cl\.mintral\.features\.alerce\.notifications\.DuplicateLicensePlateError: ([^\n]{0,1000})/,
     code: "DUPLICATE_LICENSE_PLATE_ERROR",
     exceptionType: "DuplicateLicensePlateError",
   },
 ];
+
+/**
+ * Maximum allowed length for error messages to prevent ReDoS attacks
+ */
+const MAX_ERROR_MESSAGE_LENGTH = 5000;
+
+/**
+ * Safely extracts JSON object from error message
+ * Uses a bounded pattern to prevent catastrophic backtracking
+ */
+function extractJsonFromError(errorMessage: string): string | null {
+  // Find the position of the first '{' after the error type
+  const jsonStart = errorMessage.indexOf("{");
+  if (jsonStart === -1) {
+    return null;
+  }
+
+  // Find matching closing brace by counting braces (bounded approach)
+  let braceCount = 0;
+  let jsonEnd = -1;
+  for (let i = jsonStart; i < errorMessage.length && i < jsonStart + 2000; i++) {
+    if (errorMessage[i] === "{") {
+      braceCount++;
+    } else if (errorMessage[i] === "}") {
+      braceCount--;
+      if (braceCount === 0) {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+  }
+
+  if (jsonEnd === -1 || braceCount !== 0) {
+    return null;
+  }
+
+  return errorMessage.substring(jsonStart, jsonEnd);
+}
 
 /**
  * Attempts to match error message against known error patterns
@@ -214,20 +254,33 @@ const ERROR_PATTERNS: Array<{
 function matchKnownErrorPattern(
   errorMessage: string
 ): AlfrescoErrorResponse | null {
-  // Try to match generic exception with JSON details
-  const genericMatch = errorMessage.match(/(\w+(?:\.\w+)*Error): ({.*})/);
-  if (genericMatch) {
-    const [, exceptionType, jsonDetails] = genericMatch;
-    const details = JSON.parse(jsonDetails) as Record<string, unknown>;
-    return {
-      code: (details.code as string) || "UNKNOWN_ERROR",
-      message: (details.message as string) || "An unknown error occurred",
-      exceptionType,
-      details,
-    };
+  // Limit input size to prevent ReDoS attacks
+  if (errorMessage.length > MAX_ERROR_MESSAGE_LENGTH) {
+    return null;
   }
 
-  // Try known error patterns
+  // Try to match generic exception with JSON details
+  // Use a safer pattern: match exception type, then extract JSON separately
+  const exceptionMatch = errorMessage.match(/^(\w+(?:\.\w+)*Error):\s*(.+)$/);
+  if (exceptionMatch) {
+    const [, exceptionType, rest] = exceptionMatch;
+    const jsonDetails = extractJsonFromError(rest);
+    if (jsonDetails) {
+      try {
+        const details = JSON.parse(jsonDetails) as Record<string, unknown>;
+        return {
+          code: (details.code as string) || "UNKNOWN_ERROR",
+          message: (details.message as string) || "An unknown error occurred",
+          exceptionType,
+          details,
+        };
+      } catch {
+        // If JSON parsing fails, fall through to other patterns
+      }
+    }
+  }
+
+  // Try known error patterns (these are safe as they're anchored and specific)
   for (const pattern of ERROR_PATTERNS) {
     const match = errorMessage.match(pattern.regex);
     if (match) {
@@ -245,14 +298,25 @@ function matchKnownErrorPattern(
 
 function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
   try {
+    // Limit input size to prevent ReDoS attacks
+    const errorInfoStr =
+      typeof error.info === "string" && error.info.length > MAX_ERROR_MESSAGE_LENGTH
+        ? error.info.substring(0, MAX_ERROR_MESSAGE_LENGTH)
+        : error.info;
+
+    const errorMessageStr =
+      error.message && error.message.length > MAX_ERROR_MESSAGE_LENGTH
+        ? error.message.substring(0, MAX_ERROR_MESSAGE_LENGTH)
+        : error.message;
+
     // Handle HTML content in error.info (timeout page, error page, etc.)
-    if (error.info && isHtmlContent(error.info)) {
+    if (errorInfoStr && typeof errorInfoStr === "string" && isHtmlContent(errorInfoStr)) {
       return createServiceErrorResponse();
     }
 
     // Parse error.info if available
-    if (error.info) {
-      const parsedError = JSON.parse(error.info) as Record<string, unknown>;
+    if (errorInfoStr && typeof errorInfoStr === "string") {
+      const parsedError = JSON.parse(errorInfoStr) as Record<string, unknown>;
       return {
         code: "ERROR",
         message: parsedError.message as string,
@@ -262,24 +326,24 @@ function parseErrorAsJson(error: InfoError): AlfrescoErrorResponse {
     }
 
     // Handle HTML content in error.message
-    if (error.message && isHtmlContent(error.message)) {
+    if (errorMessageStr && isHtmlContent(errorMessageStr)) {
       return createServiceErrorResponse();
     }
 
     // Handle JSON parsing errors in error.message
-    if (error.message && isJsonParsingError(error.message)) {
+    if (errorMessageStr && isJsonParsingError(errorMessageStr)) {
       return createServiceErrorResponse();
     }
 
     // Try to parse error.message as JSON and match known patterns
-    if (error.message) {
-      const parsedError = JSON.parse(error.message) as Record<string, unknown>;
+    if (errorMessageStr) {
+      const parsedError = JSON.parse(errorMessageStr) as Record<string, unknown>;
       const errorMessage = parsedError.message as string;
       const matchedResponse = matchKnownErrorPattern(errorMessage);
       if (matchedResponse) {
         return matchedResponse;
       }
-      throw new Error(error.message);
+      throw new Error(errorMessageStr);
     }
 
     throw new Error(JSON.stringify(error));

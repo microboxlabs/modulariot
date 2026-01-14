@@ -12,7 +12,11 @@ import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.share
 import { tr } from "../i18n/tr.service";
 import { usePathname } from "next/navigation";
 
-export default function SignalHistoryForm({ dict }: { dict: I18nRecord }) {
+export default function SignalHistoryForm({
+  dict,
+}: {
+  readonly dict: I18nRecord;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();

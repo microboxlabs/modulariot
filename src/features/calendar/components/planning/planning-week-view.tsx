@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -17,6 +17,7 @@ import {
   DATE_FORMAT,
   generateTimeSlots,
 } from "@/features/calendar/services/calendar.service";
+import { usePlanningSelection } from "./planning-selection-context";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -49,6 +50,7 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
+  const { selectedSlot, selectSlot } = usePlanningSelection();
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -70,6 +72,30 @@ export default function PlanningWeekView({
 
   const isLastDay = (idx: number) => idx === weekDays.length - 1;
   const isLastSlot = (idx: number) => idx === timeSlots.length - 1;
+
+  const handleCellClick = useCallback(
+    (day: WeekDay, slot: { hour: number; minutes: number }) => {
+      selectSlot({
+        date: day.date,
+        hour: slot.hour,
+        minutes: slot.minutes,
+        dayIndex: weekDays.findIndex((d) => d.date === day.date),
+      });
+    },
+    [selectSlot, weekDays]
+  );
+
+  const isSlotSelected = useCallback(
+    (day: WeekDay, slot: { hour: number; minutes: number }) => {
+      if (!selectedSlot) return false;
+      return (
+        dayjs(selectedSlot.date).isSame(day.date, "day") &&
+        selectedSlot.hour === slot.hour &&
+        selectedSlot.minutes === slot.minutes
+      );
+    },
+    [selectedSlot]
+  );
 
   return (
     <div className="w-full h-full overflow-auto">
@@ -138,19 +164,27 @@ export default function PlanningWeekView({
             </div>
 
             {/* Day cells */}
-            {weekDays.map((day, dayIdx) => (
-              <div
-                key={`${day.dayNumber}-${slot.label}`}
-                className={twMerge(
-                  "h-12",
-                  "border-l border-t border-gray-200 dark:border-gray-700",
-                  "hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors",
-                  isLastDay(dayIdx) && "border-r",
-                  isLastSlot(slotIdx) && "border-b",
-                  isLastDay(dayIdx) && isLastSlot(slotIdx) && "rounded-br-lg"
-                )}
-              />
-            ))}
+            {weekDays.map((day, dayIdx) => {
+              const selected = isSlotSelected(day, slot);
+              return (
+                <button
+                  type="button"
+                  key={`${day.dayNumber}-${slot.label}`}
+                  onClick={() => handleCellClick(day, slot)}
+                  className={twMerge(
+                    "h-12 w-full",
+                    "border-l border-t border-gray-200 dark:border-gray-700",
+                    "transition-all duration-200 cursor-pointer",
+                    selected
+                      ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                    isLastDay(dayIdx) && "border-r",
+                    isLastSlot(slotIdx) && "border-b",
+                    isLastDay(dayIdx) && isLastSlot(slotIdx) && "rounded-br-lg"
+                  )}
+                />
+              );
+            })}
           </Fragment>
         ))}
       </div>

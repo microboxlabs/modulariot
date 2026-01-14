@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
 import type { DayInfo } from "../planning-day-view.types";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
+import { usePlanningSelection } from "../planning-selection-context";
 
 interface DayGridProps {
   lang: string;
@@ -36,6 +37,8 @@ export default function DayGrid({
   startHour = 8,
   endHour = 22,
 }: Readonly<DayGridProps>) {
+  const { selectedSlot, selectSlot } = usePlanningSelection();
+
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),
     [startHour, endHour]
@@ -47,6 +50,29 @@ export default function DayGrid({
   );
 
   const isLastSlot = (idx: number) => idx === timeSlots.length - 1;
+
+  const handleCellClick = useCallback(
+    (slot: { hour: number; minutes: number }) => {
+      selectSlot({
+        date: currentDate,
+        hour: slot.hour,
+        minutes: slot.minutes,
+      });
+    },
+    [selectSlot, currentDate]
+  );
+
+  const isSlotSelected = useCallback(
+    (slot: { hour: number; minutes: number }) => {
+      if (!selectedSlot) return false;
+      return (
+        dayjs(selectedSlot.date).isSame(currentDate, "day") &&
+        selectedSlot.hour === slot.hour &&
+        selectedSlot.minutes === slot.minutes
+      );
+    },
+    [selectedSlot, currentDate]
+  );
 
   return (
     <div className="w-full h-full overflow-auto">
@@ -89,31 +115,39 @@ export default function DayGrid({
         </div>
 
         {/* Time slots grid */}
-        {timeSlots.map((slot, slotIdx) => (
-          <Fragment key={slot.label}>
-            {/* Time label column */}
-            <div
-              className={twMerge(
-                "h-16 flex items-start justify-end pr-2 pt-0.5",
-                "border-l border-t border-gray-200 dark:border-gray-700",
-                "text-xs text-gray-500 dark:text-gray-400",
-                isLastSlot(slotIdx) && "border-b rounded-bl-lg"
-              )}
-            >
-              {slot.minutes === 0 && slot.label}
-            </div>
+        {timeSlots.map((slot, slotIdx) => {
+          const selected = isSlotSelected(slot);
+          return (
+            <Fragment key={slot.label}>
+              {/* Time label column */}
+              <div
+                className={twMerge(
+                  "h-16 flex items-start justify-end pr-2 pt-0.5",
+                  "border-l border-t border-gray-200 dark:border-gray-700",
+                  "text-xs text-gray-500 dark:text-gray-400",
+                  isLastSlot(slotIdx) && "border-b rounded-bl-lg"
+                )}
+              >
+                {slot.minutes === 0 && slot.label}
+              </div>
 
-            {/* Day cell - expanded width */}
-            <div
-              className={twMerge(
-                "h-16",
-                "border-l border-t border-r border-gray-200 dark:border-gray-700",
-                "hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors",
-                isLastSlot(slotIdx) && "border-b rounded-br-lg"
-              )}
-            />
-          </Fragment>
-        ))}
+              {/* Day cell - clickable */}
+              <button
+                type="button"
+                onClick={() => handleCellClick(slot)}
+                className={twMerge(
+                  "h-16 w-full",
+                  "border-l border-t border-r border-gray-200 dark:border-gray-700",
+                  "transition-all duration-200 cursor-pointer",
+                  selected
+                    ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                  isLastSlot(slotIdx) && "border-b rounded-br-lg"
+                )}
+              />
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,10 @@
 "use client";
 
-import { FetcherError, FetcherErrorCode } from "./fetcher.types";
+import {
+  FetcherError,
+  FetcherErrorCode,
+  FetcherErrorInfo,
+} from "./fetcher.types";
 
 /**
  * Creates a FetcherError with proper structure
@@ -9,12 +13,12 @@ function createFetcherError(
   message: string,
   status: number,
   code: string,
-  info?: unknown
+  info?: FetcherErrorInfo | string | null
 ): FetcherError {
   const error = new Error(message) as FetcherError;
   error.status = status;
   error.code = code;
-  error.info = info;
+  error.info = info ?? null;
   return error;
 }
 
@@ -53,101 +57,94 @@ function getErrorMessageFromHtml(htmlContent: string, status: number): string {
 }
 
 /**
- * Safely parses a response as JSON, handling non-JSON responses gracefully.
- * This is intended for client-side use in custom SWR fetchers.
- *
- * @param response - The fetch Response object
- * @returns The parsed JSON data
- * @throws FetcherError with user-friendly message if response is not JSON
+ * Safely reads response text, returning empty string on error
  */
-export async function safeJsonParse<T>(response: Response): Promise<T> {
-  const contentType = response.headers.get("content-type");
+async function readResponseText(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return "";
+  }
+}
 
-  // If response is not ok, handle error appropriately
-  if (!response.ok) {
-    let errorText = "";
-    try {
-      errorText = await response.text();
-    } catch {
-      errorText = "";
-    }
+/**
+ * Handles error responses (non-OK status codes)
+ */
+async function handleErrorResponse(
+  response: Response,
+  contentType: string | null
+): Promise<never> {
+  const errorText = await readResponseText(response);
 
-    // Check if it's HTML
-    if (isHtmlContent(errorText, contentType)) {
-      const message = getErrorMessageFromHtml(errorText, response.status);
-      throw createFetcherError(
-        message,
-        response.status,
-        FetcherErrorCode.INVALID_RESPONSE_FORMAT,
-        { contentType, responsePreview: errorText.substring(0, 200) }
-      );
-    }
-
-    // Try to parse error response as JSON
-    try {
-      const errorData = JSON.parse(errorText) as { error?: string; message?: string };
-      const errorMessage =
-        errorData.error || errorData.message || response.statusText || "Request failed";
-      throw createFetcherError(
-        errorMessage,
-        response.status,
-        response.status >= 500
-          ? FetcherErrorCode.SERVER_ERROR
-          : FetcherErrorCode.CLIENT_ERROR,
-        errorData
-      );
-    } catch (parseError) {
-      // If not JSON, return the text as error or generic message
-      if (parseError instanceof Error && "code" in parseError) {
-        throw parseError; // Re-throw FetcherError
-      }
-      throw createFetcherError(
-        errorText || response.statusText || "Request failed",
-        response.status,
-        FetcherErrorCode.SERVER_ERROR
-      );
-    }
+  if (isHtmlContent(errorText, contentType)) {
+    const message = getErrorMessageFromHtml(errorText, response.status);
+    throw createFetcherError(
+      message,
+      response.status,
+      FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+      { contentType, responsePreview: errorText.substring(0, 200) } as FetcherErrorInfo
+    );
   }
 
-  // Handle 204 No Content
-  if (response.status === 204) {
-    return null as T;
+  try {
+    const errorData = JSON.parse(errorText) as { error?: string; message?: string };
+    const errorMessage =
+      errorData.error || errorData.message || response.statusText || "Request failed";
+    throw createFetcherError(
+      errorMessage,
+      response.status,
+      response.status >= 500
+        ? FetcherErrorCode.SERVER_ERROR
+        : FetcherErrorCode.CLIENT_ERROR,
+      errorData as FetcherErrorInfo
+    );
+  } catch (parseError) {
+    if (parseError instanceof Error && "code" in parseError) {
+      throw parseError;
+    }
+    throw createFetcherError(
+      errorText || response.statusText || "Request failed",
+      response.status,
+      FetcherErrorCode.SERVER_ERROR
+    );
+  }
+}
+
+/**
+ * Handles responses with non-JSON content-type
+ */
+async function handleNonJsonResponse<T>(
+  response: Response,
+  contentType: string | null
+): Promise<T> {
+  const responseText = await readResponseText(response);
+
+  if (isHtmlContent(responseText, contentType)) {
+    const message = getErrorMessageFromHtml(responseText, response.status);
+    throw createFetcherError(
+      message,
+      response.status || 502,
+      FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+      { contentType, responsePreview: responseText.substring(0, 200) } as FetcherErrorInfo
+    );
   }
 
-  // Check if content-type is JSON
-  if (!contentType?.includes("application/json")) {
-    let responseText = "";
-    try {
-      responseText = await response.text();
-    } catch {
-      responseText = "";
-    }
-
-    // If it's HTML, throw a user-friendly error
-    if (isHtmlContent(responseText, contentType)) {
-      const message = getErrorMessageFromHtml(responseText, response.status);
-      throw createFetcherError(
-        message,
-        response.status || 502,
-        FetcherErrorCode.INVALID_RESPONSE_FORMAT,
-        { contentType, responsePreview: responseText.substring(0, 200) }
-      );
-    }
-
-    // Try to parse as JSON anyway (some servers don't set content-type correctly)
-    try {
-      return JSON.parse(responseText) as T;
-    } catch {
-      throw createFetcherError(
-        "Server returned an unexpected response format",
-        response.status || 500,
-        FetcherErrorCode.INVALID_RESPONSE_FORMAT,
-        { contentType, responsePreview: responseText.substring(0, 200) }
-      );
-    }
+  try {
+    return JSON.parse(responseText) as T;
+  } catch {
+    throw createFetcherError(
+      "Server returned an unexpected response format",
+      response.status || 500,
+      FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+      { contentType, responsePreview: responseText.substring(0, 200) } as FetcherErrorInfo
+    );
   }
+}
 
-  // Content-type is JSON, try to parse
+/**
+ * Parses JSON from response, handling parse errors
+ */
+async function parseJsonSafely<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T;
   } catch (parseError) {
@@ -158,9 +155,35 @@ export async function safeJsonParse<T>(response: Response): Promise<T> {
       {
         parseError:
           parseError instanceof Error ? parseError.message : String(parseError),
-      }
+      } as FetcherErrorInfo
     );
   }
+}
+
+/**
+ * Safely parses a response as JSON, handling non-JSON responses gracefully.
+ * This is intended for client-side use in custom SWR fetchers.
+ *
+ * @param response - The fetch Response object
+ * @returns The parsed JSON data
+ * @throws FetcherError with user-friendly message if response is not JSON
+ */
+export async function safeJsonParse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type");
+
+  if (!response.ok) {
+    await handleErrorResponse(response, contentType);
+  }
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  if (!contentType?.includes("application/json")) {
+    return handleNonJsonResponse<T>(response, contentType);
+  }
+
+  return parseJsonSafely<T>(response);
 }
 
 /**

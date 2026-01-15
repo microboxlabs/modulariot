@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import PlanningWeekView from "./planning-week-view";
 import PlanningDayView from "./planning-day-view";
+import PlanningMonthView from "./planning-month-view";
 import { isValidViewMode } from "@/features/calendar/services/calendar.service";
 
 interface PlanningCalendarProps {
@@ -25,16 +26,11 @@ export default function PlanningCalendar({
 
   switch (viewMode) {
     case "day":
-      return <PlanningDayView lang={lang} dict={dict} />;
+      return <PlanningDayView lang={lang} />;
     case "week":
       return <PlanningWeekView lang={lang} dict={dict} />;
     case "month":
-      // Month view placeholder - fallback to week for now
-      return (
-        <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-          <p>Vista mensual próximamente</p>
-        </div>
-      );
+      return <PlanningMonthView lang={lang} dict={dict} />;
     default:
       return <PlanningWeekView lang={lang} dict={dict} />;
   }

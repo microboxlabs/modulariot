@@ -50,7 +50,7 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
-  const { selectedSlot, selectSlot } = usePlanningSelection();
+  const { selectedSlot, selectSlot, plannedServices } = usePlanningSelection();
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -95,6 +95,29 @@ export default function PlanningWeekView({
       );
     },
     [selectedSlot]
+  );
+
+  const getPlannedServicesForSlot = useCallback(
+    (day: WeekDay, slot: { hour: number; minutes: number }) => {
+      return plannedServices.filter(
+        (ps) =>
+          dayjs(ps.slot.date).isSame(day.date, "day") &&
+          ps.slot.hour === slot.hour &&
+          ps.slot.minutes === slot.minutes
+      );
+    },
+    [plannedServices]
+  );
+
+  // Get max services count in any day of a slot row
+  const getMaxServicesInSlotRow = useCallback(
+    (slot: { hour: number; minutes: number }) => {
+      return Math.max(
+        ...weekDays.map((day) => getPlannedServicesForSlot(day, slot).length),
+        0
+      );
+    },
+    [weekDays, getPlannedServicesForSlot]
   );
 
   return (
@@ -149,44 +172,80 @@ export default function PlanningWeekView({
         ))}
 
         {/* Time slots grid */}
-        {timeSlots.map((slot, slotIdx) => (
-          <Fragment key={slot.label}>
-            {/* Time label column */}
-            <div
-              className={twMerge(
-                "h-12 flex items-start justify-end pr-2 pt-0.5",
-                "border-l border-t border-gray-200 dark:border-gray-700",
-                "text-xs text-gray-500 dark:text-gray-400",
-                isLastSlot(slotIdx) && "border-b rounded-bl-lg"
-              )}
-            >
-              {slot.minutes === 0 && slot.label}
-            </div>
+        {timeSlots.map((slot, slotIdx) => {
+          const maxServices = getMaxServicesInSlotRow(slot);
+          // Only expand if more than 1 service in a slot
+          const rowHeight = maxServices > 1 ? "h-20" : "h-12";
 
-            {/* Day cells */}
-            {weekDays.map((day, dayIdx) => {
-              const selected = isSlotSelected(day, slot);
-              return (
-                <button
-                  type="button"
-                  key={`${day.dayNumber}-${slot.label}`}
-                  onClick={() => handleCellClick(day, slot)}
-                  className={twMerge(
-                    "h-12 w-full",
-                    "border-l border-t border-gray-200 dark:border-gray-700",
-                    "transition-all duration-200 cursor-pointer",
-                    selected
-                      ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-                    isLastDay(dayIdx) && "border-r",
-                    isLastSlot(slotIdx) && "border-b",
-                    isLastDay(dayIdx) && isLastSlot(slotIdx) && "rounded-br-lg"
-                  )}
-                />
-              );
-            })}
-          </Fragment>
-        ))}
+          return (
+            <Fragment key={slot.label}>
+              {/* Time label column */}
+              <div
+                className={twMerge(
+                  rowHeight,
+                  "flex items-start justify-end pr-2 pt-0.5",
+                  "border-l border-t border-gray-200 dark:border-gray-700",
+                  "text-xs text-gray-500 dark:text-gray-400",
+                  isLastSlot(slotIdx) && "border-b rounded-bl-lg"
+                )}
+              >
+                {slot.minutes === 0 && slot.label}
+              </div>
+
+              {/* Day cells */}
+              {weekDays.map((day, dayIdx) => {
+                const selected = isSlotSelected(day, slot);
+                const slotServices = getPlannedServicesForSlot(day, slot);
+
+                return (
+                  <button
+                    type="button"
+                    key={`${day.dayNumber}-${slot.label}`}
+                    onClick={() => handleCellClick(day, slot)}
+                    className={twMerge(
+                      rowHeight,
+                      "w-full relative",
+                      "border-l border-t border-gray-200 dark:border-gray-700",
+                      "transition-all duration-200 cursor-pointer",
+                      selected
+                        ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                      isLastDay(dayIdx) && "border-r",
+                      isLastSlot(slotIdx) && "border-b",
+                      isLastDay(dayIdx) &&
+                        isLastSlot(slotIdx) &&
+                        "rounded-br-lg"
+                    )}
+                  >
+                    {slotServices.length > 0 && (
+                      <div className="absolute inset-1 flex flex-col gap-0.5">
+                        {slotServices.map((ps) => {
+                          const hasUrgencia =
+                            ps.service.incidencias.includes("urgencia");
+                          return (
+                            <div
+                              key={ps.service.id}
+                              className={twMerge(
+                                "flex-1 rounded flex items-center justify-start",
+                                "text-xs font-medium truncate px-1 border-l-4",
+                                hasUrgencia
+                                  ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
+                                  : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
+                              )}
+                              title={ps.service.id}
+                            >
+                              {ps.service.id}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );

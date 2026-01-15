@@ -37,7 +37,7 @@ export default function DayGrid({
   startHour = 8,
   endHour = 22,
 }: Readonly<DayGridProps>) {
-  const { selectedSlot, selectSlot } = usePlanningSelection();
+  const { selectedSlot, selectSlot, plannedServices } = usePlanningSelection();
 
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),
@@ -72,6 +72,18 @@ export default function DayGrid({
       );
     },
     [selectedSlot, currentDate]
+  );
+
+  const getPlannedServicesForSlot = useCallback(
+    (slot: { hour: number; minutes: number }) => {
+      return plannedServices.filter(
+        (ps) =>
+          dayjs(ps.slot.date).isSame(currentDate, "day") &&
+          ps.slot.hour === slot.hour &&
+          ps.slot.minutes === slot.minutes
+      );
+    },
+    [plannedServices, currentDate]
   );
 
   return (
@@ -117,12 +129,14 @@ export default function DayGrid({
         {/* Time slots grid */}
         {timeSlots.map((slot, slotIdx) => {
           const selected = isSlotSelected(slot);
+          const slotServices = getPlannedServicesForSlot(slot);
+
           return (
             <Fragment key={slot.label}>
               {/* Time label column */}
               <div
                 className={twMerge(
-                  "h-16 flex items-start justify-end pr-2 pt-0.5",
+                  "h-8 flex items-start justify-end pr-2 pt-0.5",
                   "border-l border-t border-gray-200 dark:border-gray-700",
                   "text-xs text-gray-500 dark:text-gray-400",
                   isLastSlot(slotIdx) && "border-b rounded-bl-lg"
@@ -136,7 +150,7 @@ export default function DayGrid({
                 type="button"
                 onClick={() => handleCellClick(slot)}
                 className={twMerge(
-                  "h-16 w-full",
+                  "h-8 w-full relative",
                   "border-l border-t border-r border-gray-200 dark:border-gray-700",
                   "transition-all duration-200 cursor-pointer",
                   selected
@@ -144,7 +158,31 @@ export default function DayGrid({
                     : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
                   isLastSlot(slotIdx) && "border-b rounded-br-lg"
                 )}
-              />
+              >
+                {slotServices.length > 0 && (
+                  <div className="absolute inset-1 flex flex-row gap-0.5">
+                    {slotServices.map((ps) => {
+                      const hasUrgencia =
+                        ps.service.incidencias.includes("urgencia");
+                      return (
+                        <div
+                          key={ps.service.id}
+                          className={twMerge(
+                            "flex-1 rounded flex items-center justify-start",
+                            "text-xs font-medium truncate px-1 border-l-4",
+                            hasUrgencia
+                              ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
+                              : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
+                          )}
+                          title={ps.service.id}
+                        >
+                          {ps.service.id}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </button>
             </Fragment>
           );
         })}

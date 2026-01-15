@@ -7,6 +7,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import dayjs from "dayjs";
 
 /**
  * Represents a selected time slot in the calendar
@@ -46,23 +47,35 @@ export interface SelectedService {
     status: LeadTimeStatus;
   };
   eta: string; // ISO datetime
-  urgencia: boolean;
-  shutdown: boolean;
-  incidencias: number;
+  incidencias: string[]; // e.g. ['urgencia', 'shutdown', 'c5']
   observaciones: string;
   prioridad: number;
+}
+
+/**
+ * A service that has been confirmed and placed in a slot
+ */
+export interface PlannedService {
+  service: SelectedService;
+  slot: SelectedSlot;
 }
 
 interface PlanningSelectionContextType {
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
+  plannedServices: PlannedService[];
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
+  confirmService: () => void;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
+  getServicesForSlot: (slot: SelectedSlot) => PlannedService[];
+  canAddToSlot: (slot: SelectedSlot) => boolean;
   isSidebarOpen: boolean;
 }
+
+const MAX_SERVICES_PER_SLOT = 3;
 
 const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
@@ -77,6 +90,7 @@ export function PlanningSelectionProvider({
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
     useState<SelectedService | null>(null);
+  const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
@@ -86,6 +100,52 @@ export function PlanningSelectionProvider({
   const selectService = useCallback((service: SelectedService) => {
     setSelectedService(service);
   }, []);
+
+  const getServicesForSlot = useCallback(
+    (slot: SelectedSlot) => {
+      return plannedServices.filter(
+        (ps) =>
+          dayjs(ps.slot.date).isSame(slot.date, "day") &&
+          ps.slot.hour === slot.hour &&
+          ps.slot.minutes === slot.minutes
+      );
+    },
+    [plannedServices]
+  );
+
+  const canAddToSlot = useCallback(
+    (slot: SelectedSlot) => {
+      const servicesInSlot = getServicesForSlot(slot);
+      return servicesInSlot.length < MAX_SERVICES_PER_SLOT;
+    },
+    [getServicesForSlot]
+  );
+
+  const confirmService = useCallback(() => {
+    if (selectedSlot && selectedService) {
+      // Check if slot has room (unless re-planning same service)
+      const existingInSlot = getServicesForSlot(selectedSlot);
+      const isReplanning = existingInSlot.some(
+        (ps) => ps.service.id === selectedService.id
+      );
+
+      if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
+        // Slot is full, cannot add more
+        return;
+      }
+
+      setPlannedServices((prev) => {
+        // Remove if already planned (allow re-planning)
+        const filtered = prev.filter(
+          (p) => p.service.id !== selectedService.id
+        );
+        return [...filtered, { service: selectedService, slot: selectedSlot }];
+      });
+      // Clear selection after confirming
+      setSelectedSlot(null);
+      setSelectedService(null);
+    }
+  }, [selectedSlot, selectedService, getServicesForSlot]);
 
   const clearService = useCallback(() => {
     setSelectedService(null);
@@ -109,11 +169,15 @@ export function PlanningSelectionProvider({
       value={{
         selectedSlot,
         selectedService,
+        plannedServices,
         selectSlot,
         selectService,
+        confirmService,
         clearService,
         closeSidebar,
         clearSelection,
+        getServicesForSlot,
+        canAddToSlot,
         isSidebarOpen,
       }}
     >

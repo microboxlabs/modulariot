@@ -340,6 +340,102 @@ function detectNetworkError(err: Error): FetcherError | null {
   return null;
 }
 
+/**
+ * Logs successful API request
+ */
+function logSuccessRequest(
+  method: string,
+  pathAndQuery: string,
+  upstreamHost: string,
+  userAgent: string,
+  startedAt: Date,
+  durationMs: number,
+  requestId: string,
+  status: number,
+  contentLength: string
+): void {
+  if (!shouldLog) {
+    return;
+  }
+
+  apiLogger.info(
+    buildAccessLogFields({
+      prefix: "OUT",
+      method,
+      pathAndQuery,
+      status,
+      contentLength,
+      userAgent,
+      startedAt,
+      durationMs,
+      requestId,
+      extras: { upstream_host: upstreamHost },
+    })
+  );
+}
+
+/**
+ * Logs API request error
+ */
+function logRequestError(
+  method: string,
+  pathAndQuery: string,
+  upstreamHost: string,
+  userAgent: string,
+  startedAt: Date,
+  durationMs: number,
+  requestId: string,
+  status: number,
+  contentLength: string,
+  err: unknown
+): void {
+  if (!shouldLog) {
+    return;
+  }
+
+  apiLogger.error({
+    ...buildAccessLogFields({
+      prefix: "OUT",
+      method,
+      pathAndQuery,
+      status,
+      contentLength,
+      userAgent,
+      startedAt,
+      durationMs,
+      requestId,
+      extras: { upstream_host: upstreamHost },
+    }),
+    err,
+  });
+}
+
+/**
+ * Checks if error is already a FetcherError
+ */
+function isFetcherError(err: unknown): err is FetcherError {
+  return err instanceof Error && "code" in err && "status" in err;
+}
+
+/**
+ * Handles errors in the catch block
+ * Always throws, never returns
+ */
+function handleFetchError(err: unknown): never {
+  if (isFetcherError(err)) {
+    throw err;
+  }
+
+  if (err instanceof Error) {
+    const networkError = detectNetworkError(err);
+    if (networkError) {
+      throw networkError;
+    }
+  }
+
+  throw err;
+}
+
 export default async function httfetcher<T>(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -368,22 +464,17 @@ export default async function httfetcher<T>(
     const status = response.status;
     const contentLength = response.headers.get("content-length") || "-";
 
-    if (shouldLog) {
-      apiLogger.info(
-        buildAccessLogFields({
-          prefix: "OUT",
-          method,
-          pathAndQuery,
-          status,
-          contentLength,
-          userAgent,
-          startedAt,
-          durationMs,
-          requestId,
-          extras: { upstream_host: upstreamHost },
-        })
-      );
-    }
+    logSuccessRequest(
+      method,
+      pathAndQuery,
+      upstreamHost,
+      userAgent,
+      startedAt,
+      durationMs,
+      requestId,
+      status,
+      contentLength
+    );
 
     if (!response.ok && response.status !== 401) {
       await handleResponseError(response, {
@@ -408,35 +499,19 @@ export default async function httfetcher<T>(
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
 
-    if (shouldLog) {
-      apiLogger.error({
-        ...buildAccessLogFields({
-          prefix: "OUT",
-          method,
-          pathAndQuery,
-          status,
-          contentLength,
-          userAgent,
-          startedAt,
-          durationMs,
-          requestId,
-          extras: { upstream_host: upstreamHost },
-        }),
-        err,
-      });
-    }
+    logRequestError(
+      method,
+      pathAndQuery,
+      upstreamHost,
+      userAgent,
+      startedAt,
+      durationMs,
+      requestId,
+      status,
+      contentLength,
+      err
+    );
 
-    if (err instanceof Error && "code" in err && "status" in err) {
-      throw err;
-    }
-
-    if (err instanceof Error) {
-      const networkError = detectNetworkError(err);
-      if (networkError) {
-        throw networkError;
-      }
-    }
-
-    throw err;
+    handleFetchError(err);
   }
 }

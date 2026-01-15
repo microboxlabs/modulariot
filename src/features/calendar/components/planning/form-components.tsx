@@ -1,5 +1,6 @@
 "use client";
 
+import { HiCheck, HiExclamation, HiClock } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 
 interface FormSectionProps {
@@ -39,8 +40,10 @@ export function InfoRow({ label, value, className }: InfoRowProps) {
     <div
       className={twMerge("flex items-center justify-between gap-2", className)}
     >
-      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
-      <span className="text-sm font-medium text-gray-900 dark:text-white text-right">
+      <span className="text-sm text-gray-500 dark:text-gray-400 font-light">
+        {label}
+      </span>
+      <span className="text-sm font-normal text-gray-900 dark:text-white text-right">
         {value}
       </span>
     </div>
@@ -88,31 +91,49 @@ interface KpiRowProps {
   statusLabel?: string;
 }
 
-const statusColors = {
-  success: "text-green-600 dark:text-green-400",
-  warning: "text-yellow-600 dark:text-yellow-400",
-  error: "text-red-600 dark:text-red-400",
-  neutral: "text-gray-500 dark:text-gray-400",
+const statusConfig = {
+  success: {
+    color: "text-gray-600 dark:text-gray-400",
+    icon: HiCheck,
+  },
+  warning: {
+    color: "text-gray-600 dark:text-gray-400",
+    icon: HiExclamation,
+  },
+  error: {
+    color: "text-yellow-400 dark:text-yellow-300",
+    icon: HiClock,
+  },
+  neutral: {
+    color: "text-gray-500 dark:text-gray-400",
+    icon: null,
+  },
 };
 
 /**
  * A KPI display row with optional status indicator
  */
-export function KpiRow({ label, value, status, statusLabel }: KpiRowProps) {
+export function KpiRow({ label, value, status }: KpiRowProps) {
+  const config = status ? statusConfig[status] : null;
+  const StatusIcon = config?.icon;
+
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-900 dark:text-white">
+      <span className="text-sm text-gray-500 dark:text-gray-400 font-light">
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5">
+        {StatusIcon && (
+          <StatusIcon className={twMerge("w-4 h-4", config?.color)} />
+        )}
+        <span
+          className={twMerge(
+            "text-sm font-normal",
+            config?.color || "text-gray-900 dark:text-white"
+          )}
+        >
           {value}
         </span>
-        {status && statusLabel && (
-          <span
-            className={twMerge("text-xs font-medium", statusColors[status])}
-          >
-            {statusLabel}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -122,6 +143,14 @@ interface ProgressBarProps {
   label: string;
   value: number; // 0-100
   showPercentage?: boolean;
+}
+
+/**
+ * Get occupancy color based on percentage
+ */
+function getOccupancyColor(percentage: number): string {
+  if (percentage >= 100) return "bg-yellow-400 dark:bg-yellow-300";
+  return "bg-gray-400";
 }
 
 /**
@@ -136,13 +165,13 @@ export function ProgressBar({
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0 font-light">
         {label}
       </span>
       <div className="flex items-center gap-2 flex-1 max-w-[120px]">
         <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-primary-600 dark:bg-primary-500 rounded-full transition-all"
+            className={`h-full rounded-full transition-all ${getOccupancyColor(clampedValue)}`}
             style={{ width: `${clampedValue}%` }}
           />
         </div>

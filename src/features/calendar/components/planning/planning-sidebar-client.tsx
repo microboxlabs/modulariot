@@ -22,11 +22,11 @@ interface PlanningSidebarClientProps {
 // Mock services for demonstration - will be replaced with real data from API
 const MOCK_SERVICES: SelectedService[] = [
   {
-    id: "svc-001",
+    id: "1045782-v",
     cliente: "Acme Corp",
-    origen: "Santiago",
+    origen: "SCL",
     lugarCarguio: "Andén 5",
-    destino: "Valparaíso",
+    destino: "VAP",
     tipoViaje: "Sider",
     ocupacion: 85,
     permanencia: "24h",
@@ -35,19 +35,17 @@ const MOCK_SERVICES: SelectedService[] = [
       status: "on_time",
     },
     eta: "2026-01-16T14:30:00",
-    urgencia: true,
-    shutdown: false,
-    incidencias: 2,
+    incidencias: ["urgencia", "c4", "c5"],
     observaciones:
       "Presentar documentación antes de las 10:00. Contactar a Juan.",
     prioridad: 1,
   },
   {
-    id: "svc-002",
+    id: "2038491-v",
     cliente: "Minera Los Andes",
-    origen: "Concepción",
+    origen: "CCP",
     lugarCarguio: "Dock 3",
-    destino: "Temuco",
+    destino: "ZCO",
     tipoViaje: "Doble Sider",
     ocupacion: 60,
     permanencia: "48h",
@@ -56,18 +54,16 @@ const MOCK_SERVICES: SelectedService[] = [
       status: "warning",
     },
     eta: "2026-01-15T09:00:00",
-    urgencia: false,
-    shutdown: true,
-    incidencias: 0,
+    incidencias: ["shutdown"],
     observaciones: "Carga frágil. Requiere supervisión especial.",
     prioridad: 2,
   },
   {
-    id: "svc-003",
+    id: "3921047-otr",
     cliente: "Transportes del Norte",
-    origen: "Antofagasta",
+    origen: "ANF",
     lugarCarguio: "Plataforma 1",
-    destino: "Iquique",
+    destino: "IQQ",
     tipoViaje: "Rampla",
     ocupacion: 100,
     permanencia: "12h",
@@ -76,18 +72,16 @@ const MOCK_SERVICES: SelectedService[] = [
       status: "delayed",
     },
     eta: "2026-01-14T18:00:00",
-    urgencia: true,
-    shutdown: true,
-    incidencias: 5,
+    incidencias: ["urgencia", "shutdown", "c4", "c5", "c7", "c8", "c9"],
     observaciones: "URGENTE: Cliente prioritario. Llamar antes de salir.",
     prioridad: 1,
   },
   {
-    id: "svc-004",
+    id: "4815263-v",
     cliente: "Agrícola Sur",
-    origen: "Puerto Montt",
+    origen: "PMC",
     lugarCarguio: "Andén 2",
-    destino: "Osorno",
+    destino: "ZOS",
     tipoViaje: "Sider",
     ocupacion: 45,
     permanencia: "8h",
@@ -96,9 +90,7 @@ const MOCK_SERVICES: SelectedService[] = [
       status: "on_time",
     },
     eta: "2026-01-18T11:30:00",
-    urgencia: false,
-    shutdown: false,
-    incidencias: 1,
+    incidencias: ["c4"],
     observaciones: "Productos perecederos. Mantener cadena de frío.",
     prioridad: 3,
   },
@@ -131,7 +123,7 @@ export function PlanningSidebarClient({
   // 4. On time (blue)
   const sortedServices = useMemo(() => {
     const getStatusPriority = (service: SelectedService): number => {
-      if (service.urgencia) return 0; // Urgent first
+      if (service.incidencias.includes("urgencia")) return 0; // Urgent first
       if (service.leadTime.status === "delayed") return 1;
       if (service.leadTime.status === "warning") return 2;
       return 3; // on_time last
@@ -175,7 +167,7 @@ export function PlanningSidebarClient({
       )}
 
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="px-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           {isFormActive ? (
             <button
@@ -201,11 +193,16 @@ export function PlanningSidebarClient({
               ? tr("pages.planning.sidebar.title", dict)
               : tr("pages.planning.sidebar.servicesList", dict)}
           </h2>
+          {selectedService?.id && (
+            <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
+              {selectedService.id}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div className="flex-1 p-3 overflow-y-auto">
         {isFormActive ? (
           <PlanningSidebarForm
             dict={dict}
@@ -237,7 +234,7 @@ export function PlanningSidebarClient({
             </div>
 
             {/* Services list */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {sortedServices.map((service) => (
                 <ServiceEvent key={service.id} service={service} />
               ))}

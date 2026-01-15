@@ -1,0 +1,208 @@
+"use client";
+
+import { useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import dayjs from "dayjs";
+import "dayjs/locale/es";
+import "dayjs/locale/en";
+import isoWeek from "dayjs/plugin/isoWeek";
+import { twMerge } from "tailwind-merge";
+import type {
+  PlanningMonthViewProps,
+  MonthDay,
+} from "./planning-month-view.types";
+import { DATE_FORMAT } from "@/features/calendar/services/calendar.service";
+import { usePlanningSelection } from "./planning-selection-context";
+
+dayjs.extend(isoWeek);
+
+const DAYS_IN_WEEK = 7;
+
+function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
+  if (!dateStr) return null;
+  const parsed = dayjs(dateStr, DATE_FORMAT, true);
+  return parsed.isValid() ? parsed : null;
+}
+
+function getWeekdayNames(lang: string): string[] {
+  const locale = lang === "es" ? "es" : "en";
+  const monday = dayjs().startOf("isoWeek").locale(locale);
+
+  return Array.from({ length: DAYS_IN_WEEK }, (_, i) =>
+    monday.add(i, "day").format("ddd").toUpperCase()
+  );
+}
+
+function generateMonthDays(currentDate: Date): MonthDay[] {
+  const today = dayjs().startOf("day");
+  const monthStart = dayjs(currentDate).startOf("month");
+  const monthEnd = dayjs(currentDate).endOf("month");
+
+  // Find the Monday of the first week that contains the month
+  const calendarStart = monthStart.startOf("isoWeek");
+  // Find the Sunday of the last week that contains the month
+  const calendarEnd = monthEnd.endOf("isoWeek");
+
+  const days: MonthDay[] = [];
+  let current = calendarStart;
+
+  while (current.isBefore(calendarEnd) || current.isSame(calendarEnd, "day")) {
+    days.push({
+      date: current.toDate(),
+      dayNumber: current.date(),
+      isToday: current.isSame(today, "day"),
+      isCurrentMonth: current.month() === monthStart.month(),
+    });
+    current = current.add(1, "day");
+  }
+
+  return days;
+}
+
+export default function PlanningMonthView({
+  lang,
+  currentDate: propDate,
+}: Readonly<PlanningMonthViewProps>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { plannedServices } = usePlanningSelection();
+
+  // Read date from URL, fallback to prop or today
+  const currentDate = useMemo(() => {
+    const urlDate = parseUrlDate(searchParams.get("date"));
+    if (urlDate) return urlDate.toDate();
+    if (propDate) return propDate;
+    return new Date();
+  }, [searchParams, propDate]);
+
+  const weekdayNames = useMemo(() => getWeekdayNames(lang), [lang]);
+  const monthDays = useMemo(
+    () => generateMonthDays(currentDate),
+    [currentDate]
+  );
+
+  const weeks = useMemo(() => {
+    const result: MonthDay[][] = [];
+    for (let i = 0; i < monthDays.length; i += DAYS_IN_WEEK) {
+      result.push(monthDays.slice(i, i + DAYS_IN_WEEK));
+    }
+    return result;
+  }, [monthDays]);
+
+  // Get all planned services for a specific day
+  const getPlannedServicesForDay = useCallback(
+    (date: Date) => {
+      return plannedServices.filter((ps) =>
+        dayjs(ps.slot.date).isSame(date, "day")
+      );
+    },
+    [plannedServices]
+  );
+
+  // Navigate to day view when clicking on a day
+  const handleDayClick = useCallback(
+    (date: Date) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("date", dayjs(date).format(DATE_FORMAT));
+      params.set("view", "day");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
+
+  return (
+    <div className="min-w-[600px] border border-gray-200 dark:border-gray-700 rounded-lg overflow-auto">
+      {/* Header row - weekday names */}
+      <div className="grid grid-cols-7 bg-gray-50 dark:bg-gray-900">
+        {weekdayNames.map((dayName, idx) => (
+          <div
+            key={dayName}
+            className={twMerge(
+              "h-10 flex items-center justify-center",
+              "text-xs font-medium text-gray-500 dark:text-gray-400",
+              idx < 6 && "border-r border-gray-200 dark:border-gray-700"
+            )}
+          >
+            {dayName}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      {weeks.map((week, weekIdx) => (
+        <div
+          key={weekIdx}
+          className="grid grid-cols-7 border-t border-gray-200 dark:border-gray-700"
+        >
+          {week.map((day, dayIdx) => {
+            const dayServices = getPlannedServicesForDay(day.date);
+
+            return (
+              <button
+                type="button"
+                key={day.date.toISOString()}
+                onClick={() => handleDayClick(day.date)}
+                className={twMerge(
+                  "min-h-32 p-2 flex flex-col text-left",
+                  "bg-white dark:bg-gray-800",
+                  "transition-colors duration-200 cursor-pointer",
+                  "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                  dayIdx < 6 && "border-r border-gray-200 dark:border-gray-700",
+                  !day.isCurrentMonth &&
+                    "bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800/50"
+                )}
+              >
+                <span
+                  className={twMerge(
+                    "inline-flex items-center justify-center text-sm font-medium shrink-0 w-7 h-7",
+                    day.isToday
+                      ? "bg-primary-600 text-white rounded-full"
+                      : day.isCurrentMonth
+                        ? "text-gray-900 dark:text-white"
+                        : "text-gray-400 dark:text-gray-500"
+                  )}
+                >
+                  {day.dayNumber}
+                </span>
+
+                {/* Planned services for this day */}
+                {dayServices.length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1 overflow-hidden w-full">
+                    {dayServices.slice(0, 3).map((ps) => {
+                      const hasUrgencia =
+                        ps.service.incidencias.includes("urgencia");
+                      return (
+                        <div
+                          key={ps.service.id}
+                          className={twMerge(
+                            "rounded px-2 py-1",
+                            "text-xs font-medium truncate text-left",
+                            "border-l-4",
+                            hasUrgencia
+                              ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
+                              : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
+                          )}
+                          title={ps.service.id}
+                        >
+                          {ps.service.id}
+                        </div>
+                      );
+                    })}
+                    {dayServices.length > 3 && (
+                      <div className="flex justify-center">
+                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                          +{dayServices.length - 3} más
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}

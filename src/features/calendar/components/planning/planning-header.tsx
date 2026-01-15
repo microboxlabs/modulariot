@@ -8,6 +8,8 @@ import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
+import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { Button } from "flowbite-react";
 import { CalendarNavigation } from "./calendar-navigation";
 import { CalendarViewSwitcher } from "./calendar-view-switcher";
 import {
@@ -134,18 +136,34 @@ export default function PlanningHeader({
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
-        {/* Navigation */}
+        {/* Today Button */}
         <CalendarNavigation
-          onPrev={handlePrev}
-          onNext={handleNext}
           onToday={handleToday}
           todayLabel={calendarDict.today}
         />
 
-        {/* Current Date Display */}
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[180px] text-center capitalize">
-          {formatDateDisplay(currentDate, viewMode, lang)}
-        </span>
+        {/* Date Navigation: [prev] [date] [next] */}
+        <div className="inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-600">
+          <Button
+            color="alternative"
+            size="sm"
+            onClick={handlePrev}
+            className="rounded-r-none border-0"
+          >
+            <HiChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="px-2 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[180px] text-center capitalize border-x border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800">
+            {formatDateDisplay(currentDate, viewMode, lang)}
+          </span>
+          <Button
+            color="alternative"
+            size="sm"
+            onClick={handleNext}
+            className="rounded-l-none border-0"
+          >
+            <HiChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* View Switcher */}
         <CalendarViewSwitcher

@@ -1,12 +1,18 @@
 "use client";
 
-import { Tooltip } from "flowbite-react";
-import { HiExclamation, HiLightningBolt, HiClock } from "react-icons/hi";
+import { Badge } from "flowbite-react";
+import {
+  HiExclamation,
+  HiLightningBolt,
+  HiClock,
+  HiCheck,
+} from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import {
   usePlanningSelection,
   type SelectedService,
 } from "./planning-selection-context";
+import { categorizeIncidencias } from "./incidencias.types";
 
 export interface ServiceEventProps {
   service: SelectedService;
@@ -17,36 +23,25 @@ export interface ServiceEventProps {
  * Get the color classes for lead time status
  */
 function getLeadTimeStyles(status: "on_time" | "warning" | "delayed"): {
-  dot: string;
   text: string;
+  icon: typeof HiCheck | typeof HiExclamation | typeof HiClock;
 } {
   switch (status) {
     case "on_time":
       return {
-        dot: "bg-emerald-500",
-        text: "text-emerald-600 dark:text-emerald-400",
+        text: "text-gray-600 dark:text-gray-400",
+        icon: HiCheck,
       };
     case "warning":
       return {
-        dot: "bg-amber-500",
-        text: "text-amber-600 dark:text-amber-400",
+        text: "text-gray-600 dark:text-gray-400",
+        icon: HiExclamation,
       };
     case "delayed":
-      return { dot: "bg-red-500", text: "text-red-600 dark:text-red-400" };
-  }
-}
-
-/**
- * Get tooltip text for lead time status
- */
-function getLeadTimeTooltip(status: "on_time" | "warning" | "delayed"): string {
-  switch (status) {
-    case "on_time":
-      return "A tiempo";
-    case "warning":
-      return "En riesgo";
-    case "delayed":
-      return "Retrasado";
+      return {
+        text: "text-yellow-400 dark:text-yellow-300",
+        icon: HiClock,
+      };
   }
 }
 
@@ -62,9 +57,8 @@ function formatCompactDate(isoDate: string): string {
  * Get occupancy color based on percentage
  */
 function getOccupancyColor(percentage: number): string {
-  if (percentage >= 90) return "bg-red-500";
-  if (percentage >= 70) return "bg-amber-500";
-  return "bg-emerald-500";
+  if (percentage >= 100) return "bg-yellow-300 dark:bg-yellow-300";
+  return "bg-gray-400";
 }
 
 /**
@@ -79,8 +73,13 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
   const isSelected = selectedService?.id === service.id;
   const leadTimeStyles = getLeadTimeStyles(service.leadTime.status);
-  const hasFlags =
-    service.urgencia || service.shutdown || service.incidencias > 0;
+
+  // Categorize incidencias
+  const { primary, secondary } = categorizeIncidencias(service.incidencias);
+  const hasUrgencia = service.incidencias.includes("urgencia");
+  const hasFlags = primary.length > 0 || secondary.length > 0;
+  // Show secondary directly if no primary and 2 or fewer secondary
+  const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;
 
   const handleClick = () => {
     selectService(service);
@@ -100,95 +99,94 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
         className
       )}
     >
-      {/* Color accent bar */}
-      <div
-        className={twMerge(
-          "h-1 rounded-t-xl",
-          service.urgencia
-            ? "bg-gradient-to-r from-red-500 to-orange-500"
-            : service.leadTime.status === "delayed"
-              ? "bg-gradient-to-r from-red-400 to-red-500"
-              : service.leadTime.status === "warning"
-                ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                : "bg-gradient-to-r from-blue-400 to-blue-500"
-        )}
-      />
-
-      <div className="p-3 flex flex-col gap-2.5">
+      <div className="p-2 flex flex-col gap-1.5">
         {/* Header: ID + Route + Priority */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
-              {service.id}
+          <span className="text-xs font-mono font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded shrink-0">
+            {service.id}
+          </span>
+          <span className="text-xs truncate">
+            <span className="text-gray-600 dark:text-gray-300">
+              {service.origen}
             </span>
-            <span className="text-xs truncate">
-              <span className="text-gray-600 dark:text-gray-300">
-                {service.origen}
-              </span>
-              <span className="font-medium text-gray-700 dark:text-gray-200">
-                {" "}
-                →{" "}
-              </span>
-              <span className="text-gray-600 dark:text-gray-300">
-                {service.destino}
-              </span>
+            <span className="font-medium text-gray-700 dark:text-gray-200">
+              {" "}
+              →{" "}
             </span>
-          </div>
-          {/* Priority indicator */}
-          {service.prioridad === 1 && (
-            <span className="shrink-0 w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-500/40 flex items-center justify-center">
-              <HiLightningBolt className="w-3 h-3 text-purple-600 dark:text-purple-300" />
+            <span className="text-gray-600 dark:text-gray-300">
+              {service.destino}
             </span>
-          )}
+          </span>
         </div>
 
         {/* Client name */}
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate -mt-1">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
           {service.cliente}
         </h4>
 
         {/* Flags row */}
         {hasFlags && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {service.urgencia && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                <HiExclamation className="w-3 h-3" />
-                Urgente
-              </span>
-            )}
-            {service.shutdown && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-                Shutdown
-              </span>
-            )}
-            {service.incidencias > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                {service.incidencias} incid.
+          <div className="flex flex-wrap items-center gap-1 pointer-events-none">
+            {/* Primary incidencias - always visible */}
+            {primary.map(({ key, config }) => {
+              if (key === "urgencia") {
+                return (
+                  <Badge
+                    key={key}
+                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                    color="purple"
+                    icon={HiExclamation}
+                    size="xs"
+                  >
+                    {config.label}
+                  </Badge>
+                );
+              }
+              return (
+                <Badge
+                  key={key}
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                  color="gray"
+                  size="xs"
+                >
+                  {config.label}
+                </Badge>
+              );
+            })}
+
+            {/* Secondary incidencias - shown directly if ≤2 and no primary */}
+            {showSecondaryDirectly &&
+              secondary.map(({ key, config }) => (
+                <Badge
+                  key={key}
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                  color="gray"
+                  size="xs"
+                >
+                  {config.label}
+                </Badge>
+              ))}
+
+            {/* Secondary incidencias count - not clickable, only if not showing directly */}
+            {!showSecondaryDirectly && secondary.length > 0 && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (+{secondary.length} más)
               </span>
             )}
           </div>
         )}
 
         {/* KPIs row */}
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-2 text-xs">
           {/* Lead Time */}
-          <Tooltip
-            content={
-              <span className={leadTimeStyles.text}>
-                {getLeadTimeTooltip(service.leadTime.status)}
-              </span>
-            }
-            style="auto"
-          >
-            <div className="flex items-center gap-1.5">
-              <HiClock
-                className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
-              />
-              <span className={twMerge("font-medium", leadTimeStyles.text)}>
-                {formatCompactDate(service.leadTime.deadline)}
-              </span>
-            </div>
-          </Tooltip>
+          <div className="flex items-center gap-1.5">
+            <leadTimeStyles.icon
+              className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
+            />
+            <span className={twMerge("font-medium", leadTimeStyles.text)}>
+              {formatCompactDate(service.leadTime.deadline)}
+            </span>
+          </div>
 
           {/* Divider */}
           <span className="w-px h-3 bg-gray-200 dark:bg-gray-600" />

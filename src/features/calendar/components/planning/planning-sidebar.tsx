@@ -29,11 +29,7 @@ export default function PlanningSidebar({
         </h2>
       </div>
       <div className="flex-1 p-4 overflow-y-auto">
-        <PlanningSidebarForm
-          dict={dict}
-          isActive={isActive}
-          selectedService={selectedService}
-        />
+        <PlanningSidebarForm dict={dict} isActive={isActive} />
       </div>
     </div>
   );

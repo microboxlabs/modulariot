@@ -161,6 +161,174 @@ const buildMergedHeaders = (
   return merged;
 };
 
+/**
+ * Gets error message and code from HTML response content
+ */
+function getHtmlErrorMessage(
+  responseText: string,
+  status: number
+): { message: string; code: string } {
+  const lowerText = responseText.toLowerCase();
+
+  if (lowerText.includes("timeout") || lowerText.includes("timed out")) {
+    return {
+      message: "The request timed out. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 502 || lowerText.includes("bad gateway")) {
+    return {
+      message: "Service temporarily unavailable. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 503 || lowerText.includes("service unavailable")) {
+    return {
+      message: "Service temporarily unavailable. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 504 || lowerText.includes("gateway timeout")) {
+    return {
+      message: "The service took too long to respond. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  return {
+    message: "Service unavailable. Please try again later.",
+    code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+  };
+}
+
+/**
+ * Gets error message and code from response
+ */
+function getResponseErrorMessage(
+  response: Response,
+  responseText: string
+): { message: string; code: string } {
+  const isHtmlResponse =
+    responseText.trim().startsWith("<") ||
+    response.headers.get("content-type")?.includes("html");
+
+  if (isHtmlResponse) {
+    return getHtmlErrorMessage(responseText, response.status);
+  }
+
+  if (response.status >= 500) {
+    return {
+      message: "A server error occurred. Please try again.",
+      code: FetcherErrorCode.SERVER_ERROR,
+    };
+  }
+
+  return {
+    message: response.statusText || "Request failed",
+    code: FetcherErrorCode.SERVER_ERROR,
+  };
+}
+
+/**
+ * Handles non-OK response errors
+ */
+async function handleResponseError(
+  response: Response,
+  method: string,
+  pathAndQuery: string,
+  upstreamHost: string,
+  userAgent: string,
+  startedAt: Date,
+  durationMs: number,
+  requestId: string,
+  contentLength: string
+): Promise<never> {
+  let responseText = "";
+  try {
+    responseText = await response.text();
+  } catch {
+    responseText = "";
+  }
+
+  const { message, code } = getResponseErrorMessage(response, responseText);
+  const error = createFetcherError(message, response.status, code, {
+    responseText: responseText.substring(0, 500),
+  });
+
+  if (shouldLog) {
+    logError(error, {
+      ...buildAccessLogFields({
+        prefix: "OUT",
+        method,
+        pathAndQuery,
+        status: response.status,
+        contentLength,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+        extras: { upstream_host: upstreamHost },
+      }),
+    });
+  }
+
+  throw error;
+}
+
+/**
+ * Detects network-level errors and creates appropriate FetcherError
+ */
+function detectNetworkError(err: Error): FetcherError | null {
+  const errorMessage = err.message.toLowerCase();
+  const errorCause =
+    err.cause && typeof err.cause === "object" && "code" in err.cause
+      ? (err.cause as { code: string }).code
+      : "";
+
+  if (
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("timed out") ||
+    errorCause === "ETIMEDOUT" ||
+    errorCause === "UND_ERR_CONNECT_TIMEOUT"
+  ) {
+    return createFetcherError(
+      "The request timed out. Please try again.",
+      504,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  if (
+    errorMessage.includes("econnrefused") ||
+    errorMessage.includes("enotfound") ||
+    errorMessage.includes("network") ||
+    errorCause === "ECONNREFUSED" ||
+    errorCause === "ENOTFOUND"
+  ) {
+    return createFetcherError(
+      "Unable to connect to the server. Please try again.",
+      503,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  if (errorMessage.includes("aborted") || err.name === "AbortError") {
+    return createFetcherError(
+      "The request was cancelled.",
+      499,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  return null;
+}
+
 export default async function httfetcher<T>(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -168,16 +336,13 @@ export default async function httfetcher<T>(
   const method = (init?.method || "GET").toUpperCase();
   const { pathAndQuery, upstreamHost } = parseTarget(input);
 
-  // Prepare headers and request id for correlation
   const headers = buildMergedHeaders(input, init?.headers);
   let requestId = headers.get("x-request-id") || generateRequestId();
   if (!headers.has("x-request-id")) {
     headers.set("x-request-id", requestId);
   }
 
-  // Capture user agent if provided in init headers
   const userAgent = headers.get("user-agent") || "-";
-
   const startTime = Date.now();
   const startedAt = new Date();
 
@@ -210,91 +375,29 @@ export default async function httfetcher<T>(
     }
 
     if (!response.ok && response.status !== 401) {
-      // Get response body for error handling
-      let responseText = "";
-      try {
-        responseText = await response.text();
-      } catch {
-        responseText = "";
-      }
-
-      // Check if response is HTML (error page, timeout page, etc.)
-      const isHtmlResponse =
-        responseText.trim().startsWith("<") ||
-        response.headers.get("content-type")?.includes("html");
-
-      // Create user-friendly error message based on response content and status
-      let errorMessage = response.statusText || "Request failed";
-      let errorCode: string = FetcherErrorCode.SERVER_ERROR;
-
-      if (isHtmlResponse) {
-        errorCode = FetcherErrorCode.INVALID_RESPONSE_FORMAT;
-        const lowerText = responseText.toLowerCase();
-
-        // Detect specific error patterns in HTML
-        if (lowerText.includes("timeout") || lowerText.includes("timed out")) {
-          errorMessage = "The request timed out. Please try again.";
-        } else if (
-          response.status === 502 ||
-          lowerText.includes("bad gateway")
-        ) {
-          errorMessage = "Service temporarily unavailable. Please try again.";
-        } else if (
-          response.status === 503 ||
-          lowerText.includes("service unavailable")
-        ) {
-          errorMessage = "Service temporarily unavailable. Please try again.";
-        } else if (
-          response.status === 504 ||
-          lowerText.includes("gateway timeout")
-        ) {
-          errorMessage =
-            "The service took too long to respond. Please try again.";
-        } else {
-          errorMessage = "Service unavailable. Please try again later.";
-        }
-      } else if (response.status >= 500) {
-        errorMessage = "A server error occurred. Please try again.";
-      }
-
-      const error = createFetcherError(
-        errorMessage,
-        response.status,
-        errorCode,
-        { responseText: responseText.substring(0, 500) }
+      await handleResponseError(
+        response,
+        method,
+        pathAndQuery,
+        upstreamHost,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+        contentLength
       );
-
-      if (shouldLog) {
-        logError(error, {
-          ...buildAccessLogFields({
-            prefix: "OUT",
-            method,
-            pathAndQuery,
-            status: response.status,
-            contentLength,
-            userAgent,
-            startedAt,
-            durationMs,
-            requestId,
-            extras: { upstream_host: upstreamHost },
-          }),
-        });
-      }
-
-      throw error;
     }
 
-    // Handle 204 No Content and other responses with no body
     if (response.status === 204) {
       return null as T;
     }
 
-    // Parse JSON response with proper error handling for non-JSON responses
     return await parseJsonResponse<T>(response);
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
+
     if (shouldLog) {
       apiLogger.error({
         ...buildAccessLogFields({
@@ -313,61 +416,14 @@ export default async function httfetcher<T>(
       });
     }
 
-    // If it's already a FetcherError, re-throw it
     if (err instanceof Error && "code" in err && "status" in err) {
       throw err;
     }
 
-    // Handle network-level errors (timeout, connection refused, etc.)
     if (err instanceof Error) {
-      const errorMessage = err.message.toLowerCase();
-      const errorCause =
-        err.cause && typeof err.cause === "object" && "code" in err.cause
-          ? (err.cause as { code: string }).code
-          : "";
-
-      // Check for timeout errors
-      if (
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("timed out") ||
-        errorCause === "ETIMEDOUT" ||
-        errorCause === "UND_ERR_CONNECT_TIMEOUT"
-      ) {
-        throw createFetcherError(
-          "The request timed out. Please try again.",
-          504,
-          FetcherErrorCode.NETWORK_ERROR,
-          { originalError: err.message }
-        );
-      }
-
-      // Check for connection errors
-      if (
-        errorMessage.includes("econnrefused") ||
-        errorMessage.includes("enotfound") ||
-        errorMessage.includes("network") ||
-        errorCause === "ECONNREFUSED" ||
-        errorCause === "ENOTFOUND"
-      ) {
-        throw createFetcherError(
-          "Unable to connect to the server. Please try again.",
-          503,
-          FetcherErrorCode.NETWORK_ERROR,
-          { originalError: err.message }
-        );
-      }
-
-      // Check for abort/cancel errors
-      if (
-        errorMessage.includes("aborted") ||
-        err.name === "AbortError"
-      ) {
-        throw createFetcherError(
-          "The request was cancelled.",
-          499,
-          FetcherErrorCode.NETWORK_ERROR,
-          { originalError: err.message }
-        );
+      const networkError = detectNetworkError(err);
+      if (networkError) {
+        throw networkError;
       }
     }
 

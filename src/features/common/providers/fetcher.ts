@@ -251,6 +251,13 @@ interface LoggingContext {
 }
 
 /**
+ * Logging context with response status
+ */
+interface RequestLogContext extends LoggingContext {
+  status: number;
+}
+
+/**
  * Handles non-OK response errors
  */
 async function handleResponseError(
@@ -343,17 +350,7 @@ function detectNetworkError(err: Error): FetcherError | null {
 /**
  * Logs successful API request
  */
-function logSuccessRequest(
-  method: string,
-  pathAndQuery: string,
-  upstreamHost: string,
-  userAgent: string,
-  startedAt: Date,
-  durationMs: number,
-  requestId: string,
-  status: number,
-  contentLength: string
-): void {
+function logSuccessRequest(context: RequestLogContext): void {
   if (!shouldLog) {
     return;
   }
@@ -361,15 +358,15 @@ function logSuccessRequest(
   apiLogger.info(
     buildAccessLogFields({
       prefix: "OUT",
-      method,
-      pathAndQuery,
-      status,
-      contentLength,
-      userAgent,
-      startedAt,
-      durationMs,
-      requestId,
-      extras: { upstream_host: upstreamHost },
+      method: context.method,
+      pathAndQuery: context.pathAndQuery,
+      status: context.status,
+      contentLength: context.contentLength,
+      userAgent: context.userAgent,
+      startedAt: context.startedAt,
+      durationMs: context.durationMs,
+      requestId: context.requestId,
+      extras: { upstream_host: context.upstreamHost },
     })
   );
 }
@@ -377,18 +374,7 @@ function logSuccessRequest(
 /**
  * Logs API request error
  */
-function logRequestError(
-  method: string,
-  pathAndQuery: string,
-  upstreamHost: string,
-  userAgent: string,
-  startedAt: Date,
-  durationMs: number,
-  requestId: string,
-  status: number,
-  contentLength: string,
-  err: unknown
-): void {
+function logRequestError(context: RequestLogContext, err: unknown): void {
   if (!shouldLog) {
     return;
   }
@@ -396,15 +382,15 @@ function logRequestError(
   apiLogger.error({
     ...buildAccessLogFields({
       prefix: "OUT",
-      method,
-      pathAndQuery,
-      status,
-      contentLength,
-      userAgent,
-      startedAt,
-      durationMs,
-      requestId,
-      extras: { upstream_host: upstreamHost },
+      method: context.method,
+      pathAndQuery: context.pathAndQuery,
+      status: context.status,
+      contentLength: context.contentLength,
+      userAgent: context.userAgent,
+      startedAt: context.startedAt,
+      durationMs: context.durationMs,
+      requestId: context.requestId,
+      extras: { upstream_host: context.upstreamHost },
     }),
     err,
   });
@@ -464,7 +450,7 @@ export default async function httfetcher<T>(
     const status = response.status;
     const contentLength = response.headers.get("content-length") || "-";
 
-    logSuccessRequest(
+    logSuccessRequest({
       method,
       pathAndQuery,
       upstreamHost,
@@ -473,8 +459,8 @@ export default async function httfetcher<T>(
       durationMs,
       requestId,
       status,
-      contentLength
-    );
+      contentLength,
+    });
 
     if (!response.ok && response.status !== 401) {
       await handleResponseError(response, {
@@ -500,15 +486,17 @@ export default async function httfetcher<T>(
     const contentLength = response?.headers.get("content-length") || "-";
 
     logRequestError(
-      method,
-      pathAndQuery,
-      upstreamHost,
-      userAgent,
-      startedAt,
-      durationMs,
-      requestId,
-      status,
-      contentLength,
+      {
+        method,
+        pathAndQuery,
+        upstreamHost,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+        status,
+        contentLength,
+      },
       err
     );
 

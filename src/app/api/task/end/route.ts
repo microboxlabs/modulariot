@@ -198,12 +198,12 @@ function handlePostError(error: unknown): NextResponse {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session) {
+    if (!session?.user?.email) {
       return NextResponse.json({ status: 401 });
     }
 
     const json = (await request.json()) as EndTaskRequest;
-    const updateTaskPayload = buildUpdateTaskPayload(json, session.user!.email!);
+    const updateTaskPayload = buildUpdateTaskPayload(json, session.user.email);
 
     logger.info(`updateTaskPayload=${JSON.stringify(updateTaskPayload)}`);
     await updateTask(session, "activiti$" + json.taskId, updateTaskPayload);

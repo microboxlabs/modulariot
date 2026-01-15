@@ -16,7 +16,7 @@ export interface FetcherErrorInfo {
 }
 
 export type FetcherError = Error & {
-  info: FetcherErrorInfo | string | null | unknown;
+  info: FetcherErrorInfo | string | null;
   status: number;
   code?: string;
 };

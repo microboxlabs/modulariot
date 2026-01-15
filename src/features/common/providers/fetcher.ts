@@ -1,4 +1,8 @@
-import { FetcherError, FetcherErrorCode } from "./fetcher.types";
+import {
+  FetcherError,
+  FetcherErrorCode,
+  FetcherErrorInfo,
+} from "./fetcher.types";
 import { apiLogger, logError } from "@/lib/logger";
 import {
   buildAccessLogFields,
@@ -20,12 +24,12 @@ const createFetcherError = (
   message: string,
   status: number,
   code: string,
-  info?: unknown
+  info?: FetcherErrorInfo | string | null
 ): FetcherError => {
   const error = new Error(message) as FetcherError;
   error.status = status;
   error.code = code;
-  error.info = info;
+  error.info = info ?? null;
   return error;
 };
 

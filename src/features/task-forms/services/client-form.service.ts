@@ -27,6 +27,60 @@ function hasErrorInfo(
   );
 }
 
+/**
+ * Attempts to extract error message from string info
+ */
+function parseErrorMessageFromString(info: string): string | null {
+  try {
+    const parsedError = JSON.parse(info) as Record<string, InfoError>;
+    return parsedError?.error?.message ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Gets error message based on error code
+ */
+function getErrorMessageFromCode(
+  errorInfo: NonNullable<FetcherErrorInfo["error"]>
+): string | null {
+  if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
+    return errorInfo.message ?? "Error al iniciar sesión";
+  }
+  if (errorInfo.code === "ERROR_ACCION") {
+    return (
+      errorInfo.details?.involvedObject?.respuesta ??
+      "Error al realizar la acción"
+    );
+  }
+  if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
+    return errorInfo.message ?? "Error al realizar la acción";
+  }
+  return null;
+}
+
+/**
+ * Extracts the best error message from a FetcherError
+ */
+function extractErrorMessage(fetcherError: FetcherError): string {
+  if (typeof fetcherError.info === "string") {
+    const message = parseErrorMessageFromString(fetcherError.info);
+    if (message) {
+      return message;
+    }
+  }
+
+  if (hasErrorInfo(fetcherError.info)) {
+    const message = getErrorMessageFromCode(fetcherError.info.error);
+    if (message) {
+      return message;
+    }
+  }
+
+  return fetcherError.message;
+}
+
 async function fetcherClient<T>(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -35,35 +89,7 @@ async function fetcherClient<T>(
     return await fetcher<T>(input, init);
   } catch (error) {
     const fetcherError = error as FetcherError;
-    let errorMessage = fetcherError.message;
-
-    if (typeof fetcherError?.info === "string") {
-      try {
-        const parsedError = JSON.parse(fetcherError.info) as Record<
-          string,
-          InfoError
-        >;
-        if (parsedError?.error?.message) {
-          errorMessage = parsedError.error.message;
-        }
-      } catch {
-        // If JSON parsing fails, keep the original error message
-      }
-    }
-
-    // Check for specific error codes when info has error structure
-    if (hasErrorInfo(fetcherError?.info)) {
-      const errorInfo = fetcherError.info.error;
-      if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
-        errorMessage = errorInfo.message ?? "Error al iniciar sesión";
-      } else if (errorInfo.code === "ERROR_ACCION") {
-        errorMessage =
-          errorInfo.details?.involvedObject?.respuesta ??
-          "Error al realizar la acción";
-      } else if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
-        errorMessage = errorInfo.message ?? "Error al realizar la acción";
-      }
-    }
+    const errorMessage = extractErrorMessage(fetcherError);
 
     ShowNotification({
       message: errorMessage,

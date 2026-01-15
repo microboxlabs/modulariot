@@ -233,18 +233,25 @@ function getResponseErrorMessage(
 }
 
 /**
+ * Logging context for error handling
+ */
+interface LoggingContext {
+  method: string;
+  pathAndQuery: string;
+  upstreamHost: string;
+  userAgent: string;
+  startedAt: Date;
+  durationMs: number;
+  requestId: string;
+  contentLength: string;
+}
+
+/**
  * Handles non-OK response errors
  */
 async function handleResponseError(
   response: Response,
-  method: string,
-  pathAndQuery: string,
-  upstreamHost: string,
-  userAgent: string,
-  startedAt: Date,
-  durationMs: number,
-  requestId: string,
-  contentLength: string
+  loggingContext: LoggingContext
 ): Promise<never> {
   let responseText = "";
   try {
@@ -262,15 +269,15 @@ async function handleResponseError(
     logError(error, {
       ...buildAccessLogFields({
         prefix: "OUT",
-        method,
-        pathAndQuery,
+        method: loggingContext.method,
+        pathAndQuery: loggingContext.pathAndQuery,
         status: response.status,
-        contentLength,
-        userAgent,
-        startedAt,
-        durationMs,
-        requestId,
-        extras: { upstream_host: upstreamHost },
+        contentLength: loggingContext.contentLength,
+        userAgent: loggingContext.userAgent,
+        startedAt: loggingContext.startedAt,
+        durationMs: loggingContext.durationMs,
+        requestId: loggingContext.requestId,
+        extras: { upstream_host: loggingContext.upstreamHost },
       }),
     });
   }
@@ -375,8 +382,7 @@ export default async function httfetcher<T>(
     }
 
     if (!response.ok && response.status !== 401) {
-      await handleResponseError(
-        response,
+      await handleResponseError(response, {
         method,
         pathAndQuery,
         upstreamHost,
@@ -384,8 +390,8 @@ export default async function httfetcher<T>(
         startedAt,
         durationMs,
         requestId,
-        contentLength
-      );
+        contentLength,
+      });
     }
 
     if (response.status === 204) {

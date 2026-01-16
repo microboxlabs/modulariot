@@ -972,7 +972,11 @@
         "whereIsMyLoad": "Where is my load?",
         "signalHistory": "Signal history",
         "geographicView": "Geographic view",
-        "symptoms": "Symptoms"
+        "symptoms": "Symptoms",
+        "liveStreams": "Live Streams",
+        "facilitySCL": "Facility SCL",
+        "truckBeds": "Truck Beds",
+        "allDevices": "All Devices"
       }
     },
     "calendar": {

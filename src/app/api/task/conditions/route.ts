@@ -6,7 +6,6 @@ import {
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_symptoms_icu_tripid_view`;
-//const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/alerts/dashboard";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,

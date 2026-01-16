@@ -1002,6 +1002,15 @@
       "saveSuccess": "Changes saved successfully"
     }
   },
+  "liveStreams": {
+    "all": "All",
+    "live": "Live",
+    "offline": "Offline",
+    "recording": "Recording",
+    "error": "Error",
+    "lastSeen": "Last seen",
+    "noDevicesFound": "No devices found"
+  },
   "symptoms": {
     "no_symptoms": "No symptoms",
     "active_symptoms": "Active symptoms",

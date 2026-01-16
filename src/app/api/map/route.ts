@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-//const SYMPTOMS_API_URL = "https://iot.streamhub.cl/api/v1/avl/fleet/positions";
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/api/v1/pgrest/rpc/api_modular_map_positions`;
 
 import {

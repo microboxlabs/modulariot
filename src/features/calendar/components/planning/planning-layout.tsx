@@ -16,7 +16,6 @@ export default function PlanningLayout({
 }: Readonly<PlanningLayoutProps>) {
   return (
     <PlanningLayoutClient
-      lang={lang}
       dict={dict}
       header={<PlanningHeader lang={lang} dict={dict} />}
       calendar={<PlanningCalendar lang={lang} dict={dict} />}

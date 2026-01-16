@@ -6,8 +6,80 @@ import { GPSValidityType, TaskNextActionState } from "./form.service.types";
 import { GetEntityInfoResponse } from "@/features/common/providers/microboxlabs-api/microboxlabs-api.types";
 
 import { ShowNotification } from "@/features/notifications/notification";
-import { FetcherError } from "@/features/common/providers/fetcher.types";
+import {
+  FetcherError,
+  FetcherErrorInfo,
+} from "@/features/common/providers/fetcher.types";
 import { InfoError } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+
+/**
+ * Type guard to check if info has the expected error structure
+ */
+function hasErrorInfo(
+  info: unknown
+): info is FetcherErrorInfo & { error: NonNullable<FetcherErrorInfo["error"]> } {
+  return (
+    typeof info === "object" &&
+    info !== null &&
+    "error" in info &&
+    typeof (info as FetcherErrorInfo).error === "object" &&
+    (info as FetcherErrorInfo).error !== null
+  );
+}
+
+/**
+ * Attempts to extract error message from string info
+ */
+function parseErrorMessageFromString(info: string): string | null {
+  try {
+    const parsedError = JSON.parse(info) as Record<string, InfoError>;
+    return parsedError?.error?.message ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Gets error message based on error code
+ */
+function getErrorMessageFromCode(
+  errorInfo: NonNullable<FetcherErrorInfo["error"]>
+): string | null {
+  if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
+    return errorInfo.message ?? "Error al iniciar sesión";
+  }
+  if (errorInfo.code === "ERROR_ACCION") {
+    return (
+      errorInfo.details?.involvedObject?.respuesta ??
+      "Error al realizar la acción"
+    );
+  }
+  if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
+    return errorInfo.message ?? "Error al realizar la acción";
+  }
+  return null;
+}
+
+/**
+ * Extracts the best error message from a FetcherError
+ */
+function extractErrorMessage(fetcherError: FetcherError): string {
+  if (typeof fetcherError.info === "string") {
+    const message = parseErrorMessageFromString(fetcherError.info);
+    if (message) {
+      return message;
+    }
+  }
+
+  if (hasErrorInfo(fetcherError.info)) {
+    const message = getErrorMessageFromCode(fetcherError.info.error);
+    if (message) {
+      return message;
+    }
+  }
+
+  return fetcherError.message;
+}
 
 async function fetcherClient<T>(
   input: RequestInfo | URL,
@@ -17,37 +89,8 @@ async function fetcherClient<T>(
     return await fetcher<T>(input, init);
   } catch (error) {
     const fetcherError = error as FetcherError;
-    let errorMessage = fetcherError.message;
+    const errorMessage = extractErrorMessage(fetcherError);
 
-    if (typeof fetcherError?.info === "string") {
-      const parsedError = JSON.parse(fetcherError.info) as Record<
-        string,
-        InfoError
-      >;
-      if (parsedError?.error?.message) {
-        errorMessage = parsedError.error.message;
-      }
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (fetcherError?.info?.error?.code === "ALERCE_LOGIN_ERROR") {
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (fetcherError?.info?.error?.message as string) ??
-        "Error al iniciar sesión";
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    } else if (fetcherError?.info?.error?.code === "ERROR_ACCION") {
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        (fetcherError?.info?.error?.details?.involvedObject
-          ?.respuesta as string) ?? "Error al realizar la acción";
-    } else if (
-      fetcherError?.info?.error?.code === "DUPLICATE_LICENSE_PLATE_ERROR"
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      errorMessage =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        fetcherError?.info?.error?.message ?? "Error al realizar la acción";
-    }
     ShowNotification({
       message: errorMessage,
       type: "error",

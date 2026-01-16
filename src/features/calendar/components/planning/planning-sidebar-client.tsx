@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
-import { TextInput } from "flowbite-react";
-import { HiArrowLeft, HiSearch, HiX } from "react-icons/hi";
+import { HiArrowLeft, HiX } from "react-icons/hi";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -14,6 +13,7 @@ import {
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
+import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
@@ -59,7 +59,7 @@ const MOCK_SERVICES: SelectedService[] = [
     prioridad: 2,
   },
   {
-    id: "3921047-otr",
+    id: "1049760-v",
     cliente: "Transportes del Norte",
     origen: "ANF",
     lugarCarguio: "Plataforma 1",
@@ -104,8 +104,9 @@ const MOCK_SERVICES: SelectedService[] = [
 export function PlanningSidebarClient({
   dict,
 }: Readonly<PlanningSidebarClientProps>) {
-  const { selectedSlot, selectedService, clearService, closeSidebar } =
+  const { selectedSlot, selectedService, clearService, closeSidebar, selectService } =
     usePlanningSelection();
+  const [filteredServiceId, setFilteredServiceId] = useState<string | null>(null);
 
   // Format the selected slot for display
   const formattedSlot = useMemo(() => {
@@ -129,10 +130,17 @@ export function PlanningSidebarClient({
       return 3; // on_time last
     };
 
-    return [...MOCK_SERVICES].sort(
+    let services = [...MOCK_SERVICES];
+
+    // Filter by selected service ID if search was used
+    if (filteredServiceId) {
+      services = services.filter((s) => s.id === filteredServiceId);
+    }
+
+    return services.sort(
       (a, b) => getStatusPriority(a) - getStatusPriority(b)
     );
-  }, []);
+  }, [filteredServiceId]);
 
   const handleSubmit = (values: Record<string, string | boolean>) => {
     // TODO: Implement actual submission logic
@@ -142,10 +150,20 @@ export function PlanningSidebarClient({
 
   const handleBack = () => {
     clearService(); // Go back to services list, keep sidebar open
+    setFilteredServiceId(null); // Clear the filter when going back
   };
 
   const handleCancel = () => {
     closeSidebar(); // Close the entire sidebar
+  };
+
+  const handleSearchSelect = (service: SelectedService) => {
+    selectService(service);
+    setFilteredServiceId(service.id);
+  };
+
+  const handleSearchClear = () => {
+    setFilteredServiceId(null);
   };
 
   const isFormActive = Boolean(selectedService);
@@ -220,24 +238,26 @@ export function PlanningSidebarClient({
           />
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Search bar */}
-            <div className="relative">
-              <TextInput
-                type="text"
-                placeholder={tr(
-                  "pages.planning.sidebar.searchPlaceholder",
-                  dict
-                )}
-                icon={HiSearch}
-                sizing="sm"
-              />
-            </div>
+            {/* Search bar with autocomplete */}
+            <PlanningSearchAutocomplete
+              dict={dict}
+              services={MOCK_SERVICES}
+              onSelect={handleSearchSelect}
+              onClear={handleSearchClear}
+              hasActiveFilter={filteredServiceId !== null}
+            />
 
             {/* Services list */}
             <div className="flex flex-col gap-1.5">
-              {sortedServices.map((service) => (
-                <ServiceEvent key={service.id} service={service} />
-              ))}
+              {sortedServices.length > 0 ? (
+                sortedServices.map((service) => (
+                  <ServiceEvent key={service.id} service={service} />
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  {tr("pages.planning.sidebar.search.noResults", dict)}
+                </p>
+              )}
             </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">

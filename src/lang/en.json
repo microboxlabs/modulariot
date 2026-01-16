@@ -218,7 +218,23 @@
         "servicesList": "Today's Services",
         "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
         "selectServiceHint": "Select a service to assign driver and vehicle",
-        "searchPlaceholder": "Search service...",
+        "searchPlaceholder": "Search by client, id, origin, destination, loading place, permanence, trip type...",
+        "search": {
+          "loading": "Searching...",
+          "noResults": "No results found",
+          "noResultsFor": "No results found for",
+          "minCharacters": "Type at least 2 characters",
+          "clear": "Clear search",
+          "matchType": {
+            "id": "id",
+            "cliente": "client",
+            "origen": "origin",
+            "destino": "destination",
+            "lugarCarguio": "loading place",
+            "permanencia": "permanence",
+            "tipoViaje": "trip type"
+          }
+        },
         "form": {
           "serviceNumber": "Service Nº",
           "slot": "Slot",

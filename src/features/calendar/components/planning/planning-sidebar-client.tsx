@@ -104,9 +104,16 @@ const MOCK_SERVICES: SelectedService[] = [
 export function PlanningSidebarClient({
   dict,
 }: Readonly<PlanningSidebarClientProps>) {
-  const { selectedSlot, selectedService, clearService, closeSidebar, selectService } =
-    usePlanningSelection();
-  const [filteredServiceId, setFilteredServiceId] = useState<string | null>(null);
+  const {
+    selectedSlot,
+    selectedService,
+    clearService,
+    closeSidebar,
+    selectService,
+  } = usePlanningSelection();
+  const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
+    null
+  );
 
   // Format the selected slot for display
   const formattedSlot = useMemo(() => {
@@ -137,9 +144,7 @@ export function PlanningSidebarClient({
       services = services.filter((s) => s.id === filteredServiceId);
     }
 
-    return services.sort(
-      (a, b) => getStatusPriority(a) - getStatusPriority(b)
-    );
+    return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
   }, [filteredServiceId]);
 
   const handleSubmit = (values: Record<string, string | boolean>) => {
@@ -186,7 +191,7 @@ export function PlanningSidebarClient({
 
       {/* Header */}
       <div className="px-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 h-10">
           {isFormActive ? (
             <button
               type="button"

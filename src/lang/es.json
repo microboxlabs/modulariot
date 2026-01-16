@@ -1021,7 +1021,11 @@
         "whereIsMyLoad": "¿Dónde está mi carga?",
         "signalHistory": "Historial de señales",
         "geographicView": "Vista geográfica",
-        "symptoms": "Síntomas"
+        "symptoms": "Síntomas",
+        "liveStreams": "CCTV",
+        "facilitySCL": "Sede SCL",
+        "truckBeds": "Ramplas",
+        "allDevices": "Todos"
       }
     },
     "calendar": {
@@ -1046,6 +1050,15 @@
       "saveError": "Error al guardar los cambios",
       "saveSuccess": "Cambios guardados correctamente"
     }
+  },
+  "liveStreams": {
+    "all": "Todos",
+    "live": "Online",
+    "offline": "Offline",
+    "recording": "Grabando",
+    "error": "Error",
+    "lastSeen": "Última conexión",
+    "noDevicesFound": "No se encontraron dispositivos"
   },
   "symptoms": {
     "no_symptoms": "No hay síntomas",

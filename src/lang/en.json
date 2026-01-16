@@ -1007,7 +1007,11 @@
         "whereIsMyLoad": "Where is my load?",
         "signalHistory": "Signal history",
         "geographicView": "Geographic view",
-        "symptoms": "Symptoms"
+        "symptoms": "Symptoms",
+        "liveStreams": "Live Streams",
+        "facilitySCL": "Facility SCL",
+        "truckBeds": "Truck Beds",
+        "allDevices": "All Devices"
       }
     },
     "calendar": {
@@ -1032,6 +1036,15 @@
       "saveError": "Failed to save changes",
       "saveSuccess": "Changes saved successfully"
     }
+  },
+  "liveStreams": {
+    "all": "All",
+    "live": "Live",
+    "offline": "Offline",
+    "recording": "Recording",
+    "error": "Error",
+    "lastSeen": "Last seen",
+    "noDevicesFound": "No devices found"
   },
   "symptoms": {
     "no_symptoms": "No symptoms",

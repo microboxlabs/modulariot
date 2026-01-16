@@ -12,6 +12,7 @@
 import {
   LiveFormField as GenericLiveFormField,
   type DynamicFieldConfig,
+  type LiveDataHookResult,
 } from "@/features/dynamic-forms";
 import {
   useLiveETA,
@@ -35,11 +36,7 @@ interface LiveFormFieldProps {
 function useETAData(
   isActive: boolean,
   allValues: Record<string, unknown>
-): {
-  data: typeof eta;
-  isLoading: boolean;
-  error: unknown;
-} & { eta: ReturnType<typeof useLiveETA>["eta"] } {
+): LiveDataHookResult<ReturnType<typeof useLiveETA>["eta"]> {
   const result = useLiveETA(
     isActive,
     allValues.mintral_originDelegateCode as string,
@@ -48,10 +45,9 @@ function useETAData(
   );
 
   return {
-    data: result.eta,
+    data: result.eta ?? null,
     isLoading: result.isLoading,
-    error: result.error,
-    eta: result.eta,
+    error: result.error ? (result.error instanceof Error ? result.error : new Error(String(result.error))) : null,
   };
 }
 
@@ -70,17 +66,19 @@ export function LiveFormField({
   return (
     <GenericLiveFormField
       field={field}
-      dataHookResult={hookResult}
-      formatValue={(data) => {
+      allValues={allValues}
+      isVisible={isVisible}
+      liveDataResult={hookResult}
+      formatData={(data) => {
         const eta = data as ReturnType<typeof useLiveETA>["eta"];
         return field.liveField?.displayFormat === "datetime"
           ? formatArrivalTime(eta)
           : formatETA(eta);
       }}
-      loadingText={tr("calculatingEta", dict)}
-      errorText={tr("etaCalculationError", dict)}
-      emptyText={tr("etaNotAvailable", dict)}
-      detailRenderer={
+      loadingMessage={tr("calculatingEta", dict)}
+      errorMessage={tr("etaCalculationError", dict)}
+      notAvailableMessage={tr("etaNotAvailable", dict)}
+      customRenderer={
         field.liveField?.displayFormat === "datetime"
           ? (data) => {
               const eta = data as ReturnType<typeof useLiveETA>["eta"];

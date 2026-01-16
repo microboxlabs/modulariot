@@ -10,10 +10,9 @@ import {
 import { PlanningSidebarClient } from "./planning-sidebar-client";
 
 interface PlanningLayoutClientProps {
-  lang: string;
-  dict: I18nDictionary;
-  header: ReactNode;
-  calendar: ReactNode;
+  readonly dict: I18nDictionary;
+  readonly header: ReactNode;
+  readonly calendar: ReactNode;
 }
 
 /**

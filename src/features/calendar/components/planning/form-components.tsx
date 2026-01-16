@@ -4,9 +4,9 @@ import { HiCheck, HiExclamation, HiClock } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 
 interface FormSectionProps {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
+  readonly title: string;
+  readonly children: React.ReactNode;
+  readonly className?: string;
 }
 
 /**
@@ -27,9 +27,9 @@ export function FormSection({ title, children, className }: FormSectionProps) {
 }
 
 interface InfoRowProps {
-  label: string;
-  value: React.ReactNode;
-  className?: string;
+  readonly label: string;
+  readonly value: React.ReactNode;
+  readonly className?: string;
 }
 
 /**
@@ -51,9 +51,9 @@ export function InfoRow({ label, value, className }: InfoRowProps) {
 }
 
 interface FlagBadgeProps {
-  label: string;
-  color: "red" | "orange" | "yellow" | "blue" | "green" | "gray";
-  icon?: React.ReactNode;
+  readonly label: string;
+  readonly color: "red" | "orange" | "yellow" | "blue" | "green" | "gray";
+  readonly icon?: React.ReactNode;
 }
 
 const flagColors = {
@@ -85,10 +85,9 @@ export function FlagBadge({ label, color, icon }: FlagBadgeProps) {
 }
 
 interface KpiRowProps {
-  label: string;
-  value: string;
-  status?: "success" | "warning" | "error" | "neutral";
-  statusLabel?: string;
+  readonly label: string;
+  readonly value: string;
+  readonly status?: "success" | "warning" | "error" | "neutral";
 }
 
 const statusConfig = {
@@ -140,9 +139,9 @@ export function KpiRow({ label, value, status }: KpiRowProps) {
 }
 
 interface ProgressBarProps {
-  label: string;
-  value: number; // 0-100
-  showPercentage?: boolean;
+  readonly label: string;
+  readonly value: number; // 0-100
+  readonly showPercentage?: boolean;
 }
 
 /**

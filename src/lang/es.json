@@ -986,7 +986,11 @@
         "whereIsMyLoad": "¿Dónde está mi carga?",
         "signalHistory": "Historial de señales",
         "geographicView": "Vista geográfica",
-        "symptoms": "Síntomas"
+        "symptoms": "Síntomas",
+        "liveStreams": "CCTV",
+        "facilitySCL": "Sede SCL",
+        "truckBeds": "Ramplas",
+        "allDevices": "Todos"
       }
     },
     "calendar": {

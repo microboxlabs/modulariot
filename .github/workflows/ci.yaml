@@ -72,6 +72,13 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
+      - name: Run tests with coverage
+        run: npm run test:coverage
+      #- name: SonarQube Scan
+      #  uses: SonarSource/sonarqube-scan-action@v7
+      #  env:
+      #    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
       - name: Check for dead code with Knip
         run: ${{ steps.detect-package-manager.outputs.runner }} knip --no-exit-code || true
 

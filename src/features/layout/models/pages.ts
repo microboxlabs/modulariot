@@ -4,6 +4,7 @@ import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
+import VideoCameraIcon from "@/features/icons/video-camera";
 
 export const pages: SidebarItem[] = [
   {
@@ -138,5 +139,28 @@ export const pages: SidebarItem[] = [
     totals: {},
     requiredGroups: ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
     blockedGroups: [], // Hide reports section from revisors
+  },
+  {
+    icon: VideoCameraIcon,
+    label: "liveStreams",
+    items: [
+      {
+        href: "/live-streams/facility-scl",
+        label: "facilitySCL",
+        totals: {},
+      },
+      {
+        href: "/live-streams/truck-beds",
+        label: "truckBeds",
+        totals: {},
+      },
+      {
+        href: "/live-streams/devices",
+        label: "allDevices",
+        totals: {},
+      },
+    ],
+    totals: {},
+    requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
   },
 ];

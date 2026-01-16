@@ -148,7 +148,6 @@ export function PlanningSidebarClient({
   }, [filteredServiceId]);
 
   const handleSubmit = (values: Record<string, string | boolean>) => {
-    // TODO: Implement actual submission logic
     console.log("Form submitted:", { selectedService, values });
     closeSidebar();
   };
@@ -239,7 +238,6 @@ export function PlanningSidebarClient({
                 : undefined
             }
             onSubmit={handleSubmit}
-            onCancel={handleCancel}
           />
         ) : (
           <div className="flex flex-col gap-3">

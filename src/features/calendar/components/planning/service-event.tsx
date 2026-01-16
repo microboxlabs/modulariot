@@ -1,12 +1,7 @@
 "use client";
 
 import { Badge } from "flowbite-react";
-import {
-  HiExclamation,
-  HiLightningBolt,
-  HiClock,
-  HiCheck,
-} from "react-icons/hi";
+import { HiExclamation, HiClock, HiCheck } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import {
   usePlanningSelection,
@@ -15,8 +10,8 @@ import {
 import { categorizeIncidencias } from "./incidencias.types";
 
 export interface ServiceEventProps {
-  service: SelectedService;
-  className?: string;
+  readonly service: SelectedService;
+  readonly className?: string;
 }
 
 /**
@@ -76,7 +71,6 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
   // Categorize incidencias
   const { primary, secondary } = categorizeIncidencias(service.incidencias);
-  const hasUrgencia = service.incidencias.includes("urgencia");
   const hasFlags = primary.length > 0 || secondary.length > 0;
   // Show secondary directly if no primary and 2 or fewer secondary
   const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;

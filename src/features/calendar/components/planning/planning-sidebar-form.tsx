@@ -4,13 +4,7 @@ import { useState } from "react";
 import { Badge, Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import {
-  FormSection,
-  InfoRow,
-  FlagBadge,
-  KpiRow,
-  ProgressBar,
-} from "./form-components";
+import { FormSection, InfoRow, KpiRow, ProgressBar } from "./form-components";
 import {
   usePlanningSelection,
   type SelectedService,
@@ -20,11 +14,10 @@ import { HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 
 interface PlanningSidebarFormProps {
-  dict: I18nRecord;
-  isActive: boolean;
-  selectedService?: SelectedService & { slot?: string };
-  onSubmit?: (values: Record<string, string | boolean>) => void;
-  onCancel?: () => void;
+  readonly dict: I18nRecord;
+  readonly isActive: boolean;
+  readonly selectedService?: SelectedService & { slot?: string };
+  readonly onSubmit?: (values: Record<string, string | boolean>) => void;
 }
 
 export function PlanningSidebarForm({
@@ -32,7 +25,6 @@ export function PlanningSidebarForm({
   isActive,
   selectedService,
   onSubmit,
-  onCancel,
 }: PlanningSidebarFormProps) {
   const [showAllIncidencias, setShowAllIncidencias] = useState(false);
   const { confirmService, selectedSlot, canAddToSlot } = usePlanningSelection();

@@ -130,13 +130,19 @@ export default function PlanningMonthView({
       </div>
 
       {/* Calendar grid */}
-      {weeks.map((week, weekIdx) => (
+      {weeks.map((week) => (
         <div
-          key={weekIdx}
+          key={week[0].date.toISOString()}
           className="grid grid-cols-7 border-t border-gray-200 dark:border-gray-700"
         >
           {week.map((day, dayIdx) => {
             const dayServices = getPlannedServicesForDay(day.date);
+
+            const getDayNumberClassName = () => {
+              if (day.isToday) return "bg-primary-600 text-white rounded-full";
+              if (day.isCurrentMonth) return "text-gray-900 dark:text-white";
+              return "text-gray-400 dark:text-gray-500";
+            };
 
             return (
               <button
@@ -156,11 +162,7 @@ export default function PlanningMonthView({
                 <span
                   className={twMerge(
                     "inline-flex items-center justify-center text-sm font-medium shrink-0 w-7 h-7",
-                    day.isToday
-                      ? "bg-primary-600 text-white rounded-full"
-                      : day.isCurrentMonth
-                        ? "text-gray-900 dark:text-white"
-                        : "text-gray-400 dark:text-gray-500"
+                    getDayNumberClassName()
                   )}
                 >
                   {day.dayNumber}

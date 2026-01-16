@@ -5,7 +5,7 @@ import {
   TaskOutcomePlanning,
   TaskOutcomeV2,
 } from "../../services/form.service.types";
-import type { CustomFormConfig as DynamicCustomFormConfig } from "@/features/dynamic-forms";
+import type { DynamicFormConfig } from "@/features/dynamic-forms";
 
 export type TaskConfirmModalProps = {
   taskId: string;
@@ -77,7 +77,7 @@ export type {
 
 export type TaskFormConfig = {
   selectConfig?: SelectConfig;
-  customFormConfig?: DynamicCustomFormConfig;
+  customFormConfig?: DynamicFormConfig;
 };
 
 export type TaskFormsConfig = {

@@ -9,24 +9,24 @@ import { DisplayField } from "./display-field";
  */
 export interface DynamicFormFieldProps {
   /** Field configuration */
-  field: DynamicFieldConfig;
+  readonly field: DynamicFieldConfig;
   /** Current field value */
-  value: string | boolean;
+  readonly value: string | boolean;
   /** Change handler */
-  onChange: (value: string | boolean) => void;
+  readonly onChange: (value: string | boolean) => void;
   /** Whether field is visible (based on dependsOn) */
-  isVisible: boolean;
+  readonly isVisible: boolean;
   /** Translation function */
-  translate: (key: string) => string;
+  readonly translate: (key: string) => string;
   /** All form values (for live fields that need dependencies) */
-  allValues?: Record<string, unknown>;
+  readonly allValues?: Record<string, unknown>;
   /** Custom renderer for live fields */
-  liveFieldRenderer?: (
+  readonly liveFieldRenderer?: (
     field: DynamicFieldConfig,
     allValues: Record<string, unknown>
   ) => React.ReactNode;
   /** Custom renderer for display fields */
-  displayFieldRenderer?: (
+  readonly displayFieldRenderer?: (
     field: DynamicFieldConfig,
     value: string | boolean
   ) => React.ReactNode;

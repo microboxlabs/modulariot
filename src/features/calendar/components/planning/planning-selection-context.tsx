@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import dayjs from "dayjs";
@@ -81,7 +82,7 @@ const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
 
 interface PlanningSelectionProviderProps {
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
 export function PlanningSelectionProvider({
@@ -164,23 +165,39 @@ export function PlanningSelectionProvider({
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;
 
+  const contextValue = useMemo(
+    () => ({
+      selectedSlot,
+      selectedService,
+      plannedServices,
+      selectSlot,
+      selectService,
+      confirmService,
+      clearService,
+      closeSidebar,
+      clearSelection,
+      getServicesForSlot,
+      canAddToSlot,
+      isSidebarOpen,
+    }),
+    [
+      selectedSlot,
+      selectedService,
+      plannedServices,
+      selectSlot,
+      selectService,
+      confirmService,
+      clearService,
+      closeSidebar,
+      clearSelection,
+      getServicesForSlot,
+      canAddToSlot,
+      isSidebarOpen,
+    ]
+  );
+
   return (
-    <PlanningSelectionContext.Provider
-      value={{
-        selectedSlot,
-        selectedService,
-        plannedServices,
-        selectSlot,
-        selectService,
-        confirmService,
-        clearService,
-        closeSidebar,
-        clearSelection,
-        getServicesForSlot,
-        canAddToSlot,
-        isSidebarOpen,
-      }}
-    >
+    <PlanningSelectionContext.Provider value={contextValue}>
       {children}
     </PlanningSelectionContext.Provider>
   );

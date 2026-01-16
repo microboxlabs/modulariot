@@ -17,8 +17,6 @@ export default function PlanningSidebar({
   dict,
   selectedService,
 }: Readonly<PlanningSidebarProps>) {
-  // TODO: These handlers will be connected to actual state management
-  // when the sidebar is integrated with the calendar view
   const isActive = Boolean(selectedService);
 
   return (

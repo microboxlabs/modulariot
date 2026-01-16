@@ -22,7 +22,7 @@ function PlanningLayoutInner({
   dict,
   header,
   calendar,
-}: Omit<PlanningLayoutClientProps, "lang">) {
+}: Readonly<Omit<PlanningLayoutClientProps, "lang">>) {
   const { isSidebarOpen } = usePlanningSelection();
 
   return (

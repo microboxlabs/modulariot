@@ -7,16 +7,18 @@ import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { SelectedService } from "./planning-selection-context";
 
-interface SearchResult {
-  service: SelectedService;
-  matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
-  matchValue: string;
+type MatchType = "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+
+interface GroupedSearchResult {
+  matchType: MatchType;
+  count: number;
 }
 
 export interface PlanningSearchAutocompleteProps {
   dict: I18nDictionary;
   services: SelectedService[];
-  onSelect: (service: SelectedService) => void;
+  onSelect?: (service: SelectedService) => void;
+  onMatchTypeSelect?: (matchType: MatchType, query: string) => void;
   onClear?: () => void;
   hasActiveFilter?: boolean;
 }
@@ -29,6 +31,7 @@ export function PlanningSearchAutocomplete({
   dict,
   services,
   onSelect,
+  onMatchTypeSelect,
   onClear,
   hasActiveFilter = false,
 }: Readonly<PlanningSearchAutocompleteProps>) {
@@ -58,93 +61,83 @@ export function PlanningSearchAutocomplete({
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Search logic: search across all fields
+  // Search logic: group by match type and count matches
   const searchResults = useMemo(() => {
     if (debouncedQuery.length < MIN_CHARACTERS) {
       return [];
     }
 
     const lowerQuery = debouncedQuery.toLowerCase();
-    const results: SearchResult[] = [];
+    const matchCounts = new Map<MatchType, Set<string>>();
 
     for (const service of services) {
       // Search by ID
       if (service.id.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "id",
-          matchValue: service.id,
-        });
-        continue;
+        if (!matchCounts.has("id")) {
+          matchCounts.set("id", new Set());
+        }
+        matchCounts.get("id")!.add(service.id);
       }
 
       // Search by cliente
       if (service.cliente.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "cliente",
-          matchValue: service.cliente,
-        });
-        continue;
+        if (!matchCounts.has("cliente")) {
+          matchCounts.set("cliente", new Set());
+        }
+        matchCounts.get("cliente")!.add(service.id);
       }
 
       // Search by origen
       if (service.origen.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "origen",
-          matchValue: service.origen,
-        });
-        continue;
+        if (!matchCounts.has("origen")) {
+          matchCounts.set("origen", new Set());
+        }
+        matchCounts.get("origen")!.add(service.id);
       }
 
       // Search by destino
       if (service.destino.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "destino",
-          matchValue: service.destino,
-        });
-        continue;
+        if (!matchCounts.has("destino")) {
+          matchCounts.set("destino", new Set());
+        }
+        matchCounts.get("destino")!.add(service.id);
       }
 
       // Search by lugarCarguio
       if (service.lugarCarguio.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "lugarCarguio",
-          matchValue: service.lugarCarguio,
-        });
-        continue;
+        if (!matchCounts.has("lugarCarguio")) {
+          matchCounts.set("lugarCarguio", new Set());
+        }
+        matchCounts.get("lugarCarguio")!.add(service.id);
       }
 
       // Search by permanencia
       if (service.permanencia.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "permanencia",
-          matchValue: service.permanencia,
-        });
-        continue;
+        if (!matchCounts.has("permanencia")) {
+          matchCounts.set("permanencia", new Set());
+        }
+        matchCounts.get("permanencia")!.add(service.id);
       }
 
       // Search by tipoViaje
       if (service.tipoViaje.toLowerCase().includes(lowerQuery)) {
-        results.push({
-          service,
-          matchType: "tipoViaje",
-          matchValue: service.tipoViaje,
-        });
+        if (!matchCounts.has("tipoViaje")) {
+          matchCounts.set("tipoViaje", new Set());
+        }
+        matchCounts.get("tipoViaje")!.add(service.id);
       }
     }
 
-    // Remove duplicates (same service can match multiple fields)
-    const uniqueResults = results.filter(
-      (result, index, self) =>
-        index === self.findIndex((r) => r.service.id === result.service.id)
-    );
+    // Convert to array of grouped results
+    const results: GroupedSearchResult[] = Array.from(matchCounts.entries())
+      .map(([matchType, serviceIds]) => ({
+        matchType,
+        count: serviceIds.size,
+      }))
+      .filter((result) => result.count > 0)
+      .sort((a, b) => b.count - a.count); // Sort by count descending
 
-    return uniqueResults;
+    return results;
   }, [debouncedQuery, services]);
 
   // Update dropdown visibility
@@ -176,6 +169,19 @@ export function PlanningSearchAutocomplete({
     }
   }, [isOpen]);
 
+  // Handle match type selection
+  const handleMatchTypeSelect = useCallback(
+    (result: GroupedSearchResult) => {
+      if (onMatchTypeSelect) {
+        onMatchTypeSelect(result.matchType, debouncedQuery);
+      }
+      // Keep the query visible so user can see what they searched
+      setIsOpen(false);
+      inputRef.current?.blur();
+    },
+    [onMatchTypeSelect, debouncedQuery]
+  );
+
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -201,7 +207,7 @@ export function PlanningSearchAutocomplete({
         case "Enter":
           e.preventDefault();
           if (searchResults[selectedIndex]) {
-            handleSelect(searchResults[selectedIndex].service);
+            handleMatchTypeSelect(searchResults[selectedIndex]);
           }
           break;
         case "Escape":
@@ -212,22 +218,12 @@ export function PlanningSearchAutocomplete({
           break;
         case "Tab":
           if (searchResults[selectedIndex]) {
-            handleSelect(searchResults[selectedIndex].service);
+            handleMatchTypeSelect(searchResults[selectedIndex]);
           }
           break;
       }
     },
-    [isOpen, searchResults, selectedIndex, onClear]
-  );
-
-  const handleSelect = useCallback(
-    (service: SelectedService) => {
-      onSelect(service);
-      setQuery("");
-      setIsOpen(false);
-      inputRef.current?.blur();
-    },
-    [onSelect]
+    [isOpen, searchResults, selectedIndex, onClear, handleMatchTypeSelect]
   );
 
   const handleClear = useCallback(() => {
@@ -237,8 +233,8 @@ export function PlanningSearchAutocomplete({
     inputRef.current?.focus();
   }, [onClear]);
 
-  const getMatchTypeLabel = (matchType: SearchResult["matchType"]): string => {
-    const labels: Record<SearchResult["matchType"], string> = {
+  const getMatchTypeLabel = (matchType: MatchType): string => {
+    const labels: Record<MatchType, string> = {
       id: tr("pages.planning.sidebar.search.matchType.id", dict),
       cliente: tr("pages.planning.sidebar.search.matchType.cliente", dict),
       origen: tr("pages.planning.sidebar.search.matchType.origen", dict),
@@ -250,8 +246,8 @@ export function PlanningSearchAutocomplete({
     return labels[matchType];
   };
 
-  const getMatchTypeIcon = (matchType: SearchResult["matchType"]): string => {
-    const icons: Record<SearchResult["matchType"], string> = {
+  const getMatchTypeIcon = (matchType: MatchType): string => {
+    const icons: Record<MatchType, string> = {
       id: "🚚",
       cliente: "👤",
       origen: "🛣️",
@@ -341,10 +337,10 @@ export function PlanningSearchAutocomplete({
             <ul className="py-1" role="listbox">
               {searchResults.map((result, index) => (
                 <li
-                  key={`${result.service.id}-${result.matchType}`}
+                  key={result.matchType}
                   role="option"
                   aria-selected={index === selectedIndex}
-                  onClick={() => handleSelect(result.service)}
+                  onClick={() => handleMatchTypeSelect(result)}
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={twMerge(
                     "px-4 py-2 cursor-pointer flex items-center gap-2",
@@ -355,13 +351,13 @@ export function PlanningSearchAutocomplete({
                   )}
                 >
                   <span className="text-base">{getMatchTypeIcon(result.matchType)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {result.matchValue}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {getMatchTypeLabel(result.matchType)}
-                    </div>
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      ({result.count})
+                    </span>
                   </div>
                 </li>
               ))}

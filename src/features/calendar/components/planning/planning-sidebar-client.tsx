@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -14,6 +14,7 @@ import {
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
+import { PlanningSearchTags } from "./planning-search-tags";
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
@@ -43,9 +44,9 @@ const MOCK_SERVICES: SelectedService[] = [
   {
     id: "2038491-v",
     cliente: "Minera Los Andes",
-    origen: "CCP",
+    origen: "SCL",
     lugarCarguio: "Dock 3",
-    destino: "ZCO",
+    destino: "VAP",
     tipoViaje: "Doble Sider",
     ocupacion: 60,
     permanencia: "48h",
@@ -61,9 +62,9 @@ const MOCK_SERVICES: SelectedService[] = [
   {
     id: "1049760-v",
     cliente: "Transportes del Norte",
-    origen: "ANF",
+    origen: "SCL",
     lugarCarguio: "Plataforma 1",
-    destino: "IQQ",
+    destino: "VAP",
     tipoViaje: "Rampla",
     ocupacion: 100,
     permanencia: "12h",
@@ -79,7 +80,7 @@ const MOCK_SERVICES: SelectedService[] = [
   {
     id: "4815263-v",
     cliente: "Agrícola Sur",
-    origen: "PMC",
+    origen: "SCL",
     lugarCarguio: "Andén 2",
     destino: "ZOS",
     tipoViaje: "Sider",
@@ -114,6 +115,11 @@ export function PlanningSidebarClient({
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
   );
+  const [filterMatchType, setFilterMatchType] = useState<{
+    matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+    query: string;
+  } | null>(null);
+  const [searchTags, setSearchTags] = useState<Array<{ matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje"; value: string }>>([]);
 
   // Format the selected slot for display
   const formattedSlot = useMemo(() => {
@@ -123,6 +129,34 @@ export function PlanningSidebarClient({
     const minutes = selectedSlot.minutes.toString().padStart(2, "0");
     return `${date.format("dddd D MMM")}, ${hour}:${minutes}`;
   }, [selectedSlot]);
+
+  type MatchType = "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+
+  // Helper function to check if service matches a match type
+  const matchesService = useCallback((
+    service: SelectedService,
+    matchType: MatchType,
+    query: string
+  ): boolean => {
+    switch (matchType) {
+      case "id":
+        return service.id.toLowerCase().includes(query);
+      case "cliente":
+        return service.cliente.toLowerCase().includes(query);
+      case "origen":
+        return service.origen.toLowerCase().includes(query);
+      case "destino":
+        return service.destino.toLowerCase().includes(query);
+      case "lugarCarguio":
+        return service.lugarCarguio.toLowerCase().includes(query);
+      case "permanencia":
+        return service.permanencia.toLowerCase().includes(query);
+      case "tipoViaje":
+        return service.tipoViaje.toLowerCase().includes(query);
+      default:
+        return false;
+    }
+  }, []);
 
   // Sort services by urgency/status priority:
   // 1. Urgent (red-orange)
@@ -139,13 +173,70 @@ export function PlanningSidebarClient({
 
     let services = [...MOCK_SERVICES];
 
-    // Filter by selected service ID if search was used
-    if (filteredServiceId) {
+    // Filter by match type if search was used
+    if (filterMatchType) {
+      const { matchType, query } = filterMatchType;
+      const lowerQuery = query.toLowerCase();
+
+      services = services.filter((service) => {
+        switch (matchType) {
+          case "id":
+            return service.id.toLowerCase().includes(lowerQuery);
+          case "cliente":
+            return service.cliente.toLowerCase().includes(lowerQuery);
+          case "origen":
+            return service.origen.toLowerCase().includes(lowerQuery);
+          case "destino":
+            return service.destino.toLowerCase().includes(lowerQuery);
+          case "lugarCarguio":
+            return service.lugarCarguio.toLowerCase().includes(lowerQuery);
+          case "permanencia":
+            return service.permanencia.toLowerCase().includes(lowerQuery);
+          case "tipoViaje":
+            return service.tipoViaje.toLowerCase().includes(lowerQuery);
+          default:
+            return true;
+        }
+      });
+    } else if (filteredServiceId) {
+      // Filter by selected service ID if search was used (legacy support)
       services = services.filter((s) => s.id === filteredServiceId);
     }
 
+    // Sort by tag order if tags exist
+    if (searchTags.length > 0) {
+      // Filter out invalid tags (safety check for malformed tag objects)
+      const validTags = searchTags.filter(
+        (tag): tag is { matchType: MatchType; value: string } =>
+          tag != null &&
+          typeof tag === "object" &&
+          "matchType" in tag &&
+          "value" in tag &&
+          typeof tag.matchType === "string" &&
+          typeof tag.value === "string" &&
+          tag.value.length > 0
+      );
+
+      if (validTags.length > 0) {
+        return services.sort((a, b) => {
+          // First sort by tag order priority
+          for (const tag of validTags) {
+            const lowerValue = tag.value.toLowerCase();
+            const aMatches = matchesService(a, tag.matchType, lowerValue);
+            const bMatches = matchesService(b, tag.matchType, lowerValue);
+
+            if (aMatches && !bMatches) return -1;
+            if (!aMatches && bMatches) return 1;
+          }
+
+          // Then by status priority
+          return getStatusPriority(a) - getStatusPriority(b);
+        });
+      }
+    }
+
     return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
-  }, [filteredServiceId]);
+  }, [filteredServiceId, filterMatchType, searchTags, matchesService]);
 
   const handleSubmit = (values: Record<string, string | boolean>) => {
     console.log("Form submitted:", { selectedService, values });
@@ -154,7 +245,7 @@ export function PlanningSidebarClient({
 
   const handleBack = () => {
     clearService(); // Go back to services list, keep sidebar open
-    setFilteredServiceId(null); // Clear the filter when going back
+    // Keep filters and tags when going back - user can still see filtered results
   };
 
   const handleCancel = () => {
@@ -168,6 +259,28 @@ export function PlanningSidebarClient({
 
   const handleSearchClear = () => {
     setFilteredServiceId(null);
+    setFilterMatchType(null);
+    setSearchTags([]);
+  };
+
+  const handleMatchTypeSelect = (
+    matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje",
+    query: string
+  ) => {
+    // Add tag if not already present (check both matchType and value)
+    setSearchTags((prev) => {
+      const exists = prev.some(tag => tag.matchType === matchType && tag.value === query);
+      if (!exists) {
+        return [...prev, { matchType, value: query }];
+      }
+      return prev;
+    });
+    setFilterMatchType({ matchType, query });
+    setFilteredServiceId(null); // Clear service ID filter
+  };
+
+  const handleTagsChange = (tags: Array<{ matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje"; value: string }>) => {
+    setSearchTags(tags);
   };
 
   const isFormActive = Boolean(selectedService);
@@ -246,9 +359,19 @@ export function PlanningSidebarClient({
               dict={dict}
               services={MOCK_SERVICES}
               onSelect={handleSearchSelect}
+              onMatchTypeSelect={handleMatchTypeSelect}
               onClear={handleSearchClear}
-              hasActiveFilter={filteredServiceId !== null}
+              hasActiveFilter={filteredServiceId !== null || filterMatchType !== null || searchTags.length > 0}
             />
+
+            {/* Tags manager */}
+            {searchTags.length > 0 && (
+              <PlanningSearchTags
+                dict={dict}
+                tags={searchTags}
+                onTagsChange={handleTagsChange}
+              />
+            )}
 
             {/* Services list */}
             <div className="flex flex-col gap-1.5">

@@ -175,9 +175,13 @@ export function PlanningSearchAutocomplete({
       if (onMatchTypeSelect) {
         onMatchTypeSelect(result.matchType, debouncedQuery);
       }
-      // Keep the query visible so user can see what they searched
+      // Clear the query and refocus input for next search
+      setQuery("");
       setIsOpen(false);
-      inputRef.current?.blur();
+      // Use setTimeout to ensure the input is cleared before focusing
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     },
     [onMatchTypeSelect, debouncedQuery]
   );
@@ -260,7 +264,8 @@ export function PlanningSearchAutocomplete({
   };
 
   const showHint = query.length === 1;
-  const showClearButton = query.length > 0 || hasActiveFilter;
+  // Clear button commented out - removal is handled by tag manager only
+  const showClearButton = false; // query.length > 0 || hasActiveFilter;
 
   return (
     <div ref={containerRef} className="relative">

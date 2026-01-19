@@ -25,6 +25,25 @@ const MOCK_SERVICES: SelectedService[] = [
   {
     id: "1045782-v",
     cliente: "Acme Corp",
+    origen: "VAP",
+    lugarCarguio: "Andén 5",
+    destino: "ZOS",
+    tipoViaje: "Sider",
+    ocupacion: 85,
+    permanencia: "24h",
+    leadTime: {
+      deadline: "2026-02-15",
+      status: "on_time",
+    },
+    eta: "2026-02-16T14:30:00",
+    incidencias: ["urgencia", "c4", "c5"],
+    observaciones:
+      "Presentar documentación antes de las 10:00. Contactar a Juan.",
+    prioridad: 1,
+  },
+  {
+    id: "1045782-v",
+    cliente: "Acme Corp",
     origen: "SCL",
     lugarCarguio: "Andén 5",
     destino: "VAP",
@@ -173,8 +192,32 @@ export function PlanningSidebarClient({
 
     let services = [...MOCK_SERVICES];
 
-    // Filter by match type if search was used
-    if (filterMatchType) {
+    // Filter by tags if they exist (tags take priority)
+    if (searchTags.length > 0) {
+      // Filter out invalid tags first
+      const validTags = searchTags.filter(
+        (tag): tag is { matchType: MatchType; value: string } =>
+          tag != null &&
+          typeof tag === "object" &&
+          "matchType" in tag &&
+          "value" in tag &&
+          typeof tag.matchType === "string" &&
+          typeof tag.value === "string" &&
+          tag.value.length > 0
+      );
+
+      if (validTags.length > 0) {
+        // Filter services that match ALL of the tags (AND logic)
+        // This means a service must match every tag to be shown
+        services = services.filter((service) => {
+          return validTags.every((tag) => {
+            const lowerValue = tag.value.toLowerCase();
+            return matchesService(service, tag.matchType, lowerValue);
+          });
+        });
+      }
+    } else if (filterMatchType) {
+      // Legacy: Filter by match type if search was used (but no tags)
       const { matchType, query } = filterMatchType;
       const lowerQuery = query.toLowerCase();
 
@@ -281,6 +324,14 @@ export function PlanningSidebarClient({
 
   const handleTagsChange = (tags: Array<{ matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje"; value: string }>) => {
     setSearchTags(tags);
+    
+    // If all tags are removed, clear all filters
+    if (tags.length === 0) {
+      setFilterMatchType(null);
+      setFilteredServiceId(null);
+    }
+    // Note: We don't update filterMatchType when tags change
+    // because filtering is now based directly on searchTags array
   };
 
   const isFormActive = Boolean(selectedService);
@@ -361,7 +412,7 @@ export function PlanningSidebarClient({
               onSelect={handleSearchSelect}
               onMatchTypeSelect={handleMatchTypeSelect}
               onClear={handleSearchClear}
-              hasActiveFilter={filteredServiceId !== null || filterMatchType !== null || searchTags.length > 0}
+              hasActiveFilter={searchTags.length > 0}
             />
 
             {/* Tags manager */}

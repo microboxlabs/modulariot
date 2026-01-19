@@ -233,6 +233,15 @@
             "lugarCarguio": "loading place",
             "permanencia": "permanence",
             "tipoViaje": "trip type"
+          },
+          "locationCodes": {
+            "SCL": "Santiago",
+            "VAP": "Valparaíso",
+            "ZOS": "Osorno",
+            "ANF": "Antofagasta",
+            "CCP": "Concepción",
+            "PMC": "Puerto Montt",
+            "IQQ": "Iquique"
           }
         },
         "form": {

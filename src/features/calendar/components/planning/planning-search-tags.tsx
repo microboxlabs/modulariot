@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+// Drag-and-drop imports commented out - will be used later
+// import { useState, useRef } from "react";
 import { HiX } from "react-icons/hi";
+import { FaTruck, FaMapMarkerAlt, FaCalendarAlt } from "react-icons/fa";
 import { twMerge } from "tailwind-merge";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -32,15 +34,34 @@ const getMatchTypeLabel = (matchType: MatchType, dict: I18nDictionary): string =
   return labels[matchType];
 };
 
-const getMatchTypeIcon = (matchType: MatchType): string => {
-  const icons: Record<MatchType, string> = {
-    id: "🚚",
-    cliente: "👤",
-    origen: "🛣️",
-    destino: "🛣️",
-    lugarCarguio: "🛣️",
-    permanencia: "📋",
-    tipoViaje: "🛣️",
+// Helper to get translated location code or return original if not found
+const getLocationLabel = (code: string, dict: I18nDictionary): string => {
+  const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
+  const translated = tr(locationKey, dict);
+  // If translation exists and is different from key, return it; otherwise return original code
+  return translated !== locationKey ? translated : code;
+};
+
+// Helper to get translated value based on match type
+const getTranslatedValue = (matchType: MatchType, value: string, dict: I18nDictionary): string => {
+  // Translate location codes for origen and destino
+  if (matchType === "origen" || matchType === "destino") {
+    return getLocationLabel(value, dict);
+  }
+  // For other types, return value as is (or add more translation logic as needed)
+  return value;
+};
+
+const getMatchTypeIcon = (matchType: MatchType): React.ReactNode => {
+  const iconClassName = "w-3.5 h-3.5 text-blue-700 dark:text-blue-300";
+  const icons: Record<MatchType, React.ReactNode> = {
+    id: <FaTruck className={iconClassName} />,
+    cliente: <FaTruck className={iconClassName} />,
+    origen: <FaMapMarkerAlt className={iconClassName} />,
+    destino: <FaMapMarkerAlt className={iconClassName} />,
+    lugarCarguio: <FaMapMarkerAlt className={iconClassName} />,
+    permanencia: <FaCalendarAlt className={iconClassName} />,
+    tipoViaje: <FaTruck className={iconClassName} />,
   };
   return icons[matchType];
 };
@@ -50,9 +71,10 @@ export function PlanningSearchTags({
   tags,
   onTagsChange,
 }: Readonly<PlanningSearchTagsProps>) {
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  // Drag-and-drop functionality commented out - will be used later
+  // const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const handleRemove = (index: number) => {
     const newTags = tags.filter((_, i) => i !== index);
@@ -63,53 +85,54 @@ export function PlanningSearchTags({
     return `${tag.matchType}-${tag.value}-${index}`;
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-    e.dataTransfer.effectAllowed = "move";
-    // Use a custom drag image (invisible)
-    const dragImage = document.createElement("div");
-    dragImage.style.position = "absolute";
-    dragImage.style.top = "-1000px";
-    document.body.appendChild(dragImage);
-    e.dataTransfer.setDragImage(dragImage, 0, 0);
-    setTimeout(() => document.body.removeChild(dragImage), 0);
-  };
+  // Drag-and-drop handlers commented out - will be used later
+  // const handleDragStart = (e: React.DragEvent, index: number) => {
+  //   setDraggedIndex(index);
+  //   dragStartPos.current = { x: e.clientX, y: e.clientY };
+  //   e.dataTransfer.effectAllowed = "move";
+  //   // Use a custom drag image (invisible)
+  //   const dragImage = document.createElement("div");
+  //   dragImage.style.position = "absolute";
+  //   dragImage.style.top = "-1000px";
+  //   document.body.appendChild(dragImage);
+  //   e.dataTransfer.setDragImage(dragImage, 0, 0);
+  //   setTimeout(() => document.body.removeChild(dragImage), 0);
+  // };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
+  // const handleDragOver = (e: React.DragEvent, index: number) => {
+  //   e.preventDefault();
+  //   e.dataTransfer.dropEffect = "move";
+  //   if (draggedIndex !== null && draggedIndex !== index) {
+  //     setDragOverIndex(index);
+  //   }
+  // };
 
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
+  // const handleDragLeave = () => {
+  //   setDragOverIndex(null);
+  // };
 
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    setDragOverIndex(null);
+  // const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+  //   e.preventDefault();
+  //   setDragOverIndex(null);
 
-    if (draggedIndex === null || draggedIndex === dropIndex) {
-      setDraggedIndex(null);
-      return;
-    }
+  //   if (draggedIndex === null || draggedIndex === dropIndex) {
+  //     setDraggedIndex(null);
+  //     return;
+  //   }
 
-    const newTags = [...tags];
-    const draggedTag = newTags[draggedIndex];
-    newTags.splice(draggedIndex, 1);
-    newTags.splice(dropIndex, 0, draggedTag);
+  //   const newTags = [...tags];
+  //   const draggedTag = newTags[draggedIndex];
+  //   newTags.splice(draggedIndex, 1);
+  //   newTags.splice(dropIndex, 0, draggedTag);
 
-    onTagsChange(newTags);
-    setDraggedIndex(null);
-  };
+  //   onTagsChange(newTags);
+  //   setDraggedIndex(null);
+  // };
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
+  // const handleDragEnd = () => {
+  //   setDraggedIndex(null);
+  //   setDragOverIndex(null);
+  // };
 
   if (tags.length === 0) {
     return null;
@@ -120,35 +143,38 @@ export function PlanningSearchTags({
       {tags.map((tag, index) => (
         <div
           key={getTagKey(tag, index)}
-          draggable
-          onDragStart={(e) => handleDragStart(e, index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, index)}
-          onDragEnd={handleDragEnd}
+          // Drag-and-drop functionality commented out - will be used later
+          // draggable
+          // onDragStart={(e) => handleDragStart(e, index)}
+          // onDragOver={(e) => handleDragOver(e, index)}
+          // onDragLeave={handleDragLeave}
+          // onDrop={(e) => handleDrop(e, index)}
+          // onDragEnd={handleDragEnd}
           className={twMerge(
             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg",
             "bg-blue-50 dark:bg-blue-900/30",
             "border border-blue-200 dark:border-blue-700",
-            "cursor-move transition-all",
+            // "cursor-move transition-all", // cursor-move commented out
+            "transition-all",
             "text-sm",
-            draggedIndex === index
-              ? "opacity-50 scale-95"
-              : dragOverIndex === index
-              ? "bg-blue-100 dark:bg-blue-800/40 border-blue-300 dark:border-blue-600 scale-105"
-              : "hover:bg-blue-100 dark:hover:bg-blue-800/40"
+            // draggedIndex === index
+            //   ? "opacity-50 scale-95"
+            //   : dragOverIndex === index
+            //   ? "bg-blue-100 dark:bg-blue-800/40 border-blue-300 dark:border-blue-600 scale-105"
+            //   : 
+            "hover:bg-blue-100 dark:hover:bg-blue-800/40"
           )}
         >
-          {/* Drag handle indicator */}
-          <div className="flex flex-col gap-0.5 opacity-50">
+          {/* Drag handle indicator - commented out for now */}
+          {/* <div className="flex flex-col gap-0.5 opacity-50">
             <div className="w-1 h-1 bg-blue-600 dark:bg-blue-400 rounded-full" />
             <div className="w-1 h-1 bg-blue-600 dark:bg-blue-400 rounded-full" />
-          </div>
+          </div> */}
 
           {/* Icon commented out - showing attribute:value instead */}
           {/* <span className="text-base">{getMatchTypeIcon(tag.matchType)}</span> */}
           <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
-            {getMatchTypeLabel(tag.matchType, dict)}: {tag.value}
+            {getMatchTypeLabel(tag.matchType, dict)}: {getTranslatedValue(tag.matchType, tag.value, dict)}
           </span>
           <button
             type="button"

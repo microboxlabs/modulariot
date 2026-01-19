@@ -207,43 +207,64 @@ export function PlanningSidebarClient({
       );
 
       if (validTags.length > 0) {
-        // Filter services that match ALL of the tags (AND logic)
-        // This means a service must match every tag to be shown
+        // Group tags by matchType (attribute)
+        // Example: { origen: ["SCL", "VAP"], destino: ["ZOS"] }
+        const tagsByType = new Map<MatchType, string[]>();
+        for (const tag of validTags) {
+          if (!tagsByType.has(tag.matchType)) {
+            tagsByType.set(tag.matchType, []);
+          }
+          tagsByType.get(tag.matchType)!.push(tag.value);
+        }
+
+        // Filter services with the logic:
+        // - OR within same attribute: (origen: SCL OR origen: VAP)
+        // - AND between different attributes: (origen group) AND (destino group)
+        // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
         services = services.filter((service) => {
-          return validTags.every((tag) => {
-            const lowerValue = tag.value.toLowerCase();
-            return matchesService(service, tag.matchType, lowerValue);
+          // Service must match at least one value from EACH attribute type (AND between attribute types)
+          return Array.from(tagsByType.entries()).every(([matchType, values]) => {
+            // For each attribute type, service must match ANY of its values (OR within same attribute)
+            return values.some((value) => {
+              const lowerValue = value.toLowerCase();
+              return matchesService(service, matchType, lowerValue);
+            });
           });
         });
       }
-    } else if (filterMatchType) {
-      // Legacy: Filter by match type if search was used (but no tags)
-      const { matchType, query } = filterMatchType;
-      const lowerQuery = query.toLowerCase();
+    }
+    
+    // Legacy filters (only apply if no tags are active)
+    if (searchTags.length === 0) {
+      if (filterMatchType) {
+        // Legacy: Filter by match type if search was used (but no tags)
+        const { matchType, query } = filterMatchType;
+        const lowerQuery = query.toLowerCase();
 
-      services = services.filter((service) => {
-        switch (matchType) {
-          case "id":
-            return service.id.toLowerCase().includes(lowerQuery);
-          case "cliente":
-            return service.cliente.toLowerCase().includes(lowerQuery);
-          case "origen":
-            return service.origen.toLowerCase().includes(lowerQuery);
-          case "destino":
-            return service.destino.toLowerCase().includes(lowerQuery);
-          case "lugarCarguio":
-            return service.lugarCarguio.toLowerCase().includes(lowerQuery);
-          case "permanencia":
-            return service.permanencia.toLowerCase().includes(lowerQuery);
-          case "tipoViaje":
-            return service.tipoViaje.toLowerCase().includes(lowerQuery);
-          default:
-            return true;
-        }
-      });
-    } else if (filteredServiceId) {
-      // Filter by selected service ID if search was used (legacy support)
-      services = services.filter((s) => s.id === filteredServiceId);
+        services = services.filter((service) => {
+          switch (matchType) {
+            case "id":
+              return service.id.toLowerCase().includes(lowerQuery);
+            case "cliente":
+              return service.cliente.toLowerCase().includes(lowerQuery);
+            case "origen":
+              return service.origen.toLowerCase().includes(lowerQuery);
+            case "destino":
+              return service.destino.toLowerCase().includes(lowerQuery);
+            case "lugarCarguio":
+              return service.lugarCarguio.toLowerCase().includes(lowerQuery);
+            case "permanencia":
+              return service.permanencia.toLowerCase().includes(lowerQuery);
+            case "tipoViaje":
+              return service.tipoViaje.toLowerCase().includes(lowerQuery);
+            default:
+              return true;
+          }
+        });
+      } else if (filteredServiceId) {
+        // Filter by selected service ID if search was used (legacy support)
+        services = services.filter((s) => s.id === filteredServiceId);
+      }
     }
 
     // Sort by tag order if tags exist

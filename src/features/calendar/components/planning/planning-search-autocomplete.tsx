@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { HiSearch, HiX } from "react-icons/hi";
+import { FaTruck, FaMapMarkerAlt, FaCalendarAlt } from "react-icons/fa";
 import { twMerge } from "tailwind-merge";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -250,15 +251,24 @@ export function PlanningSearchAutocomplete({
     return labels[matchType];
   };
 
-  const getMatchTypeIcon = (matchType: MatchType): string => {
-    const icons: Record<MatchType, string> = {
-      id: "🚚",
-      cliente: "👤",
-      origen: "🛣️",
-      destino: "🛣️",
-      lugarCarguio: "🛣️",
-      permanencia: "📋",
-      tipoViaje: "🛣️",
+  // Helper to get translated location code or return original if not found
+  const getLocationLabel = (code: string): string => {
+    const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
+    const translated = tr(locationKey, dict);
+    // If translation exists and is different from key, return it; otherwise return original code
+    return translated !== locationKey ? translated : code;
+  };
+
+  const getMatchTypeIcon = (matchType: MatchType): React.ReactNode => {
+    const iconClassName = "w-4 h-4 text-gray-600 dark:text-gray-400";
+    const icons: Record<MatchType, React.ReactNode> = {
+      id: <FaTruck className={iconClassName} />,
+      cliente: <FaTruck className={iconClassName} />,
+      origen: <FaMapMarkerAlt className={iconClassName} />,
+      destino: <FaMapMarkerAlt className={iconClassName} />,
+      lugarCarguio: <FaMapMarkerAlt className={iconClassName} />,
+      permanencia: <FaCalendarAlt className={iconClassName} />,
+      tipoViaje: <FaTruck className={iconClassName} />,
     };
     return icons[matchType];
   };
@@ -355,7 +365,9 @@ export function PlanningSearchAutocomplete({
                       : "hover:bg-gray-50 dark:hover:bg-gray-700"
                   )}
                 >
-                  <span className="text-base">{getMatchTypeIcon(result.matchType)}</span>
+                  <div className="flex items-center justify-center w-5 h-5 shrink-0">
+                    {getMatchTypeIcon(result.matchType)}
+                  </div>
                   <div className="flex-1 min-w-0 flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {getMatchTypeLabel(result.matchType)}

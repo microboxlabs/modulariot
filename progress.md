@@ -464,15 +464,15 @@ export interface TimeWindow {
   id: string;
   name: string;
   type: "weekly" | "daily-override";
-  startHour: number;
-  startMinutes: number;
-  endHour: number;
-  endMinutes: number;
-  days: number[]; // 1 = Monday, ..., 7 = Sunday (for weekly type)
-  date?: string; // ISO date string (YYYY-MM-DD) for daily-override type
-  weeks: number[]; // 1-5 for weeks of month, empty = all weeks
   quota: number;
   color?: TimeWindowColor;
+
+  // For weekly type: compact pattern string
+  weeklyPattern?: string; // e.g., "W1-4 1-5 0900-1700" or "W* 1-5 0800-1200"
+
+  // For daily-override type: ISO timestamps (local time)
+  startTimestamp?: string; // e.g., "2026-01-20T09:00:00"
+  endTimestamp?: string; // e.g., "2026-01-20T17:00:00"
 }
 ```
 
@@ -482,6 +482,85 @@ export interface TimeWindow {
 | ---------------- | ---------------------------------------------------- | ---------------------------- |
 | `weekly`         | Applies to multiple days per week                    | Regular scheduling patterns  |
 | `daily-override` | Applies to a specific date, overrides weekly windows | Holidays, special exceptions |
+
+---
+
+#### Weekly Pattern Format
+
+The `weeklyPattern` field uses a compact string format: `W<weeks> <days> <startHHMM>-<endHHMM>`
+
+**Examples:**
+
+- `W* 1-5 0900-1700` → All weeks, Monday to Friday, 9:00 AM - 5:00 PM
+- `W1-4 1-5 0800-1200` → Weeks 1-4 only, Monday to Friday, 8:00 AM - 12:00 PM
+- `W1,3,5 1,3,5 0600-1000` → Weeks 1, 3, 5 only, Mon/Wed/Fri, 6:00 AM - 10:00 AM
+
+**Pattern Components:**
+| Part | Format | Examples | Description |
+|------|--------|----------|-------------|
+| Weeks | `W*` or `W<range>` or `W<list>` | `W*`, `W1-4`, `W1,3,5` | Which weeks of the month (`*` = all) |
+| Days | Range or list | `1-5`, `1,3,5`, `1-7` | ISO weekday numbers (1=Mon, 7=Sun) |
+| Time | `HHMM-HHMM` | `0900-1700`, `0800-1200` | 24-hour format start-end time |
+
+---
+
+#### TimeWindowUtils Helper Object
+
+A utility object for parsing and manipulating time windows:
+
+```typescript
+interface ParsedWeeklyPattern {
+  weeks: number[];      // [1,2,3,4] or empty for all weeks
+  days: number[];       // ISO weekday numbers [1-7]
+  startHour: number;    // 0-23
+  startMinutes: number; // 0-59
+  endHour: number;      // 0-23
+  endMinutes: number;   // 0-59
+}
+
+const TimeWindowUtils = {
+  // Parsing
+  parseWeeklyPattern(pattern: string): ParsedWeeklyPattern | null;
+
+  // Building
+  buildWeeklyPattern(options: ParsedWeeklyPattern): string;
+
+  // Time Range (works for both types)
+  getTimeRange(window: TimeWindow): {
+    startHour: number; startMinutes: number;
+    endHour: number; endMinutes: number
+  } | null;
+
+  // Display
+  formatDisplay(window: TimeWindow): string;      // "08:00 - 12:00"
+  formatDaysDisplay(pattern: string): string;     // "L-V" or "L, X, V"
+  formatWeeksDisplay(pattern: string): string;    // "S1-S4" or "S1, S3"
+
+  // Slot Matching
+  matchesSlot(window: TimeWindow, date: Date, hour: number, minutes: number): boolean;
+
+  // Expiration Check
+  isExpired(window: TimeWindow): boolean;         // For daily-override past dates
+};
+```
+
+---
+
+#### Daily-Override Timestamp Format
+
+**IMPORTANT:** Daily-override timestamps use **local time format**, NOT UTC:
+
+```typescript
+// ✅ Correct - Local time format
+startTimestamp: dayjs(date).hour(8).minute(0).format("YYYY-MM-DDTHH:mm:ss");
+// Result: "2026-01-20T08:00:00"
+
+// ❌ Wrong - UTC conversion causes date mismatches
+startTimestamp: dayjs(date).hour(8).minute(0).toISOString();
+// Result: "2026-01-19T11:00:00.000Z" (wrong day for GMT-3 timezone!)
+```
+
+**Rationale:** When comparing dates for slot matching, using UTC (`.toISOString()`) shifts timestamps that can cause the date portion to be off by a day depending on timezone. Using local format (`.format("YYYY-MM-DDTHH:mm:ss")`) preserves the intended date.
 
 ---
 
@@ -605,12 +684,24 @@ interface PlanningSelectionContextType {
 
 #### Format String Output
 
-Time windows can be serialized to a compact format:
+Time windows use the following serialization formats:
+
+**Weekly Pattern:**
 
 ```
 W1-4 1-5 0900-1700    → Weeks 1-4, Mon-Fri, 9am-5pm
 W* 1,3,5 0800-1200    → All weeks, Mon/Wed/Fri, 8am-12pm
-D:2026-01-20 0900-1700 → Daily override for Jan 20, 2026
+W* 1-7 0600-2200      → All weeks, every day, 6am-10pm
+```
+
+**Daily Override (Timestamps):**
+
+```typescript
+{
+  type: "daily-override",
+  startTimestamp: "2026-01-20T09:00:00",  // Local time, not UTC
+  endTimestamp: "2026-01-20T17:00:00"
+}
 ```
 
 ---
@@ -801,3 +892,74 @@ const MAX_SERVICES_PER_SLOT = 3;
 - Click any day in month view → URL updates with `?date=YYYY-MM-DD&view=day`
 - Uses `router.replace()` with `{ scroll: false }`
 - Seamless transition without page reload
+
+---
+
+### TimeWindow Interface Restructuring Session
+
+#### Overview
+
+Refactored the `TimeWindow` interface from individual fields (`startHour`, `endHour`, `days[]`, `weeks[]`, `date`) to a pattern-based structure using:
+- `weeklyPattern` string for weekly type (e.g., `"W* 1-5 0900-1700"`)
+- `startTimestamp`/`endTimestamp` ISO format for daily-override type
+
+#### Files Modified
+
+| File | Changes |
+|------|---------|
+| `planning-selection-context.tsx` | New TimeWindow interface, added TimeWindowUtils helper, ParsedWeeklyPattern type |
+| `quota-manager.tsx` | Updated all CRUD functions to use pattern-based structure |
+| `planning-week-view.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
+| `day-grid.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
+
+#### Key Changes
+
+**1. TimeWindow Interface**
+```typescript
+// Old structure (individual fields)
+interface TimeWindow {
+  startHour: number; endHour: number;
+  days: number[]; weeks: number[]; date?: string;
+}
+
+// New structure (pattern-based)
+interface TimeWindow {
+  weeklyPattern?: string;      // "W* 1-5 0900-1700"
+  startTimestamp?: string;     // "2026-01-20T09:00:00"
+  endTimestamp?: string;       // "2026-01-20T17:00:00"
+}
+```
+
+**2. TimeWindowUtils Added**
+- `parseWeeklyPattern()` - Extracts hours, days, weeks from pattern string
+- `buildWeeklyPattern()` - Creates pattern from individual values
+- `getTimeRange()` - Works for both weekly and daily-override types
+- `matchesSlot()` - Checks if window applies to a specific date/time
+- `formatDisplay()`, `formatDaysDisplay()`, `formatWeeksDisplay()` - UI formatting
+
+**3. QuotaManager Updates**
+- `addTimeWindow()` - Creates window with default pattern `"W* 1-5 0800-1200"`
+- `updateWindowType()` - Converts between weekly/daily-override
+- `toggleDay()`, `toggleWeek()` - Parses and rebuilds pattern
+- All timestamp creation uses `.format("YYYY-MM-DDTHH:mm:ss")` (local time)
+
+**4. Calendar View Fixes**
+- `planning-week-view.tsx` and `day-grid.tsx` were accessing old `timeWindow.startHour`
+- Fixed to use `TimeWindowUtils.getTimeRange(timeWindow)`
+
+#### Bug Fixes
+
+**Issue: Calendar not showing time window names/quotas**
+- Cause: Views accessing removed `startHour`/`startMinutes` properties
+- Fix: Use `TimeWindowUtils.getTimeRange()` which handles both window types
+
+**Issue: Daily-override windows not matching slots**
+- Cause: `.toISOString()` converts to UTC, shifting dates by timezone offset
+- Fix: Use `.format("YYYY-MM-DDTHH:mm:ss")` to preserve local date/time
+
+#### Testing Notes
+
+- Weekly windows display correctly on calendar with name and quota
+- Daily-override windows display correctly and override weekly windows
+- Switching between weekly and daily-override preserves time range
+- Day/week toggles work correctly for weekly patterns

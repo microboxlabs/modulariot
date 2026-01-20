@@ -20,6 +20,7 @@ import {
 import {
   usePlanningSelection,
   TIME_WINDOW_COLORS,
+  TimeWindowUtils,
 } from "./planning-selection-context";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
@@ -202,11 +203,16 @@ export default function PlanningWeekView({
                   slot.minutes
                 );
                 const hasTimeWindow = timeWindow !== null;
+                // Get time range for this window
+                const timeRange = hasTimeWindow
+                  ? TimeWindowUtils.getTimeRange(timeWindow)
+                  : null;
                 // Show name only on the first slot of the time window
                 const isWindowStart =
                   hasTimeWindow &&
-                  slot.hour === timeWindow.startHour &&
-                  slot.minutes === timeWindow.startMinutes;
+                  timeRange !== null &&
+                  slot.hour === timeRange.startHour &&
+                  slot.minutes === timeRange.startMinutes;
                 // Get remaining quota for this day
                 const remainingQuota = hasTimeWindow
                   ? getRemainingQuota(timeWindow, day.date)

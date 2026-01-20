@@ -1,6 +1,7 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { Dropdown, DropdownItem } from "flowbite-react";
+import { Dropdown, DropdownItem, Button } from "flowbite-react";
+import { ChevronDown } from "flowbite-react-icons/outline";
 import { useState } from "react";
 
 export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
@@ -15,14 +16,33 @@ export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
       <Dropdown
         label=""
         dismissOnClick={false}
+        className="z-50"
         renderTrigger={() => (
-          <h1 className="text-xl font-normal text-gray-500 dark:text-white">
-            Despacho
-          </h1>
+          <Button
+            color="alternative"
+            className="text-lg font-normal text-gray-500 dark:text-white bg-gray-100 px-2 py-1 rounded-lg flex items-center"
+          >
+            {type === "dispatch" ? "Despacho" : "Recepción"}
+            <ChevronDown
+              className={`inline transition-transform duration-200`}
+            />
+          </Button>
         )}
       >
-        <DropdownItem>Despacho</DropdownItem>
-        <DropdownItem>Recepción</DropdownItem>
+        <DropdownItem
+          onClick={() => {
+            setType("dispatch");
+          }}
+        >
+          Despacho
+        </DropdownItem>
+        <DropdownItem
+          onClick={() => {
+            setType("reception");
+          }}
+        >
+          Recepción
+        </DropdownItem>
       </Dropdown>
     </div>
   );

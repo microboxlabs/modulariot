@@ -438,10 +438,191 @@ const INCIDENCIA_DICTIONARY: Record<string, IncidenciaConfig> = {
 3. ~~**Day/Month Views** - Alternative calendar views~~ → **Implemented (MVP)**
 4. ~~**Sidebar Form** - Service assignment form content~~ → **Implemented in #949**
 5. **API Integration** - Replace mock data with real service endpoints
-6. **Cupo Management** - Modal/panel for quota configuration
+6. ~~**Cupo Management** - Modal/panel for quota configuration~~ → **Implemented (QuotaManager)**
 7. **Blocking System** - Hour and day blocking features
 8. **API Design** - BFF endpoints + Alfresco contracts
 9. **Business Logic** - Quota validation, ETA-based capacity checks
+
+---
+
+### Quota Management System (Time Windows)
+
+#### Components
+
+| Component             | Path                                                                         | Purpose                                            |
+| --------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| `QuotaManager`        | `src/features/calendar/components/planning/calendar-rules/quota-manager.tsx` | Main UI for managing time windows with quotas      |
+| `PortalDatepicker`    | (internal component)                                                         | Portal-based datepicker for daily-override windows |
+| `ColorPickerDropdown` | (internal component)                                                         | Portal-based color selector dropdown               |
+
+---
+
+#### Time Window Types
+
+```typescript
+export interface TimeWindow {
+  id: string;
+  name: string;
+  type: "weekly" | "daily-override";
+  startHour: number;
+  startMinutes: number;
+  endHour: number;
+  endMinutes: number;
+  days: number[]; // 1 = Monday, ..., 7 = Sunday (for weekly type)
+  date?: string; // ISO date string (YYYY-MM-DD) for daily-override type
+  weeks: number[]; // 1-5 for weeks of month, empty = all weeks
+  quota: number;
+  color?: TimeWindowColor;
+}
+```
+
+**Window Types:**
+
+| Type             | Description                                          | Use Case                     |
+| ---------------- | ---------------------------------------------------- | ---------------------------- |
+| `weekly`         | Applies to multiple days per week                    | Regular scheduling patterns  |
+| `daily-override` | Applies to a specific date, overrides weekly windows | Holidays, special exceptions |
+
+---
+
+#### Color System
+
+```typescript
+export const TIME_WINDOW_COLORS = {
+  emerald: { bg, hover, badge, dot },
+  blue: { bg, hover, badge, dot },
+  violet: { bg, hover, badge, dot },
+  rose: { bg, hover, badge, dot },
+  amber: { bg, hover, badge, dot },
+  cyan: { bg, hover, badge, dot },
+  lime: { bg, hover, badge, dot },
+  orange: { bg, hover, badge, dot },
+} as const;
+```
+
+Each color provides:
+
+- `bg`: Background color for calendar slots
+- `hover`: Hover state color
+- `badge`: Badge/label styling (background + text)
+- `dot`: Solid color dot for indicators
+
+---
+
+#### QuotaManager UI Layout
+
+```
+┌─────────────────────────────────────────────────────┐
+│  No hay ventanas definidas                          │  ← Empty state
+│                                                     │
+│  [+ Ventana]                                        │  ← Add button
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│  ⚠️ Ventana 1            [-] 3 [+]            [🗑]  │  ← Header: name, quota, delete
+├─────────────────────────────────────────────────────┤
+│  [Semanal] [Excepción día]              [🟢 Color]  │  ← Type toggle + color picker
+├─────────────────────────────────────────────────────┤
+│  🕐 [08:00] → [12:00]                               │  ← Time range selectors
+├─────────────────────────────────────────────────────┤
+│  [✓] [L] [M] [X] [J] [V] [S] [D]                    │  ← Day selector (weekly)
+│  OR                                                 │
+│  📅 15/01/2026 - lunes                              │  ← Date picker (daily-override)
+├─────────────────────────────────────────────────────┤
+│  [S1] [S2] [S3] [S4] [S5]                           │  ← Week selector (weekly only)
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Features
+
+**Time Window Management:**
+
+- Add/remove time windows
+- Editable name (inline input)
+- Quota adjustment (+/- buttons or direct input)
+- Time range selection (30-min intervals, 00:00 - 23:00)
+- Collision detection (warns when weekly windows overlap)
+
+**Weekly Windows:**
+
+- Day-of-week multi-select (L M X J V S D)
+- "Select all" toggle button
+- Week-of-month multi-select (S1 S2 S3 S4 S5)
+- Empty weeks array = all weeks
+
+**Daily-Override (Exception) Windows:**
+
+- Single date picker (Flowbite Datepicker via portal)
+- Cannot select past dates (`minDate` restriction)
+- Auto-deleted when date passes (useEffect cleanup)
+- Overrides weekly windows for that specific date
+
+**Color Picker:**
+
+- Portal-based dropdown (escapes overflow:hidden)
+- 8 color presets with Spanish labels
+- Color dot indicator on trigger button
+- Checkmark on selected color
+
+---
+
+#### Calendar Integration
+
+**Context Extensions:**
+
+```typescript
+interface PlanningSelectionContextType {
+  // ... existing
+  timeWindows: TimeWindow[];
+  setTimeWindows: (windows: TimeWindow[]) => void;
+  getTimeWindowForSlot: (
+    date: Date,
+    hour: number,
+    minutes: number
+  ) => TimeWindow | null;
+  getRemainingQuota: (window: TimeWindow, date: Date) => number;
+}
+```
+
+**Slot Rendering (Week/Day Views):**
+
+| State      | Background Color         | Badge        |
+| ---------- | ------------------------ | ------------ |
+| Has window | `windowColor.bg`         | Name + quota |
+| Quota full | `bg-red-50`              | `0/N` in red |
+| Past day   | `bg-gray-100 opacity-50` | Hidden       |
+| No window  | Default                  | None         |
+
+**Slot Interaction:**
+
+- Past days: Disabled, grayed out, no interaction
+- Quota full: Disabled, red indicator
+- Available: Clickable, shows remaining quota
+
+---
+
+#### Format String Output
+
+Time windows can be serialized to a compact format:
+
+```
+W1-4 1-5 0900-1700    → Weeks 1-4, Mon-Fri, 9am-5pm
+W* 1,3,5 0800-1200    → All weeks, Mon/Wed/Fri, 8am-12pm
+D:2026-01-20 0900-1700 → Daily override for Jan 20, 2026
+```
+
+---
+
+#### Portal Components
+
+Both `PortalDatepicker` and `ColorPickerDropdown` use `createPortal` to render to `document.body`:
+
+- Escapes parent `overflow-hidden` containers
+- Uses `fixed` positioning with calculated coordinates
+- Closes on click outside or Escape key
+- z-index: `9999` to appear above all content
 
 ---
 

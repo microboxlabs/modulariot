@@ -7,7 +7,10 @@ import "dayjs/locale/en";
 import { twMerge } from "tailwind-merge";
 import type { DayInfo } from "../planning-day-view.types";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
-import { usePlanningSelection, TIME_WINDOW_COLORS } from "../planning-selection-context";
+import {
+  usePlanningSelection,
+  TIME_WINDOW_COLORS,
+} from "../planning-selection-context";
 
 interface DayGridProps {
   lang: string;
@@ -161,7 +164,10 @@ export default function DayGrid({
             hasTimeWindow && timeWindow.type === "daily-override";
           const isDisabled = isPastDay || isQuotaFull;
           // Get color classes from the time window
-          const windowColor = hasTimeWindow && timeWindow.color ? TIME_WINDOW_COLORS[timeWindow.color] : TIME_WINDOW_COLORS.emerald;
+          const windowColor =
+            hasTimeWindow && timeWindow.color
+              ? TIME_WINDOW_COLORS[timeWindow.color]
+              : TIME_WINDOW_COLORS.emerald;
 
           return (
             <Fragment key={slot.label}>
@@ -187,9 +193,7 @@ export default function DayGrid({
                   "border-l border-t border-r border-gray-200 dark:border-gray-700",
                   "transition-all duration-200 p-1",
                   isPastDay && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
-                  isDisabled
-                    ? "cursor-not-allowed"
-                    : "cursor-pointer",
+                  isDisabled ? "cursor-not-allowed" : "cursor-pointer",
                   !isPastDay && isQuotaFull && "opacity-60",
                   // Time window with custom color (not full, not selected, not past)
                   !isPastDay &&

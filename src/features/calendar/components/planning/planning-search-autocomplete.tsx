@@ -308,8 +308,8 @@ export function PlanningSearchAutocomplete({
             "bg-white dark:bg-gray-700",
             "text-gray-900 dark:text-white",
             "placeholder-gray-400 dark:placeholder-gray-500",
-            "focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400",
             "focus:border-blue-500 dark:focus:border-blue-400",
+            "focus:outline-none",
             "transition-colors"
           )}
         />

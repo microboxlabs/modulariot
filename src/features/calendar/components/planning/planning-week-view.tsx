@@ -17,7 +17,7 @@ import {
   DATE_FORMAT,
   generateTimeSlots,
 } from "@/features/calendar/services/calendar.service";
-import { usePlanningSelection } from "./planning-selection-context";
+import { usePlanningSelection, TIME_WINDOW_COLORS } from "./planning-selection-context";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -50,7 +50,13 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
-  const { selectedSlot, selectSlot, plannedServices, getTimeWindowForSlot, getRemainingQuota } = usePlanningSelection();
+  const {
+    selectedSlot,
+    selectSlot,
+    plannedServices,
+    getTimeWindowForSlot,
+    getRemainingQuota,
+  } = usePlanningSelection();
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -70,8 +76,15 @@ export default function PlanningWeekView({
     [currentDate, lang]
   );
 
+  // Get today for past day comparison
+  const today = useMemo(() => dayjs().startOf("day"), []);
+
   const isLastDay = (idx: number) => idx === weekDays.length - 1;
   const isLastSlot = (idx: number) => idx === timeSlots.length - 1;
+  const isPastDay = useCallback(
+    (day: WeekDay) => dayjs(day.date).isBefore(today, "day"),
+    [today]
+  );
 
   const handleCellClick = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
@@ -180,69 +193,108 @@ export default function PlanningWeekView({
               {weekDays.map((day, dayIdx) => {
                 const selected = isSlotSelected(day, slot);
                 const slotServices = getPlannedServicesForSlot(day, slot);
-                const timeWindow = getTimeWindowForSlot(day.date, slot.hour, slot.minutes);
+                const timeWindow = getTimeWindowForSlot(
+                  day.date,
+                  slot.hour,
+                  slot.minutes
+                );
                 const hasTimeWindow = timeWindow !== null;
                 // Show name only on the first slot of the time window
-                const isWindowStart = hasTimeWindow && 
-                  slot.hour === timeWindow.startHour && 
+                const isWindowStart =
+                  hasTimeWindow &&
+                  slot.hour === timeWindow.startHour &&
                   slot.minutes === timeWindow.startMinutes;
                 // Get remaining quota for this day
-                const remainingQuota = hasTimeWindow ? getRemainingQuota(timeWindow, day.date) : 0;
+                const remainingQuota = hasTimeWindow
+                  ? getRemainingQuota(timeWindow, day.date)
+                  : 0;
                 const isQuotaFull = remainingQuota === 0;
+                const isDailyOverride =
+                  hasTimeWindow && timeWindow.type === "daily-override";
+                const dayIsPast = isPastDay(day);
+                const isDisabled = dayIsPast || isQuotaFull;
+                // Get color classes from the time window
+                const windowColor = hasTimeWindow && timeWindow.color ? TIME_WINDOW_COLORS[timeWindow.color] : TIME_WINDOW_COLORS.emerald;
 
                 return (
                   <button
                     type="button"
                     key={`${day.dayNumber}-${slot.label}`}
-                    onClick={() => !isQuotaFull && handleCellClick(day, slot)}
-                    disabled={isQuotaFull}
+                    onClick={() => !isDisabled && handleCellClick(day, slot)}
+                    disabled={isDisabled}
                     className={twMerge(
                       "min-h-12 w-full relative",
                       "border-l border-t border-gray-200 dark:border-gray-700",
                       "transition-all duration-200 p-1",
-                      isQuotaFull 
-                        ? "cursor-not-allowed opacity-60" 
+                      dayIsPast && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
+                      isDisabled
+                        ? "cursor-not-allowed"
                         : "cursor-pointer",
-                      hasTimeWindow && !selected && !isQuotaFull && "bg-emerald-50 dark:bg-emerald-900/20",
-                      hasTimeWindow && !selected && isQuotaFull && "bg-red-50 dark:bg-red-900/20",
+                      !dayIsPast && isQuotaFull && "opacity-60",
+                      // Time window with custom color (not full, not selected, not past)
+                      !dayIsPast &&
+                        hasTimeWindow &&
+                        !selected &&
+                        !isQuotaFull &&
+                        windowColor.bg,
+                      // Quota full - show red
+                      !dayIsPast &&
+                        hasTimeWindow &&
+                        !selected &&
+                        isQuotaFull &&
+                        "bg-red-50 dark:bg-red-900/20",
                       selected
                         ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-                        : !hasTimeWindow && "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-                      hasTimeWindow && !selected && !isQuotaFull && "hover:bg-emerald-100 dark:hover:bg-emerald-900/30",
+                        : !dayIsPast &&
+                            !hasTimeWindow &&
+                            "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                      !dayIsPast &&
+                        hasTimeWindow &&
+                        !selected &&
+                        !isQuotaFull &&
+                        windowColor.hover,
                       isLastDay(dayIdx) && "border-r",
                       isLastSlot(slotIdx) && "border-b",
                       isLastDay(dayIdx) &&
                         isLastSlot(slotIdx) &&
                         "rounded-br-lg"
                     )}
-                    title={hasTimeWindow 
-                      ? isQuotaFull 
-                        ? `${timeWindow.name || "Ventana"} - Sin cupos disponibles` 
-                        : `${timeWindow.name || "Ventana"} - Cupos restantes: ${remainingQuota}/${timeWindow.quota}` 
-                      : undefined}
+                    title={
+                      dayIsPast
+                        ? "Día pasado"
+                        : hasTimeWindow
+                          ? isQuotaFull
+                            ? `${timeWindow.name || (isDailyOverride ? "Excepción" : "Ventana")} - Sin cupos disponibles`
+                            : `${timeWindow.name || (isDailyOverride ? "Excepción" : "Ventana")} - Cupos restantes: ${remainingQuota}/${timeWindow.quota}`
+                          : undefined
+                    }
                   >
-                    {/* Time window name - only on first slot */}
-                    {isWindowStart && timeWindow.name && (
+                    {/* Time window name - only on first slot and not past day */}
+                    {!dayIsPast && isWindowStart && timeWindow.name && (
                       <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
-                        <span className={twMerge(
-                          "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
-                          isQuotaFull 
-                            ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
-                            : "text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-800/80"
-                        )}>
+                        <span
+                          className={twMerge(
+                            "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
+                            isQuotaFull
+                              ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
+                              : windowColor.badge
+                          )}
+                        >
                           {timeWindow.name}
                         </span>
                       </div>
                     )}
-                    {/* Quota badge - only on first slot */}
-                    {isWindowStart && (
+                    {/* Quota badge - only on first slot and not past day */}
+                    {!dayIsPast && isWindowStart && (
                       <div className="absolute top-0.5 right-0.5">
-                        <span className={twMerge(
-                          "text-[9px] font-bold px-1 rounded",
-                          isQuotaFull
-                            ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
-                            : "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50"
-                        )}>
+                        <span
+                          className={twMerge(
+                            "text-[9px] font-bold px-1 rounded",
+                            isQuotaFull
+                              ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
+                              : windowColor.badge
+                          )}
+                        >
                           {remainingQuota}/{timeWindow.quota}
                         </span>
                       </div>

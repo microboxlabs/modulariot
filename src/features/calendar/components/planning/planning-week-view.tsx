@@ -50,7 +50,7 @@ export default function PlanningWeekView({
   endHour = 22,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
-  const { selectedSlot, selectSlot, plannedServices } = usePlanningSelection();
+  const { selectedSlot, selectSlot, plannedServices, getTimeWindowForSlot, getRemainingQuota } = usePlanningSelection();
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -109,17 +109,6 @@ export default function PlanningWeekView({
     [plannedServices]
   );
 
-  // Get max services count in any day of a slot row
-  const getMaxServicesInSlotRow = useCallback(
-    (slot: { hour: number; minutes: number }) => {
-      return Math.max(
-        ...weekDays.map((day) => getPlannedServicesForSlot(day, slot).length),
-        0
-      );
-    },
-    [weekDays, getPlannedServicesForSlot]
-  );
-
   return (
     <div className="w-full h-full overflow-auto">
       <div
@@ -173,52 +162,93 @@ export default function PlanningWeekView({
 
         {/* Time slots grid */}
         {timeSlots.map((slot, slotIdx) => {
-          const maxServices = getMaxServicesInSlotRow(slot);
-          // Only expand if more than 1 service in a slot
-          const rowHeight = maxServices > 1 ? "h-20" : "h-12";
-
           return (
             <Fragment key={slot.label}>
               {/* Time label column */}
               <div
                 className={twMerge(
-                  rowHeight,
-                  "flex items-start justify-end pr-2 pt-0.5",
+                  "min-h-12 flex items-start justify-end pr-2 pt-0.5",
                   "border-l border-t border-gray-200 dark:border-gray-700",
                   "text-xs text-gray-500 dark:text-gray-400",
                   isLastSlot(slotIdx) && "border-b rounded-bl-lg"
                 )}
               >
-                {slot.minutes === 0 && slot.label}
+                {slot.label}
               </div>
 
               {/* Day cells */}
               {weekDays.map((day, dayIdx) => {
                 const selected = isSlotSelected(day, slot);
                 const slotServices = getPlannedServicesForSlot(day, slot);
+                const timeWindow = getTimeWindowForSlot(day.date, slot.hour, slot.minutes);
+                const hasTimeWindow = timeWindow !== null;
+                // Show name only on the first slot of the time window
+                const isWindowStart = hasTimeWindow && 
+                  slot.hour === timeWindow.startHour && 
+                  slot.minutes === timeWindow.startMinutes;
+                // Get remaining quota for this day
+                const remainingQuota = hasTimeWindow ? getRemainingQuota(timeWindow, day.date) : 0;
+                const isQuotaFull = remainingQuota === 0;
 
                 return (
                   <button
                     type="button"
                     key={`${day.dayNumber}-${slot.label}`}
-                    onClick={() => handleCellClick(day, slot)}
+                    onClick={() => !isQuotaFull && handleCellClick(day, slot)}
+                    disabled={isQuotaFull}
                     className={twMerge(
-                      rowHeight,
-                      "w-full relative",
+                      "min-h-12 w-full relative",
                       "border-l border-t border-gray-200 dark:border-gray-700",
-                      "transition-all duration-200 cursor-pointer",
+                      "transition-all duration-200 p-1",
+                      isQuotaFull 
+                        ? "cursor-not-allowed opacity-60" 
+                        : "cursor-pointer",
+                      hasTimeWindow && !selected && !isQuotaFull && "bg-emerald-50 dark:bg-emerald-900/20",
+                      hasTimeWindow && !selected && isQuotaFull && "bg-red-50 dark:bg-red-900/20",
                       selected
                         ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                        : !hasTimeWindow && "hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                      hasTimeWindow && !selected && !isQuotaFull && "hover:bg-emerald-100 dark:hover:bg-emerald-900/30",
                       isLastDay(dayIdx) && "border-r",
                       isLastSlot(slotIdx) && "border-b",
                       isLastDay(dayIdx) &&
                         isLastSlot(slotIdx) &&
                         "rounded-br-lg"
                     )}
+                    title={hasTimeWindow 
+                      ? isQuotaFull 
+                        ? `${timeWindow.name || "Ventana"} - Sin cupos disponibles` 
+                        : `${timeWindow.name || "Ventana"} - Cupos restantes: ${remainingQuota}/${timeWindow.quota}` 
+                      : undefined}
                   >
+                    {/* Time window name - only on first slot */}
+                    {isWindowStart && timeWindow.name && (
+                      <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
+                        <span className={twMerge(
+                          "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
+                          isQuotaFull 
+                            ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
+                            : "text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-800/80"
+                        )}>
+                          {timeWindow.name}
+                        </span>
+                      </div>
+                    )}
+                    {/* Quota badge - only on first slot */}
+                    {isWindowStart && (
+                      <div className="absolute top-0.5 right-0.5">
+                        <span className={twMerge(
+                          "text-[9px] font-bold px-1 rounded",
+                          isQuotaFull
+                            ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
+                            : "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50"
+                        )}>
+                          {remainingQuota}/{timeWindow.quota}
+                        </span>
+                      </div>
+                    )}
                     {slotServices.length > 0 && (
-                      <div className="absolute inset-1 flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-0.5">
                         {slotServices.map((ps) => {
                           const hasUrgencia =
                             ps.service.incidencias.includes("urgencia");
@@ -226,8 +256,8 @@ export default function PlanningWeekView({
                             <div
                               key={ps.service.id}
                               className={twMerge(
-                                "flex-1 rounded flex items-center justify-start",
-                                "text-xs font-medium truncate px-1 border-l-4",
+                                "rounded flex items-center justify-start",
+                                "text-xs font-medium truncate px-1 border-l-4 h-5",
                                 hasUrgencia
                                   ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
                                   : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"

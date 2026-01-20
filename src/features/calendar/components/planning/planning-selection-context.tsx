@@ -26,17 +26,84 @@ export interface SelectedSlot {
 /**
  * Time window configuration for quota management
  * Format: W1-4 1-5 0900-1700
+ *
+ * Types:
+ * - "weekly": Applies to multiple days (default)
+ * - "daily-override": Applies to a specific date, overrides weekly windows
  */
+/**
+ * Available color presets for time windows
+ */
+export const TIME_WINDOW_COLORS = {
+  emerald: {
+    bg: "bg-emerald-50 dark:bg-emerald-900/20",
+    hover: "hover:bg-emerald-100 dark:hover:bg-emerald-900/30",
+    badge:
+      "bg-emerald-100 dark:bg-emerald-800/80 text-emerald-700 dark:text-emerald-300",
+    dot: "bg-emerald-500",
+  },
+  blue: {
+    bg: "bg-blue-50 dark:bg-blue-900/20",
+    hover: "hover:bg-blue-100 dark:hover:bg-blue-900/30",
+    badge: "bg-blue-100 dark:bg-blue-800/80 text-blue-700 dark:text-blue-300",
+    dot: "bg-blue-500",
+  },
+  violet: {
+    bg: "bg-violet-50 dark:bg-violet-900/20",
+    hover: "hover:bg-violet-100 dark:hover:bg-violet-900/30",
+    badge:
+      "bg-violet-100 dark:bg-violet-800/80 text-violet-700 dark:text-violet-300",
+    dot: "bg-violet-500",
+  },
+  rose: {
+    bg: "bg-rose-50 dark:bg-rose-900/20",
+    hover: "hover:bg-rose-100 dark:hover:bg-rose-900/30",
+    badge: "bg-rose-100 dark:bg-rose-800/80 text-rose-700 dark:text-rose-300",
+    dot: "bg-rose-500",
+  },
+  amber: {
+    bg: "bg-amber-50 dark:bg-amber-900/20",
+    hover: "hover:bg-amber-100 dark:hover:bg-amber-900/30",
+    badge:
+      "bg-amber-100 dark:bg-amber-800/80 text-amber-700 dark:text-amber-300",
+    dot: "bg-amber-500",
+  },
+  cyan: {
+    bg: "bg-cyan-50 dark:bg-cyan-900/20",
+    hover: "hover:bg-cyan-100 dark:hover:bg-cyan-900/30",
+    badge: "bg-cyan-100 dark:bg-cyan-800/80 text-cyan-700 dark:text-cyan-300",
+    dot: "bg-cyan-500",
+  },
+  lime: {
+    bg: "bg-lime-50 dark:bg-lime-900/20",
+    hover: "hover:bg-lime-100 dark:hover:bg-lime-900/30",
+    badge: "bg-lime-100 dark:bg-lime-800/80 text-lime-700 dark:text-lime-300",
+    dot: "bg-lime-500",
+  },
+  orange: {
+    bg: "bg-orange-50 dark:bg-orange-900/20",
+    hover: "hover:bg-orange-100 dark:hover:bg-orange-900/30",
+    badge:
+      "bg-orange-100 dark:bg-orange-800/80 text-orange-700 dark:text-orange-300",
+    dot: "bg-orange-500",
+  },
+} as const;
+
+export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
+
 export interface TimeWindow {
   id: string;
   name: string;
+  type: "weekly" | "daily-override";
   startHour: number;
   startMinutes: number;
   endHour: number;
   endMinutes: number;
-  days: number[]; // 1 = Monday, ..., 7 = Sunday
+  days: number[]; // 1 = Monday, ..., 7 = Sunday (for weekly type)
+  date?: string; // ISO date string (YYYY-MM-DD) for daily-override type
   weeks: number[]; // 1-5 for weeks of month, empty = all weeks
   quota: number;
+  color?: TimeWindowColor; // Optional custom color
 }
 
 /**
@@ -99,10 +166,7 @@ interface PlanningSelectionContextType {
     hour: number,
     minutes: number
   ) => TimeWindow | null;
-  getRemainingQuota: (
-    timeWindow: TimeWindow,
-    date: Date
-  ) => number;
+  getRemainingQuota: (timeWindow: TimeWindow, date: Date) => number;
   isSidebarOpen: boolean;
 }
 
@@ -168,7 +232,7 @@ export function PlanningSelectionProvider({
       return plannedServices.filter((ps) => {
         // Check same day
         if (!dayjs(ps.slot.date).isSame(d, "day")) return false;
-        
+
         // Check if service slot is within window time range
         const slotMinutes = ps.slot.hour * 60 + ps.slot.minutes;
         return slotMinutes >= windowStart && slotMinutes < windowEnd;
@@ -190,6 +254,7 @@ export function PlanningSelectionProvider({
 
   /**
    * Check if a slot falls within any time window
+   * Daily-override windows take priority over weekly windows
    */
   const getTimeWindowForSlot = useCallback(
     (date: Date, hour: number, minutes: number): TimeWindow | null => {
@@ -200,7 +265,28 @@ export function PlanningSelectionProvider({
       const weekOfMonth = getWeekOfMonth(d);
       const slotMinutes = hour * 60 + minutes;
 
+      // First, check daily-override windows (they have priority)
       for (const window of timeWindows) {
+        if (window.type !== "daily-override") continue;
+
+        // Check if specific date matches
+        if (!window.date) continue;
+        const windowDate = dayjs(window.date);
+        if (!d.isSame(windowDate, "day")) continue;
+
+        // Check if time is within range
+        const windowStart = window.startHour * 60 + window.startMinutes;
+        const windowEnd = window.endHour * 60 + window.endMinutes;
+
+        if (slotMinutes >= windowStart && slotMinutes < windowEnd) {
+          return window;
+        }
+      }
+
+      // Then check weekly windows
+      for (const window of timeWindows) {
+        if (window.type === "daily-override") continue;
+
         // Check if day matches
         if (!window.days.includes(formatDay)) continue;
 

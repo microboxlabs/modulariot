@@ -142,7 +142,7 @@ export default function DayGrid({
                   isLastSlot(slotIdx) && "border-b rounded-bl-lg"
                 )}
               >
-                {slot.minutes === 0 && slot.label}
+                {slot.label}
               </div>
 
               {/* Day cell - clickable */}

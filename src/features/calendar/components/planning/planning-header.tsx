@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -16,6 +16,9 @@ import {
   DATE_FORMAT,
   isValidViewMode,
 } from "@/features/calendar/services/calendar.service";
+import CalendarRules from "./calendar-rules/calendar-rules";
+import { tr } from "@/features/i18n/tr.service";
+import PlanningTitle from "./planning-title";
 
 dayjs.extend(weekOfYear);
 
@@ -129,10 +132,7 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      {/* Title */}
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-        {dict.layout?.secured?.sidebar?.planning ?? "Planificación"}
-      </h1>
+      <PlanningTitle dict={dict} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
@@ -175,6 +175,7 @@ export default function PlanningHeader({
             month: calendarDict.month,
           }}
         />
+        <CalendarRules />
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ export interface PlanningSearchAutocompleteProps {
   onMatchTypeSelect?: (matchType: MatchType, query: string) => void;
   onClear?: () => void;
   hasActiveFilter?: boolean;
+  isLoading?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -35,12 +36,16 @@ export function PlanningSearchAutocomplete({
   onMatchTypeSelect,
   onClear,
   hasActiveFilter = false,
+  isLoading: externalIsLoading = false,
 }: Readonly<PlanningSearchAutocompleteProps>) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Combine external loading state with internal debounce loading
+  const isLoadingState = externalIsLoading || isLoading;
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -145,13 +150,13 @@ export function PlanningSearchAutocomplete({
   useEffect(() => {
     if (debouncedQuery.length >= MIN_CHARACTERS && searchResults.length > 0) {
       setIsOpen(true);
-    } else if (debouncedQuery.length >= MIN_CHARACTERS && searchResults.length === 0 && !isLoading) {
+    } else if (debouncedQuery.length >= MIN_CHARACTERS && searchResults.length === 0 && !isLoadingState) {
       setIsOpen(true);
     } else {
       setIsOpen(false);
     }
     setSelectedIndex(0);
-  }, [debouncedQuery, searchResults.length, isLoading]);
+  }, [debouncedQuery, searchResults.length, isLoadingState]);
 
   // Handle click outside
   useEffect(() => {
@@ -318,7 +323,7 @@ export function PlanningSearchAutocomplete({
             <HiX className="w-4 h-4" />
           </button>
         )}
-        {isLoading && !showClearButton && (
+        {isLoadingState && !showClearButton && (
           <div className="absolute inset-y-0 right-0 flex items-center pr-3">
             <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin" />
           </div>
@@ -344,7 +349,7 @@ export function PlanningSearchAutocomplete({
             "max-h-[300px] overflow-y-auto"
           )}
         >
-          {isLoading ? (
+          {isLoadingState ? (
             <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
               {tr("pages.planning.sidebar.search.loading", dict)}
             </div>

@@ -304,7 +304,7 @@ function PortalDatepicker({
 }
 
 /**
- * Custom color picker dropdown with color circles
+ * Custom color picker dropdown with color circles (portal-based)
  */
 function ColorPickerDropdown({
   value,
@@ -314,15 +314,25 @@ function ColorPickerDropdown({
   onChange: (color: TimeWindowColor) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.right + window.scrollX - 120, // Align right edge
+      });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        !dropdownRef.current?.contains(target) &&
+        !target.closest("[data-colorpicker-portal]") &&
         !triggerRef.current?.contains(target)
       ) {
         setIsOpen(false);
@@ -340,7 +350,7 @@ function ColorPickerDropdown({
   }, [isOpen]);
 
   return (
-    <div className="relative">
+    <>
       <button
         ref={triggerRef}
         type="button"
@@ -359,42 +369,45 @@ function ColorPickerDropdown({
           )}
         />
       </button>
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
-        >
-          {COLOR_OPTIONS.map((colorOpt) => (
-            <button
-              key={colorOpt.value}
-              type="button"
-              onClick={() => {
-                onChange(colorOpt.value);
-                setIsOpen(false);
-              }}
-              className={twMerge(
-                "w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs transition-colors",
-                "hover:bg-gray-100 dark:hover:bg-gray-700",
-                value === colorOpt.value && "bg-gray-50 dark:bg-gray-700/50"
-              )}
-            >
-              <span
+      {isOpen &&
+        createPortal(
+          <div
+            data-colorpicker-portal
+            className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+            style={{ top: position.top, left: position.left }}
+          >
+            {COLOR_OPTIONS.map((colorOpt) => (
+              <button
+                key={colorOpt.value}
+                type="button"
+                onClick={() => {
+                  onChange(colorOpt.value);
+                  setIsOpen(false);
+                }}
                 className={twMerge(
-                  "w-3 h-3 rounded-full shrink-0",
-                  TIME_WINDOW_COLORS[colorOpt.value].dot
+                  "w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  value === colorOpt.value && "bg-gray-50 dark:bg-gray-700/50"
                 )}
-              />
-              <span className="text-gray-700 dark:text-gray-300">
-                {colorOpt.label}
-              </span>
-              {value === colorOpt.value && (
-                <HiCheck className="ml-auto h-3 w-3 text-primary-500" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+              >
+                <span
+                  className={twMerge(
+                    "w-3 h-3 rounded-full shrink-0",
+                    TIME_WINDOW_COLORS[colorOpt.value].dot
+                  )}
+                />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {colorOpt.label}
+                </span>
+                {value === colorOpt.value && (
+                  <HiCheck className="ml-auto h-3 w-3 text-primary-500" />
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -781,7 +794,7 @@ export default function QuotaManager({
               </div>
 
               {/* Body */}
-              <div className="p-3 space-y-2.5 overflow-visible">
+              <div className="p-3 flex flex-col gap-2.5 overflow-visible">
                 {/* Window Type Toggle + Color Picker */}
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900/50 rounded-lg flex-1">
@@ -960,7 +973,7 @@ export default function QuotaManager({
 
                 {/* Format Code Display */}
                 {windowCode && (
-                  <div className="pt-1">
+                  <div className="pt-1 hidden">
                     <code className="text-[10px] hidden text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-900/50 px-2 py-0.5 rounded">
                       {windowCode}
                     </code>

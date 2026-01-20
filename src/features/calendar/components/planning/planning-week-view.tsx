@@ -17,7 +17,10 @@ import {
   DATE_FORMAT,
   generateTimeSlots,
 } from "@/features/calendar/services/calendar.service";
-import { usePlanningSelection, TIME_WINDOW_COLORS } from "./planning-selection-context";
+import {
+  usePlanningSelection,
+  TIME_WINDOW_COLORS,
+} from "./planning-selection-context";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -214,7 +217,10 @@ export default function PlanningWeekView({
                 const dayIsPast = isPastDay(day);
                 const isDisabled = dayIsPast || isQuotaFull;
                 // Get color classes from the time window
-                const windowColor = hasTimeWindow && timeWindow.color ? TIME_WINDOW_COLORS[timeWindow.color] : TIME_WINDOW_COLORS.emerald;
+                const windowColor =
+                  hasTimeWindow && timeWindow.color
+                    ? TIME_WINDOW_COLORS[timeWindow.color]
+                    : TIME_WINDOW_COLORS.emerald;
 
                 return (
                   <button
@@ -227,9 +233,7 @@ export default function PlanningWeekView({
                       "border-l border-t border-gray-200 dark:border-gray-700",
                       "transition-all duration-200 p-1",
                       dayIsPast && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
-                      isDisabled
-                        ? "cursor-not-allowed"
-                        : "cursor-pointer",
+                      isDisabled ? "cursor-not-allowed" : "cursor-pointer",
                       !dayIsPast && isQuotaFull && "opacity-60",
                       // Time window with custom color (not full, not selected, not past)
                       !dayIsPast &&

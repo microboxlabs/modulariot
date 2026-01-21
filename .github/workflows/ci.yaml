@@ -8,6 +8,10 @@ on:
  
 env:
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
+  REGION: ${{ vars.GCP_DEFAULT_REGION }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GAR_LOCATION: ${{ vars.GCP_DEFAULT_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mainbox/miot-docs
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} # GitHub Actions uses different ref names for PRs and pushes
 
 jobs:
   build:
@@ -46,3 +50,28 @@ jobs:
       - name: Build
         run: |
           bun run build -F '@modulariot/docs'
+
+      - name: "Auth"
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
+
+      - name: "Docker auth"
+        run: |-
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: "Build and Push Docker image"
+        run: |-
+          SHORT_SHA=${GITHUB_SHA::7}
+          BRANCH=$(echo "${{ env.BRANCH_NAME }}" | tr / - | tr '[:upper:]' '[:lower:]' | xargs)
+          docker build apps/docs \
+          -f docker/nextjs.standalone-docs.Dockerfile \
+          --build-arg SERVER_PATH=apps/docs/server.js \
+          -t ${{ env.GAR_LOCATION }}:$BRANCH-$SHORT_SHA
+          docker push ${{ env.GAR_LOCATION }}:$BRANCH-$SHORT_SHA

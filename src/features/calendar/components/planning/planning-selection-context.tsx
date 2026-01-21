@@ -10,8 +10,10 @@ import {
 } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 
 dayjs.extend(isoWeek);
+dayjs.extend(isSameOrAfter);
 
 /**
  * Represents a selected time slot in the calendar
@@ -91,20 +93,278 @@ export const TIME_WINDOW_COLORS = {
 
 export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
 
+/**
+ * Time window configuration for quota management
+ *
+ * Types:
+ * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
+ *   - W1-4: Weeks 1-4 of the month (W* for all weeks)
+ *   - 1-5: Days 1 (Monday) to 5 (Friday)
+ *   - 0900-1700: Time range in HHMM format
+ *
+ * - "daily-override": Uses ISO timestamps for specific date ranges
+ *   - Overrides weekly windows for the specified date/time
+ */
 export interface TimeWindow {
   id: string;
   name: string;
   type: "weekly" | "daily-override";
+  quota: number;
+  color?: TimeWindowColor;
+  // For weekly type: pattern string like "W1-4 1-5 0900-1700"
+  weeklyPattern?: string;
+  // For daily-override type: ISO timestamps
+  startTimestamp?: string; // ISO 8601 format: "2026-01-20T09:00:00"
+  endTimestamp?: string; // ISO 8601 format: "2026-01-20T17:00:00"
+}
+
+/**
+ * Parsed weekly pattern for internal use
+ */
+export interface ParsedWeeklyPattern {
+  weeks: number[]; // 1-5 for weeks of month, empty = all weeks
+  days: number[]; // 1 = Monday, ..., 7 = Sunday
   startHour: number;
   startMinutes: number;
   endHour: number;
   endMinutes: number;
-  days: number[]; // 1 = Monday, ..., 7 = Sunday (for weekly type)
-  date?: string; // ISO date string (YYYY-MM-DD) for daily-override type
-  weeks: number[]; // 1-5 for weeks of month, empty = all weeks
-  quota: number;
-  color?: TimeWindowColor; // Optional custom color
 }
+
+/**
+ * Utility functions for TimeWindow operations
+ */
+export const TimeWindowUtils = {
+  /**
+   * Parse a weekly pattern string into its components
+   * Format: "W1-4 1-5 0900-1700" or "W* 1-5 0900-1700"
+   */
+  parseWeeklyPattern(pattern: string): ParsedWeeklyPattern | null {
+    if (!pattern) return null;
+    const match = pattern.match(
+      /^W(\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/
+    );
+    if (!match) return null;
+
+    const [, weeksStr, daysStr, startTime, endTime] = match;
+
+    // Parse weeks
+    let weeks: number[] = [];
+    if (weeksStr !== "*") {
+      weeks = this.parseRangeString(weeksStr);
+    }
+
+    // Parse days
+    const days = this.parseRangeString(daysStr);
+
+    // Parse times
+    const startHour = parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = parseInt(startTime.slice(2, 4), 10);
+    const endHour = parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+
+    return { weeks, days, startHour, startMinutes, endHour, endMinutes };
+  },
+
+  /**
+   * Parse a range string like "1-5" or "1,3,5" into an array of numbers
+   */
+  parseRangeString(str: string): number[] {
+    const result: number[] = [];
+    const parts = str.split(",");
+    for (const part of parts) {
+      if (part.includes("-")) {
+        const [start, end] = part.split("-").map(Number);
+        for (let i = start; i <= end; i++) {
+          result.push(i);
+        }
+      } else {
+        result.push(Number(part));
+      }
+    }
+    return result;
+  },
+
+  /**
+   * Build a weekly pattern string from components
+   * Returns empty string if days is empty (invalid pattern)
+   */
+  buildWeeklyPattern(
+    weeks: number[],
+    days: number[],
+    startHour: number,
+    startMinutes: number,
+    endHour: number,
+    endMinutes: number
+  ): string {
+    if (days.length === 0) return ""; // Can't have a pattern without days
+    const weeksStr = this.formatRangeString(weeks, "W");
+    const daysStr = this.formatRangeString(days);
+    const startTime = `${startHour.toString().padStart(2, "0")}${startMinutes.toString().padStart(2, "0")}`;
+    const endTime = `${endHour.toString().padStart(2, "0")}${endMinutes.toString().padStart(2, "0")}`;
+    return `${weeksStr} ${daysStr} ${startTime}-${endTime}`;
+  },
+
+  /**
+   * Format an array of numbers into a range string
+   * e.g., [1,2,3,4,5] -> "1-5", [1,3,5] -> "1,3,5"
+   * For weeks with prefix: [] -> "W*", [1,2] -> "W1-2"
+   * For days without prefix: [] -> "", [1,2,3] -> "1-3"
+   */
+  formatRangeString(nums: number[], prefix = ""): string {
+    if (nums.length === 0) {
+      // For weeks (with prefix), empty means "all weeks" = W*
+      // For days (no prefix), empty means nothing selected
+      return prefix ? `${prefix}*` : "";
+    }
+    const sorted = [...nums].sort((a, b) => a - b);
+
+    // Check if it's a continuous range
+    const isRange =
+      sorted.length > 1 &&
+      sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+
+    if (isRange) {
+      return `${prefix}${sorted[0]}-${sorted[sorted.length - 1]}`;
+    }
+    return `${prefix}${sorted.join(",")}`;
+  },
+
+  /**
+   * Check if a time window matches a specific slot
+   */
+  matchesSlot(
+    window: TimeWindow,
+    date: dayjs.Dayjs,
+    hour: number,
+    minutes: number
+  ): boolean {
+    if (window.type === "daily-override") {
+      return this.matchesDailyOverride(window, date, hour, minutes);
+    }
+    return this.matchesWeeklyPattern(window, date, hour, minutes);
+  },
+
+  /**
+   * Check if a daily-override window matches a slot
+   */
+  matchesDailyOverride(
+    window: TimeWindow,
+    date: dayjs.Dayjs,
+    hour: number,
+    minutes: number
+  ): boolean {
+    if (!window.startTimestamp || !window.endTimestamp) return false;
+
+    const start = dayjs(window.startTimestamp);
+    const end = dayjs(window.endTimestamp);
+    const slotTime = date.hour(hour).minute(minutes).second(0);
+
+    return (
+      slotTime.isSame(start, "day") &&
+      slotTime.isSameOrAfter(start) &&
+      slotTime.isBefore(end)
+    );
+  },
+
+  /**
+   * Check if a weekly pattern window matches a slot
+   */
+  matchesWeeklyPattern(
+    window: TimeWindow,
+    date: dayjs.Dayjs,
+    hour: number,
+    minutes: number
+  ): boolean {
+    if (!window.weeklyPattern) return false;
+
+    const parsed = this.parseWeeklyPattern(window.weeklyPattern);
+    if (!parsed) return false;
+
+    // Convert JS day (0=Sunday) to format day (1=Monday, 7=Sunday)
+    const jsDay = date.day();
+    const formatDay = jsDay === 0 ? 7 : jsDay;
+
+    // Check day
+    if (!parsed.days.includes(formatDay)) return false;
+
+    // Check week of month
+    if (parsed.weeks.length > 0) {
+      const weekOfMonth = getWeekOfMonth(date);
+      if (!parsed.weeks.includes(weekOfMonth)) return false;
+    }
+
+    // Check time
+    const slotMinutes = hour * 60 + minutes;
+    const windowStart = parsed.startHour * 60 + parsed.startMinutes;
+    const windowEnd = parsed.endHour * 60 + parsed.endMinutes;
+
+    return slotMinutes >= windowStart && slotMinutes < windowEnd;
+  },
+
+  /**
+   * Get time range from a window (works for both types)
+   */
+  getTimeRange(
+    window: TimeWindow
+  ): {
+    startHour: number;
+    startMinutes: number;
+    endHour: number;
+    endMinutes: number;
+  } | null {
+    if (window.type === "daily-override") {
+      if (!window.startTimestamp || !window.endTimestamp) return null;
+      const start = dayjs(window.startTimestamp);
+      const end = dayjs(window.endTimestamp);
+      return {
+        startHour: start.hour(),
+        startMinutes: start.minute(),
+        endHour: end.hour(),
+        endMinutes: end.minute(),
+      };
+    }
+
+    if (!window.weeklyPattern) return null;
+    const parsed = this.parseWeeklyPattern(window.weeklyPattern);
+    if (!parsed) return null;
+    return {
+      startHour: parsed.startHour,
+      startMinutes: parsed.startMinutes,
+      endHour: parsed.endHour,
+      endMinutes: parsed.endMinutes,
+    };
+  },
+
+  /**
+   * Get the date for a daily-override window
+   */
+  getDate(window: TimeWindow): string | null {
+    if (window.type !== "daily-override" || !window.startTimestamp) return null;
+    return dayjs(window.startTimestamp).format("YYYY-MM-DD");
+  },
+
+  /**
+   * Check if a daily-override window is expired (before today)
+   */
+  isExpired(window: TimeWindow): boolean {
+    if (window.type !== "daily-override" || !window.startTimestamp)
+      return false;
+    return dayjs(window.startTimestamp).isBefore(dayjs().startOf("day"), "day");
+  },
+
+  /**
+   * Create a display string for a time window
+   */
+  formatDisplay(window: TimeWindow): string {
+    if (window.type === "daily-override") {
+      if (!window.startTimestamp || !window.endTimestamp) return "";
+      const start = dayjs(window.startTimestamp);
+      const end = dayjs(window.endTimestamp);
+      return `${start.format("DD/MM/YYYY")} ${start.format("HHmm")}-${end.format("HHmm")}`;
+    }
+    return window.weeklyPattern ?? "";
+  },
+};
 
 /**
  * Lead time status for a service
@@ -226,8 +486,11 @@ export function PlanningSelectionProvider({
   const getServicesInTimeWindow = useCallback(
     (timeWindow: TimeWindow, date: Date): number => {
       const d = dayjs(date);
-      const windowStart = timeWindow.startHour * 60 + timeWindow.startMinutes;
-      const windowEnd = timeWindow.endHour * 60 + timeWindow.endMinutes;
+      const timeRange = TimeWindowUtils.getTimeRange(timeWindow);
+      if (!timeRange) return 0;
+
+      const windowStart = timeRange.startHour * 60 + timeRange.startMinutes;
+      const windowEnd = timeRange.endHour * 60 + timeRange.endMinutes;
 
       return plannedServices.filter((ps) => {
         // Check same day
@@ -259,26 +522,11 @@ export function PlanningSelectionProvider({
   const getTimeWindowForSlot = useCallback(
     (date: Date, hour: number, minutes: number): TimeWindow | null => {
       const d = dayjs(date);
-      // Convert JS day (0=Sunday) to format day (1=Monday, 7=Sunday)
-      const jsDay = d.day();
-      const formatDay = jsDay === 0 ? 7 : jsDay;
-      const weekOfMonth = getWeekOfMonth(d);
-      const slotMinutes = hour * 60 + minutes;
 
       // First, check daily-override windows (they have priority)
       for (const window of timeWindows) {
         if (window.type !== "daily-override") continue;
-
-        // Check if specific date matches
-        if (!window.date) continue;
-        const windowDate = dayjs(window.date);
-        if (!d.isSame(windowDate, "day")) continue;
-
-        // Check if time is within range
-        const windowStart = window.startHour * 60 + window.startMinutes;
-        const windowEnd = window.endHour * 60 + window.endMinutes;
-
-        if (slotMinutes >= windowStart && slotMinutes < windowEnd) {
+        if (TimeWindowUtils.matchesSlot(window, d, hour, minutes)) {
           return window;
         }
       }
@@ -286,19 +534,7 @@ export function PlanningSelectionProvider({
       // Then check weekly windows
       for (const window of timeWindows) {
         if (window.type === "daily-override") continue;
-
-        // Check if day matches
-        if (!window.days.includes(formatDay)) continue;
-
-        // Check if week matches (empty = all weeks)
-        if (window.weeks.length > 0 && !window.weeks.includes(weekOfMonth))
-          continue;
-
-        // Check if time is within range
-        const windowStart = window.startHour * 60 + window.startMinutes;
-        const windowEnd = window.endHour * 60 + window.endMinutes;
-
-        if (slotMinutes >= windowStart && slotMinutes < windowEnd) {
+        if (TimeWindowUtils.matchesSlot(window, d, hour, minutes)) {
           return window;
         }
       }

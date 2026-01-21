@@ -438,10 +438,282 @@ const INCIDENCIA_DICTIONARY: Record<string, IncidenciaConfig> = {
 3. ~~**Day/Month Views** - Alternative calendar views~~ → **Implemented (MVP)**
 4. ~~**Sidebar Form** - Service assignment form content~~ → **Implemented in #949**
 5. **API Integration** - Replace mock data with real service endpoints
-6. **Cupo Management** - Modal/panel for quota configuration
+6. ~~**Cupo Management** - Modal/panel for quota configuration~~ → **Implemented (QuotaManager)**
 7. **Blocking System** - Hour and day blocking features
 8. **API Design** - BFF endpoints + Alfresco contracts
 9. **Business Logic** - Quota validation, ETA-based capacity checks
+
+---
+
+### Quota Management System (Time Windows)
+
+#### Components
+
+| Component             | Path                                                                         | Purpose                                            |
+| --------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| `QuotaManager`        | `src/features/calendar/components/planning/calendar-rules/quota-manager.tsx` | Main UI for managing time windows with quotas      |
+| `PortalDatepicker`    | (internal component)                                                         | Portal-based datepicker for daily-override windows |
+| `ColorPickerDropdown` | (internal component)                                                         | Portal-based color selector dropdown               |
+
+---
+
+#### Time Window Types
+
+```typescript
+export interface TimeWindow {
+  id: string;
+  name: string;
+  type: "weekly" | "daily-override";
+  quota: number;
+  color?: TimeWindowColor;
+
+  // For weekly type: compact pattern string
+  weeklyPattern?: string; // e.g., "W1-4 1-5 0900-1700" or "W* 1-5 0800-1200"
+
+  // For daily-override type: ISO timestamps (local time)
+  startTimestamp?: string; // e.g., "2026-01-20T09:00:00"
+  endTimestamp?: string; // e.g., "2026-01-20T17:00:00"
+}
+```
+
+**Window Types:**
+
+| Type             | Description                                          | Use Case                     |
+| ---------------- | ---------------------------------------------------- | ---------------------------- |
+| `weekly`         | Applies to multiple days per week                    | Regular scheduling patterns  |
+| `daily-override` | Applies to a specific date, overrides weekly windows | Holidays, special exceptions |
+
+---
+
+#### Weekly Pattern Format
+
+The `weeklyPattern` field uses a compact string format: `W<weeks> <days> <startHHMM>-<endHHMM>`
+
+**Examples:**
+
+- `W* 1-5 0900-1700` → All weeks, Monday to Friday, 9:00 AM - 5:00 PM
+- `W1-4 1-5 0800-1200` → Weeks 1-4 only, Monday to Friday, 8:00 AM - 12:00 PM
+- `W1,3,5 1,3,5 0600-1000` → Weeks 1, 3, 5 only, Mon/Wed/Fri, 6:00 AM - 10:00 AM
+
+**Pattern Components:**
+| Part | Format | Examples | Description |
+|------|--------|----------|-------------|
+| Weeks | `W*` or `W<range>` or `W<list>` | `W*`, `W1-4`, `W1,3,5` | Which weeks of the month (`*` = all) |
+| Days | Range or list | `1-5`, `1,3,5`, `1-7` | ISO weekday numbers (1=Mon, 7=Sun) |
+| Time | `HHMM-HHMM` | `0900-1700`, `0800-1200` | 24-hour format start-end time |
+
+---
+
+#### TimeWindowUtils Helper Object
+
+A utility object for parsing and manipulating time windows:
+
+```typescript
+interface ParsedWeeklyPattern {
+  weeks: number[];      // [1,2,3,4] or empty for all weeks
+  days: number[];       // ISO weekday numbers [1-7]
+  startHour: number;    // 0-23
+  startMinutes: number; // 0-59
+  endHour: number;      // 0-23
+  endMinutes: number;   // 0-59
+}
+
+const TimeWindowUtils = {
+  // Parsing
+  parseWeeklyPattern(pattern: string): ParsedWeeklyPattern | null;
+
+  // Building
+  buildWeeklyPattern(options: ParsedWeeklyPattern): string;
+
+  // Time Range (works for both types)
+  getTimeRange(window: TimeWindow): {
+    startHour: number; startMinutes: number;
+    endHour: number; endMinutes: number
+  } | null;
+
+  // Display
+  formatDisplay(window: TimeWindow): string;      // "08:00 - 12:00"
+  formatDaysDisplay(pattern: string): string;     // "L-V" or "L, X, V"
+  formatWeeksDisplay(pattern: string): string;    // "S1-S4" or "S1, S3"
+
+  // Slot Matching
+  matchesSlot(window: TimeWindow, date: Date, hour: number, minutes: number): boolean;
+
+  // Expiration Check
+  isExpired(window: TimeWindow): boolean;         // For daily-override past dates
+};
+```
+
+---
+
+#### Daily-Override Timestamp Format
+
+**IMPORTANT:** Daily-override timestamps use **local time format**, NOT UTC:
+
+```typescript
+// ✅ Correct - Local time format
+startTimestamp: dayjs(date).hour(8).minute(0).format("YYYY-MM-DDTHH:mm:ss");
+// Result: "2026-01-20T08:00:00"
+
+// ❌ Wrong - UTC conversion causes date mismatches
+startTimestamp: dayjs(date).hour(8).minute(0).toISOString();
+// Result: "2026-01-19T11:00:00.000Z" (wrong day for GMT-3 timezone!)
+```
+
+**Rationale:** When comparing dates for slot matching, using UTC (`.toISOString()`) shifts timestamps that can cause the date portion to be off by a day depending on timezone. Using local format (`.format("YYYY-MM-DDTHH:mm:ss")`) preserves the intended date.
+
+---
+
+#### Color System
+
+```typescript
+export const TIME_WINDOW_COLORS = {
+  emerald: { bg, hover, badge, dot },
+  blue: { bg, hover, badge, dot },
+  violet: { bg, hover, badge, dot },
+  rose: { bg, hover, badge, dot },
+  amber: { bg, hover, badge, dot },
+  cyan: { bg, hover, badge, dot },
+  lime: { bg, hover, badge, dot },
+  orange: { bg, hover, badge, dot },
+} as const;
+```
+
+Each color provides:
+
+- `bg`: Background color for calendar slots
+- `hover`: Hover state color
+- `badge`: Badge/label styling (background + text)
+- `dot`: Solid color dot for indicators
+
+---
+
+#### QuotaManager UI Layout
+
+```
+┌─────────────────────────────────────────────────────┐
+│  No hay ventanas definidas                          │  ← Empty state
+│                                                     │
+│  [+ Ventana]                                        │  ← Add button
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│  ⚠️ Ventana 1            [-] 3 [+]            [🗑]  │  ← Header: name, quota, delete
+├─────────────────────────────────────────────────────┤
+│  [Semanal] [Excepción día]              [🟢 Color]  │  ← Type toggle + color picker
+├─────────────────────────────────────────────────────┤
+│  🕐 [08:00] → [12:00]                               │  ← Time range selectors
+├─────────────────────────────────────────────────────┤
+│  [✓] [L] [M] [X] [J] [V] [S] [D]                    │  ← Day selector (weekly)
+│  OR                                                 │
+│  📅 15/01/2026 - lunes                              │  ← Date picker (daily-override)
+├─────────────────────────────────────────────────────┤
+│  [S1] [S2] [S3] [S4] [S5]                           │  ← Week selector (weekly only)
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Features
+
+**Time Window Management:**
+
+- Add/remove time windows
+- Editable name (inline input)
+- Quota adjustment (+/- buttons or direct input)
+- Time range selection (30-min intervals, 00:00 - 23:00)
+- Collision detection (warns when weekly windows overlap)
+
+**Weekly Windows:**
+
+- Day-of-week multi-select (L M X J V S D)
+- "Select all" toggle button
+- Week-of-month multi-select (S1 S2 S3 S4 S5)
+- Empty weeks array = all weeks
+
+**Daily-Override (Exception) Windows:**
+
+- Single date picker (Flowbite Datepicker via portal)
+- Cannot select past dates (`minDate` restriction)
+- Auto-deleted when date passes (useEffect cleanup)
+- Overrides weekly windows for that specific date
+
+**Color Picker:**
+
+- Portal-based dropdown (escapes overflow:hidden)
+- 8 color presets with Spanish labels
+- Color dot indicator on trigger button
+- Checkmark on selected color
+
+---
+
+#### Calendar Integration
+
+**Context Extensions:**
+
+```typescript
+interface PlanningSelectionContextType {
+  // ... existing
+  timeWindows: TimeWindow[];
+  setTimeWindows: (windows: TimeWindow[]) => void;
+  getTimeWindowForSlot: (
+    date: Date,
+    hour: number,
+    minutes: number
+  ) => TimeWindow | null;
+  getRemainingQuota: (window: TimeWindow, date: Date) => number;
+}
+```
+
+**Slot Rendering (Week/Day Views):**
+
+| State      | Background Color         | Badge        |
+| ---------- | ------------------------ | ------------ |
+| Has window | `windowColor.bg`         | Name + quota |
+| Quota full | `bg-red-50`              | `0/N` in red |
+| Past day   | `bg-gray-100 opacity-50` | Hidden       |
+| No window  | Default                  | None         |
+
+**Slot Interaction:**
+
+- Past days: Disabled, grayed out, no interaction
+- Quota full: Disabled, red indicator
+- Available: Clickable, shows remaining quota
+
+---
+
+#### Format String Output
+
+Time windows use the following serialization formats:
+
+**Weekly Pattern:**
+
+```
+W1-4 1-5 0900-1700    → Weeks 1-4, Mon-Fri, 9am-5pm
+W* 1,3,5 0800-1200    → All weeks, Mon/Wed/Fri, 8am-12pm
+W* 1-7 0600-2200      → All weeks, every day, 6am-10pm
+```
+
+**Daily Override (Timestamps):**
+
+```typescript
+{
+  type: "daily-override",
+  startTimestamp: "2026-01-20T09:00:00",  // Local time, not UTC
+  endTimestamp: "2026-01-20T17:00:00"
+}
+```
+
+---
+
+#### Portal Components
+
+Both `PortalDatepicker` and `ColorPickerDropdown` use `createPortal` to render to `document.body`:
+
+- Escapes parent `overflow-hidden` containers
+- Uses `fixed` positioning with calculated coordinates
+- Closes on click outside or Escape key
+- z-index: `9999` to appear above all content
 
 ---
 
@@ -620,3 +892,74 @@ const MAX_SERVICES_PER_SLOT = 3;
 - Click any day in month view → URL updates with `?date=YYYY-MM-DD&view=day`
 - Uses `router.replace()` with `{ scroll: false }`
 - Seamless transition without page reload
+
+---
+
+### TimeWindow Interface Restructuring Session
+
+#### Overview
+
+Refactored the `TimeWindow` interface from individual fields (`startHour`, `endHour`, `days[]`, `weeks[]`, `date`) to a pattern-based structure using:
+- `weeklyPattern` string for weekly type (e.g., `"W* 1-5 0900-1700"`)
+- `startTimestamp`/`endTimestamp` ISO format for daily-override type
+
+#### Files Modified
+
+| File | Changes |
+|------|---------|
+| `planning-selection-context.tsx` | New TimeWindow interface, added TimeWindowUtils helper, ParsedWeeklyPattern type |
+| `quota-manager.tsx` | Updated all CRUD functions to use pattern-based structure |
+| `planning-week-view.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
+| `day-grid.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
+
+#### Key Changes
+
+**1. TimeWindow Interface**
+```typescript
+// Old structure (individual fields)
+interface TimeWindow {
+  startHour: number; endHour: number;
+  days: number[]; weeks: number[]; date?: string;
+}
+
+// New structure (pattern-based)
+interface TimeWindow {
+  weeklyPattern?: string;      // "W* 1-5 0900-1700"
+  startTimestamp?: string;     // "2026-01-20T09:00:00"
+  endTimestamp?: string;       // "2026-01-20T17:00:00"
+}
+```
+
+**2. TimeWindowUtils Added**
+- `parseWeeklyPattern()` - Extracts hours, days, weeks from pattern string
+- `buildWeeklyPattern()` - Creates pattern from individual values
+- `getTimeRange()` - Works for both weekly and daily-override types
+- `matchesSlot()` - Checks if window applies to a specific date/time
+- `formatDisplay()`, `formatDaysDisplay()`, `formatWeeksDisplay()` - UI formatting
+
+**3. QuotaManager Updates**
+- `addTimeWindow()` - Creates window with default pattern `"W* 1-5 0800-1200"`
+- `updateWindowType()` - Converts between weekly/daily-override
+- `toggleDay()`, `toggleWeek()` - Parses and rebuilds pattern
+- All timestamp creation uses `.format("YYYY-MM-DDTHH:mm:ss")` (local time)
+
+**4. Calendar View Fixes**
+- `planning-week-view.tsx` and `day-grid.tsx` were accessing old `timeWindow.startHour`
+- Fixed to use `TimeWindowUtils.getTimeRange(timeWindow)`
+
+#### Bug Fixes
+
+**Issue: Calendar not showing time window names/quotas**
+- Cause: Views accessing removed `startHour`/`startMinutes` properties
+- Fix: Use `TimeWindowUtils.getTimeRange()` which handles both window types
+
+**Issue: Daily-override windows not matching slots**
+- Cause: `.toISOString()` converts to UTC, shifting dates by timezone offset
+- Fix: Use `.format("YYYY-MM-DDTHH:mm:ss")` to preserve local date/time
+
+#### Testing Notes
+
+- Weekly windows display correctly on calendar with name and quota
+- Daily-override windows display correctly and override weekly windows
+- Switching between weekly and daily-override preserves time range
+- Day/week toggles work correctly for weekly patterns

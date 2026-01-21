@@ -244,7 +244,7 @@ export function PlanningSidebarClient({
     error: myTasksError,
     isLoading: isLoadingTasks,
   } = useMyTasks(
-    [...SHIPPING_COORDINATOR_PROCESS_TASKS_V2],
+    ["planService"],//...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit

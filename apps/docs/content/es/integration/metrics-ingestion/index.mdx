@@ -1,31 +1,107 @@
-# Metrics Ingestion
+# Ingesta de Métricas
 
-Metrics are the canonical, normalized measurements at the heart of ModularIoT's data model. This section covers how to ingest metrics correctly.
+Cómo enviar métricas canónicas a ModularIoT.
 
-## Overview
+## Visión General
 
-Metrics represent standardized measurements with well-defined semantics. Unlike raw telemetry, metrics follow a strict schema that enables cross-device analysis and symptom detection.
+La ingesta de métricas es el proceso de transformar telemetría en bruto del dispositivo en métricas canónicas normalizadas. ModularIoT proporciona múltiples patrones de integración:
 
-## Key Concepts
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Dispositivo│────→│   Driver    │────→│ ModularIoT  │
+│  (en bruto) │     │ (normaliza) │     │ (ingesta)   │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
 
-### MIOT Metrics Schema
-The canonical schema defining how metrics are structured, including required fields, types, and constraints.
+## Flujo de Trabajo de Ingesta
 
-### Canonical Keys
-Standardized metric names that ensure consistency across different device types and manufacturers.
+### 1. El Dispositivo Envía Telemetría
+Tu dispositivo envía datos en su formato nativo—propietario, compacto, potencialmente binario.
 
-### Validation Rules
-Quality gates that ensure metric data meets platform requirements before processing.
+### 2. El Driver Transforma
+Un driver (tu código o uno de los nuestros) traduce telemetría propietaria a métricas canónicas.
 
-## In This Section
+### 3. El Driver Envía a ModularIoT
+El driver envía un payload JSON que se ajusta al esquema `miot.metrics@1.0`.
 
-- **MIOT Metrics Schema** - Complete schema specification
-- **Canonical Keys** - Registry of standard metric names
-- **Validation Rules** - Data quality requirements and error handling
+### 4. ModularIoT Valida e Ingesta
+ModularIoT valida el esquema, claves y rangos, luego ingesta las métricas válidas.
 
-## Best Practices
+## Patrones de Integración
 
-- Use canonical keys whenever possible
-- Include accurate timestamps with timezone information
-- Batch metrics for efficient transmission
-- Handle validation errors gracefully
+| Patrón | Mejor Para | Complejidad |
+|--------|------------|-------------|
+| **SDK Nativo** | Nuevas integraciones, control total | Baja |
+| **Webhook** | Dispositivos que pushean a endpoints | Media |
+| **Sondeo** | APIs que requieren pull | Media |
+| **Stream** | Alto volumen, tiempo real | Alta |
+
+## Inicio Rápido
+
+### Usando el SDK de Java
+
+```java
+import io.modulariot.sdk.MetricsClient;
+import io.modulariot.sdk.MetricItem;
+
+MetricsClient client = MetricsClient.builder()
+    .apiKey("tu-api-key")
+    .build();
+
+client.send(
+    MetricItem.of("engine.rpm", 2500),
+    MetricItem.of("vehicle.speed", 72),
+    MetricItem.of("engine.coolant_temp", 85)
+);
+```
+
+### HTTP Directo
+
+```bash
+curl -X POST https://api.modulariot.io/v1/metrics \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "schema_version": "1.0",
+    "device_id": "lector-obd-001",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "metrics": [
+      { "key": "engine.rpm", "value": 2500 },
+      { "key": "vehicle.speed", "value": 72 },
+      { "key": "engine.coolant_temp", "value": 85 }
+    ]
+  }'
+```
+
+## Anatomía del Payload
+
+Cada payload de métricas requiere:
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "identificador-único-dispositivo",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "clave.canonica", "value": 123 }
+  ]
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `schema_version` | Sí | Siempre `"1.0"` |
+| `device_id` | Sí | Identifica el dispositivo fuente |
+| `timestamp` | Sí | ISO 8601 con zona horaria |
+| `metrics` | Sí | Array no vacío de métricas |
+| `asset_id` | No | Activo asociado (vehículo) |
+| `sequence` | No | Para ordenamiento de mensajes |
+
+## Siguientes Pasos
+
+1. **Entiende las Claves Canónicas** — Qué métricas están disponibles
+2. **Revisa el Esquema** — Referencia completa de la estructura del payload
+3. **Configura Validación** — Asegura la calidad de los datos
+4. **Escribe un Driver** — Para tipos de dispositivos personalizados
+
+→ Ver **Claves Canónicas** para la lista completa de claves de métricas soportadas

@@ -1,31 +1,84 @@
 # Metrics Ingestion
 
-Metrics are the canonical, normalized measurements at the heart of ModularIoT's data model. This section covers how to ingest metrics correctly.
+Send canonical metrics to ModularIoT. This section covers the ingestion workflow, mapping strategies, and best practices for high-quality metric data.
 
-## Overview
+## The Canonical Contract
 
-Metrics represent standardized measurements with well-defined semantics. Unlike raw telemetry, metrics follow a strict schema that enables cross-device analysis and symptom detection.
+When you send metrics to ModularIoT, you're making a contract:
 
-## Key Concepts
+- **Correct key** from the metrics registry
+- **Correct unit** (always canonical—km/h, °C, L)
+- **Valid timestamp** (device time, ISO 8601)
+- **Plausible value** (within expected ranges)
 
-### MIOT Metrics Schema
-The canonical schema defining how metrics are structured, including required fields, types, and constraints.
+ModularIoT validates every metric against this contract. Invalid data is rejected with specific error codes.
 
-### Canonical Keys
-Standardized metric names that ensure consistency across different device types and manufacturers.
+## Ingestion Workflow
 
-### Validation Rules
-Quality gates that ensure metric data meets platform requirements before processing.
+```
+Your Device → Driver/SDK → Canonical Metrics → ModularIoT API
+                  ↓
+         • Parse raw data
+         • Convert units
+         • Map to canonical keys
+         • Validate ranges
+```
+
+The **driver or SDK** is responsible for transformation. ModularIoT receives clean, canonical data.
+
+## Where Conversion Happens
+
+Unit conversion and key mapping happen **at the edge**, not in ModularIoT:
+
+| Responsibility | Where |
+|----------------|-------|
+| Parse device protocol | Driver/SDK |
+| Convert mph → km/h | Driver/SDK |
+| Map `spd` → `vehicle.speed` | Driver/SDK |
+| Validate ranges | Driver/SDK + ModularIoT |
+| Store and process | ModularIoT |
+
+This design keeps ModularIoT simple and pushes complexity to where it belongs—close to the device.
+
+## Sparse Metrics
+
+**Send only what you have.** Not all devices support all metrics.
+
+A basic GPS tracker might send:
+```json
+{
+  "metrics": [
+    { "key": "position.latitude", "value": 37.7749 },
+    { "key": "position.longitude", "value": -122.4194 },
+    { "key": "vehicle.speed", "value": 65 }
+  ]
+}
+```
+
+An OBD-II reader adds engine data:
+```json
+{
+  "metrics": [
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "engine.coolant_temp", "value": 85 },
+    { "key": "fuel.level", "value": 72 }
+  ]
+}
+```
+
+Both are valid. ModularIoT accepts whatever canonical metrics are available.
 
 ## In This Section
 
-- **MIOT Metrics Schema** - Complete schema specification
-- **Canonical Keys** - Registry of standard metric names
-- **Validation Rules** - Data quality requirements and error handling
+- **MIOT Metrics Schema** - The canonical JSON schema for metric payloads
+- **Canonical Keys** - Complete registry of supported metric keys with mapping guidance
+- **Validation Rules** - Range checks, timestamp rules, and error handling
 
-## Best Practices
+## Quick Reference
 
-- Use canonical keys whenever possible
-- Include accurate timestamps with timezone information
-- Batch metrics for efficient transmission
-- Handle validation errors gracefully
+| Topic | Go Here |
+|-------|---------|
+| What metrics exist? | **Reference > Metrics Registry** |
+| Schema specification | **MIOT Metrics Schema** |
+| OBD-II PID mapping | **Canonical Keys** |
+| Error codes | **Reference > Error Codes** |

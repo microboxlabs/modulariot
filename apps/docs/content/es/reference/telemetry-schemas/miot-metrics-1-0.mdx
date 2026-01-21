@@ -1,50 +1,62 @@
-# MIOT Metrics 1.0
+# miot.metrics@1.0
 
-Complete specification for the MIOT Metrics schema version 1.0.
+La especificación formal del JSON Schema para payloads de métricas en ModularIoT. Esta es la referencia autoritativa para la validación del esquema.
 
-## Schema Definition
+## Resumen del Esquema
+
+| Propiedad | Valor |
+|-----------|-------|
+| ID del Esquema | `https://modulariot.io/schemas/miot.metrics@1.0` |
+| JSON Schema Draft | 2020-12 |
+| Estado | Estable |
+| Versión | 1.0 |
+
+## JSON Schema Completo
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://modulariot.io/schemas/miot.metrics@1.0",
+  "title": "Payload de Métricas MIOT",
+  "description": "Estructura JSON canónica para payloads de métricas enviados a ModularIoT",
   "type": "object",
   "required": ["schema_version", "device_id", "timestamp", "metrics"],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.0",
+      "description": "Identificador de versión del esquema"
     },
     "device_id": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 255
+      "maxLength": 255,
+      "description": "Identificador único del dispositivo"
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Timestamp ISO 8601 con zona horaria"
     },
     "metrics": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/metric" }
+      "items": { "$ref": "#/$defs/metric" },
+      "description": "Array de mediciones métricas"
     },
     "asset_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Identificador de activo asociado (opcional)"
     },
     "sequence": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "description": "Número de secuencia de mensaje para ordenamiento"
     },
-    "metadata": {
-      "type": "object"
+    "batch_id": {
+      "type": "string",
+      "description": "Identificador de lote para agrupar payloads relacionados"
     }
-  }
-}
-```
-
-## Metric Object
-
-```json
-{
+  },
   "$defs": {
     "metric": {
       "type": "object",
@@ -52,21 +64,23 @@ Complete specification for the MIOT Metrics schema version 1.0.
       "properties": {
         "key": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "description": "Clave de métrica canónica (ej., engine.rpm)"
         },
         "value": {
           "oneOf": [
             { "type": "number" },
             { "type": "string" },
-            { "type": "boolean" }
-          ]
-        },
-        "unit": {
-          "type": "string"
+            { "type": "boolean" },
+            { "type": "array" },
+            { "type": "object" }
+          ],
+          "description": "Valor de la medición"
         },
         "timestamp": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp por métrica (anula timestamp raíz)"
         }
       }
     }
@@ -74,21 +88,210 @@ Complete specification for the MIOT Metrics schema version 1.0.
 }
 ```
 
-## Example Payload
+---
+
+## Referencia de Campos
+
+### Objeto Raíz
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `schema_version` | string | Sí | Debe ser `"1.0"` |
+| `device_id` | string | Sí | Identificador único del dispositivo (1–255 chars) |
+| `timestamp` | string | Sí | Timestamp ISO 8601 con zona horaria |
+| `metrics` | array | Sí | Array no vacío de objetos métrica |
+| `asset_id` | string | No | Activo asociado (vehículo, equipo) |
+| `sequence` | integer | No | Ordenamiento de mensajes (≥0) |
+| `batch_id` | string | No | Agrupa payloads relacionados |
+
+### Objeto Métrica
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `key` | string | Sí | Clave de métrica canónica |
+| `value` | any | Sí | Valor de la medición |
+| `timestamp` | string | No | Timestamp por métrica |
+
+### Patrón de Claves
+
+Las claves deben coincidir con el patrón regex:
+```
+^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$
+```
+
+**Ejemplos válidos:**
+```
+engine.rpm
+vehicle.speed
+fuel.trim.short
+engine.coolant_temp
+x.vendor.custom_metric
+```
+
+**Ejemplos inválidos:**
+```
+Engine.RPM        ← mayúsculas no permitidas
+engine-rpm        ← guiones no permitidos
+123.metric        ← debe comenzar con letra
+```
+
+### Tipos de Valor
+
+| Tipo | Tipo JSON | Ejemplo | Caso de Uso |
+|------|-----------|---------|-------------|
+| NUMBER | number | `2500`, `72.5` | La mayoría de las métricas |
+| BOOLEAN | boolean | `true`, `false` | Estados (ralentí, freno, MIL) |
+| STRING | string | `"1G1YY22G965109753"` | VIN, protocolo, identificadores |
+| ARRAY | array | `["P0301", "P0420"]` | Códigos DTC |
+| OBJECT | object | objeto | Freeze frames, datos complejos |
+
+---
+
+## Formato de Timestamp
+
+Los timestamps deben ser ISO 8601 con zona horaria:
+
+```
+2024-01-15T10:30:00Z           ← UTC (preferido)
+2024-01-15T10:30:00+00:00      ← UTC con offset explícito
+2024-01-15T05:30:00-05:00      ← Local con offset
+```
+
+**Formatos inválidos:**
+```
+2024-01-15T10:30:00            ← Falta zona horaria
+2024-01-15                     ← Falta hora
+1705315800                     ← Timestamp Unix
+```
+
+---
+
+## Ejemplos de Payloads
+
+### Lectura Básica de OBD-II
 
 ```json
 {
   "schema_version": "1.0",
-  "device_id": "gps-tracker-001",
+  "device_id": "lector-obd-001",
   "timestamp": "2024-01-15T10:30:00Z",
   "metrics": [
-    { "key": "position.latitude", "value": 37.7749 },
-    { "key": "position.longitude", "value": -122.4194 },
-    { "key": "position.speed", "value": 65.5, "unit": "km/h" }
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "engine.coolant_temp", "value": 85 },
+    { "key": "fuel.level", "value": 65 }
   ]
 }
 ```
 
-## Validation Rules
+### Con Asociación de Activo
 
-See Integration > Metrics Ingestion > Validation Rules.
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "lector-obd-001",
+  "asset_id": "vehiculo-flota-42",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "vehicle.speed", "value": 72 }
+  ]
+}
+```
+
+### Datos Históricos Agrupados
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "tracker-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "batch_id": "lote-2024-01-15-001",
+  "sequence": 42,
+  "metrics": [
+    { "key": "vehicle.speed", "value": 60, "timestamp": "2024-01-15T10:29:55Z" },
+    { "key": "vehicle.speed", "value": 65, "timestamp": "2024-01-15T10:29:56Z" },
+    { "key": "vehicle.speed", "value": 68, "timestamp": "2024-01-15T10:29:57Z" },
+    { "key": "vehicle.speed", "value": 70, "timestamp": "2024-01-15T10:29:58Z" },
+    { "key": "vehicle.speed", "value": 72, "timestamp": "2024-01-15T10:29:59Z" }
+  ]
+}
+```
+
+### Códigos de Diagnóstico de Problemas
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "lector-obd-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "dtc.mil_on", "value": true },
+    { "key": "dtc.count", "value": 2 },
+    { "key": "dtc.codes", "value": ["P0301", "P0420"] }
+  ]
+}
+```
+
+### Claves de Extensión (Métricas Personalizadas)
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "teltonika-fmb920-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "x.teltonika.din1", "value": true },
+    { "key": "x.teltonika.gsm_signal", "value": 4 }
+  ]
+}
+```
+
+---
+
+## Validación
+
+Los payloads se validan en este orden:
+
+1. **Validación de esquema** — La estructura coincide con JSON Schema
+2. **Validación de claves** — Las claves son canónicas o tienen prefijo `x.`
+3. **Validación de tipos** — Los valores coinciden con tipos esperados
+4. **Validación de límites** — Valores numéricos dentro de rango
+5. **Validación de timestamp** — No muy antiguo ni en el futuro
+
+Ver **Integración > Ingesta de Métricas > Reglas de Validación** para lógica completa de validación.
+
+---
+
+## Límites de Tamaño
+
+| Límite | Valor |
+|--------|-------|
+| Tamaño máximo de payload | 1 MB |
+| Máximo de métricas por payload | 1,000 |
+| Longitud máxima de clave | 255 caracteres |
+| Máximo valor string | 1,000 caracteres |
+| Longitud máxima de device_id | 255 caracteres |
+
+---
+
+## Soporte de SDK
+
+Todos los SDKs oficiales validan payloads contra este esquema antes de transmitir:
+
+| SDK | Validación | Versión del Esquema |
+|-----|------------|---------------------|
+| Java | Tiempo de compilación + Runtime | 1.0 |
+| Python | Runtime | 1.0 |
+| JavaScript | Runtime | 1.0 |
+
+---
+
+## Historial de Versiones
+
+| Versión | Fecha | Cambios |
+|---------|-------|---------|
+| 1.0 | 2024-01 | Lanzamiento inicial del esquema |
+
+→ Ver **Referencia > Registro de Métricas** para el catálogo completo de claves canónicas

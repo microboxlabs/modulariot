@@ -1,52 +1,103 @@
 # Canonical Keys
 
-Standardized metric names used across ModularIoT.
+Map device-specific data to ModularIoT's standardized metric keys. This guide shows how to translate OBD-II PIDs, J1939 SPNs, and proprietary formats to canonical keys.
 
-## Purpose
+## Key Naming Convention
 
-Canonical keys ensure consistent naming across:
-- Different device manufacturers
-- Various integration methods
-- Platform processing
-- User interfaces
+Canonical keys use dot-notation hierarchy:
 
-## Key Hierarchy
+```
+domain.metric
+domain.subdomain.metric
+```
 
-Keys follow a dot-notation hierarchy:
-- `domain.category.metric`
-- Example: `vehicle.engine.rpm`
+Examples:
+- `engine.rpm`
+- `engine.coolant_temp`
+- `fuel.level`
 
-## Position Metrics
+## OBD-II PID Mapping
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| position.latitude | GPS latitude | degrees |
-| position.longitude | GPS longitude | degrees |
-| position.altitude | Altitude | meters |
-| position.speed | Ground speed | km/h |
-| position.heading | Direction of travel | degrees |
+Standard OBD-II PIDs map directly to canonical keys:
 
-## Vehicle Metrics
+| OBD-II PID | Raw Formula | Canonical Key | Unit | Notes |
+|------------|-------------|---------------|------|-------|
+| 0x04 | A × 100/255 | `engine.load` | % | Calculated load |
+| 0x05 | A - 40 | `engine.coolant_temp` | °C | Offset by 40 |
+| 0x0C | (A×256 + B) / 4 | `engine.rpm` | rpm | Two-byte value |
+| 0x0D | A | `vehicle.speed` | km/h | Direct |
+| 0x0F | A - 40 | `engine.intake_air_temp` | °C | Offset by 40 |
+| 0x11 | A × 100/255 | `throttle.position` | % | Percentage |
+| 0x1F | A×256 + B | `engine.runtime` | s | Run time since start |
+| 0x2F | A × 100/255 | `fuel.level` | % | Tank level |
+| 0x31 | (A×256 + B) | `odometer` | km | Distance since codes cleared |
+| 0x42 | (A×256 + B) / 1000 | `battery.voltage` | V | Control module voltage |
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| vehicle.odometer | Total distance traveled | km |
-| vehicle.fuel_level | Fuel tank level | percent |
-| vehicle.engine.rpm | Engine revolutions | rpm |
-| vehicle.engine.coolant_temp | Coolant temperature | celsius |
+## J1939 SPN Mapping
 
-## Environmental Metrics
+Heavy-duty vehicles use J1939 SPNs:
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| environment.temperature | Ambient temperature | celsius |
-| environment.humidity | Relative humidity | percent |
+| J1939 SPN | Canonical Key | Unit | Notes |
+|-----------|---------------|------|-------|
+| 84 | `vehicle.speed` | km/h | Wheel-based speed |
+| 190 | `engine.rpm` | rpm | Engine speed |
+| 247 | `engine.total_runtime` | h | Total engine hours |
+| 513 | `engine.torque_pct` | % | Actual engine torque |
+| 110 | `engine.coolant_temp` | °C | Coolant temperature |
+
+## Diagnostics Keys
+
+Diagnostic trouble codes have special handling:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `dtc.mil_on` | boolean | Malfunction indicator lamp status |
+| `dtc.codes` | array | Active DTC codes (e.g., `["P0301", "P0420"]`) |
+| `dtc.count` | integer | Number of active codes |
+
+The `dtc.codes` array contains standard OBD-II codes:
+- **P** = Powertrain
+- **C** = Chassis
+- **B** = Body
+- **U** = Network
+
+## Derived Metrics
+
+Some metrics are computed from raw data:
+
+| Key | Type | Derivation |
+|-----|------|------------|
+| `idle.state` | boolean | `engine.rpm > 0 AND vehicle.speed ≈ 0` |
+
+Drivers can compute these locally or send raw data for platform-side derivation.
+
+## Unit Conventions
+
+All metrics use **canonical SI-derived units**:
+
+| Measurement | Canonical Unit | Never Use |
+|-------------|----------------|-----------|
+| Speed | km/h | mph, m/s |
+| Temperature | °C | °F, K |
+| Volume | L | gallons, m³ |
+| Distance | km | miles, m |
+| Pressure | kPa | PSI, bar |
+| Percentage | % (0-100) | 0-1 ratio |
+
+**Conversion is the SDK/driver's responsibility.** ModularIoT expects canonical units.
 
 ## Custom Keys
 
-Tenants can define custom keys:
-- Must use `custom.` prefix
-- Registered through API
-- Documented per tenant
+For metrics not in the registry:
 
-See Reference > Metrics Registry for complete list.
+1. Use the `custom.` prefix
+2. Register via the Configuration API
+3. Document the semantics
+
+Example: `custom.fleet.utilization_score`
+
+## Complete Registry
+
+For the authoritative list of all supported keys, ranges, and specifications:
+
+→ **Reference > Metrics Registry**

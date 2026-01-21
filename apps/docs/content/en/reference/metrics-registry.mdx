@@ -1,52 +1,268 @@
 # Metrics Registry
 
-Complete catalog of canonical metric keys.
+The authoritative catalog of all canonical metric keys supported by ModularIoT. This is the source of truth for metric validation.
 
-## Registry Structure
+## Registry Overview
 
-Metrics are organized hierarchically:
-- `domain.category.metric`
+ModularIoT defines **31 canonical metrics** organized into **7 categories**:
 
-## Position Metrics
+| Category | Count | Purpose |
+|----------|-------|---------|
+| Powertrain | 8 | Engine performance and health |
+| Fuel | 5 | Energy consumption and efficiency |
+| Motion | 4 | Vehicle movement and behavior |
+| Diagnostics | 4 | Fault detection and maintenance |
+| Emissions | 4 | Environmental compliance |
+| Electrical | 3 | Electrical system state |
+| Identity | 3 | Vehicle identification |
 
-| Key | Type | Unit | Description |
-|-----|------|------|-------------|
-| `position.latitude` | number | degrees | WGS84 latitude |
-| `position.longitude` | number | degrees | WGS84 longitude |
-| `position.altitude` | number | meters | Altitude above sea level |
-| `position.speed` | number | km/h | Ground speed |
-| `position.heading` | number | degrees | Direction (0-360) |
-| `position.accuracy` | number | meters | GPS accuracy |
-| `position.satellites` | integer | count | Visible satellites |
+## Key Format
 
-## Vehicle Metrics
+All keys follow the pattern `category.metric` or `category.subcategory`:
 
-| Key | Type | Unit | Description |
-|-----|------|------|-------------|
-| `vehicle.odometer` | number | km | Total distance |
-| `vehicle.fuel_level` | number | percent | Fuel tank level |
-| `vehicle.fuel_consumed` | number | liters | Fuel used |
-| `vehicle.engine.rpm` | number | rpm | Engine RPM |
-| `vehicle.engine.coolant_temp` | number | celsius | Coolant temperature |
-| `vehicle.engine.oil_pressure` | number | kpa | Oil pressure |
-| `vehicle.engine.load` | number | percent | Engine load |
-| `vehicle.battery.voltage` | number | volts | Battery voltage |
+```
+engine.rpm          ← category.metric
+fuel.trim.short     ← category.subcategory.metric
+engine.coolant_temp ← category.metric (underscores within component)
+```
 
-## State Metrics
+Keys are **lowercase**, use **dots** as separators, and **underscores** within components.
 
-| Key | Type | Values | Description |
-|-----|------|--------|-------------|
-| `state.ignition` | boolean | true/false | Ignition state |
-| `state.movement` | boolean | true/false | Vehicle moving |
-| `state.door.driver` | boolean | true/false | Driver door |
+---
 
-## Environment Metrics
+## Powertrain Metrics
 
-| Key | Type | Unit | Description |
-|-----|------|------|-------------|
-| `environment.temperature` | number | celsius | Ambient temp |
-| `environment.humidity` | number | percent | Relative humidity |
+Engine performance and operational parameters.
 
-## Custom Metrics
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `engine.rpm` | NUMBER | rpm | 0–8,000 | Engine speed in revolutions per minute |
+| `vehicle.speed` | NUMBER | km/h | 0–300 | Ground speed from vehicle bus |
+| `engine.load` | NUMBER | % | 0–100 | Calculated engine load percentage |
+| `throttle.position` | NUMBER | % | 0–100 | Throttle plate opening percentage |
+| `engine.coolant_temp` | NUMBER | °C | -40–150 | Coolant temperature |
+| `engine.intake_air_temp` | NUMBER | °C | -40–80 | Intake manifold air temperature |
+| `engine.runtime` | NUMBER | s | 0–∞ | Engine run time since ignition on |
+| `engine.total_runtime` | NUMBER | h | 0–∞ | Cumulative engine hours (lifetime) |
 
-Register custom metrics with `custom.` prefix.
+### OBD-II / J1939 Sources
+
+| Metric | OBD-II PID | J1939 SPN | Notes |
+|--------|------------|-----------|-------|
+| `engine.rpm` | 0x0C | 190 | PID formula: (A×256+B)/4 |
+| `vehicle.speed` | 0x0D | 84 | PID: direct byte value |
+| `engine.load` | 0x04 | 92 | PID: A×100/255 |
+| `throttle.position` | 0x11 | 51 | PID: A×100/255 |
+| `engine.coolant_temp` | 0x05 | 110 | PID: A-40 |
+| `engine.intake_air_temp` | 0x0F | 105 | PID: A-40 |
+| `engine.runtime` | 0x1F | — | PID: (A×256+B) |
+| `engine.total_runtime` | — | 247 | J1939 only |
+
+---
+
+## Fuel Metrics
+
+Fuel system and energy consumption.
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `fuel.level` | NUMBER | % | 0–100 | Fuel tank level percentage |
+| `fuel.rate` | NUMBER | L/h | 0–100 | Instantaneous fuel consumption rate |
+| `fuel.used` | NUMBER | L | 0–∞ | Cumulative fuel consumed (trip or lifetime) |
+| `battery.voltage` | NUMBER | V | 0–30 | ECU/system battery voltage |
+| `engine.torque_pct` | NUMBER | % | 0–100 | Engine torque as percentage of reference |
+
+### OBD-II / J1939 Sources
+
+| Metric | OBD-II PID | J1939 SPN | Notes |
+|--------|------------|-----------|-------|
+| `fuel.level` | 0x2F | 96 | PID: A×100/255 |
+| `fuel.rate` | 0x5E | 183 | PID: (A×256+B)/20 (L/h) |
+| `fuel.used` | — | 250 | J1939: cumulative |
+| `battery.voltage` | 0x42 | 168 | PID: (A×256+B)/1000 |
+| `engine.torque_pct` | 0x62 | 513 | Actual torque % |
+
+---
+
+## Motion Metrics
+
+Vehicle movement and driver behavior.
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `odometer` | NUMBER | km | 0–∞ | Total vehicle distance traveled |
+| `idle.state` | BOOLEAN | — | true/false | Engine running with near-zero speed |
+| `accelerator.position` | NUMBER | % | 0–100 | Accelerator pedal position |
+| `brake.state` | BOOLEAN | — | true/false | Brake pedal depressed |
+
+### OBD-II / J1939 Sources
+
+| Metric | OBD-II PID | J1939 SPN | Notes |
+|--------|------------|-----------|-------|
+| `odometer` | 0xA6 | 245 | Service 01 or 09 |
+| `idle.state` | — | — | Derived: rpm>0 && speed≈0 |
+| `accelerator.position` | 0x49 | 91 | PID: A×100/255 |
+| `brake.state` | — | 597 | J1939 brake switch |
+
+---
+
+## Diagnostics Metrics
+
+Fault detection and maintenance indicators.
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `dtc.mil_on` | BOOLEAN | — | true/false | Malfunction Indicator Lamp (check engine) |
+| `dtc.codes` | ARRAY | — | string[] | Active diagnostic trouble codes |
+| `dtc.count` | NUMBER | count | 0–∞ | Number of stored DTCs |
+| `engine.freeze_frame` | OBJECT | — | object | Snapshot of metrics at fault occurrence |
+
+### OBD-II / J1939 Sources
+
+| Metric | OBD-II PID | J1939 SPN | Notes |
+|--------|------------|-----------|-------|
+| `dtc.mil_on` | 0x01 | 1213 | Bit 7 of byte A |
+| `dtc.codes` | Service 03 | DM1 | Mode 03 stored codes |
+| `dtc.count` | 0x01 | — | Bits 0-6 of byte A |
+| `engine.freeze_frame` | Service 02 | — | Snapshot at fault |
+
+### DTC Code Format
+
+Codes follow SAE J2012 format: `P0301`, `C1234`, `B0100`, `U0073`
+
+```json
+{ "key": "dtc.codes", "value": ["P0301", "P0420", "P0171"] }
+```
+
+---
+
+## Emissions Metrics
+
+Emissions control and environmental compliance.
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `fuel.trim.short` | NUMBER | % | -100–100 | Short-term fuel trim (STFT) |
+| `fuel.trim.long` | NUMBER | % | -100–100 | Long-term fuel trim (LTFT) |
+| `lambda` | NUMBER | ratio | 0–2 | Air-fuel equivalence ratio (λ) |
+| `catalyst.temp` | NUMBER | °C | 0–1,000 | Catalytic converter temperature |
+
+### OBD-II / J1939 Sources
+
+| Metric | OBD-II PID | J1939 SPN | Notes |
+|--------|------------|-----------|-------|
+| `fuel.trim.short` | 0x06, 0x08 | — | (A-128)×100/128 |
+| `fuel.trim.long` | 0x07, 0x09 | — | (A-128)×100/128 |
+| `lambda` | 0x24–0x2B | — | Calculated |
+| `catalyst.temp` | 0x3C, 0x3E | — | (A×256+B)/10 - 40 |
+
+### Fuel Trim Interpretation
+
+| STFT Value | Meaning |
+|------------|---------|
+| -25% to -10% | Rich condition (reducing fuel) |
+| -10% to +10% | Normal operation |
+| +10% to +25% | Lean condition (adding fuel) |
+| Beyond ±25% | Potential fault |
+
+---
+
+## Electrical Metrics
+
+Electrical system and accessories.
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `battery.current` | NUMBER | A | -100–100 | Battery current (negative = discharging) |
+| `pto.state` | BOOLEAN | — | true/false | Power take-off engaged |
+| `engine.fan.state` | BOOLEAN | — | true/false | Cooling fan active |
+
+### J1939 Sources
+
+| Metric | J1939 SPN | Notes |
+|--------|-----------|-------|
+| `battery.current` | 114 | Signed value |
+| `pto.state` | 976 | PTO engagement |
+| `engine.fan.state` | 975 | Fan drive state |
+
+---
+
+## Identity Metrics
+
+Vehicle identification (typically queried once per session).
+
+| Key | Type | Unit | Range | Description |
+|-----|------|------|-------|-------------|
+| `vehicle.vin` | STRING | — | 17 chars | Vehicle Identification Number |
+| `vehicle.protocol` | STRING | — | — | OBD/CAN protocol detected |
+| `vehicle.ecu` | STRING | — | — | ECU identifier or address |
+
+### OBD-II Sources
+
+| Metric | OBD-II Service | Notes |
+|--------|----------------|-------|
+| `vehicle.vin` | Service 09 PID 02 | 17-character VIN |
+| `vehicle.protocol` | Auto-detect | ISO 9141, CAN, etc. |
+| `vehicle.ecu` | Service 09 PID 0A | Calibration ID |
+
+---
+
+## Extension Keys (Custom Metrics)
+
+For vendor-specific or custom metrics not in the canonical registry, use the `x.` prefix:
+
+```
+x.teltonika.din1         ← Digital input 1 state
+x.queclink.report_type   ← Queclink-specific report ID
+x.obd.mode6.test123      ← Custom on-board monitoring test
+x.fleet.driver_id        ← Fleet-specific driver identifier
+```
+
+### Extension Key Rules
+
+| Rule | Requirement |
+|------|-------------|
+| Prefix | Must start with `x.` |
+| Format | Lowercase, dots as separators |
+| Validation | Bypasses type and bounds checks |
+| Logging | Always logged for analysis |
+
+Extension keys are useful for:
+- Proprietary device fields
+- Fleet-specific business metrics
+- Protocol-specific raw values
+- Experimental metrics during development
+
+---
+
+## Metric Lookup API
+
+```java
+// Check if a key is canonical
+MetricRegistry.isKnownMetric("engine.rpm");  // true
+MetricRegistry.isKnownMetric("x.custom");    // false (extension key)
+
+// Get definition
+Optional<MetricDefinition> def = MetricRegistry.lookup("engine.rpm");
+def.ifPresent(d -> {
+    System.out.println(d.getUnit());      // "rpm"
+    System.out.println(d.getMinValue());  // 0.0
+    System.out.println(d.getMaxValue());  // 8000.0
+});
+
+// Validate a metric item
+MetricValidationResult result = MetricRegistry.validate(item);
+if (!result.isValid()) {
+    System.out.println(result.getErrorCode());  // "OUT_OF_BOUNDS"
+}
+```
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2024-01 | Initial registry with 31 metrics |
+
+→ See **Integration > Metrics Ingestion > Canonical Keys** for OBD-II/J1939 conversion details

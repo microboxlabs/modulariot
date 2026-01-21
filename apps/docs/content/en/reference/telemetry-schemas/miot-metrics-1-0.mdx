@@ -1,50 +1,62 @@
-# MIOT Metrics 1.0
+# miot.metrics@1.0
 
-Complete specification for the MIOT Metrics schema version 1.0.
+The formal JSON Schema specification for metric payloads in ModularIoT. This is the authoritative reference for schema validation.
 
-## Schema Definition
+## Schema Overview
+
+| Property | Value |
+|----------|-------|
+| Schema ID | `https://modulariot.io/schemas/miot.metrics@1.0` |
+| JSON Schema Draft | 2020-12 |
+| Status | Stable |
+| Version | 1.0 |
+
+## Complete JSON Schema
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://modulariot.io/schemas/miot.metrics@1.0",
+  "title": "MIOT Metrics Payload",
+  "description": "Canonical JSON structure for metric payloads sent to ModularIoT",
   "type": "object",
   "required": ["schema_version", "device_id", "timestamp", "metrics"],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "1.0",
+      "description": "Schema version identifier"
     },
     "device_id": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 255
+      "maxLength": 255,
+      "description": "Unique device identifier"
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO 8601 timestamp with timezone"
     },
     "metrics": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/metric" }
+      "items": { "$ref": "#/$defs/metric" },
+      "description": "Array of metric measurements"
     },
     "asset_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Associated asset identifier (optional)"
     },
     "sequence": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "description": "Message sequence number for ordering"
     },
-    "metadata": {
-      "type": "object"
+    "batch_id": {
+      "type": "string",
+      "description": "Batch identifier for grouping related payloads"
     }
-  }
-}
-```
-
-## Metric Object
-
-```json
-{
+  },
   "$defs": {
     "metric": {
       "type": "object",
@@ -52,21 +64,23 @@ Complete specification for the MIOT Metrics schema version 1.0.
       "properties": {
         "key": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "description": "Canonical metric key (e.g., engine.rpm)"
         },
         "value": {
           "oneOf": [
             { "type": "number" },
             { "type": "string" },
-            { "type": "boolean" }
-          ]
-        },
-        "unit": {
-          "type": "string"
+            { "type": "boolean" },
+            { "type": "array" },
+            { "type": "object" }
+          ],
+          "description": "Measurement value"
         },
         "timestamp": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Per-metric timestamp (overrides root timestamp)"
         }
       }
     }
@@ -74,21 +88,210 @@ Complete specification for the MIOT Metrics schema version 1.0.
 }
 ```
 
-## Example Payload
+---
+
+## Field Reference
+
+### Root Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | string | Yes | Must be `"1.0"` |
+| `device_id` | string | Yes | Unique device identifier (1–255 chars) |
+| `timestamp` | string | Yes | ISO 8601 timestamp with timezone |
+| `metrics` | array | Yes | Non-empty array of metric objects |
+| `asset_id` | string | No | Associated asset (vehicle, equipment) |
+| `sequence` | integer | No | Message ordering (≥0) |
+| `batch_id` | string | No | Groups related payloads |
+
+### Metric Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `key` | string | Yes | Canonical metric key |
+| `value` | any | Yes | Measurement value |
+| `timestamp` | string | No | Per-metric timestamp |
+
+### Key Pattern
+
+Keys must match the regex pattern:
+```
+^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$
+```
+
+**Valid examples:**
+```
+engine.rpm
+vehicle.speed
+fuel.trim.short
+engine.coolant_temp
+x.vendor.custom_metric
+```
+
+**Invalid examples:**
+```
+Engine.RPM        ← uppercase not allowed
+engine-rpm        ← hyphens not allowed
+123.metric        ← must start with letter
+```
+
+### Value Types
+
+| Type | JSON Type | Example | Use Case |
+|------|-----------|---------|----------|
+| NUMBER | number | `2500`, `72.5` | Most metrics |
+| BOOLEAN | boolean | `true`, `false` | States (idle, brake, MIL) |
+| STRING | string | `"1G1YY22G965109753"` | VIN, protocol, identifiers |
+| ARRAY | array | `["P0301", "P0420"]` | DTC codes |
+| OBJECT | object | `{...}` | Freeze frames, complex data |
+
+---
+
+## Timestamp Format
+
+Timestamps must be ISO 8601 with timezone:
+
+```
+2024-01-15T10:30:00Z           ← UTC (preferred)
+2024-01-15T10:30:00+00:00      ← UTC with explicit offset
+2024-01-15T05:30:00-05:00      ← Local with offset
+```
+
+**Invalid formats:**
+```
+2024-01-15T10:30:00            ← Missing timezone
+2024-01-15                     ← Missing time
+1705315800                     ← Unix timestamp
+```
+
+---
+
+## Example Payloads
+
+### Basic OBD-II Reading
 
 ```json
 {
   "schema_version": "1.0",
-  "device_id": "gps-tracker-001",
+  "device_id": "obd-reader-001",
   "timestamp": "2024-01-15T10:30:00Z",
   "metrics": [
-    { "key": "position.latitude", "value": 37.7749 },
-    { "key": "position.longitude", "value": -122.4194 },
-    { "key": "position.speed", "value": 65.5, "unit": "km/h" }
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "engine.coolant_temp", "value": 85 },
+    { "key": "fuel.level", "value": 65 }
   ]
 }
 ```
 
-## Validation Rules
+### With Asset Association
 
-See Integration > Metrics Ingestion > Validation Rules.
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "obd-reader-001",
+  "asset_id": "vehicle-fleet-42",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "vehicle.speed", "value": 72 }
+  ]
+}
+```
+
+### Batched Historical Data
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "tracker-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "batch_id": "batch-2024-01-15-001",
+  "sequence": 42,
+  "metrics": [
+    { "key": "vehicle.speed", "value": 60, "timestamp": "2024-01-15T10:29:55Z" },
+    { "key": "vehicle.speed", "value": 65, "timestamp": "2024-01-15T10:29:56Z" },
+    { "key": "vehicle.speed", "value": 68, "timestamp": "2024-01-15T10:29:57Z" },
+    { "key": "vehicle.speed", "value": 70, "timestamp": "2024-01-15T10:29:58Z" },
+    { "key": "vehicle.speed", "value": 72, "timestamp": "2024-01-15T10:29:59Z" }
+  ]
+}
+```
+
+### Diagnostic Trouble Codes
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "obd-reader-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "dtc.mil_on", "value": true },
+    { "key": "dtc.count", "value": 2 },
+    { "key": "dtc.codes", "value": ["P0301", "P0420"] }
+  ]
+}
+```
+
+### Extension Keys (Custom Metrics)
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "teltonika-fmb920-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "x.teltonika.din1", "value": true },
+    { "key": "x.teltonika.gsm_signal", "value": 4 }
+  ]
+}
+```
+
+---
+
+## Validation
+
+Payloads are validated in this order:
+
+1. **Schema validation** — Structure matches JSON Schema
+2. **Key validation** — Keys are canonical or `x.` prefixed
+3. **Type validation** — Values match expected types
+4. **Bounds validation** — Numeric values within range
+5. **Timestamp validation** — Not too old or in future
+
+See **Integration > Metrics Ingestion > Validation Rules** for complete validation logic.
+
+---
+
+## Size Limits
+
+| Limit | Value |
+|-------|-------|
+| Max payload size | 1 MB |
+| Max metrics per payload | 1,000 |
+| Max key length | 255 characters |
+| Max string value | 1,000 characters |
+| Max device_id length | 255 characters |
+
+---
+
+## SDK Support
+
+All official SDKs validate payloads against this schema before transmission:
+
+| SDK | Validation | Schema Version |
+|-----|------------|----------------|
+| Java | Compile-time + Runtime | 1.0 |
+| Python | Runtime | 1.0 |
+| JavaScript | Runtime | 1.0 |
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | 2024-01 | Initial schema release |
+
+→ See **Reference > Metrics Registry** for the complete catalog of canonical keys

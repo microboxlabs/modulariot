@@ -1,36 +1,111 @@
-# Metrics
+# Métricas
 
-Metrics are the canonical, normalized measurements that form the core of ModularIoT's data model.
+Las métricas son **mediciones canónicas y normalizadas** extraídas de telemetría en bruto. Forman la base del modelo de datos de ModularIoT y permiten análisis entre dispositivos, detección de síntomas e inteligencia operacional.
 
-## What is a Metric?
+## El Problema que Resuelven las Métricas
 
-A metric is a standardized measurement with well-defined:
+Diferentes dispositivos reportan los mismos datos de manera diferente:
 
-- **Name** - Canonical key identifying what is measured
-- **Value** - The measurement itself
-- **Unit** - Standard unit of measurement
-- **Timestamp** - When the measurement was taken
-- **Source** - Which device or asset produced it
+- Un rastreador Teltonika reporta la velocidad en un campo llamado `speed`
+- Un dispositivo Queclink usa `spd` con diferente precisión
+- Un lector OBD-II proporciona el PID 0D como un valor de byte en bruto
+- Un camión con J1939 reporta el SPN 84 en diferentes unidades
 
-## Why Canonical Metrics?
+Sin normalización, necesitarías lógica personalizada para cada tipo de dispositivo, haciendo imposible el análisis de toda la flota.
 
-Devices from different manufacturers report similar data differently. Canonical metrics:
+**Las métricas resuelven este problema.** Una clave canónica (`vehicle.speed`), una unidad (`km/h`), un significado—sin importar la fuente.
 
-- Enable cross-device analysis
-- Power consistent symptom detection
-- Simplify integration development
-- Support historical comparison
+## Anatomía de una Métrica
 
-## Metric Categories
+Cada métrica consiste en:
 
-### Position Metrics
-Location, speed, heading, altitude
+| Componente | Descripción | Ejemplo |
+|------------|-------------|---------|
+| **Clave** | Identificador jerárquico | `engine.rpm` |
+| **Valor** | La medición | `2500` |
+| **Unidad** | Unidad canónica (implícita en la clave) | `rpm` |
+| **Timestamp** | Cuándo se midió (hora del dispositivo) | `2024-01-15T10:30:00Z` |
 
-### Vehicle Metrics
-Fuel level, odometer, engine RPM, coolant temperature
+La unidad es **implícita en la clave**. Cuando ves `engine.coolant_temp`, sabes que es Celsius. Siempre.
 
-### Environmental Metrics
-Ambient temperature, humidity, pressure
+## Categorías de Métricas
 
-### Operational Metrics
-Ignition state, idle time, utilization
+ModularIoT organiza las métricas en categorías funcionales:
+
+### Métricas de Tren Motriz
+Indicadores de salud y rendimiento del motor.
+
+| Clave | Qué Mide |
+|-------|----------|
+| `engine.rpm` | Velocidad del motor |
+| `engine.load` | Porcentaje de carga calculada del motor |
+| `engine.coolant_temp` | Temperatura del refrigerante |
+| `throttle.position` | Porcentaje de apertura del acelerador |
+
+### Métricas de Combustible y Energía
+Indicadores de costo y eficiencia.
+
+| Clave | Qué Mide |
+|-------|----------|
+| `fuel.level` | Porcentaje del nivel del tanque |
+| `fuel.rate` | Consumo instantáneo |
+| `fuel.used` | Combustible consumido acumulado |
+| `battery.voltage` | Voltaje del sistema |
+
+### Métricas de Movimiento y Uso
+Comportamiento y contexto operacional.
+
+| Clave | Qué Mide |
+|-------|----------|
+| `vehicle.speed` | Velocidad sobre el suelo |
+| `odometer` | Distancia total recorrida |
+| `idle.state` | Motor encendido pero sin moverse |
+| `brake.state` | Pedal de freno activo |
+
+### Métricas de Diagnóstico
+Señales de mantenimiento y salud.
+
+| Clave | Qué Mide |
+|-------|----------|
+| `dtc.mil_on` | Estado de la luz de check engine |
+| `dtc.codes` | Códigos de falla activos |
+| `dtc.count` | Número de fallas activas |
+
+## Métricas vs Telemetría vs Eventos
+
+Entender estas distinciones es esencial:
+
+| Concepto | Naturaleza | Ejemplo |
+|----------|------------|---------|
+| **Telemetría** | Datos crudos del dispositivo (propietario) | `{"spd": 72, "lat": 37.77}` |
+| **Métricas** | Mediciones normalizadas (canónicas) | `vehicle.speed = 72 km/h` |
+| **Eventos** | Ocurrencias discretas | "Encendido activado" |
+
+**Telemetría** es lo que envían los dispositivos.
+**Métricas** son lo que ModularIoT entiende.
+**Eventos** son lo que sucedió.
+
+## Dispersión por Diseño
+
+No todos los vehículos soportan todas las métricas. Un rastreador GPS básico podría solo proporcionar posición. Un lector OBD-II agrega datos del motor. Un camión con J1939 proporciona consumo de combustible.
+
+**Esto es esperado.** Las métricas son dispersas—los drivers envían solo lo que tienen. ModularIoT no requiere un esquema fijo; acepta cualquier métrica canónica disponible.
+
+## De Métricas a Síntomas
+
+Las métricas solas son solo números. El poder viene de lo que ModularIoT hace con ellas:
+
+```
+Métricas → Reglas de Detección → Síntomas → Acciones del Operador
+```
+
+Cuando `engine.coolant_temp` excede 105°C por 5 minutos, eso no es solo datos—es un **síntoma** que activa la atención del operador.
+
+Ver **Síntomas** para entender cómo las métricas se convierten en inteligencia operacional.
+
+## Puntos Clave
+
+- Las métricas son **canónicas**: una clave, una unidad, un significado
+- Las métricas son **dispersas**: envía solo lo que tienes
+- Las métricas son **la base**: los síntomas y análisis dependen de ellas
+- **La conversión sucede en el borde**: los SDKs y drivers manejan la normalización de unidades

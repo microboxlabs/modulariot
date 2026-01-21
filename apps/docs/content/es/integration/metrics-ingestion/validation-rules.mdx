@@ -1,58 +1,226 @@
-# Validation Rules
+# Reglas de Validación
 
-Quality requirements for metric ingestion.
+ModularIoT valida cada payload de métricas en el momento de la ingesta. Entender estas reglas te ayuda a construir drivers que produzcan datos limpios y aceptados.
 
-## Schema Validation
+## Pipeline de Validación
 
-Payloads are validated against the MIOT Metrics schema:
-- Required fields present
-- Field types correct
-- Enumerated values valid
+Los payloads entrantes pasan por múltiples etapas de validación:
 
-## Metric Key Validation
+```
+Payload → Validación Esquema → Validación Clave → Validación Tipo → Verificación Límites → Aceptar
+              ↓                     ↓                  ↓                   ↓
+           Rechazar             Rechazar           Rechazar            Rechazar
+```
 
-Keys must be:
-- Known canonical keys, or
-- Valid custom keys with prefix
+Cada etapa puede rechazar el payload con un código de error específico. El pipeline se detiene en el primer fallo.
 
-Unknown keys are:
-- Logged for review
-- Optionally rejected or accepted
+## Validación de Esquema
 
-## Value Validation
+Cada payload debe cumplir con el esquema `miot.metrics@1.0`:
 
-### Numeric Ranges
-Each canonical key has expected ranges:
-- Speed: 0-500 km/h
-- Temperature: -50 to 150°C
-- Percentage: 0-100
+| Verificación | Requisito | Código de Error |
+|--------------|-----------|-----------------|
+| `schema_version` | Debe ser `"1.0"` | `INVALID_SCHEMA_VERSION` |
+| `device_id` | Requerido, 1-255 caracteres | `MISSING_DEVICE_ID` |
+| `timestamp` | Requerido, ISO 8601 con zona horaria | `INVALID_TIMESTAMP` |
+| `metrics` | Requerido, array no vacío | `EMPTY_METRICS` |
 
-### Coordinate Validation
-- Latitude: -90 to 90
-- Longitude: -180 to 180
-- Check for (0,0) placeholder
+## Validación de Claves
 
-### Timestamp Validation
-- Not more than 1 hour in future
-- Not more than 30 days in past (configurable)
-- Valid ISO 8601 format
+Las claves de métricas deben ser canónicas o de extensión.
 
-## Payload Validation
+### Claves Canónicas
 
-### Size Limits
-- Maximum payload size: 1 MB
-- Maximum metrics per payload: 1000
+Las claves deben coincidir exactamente con una clave canónica registrada:
 
-### Rate Limits
-- Per device limits
-- Per tenant limits
-- Burst allowance
+```
+✓ engine.rpm
+✓ vehicle.speed
+✓ fuel.level
 
-## Validation Response
+✗ Engine.RPM       (mayúsculas no coinciden)
+✗ engineRpm        (formato incorrecto)
+✗ engine_rpm       (guión bajo en lugar de punto)
+```
 
-Failed validation returns:
-- Specific error code
-- Failed field/value
-- Suggestion for fix
+### Claves de Extensión (Métricas Personalizadas)
 
-See Reference > Error Codes for validation error details.
+Para métricas específicas del proveedor, usa el prefijo `x.`:
+
+```
+✓ x.vendor.custom_metric
+✓ x.teltonika.din1
+✓ x.queclink.report_type
+
+✗ custom.vendor.metric    (prefijo incorrecto)
+✗ vendor.custom           (sin prefijo)
+```
+
+Las claves de extensión omiten la validación de tipo y límites pero aún se registran.
+
+### Comportamiento de Claves Desconocidas
+
+Las claves desconocidas (no canónicas y sin prefijo `x.`) se rechazan por defecto:
+
+| Modo | Comportamiento |
+|------|----------------|
+| **Estricto** (por defecto) | Rechaza todo el payload |
+| **Permisivo** | Acepta payload, registra advertencia, descarta métrica desconocida |
+
+## Validación de Tipos
+
+Cada clave canónica especifica un tipo de valor esperado:
+
+| Tipo | Tipo JSON | Ejemplo | Claves Canónicas |
+|------|-----------|---------|------------------|
+| `NUMBER` | number | `72.5` | La mayoría de las métricas |
+| `BOOLEAN` | boolean | `true` | `idle.state`, `brake.state`, `dtc.mil_on` |
+| `STRING` | string | `"1G1YY22G965109753"` | `vehicle.vin`, `vehicle.protocol` |
+| `ARRAY` | array | `["P0301", "P0420"]` | `dtc.codes` |
+| `OBJECT` | object | objeto | `engine.freeze_frame` |
+
+Las discrepancias de tipo causan rechazo:
+
+```json
+// ✗ RECHAZADO: engine.rpm espera NUMBER, recibió STRING
+{ "key": "engine.rpm", "value": "2500" }
+
+// ✓ ACEPTADO
+{ "key": "engine.rpm", "value": 2500 }
+```
+
+## Validación de Límites
+
+Las métricas numéricas tienen rangos válidos definidos. Los valores fuera de estos límites se rechazan.
+
+### Límites de Tren Motriz
+
+| Clave | Mín | Máx | Unidad | Notas |
+|-------|-----|-----|--------|-------|
+| `engine.rpm` | 0 | 8,000 | rpm | Mayor para motocicletas—contactar soporte |
+| `vehicle.speed` | 0 | 300 | km/h | Cubre la mayoría de vehículos |
+| `engine.load` | 0 | 100 | % | Porcentaje de carga del motor |
+| `throttle.position` | 0 | 100 | % | Apertura del acelerador |
+| `engine.coolant_temp` | -40 | 150 | °C | Rango operativo |
+| `engine.intake_air_temp` | -40 | 80 | °C | Temp aire de admisión |
+| `engine.runtime` | 0 | — | s | Sin límite (sesión) |
+| `engine.total_runtime` | 0 | — | h | Sin límite (vida útil) |
+
+### Límites de Combustible
+
+| Clave | Mín | Máx | Unidad | Notas |
+|-------|-----|-----|--------|-------|
+| `fuel.level` | 0 | 100 | % | Porcentaje del tanque |
+| `fuel.rate` | 0 | 100 | L/h | Tasa instantánea |
+| `fuel.used` | 0 | — | L | Acumulativo (sin límite) |
+| `battery.voltage` | 0 | 30 | V | Cubre sistemas de 12V y 24V |
+| `engine.torque_pct` | 0 | 100 | % | Utilización de torque |
+
+### Límites de Movimiento
+
+| Clave | Mín | Máx | Unidad | Notas |
+|-------|-----|-----|--------|-------|
+| `odometer` | 0 | — | km | Sin límite (vida útil) |
+| `accelerator.position` | 0 | 100 | % | Posición del pedal |
+
+### Límites de Emisiones
+
+| Clave | Mín | Máx | Unidad | Notas |
+|-------|-----|-----|--------|-------|
+| `fuel.trim.short` | -100 | 100 | % | Ajuste combustible corto plazo |
+| `fuel.trim.long` | -100 | 100 | % | Ajuste combustible largo plazo |
+| `lambda` | 0 | 2 | ratio | Equivalencia aire-combustible |
+| `catalyst.temp` | 0 | 1,000 | °C | Temperatura del catalizador |
+
+### Límites Eléctricos
+
+| Clave | Mín | Máx | Unidad | Notas |
+|-------|-----|-----|--------|-------|
+| `battery.current` | -100 | 100 | A | Negativo = descargando |
+
+## Validación de Timestamp
+
+Los timestamps previenen que datos obsoletos o futuros contaminen el pipeline.
+
+| Regla | Por Defecto | Configurable |
+|-------|-------------|--------------|
+| No en el futuro | Máx 1 hora adelante | Sí |
+| No muy antiguo | Máx 30 días atrás | Sí |
+| Formato válido | ISO 8601 con zona horaria | No |
+
+### Timestamps Válidos
+
+```
+✓ 2024-01-15T10:30:00Z
+✓ 2024-01-15T10:30:00+00:00
+✓ 2024-01-15T05:30:00-05:00
+
+✗ 2024-01-15T10:30:00      (falta zona horaria)
+✗ 2024-01-15               (falta hora)
+✗ 1705315800               (timestamp Unix—no soportado)
+```
+
+### Timestamps Por Métrica
+
+Al agrupar datos históricos, los timestamps por métrica se validan individualmente:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "vehicle.speed", "value": 60, "timestamp": "2024-01-15T10:29:55Z" },
+    { "key": "vehicle.speed", "value": 65, "timestamp": "1990-01-01T00:00:00Z" }
+  ]
+}
+```
+
+La segunda métrica sería rechazada (muy antigua) mientras la primera es aceptada.
+
+## Límites de Tamaño del Payload
+
+| Límite | Valor | Propósito |
+|--------|-------|-----------|
+| Tamaño máx del payload | 1 MB | Previene agotamiento de memoria |
+| Máx métricas por payload | 1,000 | Limita tiempo de procesamiento |
+| Longitud máx de clave | 255 chars | Previene abuso de almacenamiento |
+| Máx valor string | 1,000 chars | Razonable para VIN, códigos |
+
+## Respuesta de Validación
+
+La validación fallida devuelve un error estructurado:
+
+```json
+{
+  "error": {
+    "code": "OUT_OF_BOUNDS",
+    "message": "Métrica 'engine.rpm' valor 15000 está fuera de límites [0, 8000]",
+    "field": "metrics[2].value",
+    "suggestion": "Verificar calibración del sensor o conversión de unidades"
+  }
+}
+```
+
+### Códigos de Error
+
+| Código | Significado |
+|--------|-------------|
+| `INVALID_SCHEMA_VERSION` | Versión de esquema desconocida o faltante |
+| `MISSING_DEVICE_ID` | ID de dispositivo no proporcionado |
+| `INVALID_TIMESTAMP` | Timestamp malformado o faltante |
+| `EMPTY_METRICS` | Array de métricas vacío |
+| `UNKNOWN_KEY` | Clave no canónica y sin prefijo `x.` |
+| `TYPE_MISMATCH` | Tipo de valor no coincide con definición |
+| `UNIT_MISMATCH` | Unidad incorrecta para la métrica |
+| `OUT_OF_BOUNDS` | Valor numérico fuera de rango válido |
+| `PAYLOAD_TOO_LARGE` | Excede límite de tamaño |
+| `RATE_LIMITED` | Demasiadas solicitudes |
+
+## Mejores Prácticas
+
+1. **Valida localmente primero** — Los SDKs incluyen validación; detecta errores antes de transmitir
+2. **Usa unidades canónicas** — Convierte en el borde, no en la ingesta
+3. **Incluye siempre zona horaria** — UTC (sufijo `Z`) es preferido
+4. **Maneja rechazos con gracia** — Registra, alerta y reintenta con correcciones
+5. **Monitorea tasas de rechazo** — Tasas altas indican bugs en drivers o problemas con sensores
+
+→ Ver **Referencia > Códigos de Error** para documentación completa de errores

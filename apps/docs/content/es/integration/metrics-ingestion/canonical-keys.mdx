@@ -1,52 +1,133 @@
-# Canonical Keys
+# Claves Canónicas
 
-Standardized metric names used across ModularIoT.
+Referencia completa de mapeo de claves de métricas desde fuentes OBD-II y J1939.
 
-## Purpose
+## ¿Por qué Claves Canónicas?
 
-Canonical keys ensure consistent naming across:
-- Different device manufacturers
-- Various integration methods
-- Platform processing
-- User interfaces
+Los dispositivos reportan datos usando identificadores propietarios:
+- OBD-II usa PIDs (Identificadores de Parámetros)
+- J1939 usa SPNs (Números de Parámetros Sospechosos)
+- Los rastreadores GPS usan nombres de campo propietarios
 
-## Key Hierarchy
+Las claves canónicas proporcionan una capa de abstracción única que normaliza todos los formatos en nombres consistentes y legibles.
 
-Keys follow a dot-notation hierarchy:
-- `domain.category.metric`
-- Example: `vehicle.engine.rpm`
+## Mapeo de OBD-II a Canónico
 
-## Position Metrics
+### Métricas de Tren Motriz
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| position.latitude | GPS latitude | degrees |
-| position.longitude | GPS longitude | degrees |
-| position.altitude | Altitude | meters |
-| position.speed | Ground speed | km/h |
-| position.heading | Direction of travel | degrees |
+| PID | Fórmula en Bruto | Clave Canónica | Unidad | Notas |
+|-----|------------------|----------------|--------|-------|
+| 0x04 | A × 100 / 255 | `engine.load` | % | Carga calculada del motor |
+| 0x05 | A - 40 | `engine.coolant_temp` | °C | Temperatura del refrigerante |
+| 0x06 | (A - 128) × 100 / 128 | `fuel.trim.short` | % | Ajuste de combustible a corto plazo banco 1 |
+| 0x07 | (A - 128) × 100 / 128 | `fuel.trim.long` | % | Ajuste de combustible a largo plazo banco 1 |
+| 0x0C | (A × 256 + B) / 4 | `engine.rpm` | rpm | Valor de dos bytes |
+| 0x0D | A | `vehicle.speed` | km/h | Valor directo de byte |
+| 0x0F | A - 40 | `engine.intake_air_temp` | °C | Temperatura del aire de admisión |
+| 0x11 | A × 100 / 255 | `throttle.position` | % | Posición del acelerador |
+| 0x1F | A × 256 + B | `engine.runtime` | s | Tiempo de funcionamiento desde arranque |
+| 0x2F | A × 100 / 255 | `fuel.level` | % | Nivel de combustible |
+| 0x42 | (A × 256 + B) / 1000 | `battery.voltage` | V | Voltaje del módulo de control |
+| 0x5E | (A × 256 + B) / 20 | `fuel.rate` | L/h | Tasa de flujo de combustible del motor |
 
-## Vehicle Metrics
+### Métricas de Diagnóstico
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| vehicle.odometer | Total distance traveled | km |
-| vehicle.fuel_level | Fuel tank level | percent |
-| vehicle.engine.rpm | Engine revolutions | rpm |
-| vehicle.engine.coolant_temp | Coolant temperature | celsius |
+| PID/Servicio | Clave Canónica | Tipo | Notas |
+|--------------|----------------|------|-------|
+| Servicio 01 PID 01 | `dtc.mil_on` | boolean | Bit 7 del byte A |
+| Servicio 01 PID 01 | `dtc.count` | number | Bits 0-6 del byte A |
+| Servicio 03 | `dtc.codes` | array | Array de cadenas DTC |
+| Servicio 09 PID 02 | `vehicle.vin` | string | Número de identificación del vehículo |
 
-## Environmental Metrics
+## Mapeo de J1939 a Canónico
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| environment.temperature | Ambient temperature | celsius |
-| environment.humidity | Relative humidity | percent |
+### Métricas de Tren Motriz
 
-## Custom Keys
+| SPN | PGN | Clave Canónica | Unidad | Resolución |
+|-----|-----|----------------|--------|------------|
+| 84 | 65265 | `vehicle.speed` | km/h | 1/256 km/h |
+| 91 | 61443 | `accelerator.position` | % | 0.4% |
+| 92 | 61443 | `engine.load` | % | 1% |
+| 110 | 65262 | `engine.coolant_temp` | °C | 1°C, offset -40 |
+| 174 | 65262 | `fuel.temperature` | °C | 1°C, offset -40 |
+| 183 | 65266 | `fuel.rate` | L/h | 0.05 L/h |
+| 190 | 61444 | `engine.rpm` | rpm | 0.125 rpm |
+| 245 | 65248 | `odometer` | km | 0.125 km |
+| 247 | 65253 | `engine.total_runtime` | h | 0.05 h |
+| 250 | 65257 | `fuel.used` | L | 0.5 L |
+| 513 | 61443 | `engine.torque_pct` | % | 1%, offset -125 |
 
-Tenants can define custom keys:
-- Must use `custom.` prefix
-- Registered through API
-- Documented per tenant
+### Métricas Eléctricas
 
-See Reference > Metrics Registry for complete list.
+| SPN | PGN | Clave Canónica | Unidad | Notas |
+|-----|-----|----------------|--------|-------|
+| 114 | 65271 | `battery.current` | A | Valor con signo |
+| 168 | 65271 | `battery.voltage` | V | 0.05 V |
+| 975 | 65261 | `engine.fan.state` | boolean | Estado de funcionamiento del ventilador |
+| 976 | 65261 | `pto.state` | boolean | Enganche de toma de fuerza |
+
+### Métricas de Diagnóstico
+
+| SPN | PGN | Clave Canónica | Tipo | Notas |
+|-----|-----|----------------|------|-------|
+| 1213 | 65226 | `dtc.mil_on` | boolean | Estado de lámpara DM1 |
+| DM1 | 65226 | `dtc.codes` | array | Códigos de falla activos |
+
+## Convenciones de Unidades
+
+ModularIoT usa unidades métricas SI consistentes:
+
+| Medida | Unidad Canónica | Alternativas a Convertir |
+|--------|-----------------|-------------------------|
+| Velocidad | km/h | mph → × 1.60934 |
+| Temperatura | °C | °F → (F - 32) × 5/9 |
+| Distancia | km | millas → × 1.60934 |
+| Volumen | L | galones → × 3.78541 |
+| Presión | kPa | psi → × 6.89476 |
+| Voltaje | V | mV → ÷ 1000 |
+
+## Guía de Conversión
+
+### Ejemplo: Conversión de RPM de OBD-II
+
+```java
+// Datos en bruto: bytes A=0x1A, B=0x0C (PID 0x0C)
+int a = 0x1A;  // 26
+int b = 0x0C;  // 12
+
+// Fórmula OBD-II: (A × 256 + B) / 4
+double rpm = ((a * 256) + b) / 4.0;  // = 1667 rpm
+
+// Crear métrica canónica
+MetricItem metric = MetricItem.of("engine.rpm", rpm);
+```
+
+### Ejemplo: Conversión de Velocidad J1939
+
+```java
+// Datos en bruto del SPN 84: valor de dos bytes en 1/256 km/h
+int rawSpeed = 18432;  // bytes de ejemplo
+
+// Fórmula J1939: valor × resolución
+double speed = rawSpeed * (1.0 / 256.0);  // = 72.0 km/h
+
+// Crear métrica canónica
+MetricItem metric = MetricItem.of("vehicle.speed", speed);
+```
+
+## Claves de Extensión
+
+Para métricas propietarias no en el registro canónico, usa el prefijo `x.`:
+
+```
+x.teltonika.din1         ← Estado de entrada digital 1
+x.queclink.report_type   ← ID de reporte específico de Queclink
+x.obd.mode6.test123      ← Prueba de monitoreo abordo personalizada
+```
+
+Las claves de extensión:
+- Omiten la validación de tipo y límites
+- Se registran para análisis futuro
+- Permiten datos específicos del proveedor junto con métricas estándar
+
+→ Ver **Referencia > Registro de Métricas** para el catálogo completo

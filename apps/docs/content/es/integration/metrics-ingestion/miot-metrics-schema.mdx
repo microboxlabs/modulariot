@@ -1,58 +1,147 @@
-# MIOT Metrics Schema
+# Esquema MIOT Metrics
 
-The canonical schema for metric data in ModularIoT.
+El esquema `miot.metrics@1.0` define la estructura JSON canónica para payloads de métricas enviados a ModularIoT.
 
-## Schema Overview
+## Versión del Esquema
 
-The MIOT Metrics schema defines how metric data is structured for ingestion and storage.
+Versión actual: **1.0**
 
-## Required Fields
+Siempre incluye `schema_version` en tus payloads para asegurar el procesamiento correcto.
 
-### device_id
-Unique identifier of the source device.
+## Estructura del Payload
 
-### timestamp
-ISO 8601 timestamp of the measurement.
-
-### metrics
-Array of metric key-value pairs.
-
-## Metric Structure
-
-Each metric contains:
-- **key** - Canonical metric identifier
-- **value** - Numeric or string value
-- **unit** - Unit of measurement (if not implied by key)
-
-## Optional Fields
-
-### asset_id
-Associated asset identifier (if known at ingestion).
-
-### sequence
-Message sequence number for ordering.
-
-### metadata
-Additional context as key-value pairs.
-
-## Schema Versioning
-
-The schema is versioned:
-- Current version: 1.0
-- Version specified in payload
-- Backward compatibility maintained
-
-## Example Structure
-
-```
+```json
 {
   "schema_version": "1.0",
-  "device_id": "...",
-  "timestamp": "...",
+  "device_id": "lector-obd-001",
+  "timestamp": "2024-01-15T10:30:00Z",
   "metrics": [
-    { "key": "...", "value": ... }
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "engine.coolant_temp", "value": 85 },
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "fuel.level", "value": 65 }
   ]
 }
 ```
 
-See Reference > Telemetry Schemas for complete specification.
+## Campos Requeridos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `schema_version` | string | Debe ser `"1.0"` |
+| `device_id` | string | Identificador único del dispositivo (1-255 chars) |
+| `timestamp` | string | Timestamp ISO 8601 con zona horaria |
+| `metrics` | array | Al menos una métrica requerida |
+
+## Objeto Métrica
+
+Cada métrica en el array `metrics`:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `key` | string | Sí | Clave de métrica canónica |
+| `value` | any | Sí | Valor de la medición |
+| `timestamp` | string | No | Timestamp por métrica (anula el root) |
+
+### Tipos de Valor Soportados
+
+| Tipo | Ejemplo | Caso de Uso |
+|------|---------|-------------|
+| number | `72.5` | La mayoría de las métricas |
+| integer | `2500` | Conteos, RPM |
+| boolean | `true` | Estados (ralentí, freno) |
+| string | `"P0301"` | Identificadores, VIN |
+| array | `["P0301", "P0420"]` | Códigos DTC |
+
+## Campos Opcionales
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `asset_id` | string | Activo asociado (si se conoce) |
+| `sequence` | integer | Secuencia de mensaje para ordenamiento |
+| `batch_id` | string | Identificador de lote para agrupación |
+
+## Agrupando Múltiples Timestamps
+
+Para datos almacenados con diferentes timestamps, usa timestamps por métrica:
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "tracker-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "vehicle.speed", "value": 60, "timestamp": "2024-01-15T10:29:55Z" },
+    { "key": "vehicle.speed", "value": 65, "timestamp": "2024-01-15T10:29:56Z" },
+    { "key": "vehicle.speed", "value": 68, "timestamp": "2024-01-15T10:29:57Z" },
+    { "key": "vehicle.speed", "value": 70, "timestamp": "2024-01-15T10:29:58Z" },
+    { "key": "vehicle.speed", "value": 72, "timestamp": "2024-01-15T10:29:59Z" }
+  ]
+}
+```
+
+## JSON Schema (Formal)
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://modulariot.io/schemas/miot.metrics@1.0",
+  "type": "object",
+  "required": ["schema_version", "device_id", "timestamp", "metrics"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "value"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+          },
+          "value": {
+            "oneOf": [
+              { "type": "number" },
+              { "type": "string" },
+              { "type": "boolean" },
+              { "type": "array" }
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "asset_id": { "type": "string" },
+    "sequence": { "type": "integer", "minimum": 0 }
+  }
+}
+```
+
+## Errores Comunes
+
+| Error | Problema | Solución |
+|-------|----------|----------|
+| Falta `schema_version` | Rechazado | Agregar `"schema_version": "1.0"` |
+| Timestamp sin zona horaria | Ambiguo | Usar sufijo `Z` o `+00:00` |
+| Array `metrics` vacío | Inválido | Incluir al menos una métrica |
+| Clave desconocida sin `x.` | Rechazada | Usar prefijo `x.` para métricas personalizadas |
+
+## Especificación Completa
+
+Para detalles completos del esquema incluyendo todas las reglas de validación:
+
+→ **Referencia > Esquemas de Telemetría > miot.metrics@1.0**

@@ -1,58 +1,226 @@
 # Validation Rules
 
-Quality requirements for metric ingestion.
+ModularIoT validates every metric payload at ingestion time. Understanding these rules helps you build drivers that produce clean, accepted data.
+
+## Validation Pipeline
+
+Incoming payloads pass through multiple validation stages:
+
+```
+Payload → Schema Validation → Key Validation → Type Validation → Bounds Check → Accept
+              ↓                    ↓                 ↓                ↓
+           Reject             Reject            Reject           Reject
+```
+
+Each stage can reject the payload with a specific error code. The pipeline stops at the first failure.
 
 ## Schema Validation
 
-Payloads are validated against the MIOT Metrics schema:
-- Required fields present
-- Field types correct
-- Enumerated values valid
+Every payload must conform to the `miot.metrics@1.0` schema:
 
-## Metric Key Validation
+| Check | Requirement | Error Code |
+|-------|-------------|------------|
+| `schema_version` | Must be `"1.0"` | `INVALID_SCHEMA_VERSION` |
+| `device_id` | Required, 1-255 characters | `MISSING_DEVICE_ID` |
+| `timestamp` | Required, ISO 8601 with timezone | `INVALID_TIMESTAMP` |
+| `metrics` | Required, non-empty array | `EMPTY_METRICS` |
 
-Keys must be:
-- Known canonical keys, or
-- Valid custom keys with prefix
+## Key Validation
 
-Unknown keys are:
-- Logged for review
-- Optionally rejected or accepted
+Metric keys must be either canonical or extension keys.
 
-## Value Validation
+### Canonical Keys
 
-### Numeric Ranges
-Each canonical key has expected ranges:
-- Speed: 0-500 km/h
-- Temperature: -50 to 150°C
-- Percentage: 0-100
+Keys must exactly match a registered canonical key:
 
-### Coordinate Validation
-- Latitude: -90 to 90
-- Longitude: -180 to 180
-- Check for (0,0) placeholder
+```
+✓ engine.rpm
+✓ vehicle.speed
+✓ fuel.level
 
-### Timestamp Validation
-- Not more than 1 hour in future
-- Not more than 30 days in past (configurable)
-- Valid ISO 8601 format
+✗ Engine.RPM       (case mismatch)
+✗ engineRpm        (wrong format)
+✗ engine_rpm       (underscore instead of dot)
+```
 
-## Payload Validation
+### Extension Keys (Custom Metrics)
 
-### Size Limits
-- Maximum payload size: 1 MB
-- Maximum metrics per payload: 1000
+For vendor-specific metrics, use the `x.` prefix:
 
-### Rate Limits
-- Per device limits
-- Per tenant limits
-- Burst allowance
+```
+✓ x.vendor.custom_metric
+✓ x.teltonika.din1
+✓ x.queclink.report_type
+
+✗ custom.vendor.metric    (wrong prefix)
+✗ vendor.custom           (no prefix)
+```
+
+Extension keys bypass type and bounds validation but are still logged.
+
+### Unknown Key Behavior
+
+Unknown keys (not canonical and not `x.` prefixed) are rejected by default:
+
+| Mode | Behavior |
+|------|----------|
+| **Strict** (default) | Reject entire payload |
+| **Lenient** | Accept payload, log warning, drop unknown metric |
+
+## Type Validation
+
+Each canonical key specifies an expected value type:
+
+| Type | JSON Type | Example | Canonical Keys |
+|------|-----------|---------|----------------|
+| `NUMBER` | number | `72.5` | Most metrics |
+| `BOOLEAN` | boolean | `true` | `idle.state`, `brake.state`, `dtc.mil_on` |
+| `STRING` | string | `"1G1YY22G965109753"` | `vehicle.vin`, `vehicle.protocol` |
+| `ARRAY` | array | `["P0301", "P0420"]` | `dtc.codes` |
+| `OBJECT` | object | `{...}` | `engine.freeze_frame` |
+
+Type mismatches cause rejection:
+
+```json
+// ✗ REJECTED: engine.rpm expects NUMBER, got STRING
+{ "key": "engine.rpm", "value": "2500" }
+
+// ✓ ACCEPTED
+{ "key": "engine.rpm", "value": 2500 }
+```
+
+## Bounds Validation
+
+Numeric metrics have defined valid ranges. Values outside these bounds are rejected.
+
+### Powertrain Bounds
+
+| Key | Min | Max | Unit | Notes |
+|-----|-----|-----|------|-------|
+| `engine.rpm` | 0 | 8,000 | rpm | Higher for motorcycles—contact support |
+| `vehicle.speed` | 0 | 300 | km/h | Covers most vehicles |
+| `engine.load` | 0 | 100 | % | Engine load percentage |
+| `throttle.position` | 0 | 100 | % | Throttle opening |
+| `engine.coolant_temp` | -40 | 150 | °C | Operating range |
+| `engine.intake_air_temp` | -40 | 80 | °C | Intake air temp |
+| `engine.runtime` | 0 | — | s | Unbounded (session) |
+| `engine.total_runtime` | 0 | — | h | Unbounded (lifetime) |
+
+### Fuel Bounds
+
+| Key | Min | Max | Unit | Notes |
+|-----|-----|-----|------|-------|
+| `fuel.level` | 0 | 100 | % | Tank percentage |
+| `fuel.rate` | 0 | 100 | L/h | Instantaneous rate |
+| `fuel.used` | 0 | — | L | Cumulative (unbounded) |
+| `battery.voltage` | 0 | 30 | V | Covers 12V and 24V systems |
+| `engine.torque_pct` | 0 | 100 | % | Torque utilization |
+
+### Motion Bounds
+
+| Key | Min | Max | Unit | Notes |
+|-----|-----|-----|------|-------|
+| `odometer` | 0 | — | km | Unbounded (lifetime) |
+| `accelerator.position` | 0 | 100 | % | Pedal position |
+
+### Emissions Bounds
+
+| Key | Min | Max | Unit | Notes |
+|-----|-----|-----|------|-------|
+| `fuel.trim.short` | -100 | 100 | % | Short-term fuel trim |
+| `fuel.trim.long` | -100 | 100 | % | Long-term fuel trim |
+| `lambda` | 0 | 2 | ratio | Air-fuel equivalence |
+| `catalyst.temp` | 0 | 1,000 | °C | Catalyst temperature |
+
+### Electrical Bounds
+
+| Key | Min | Max | Unit | Notes |
+|-----|-----|-----|------|-------|
+| `battery.current` | -100 | 100 | A | Negative = discharging |
+
+## Timestamp Validation
+
+Timestamps prevent stale or future data from polluting the pipeline.
+
+| Rule | Default | Configurable |
+|------|---------|--------------|
+| Not in future | Max 1 hour ahead | Yes |
+| Not too old | Max 30 days old | Yes |
+| Valid format | ISO 8601 with timezone | No |
+
+### Valid Timestamps
+
+```
+✓ 2024-01-15T10:30:00Z
+✓ 2024-01-15T10:30:00+00:00
+✓ 2024-01-15T05:30:00-05:00
+
+✗ 2024-01-15T10:30:00      (missing timezone)
+✗ 2024-01-15               (missing time)
+✗ 1705315800               (Unix timestamp—not supported)
+```
+
+### Per-Metric Timestamps
+
+When batching historical data, per-metric timestamps are validated individually:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "vehicle.speed", "value": 60, "timestamp": "2024-01-15T10:29:55Z" },
+    { "key": "vehicle.speed", "value": 65, "timestamp": "1990-01-01T00:00:00Z" }
+  ]
+}
+```
+
+The second metric would be rejected (too old) while the first is accepted.
+
+## Payload Size Limits
+
+| Limit | Value | Purpose |
+|-------|-------|---------|
+| Max payload size | 1 MB | Prevents memory exhaustion |
+| Max metrics per payload | 1,000 | Bounds processing time |
+| Max key length | 255 chars | Prevents storage abuse |
+| Max string value | 1,000 chars | Reasonable for VIN, codes |
 
 ## Validation Response
 
-Failed validation returns:
-- Specific error code
-- Failed field/value
-- Suggestion for fix
+Failed validation returns a structured error:
 
-See Reference > Error Codes for validation error details.
+```json
+{
+  "error": {
+    "code": "OUT_OF_BOUNDS",
+    "message": "Metric 'engine.rpm' value 15000 is out of bounds [0, 8000]",
+    "field": "metrics[2].value",
+    "suggestion": "Check sensor calibration or unit conversion"
+  }
+}
+```
+
+### Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `INVALID_SCHEMA_VERSION` | Unknown or missing schema version |
+| `MISSING_DEVICE_ID` | Device ID not provided |
+| `INVALID_TIMESTAMP` | Malformed or missing timestamp |
+| `EMPTY_METRICS` | Metrics array empty |
+| `UNKNOWN_KEY` | Key not canonical and not `x.` prefixed |
+| `TYPE_MISMATCH` | Value type doesn't match definition |
+| `UNIT_MISMATCH` | Wrong unit for metric |
+| `OUT_OF_BOUNDS` | Numeric value outside valid range |
+| `PAYLOAD_TOO_LARGE` | Exceeds size limit |
+| `RATE_LIMITED` | Too many requests |
+
+## Best Practices
+
+1. **Validate locally first** — SDKs include validation; catch errors before transmission
+2. **Use canonical units** — Convert at the edge, not at ingestion
+3. **Include timezone always** — UTC (`Z` suffix) is preferred
+4. **Handle rejection gracefully** — Log, alert, and retry with corrections
+5. **Monitor rejection rates** — High rates indicate driver bugs or sensor issues
+
+→ See **Reference > Error Codes** for complete error documentation

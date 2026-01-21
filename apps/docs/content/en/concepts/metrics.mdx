@@ -1,36 +1,111 @@
 # Metrics
 
-Metrics are the canonical, normalized measurements that form the core of ModularIoT's data model.
+Metrics are **canonical, normalized measurements** extracted from raw telemetry. They form the foundation of ModularIoT's data model and enable cross-device analysis, symptom detection, and operational intelligence.
 
-## What is a Metric?
+## The Problem Metrics Solve
 
-A metric is a standardized measurement with well-defined:
+Different devices report the same data differently:
 
-- **Name** - Canonical key identifying what is measured
-- **Value** - The measurement itself
-- **Unit** - Standard unit of measurement
-- **Timestamp** - When the measurement was taken
-- **Source** - Which device or asset produced it
+- A Teltonika tracker reports speed in a field called `speed`
+- A Queclink device uses `spd` with different precision
+- An OBD-II reader provides PID 0D as a raw byte value
+- A J1939 truck reports SPN 84 in different units
 
-## Why Canonical Metrics?
+Without normalization, you'd need custom logic for every device type, making cross-fleet analysis impossible.
 
-Devices from different manufacturers report similar data differently. Canonical metrics:
+**Metrics solve this problem.** One canonical key (`vehicle.speed`), one unit (`km/h`), one meaning—regardless of source.
 
-- Enable cross-device analysis
-- Power consistent symptom detection
-- Simplify integration development
-- Support historical comparison
+## Metric Anatomy
+
+Every metric consists of:
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| **Key** | Hierarchical identifier | `engine.rpm` |
+| **Value** | The measurement | `2500` |
+| **Unit** | Canonical unit (implicit in key) | `rpm` |
+| **Timestamp** | When measured (device time) | `2024-01-15T10:30:00Z` |
+
+The unit is **implicit in the key**. When you see `engine.coolant_temp`, you know it's Celsius. Always.
 
 ## Metric Categories
 
-### Position Metrics
-Location, speed, heading, altitude
+ModularIoT organizes metrics into functional categories:
 
-### Vehicle Metrics
-Fuel level, odometer, engine RPM, coolant temperature
+### Powertrain Metrics
+Engine health and performance indicators.
 
-### Environmental Metrics
-Ambient temperature, humidity, pressure
+| Key | What It Measures |
+|-----|------------------|
+| `engine.rpm` | Engine speed |
+| `engine.load` | Calculated engine load percentage |
+| `engine.coolant_temp` | Coolant temperature |
+| `throttle.position` | Throttle opening percentage |
 
-### Operational Metrics
-Ignition state, idle time, utilization
+### Fuel & Energy Metrics
+Cost and efficiency indicators.
+
+| Key | What It Measures |
+|-----|------------------|
+| `fuel.level` | Tank level percentage |
+| `fuel.rate` | Instantaneous consumption |
+| `fuel.used` | Cumulative fuel consumed |
+| `battery.voltage` | System voltage |
+
+### Motion & Usage Metrics
+Behavior and operational context.
+
+| Key | What It Measures |
+|-----|------------------|
+| `vehicle.speed` | Ground speed |
+| `odometer` | Total distance traveled |
+| `idle.state` | Engine running but not moving |
+| `brake.state` | Brake pedal active |
+
+### Diagnostics Metrics
+Maintenance and health signals.
+
+| Key | What It Measures |
+|-----|------------------|
+| `dtc.mil_on` | Check engine light status |
+| `dtc.codes` | Active trouble codes |
+| `dtc.count` | Number of active faults |
+
+## Metrics vs Telemetry vs Events
+
+Understanding these distinctions is essential:
+
+| Concept | Nature | Example |
+|---------|--------|---------|
+| **Telemetry** | Raw device data (proprietary) | `{"spd": 72, "lat": 37.77}` |
+| **Metrics** | Normalized measurements (canonical) | `vehicle.speed = 72 km/h` |
+| **Events** | Discrete occurrences | "Ignition turned on" |
+
+**Telemetry** is what devices send.
+**Metrics** are what ModularIoT understands.
+**Events** are what happened.
+
+## Sparsity by Design
+
+Not all vehicles support all metrics. A basic GPS tracker might only provide position. An OBD-II reader adds engine data. A J1939 truck provides fuel consumption.
+
+**This is expected.** Metrics are sparse—drivers send only what they have. ModularIoT doesn't require a fixed schema; it accepts whatever canonical metrics are available.
+
+## From Metrics to Symptoms
+
+Metrics alone are just numbers. The power comes from what ModularIoT does with them:
+
+```
+Metrics → Detection Rules → Symptoms → Operator Actions
+```
+
+When `engine.coolant_temp` exceeds 105°C for 5 minutes, that's not just data—it's a **symptom** that triggers operator attention.
+
+See **Symptoms** to understand how metrics become operational intelligence.
+
+## Key Takeaways
+
+- Metrics are **canonical**: one key, one unit, one meaning
+- Metrics are **sparse**: send only what you have
+- Metrics are **the foundation**: symptoms and analysis depend on them
+- **Conversion happens at the edge**: SDKs and drivers handle unit normalization

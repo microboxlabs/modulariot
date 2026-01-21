@@ -46,4 +46,4 @@ jobs:
       - name: Build
         run: |
           bunx turbo db:generate
-          bun run build
+          bun run build -F '@modulariot/docs'

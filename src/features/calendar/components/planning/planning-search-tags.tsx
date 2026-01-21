@@ -174,7 +174,7 @@ export function PlanningSearchTags({
           {/* Icon commented out - showing attribute:value instead */}
           {/* <span className="text-base">{getMatchTypeIcon(tag.matchType)}</span> */}
           <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
-            {getMatchTypeLabel(tag.matchType, dict)}: {getTranslatedValue(tag.matchType, tag.value, dict)}
+            {getMatchTypeLabel(tag.matchType, dict)}: {tag.value}
           </span>
           <button
             type="button"

@@ -1,0 +1,44 @@
+# Domain Examples
+
+Symptom patterns vary by industry and use case. Here are common examples.
+
+## Fleet Management
+
+### Speeding
+- **Trigger:** Speed exceeds limit for duration
+- **Severity:** Warning → Critical based on amount over
+- **Resolution:** Speed returns to normal
+
+### Harsh Driving
+- **Trigger:** Acceleration/braking exceeds threshold
+- **Severity:** Warning per incident, escalates with frequency
+- **Resolution:** Manual review and coaching
+
+### Unauthorized Use
+- **Trigger:** Movement outside permitted hours/areas
+- **Severity:** Critical
+- **Resolution:** Manual verification and response
+
+## Asset Tracking
+
+### Geofence Violation
+- **Trigger:** Asset leaves permitted area
+- **Severity:** Based on zone criticality
+- **Resolution:** Asset returns or exception logged
+
+### Temperature Excursion
+- **Trigger:** Temperature outside acceptable range
+- **Severity:** Based on cargo type and duration
+- **Resolution:** Temperature restored or cargo inspected
+
+## Maintenance
+
+### Service Due
+- **Trigger:** Mileage or time threshold reached
+- **Severity:** Info → Warning → Critical over time
+- **Resolution:** Service completed and logged
+
+### Diagnostic Fault
+- **Trigger:** Vehicle reports fault code
+- **Severity:** Based on fault classification
+- **Resolution:** Repair completed

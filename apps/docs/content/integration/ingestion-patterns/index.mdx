@@ -1,0 +1,30 @@
+# Ingestion Patterns
+
+Different telemetry sources require different integration approaches. This section covers common patterns for ingesting data from various device types and systems.
+
+## Overview
+
+ModularIoT supports multiple ingestion patterns to accommodate the diversity of IoT devices and telemetry sources in the field.
+
+## Device Categories
+
+### GPS Devices
+Dedicated location tracking hardware sending periodic position updates. Typically high-volume, location-centric data.
+
+### OBD/CAN Devices
+Vehicle diagnostic devices reading from the vehicle bus. Rich telemetry including engine data, fault codes, and operational metrics.
+
+### Gateways
+Edge devices that aggregate data from multiple sensors before forwarding to the cloud. Often involve local buffering and batch transmission.
+
+### OEM APIs
+Third-party telemetry providers with their own APIs. Integration involves API-to-API data transformation and forwarding.
+
+## Choosing a Pattern
+
+Consider these factors when selecting an ingestion pattern:
+
+- **Data volume** - Expected messages per second
+- **Latency requirements** - Real-time vs batch acceptable
+- **Network connectivity** - Persistent vs intermittent connection
+- **Device capabilities** - Protocol support and compute resources

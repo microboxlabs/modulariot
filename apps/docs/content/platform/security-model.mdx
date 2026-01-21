@@ -1,0 +1,56 @@
+# Security Model
+
+ModularIoT implements defense-in-depth security across all platform layers.
+
+## Authentication
+
+### API Keys
+- Tenant-scoped credentials
+- Rotatable secrets
+- Scoped permissions
+
+### OAuth 2.0 / OIDC
+- User authentication
+- SSO integration
+- Token-based sessions
+
+### Device Certificates
+- Mutual TLS for devices
+- Certificate rotation
+- Revocation support
+
+## Authorization
+
+### Role-Based Access Control
+- Predefined roles (admin, operator, viewer)
+- Custom role definitions
+- Permission granularity
+
+### Resource-Based Access
+- Tenant isolation
+- Asset-level permissions
+- Data filtering
+
+## Data Protection
+
+### Encryption in Transit
+- TLS 1.3 for all connections
+- Certificate pinning option
+- Perfect forward secrecy
+
+### Encryption at Rest
+- AES-256 for stored data
+- Key management service
+- Per-tenant keys option
+
+## Audit
+
+### Audit Logging
+- All access logged
+- Tamper-evident logs
+- Retention per compliance
+
+### Compliance Support
+- SOC 2 alignment
+- GDPR data handling
+- Industry certifications

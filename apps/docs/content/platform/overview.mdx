@@ -1,0 +1,38 @@
+# Platform Overview
+
+ModularIoT is a distributed platform built for real-time telemetry processing at scale.
+
+## Architecture Principles
+
+### Event-Driven
+Everything is an event. Data flows through streams, enabling loose coupling and independent scaling.
+
+### Stateful Processing
+The platform maintains state for symptoms, enabling complex detection patterns and lifecycle tracking.
+
+### Multi-Tenant
+Complete isolation between tenants with shared infrastructure efficiency.
+
+### Horizontally Scalable
+All components scale independently based on load.
+
+## Data Flow
+
+```
+Ingestion → Normalization → Processing → Detection → Output
+    ↓            ↓              ↓           ↓          ↓
+ Storage     Storage        Storage     Storage    Delivery
+```
+
+## Core Components
+
+- **Ingestion Layer** - Receives telemetry from devices
+- **Telemetry Pipeline** - Processes and enriches data
+- **Symptoms Engine** - Detects and tracks conditions
+- **Control Tower** - Operational interface
+
+## Cross-Cutting Services
+
+- **Notification Service** - Multi-channel alerting
+- **Identity Service** - Authentication and authorization
+- **Storage Service** - Persistent data management

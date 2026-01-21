@@ -1,0 +1,69 @@
+# Java SDK
+
+Official Java SDK for ModularIoT.
+
+## Status
+
+Coming Soon
+
+The Java SDK is under development and will be available soon.
+
+## Planned Features
+
+### Telemetry Ingestion
+- Batch metric submission
+- Async operations
+- Automatic retry
+
+### Symptom Queries
+- Active symptoms
+- Historical queries
+- Streaming support
+
+### Asset Management
+- Asset CRUD operations
+- Device association
+
+### Authentication
+- API key authentication
+- OAuth 2.0 support
+
+## Installation
+
+Maven:
+```xml
+<dependency>
+    <groupId>io.modulariot</groupId>
+    <artifactId>sdk</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+Gradle:
+```gradle
+implementation 'io.modulariot:sdk:1.0.0'
+```
+
+## Quick Start
+
+```java
+import io.modulariot.ModularIoT;
+import io.modulariot.model.Metric;
+
+ModularIoT client = ModularIoT.builder()
+    .apiKey("your-api-key")
+    .build();
+
+// Example usage (preview)
+client.metrics().send(
+    "device-123",
+    List.of(
+        Metric.of("position.latitude", 37.7749),
+        Metric.of("position.longitude", -122.4194)
+    )
+);
+```
+
+## Documentation
+
+Full documentation will be available upon SDK release.

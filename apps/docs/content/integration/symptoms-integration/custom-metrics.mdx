@@ -1,0 +1,54 @@
+# Custom Metrics
+
+Define custom metrics to extend the canonical model.
+
+## When to Use Custom Metrics
+
+Use custom metrics when:
+- Domain-specific measurements needed
+- Canonical keys don't cover your data
+- Industry-specific terminology required
+
+## Custom Key Registration
+
+### Naming Convention
+Custom keys must use the `custom.` prefix:
+- `custom.domain.metric`
+- `custom.fleet.utilization_score`
+
+### Registration Process
+1. Define key name
+2. Specify data type
+3. Set unit of measurement
+4. Document semantics
+
+### Validation Rules
+Define validation for custom metrics:
+- Value ranges
+- Required vs optional
+- Related metrics
+
+## Using Custom Metrics
+
+### In Symptom Rules
+Custom metrics can trigger symptoms:
+- Same rule syntax as canonical metrics
+- Full processing pipeline support
+
+### In Dashboards
+Display custom metrics in Control Tower:
+- Widget configuration
+- Chart support
+- Aggregation options
+
+### In APIs
+Query custom metrics through APIs:
+- Same query patterns
+- Filter and aggregation
+- Historical access
+
+## Best Practices
+
+- Document semantics clearly
+- Use consistent naming within domain
+- Consider future canonical adoption

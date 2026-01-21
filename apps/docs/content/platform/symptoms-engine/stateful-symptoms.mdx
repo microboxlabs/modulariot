@@ -1,0 +1,43 @@
+# Stateful Symptoms
+
+Unlike simple alerts, symptoms maintain state throughout their lifecycle.
+
+## Why Stateful?
+
+Stateful symptoms enable:
+- Tracking from detection to resolution
+- Duration-based severity changes
+- Operator workflow integration
+- Historical analysis and reporting
+
+## State Storage
+
+Symptom state is maintained in:
+- **Hot storage** - In-memory for real-time access
+- **Warm storage** - Fast retrieval for recent symptoms
+- **Cold storage** - Historical archive for analysis
+
+## State Components
+
+Each symptom tracks:
+- Current state (detected, acknowledged, resolved)
+- State history with timestamps
+- Severity and severity changes
+- Associated data snapshots
+- Operator interactions
+
+## State Consistency
+
+The engine ensures:
+- State changes are atomic
+- No lost updates
+- Recovery after failures
+- Consistent view across queries
+
+## State Queries
+
+Operators and systems can query:
+- Active symptoms by state
+- Symptoms for specific assets
+- Historical symptom records
+- Aggregate statistics

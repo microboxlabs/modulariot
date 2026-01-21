@@ -1,0 +1,66 @@
+# Failure Modes
+
+Understanding and handling failure scenarios.
+
+## Component Failures
+
+### Ingestion Failure
+- Symptoms: Data stops flowing
+- Detection: Monitoring alerts
+- Impact: Data loss risk
+- Mitigation: Client buffering, redundant endpoints
+
+### Processing Failure
+- Symptoms: Backlog growth
+- Detection: Queue depth alerts
+- Impact: Delayed processing
+- Mitigation: Automatic recovery, manual intervention
+
+### Storage Failure
+- Symptoms: Query failures
+- Detection: Health checks
+- Impact: Data access issues
+- Mitigation: Replication, failover
+
+### Detection Failure
+- Symptoms: Symptoms not created
+- Detection: Rate monitoring
+- Impact: Missed conditions
+- Mitigation: State recovery, replay
+
+## Network Failures
+
+### Connectivity Loss
+Devices lose connection to platform:
+- Buffer at device/gateway
+- Automatic reconnection
+- Data replay on recovery
+
+### Partition
+Internal network issues:
+- Graceful degradation
+- Automatic healing
+- No data loss
+
+## Recovery Procedures
+
+### Automatic Recovery
+Most failures recover automatically:
+- Component restart
+- State restoration
+- Traffic rerouting
+
+### Manual Intervention
+Some scenarios require manual action:
+- Configuration issues
+- Resource exhaustion
+- Cascading failures
+
+## Incident Response
+
+Follow incident procedures:
+- Detect and alert
+- Assess impact
+- Mitigate immediate
+- Root cause analysis
+- Prevent recurrence

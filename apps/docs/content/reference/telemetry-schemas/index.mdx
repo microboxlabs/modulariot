@@ -1,0 +1,27 @@
+# Telemetry Schemas
+
+Formal specifications for telemetry data formats accepted by ModularIoT.
+
+## Overview
+
+Telemetry schemas define the structure and constraints for data sent to the platform. Conforming to these schemas ensures successful ingestion and processing.
+
+## Current Schemas
+
+### MIOT Metrics 1.0
+The primary schema for metric ingestion. Defines the canonical format for all measurement data.
+
+## Schema Versioning
+
+Schemas are versioned to allow evolution while maintaining backward compatibility. The version is indicated in the schema name (e.g., `miot-metrics-1-0`).
+
+## Validation
+
+All incoming telemetry is validated against the declared schema. Invalid payloads are rejected with detailed error information.
+
+## Best Practices
+
+- Always specify the schema version in your payloads
+- Validate locally before sending to catch errors early
+- Monitor rejection rates to identify integration issues
+- Test schema upgrades in non-production environments first

@@ -1,0 +1,52 @@
+# Scalability
+
+ModularIoT is designed to scale horizontally across all components.
+
+## Scaling Dimensions
+
+### Message Throughput
+- Partitioned ingestion
+- Parallel processing
+- Linear scaling with capacity
+
+### Asset Count
+- Distributed state management
+- Sharded by asset
+- No practical limit
+
+### Tenant Count
+- Tenant isolation without overhead
+- Shared infrastructure efficiency
+- Per-tenant resource allocation
+
+## Component Scaling
+
+### Ingestion
+- Add receivers for more throughput
+- Geographic distribution
+- Auto-scaling based on load
+
+### Processing
+- Stateless workers scale freely
+- Work distribution via messaging
+- Dynamic cluster sizing
+
+### Symptoms Engine
+- Partitioned by asset
+- State sharding
+- Consistent hashing
+
+### Storage
+- Distributed databases
+- Automatic replication
+- Tiered storage
+
+## Performance Characteristics
+
+- **Ingestion latency:** < 100ms p99
+- **Detection latency:** < 500ms p99
+- **Query latency:** < 200ms p99 for recent data
+
+## Capacity Planning
+
+See the Operations section for detailed capacity planning guidance.

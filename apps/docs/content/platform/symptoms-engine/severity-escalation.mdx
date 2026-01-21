@@ -1,0 +1,44 @@
+# Severity Escalation
+
+Symptoms can automatically escalate in severity based on time or conditions.
+
+## Escalation Triggers
+
+### Time-Based
+Severity increases if unresolved:
+- Warning after 30 minutes → Critical
+- Critical after 2 hours → Emergency
+
+### Condition-Based
+Severity changes with metrics:
+- Speed 10 over → Warning
+- Speed 20 over → Critical
+- Speed 30 over → Emergency
+
+### Frequency-Based
+Repeated occurrences increase severity:
+- First occurrence → Info
+- Third in an hour → Warning
+- Fifth in an hour → Critical
+
+## Escalation Rules
+
+Escalation behavior is configurable:
+- Time thresholds per severity level
+- Condition thresholds for transitions
+- Maximum severity cap
+- Reset behavior on acknowledgment
+
+## De-escalation
+
+Symptoms can also de-escalate:
+- Condition improves (speed reduces)
+- Time without worsening
+- Manual operator override
+
+## Escalation Notifications
+
+Each escalation can trigger:
+- Additional notifications
+- Different recipient lists
+- Elevated channels (phone vs email)

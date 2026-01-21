@@ -1,0 +1,52 @@
+# Canonical Keys
+
+Standardized metric names used across ModularIoT.
+
+## Purpose
+
+Canonical keys ensure consistent naming across:
+- Different device manufacturers
+- Various integration methods
+- Platform processing
+- User interfaces
+
+## Key Hierarchy
+
+Keys follow a dot-notation hierarchy:
+- `domain.category.metric`
+- Example: `vehicle.engine.rpm`
+
+## Position Metrics
+
+| Key | Description | Unit |
+|-----|-------------|------|
+| position.latitude | GPS latitude | degrees |
+| position.longitude | GPS longitude | degrees |
+| position.altitude | Altitude | meters |
+| position.speed | Ground speed | km/h |
+| position.heading | Direction of travel | degrees |
+
+## Vehicle Metrics
+
+| Key | Description | Unit |
+|-----|-------------|------|
+| vehicle.odometer | Total distance traveled | km |
+| vehicle.fuel_level | Fuel tank level | percent |
+| vehicle.engine.rpm | Engine revolutions | rpm |
+| vehicle.engine.coolant_temp | Coolant temperature | celsius |
+
+## Environmental Metrics
+
+| Key | Description | Unit |
+|-----|-------------|------|
+| environment.temperature | Ambient temperature | celsius |
+| environment.humidity | Relative humidity | percent |
+
+## Custom Keys
+
+Tenants can define custom keys:
+- Must use `custom.` prefix
+- Registered through API
+- Documented per tenant
+
+See Reference > Metrics Registry for complete list.

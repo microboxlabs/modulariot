@@ -1,0 +1,24 @@
+# Drivers
+
+Drivers are the integration layer between device-specific protocols and ModularIoT's canonical data model. This section covers driver architecture and development.
+
+## What is a Driver?
+
+A driver translates device-specific telemetry into ModularIoT's canonical format. Each device manufacturer and protocol requires a corresponding driver.
+
+## Driver Responsibilities
+
+- **Protocol handling** - Understanding device-specific message formats
+- **Validation** - Ensuring data quality and completeness
+- **Mapping** - Translating device fields to canonical metrics
+- **Normalization** - Unit conversion and value standardization
+
+## In This Section
+
+- **Architecture** - How drivers fit into the ingestion pipeline
+- **Writing a Driver** - Step-by-step guide to creating a new driver
+- **Validation & Mapping** - Best practices for data transformation
+
+## Supported Drivers
+
+ModularIoT includes built-in drivers for common device types. Custom drivers can be developed for proprietary or specialized hardware.

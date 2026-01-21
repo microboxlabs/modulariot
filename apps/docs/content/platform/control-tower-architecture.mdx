@@ -1,0 +1,49 @@
+# Control Tower Architecture
+
+Control Tower is the operational interface for fleet management and symptom response.
+
+## Purpose
+
+Control Tower provides:
+- Real-time fleet visibility
+- Symptom management workflows
+- Operator tooling
+- Performance analytics
+
+## Architecture
+
+### Frontend
+- React-based single-page application
+- Real-time updates via WebSocket
+- Responsive design for various screens
+
+### Backend
+- API gateway for data access
+- WebSocket server for live updates
+- Query service for historical data
+
+### Data Sources
+- Symptoms Engine for active conditions
+- Telemetry storage for asset data
+- User service for operators
+
+## Key Features
+
+### Fleet Map
+Real-time asset positions and status.
+
+### Symptom Dashboard
+Active symptoms with filtering and sorting.
+
+### Worklists
+Prioritized queues for operator response.
+
+### Asset Detail
+Deep dive into individual asset data.
+
+## Integration
+
+Control Tower integrates with:
+- Authentication providers (SSO)
+- Notification services
+- External dashboards (embedding)

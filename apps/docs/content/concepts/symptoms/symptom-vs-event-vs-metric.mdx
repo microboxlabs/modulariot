@@ -1,0 +1,47 @@
+# Symptom vs Event vs Metric
+
+Understanding the distinctions between these three concepts is essential.
+
+## Quick Comparison
+
+| Aspect | Metric | Event | Symptom |
+|--------|--------|-------|---------|
+| Nature | Measurement | Occurrence | Condition |
+| State | Stateless | Stateless | Stateful |
+| Duration | Point in time | Point in time | Period of time |
+| Example | Speed: 65 mph | Ignition on | Speeding violation |
+
+## Metrics
+
+Metrics are measurements:
+- Continuous values
+- No inherent meaning without context
+- High volume, raw data
+
+**Example:** "Vehicle speed is 75 mph"
+
+## Events
+
+Events are occurrences:
+- Discrete moments
+- Something happened
+- Can trigger symptoms
+
+**Example:** "Geofence boundary crossed"
+
+## Symptoms
+
+Symptoms are conditions:
+- Interpreted from metrics/events
+- Have operational meaning
+- Require potential response
+
+**Example:** "Vehicle exceeding speed limit for 5 minutes"
+
+## How They Relate
+
+```
+Metrics/Events → Detection Rules → Symptoms
+```
+
+Metrics and events flow through detection rules. When rules match, symptoms are created or updated.

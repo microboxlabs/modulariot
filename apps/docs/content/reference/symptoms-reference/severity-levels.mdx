@@ -1,0 +1,61 @@
+# Severity Levels
+
+Classification and behavior of severity levels.
+
+## Severity Hierarchy
+
+From lowest to highest:
+
+### INFO (0)
+Informational conditions:
+- No immediate action required
+- For tracking and logging
+- Low priority in worklists
+
+### WARNING (1)
+Potential issues:
+- Should be investigated
+- May escalate if unaddressed
+- Medium priority
+
+### CRITICAL (2)
+Serious conditions:
+- Requires prompt attention
+- Safety or operational impact
+- High priority
+
+### EMERGENCY (3)
+Highest severity:
+- Immediate response required
+- Significant impact
+- Top priority
+
+## Severity Properties
+
+| Level | Code | Priority | Notification | Escalation |
+|-------|------|----------|--------------|------------|
+| INFO | 0 | Low | Optional | Slow |
+| WARNING | 1 | Medium | Standard | Normal |
+| CRITICAL | 2 | High | Immediate | Fast |
+| EMERGENCY | 3 | Urgent | All channels | Immediate |
+
+## Severity in APIs
+
+```typescript
+type SeverityLevel = 'info' | 'warning' | 'critical' | 'emergency';
+
+// Numeric codes for comparison
+const SEVERITY_CODES = {
+  info: 0,
+  warning: 1,
+  critical: 2,
+  emergency: 3
+};
+```
+
+## Severity Changes
+
+Symptoms can change severity:
+- Automatic escalation over time
+- Condition-based changes
+- Manual adjustment

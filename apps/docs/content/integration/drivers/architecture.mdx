@@ -1,0 +1,57 @@
+# Driver Architecture
+
+How drivers fit into the ModularIoT ingestion pipeline.
+
+## Role of Drivers
+
+Drivers serve as adapters between device-specific protocols and ModularIoT's canonical data model.
+
+```
+Device Protocol → Driver → Canonical Metrics
+```
+
+## Driver Interface
+
+Every driver implements:
+- **Parse** - Extract data from raw message
+- **Validate** - Check data quality and completeness
+- **Map** - Transform to canonical metrics
+- **Enrich** - Add context if available
+
+## Driver Lifecycle
+
+### Loading
+Drivers are loaded at startup based on configuration.
+
+### Selection
+Incoming messages are routed to appropriate driver based on:
+- Device type identifier
+- Protocol detection
+- Message format
+
+### Execution
+Driver processes message and produces canonical output.
+
+### Error Handling
+Parse or validation failures are:
+- Logged for debugging
+- Counted for monitoring
+- Optionally stored for review
+
+## Driver Types
+
+### Protocol Drivers
+Handle specific communication protocols independent of device.
+
+### Device Drivers
+Support specific hardware models and manufacturers.
+
+### Composite Drivers
+Combine protocol and device-specific handling.
+
+## Deployment
+
+Drivers can be:
+- Built-in to the platform
+- Loaded as plugins
+- Provided by integrations

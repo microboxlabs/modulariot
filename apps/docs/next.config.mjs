@@ -6,7 +6,7 @@ const withNextra = nextra({
   // ... Add Nextra-specific options here
   search: {
     codeblocks: false,
-  }
+  },
 })
  
 // Export the final Next.js config with Nextra included

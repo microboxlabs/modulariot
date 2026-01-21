@@ -1,0 +1,58 @@
+# Validation Rules
+
+Quality requirements for metric ingestion.
+
+## Schema Validation
+
+Payloads are validated against the MIOT Metrics schema:
+- Required fields present
+- Field types correct
+- Enumerated values valid
+
+## Metric Key Validation
+
+Keys must be:
+- Known canonical keys, or
+- Valid custom keys with prefix
+
+Unknown keys are:
+- Logged for review
+- Optionally rejected or accepted
+
+## Value Validation
+
+### Numeric Ranges
+Each canonical key has expected ranges:
+- Speed: 0-500 km/h
+- Temperature: -50 to 150°C
+- Percentage: 0-100
+
+### Coordinate Validation
+- Latitude: -90 to 90
+- Longitude: -180 to 180
+- Check for (0,0) placeholder
+
+### Timestamp Validation
+- Not more than 1 hour in future
+- Not more than 30 days in past (configurable)
+- Valid ISO 8601 format
+
+## Payload Validation
+
+### Size Limits
+- Maximum payload size: 1 MB
+- Maximum metrics per payload: 1000
+
+### Rate Limits
+- Per device limits
+- Per tenant limits
+- Burst allowance
+
+## Validation Response
+
+Failed validation returns:
+- Specific error code
+- Failed field/value
+- Suggestion for fix
+
+See Reference > Error Codes for validation error details.

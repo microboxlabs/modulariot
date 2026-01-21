@@ -1,37 +1,56 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs'
 import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
-// Required for theme styles, previously was imported under the hood
 import 'nextra-theme-docs/style.css'
+import './globals.css'
 
 export const metadata = {
-  title: 'Nextra Docs',
-  description: 'Documentation site built with Nextra',
+  title: {
+    default: 'ModularIoT Documentation',
+    template: '%s | ModularIoT Docs'
+  },
+  description: 'Real-time operational intelligence for your fleet. Documentation for ModularIoT platform.',
 }
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+const navbar = (
+  <Navbar
+    logo={
+      <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+        ModularIoT
+      </span>
+    }
+    projectLink="https://github.com/microboxlabs/modulariot"
+  />
+)
+
+const footer = (
+  <Footer>
+    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
+      <span>MIT {new Date().getFullYear()} © MicroboxLabs</span>
+      <span>ModularIoT - Real-time Operational Intelligence</span>
+    </div>
+  </Footer>
+)
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      // Not required, but good for SEO
       lang="en"
-      // Required to be set
       dir="ltr"
-      // Suggested by `next-themes` package https://github.com/pacocoursey/next-themes#with-app
       suppressHydrationWarning
     >
-      <Head />
+      <Head>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
       <body>
         <Layout
-          navbar={<Navbar logo={<b>Nextra</b>} />}
+          navbar={navbar}
           pageMap={await getPageMap()}
-          docsRepositoryBase="https://github.com/shuding/nextra/tree/main/docs"
+          docsRepositoryBase="https://github.com/microboxlabs/modulariot/tree/main/apps/docs"
+          footer={footer}
           editLink="Edit this page on GitHub"
+          feedback={{ content: null }}
           sidebar={{ defaultMenuCollapseLevel: 1 }}
-          footer={<Footer>MIT 2024 © Nextra.</Footer>}
         >
           {children}
         </Layout>

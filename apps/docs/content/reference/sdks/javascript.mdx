@@ -1,0 +1,58 @@
+# JavaScript SDK
+
+Official JavaScript/TypeScript SDK for ModularIoT.
+
+## Status
+
+Coming Soon
+
+The JavaScript SDK is under development and will be available soon.
+
+## Planned Features
+
+### Telemetry Ingestion
+- Batch metric submission
+- Automatic retry
+- Compression support
+
+### Symptom Queries
+- Active symptoms
+- Historical queries
+- Real-time subscriptions
+
+### Asset Management
+- Asset CRUD operations
+- Device association
+
+### Authentication
+- API key authentication
+- OAuth 2.0 support
+
+## Installation
+
+```bash
+npm install @modulariot/sdk
+```
+
+## Quick Start
+
+```typescript
+import { ModularIoT } from '@modulariot/sdk';
+
+const client = new ModularIoT({
+  apiKey: 'your-api-key'
+});
+
+// Example usage (preview)
+await client.metrics.send({
+  deviceId: 'device-123',
+  metrics: [
+    { key: 'position.latitude', value: 37.7749 },
+    { key: 'position.longitude', value: -122.4194 }
+  ]
+});
+```
+
+## Documentation
+
+Full documentation will be available upon SDK release.

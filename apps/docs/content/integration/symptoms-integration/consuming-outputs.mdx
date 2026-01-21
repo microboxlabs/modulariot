@@ -1,0 +1,62 @@
+# Consuming Outputs
+
+Integrate symptom data into your applications and workflows.
+
+## Output Channels
+
+### Webhooks
+Receive HTTP callbacks on symptom events:
+- State changes (detected, resolved)
+- Severity changes
+- Custom event triggers
+
+### API Polling
+Query symptom state on demand:
+- List active symptoms
+- Get symptom details
+- Query historical symptoms
+
+### Event Streaming
+Subscribe to symptom event streams:
+- Real-time delivery
+- Consumer group support
+- Replay capability
+
+## Webhook Integration
+
+### Configuration
+Set up webhook endpoints:
+- URL endpoint
+- Authentication method
+- Event filters
+- Retry policy
+
+### Payload Format
+Webhook payloads include:
+- Event type
+- Symptom data
+- Timestamp
+- Signature for verification
+
+### Best Practices
+- Respond quickly (< 5 seconds)
+- Handle duplicates idempotently
+- Implement proper verification
+
+## API Integration
+
+### Active Symptoms
+Query current active symptoms:
+- Filter by asset, type, severity
+- Pagination support
+- Real-time data
+
+### Historical Symptoms
+Query resolved symptoms:
+- Date range filtering
+- Resolution details
+- Audit information
+
+## Event Stream Integration
+
+Connect to event streams for real-time processing in your own systems.

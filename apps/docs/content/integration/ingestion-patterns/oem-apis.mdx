@@ -1,0 +1,60 @@
+# OEM APIs
+
+Integrating third-party telemetry providers through their APIs.
+
+## Overview
+
+OEM (Original Equipment Manufacturer) APIs provide telemetry data from devices that report to the manufacturer's cloud platform.
+
+## Common Scenarios
+
+### Vehicle Manufacturer APIs
+- Connected car platforms
+- Factory telematics systems
+- Dealer service data
+
+### Telematics Providers
+- Existing fleet management systems
+- Third-party tracking services
+- Insurance telematics
+
+### Equipment Manufacturers
+- Heavy equipment OEMs
+- Industrial machinery vendors
+- IoT platform providers
+
+## Integration Patterns
+
+### Pull (Polling)
+Periodically request data from OEM API.
+- Simple to implement
+- Higher latency
+- Rate limit considerations
+
+### Push (Webhook)
+OEM sends data to ModularIoT endpoint.
+- Real-time data
+- Requires OEM support
+- Endpoint availability critical
+
+### Streaming
+Continuous data feed from OEM.
+- Lowest latency
+- Complex integration
+- Connection management
+
+## Data Mapping
+
+OEM data requires mapping to canonical format:
+- Field name translation
+- Unit conversion
+- Data type alignment
+- Missing field handling
+
+## Authentication
+
+Common OEM authentication patterns:
+- API keys
+- OAuth 2.0
+- Mutual TLS
+- Signed requests

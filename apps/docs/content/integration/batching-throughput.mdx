@@ -1,0 +1,62 @@
+# Batching & Throughput
+
+Optimize data transmission for high-volume scenarios.
+
+## Why Batch?
+
+Batching improves:
+- Network efficiency (fewer connections)
+- Processing efficiency (bulk operations)
+- Cost efficiency (fewer API calls)
+
+## Batching Strategies
+
+### Time-Based
+Send batch every N seconds:
+- Predictable timing
+- May send small batches
+- Good for steady streams
+
+### Size-Based
+Send when batch reaches N records:
+- Efficient payload sizes
+- Variable timing
+- Good for high volume
+
+### Hybrid
+Send on time OR size, whichever first:
+- Best of both approaches
+- Recommended default
+- Bounded latency and efficiency
+
+## Recommended Settings
+
+| Scenario | Max Batch Size | Max Wait Time |
+|----------|---------------|---------------|
+| Real-time | 100 | 1 second |
+| Standard | 500 | 5 seconds |
+| Bulk | 1000 | 30 seconds |
+
+## Throughput Optimization
+
+### Connection Reuse
+- Keep HTTP connections alive
+- Use connection pooling
+- Minimize TLS handshakes
+
+### Compression
+- Compress payload bodies
+- Significant bandwidth savings
+- CPU tradeoff acceptable
+
+### Parallel Requests
+- Multiple concurrent batches
+- Respect rate limits
+- Handle partial failures
+
+## Rate Limits
+
+Understand and work within rate limits:
+- Per-tenant limits
+- Per-device limits
+- Burst allowances

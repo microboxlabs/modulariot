@@ -1,0 +1,52 @@
+# OBD/CAN Devices
+
+Integrating vehicle diagnostic and telematics devices.
+
+## Overview
+
+OBD (On-Board Diagnostics) and CAN (Controller Area Network) devices connect to vehicle systems to read engine data, fault codes, and operational metrics.
+
+## Typical Data
+
+### OBD-II PIDs
+- Engine RPM
+- Vehicle speed
+- Coolant temperature
+- Fuel level
+- Engine load
+
+### Diagnostic Trouble Codes
+- Active fault codes
+- Pending codes
+- Freeze frame data
+
+### Extended CAN Data
+- Transmission data
+- ABS information
+- Body controller data
+
+## Integration Approaches
+
+### Dedicated Telematics Device
+Combined GPS + OBD in single unit.
+
+### OBD Dongle
+Bluetooth or cellular connected OBD reader.
+
+### Fleet Management System
+Integration via existing FMS platform.
+
+## Data Considerations
+
+- Not all vehicles support all PIDs
+- Data availability varies by make/model/year
+- Some data requires extended CAN access
+- Fault codes need interpretation
+
+## Driver Requirements
+
+OBD/CAN drivers must handle:
+- PID request and response parsing
+- DTC decoding
+- Unit conversion
+- Vehicle-specific variations

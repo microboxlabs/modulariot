@@ -1,0 +1,58 @@
+# MIOT Metrics Schema
+
+The canonical schema for metric data in ModularIoT.
+
+## Schema Overview
+
+The MIOT Metrics schema defines how metric data is structured for ingestion and storage.
+
+## Required Fields
+
+### device_id
+Unique identifier of the source device.
+
+### timestamp
+ISO 8601 timestamp of the measurement.
+
+### metrics
+Array of metric key-value pairs.
+
+## Metric Structure
+
+Each metric contains:
+- **key** - Canonical metric identifier
+- **value** - Numeric or string value
+- **unit** - Unit of measurement (if not implied by key)
+
+## Optional Fields
+
+### asset_id
+Associated asset identifier (if known at ingestion).
+
+### sequence
+Message sequence number for ordering.
+
+### metadata
+Additional context as key-value pairs.
+
+## Schema Versioning
+
+The schema is versioned:
+- Current version: 1.0
+- Version specified in payload
+- Backward compatibility maintained
+
+## Example Structure
+
+```
+{
+  "schema_version": "1.0",
+  "device_id": "...",
+  "timestamp": "...",
+  "metrics": [
+    { "key": "...", "value": ... }
+  ]
+}
+```
+
+See Reference > Telemetry Schemas for complete specification.

@@ -1,0 +1,57 @@
+# Validation & Mapping
+
+Data quality rules and transformation to canonical format.
+
+## Validation
+
+### Field Presence
+Required fields must be present:
+- Device identifier
+- Timestamp
+- At least one metric
+
+### Type Validation
+Values must match expected types:
+- Numeric fields are numbers
+- Timestamps are valid dates
+- Coordinates are in range
+
+### Range Validation
+Values must be reasonable:
+- Latitude: -90 to 90
+- Longitude: -180 to 180
+- Speed: 0 to reasonable maximum
+- Temperature: physical limits
+
+### Temporal Validation
+Timestamps must be:
+- Not in the future (with tolerance)
+- Not too far in the past
+- Monotonically increasing per device (warning)
+
+## Mapping
+
+### Canonical Keys
+Every metric maps to a canonical key:
+- `position.latitude`
+- `position.longitude`
+- `vehicle.speed`
+- `vehicle.fuel_level`
+
+### Unit Conversion
+Normalize to standard units:
+- Speed: km/h
+- Temperature: Celsius
+- Distance: meters
+
+### Value Normalization
+- Percentage: 0-100 scale
+- Boolean: true/false
+- Enums: standard values
+
+## Error Handling
+
+When validation fails:
+- Reject entire message
+- Accept valid fields, flag invalid
+- Log for investigation

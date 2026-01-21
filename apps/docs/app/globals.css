@@ -1,12 +1,24 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #f9fafb;
+  --card-border: #e5e7eb;
+  --card-hover-border: #3b82f6;
+  --card-icon-bg: #eff6ff;
+  --card-icon-color: #3b82f6;
+  --quick-link-bg: #f9fafb;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --card-bg: #1a1a1a;
+    --card-border: #333;
+    --card-hover-border: #60a5fa;
+    --card-icon-bg: #1e3a5f;
+    --card-icon-color: #60a5fa;
+    --quick-link-bg: #1a1a1a;
   }
 }
 
@@ -23,15 +35,92 @@ body {
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
-a {
-  color: inherit;
+/* Homepage Card Grid */
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
   text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
+.home-card:hover {
+  border-color: var(--card-hover-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.home-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--card-icon-bg);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  color: var(--card-icon-color);
+}
+
+.home-card-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.home-card-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.home-card-content p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
+/* Quick Links */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.quick-links a {
+  display: block;
+  padding: 1rem;
+  background: var(--quick-link-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.quick-links a:hover {
+  border-color: var(--card-hover-border);
+}
+
+.quick-links strong {
+  color: var(--card-icon-color);
+}
+
+/* Dark mode image handling */
 .imgDark {
   display: none;
 }
@@ -46,5 +135,9 @@ a {
   }
   .imgDark {
     display: unset;
+  }
+
+  .home-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 }

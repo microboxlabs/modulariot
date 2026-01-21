@@ -1,0 +1,49 @@
+# Identity & Ownership
+
+ModularIoT uses a hierarchical identity model to organize entities and control access.
+
+## Identity Hierarchy
+
+```
+Tenant
+  └── Organization
+        └── Fleet / Group
+              └── Asset
+                    └── Device
+```
+
+## Tenants
+
+Top-level isolation boundary:
+- Complete data separation
+- Independent configuration
+- Separate billing and quotas
+
+## Organizations
+
+Business units within a tenant:
+- Departmental separation
+- Delegated administration
+- Shared resources possible
+
+## Fleets and Groups
+
+Logical groupings of assets:
+- Operational organization
+- Rule application scope
+- Reporting boundaries
+
+## Ownership
+
+Every entity has:
+- **Owner** - Tenant with ultimate control
+- **Creator** - User who created it
+- **Administrators** - Users with management rights
+- **Operators** - Users with operational access
+
+## Access Control
+
+Permissions flow down the hierarchy:
+- Tenant admins access everything
+- Organization admins access their org
+- Fleet managers access their fleet

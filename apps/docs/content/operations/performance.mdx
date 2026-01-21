@@ -1,0 +1,58 @@
+# Performance
+
+Tuning and optimization guidance for ModularIoT.
+
+## Performance Characteristics
+
+### Latency Targets
+- Ingestion to storage: < 100ms p99
+- Detection latency: < 500ms p99
+- API response: < 200ms p99
+- Notification delivery: < 5s p99
+
+### Throughput Capacity
+- Ingestion: millions of messages/second
+- Processing: scales horizontally
+- Queries: thousands/second
+
+## Optimization Areas
+
+### Client-Side
+- Batch messages efficiently
+- Use compression
+- Maintain connections
+- Handle backpressure
+
+### Ingestion
+- Protocol selection
+- Connection pooling
+- Load distribution
+- Geographic routing
+
+### Processing
+- Worker sizing
+- Parallelization
+- State management
+- Resource allocation
+
+### Queries
+- Efficient filters
+- Time range limiting
+- Pagination
+- Caching utilization
+
+## Performance Testing
+
+Regular performance validation:
+- Load testing
+- Stress testing
+- Endurance testing
+- Spike testing
+
+## Monitoring Performance
+
+Track performance metrics:
+- Latency percentiles (p50, p90, p99)
+- Throughput
+- Resource utilization
+- Error rates

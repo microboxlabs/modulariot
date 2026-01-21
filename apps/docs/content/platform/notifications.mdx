@@ -1,0 +1,51 @@
+# Notifications
+
+The notification system delivers alerts through multiple channels based on symptom severity and user preferences.
+
+## Channels
+
+### In-App
+- Control Tower alerts
+- Badge counts
+- Toast notifications
+
+### Email
+- Immediate for critical
+- Digest for lower severity
+- HTML and plain text
+
+### SMS
+- Critical alerts only
+- Short message format
+- Delivery confirmation
+
+### Push Notifications
+- Mobile app integration
+- Rich notifications with actions
+- Silent updates for low priority
+
+### Webhooks
+- HTTP callbacks
+- Custom payload format
+- Retry with backoff
+
+## Routing Rules
+
+Notifications are routed based on:
+- Symptom severity
+- Asset ownership
+- User preferences
+- Time of day
+
+## Escalation
+
+Unacknowledged symptoms escalate:
+- Initial notification to primary
+- Escalation to supervisor after timeout
+- Continue up chain as configured
+
+## Delivery Guarantees
+
+- At-least-once delivery
+- Duplicate prevention
+- Delivery tracking and reporting

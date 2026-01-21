@@ -9,7 +9,9 @@ import dayjs from "dayjs";
 import {
   type TimeWindow,
   type TimeWindowColor,
+  type ParsedWeeklyPattern,
   TIME_WINDOW_COLORS,
+  TimeWindowUtils,
   usePlanningSelection,
 } from "../planning-selection-context";
 
@@ -82,76 +84,54 @@ function formatTime(hour: number, minutes: number): string {
   return `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
-function formatTimeCompact(hour: number, minutes: number): string {
-  return `${hour.toString().padStart(2, "0")}${minutes.toString().padStart(2, "0")}`;
-}
-
 function timeToMinutes(hour: number, minutes: number): number {
   return hour * 60 + minutes;
 }
 
 /**
- * Formats days array into range string
- * e.g., [1,2,3,4,5] -> "1-5", [1,3,5] -> "1,3,5"
- */
-function formatDaysRange(days: number[]): string {
-  if (days.length === 0) return "";
-  const sorted = [...days].sort((a, b) => a - b);
-
-  // Check if it's a continuous range
-  const isRange =
-    sorted.length > 1 &&
-    sorted.every((d, i) => i === 0 || d === sorted[i - 1] + 1);
-
-  if (isRange) {
-    return `${sorted[0]}-${sorted[sorted.length - 1]}`;
-  }
-  return sorted.join(",");
-}
-
-/**
- * Formats weeks array into range string
- * e.g., [1,2,3,4] -> "W*", [1,2] -> "W1-2", [1,3] -> "W1,3"
- */
-function formatWeeksRange(weeks: number[]): string {
-  if (weeks.length === 0 || weeks.length >= 4) return "W*";
-  const sorted = [...weeks].sort((a, b) => a - b);
-
-  const isRange =
-    sorted.length > 1 &&
-    sorted.every((w, i) => i === 0 || w === sorted[i - 1] + 1);
-
-  if (isRange) {
-    return `W${sorted[0]}-${sorted[sorted.length - 1]}`;
-  }
-  return `W${sorted.join(",")}`;
-}
-
-/**
  * Generates the full format string for a time window
- * Format: W1-4 1-5 0900-1700 or DATE 0900-1700 for daily-override
+ * Uses TimeWindowUtils.formatDisplay for the new structure
  */
 function formatTimeWindowCode(window: TimeWindow): string {
-  const startTime = formatTimeCompact(window.startHour, window.startMinutes);
-  const endTime = formatTimeCompact(window.endHour, window.endMinutes);
+  return TimeWindowUtils.formatDisplay(window);
+}
 
-  if (window.type === "daily-override") {
-    if (!window.date) return "";
-    const dateStr = dayjs(window.date).format("DD/MM/YYYY");
-    return `${dateStr} ${startTime}-${endTime}`;
+/**
+ * Get parsed weekly pattern or default values
+ */
+function getWindowPattern(window: TimeWindow): ParsedWeeklyPattern {
+  if (window.type === "weekly" && window.weeklyPattern) {
+    const parsed = TimeWindowUtils.parseWeeklyPattern(window.weeklyPattern);
+    if (parsed) return parsed;
   }
-
-  const weeksStr = formatWeeksRange(window.weeks);
-  const daysStr = formatDaysRange(window.days);
-  if (!daysStr) return "";
-  return `${weeksStr} ${daysStr} ${startTime}-${endTime}`;
+  if (window.type === "daily-override") {
+    const timeRange = TimeWindowUtils.getTimeRange(window);
+    if (timeRange) {
+      return {
+        weeks: [],
+        days: [],
+        ...timeRange,
+      };
+    }
+  }
+  // Default values
+  return {
+    weeks: [],
+    days: [1, 2, 3, 4, 5],
+    startHour: 8,
+    startMinutes: 0,
+    endHour: 12,
+    endMinutes: 0,
+  };
 }
 
 /**
  * Check if two time windows have overlapping days
  */
 function hasOverlappingDays(a: TimeWindow, b: TimeWindow): boolean {
-  return a.days.some((day) => b.days.includes(day));
+  const aPattern = getWindowPattern(a);
+  const bPattern = getWindowPattern(b);
+  return aPattern.days.some((day) => bPattern.days.includes(day));
 }
 
 /**
@@ -159,19 +139,23 @@ function hasOverlappingDays(a: TimeWindow, b: TimeWindow): boolean {
  * Empty weeks array means "all weeks"
  */
 function hasOverlappingWeeks(a: TimeWindow, b: TimeWindow): boolean {
+  const aPattern = getWindowPattern(a);
+  const bPattern = getWindowPattern(b);
   // If either has empty weeks (all weeks), they overlap
-  if (a.weeks.length === 0 || b.weeks.length === 0) return true;
-  return a.weeks.some((week) => b.weeks.includes(week));
+  if (aPattern.weeks.length === 0 || bPattern.weeks.length === 0) return true;
+  return aPattern.weeks.some((week) => bPattern.weeks.includes(week));
 }
 
 /**
  * Check if two time ranges overlap
  */
 function hasOverlappingTime(a: TimeWindow, b: TimeWindow): boolean {
-  const aStart = timeToMinutes(a.startHour, a.startMinutes);
-  const aEnd = timeToMinutes(a.endHour, a.endMinutes);
-  const bStart = timeToMinutes(b.startHour, b.startMinutes);
-  const bEnd = timeToMinutes(b.endHour, b.endMinutes);
+  const aPattern = getWindowPattern(a);
+  const bPattern = getWindowPattern(b);
+  const aStart = timeToMinutes(aPattern.startHour, aPattern.startMinutes);
+  const aEnd = timeToMinutes(aPattern.endHour, aPattern.endMinutes);
+  const bStart = timeToMinutes(bPattern.startHour, bPattern.startMinutes);
+  const bEnd = timeToMinutes(bPattern.endHour, bPattern.endMinutes);
 
   // Two ranges overlap if one starts before the other ends
   return aStart < bEnd && bStart < aEnd;
@@ -304,7 +288,7 @@ function PortalDatepicker({
 }
 
 /**
- * Custom color picker dropdown with color circles
+ * Custom color picker dropdown with color circles (portal-based)
  */
 function ColorPickerDropdown({
   value,
@@ -314,15 +298,25 @@ function ColorPickerDropdown({
   onChange: (color: TimeWindowColor) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.right + window.scrollX - 120, // Align right edge
+      });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        !dropdownRef.current?.contains(target) &&
+        !target.closest("[data-colorpicker-portal]") &&
         !triggerRef.current?.contains(target)
       ) {
         setIsOpen(false);
@@ -340,7 +334,7 @@ function ColorPickerDropdown({
   }, [isOpen]);
 
   return (
-    <div className="relative">
+    <>
       <button
         ref={triggerRef}
         type="button"
@@ -359,42 +353,45 @@ function ColorPickerDropdown({
           )}
         />
       </button>
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
-        >
-          {COLOR_OPTIONS.map((colorOpt) => (
-            <button
-              key={colorOpt.value}
-              type="button"
-              onClick={() => {
-                onChange(colorOpt.value);
-                setIsOpen(false);
-              }}
-              className={twMerge(
-                "w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs transition-colors",
-                "hover:bg-gray-100 dark:hover:bg-gray-700",
-                value === colorOpt.value && "bg-gray-50 dark:bg-gray-700/50"
-              )}
-            >
-              <span
+      {isOpen &&
+        createPortal(
+          <div
+            data-colorpicker-portal
+            className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+            style={{ top: position.top, left: position.left }}
+          >
+            {COLOR_OPTIONS.map((colorOpt) => (
+              <button
+                key={colorOpt.value}
+                type="button"
+                onClick={() => {
+                  onChange(colorOpt.value);
+                  setIsOpen(false);
+                }}
                 className={twMerge(
-                  "w-3 h-3 rounded-full shrink-0",
-                  TIME_WINDOW_COLORS[colorOpt.value].dot
+                  "w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  value === colorOpt.value && "bg-gray-50 dark:bg-gray-700/50"
                 )}
-              />
-              <span className="text-gray-700 dark:text-gray-300">
-                {colorOpt.label}
-              </span>
-              {value === colorOpt.value && (
-                <HiCheck className="ml-auto h-3 w-3 text-primary-500" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+              >
+                <span
+                  className={twMerge(
+                    "w-3 h-3 rounded-full shrink-0",
+                    TIME_WINDOW_COLORS[colorOpt.value].dot
+                  )}
+                />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {colorOpt.label}
+                </span>
+                {value === colorOpt.value && (
+                  <HiCheck className="ml-auto h-3 w-3 text-primary-500" />
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -410,14 +407,8 @@ export default function QuotaManager({
 
   // Auto-delete expired daily-override exceptions (date before today)
   useEffect(() => {
-    const today = dayjs().startOf("day");
     const expiredIds = timeWindows
-      .filter(
-        (w) =>
-          w.type === "daily-override" &&
-          w.date &&
-          dayjs(w.date).isBefore(today, "day")
-      )
+      .filter((w) => TimeWindowUtils.isExpired(w))
       .map((w) => w.id);
 
     if (expiredIds.length > 0) {
@@ -451,21 +442,41 @@ export default function QuotaManager({
 
   const addTimeWindow = useCallback(
     (type: "weekly" | "daily-override" = "weekly") => {
-      const newWindow: TimeWindow = {
-        id: crypto.randomUUID(),
-        name: "",
-        type,
-        startHour: 8,
-        startMinutes: 0,
-        endHour: 12,
-        endMinutes: 0,
-        days: type === "weekly" ? [1, 2, 3, 4, 5] : [], // Monday to Friday for weekly
-        date:
-          type === "daily-override" ? dayjs().format("YYYY-MM-DD") : undefined, // Today for daily-override
-        weeks: [], // All weeks by default
-        quota: 1,
-        color: "emerald", // Default color
-      };
+      const today = dayjs();
+      const newWindow: TimeWindow =
+        type === "weekly"
+          ? {
+              id: crypto.randomUUID(),
+              name: "",
+              type: "weekly",
+              quota: 1,
+              color: "emerald",
+              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+                [], // All weeks
+                [1, 2, 3, 4, 5], // Monday to Friday
+                8,
+                0,
+                12,
+                0
+              ),
+            }
+          : {
+              id: crypto.randomUUID(),
+              name: "",
+              type: "daily-override",
+              quota: 1,
+              color: "emerald",
+              startTimestamp: today
+                .hour(8)
+                .minute(0)
+                .second(0)
+                .format("YYYY-MM-DDTHH:mm:ss"),
+              endTimestamp: today
+                .hour(12)
+                .minute(0)
+                .second(0)
+                .format("YYYY-MM-DDTHH:mm:ss"),
+            };
       setTimeWindows([...timeWindows, newWindow]);
     },
     [timeWindows, setTimeWindows]
@@ -476,12 +487,42 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
+          const pattern = getWindowPattern(w);
+          const today = dayjs();
+
           if (type === "daily-override") {
-            // Convert to daily-override: use today as default date
-            return { ...w, type, date: dayjs().format("YYYY-MM-DD"), days: [] };
+            // Convert to daily-override: use today + existing time
+            return {
+              ...w,
+              type,
+              weeklyPattern: undefined,
+              startTimestamp: today
+                .hour(pattern.startHour)
+                .minute(pattern.startMinutes)
+                .second(0)
+                .format("YYYY-MM-DDTHH:mm:ss"),
+              endTimestamp: today
+                .hour(pattern.endHour)
+                .minute(pattern.endMinutes)
+                .second(0)
+                .format("YYYY-MM-DDTHH:mm:ss"),
+            };
           }
-          // Convert to weekly: use default weekdays
-          return { ...w, type, days: [1, 2, 3, 4, 5], date: undefined };
+          // Convert to weekly: use existing time + default weekdays
+          return {
+            ...w,
+            type,
+            startTimestamp: undefined,
+            endTimestamp: undefined,
+            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+              [],
+              [1, 2, 3, 4, 5],
+              pattern.startHour,
+              pattern.startMinutes,
+              pattern.endHour,
+              pattern.endMinutes
+            ),
+          };
         })
       );
     },
@@ -491,7 +532,24 @@ export default function QuotaManager({
   const updateDailyOverrideDate = useCallback(
     (id: string, date: string) => {
       setTimeWindows(
-        timeWindows.map((w) => (w.id === id ? { ...w, date } : w))
+        timeWindows.map((w) => {
+          if (w.id !== id || w.type !== "daily-override") return w;
+          const pattern = getWindowPattern(w);
+          const newDate = dayjs(date);
+          return {
+            ...w,
+            startTimestamp: newDate
+              .hour(pattern.startHour)
+              .minute(pattern.startMinutes)
+              .second(0)
+              .format("YYYY-MM-DDTHH:mm:ss"),
+            endTimestamp: newDate
+              .hour(pattern.endHour)
+              .minute(pattern.endMinutes)
+              .second(0)
+              .format("YYYY-MM-DDTHH:mm:ss"),
+          };
+        })
       );
     },
     [timeWindows, setTimeWindows]
@@ -526,11 +584,22 @@ export default function QuotaManager({
     (id: string, day: number) => {
       setTimeWindows(
         timeWindows.map((w) => {
-          if (w.id !== id) return w;
-          const days = w.days.includes(day)
-            ? w.days.filter((d) => d !== day)
-            : [...w.days, day];
-          return { ...w, days };
+          if (w.id !== id || w.type !== "weekly") return w;
+          const pattern = getWindowPattern(w);
+          const days = pattern.days.includes(day)
+            ? pattern.days.filter((d) => d !== day)
+            : [...pattern.days, day];
+          return {
+            ...w,
+            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+              pattern.weeks,
+              days,
+              pattern.startHour,
+              pattern.startMinutes,
+              pattern.endHour,
+              pattern.endMinutes
+            ),
+          };
         })
       );
     },
@@ -541,10 +610,22 @@ export default function QuotaManager({
     (id: string) => {
       setTimeWindows(
         timeWindows.map((w) => {
-          if (w.id !== id) return w;
+          if (w.id !== id || w.type !== "weekly") return w;
+          const pattern = getWindowPattern(w);
           const allDays = DAYS_OF_WEEK.map((d) => d.value);
-          const hasAllDays = allDays.every((d) => w.days.includes(d));
-          return { ...w, days: hasAllDays ? [] : allDays };
+          const hasAllDays = allDays.every((d) => pattern.days.includes(d));
+          const newDays = hasAllDays ? [] : allDays;
+          return {
+            ...w,
+            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+              pattern.weeks,
+              newDays,
+              pattern.startHour,
+              pattern.startMinutes,
+              pattern.endHour,
+              pattern.endMinutes
+            ),
+          };
         })
       );
     },
@@ -555,11 +636,22 @@ export default function QuotaManager({
     (id: string, week: number) => {
       setTimeWindows(
         timeWindows.map((w) => {
-          if (w.id !== id) return w;
-          const weeks = w.weeks.includes(week)
-            ? w.weeks.filter((wk) => wk !== week)
-            : [...w.weeks, week];
-          return { ...w, weeks };
+          if (w.id !== id || w.type !== "weekly") return w;
+          const pattern = getWindowPattern(w);
+          const weeks = pattern.weeks.includes(week)
+            ? pattern.weeks.filter((wk) => wk !== week)
+            : [...pattern.weeks, week];
+          return {
+            ...w,
+            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+              weeks,
+              pattern.days,
+              pattern.startHour,
+              pattern.startMinutes,
+              pattern.endHour,
+              pattern.endMinutes
+            ),
+          };
         })
       );
     },
@@ -570,11 +662,20 @@ export default function QuotaManager({
     (id: string) => {
       setTimeWindows(
         timeWindows.map((w) => {
-          if (w.id !== id) return w;
-          const hasAllWeeks = w.weeks.length === 0;
+          if (w.id !== id || w.type !== "weekly") return w;
+          const pattern = getWindowPattern(w);
+          const hasAllWeeks = pattern.weeks.length === 0;
+          const newWeeks = hasAllWeeks ? [1, 2, 3, 4] : [];
           return {
             ...w,
-            weeks: hasAllWeeks ? [1, 2, 3, 4] : [],
+            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+              newWeeks,
+              pattern.days,
+              pattern.startHour,
+              pattern.startMinutes,
+              pattern.endHour,
+              pattern.endMinutes
+            ),
           };
         })
       );
@@ -599,58 +700,71 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
+          const pattern = getWindowPattern(w);
+
+          let newStartHour = pattern.startHour;
+          let newStartMinutes = pattern.startMinutes;
+          let newEndHour = pattern.endHour;
+          let newEndMinutes = pattern.endMinutes;
 
           if (field === "start") {
-            const newStartMinutes = timeToMinutes(hour, minutes);
-            const endMinutes = timeToMinutes(w.endHour, w.endMinutes);
-            if (newStartMinutes >= endMinutes) {
-              const adjustedEnd = newStartMinutes + 30;
-              const newEndHour = Math.floor(adjustedEnd / 60);
-              const newEndMinutes = adjustedEnd % 60;
-              if (newEndHour > MAX_HOUR) {
-                return {
-                  ...w,
-                  startHour: hour,
-                  startMinutes: minutes,
-                  endHour: MAX_HOUR,
-                  endMinutes: 0,
-                };
-              }
-              return {
-                ...w,
-                startHour: hour,
-                startMinutes: minutes,
-                endHour: newEndHour,
-                endMinutes: newEndMinutes,
-              };
+            const newStartMin = timeToMinutes(hour, minutes);
+            const endMin = timeToMinutes(pattern.endHour, pattern.endMinutes);
+            if (newStartMin >= endMin) {
+              // Adjust end time
+              const adjustedEnd = newStartMin + 30;
+              newEndHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
+              newEndMinutes = newEndHour === MAX_HOUR ? 0 : adjustedEnd % 60;
             }
-            return { ...w, startHour: hour, startMinutes: minutes };
+            newStartHour = hour;
+            newStartMinutes = minutes;
+          } else {
+            const startMin = timeToMinutes(
+              pattern.startHour,
+              pattern.startMinutes
+            );
+            const newEndMin = timeToMinutes(hour, minutes);
+            if (newEndMin <= startMin) {
+              // Adjust start time
+              const adjustedStart = Math.max(newEndMin - 30, 0);
+              newStartHour = Math.floor(adjustedStart / 60);
+              newStartMinutes = adjustedStart % 60;
+            }
+            newEndHour = hour;
+            newEndMinutes = minutes;
           }
 
-          const startMinutes = timeToMinutes(w.startHour, w.startMinutes);
-          const newEndMinutes = timeToMinutes(hour, minutes);
-          if (newEndMinutes <= startMinutes) {
-            const adjustedStart = newEndMinutes - 30;
-            const newStartHour = Math.floor(adjustedStart / 60);
-            const newStartMinutes = adjustedStart % 60;
-            if (newStartHour < MIN_HOUR) {
-              return {
-                ...w,
-                startHour: MIN_HOUR,
-                startMinutes: 0,
-                endHour: hour,
-                endMinutes: minutes,
-              };
-            }
+          if (w.type === "weekly") {
             return {
               ...w,
-              startHour: newStartHour,
-              startMinutes: newStartMinutes,
-              endHour: hour,
-              endMinutes: minutes,
+              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
+                pattern.weeks,
+                pattern.days,
+                newStartHour,
+                newStartMinutes,
+                newEndHour,
+                newEndMinutes
+              ),
             };
           }
-          return { ...w, endHour: hour, endMinutes: minutes };
+
+          // For daily-override, update timestamps
+          const currentDate = w.startTimestamp
+            ? dayjs(w.startTimestamp)
+            : dayjs();
+          return {
+            ...w,
+            startTimestamp: currentDate
+              .hour(newStartHour)
+              .minute(newStartMinutes)
+              .second(0)
+              .format("YYYY-MM-DDTHH:mm:ss"),
+            endTimestamp: currentDate
+              .hour(newEndHour)
+              .minute(newEndMinutes)
+              .second(0)
+              .format("YYYY-MM-DDTHH:mm:ss"),
+          };
         })
       );
     },
@@ -675,8 +789,10 @@ export default function QuotaManager({
         )}
         {timeWindows.map((window, index) => {
           const windowCode = formatTimeWindowCode(window);
-          const isAllWeeks = window.weeks.length === 0;
+          const pattern = getWindowPattern(window);
+          const isAllWeeks = pattern.weeks.length === 0;
           const hasCollision = windowsWithCollisions.has(window.id);
+          const windowDate = TimeWindowUtils.getDate(window);
 
           return (
             <div
@@ -781,7 +897,7 @@ export default function QuotaManager({
               </div>
 
               {/* Body */}
-              <div className="p-3 space-y-2.5 overflow-visible">
+              <div className="p-3 flex flex-col gap-2.5 overflow-visible">
                 {/* Window Type Toggle + Color Picker */}
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900/50 rounded-lg flex-1">
@@ -825,7 +941,7 @@ export default function QuotaManager({
                   <Select
                     id={`start-${window.id}`}
                     sizing="sm"
-                    value={formatTime(window.startHour, window.startMinutes)}
+                    value={formatTime(pattern.startHour, pattern.startMinutes)}
                     onChange={(e) =>
                       updateTimeWindow(window.id, "start", e.target.value)
                     }
@@ -841,7 +957,7 @@ export default function QuotaManager({
                   <Select
                     id={`end-${window.id}`}
                     sizing="sm"
-                    value={formatTime(window.endHour, window.endMinutes)}
+                    value={formatTime(pattern.endHour, pattern.endMinutes)}
                     onChange={(e) =>
                       updateTimeWindow(window.id, "end", e.target.value)
                     }
@@ -862,14 +978,14 @@ export default function QuotaManager({
                       type="button"
                       onClick={() => toggleAllDays(window.id)}
                       title={
-                        window.days.length === 7
+                        pattern.days.length === 7
                           ? "Deseleccionar todos"
                           : "Seleccionar todos"
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
                         "focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1",
-                        window.days.length === 7
+                        pattern.days.length === 7
                           ? "bg-primary-500 text-white shadow-sm hover:bg-primary-600"
                           : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
                       )}
@@ -878,7 +994,7 @@ export default function QuotaManager({
                     </button>
                     <div className="flex items-center flex-1 gap-0.5">
                       {DAYS_OF_WEEK.map((day) => {
-                        const isSelected = window.days.includes(day.value);
+                        const isSelected = pattern.days.includes(day.value);
                         const isWeekend = day.value === 6 || day.value === 7;
                         return (
                           <button
@@ -905,7 +1021,7 @@ export default function QuotaManager({
                 ) : (
                   /* Daily Override - Date Selection */
                   <PortalDatepicker
-                    value={window.date}
+                    value={windowDate ?? undefined}
                     onChange={(date) =>
                       updateDailyOverrideDate(window.id, date)
                     }
@@ -933,7 +1049,7 @@ export default function QuotaManager({
                     </button>
                     <div className="flex items-center flex-1 gap-0.5">
                       {WEEKS_OF_MONTH.map((week) => {
-                        const isSelected = window.weeks.includes(week.value);
+                        const isSelected = pattern.weeks.includes(week.value);
                         return (
                           <button
                             key={week.value}
@@ -960,7 +1076,7 @@ export default function QuotaManager({
 
                 {/* Format Code Display */}
                 {windowCode && (
-                  <div className="pt-1">
+                  <div className="pt-1 hidden">
                     <code className="text-[10px] hidden text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-900/50 px-2 py-0.5 rounded">
                       {windowCode}
                     </code>

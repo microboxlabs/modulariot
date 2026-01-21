@@ -4,15 +4,18 @@ import { Button } from "flowbite-react";
 import { useState } from "react";
 import { FaGear } from "react-icons/fa6";
 import QuotaManager from "./quota-manager";
+import TimeBlockManager from "./time-block-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
-import { type TimeWindow } from "../planning-selection-context";
+import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
 
 interface CalendarRulesProps {
   onRulesChange?: (windows: TimeWindow[]) => void;
+  onBlocksChange?: (blocks: TimeBlock[]) => void;
 }
 
 export default function CalendarRules({
   onRulesChange,
+  onBlocksChange,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<"quota" | "timeBlock" | null>(null);
@@ -130,10 +133,20 @@ export default function CalendarRules({
               </div>
             </div>
           </div>
+          <div
+            className={`${selected !== "timeBlock" ? "max-h-0 " : "max-h-[500px]"} transition-all duration-300 overflow-hidden`}
+          >
+            <TimeBlockManager
+              onBlocksChange={(blocks) => {
+                onBlocksChange?.(blocks);
+                setOpen(false);
+              }}
+            />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export type { TimeWindow };
+export type { TimeWindow, TimeBlock };

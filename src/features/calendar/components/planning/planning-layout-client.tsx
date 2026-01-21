@@ -33,10 +33,8 @@ function PlanningLayoutInner({
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Main Area - Calendar */}
-        <div className="flex-1 p-4 overflow-hidden bg-gray-50 dark:bg-gray-900 transition-all duration-300">
-          <div className="h-full bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 overflow-auto">
-            {calendar}
-          </div>
+        <div className="h-full w-full bg-white dark:bg-gray-800 p-4 overflow-auto">
+          {calendar}
         </div>
 
         {/* Right Sidebar - Form (animated) */}

@@ -20,9 +20,11 @@ export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
         renderTrigger={() => (
           <Button
             color="alternative"
-            className="text-lg font-normal text-gray-500 dark:text-white bg-gray-100 px-2 py-1 rounded-lg flex items-center"
+            className="text-lg font-normal text-gray-500 dark:text-white bg-white px-2 py-1 rounded-lg flex items-center"
           >
-            {type === "dispatch" ? "Despacho" : "Recepción"}
+            {type === "dispatch"
+              ? tr("layout.planning.dispatch", dict)
+              : tr("layout.planning.reception", dict)}
             <ChevronDown
               className={`inline transition-transform duration-200`}
             />
@@ -34,14 +36,14 @@ export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
             setType("dispatch");
           }}
         >
-          Despacho
+          {tr("layout.planning.dispatch", dict)}
         </DropdownItem>
         <DropdownItem
           onClick={() => {
             setType("reception");
           }}
         >
-          Recepción
+          {tr("layout.planning.reception", dict)}
         </DropdownItem>
       </Dropdown>
     </div>

@@ -1058,6 +1058,27 @@
       "day": "Día",
       "week": "Semana",
       "month": "Mes"
+    },
+    "planning": {
+      "dispatch": "Despacho",
+      "reception": "Recepción"
+    },
+    "timeBlocks": {
+      "title": "Bloqueos temporales",
+      "description": "Define periodos horarios o diarios como bloqueados",
+      "noBlocks": "No hay bloqueos definidos",
+      "addBlock": "Bloqueo",
+      "apply": "Aplicar",
+      "deleteBlock": "Eliminar bloqueo",
+      "blockName": "Nombre del bloqueo",
+      "blockPlaceholder": "Bloqueo {index}",
+      "weekly": "Semanal",
+      "dailyOverride": "Día específico",
+      "selectDate": "Seleccionar fecha",
+      "selectAll": "Seleccionar todos",
+      "deselectAll": "Deseleccionar todos",
+      "blocked": "Bloqueado",
+      "conflictWarning": "Conflicto de horarios"
     }
   },
   "footer": {

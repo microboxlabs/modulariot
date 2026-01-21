@@ -1,0 +1,45 @@
+# Error Codes
+
+Complete catalog of error codes and resolution guidance.
+
+## Error Code Format
+
+```
+CATEGORY_SPECIFIC_ERROR
+```
+
+Example: `AUTH_INVALID_API_KEY`
+
+## Authentication Errors (AUTH_*)
+
+| Code | HTTP | Description | Resolution |
+|------|------|-------------|------------|
+| AUTH_MISSING_CREDENTIALS | 401 | No credentials provided | Include API key or token |
+| AUTH_INVALID_API_KEY | 401 | API key not valid | Check key is correct and active |
+| AUTH_EXPIRED_TOKEN | 401 | OAuth token expired | Refresh token |
+| AUTH_INSUFFICIENT_SCOPE | 403 | Token lacks required scope | Request appropriate scopes |
+
+## Validation Errors (VAL_*)
+
+| Code | HTTP | Description | Resolution |
+|------|------|-------------|------------|
+| VAL_INVALID_JSON | 400 | Malformed JSON body | Fix JSON syntax |
+| VAL_SCHEMA_VIOLATION | 400 | Schema validation failed | Check schema requirements |
+| VAL_REQUIRED_FIELD | 400 | Required field missing | Include required field |
+| VAL_INVALID_VALUE | 400 | Value out of range | Correct the value |
+
+## Rate Limiting Errors (RATE_*)
+
+| Code | HTTP | Description | Resolution |
+|------|------|-------------|------------|
+| RATE_TENANT_LIMIT | 429 | Tenant limit exceeded | Reduce request rate |
+| RATE_DEVICE_LIMIT | 429 | Device limit exceeded | Reduce device rate |
+| RATE_BURST_EXCEEDED | 429 | Burst limit hit | Wait and retry |
+
+## Server Errors (SRV_*)
+
+| Code | HTTP | Description | Resolution |
+|------|------|-------------|------------|
+| SRV_INTERNAL_ERROR | 500 | Internal server error | Retry, contact support |
+| SRV_UNAVAILABLE | 503 | Service unavailable | Retry with backoff |
+| SRV_TIMEOUT | 504 | Request timeout | Retry, check payload size |

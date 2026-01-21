@@ -1,0 +1,39 @@
+# Architecture
+
+ModularIoT is built as a distributed, event-driven system optimized for high-throughput telemetry processing.
+
+## High-Level Overview
+
+```
+Devices → Ingestion → Processing → Detection → Workflows
+              ↓           ↓            ↓
+           Storage    Analytics    Notifications
+```
+
+## Key Architectural Decisions
+
+### Event-Driven Core
+All data flows through event streams, enabling:
+- Loose coupling between components
+- Independent scaling
+- Replay and recovery capabilities
+
+### Stateful Processing
+The Symptoms Engine maintains state for:
+- Real-time symptom tracking
+- Severity escalation over time
+- Historical correlation
+
+### Multi-Tenant Isolation
+Complete data separation between organizations:
+- Tenant-scoped data access
+- Isolated processing pipelines
+- Configurable resource allocation
+
+## Technology Stack
+
+ModularIoT is built on proven technologies:
+- Stream processing for real-time data flow
+- Time-series storage for telemetry history
+- Distributed caching for symptom state
+- API gateway for client access

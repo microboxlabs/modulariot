@@ -1,0 +1,60 @@
+# States & Transitions
+
+Formal definition of symptom states and valid transitions.
+
+## States
+
+### DETECTED
+Initial state when symptom is created.
+- Entry: Detection rule matches
+- Exit: Acknowledge, auto-resolve, or close
+
+### ACKNOWLEDGED
+Operator has seen the symptom.
+- Entry: Operator acknowledgment
+- Exit: Assign, resolve, or close
+
+### IN_PROGRESS
+Active investigation or remediation.
+- Entry: Assignment or explicit transition
+- Exit: Resolve or close
+
+### RESOLVED
+Condition has been addressed.
+- Entry: Operator resolution or auto-resolve
+- Exit: Re-detect or close
+
+### CLOSED
+Symptom record finalized.
+- Entry: Explicit close action
+- Exit: None (terminal state)
+
+## State Diagram
+
+```
+           ┌─────────────────────────────────────┐
+           │                                     │
+           ▼                                     │
+       DETECTED ──────► ACKNOWLEDGED ──────► IN_PROGRESS
+           │                  │                   │
+           │                  │                   │
+           └──────────────────┼───────────────────┘
+                              │
+                              ▼
+                          RESOLVED
+                              │
+                              ▼
+                           CLOSED
+```
+
+## Valid Transitions
+
+| From | To | Trigger |
+|------|----|---------|
+| DETECTED | ACKNOWLEDGED | User action |
+| DETECTED | RESOLVED | Auto-resolve |
+| ACKNOWLEDGED | IN_PROGRESS | Assignment |
+| ACKNOWLEDGED | RESOLVED | Resolution |
+| IN_PROGRESS | RESOLVED | Resolution |
+| RESOLVED | DETECTED | Re-detection |
+| * | CLOSED | Close action |

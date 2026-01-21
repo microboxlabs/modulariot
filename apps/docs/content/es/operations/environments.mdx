@@ -1,0 +1,59 @@
+# Environments
+
+Managing development, staging, and production environments.
+
+## Environment Types
+
+### Development
+For active development and testing:
+- Relaxed security
+- Debug logging
+- Mock integrations
+- Sample data
+
+### Staging
+Pre-production validation:
+- Production-like configuration
+- Integration testing
+- Performance testing
+- User acceptance testing
+
+### Production
+Live operational environment:
+- Full security
+- Production logging
+- Real integrations
+- Live data
+
+## Environment Isolation
+
+Each environment has:
+- Separate credentials
+- Isolated data
+- Independent configuration
+- Distinct endpoints
+
+## Configuration Management
+
+### Environment Variables
+Environment-specific settings via variables.
+
+### Feature Flags
+Gradual rollout of features across environments.
+
+### Secrets Management
+Secure handling of credentials per environment.
+
+## Promotion Process
+
+Moving between environments:
+1. Test in development
+2. Validate in staging
+3. Deploy to production
+4. Monitor for issues
+
+## Data Considerations
+
+- Never use production data in development
+- Sanitized datasets for testing
+- Data generation tools available

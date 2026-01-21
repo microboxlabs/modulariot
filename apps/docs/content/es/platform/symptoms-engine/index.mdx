@@ -1,0 +1,23 @@
+# Symptoms Engine
+
+The Symptoms Engine is the intelligence layer of ModularIoT, transforming raw telemetry into actionable operational insights through real-time detection and state management.
+
+## Purpose
+
+The engine continuously evaluates incoming telemetry against defined rules and conditions, detecting symptoms as they emerge and tracking them through their full lifecycle.
+
+## Core Capabilities
+
+- **Detection** - Rule-based and pattern-based symptom identification
+- **Stateful Symptoms** - Maintaining symptom state across time
+- **Severity Escalation** - Automatic severity adjustments based on duration or conditions
+- **Persistence** - Durable symptom state for historical analysis
+- **Workflow Integration** - Connecting symptoms to operator actions
+
+## Architecture
+
+The engine operates as a stateful stream processor, maintaining symptom state in-memory while persisting checkpoints for recovery and historical queries.
+
+## In This Section
+
+Each subsection provides detailed coverage of a specific engine capability, from initial detection through workflow integration.

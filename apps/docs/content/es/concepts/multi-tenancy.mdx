@@ -1,0 +1,46 @@
+# Multi-Tenancy
+
+ModularIoT is designed from the ground up for multi-tenant operation.
+
+## What is Multi-Tenancy?
+
+Multiple independent organizations share platform infrastructure while maintaining complete isolation.
+
+## Isolation Guarantees
+
+### Data Isolation
+- Tenant data is never visible to other tenants
+- Queries automatically scoped to tenant
+- No cross-tenant data leakage possible
+
+### Processing Isolation
+- Tenant workloads don't impact each other
+- Resource quotas prevent noisy neighbors
+- Independent scaling per tenant
+
+### Configuration Isolation
+- Custom symptom definitions per tenant
+- Tenant-specific notification settings
+- Isolated user management
+
+## Tenant Identification
+
+Tenants are identified through:
+- API key tenant binding
+- JWT claims for user sessions
+- Request header validation
+
+## Resource Allocation
+
+Tenants have configurable:
+- Message throughput limits
+- Storage quotas
+- API rate limits
+- Concurrent connection limits
+
+## Cross-Tenant Features
+
+Some features operate across tenants for platform operators:
+- Usage monitoring
+- Health dashboards
+- Billing aggregation

@@ -1,0 +1,45 @@
+# Ingestion Layer
+
+The ingestion layer is the entry point for all telemetry data entering ModularIoT.
+
+## Purpose
+
+- Accept connections from diverse devices
+- Parse device-specific protocols
+- Validate incoming data
+- Route to appropriate processing pipelines
+
+## Supported Protocols
+
+### HTTP/HTTPS
+RESTful endpoints for modern devices and integrations.
+
+### TCP/UDP
+Raw socket connections for embedded devices.
+
+### MQTT
+Lightweight publish-subscribe for IoT devices.
+
+### CoAP
+Constrained Application Protocol for resource-limited devices.
+
+## High Availability
+
+The ingestion layer is designed for reliability:
+- Multiple entry points for redundancy
+- Automatic failover
+- No single point of failure
+
+## Throughput
+
+Designed for high-volume ingestion:
+- Millions of messages per second aggregate
+- Sub-second message latency
+- Automatic backpressure handling
+
+## Security
+
+- TLS encryption for all connections
+- Device authentication
+- Rate limiting per source
+- Payload validation

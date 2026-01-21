@@ -1,0 +1,57 @@
+# Backpressure
+
+Managing system load when demand exceeds capacity.
+
+## What is Backpressure?
+
+Backpressure is the mechanism for handling overload:
+- Slow down producers when consumers can't keep up
+- Prevent system collapse
+- Maintain quality of service
+
+## Backpressure Signals
+
+The platform signals overload through:
+- HTTP 429 (Too Many Requests)
+- Increased latency
+- Queue depth metrics
+- Explicit backpressure headers
+
+## Client Behavior
+
+When receiving backpressure signals:
+- Reduce sending rate
+- Implement exponential backoff
+- Buffer locally if possible
+- Shed load if necessary
+
+## Rate Limiting
+
+Rate limits protect the system:
+- Per-tenant limits
+- Per-device limits
+- API rate limits
+- Burst allowances
+
+## Queue Management
+
+Internal queues buffer spikes:
+- Bounded queue sizes
+- Overflow policies
+- Priority handling
+
+## Graceful Degradation
+
+Under extreme load:
+- Prioritize critical data
+- Defer non-essential processing
+- Maintain core functionality
+- Alert operators
+
+## Monitoring
+
+Track backpressure indicators:
+- Queue depths
+- Rejection rates
+- Client retries
+- Processing latency

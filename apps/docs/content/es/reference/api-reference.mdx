@@ -1,0 +1,74 @@
+# API Reference
+
+Complete documentation for ModularIoT REST APIs.
+
+## Base URL
+
+```
+https://api.modulariot.io/v1
+```
+
+## Authentication
+
+All API requests require authentication:
+- API Key in header: `X-API-Key: your-api-key`
+- OAuth 2.0 Bearer token: `Authorization: Bearer token`
+
+## Common Headers
+
+```
+Content-Type: application/json
+Accept: application/json
+X-API-Key: your-api-key
+```
+
+## API Categories
+
+### Telemetry API
+Ingest and query telemetry data.
+
+### Assets API
+Manage assets and their metadata.
+
+### Devices API
+Register and manage devices.
+
+### Symptoms API
+Query and manage symptoms.
+
+### Configuration API
+Manage symptom definitions and rules.
+
+## Response Format
+
+All responses follow standard format:
+```json
+{
+  "data": { ... },
+  "meta": {
+    "request_id": "...",
+    "timestamp": "..."
+  }
+}
+```
+
+## Error Responses
+
+Errors include:
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message",
+    "details": { ... }
+  }
+}
+```
+
+## Rate Limiting
+
+See Error Handling for rate limit details.
+
+## Versioning
+
+API versioned in URL path. Current version: `v1`.

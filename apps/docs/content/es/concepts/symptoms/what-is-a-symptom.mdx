@@ -1,0 +1,36 @@
+# What is a Symptom?
+
+A symptom is a detected condition that may require attention or action from an operator.
+
+## Definition
+
+Symptoms are the operational intelligence layer of ModularIoT. They represent:
+
+- **Detected conditions** - Not raw data, but interpreted situations
+- **Actionable items** - Things operators can respond to
+- **Stateful entities** - With lifecycle from detection to resolution
+
+## Symptom Anatomy
+
+Every symptom includes:
+
+- **Type** - What kind of condition (e.g., "HighTemperature", "Speeding")
+- **Severity** - How urgent (info, warning, critical)
+- **State** - Current status (detected, acknowledged, resolved)
+- **Subject** - Which asset is affected
+- **Context** - Supporting data and circumstances
+
+## Real-World Analogy
+
+Think of symptoms like medical symptoms:
+- A fever (symptom) is detected from temperature (metric)
+- The fever has severity (mild, high, dangerous)
+- It persists until treated (resolved)
+- Multiple symptoms together may indicate a condition
+
+## Why "Symptom"?
+
+We chose "symptom" over "alert" or "alarm" because:
+- Symptoms have state and lifecycle
+- They represent conditions, not just notifications
+- They can be tracked, investigated, and resolved

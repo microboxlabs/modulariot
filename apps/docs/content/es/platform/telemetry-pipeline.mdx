@@ -1,0 +1,46 @@
+# Telemetry Pipeline
+
+The telemetry pipeline transforms raw device data into canonical metrics.
+
+## Pipeline Stages
+
+### Parsing
+Raw messages are parsed according to device protocol and format.
+
+### Validation
+Data is validated for:
+- Required fields present
+- Values within acceptable ranges
+- Timestamps valid and reasonable
+
+### Normalization
+Device-specific values converted to canonical format:
+- Unit conversion (mph to km/h)
+- Coordinate normalization
+- Timestamp standardization
+
+### Enrichment
+Additional context added:
+- Asset association
+- Geographic information
+- Historical context
+
+### Routing
+Processed data routed to:
+- Storage for persistence
+- Symptoms Engine for detection
+- Real-time subscribers
+
+## Processing Guarantees
+
+- **At-least-once** delivery
+- **Ordering** preserved per device
+- **Idempotency** for duplicate handling
+
+## Monitoring
+
+Pipeline health is continuously monitored:
+- Message rates
+- Processing latency
+- Error rates
+- Queue depths

@@ -2,7 +2,7 @@ import { Footer, Layout, Navbar } from 'nextra-theme-docs'
 import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import 'nextra-theme-docs/style.css'
-import './globals.css'
+import '../globals.css'
 
 export const metadata = {
   title: {
@@ -32,7 +32,11 @@ const footer = (
   </Footer>
 )
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children, params }: { children: React.ReactNode, params: { lang: string } }) {
+
+  const { lang } = await params
+  const pageMap = (await getPageMap(`/${lang}`));
+
   return (
     <html
       lang="en"
@@ -45,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <Layout
           navbar={navbar}
-          pageMap={await getPageMap()}
+          pageMap={pageMap}
           docsRepositoryBase="https://github.com/microboxlabs/modulariot/tree/main/apps/docs"
           footer={footer}
           editLink="Edit this page on GitHub"

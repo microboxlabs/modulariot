@@ -1,0 +1,47 @@
+# GPS Devices
+
+Integrating dedicated GPS tracking hardware with ModularIoT.
+
+## Overview
+
+GPS devices are standalone tracking units that periodically report location and related data. They're common in fleet management and asset tracking.
+
+## Typical Data
+
+GPS devices typically report:
+- Latitude and longitude
+- Speed and heading
+- Altitude
+- Timestamp
+- Satellite count and HDOP
+
+## Integration Approaches
+
+### Direct Connection
+Device connects directly to ModularIoT ingestion endpoints.
+
+### Protocol Gateway
+Device communicates via proprietary protocol, gateway translates.
+
+### Manufacturer API
+Device reports to manufacturer cloud, API integration pulls data.
+
+## Common Protocols
+
+- **HTTP POST** - Modern devices with cellular connectivity
+- **TCP binary** - Legacy devices with compact protocols
+- **UDP** - Low-overhead transmission
+
+## Configuration Considerations
+
+- Reporting interval balance (battery vs freshness)
+- Wake-on-movement for parked assets
+- Geofence-triggered reporting
+- Data compression for bandwidth
+
+## Driver Requirements
+
+Each GPS device manufacturer requires a driver that:
+- Parses the protocol
+- Extracts position data
+- Maps to canonical metrics

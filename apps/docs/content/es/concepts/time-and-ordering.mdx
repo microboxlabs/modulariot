@@ -1,0 +1,42 @@
+# Time & Ordering
+
+Time is fundamental to telemetry processing. ModularIoT has specific approaches to handling temporal data.
+
+## Timestamp Types
+
+### Device Time
+When the device recorded the measurement. May be inaccurate if device clock drifts.
+
+### Server Time
+When the platform received the data. Always accurate but doesn't reflect actual event time.
+
+### Processed Time
+When the platform processed the record. Used for system tracking.
+
+## Out-of-Order Data
+
+Telemetry often arrives out of order due to:
+- Network delays
+- Buffering on devices
+- Batch transmission
+- Connectivity gaps
+
+ModularIoT handles this through:
+- Event-time processing
+- Late data windows
+- Watermarks for completeness
+
+## Time Zones
+
+All times are stored in UTC. Conversions to local time happen at display.
+
+## Data Gaps
+
+When devices lose connectivity:
+- Buffered data may arrive late
+- Gaps are detectable in timeseries
+- Symptoms can detect "no data" conditions
+
+## Ordering Guarantees
+
+Within a single device stream, ordering is preserved. Across devices, global ordering is not guaranteed.

@@ -1,0 +1,55 @@
+# Symptom Model
+
+Complete data model for symptoms.
+
+## Symptom Object
+
+```typescript
+interface Symptom {
+  id: string;                    // Unique identifier
+  type: string;                  // Symptom type code
+  severity: SeverityLevel;       // Current severity
+  state: SymptomState;           // Current state
+  subject: {
+    type: 'asset' | 'device';    // Subject type
+    id: string;                  // Subject identifier
+  };
+  detected_at: string;           // ISO 8601 timestamp
+  updated_at: string;            // Last update timestamp
+  acknowledged_at?: string;      // When acknowledged
+  resolved_at?: string;          // When resolved
+  assigned_to?: string;          // Assigned operator
+  context: Record<string, any>;  // Detection context
+  notes: Note[];                 // Operator notes
+  history: StateChange[];        // State history
+}
+```
+
+## Related Objects
+
+### Note
+```typescript
+interface Note {
+  id: string;
+  author: string;
+  content: string;
+  created_at: string;
+}
+```
+
+### StateChange
+```typescript
+interface StateChange {
+  from_state: SymptomState;
+  to_state: SymptomState;
+  timestamp: string;
+  actor: string;  // User or 'system'
+  reason?: string;
+}
+```
+
+## Identifiers
+
+- **Symptom ID** - UUID, globally unique
+- **Type** - String code (e.g., `speeding`, `geofence_exit`)
+- **Subject ID** - Asset or device identifier

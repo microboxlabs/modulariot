@@ -1,0 +1,37 @@
+# Modular Philosophy
+
+The "Modular" in ModularIoT reflects a fundamental design philosophy: compose complex capabilities from well-defined, interchangeable parts.
+
+## Why Modularity?
+
+IoT deployments are inherently diverse. No two fleets have identical requirements. Modularity enables:
+
+- **Selective adoption** - Use only what you need
+- **Incremental migration** - Add capabilities over time
+- **Custom extension** - Build domain-specific modules
+- **Independent scaling** - Scale subsystems separately
+
+## Architectural Modularity
+
+The platform is composed of independent subsystems:
+
+- **Ingestion modules** - Protocol-specific data intake
+- **Processing modules** - Transformation and enrichment
+- **Detection modules** - Symptom identification
+- **Output modules** - Notification and integration
+
+## Data Model Modularity
+
+The canonical data model supports:
+
+- **Standard metrics** - Common measurements across device types
+- **Custom metrics** - Domain-specific extensions
+- **Flexible schemas** - Evolving data requirements
+
+## Integration Modularity
+
+Connect at the level that fits your needs:
+
+- **Raw ingestion** - Send device data directly
+- **Processed metrics** - Ingest normalized data
+- **Symptom subscription** - Consume detected conditions

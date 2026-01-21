@@ -1,0 +1,53 @@
+# Writing a Driver
+
+Guide to creating a custom driver for a new device type.
+
+## When to Write a Driver
+
+Write a custom driver when:
+- No existing driver supports your device
+- OEM provides proprietary protocol
+- Custom data fields needed
+
+## Driver Development Steps
+
+### 1. Protocol Analysis
+- Document message format
+- Identify all fields
+- Note encoding (binary, text, etc.)
+- Handle edge cases
+
+### 2. Parser Implementation
+- Decode message structure
+- Extract field values
+- Handle variable-length data
+- Validate checksums if present
+
+### 3. Mapping Definition
+- Map fields to canonical keys
+- Define unit conversions
+- Handle optional fields
+- Document unmapped fields
+
+### 4. Validation Rules
+- Required field checks
+- Value range validation
+- Timestamp validation
+- Cross-field consistency
+
+### 5. Testing
+- Unit tests with sample data
+- Edge case coverage
+- Performance testing
+- Integration testing
+
+## Best Practices
+
+- Keep parsing separate from mapping
+- Log unknown fields for future enhancement
+- Handle partial data gracefully
+- Version your driver for updates
+
+## Deployment
+
+See Reference > API Reference for driver registration details.

@@ -1,0 +1,45 @@
+# Detection
+
+The Symptoms Engine detects conditions through configurable rules evaluated against incoming data.
+
+## Detection Model
+
+Detection rules define conditions that trigger symptoms:
+- What data to evaluate
+- Threshold or pattern conditions
+- Time windows and durations
+- Resulting symptom type and severity
+
+## Rule Types
+
+### Threshold Rules
+Simple value comparisons:
+- "Speed greater than 80 mph"
+- "Temperature below 32°F"
+- "Battery less than 20%"
+
+### Duration Rules
+Conditions sustained over time:
+- "Speed over limit for 5 minutes"
+- "No movement for 2 hours"
+- "Temperature excursion for 30 minutes"
+
+### Pattern Rules
+Complex condition combinations:
+- "Three harsh braking events in 10 minutes"
+- "Geofence exit followed by no contact"
+- "Temperature spike with door open"
+
+## Evaluation
+
+Rules are evaluated:
+- Continuously as data arrives
+- Per-asset scope
+- With configurable debounce
+
+## Rule Management
+
+Rules can be:
+- Defined per tenant
+- Enabled/disabled dynamically
+- Versioned for audit

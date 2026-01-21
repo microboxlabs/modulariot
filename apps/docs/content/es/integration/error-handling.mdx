@@ -1,0 +1,69 @@
+# Error Handling
+
+Handle failures gracefully in your integration.
+
+## Error Categories
+
+### Validation Errors
+Data doesn't meet requirements:
+- Schema violations
+- Invalid values
+- Missing required fields
+
+### Authentication Errors
+Credential issues:
+- Invalid API key
+- Expired token
+- Insufficient permissions
+
+### Rate Limiting
+Too many requests:
+- Tenant limit exceeded
+- Device limit exceeded
+- Burst limit reached
+
+### Server Errors
+Platform issues:
+- Service unavailable
+- Internal errors
+- Timeout
+
+## Error Responses
+
+Errors include:
+- HTTP status code
+- Error code (platform-specific)
+- Error message
+- Request ID for support
+
+## Retry Strategy
+
+### Retryable Errors
+- Rate limiting (429)
+- Server errors (5xx)
+- Timeout errors
+
+### Non-Retryable Errors
+- Validation errors (400)
+- Authentication errors (401, 403)
+- Not found (404)
+
+### Retry Policy
+- Exponential backoff
+- Maximum retry count
+- Jitter for thundering herd
+
+## Circuit Breaker
+
+Protect your system:
+- Track failure rate
+- Open circuit on threshold
+- Periodic retry to close
+- Fallback behavior
+
+## Monitoring
+
+Track error rates:
+- By error type
+- By device
+- By time period

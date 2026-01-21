@@ -1,0 +1,31 @@
+# Metrics Ingestion
+
+Metrics are the canonical, normalized measurements at the heart of ModularIoT's data model. This section covers how to ingest metrics correctly.
+
+## Overview
+
+Metrics represent standardized measurements with well-defined semantics. Unlike raw telemetry, metrics follow a strict schema that enables cross-device analysis and symptom detection.
+
+## Key Concepts
+
+### MIOT Metrics Schema
+The canonical schema defining how metrics are structured, including required fields, types, and constraints.
+
+### Canonical Keys
+Standardized metric names that ensure consistency across different device types and manufacturers.
+
+### Validation Rules
+Quality gates that ensure metric data meets platform requirements before processing.
+
+## In This Section
+
+- **MIOT Metrics Schema** - Complete schema specification
+- **Canonical Keys** - Registry of standard metric names
+- **Validation Rules** - Data quality requirements and error handling
+
+## Best Practices
+
+- Use canonical keys whenever possible
+- Include accurate timestamps with timezone information
+- Batch metrics for efficient transmission
+- Handle validation errors gracefully

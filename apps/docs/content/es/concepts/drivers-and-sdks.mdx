@@ -1,0 +1,39 @@
+# Drivers & SDKs
+
+Drivers and SDKs are the integration tools that connect external systems to ModularIoT.
+
+## Drivers
+
+Drivers translate device-specific protocols into ModularIoT's canonical format.
+
+### Purpose
+- Parse proprietary message formats
+- Extract meaningful data fields
+- Map to canonical metric keys
+- Handle protocol quirks
+
+### Driver Types
+- **Protocol drivers** - Handle specific communication protocols
+- **Device drivers** - Support specific hardware models
+- **OEM drivers** - Integrate with manufacturer APIs
+
+## SDKs
+
+SDKs are client libraries for application integration.
+
+### Purpose
+- Simplify API authentication
+- Provide language-native interfaces
+- Handle common patterns (batching, retries)
+- Type-safe data structures
+
+### Available SDKs
+- JavaScript (Node.js and browser)
+- Python
+- Java
+
+## When to Use Each
+
+**Use a driver** when integrating a new device type or data source.
+
+**Use an SDK** when building applications that consume or produce ModularIoT data.

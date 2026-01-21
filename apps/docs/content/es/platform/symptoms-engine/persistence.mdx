@@ -1,0 +1,42 @@
+# Persistence
+
+Symptom data is persisted for durability, recovery, and historical analysis.
+
+## Persistence Layers
+
+### In-Memory State
+- Active symptom tracking
+- Real-time queries
+- Sub-millisecond access
+
+### Checkpoint Storage
+- Periodic state snapshots
+- Recovery after failures
+- Point-in-time restoration
+
+### Historical Storage
+- Complete symptom records
+- Long-term retention
+- Analytics and reporting
+
+## Data Retention
+
+Retention policies by tier:
+- **Active:** Until resolved + 24 hours
+- **Recent:** 90 days rolling
+- **Archive:** Per tenant configuration (1-7 years)
+
+## Recovery
+
+On component failure:
+- State restored from checkpoints
+- Replay of recent events
+- Consistent state reconstruction
+- No symptom loss
+
+## Query Patterns
+
+Different storage tiers support:
+- Real-time dashboards (in-memory)
+- Operational queries (recent storage)
+- Historical reports (archive storage)

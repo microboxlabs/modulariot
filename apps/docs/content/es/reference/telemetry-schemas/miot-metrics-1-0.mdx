@@ -1,0 +1,94 @@
+# MIOT Metrics 1.0
+
+Complete specification for the MIOT Metrics schema version 1.0.
+
+## Schema Definition
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "device_id", "timestamp", "metrics"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/metric" }
+    },
+    "asset_id": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}
+```
+
+## Metric Object
+
+```json
+{
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "required": ["key", "value"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+        },
+        "value": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" },
+            { "type": "boolean" }
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
+```
+
+## Example Payload
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "gps-tracker-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": [
+    { "key": "position.latitude", "value": 37.7749 },
+    { "key": "position.longitude", "value": -122.4194 },
+    { "key": "position.speed", "value": 65.5, "unit": "km/h" }
+  ]
+}
+```
+
+## Validation Rules
+
+See Integration > Metrics Ingestion > Validation Rules.

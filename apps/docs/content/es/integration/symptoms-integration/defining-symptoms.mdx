@@ -1,0 +1,57 @@
+# Defining Symptoms
+
+Create custom symptom definitions for your operational needs.
+
+## Symptom Definition Components
+
+### Type
+Unique identifier for the symptom type:
+- `speeding`
+- `temperature_excursion`
+- `unauthorized_use`
+
+### Display Name
+Human-readable name for UI display.
+
+### Description
+Explanation of what this symptom represents.
+
+### Detection Rule
+Conditions that trigger the symptom:
+- Metric thresholds
+- Duration requirements
+- Pattern matching
+
+### Severity Rules
+How severity is determined and escalates:
+- Initial severity
+- Escalation conditions
+- De-escalation conditions
+
+### Notifications
+Who to notify and how:
+- Recipient rules
+- Channel selection
+- Message templates
+
+## Rule Expression Language
+
+Detection rules use expressions:
+- Metric comparisons
+- Logical operators
+- Time windows
+- Aggregations
+
+## Symptom Lifecycle Configuration
+
+Configure behavior through lifecycle:
+- Auto-resolve conditions
+- Acknowledgment requirements
+- Resolution actions
+
+## Testing Definitions
+
+Validate definitions before deployment:
+- Syntax validation
+- Test against sample data
+- Simulation mode

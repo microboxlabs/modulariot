@@ -1,0 +1,36 @@
+# Events
+
+Events represent discrete occurrences in time, distinct from continuous metric measurements.
+
+## What is an Event?
+
+An event is a record of something that happened at a specific moment:
+
+- **Ignition on/off** - Engine state changes
+- **Geofence entry/exit** - Boundary crossings
+- **Harsh braking** - Driving behavior incidents
+- **Door open/close** - Access events
+- **Alarm triggered** - Security events
+
+## Events vs Metrics
+
+**Metrics** are continuous measurements (temperature is 72°F).
+
+**Events** are discrete occurrences (door opened at 3:15 PM).
+
+Both carry timestamps, but events capture state changes while metrics capture state values.
+
+## Events vs Symptoms
+
+**Events** are factual records of occurrences.
+
+**Symptoms** are interpreted conditions that may require action.
+
+An event might trigger a symptom, but they are distinct concepts. A "low battery" event might trigger an "asset at risk" symptom.
+
+## Event Properties
+
+- **Type** - Classification of the event
+- **Timestamp** - When it occurred
+- **Source** - Which device reported it
+- **Context** - Additional relevant data

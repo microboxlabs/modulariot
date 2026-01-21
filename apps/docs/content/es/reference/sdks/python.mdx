@@ -1,0 +1,67 @@
+# Python SDK
+
+Official Python SDK for ModularIoT.
+
+## Status
+
+Coming Soon
+
+The Python SDK is under development and will be available soon.
+
+## Planned Features
+
+### Telemetry Ingestion
+- Batch metric submission
+- Async support
+- Automatic retry
+
+### Symptom Queries
+- Active symptoms
+- Historical queries
+- Pandas integration
+
+### Asset Management
+- Asset CRUD operations
+- Bulk operations
+
+### Authentication
+- API key authentication
+- OAuth 2.0 support
+
+## Installation
+
+```bash
+pip install modulariot
+```
+
+## Quick Start
+
+```python
+from modulariot import ModularIoT
+
+client = ModularIoT(api_key='your-api-key')
+
+# Example usage (preview)
+client.metrics.send(
+    device_id='device-123',
+    metrics=[
+        {'key': 'position.latitude', 'value': 37.7749},
+        {'key': 'position.longitude', 'value': -122.4194}
+    ]
+)
+```
+
+## Async Support
+
+```python
+import asyncio
+from modulariot import AsyncModularIoT
+
+async def main():
+    client = AsyncModularIoT(api_key='your-api-key')
+    await client.metrics.send(...)
+```
+
+## Documentation
+
+Full documentation will be available upon SDK release.

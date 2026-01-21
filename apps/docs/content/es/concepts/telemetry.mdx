@@ -1,0 +1,27 @@
+# Telemetry
+
+Telemetry is the raw data transmitted by devices to the platform. Understanding telemetry is foundational to working with ModularIoT.
+
+## What is Telemetry?
+
+Telemetry refers to the automated collection and transmission of data from remote devices. In ModularIoT, telemetry encompasses:
+
+- **Location data** - GPS coordinates, speed, heading
+- **Sensor readings** - Temperature, pressure, voltage
+- **Vehicle data** - Engine parameters, fuel levels, diagnostics
+- **Events** - Ignition, door opens, threshold crossings
+
+## Telemetry vs Metrics
+
+**Telemetry** is raw, device-specific data in the format sent by the device.
+
+**Metrics** are normalized, canonical representations extracted from telemetry.
+
+The platform transforms telemetry into metrics through drivers.
+
+## Characteristics of Telemetry
+
+- **Time-stamped** - Every reading has an associated time
+- **Device-specific** - Format depends on manufacturer
+- **Variable quality** - May contain gaps, delays, or errors
+- **High volume** - Devices often report frequently

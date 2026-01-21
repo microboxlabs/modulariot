@@ -1,0 +1,40 @@
+# Devices
+
+Devices are the hardware components that generate telemetry data.
+
+## What is a Device?
+
+A device is any hardware that:
+
+- Collects sensor data
+- Transmits telemetry to the platform
+- Has a unique identifier
+
+## Device Types
+
+### GPS Trackers
+Dedicated location tracking hardware that reports position, speed, and heading.
+
+### OBD/CAN Readers
+Devices that connect to vehicle diagnostic ports to read engine data.
+
+### Gateways
+Edge devices that aggregate data from multiple sensors.
+
+### Environmental Sensors
+Standalone sensors for temperature, humidity, pressure, etc.
+
+## Device Properties
+
+- **IMEI/Serial** - Unique hardware identifier
+- **Type** - Device classification
+- **Manufacturer** - Hardware vendor
+- **Firmware** - Software version
+- **Protocol** - Communication format
+
+## Device-Asset Relationship
+
+Devices are associated with assets:
+- One asset may have multiple devices
+- Device association can change over time
+- Historical data maintains original associations

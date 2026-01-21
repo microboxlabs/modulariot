@@ -1,0 +1,52 @@
+# Metrics Registry
+
+Complete catalog of canonical metric keys.
+
+## Registry Structure
+
+Metrics are organized hierarchically:
+- `domain.category.metric`
+
+## Position Metrics
+
+| Key | Type | Unit | Description |
+|-----|------|------|-------------|
+| `position.latitude` | number | degrees | WGS84 latitude |
+| `position.longitude` | number | degrees | WGS84 longitude |
+| `position.altitude` | number | meters | Altitude above sea level |
+| `position.speed` | number | km/h | Ground speed |
+| `position.heading` | number | degrees | Direction (0-360) |
+| `position.accuracy` | number | meters | GPS accuracy |
+| `position.satellites` | integer | count | Visible satellites |
+
+## Vehicle Metrics
+
+| Key | Type | Unit | Description |
+|-----|------|------|-------------|
+| `vehicle.odometer` | number | km | Total distance |
+| `vehicle.fuel_level` | number | percent | Fuel tank level |
+| `vehicle.fuel_consumed` | number | liters | Fuel used |
+| `vehicle.engine.rpm` | number | rpm | Engine RPM |
+| `vehicle.engine.coolant_temp` | number | celsius | Coolant temperature |
+| `vehicle.engine.oil_pressure` | number | kpa | Oil pressure |
+| `vehicle.engine.load` | number | percent | Engine load |
+| `vehicle.battery.voltage` | number | volts | Battery voltage |
+
+## State Metrics
+
+| Key | Type | Values | Description |
+|-----|------|--------|-------------|
+| `state.ignition` | boolean | true/false | Ignition state |
+| `state.movement` | boolean | true/false | Vehicle moving |
+| `state.door.driver` | boolean | true/false | Driver door |
+
+## Environment Metrics
+
+| Key | Type | Unit | Description |
+|-----|------|------|-------------|
+| `environment.temperature` | number | celsius | Ambient temp |
+| `environment.humidity` | number | percent | Relative humidity |
+
+## Custom Metrics
+
+Register custom metrics with `custom.` prefix.

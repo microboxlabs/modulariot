@@ -1,0 +1,50 @@
+# Gateways
+
+Integrating edge devices that aggregate data from multiple sources.
+
+## Overview
+
+Gateways are edge computing devices that collect data from multiple sensors or devices before forwarding to the cloud.
+
+## Use Cases
+
+### Industrial IoT
+Aggregating factory sensor data.
+
+### Mobile Assets
+Trailer with multiple sensors reporting through single gateway.
+
+### Remote Sites
+Multiple assets at a location sharing connectivity.
+
+## Gateway Responsibilities
+
+- **Local collection** - Gather data from connected sensors
+- **Aggregation** - Combine related readings
+- **Buffering** - Store data during connectivity loss
+- **Compression** - Reduce bandwidth requirements
+- **Forwarding** - Transmit to ModularIoT
+
+## Integration Approaches
+
+### Gateway as Device
+Gateway appears as single device, manages sub-devices internally.
+
+### Gateway as Proxy
+Gateway transparently forwards individual device messages.
+
+### Hybrid
+Gateway reports own data plus forwards device data.
+
+## Protocol Considerations
+
+- Local protocols (BLE, Zigbee, RS-485)
+- Cloud protocols (MQTT, HTTP)
+- Protocol translation at gateway
+- Security at both hops
+
+## State Management
+
+- Heartbeat from gateway
+- Sub-device status tracking
+- Connectivity change events

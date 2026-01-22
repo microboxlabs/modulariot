@@ -1,0 +1,83 @@
+# API Reference
+
+Complete reference for ModularIoT's HTTP APIs.
+
+## Base URL
+
+```
+https://iot.streamhub.cl
+```
+
+## Authentication
+
+All API requests require a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <access_token>
+```
+
+→ See **Authentication > API Login** to obtain a token.
+
+## Common Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Authorization` | Yes | `Bearer <access_token>` |
+| `Content-Type` | Yes | `application/json` |
+| `Accept` | Recommended | `application/json` |
+| `X-Request-Id` | Yes | Unique request identifier for tracing |
+| `X-Request-Timestamp` | Yes | Request timestamp (Unix epoch seconds) |
+
+## Response Formats
+
+All endpoints return JSON responses with consistent structure.
+
+### Success Response
+
+```json
+{
+  "status": "success",
+  "message": "Operation completed successfully"
+}
+```
+
+### Error Response
+
+```json
+{
+  "status": "error",
+  "message": "Error description",
+  "detail": "Additional error details"
+}
+```
+
+### Validation Error Response
+
+```json
+{
+  "status": "validation_error",
+  "message": "Request validation failed",
+  "errors": {
+    "field_name": "Error message for this field"
+  }
+}
+```
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 400 | Bad Request - Validation error or malformed request |
+| 401 | Unauthorized - Invalid or expired token |
+| 403 | Forbidden - Valid token but insufficient permissions |
+| 429 | Too Many Requests - Rate limit exceeded |
+| 500 | Internal Server Error |
+
+## Available Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/asset/track` | Send asset tracking data with telemetry |
+
+→ See **Asset Track** for detailed endpoint documentation.

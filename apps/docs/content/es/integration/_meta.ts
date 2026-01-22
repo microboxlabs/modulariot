@@ -1,11 +1,13 @@
 export default {
-  index: 'Overview',
-  'getting-started': 'Getting Started',
-  'ingestion-patterns': 'Ingestion Patterns',
+  index: 'Descripción General',
+  authentication: 'Autenticación',
+  'getting-started': 'Primeros Pasos',
+  'api-reference': 'Referencia de API',
+  'ingestion-patterns': 'Patrones de Ingesta',
   drivers: 'Drivers',
-  'metrics-ingestion': 'Metrics Ingestion',
-  'symptoms-integration': 'Symptoms Integration',
-  'batching-throughput': 'Batching & Throughput',
-  'error-handling': 'Error Handling',
-  examples: 'Examples'
+  'metrics-ingestion': 'Ingesta de Métricas',
+  'symptoms-integration': 'Integración de Síntomas',
+  'batching-throughput': 'Batching y Rendimiento',
+  'error-handling': 'Manejo de Errores',
+  examples: 'Ejemplos'
 }

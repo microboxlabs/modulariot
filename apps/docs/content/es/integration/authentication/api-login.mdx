@@ -1,0 +1,273 @@
+# API Login
+
+Obtén un token de acceso para autenticar tus solicitudes a la API.
+
+## Endpoint
+
+```
+POST https://api.microboxlabs.com/api/v1/login
+```
+
+## Solicitud
+
+### Headers
+
+| Header | Valor |
+|--------|-------|
+| `Content-Type` | `application/json` |
+
+### Body
+
+```json
+{
+  "client_id": "TU_CLIENT_ID",
+  "client_secret": "TU_CLIENT_SECRET",
+  "audience": "https://iot.streamhub.cl/v1/asset/track",
+  "grant_type": "client_credentials"
+}
+```
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `client_id` | string | Sí | El client ID de tu aplicación |
+| `client_secret` | string | Sí | El client secret de tu aplicación |
+| `audience` | string | Sí | El identificador de la API (proporcionado con tus credenciales) |
+| `grant_type` | string | Sí | Debe ser `client_credentials` |
+
+## Respuesta
+
+### Éxito (200 OK)
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 86400,
+  "scope": "asset:track:write"
+}
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `access_token` | string | Token JWT para usar en las solicitudes API |
+| `token_type` | string | Siempre `Bearer` |
+| `expires_in` | integer | Validez del token en segundos (por defecto: 86400 = 24h) |
+| `scope` | string | Permisos otorgados |
+
+### Respuestas de Error
+
+| Estado | Descripción |
+|--------|-------------|
+| 400 | Solicitud inválida (campos faltantes o malformados) |
+| 401 | Credenciales inválidas (client_id o client_secret incorrectos) |
+| 403 | Acceso denegado (cliente no autorizado para este audience) |
+
+---
+
+## Ejemplos de Código
+
+### curl
+
+```bash
+curl --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "TU_CLIENT_ID",
+    "client_secret": "TU_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }'
+```
+
+### Python
+
+Usando el paquete oficial `microboxlabs-auth-manager`:
+
+```bash
+pip install microboxlabs-auth-manager
+```
+
+```python
+from microboxlabs_auth_manager import AuthToken
+
+# Inicializar con tus credenciales
+auth = AuthToken(
+    client_id="TU_CLIENT_ID",
+    client_secret="TU_CLIENT_SECRET",
+    audience="https://iot.streamhub.cl/v1/asset/track",
+    grant_type="client_credentials"
+)
+
+# Obtener token de acceso (automáticamente cacheado hasta expiración)
+access_token = auth.get_token()
+
+# Usar en tus solicitudes API
+import requests
+
+response = requests.post(
+    "https://iot.streamhub.cl/v1/asset/track",
+    headers={
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "X-Request-Id": "id-solicitud-unico",
+        "X-Request-Timestamp": "1705315800"
+    },
+    json={"asset_id": "A123", "timestamp": "2024-01-15T10:30:00Z"}
+)
+```
+
+### Node.js
+
+```javascript
+const axios = require('axios');
+
+async function getToken() {
+  const response = await axios.post(
+    'https://api.microboxlabs.com/api/v1/login',
+    {
+      client_id: 'TU_CLIENT_ID',
+      client_secret: 'TU_CLIENT_SECRET',
+      audience: 'https://iot.streamhub.cl/v1/asset/track',
+      grant_type: 'client_credentials'
+    },
+    {
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
+
+  return response.data.access_token;
+}
+
+// Uso
+const token = await getToken();
+console.log('Token de acceso:', token);
+```
+
+### Angular
+
+```typescript
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private url = 'https://api.microboxlabs.com/api/v1/login';
+
+  constructor(private http: HttpClient) {}
+
+  getToken(): Observable<TokenResponse> {
+    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    const body = {
+      client_id: 'TU_CLIENT_ID',
+      client_secret: 'TU_CLIENT_SECRET',
+      audience: 'https://iot.streamhub.cl/v1/asset/track',
+      grant_type: 'client_credentials'
+    };
+
+    return this.http.post<TokenResponse>(this.url, body, { headers });
+  }
+}
+```
+
+### Elixir
+
+Usando el paquete oficial `microboxlabs_auth_manager` de hex:
+
+```elixir
+# mix.exs
+def deps do
+  [
+    {:microboxlabs_auth_manager, "~> 0.1.0"}
+  ]
+end
+```
+
+```elixir
+# Obtener token
+token = AuthToken.new(
+  "TU_CLIENT_ID",
+  "TU_CLIENT_SECRET",
+  "https://iot.streamhub.cl/v1/asset/track",
+  "client_credentials"
+)
+```
+
+---
+
+## Cacheo de Tokens
+
+Para evitar solicitudes de token innecesarias, implementa cacheo de tokens:
+
+```python
+import time
+from microboxlabs_auth_manager import AuthToken
+
+class TokenManager:
+    def __init__(self, client_id, client_secret, audience):
+        self.auth = AuthToken(
+            client_id=client_id,
+            client_secret=client_secret,
+            audience=audience,
+            grant_type="client_credentials"
+        )
+        self._token = None
+        self._expires_at = 0
+
+    def get_token(self):
+        # Renovar token 5 minutos antes de expiración
+        if time.time() > self._expires_at - 300:
+            self._token = self.auth.get_token()
+            self._expires_at = time.time() + 86400  # 24 horas
+        return self._token
+```
+
+---
+
+## Solución de Problemas
+
+### client_id o client_secret inválido
+
+```json
+{
+  "error": "access_denied",
+  "error_description": "Unauthorized"
+}
+```
+
+**Solución:** Verifica que tus credenciales sean correctas y estén activas.
+
+### audience inválido
+
+```json
+{
+  "error": "access_denied",
+  "error_description": "Client is not authorized to access the audience"
+}
+```
+
+**Solución:** Usa la URL de audience exacta proporcionada con tus credenciales.
+
+### Token expirado
+
+Cuando usas un token expirado, la API devuelve:
+
+```
+HTTP/1.1 401 Unauthorized
+```
+
+**Solución:** Solicita un nuevo token y reintenta la solicitud.
+
+---
+
+→ Ver **Referencia de API > Asset Track** para usar el token y enviar datos de telemetría.

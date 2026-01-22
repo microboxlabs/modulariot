@@ -6,39 +6,107 @@ This guide walks you through sending your first telemetry to ModularIoT.
 
 Before you begin, ensure you have:
 - A ModularIoT account
-- API credentials (API key or OAuth tokens)
+- API credentials (`client_id`, `client_secret`, `audience`)
 - A device or test data to send
 
 ## Quick Start Steps
 
 ### 1. Obtain Credentials
 
-Get your API key from the ModularIoT dashboard or your administrator.
+Your administrator will provide you with OAuth 2.0 credentials:
+- `client_id` — Your application identifier
+- `client_secret` — Your secret key (keep secure!)
+- `audience` — The API you're accessing
 
-### 2. Register a Device
+→ See **Authentication** for details on the credential format.
 
-Register your device with the platform to establish identity.
+### 2. Get an Access Token
 
-### 3. Send Telemetry
+Exchange your credentials for an access token:
 
-Send your first telemetry payload to the ingestion endpoint.
+```bash
+curl --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }'
+```
 
-### 4. Verify Receipt
+→ See **Authentication > API Login** for complete examples.
 
-Confirm your data appears in the Control Tower.
+### 3. Send Your First Telemetry
+
+Use the token to send tracking data:
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'X-Request-Id: my-first-request' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "my-first-asset",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693
+    }
+  }'
+```
+
+### 4. Verify Success
+
+A successful response looks like:
+
+```json
+{
+  "status": "success",
+  "message": "Message sent successfully"
+}
+```
+
+## Adding Metrics
+
+To send vehicle diagnostics (OBD-II, J1939), include the `metrics` object:
+
+```json
+{
+  "asset_id": "my-first-asset",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": {
+    "schema_version": "1.0",
+    "device_id": "obd-reader-001",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "metrics": [
+      { "key": "engine.rpm", "value": 2500 },
+      { "key": "vehicle.speed", "value": 72 },
+      { "key": "fuel.level", "value": 65 }
+    ]
+  }
+}
+```
+
+→ See **Metrics Ingestion** for the complete metrics schema.
 
 ## Next Steps
 
 After successfully sending telemetry:
-- Explore **Ingestion Patterns** for your device type
-- Learn about **Metrics Ingestion** for canonical data
-- Set up **Symptoms** for operational intelligence
+- **API Reference** — Complete endpoint documentation
+- **Ingestion Patterns** — Device-specific integration guides
+- **Metrics Ingestion** — Canonical metrics and validation
+- **Symptoms Integration** — Operational intelligence
 
 ## Troubleshooting
 
-Common issues and solutions:
-- **Authentication errors:** Verify API key is active
-- **Validation errors:** Check payload format
-- **No data appearing:** Confirm device registration
+| Problem | Solution |
+|---------|----------|
+| `401 Unauthorized` | Token expired or invalid—request a new token |
+| `400 Validation Error` | Check required fields (`asset_id`, `timestamp`) |
+| `403 Forbidden` | Verify your credentials have the correct scope |
 
-See **Error Handling** for detailed troubleshooting.
+→ See **Error Handling** for detailed troubleshooting.

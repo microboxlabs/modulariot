@@ -1,0 +1,363 @@
+# Asset Track
+
+Envía datos de telemetría para un activo a ModularIoT.
+
+## Endpoint
+
+```
+POST https://iot.streamhub.cl/v1/asset/track
+```
+
+## Autenticación
+
+Requiere un token Bearer válido con scope `asset:track:write`.
+
+```
+Authorization: Bearer <access_token>
+```
+
+## Solicitud
+
+### Headers
+
+| Header | Requerido | Descripción |
+|--------|-----------|-------------|
+| `Authorization` | Sí | `Bearer <access_token>` |
+| `Content-Type` | Sí | `application/json` |
+| `Accept` | Recomendado | `application/json` para respuestas JSON |
+| `X-Request-Id` | Sí | Identificador único para trazabilidad de la solicitud |
+| `X-Request-Timestamp` | Sí | Timestamp de la solicitud (segundos Unix epoch) |
+
+### Body (AssetTrackingData)
+
+```json
+{
+  "asset_id": "A123456789",
+  "timestamp": "2024-10-22T14:23:45Z",
+  "type": "Truck",
+  "owner": "Empresa ABC",
+  "year": 2020,
+  "gps": {
+    "latitude": -33.4489,
+    "longitude": -70.6693,
+    "altitude": 520,
+    "speed": 65.5,
+    "heading": 180
+  },
+  "metrics": {
+    "schema_version": "1.0",
+    "device_id": "lector-obd-001",
+    "timestamp": "2024-10-22T14:23:45Z",
+    "metrics": [
+      { "key": "engine.rpm", "value": 2500 },
+      { "key": "vehicle.speed", "value": 72 },
+      { "key": "fuel.level", "value": 65 }
+    ]
+  }
+}
+```
+
+### Referencia de Campos
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `asset_id` | string | **Sí** | Identificador único del activo |
+| `timestamp` | string | **Sí** | Timestamp ISO 8601 con zona horaria |
+| `type` | string | No | Tipo de activo (ej., "Truck", "Container") |
+| `owner` | string | No | Nombre del propietario del activo |
+| `year` | integer | No | Año de fabricación |
+| `gps` | object | No | Datos de ubicación GPS |
+| `telecom` | object | No | Información de conectividad |
+| `sensors` | object | No | Lecturas de sensores |
+| `driver_info` | object | No | Información del conductor |
+| `co_driver_info` | object | No | Información del copiloto |
+| `peripherals` | object | No | Periféricos conectados |
+| `metrics` | object | No | Métricas canónicas (miot.metrics@1.0) |
+| `events` | array | No | Eventos discretos |
+
+### Objeto GPS
+
+```json
+{
+  "latitude": -33.4489,
+  "longitude": -70.6693,
+  "altitude": 520,
+  "speed": 65.5,
+  "heading": 180,
+  "accuracy": 5
+}
+```
+
+| Campo | Tipo | Unidad | Descripción |
+|-------|------|--------|-------------|
+| `latitude` | number | grados | Latitud WGS84 (-90 a 90) |
+| `longitude` | number | grados | Longitud WGS84 (-180 a 180) |
+| `altitude` | number | metros | Altitud sobre el nivel del mar |
+| `speed` | number | km/h | Velocidad sobre el suelo |
+| `heading` | number | grados | Dirección (0-360) |
+| `accuracy` | number | metros | Precisión del GPS |
+
+### Objeto Metrics (miot.metrics@1.0)
+
+Para enviar métricas canónicas de vehículos/IoT:
+
+```json
+{
+  "schema_version": "1.0",
+  "device_id": "lector-obd-001",
+  "timestamp": "2024-10-22T14:23:45Z",
+  "metrics": [
+    { "key": "engine.rpm", "value": 2500 },
+    { "key": "vehicle.speed", "value": 72 },
+    { "key": "engine.coolant_temp", "value": 85 },
+    { "key": "fuel.level", "value": 65 }
+  ]
+}
+```
+
+→ Ver **Referencia > Registro de Métricas** para todas las claves de métricas canónicas disponibles.
+
+---
+
+## Respuesta
+
+### Éxito (200 OK)
+
+```json
+{
+  "status": "success",
+  "message": "Message sent successfully"
+}
+```
+
+### Error de Validación (400 Bad Request)
+
+```json
+{
+  "status": "validation_error",
+  "message": "Request validation failed",
+  "errors": {
+    "assetId": "Asset ID is required and cannot be blank",
+    "timestamp": "Timestamp is required"
+  }
+}
+```
+
+### No Autorizado (401)
+
+Se devuelve cuando el token es inválido o ha expirado.
+
+### Error Interno (500)
+
+```json
+{
+  "status": "error",
+  "message": "Failed to publish message",
+  "detail": "Connection timeout"
+}
+```
+
+---
+
+## Ejemplos Completos
+
+### Solicitud Mínima (Solo Campos Requeridos)
+
+```bash
+# Obtener token primero
+TOKEN=$(curl -s --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "TU_CLIENT_ID",
+    "client_secret": "TU_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }' | jq -r '.access_token')
+
+# Enviar datos de seguimiento
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-001' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }'
+```
+
+### Con Ubicación GPS
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-002' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "type": "Truck",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5,
+      "heading": 180
+    }
+  }'
+```
+
+### Con Métricas Canónicas (OBD-II/J1939)
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-003' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "type": "Truck",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5
+    },
+    "metrics": {
+      "schema_version": "1.0",
+      "device_id": "lector-obd-001",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "metrics": [
+        { "key": "engine.rpm", "value": 2500 },
+        { "key": "vehicle.speed", "value": 72 },
+        { "key": "engine.coolant_temp", "value": 85 },
+        { "key": "fuel.level", "value": 65 },
+        { "key": "battery.voltage", "value": 14.2 }
+      ]
+    }
+  }'
+```
+
+### Ejemplo en Python
+
+```python
+import requests
+import time
+from microboxlabs_auth_manager import AuthToken
+
+# Inicializar autenticación
+auth = AuthToken(
+    client_id="TU_CLIENT_ID",
+    client_secret="TU_CLIENT_SECRET",
+    audience="https://iot.streamhub.cl/v1/asset/track",
+    grant_type="client_credentials"
+)
+
+# Enviar datos de seguimiento
+response = requests.post(
+    "https://iot.streamhub.cl/v1/asset/track",
+    headers={
+        "Authorization": f"Bearer {auth.get_token()}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Request-Id": f"req-{int(time.time())}",
+        "X-Request-Timestamp": str(int(time.time()))
+    },
+    json={
+        "asset_id": "A123456789",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "gps": {
+            "latitude": -33.4489,
+            "longitude": -70.6693,
+            "speed": 65.5
+        },
+        "metrics": {
+            "schema_version": "1.0",
+            "device_id": "lector-obd-001",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "metrics": [
+                {"key": "engine.rpm", "value": 2500},
+                {"key": "vehicle.speed", "value": 72}
+            ]
+        }
+    }
+)
+
+print(response.json())
+```
+
+---
+
+## Métricas Comunes
+
+Referencia rápida para métricas canónicas frecuentemente usadas:
+
+| Clave | Descripción | Unidad |
+|-------|-------------|--------|
+| `engine.rpm` | Velocidad del motor | rpm |
+| `vehicle.speed` | Velocidad del vehículo | km/h |
+| `fuel.level` | Nivel del tanque de combustible | % |
+| `engine.coolant_temp` | Temperatura del refrigerante | °C |
+| `battery.voltage` | Voltaje de la batería | V |
+| `odometer` | Distancia total | km |
+
+→ Ver **Referencia > Registro de Métricas** para el catálogo completo de 31 métricas canónicas.
+
+---
+
+## Manejo de Errores
+
+### Lógica de Reintentos
+
+Implementa backoff exponencial para errores transitorios:
+
+```python
+import time
+import requests
+
+def enviar_con_reintento(url, headers, data, max_reintentos=3):
+    for intento in range(max_reintentos):
+        try:
+            response = requests.post(url, headers=headers, json=data)
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 401:
+                # Token expirado - renovar y reintentar
+                headers["Authorization"] = f"Bearer {obtener_nuevo_token()}"
+            elif response.status_code >= 500:
+                # Error del servidor - reintentar con backoff
+                time.sleep(2 ** intento)
+            else:
+                # Error del cliente - no reintentar
+                return response.json()
+
+        except requests.exceptions.RequestException:
+            time.sleep(2 ** intento)
+
+    raise Exception("Máximo de reintentos excedido")
+```
+
+### Errores de Validación
+
+Cuando recibas un error de validación, revisa el objeto `errors` para problemas específicos de campos:
+
+```json
+{
+  "status": "validation_error",
+  "message": "Request validation failed",
+  "errors": {
+    "assetId": "Asset ID is required and cannot be blank"
+  }
+}
+```
+
+Corrige los campos indicados y reintenta.

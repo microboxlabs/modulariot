@@ -1,0 +1,77 @@
+# Autenticación
+
+ModularIoT utiliza OAuth 2.0 con el tipo de concesión **client credentials** para autenticación máquina a máquina (M2M). Este es el flujo estándar para aplicaciones del lado del servidor y dispositivos IoT que necesitan acceder a la API sin interacción del usuario.
+
+## Cómo Funciona
+
+```
+Tu Aplicación                       ModularIoT Auth                    ModularIoT API
+      │                                   │                                  │
+      │ ─── POST /login ─────────────────►│                                  │
+      │     (client_id, client_secret)    │                                  │
+      │                                   │                                  │
+      │ ◄── access_token ─────────────────│                                  │
+      │                                   │                                  │
+      │ ─── POST /v1/asset/track ─────────┼─────────────────────────────────►│
+      │     (Authorization: Bearer token) │                                  │
+      │                                   │                                  │
+      │ ◄── Respuesta ────────────────────┼──────────────────────────────────│
+      │                                   │                                  │
+```
+
+## Credenciales
+
+Cuando te registras en ModularIoT, recibes:
+
+| Credencial | Descripción |
+|------------|-------------|
+| `client_id` | Identificador único de tu aplicación |
+| `client_secret` | Clave secreta de tu aplicación (¡mantenla segura!) |
+| `audience` | El identificador de la API a la que accedes |
+| `grant_type` | Siempre `client_credentials` para M2M |
+
+## Ciclo de Vida del Token
+
+| Propiedad | Valor |
+|-----------|-------|
+| Tipo de token | Bearer (JWT) |
+| Expiración por defecto | 24 horas (86400 segundos) |
+| Renovación | Solicita un nuevo token antes de que expire |
+
+## Mejores Prácticas de Seguridad
+
+### Protege tus Credenciales
+
+- **Nunca** expongas `client_secret` en código del lado del cliente o repositorios públicos
+- Almacena las credenciales en variables de entorno o bóvedas seguras
+- Usa credenciales diferentes para desarrollo y producción
+
+### Gestión de Tokens
+
+- **Cachea los tokens** hasta que expiren—no solicites un nuevo token para cada llamada API
+- Implementa lógica de renovación de token antes de la expiración
+- Maneja respuestas `401 Unauthorized` solicitando un nuevo token
+
+### Seguridad de Red
+
+- Siempre usa HTTPS (TLS 1.2+)
+- Valida certificados SSL en producción
+- Considera lista blanca de IPs para seguridad adicional
+
+## Inicio Rápido
+
+Obtén tu primer token:
+
+```bash
+curl --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "TU_CLIENT_ID",
+    "client_secret": "TU_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }'
+```
+
+→ Ver **API Login** para ejemplos completos en múltiples lenguajes.

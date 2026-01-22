@@ -1,44 +1,112 @@
-# Getting Started
+# Primeros Pasos
 
-This guide walks you through sending your first telemetry to ModularIoT.
+Esta guía te muestra cómo enviar tu primera telemetría a ModularIoT.
 
-## Prerequisites
+## Prerrequisitos
 
-Before you begin, ensure you have:
-- A ModularIoT account
-- API credentials (API key or OAuth tokens)
-- A device or test data to send
+Antes de comenzar, asegúrate de tener:
+- Una cuenta de ModularIoT
+- Credenciales de API (`client_id`, `client_secret`, `audience`)
+- Un dispositivo o datos de prueba para enviar
 
-## Quick Start Steps
+## Pasos de Inicio Rápido
 
-### 1. Obtain Credentials
+### 1. Obtener Credenciales
 
-Get your API key from the ModularIoT dashboard or your administrator.
+Tu administrador te proporcionará credenciales OAuth 2.0:
+- `client_id` — Identificador de tu aplicación
+- `client_secret` — Tu clave secreta (¡mantenla segura!)
+- `audience` — La API a la que estás accediendo
 
-### 2. Register a Device
+→ Ver **Autenticación** para detalles sobre el formato de credenciales.
 
-Register your device with the platform to establish identity.
+### 2. Obtener un Token de Acceso
 
-### 3. Send Telemetry
+Intercambia tus credenciales por un token de acceso:
 
-Send your first telemetry payload to the ingestion endpoint.
+```bash
+curl --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "TU_CLIENT_ID",
+    "client_secret": "TU_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }'
+```
 
-### 4. Verify Receipt
+→ Ver **Autenticación > API Login** para ejemplos completos.
 
-Confirm your data appears in the Control Tower.
+### 3. Enviar tu Primera Telemetría
 
-## Next Steps
+Usa el token para enviar datos de seguimiento:
 
-After successfully sending telemetry:
-- Explore **Ingestion Patterns** for your device type
-- Learn about **Metrics Ingestion** for canonical data
-- Set up **Symptoms** for operational intelligence
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer TU_ACCESS_TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'X-Request-Id: mi-primera-solicitud' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "mi-primer-activo",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693
+    }
+  }'
+```
 
-## Troubleshooting
+### 4. Verificar el Éxito
 
-Common issues and solutions:
-- **Authentication errors:** Verify API key is active
-- **Validation errors:** Check payload format
-- **No data appearing:** Confirm device registration
+Una respuesta exitosa se ve así:
 
-See **Error Handling** for detailed troubleshooting.
+```json
+{
+  "status": "success",
+  "message": "Message sent successfully"
+}
+```
+
+## Agregar Métricas
+
+Para enviar diagnósticos de vehículos (OBD-II, J1939), incluye el objeto `metrics`:
+
+```json
+{
+  "asset_id": "mi-primer-activo",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "metrics": {
+    "schema_version": "1.0",
+    "device_id": "lector-obd-001",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "metrics": [
+      { "key": "engine.rpm", "value": 2500 },
+      { "key": "vehicle.speed", "value": 72 },
+      { "key": "fuel.level", "value": 65 }
+    ]
+  }
+}
+```
+
+→ Ver **Ingesta de Métricas** para el esquema completo de métricas.
+
+## Próximos Pasos
+
+Después de enviar telemetría exitosamente:
+- **Referencia de API** — Documentación completa de endpoints
+- **Patrones de Ingesta** — Guías de integración específicas por dispositivo
+- **Ingesta de Métricas** — Métricas canónicas y validación
+- **Integración de Síntomas** — Inteligencia operacional
+
+## Solución de Problemas
+
+| Problema | Solución |
+|----------|----------|
+| `401 Unauthorized` | Token expirado o inválido—solicita un nuevo token |
+| `400 Validation Error` | Verifica campos requeridos (`asset_id`, `timestamp`) |
+| `403 Forbidden` | Verifica que tus credenciales tengan el scope correcto |
+
+→ Ver **Manejo de Errores** para solución de problemas detallada.

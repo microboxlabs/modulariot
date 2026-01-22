@@ -31,7 +31,9 @@ const getMatchTypeLabel = (matchType: MatchType, dict: I18nDictionary): string =
     permanencia: tr("pages.planning.sidebar.search.matchType.permanencia", dict),
     tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
   };
-  return labels[matchType];
+  const label = labels[matchType];
+  // Capitalize first letter
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 // Helper to get translated location code or return original if not found
@@ -174,7 +176,7 @@ export function PlanningSearchTags({
           {/* Icon commented out - showing attribute:value instead */}
           {/* <span className="text-base">{getMatchTypeIcon(tag.matchType)}</span> */}
           <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
-            {getMatchTypeLabel(tag.matchType, dict)}: {getTranslatedValue(tag.matchType, tag.value, dict)}
+            {getMatchTypeLabel(tag.matchType, dict)}: {tag.value}
           </span>
           <button
             type="button"

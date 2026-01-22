@@ -17,106 +17,180 @@ import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
 import { ShowNotification } from "@/features/notifications/notification";
+import { useMyTasks } from "@/features/common/providers/client-api.provider";
+import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "@/features/task-forms/services/form.service";
+import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
+import { transformBoardsToTableData } from "@/features/shipping/utils/transform-data";
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
-// Mock services for demonstration - will be replaced with real data from API
-const MOCK_SERVICES: SelectedService[] = [
-  {
-    id: "1045782-v",
-    cliente: "Acme Corp",
-    origen: "VAP",
-    lugarCarguio: "Andén 5",
-    destino: "ZOS",
-    tipoViaje: "Sider",
-    ocupacion: 85,
-    permanencia: "24h",
+// Transform KanbanBoardTask to SelectedService
+function transformTaskToService(task: KanbanBoardTask): SelectedService {
+  // Extract service code from name (format: "1045782-V" or "1045782-v")
+  // Use name if available, otherwise use id
+  const serviceId = task.name || task.id;
+
+  // Determine trip type from serviceKind or executionType
+  const tipoViaje =
+    task.serviceKind === "Sider"
+      ? "Sider"
+      : task.serviceKind === "Doble Sider"
+        ? "Doble Sider"
+        : task.executionType === "Rampla"
+          ? "Rampla"
+          : "Sider"; // Default
+
+  // Calculate permanencia from dates if available
+  let permanencia = "24h"; // Default
+  if (task.departureDate && task.estimatedArrivalDate) {
+    const dep = dayjs(task.departureDate);
+    const arr = dayjs(task.estimatedArrivalDate);
+    if (arr.isValid() && dep.isValid()) {
+      const hours = arr.diff(dep, "hour");
+      permanencia = `${hours}h`;
+    }
+  }
+
+  // Determine lead time status from mintral_icuCondition
+  let leadTimeStatus: "on_time" | "warning" | "delayed" = "on_time";
+  if (task.mintral_icuCondition !== undefined) {
+    if (task.mintral_icuCondition < 0) {
+      leadTimeStatus = "delayed";
+    } else if (task.mintral_icuCondition < 3) {
+      leadTimeStatus = "warning";
+    }
+  }
+
+  // Extract incidencias from priority code or other fields
+  const incidencias: string[] = [];
+  if (task.mintral_priorityCode) {
+    incidencias.push(task.mintral_priorityCode.toLowerCase());
+  }
+  if (
+    task.mintral_icuCondition !== undefined &&
+    task.mintral_icuCondition < 0
+  ) {
+    incidencias.push("urgencia");
+  }
+
+  return {
+    id: serviceId,
+    cliente: task.client || task.clientCode || "",
+    origen: task.origin || "",
+    lugarCarguio: "", // Not available in KanbanBoardTask
+    destino: task.destination || "",
+    tipoViaje: tipoViaje as "Sider" | "Doble Sider" | "Rampla",
+    ocupacion: 0, // Not available in KanbanBoardTask
+    permanencia,
     leadTime: {
-      deadline: "2026-02-15",
-      status: "on_time",
+      deadline: task.expectedDepartureDate || task.departureDate || "",
+      status: leadTimeStatus,
     },
-    eta: "2026-02-16T14:30:00",
-    incidencias: ["urgencia", "c4", "c5"],
-    observaciones:
-      "Presentar documentación antes de las 10:00. Contactar a Juan.",
-    prioridad: 1,
-  },
-  {
-    id: "1045782-v",
-    cliente: "Acme Corp",
-    origen: "SCL",
-    lugarCarguio: "Andén 5",
-    destino: "VAP",
-    tipoViaje: "Sider",
-    ocupacion: 85,
-    permanencia: "24h",
-    leadTime: {
-      deadline: "2026-01-15",
-      status: "on_time",
-    },
-    eta: "2026-01-16T14:30:00",
-    incidencias: ["urgencia", "c4", "c5"],
-    observaciones:
-      "Presentar documentación antes de las 10:00. Contactar a Juan.",
-    prioridad: 1,
-  },
-  {
-    id: "2038491-v",
-    cliente: "Minera Los Andes",
-    origen: "SCL",
-    lugarCarguio: "Dock 3",
-    destino: "VAP",
-    tipoViaje: "Doble Sider",
-    ocupacion: 60,
-    permanencia: "48h",
-    leadTime: {
-      deadline: "2026-01-14",
-      status: "warning",
-    },
-    eta: "2026-01-15T09:00:00",
-    incidencias: ["shutdown"],
-    observaciones: "Carga frágil. Requiere supervisión especial.",
-    prioridad: 2,
-  },
-  {
-    id: "1049760-v",
-    cliente: "Transportes del Norte",
-    origen: "SCL",
-    lugarCarguio: "Plataforma 1",
-    destino: "VAP",
-    tipoViaje: "Rampla",
-    ocupacion: 100,
-    permanencia: "12h",
-    leadTime: {
-      deadline: "2026-01-13",
-      status: "delayed",
-    },
-    eta: "2026-01-14T18:00:00",
-    incidencias: ["urgencia", "shutdown", "c4", "c5", "c7", "c8", "c9"],
-    observaciones: "URGENTE: Cliente prioritario. Llamar antes de salir.",
-    prioridad: 1,
-  },
-  {
-    id: "4815263-v",
-    cliente: "Agrícola Sur",
-    origen: "SCL",
-    lugarCarguio: "Andén 2",
-    destino: "ZOS",
-    tipoViaje: "Sider",
-    ocupacion: 45,
-    permanencia: "8h",
-    leadTime: {
-      deadline: "2026-01-18",
-      status: "on_time",
-    },
-    eta: "2026-01-18T11:30:00",
-    incidencias: ["c4"],
-    observaciones: "Productos perecederos. Mantener cadena de frío.",
-    prioridad: 3,
-  },
-];
+    eta: task.estimatedArrivalDate || task.arrivalDate || "",
+    incidencias,
+    observaciones: task.description || "",
+    prioridad:
+      task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
+  };
+}
+
+// Mock services commented out - using only real API data
+// const MOCK_SERVICES: SelectedService[] = [
+//   {
+//     id: "1045782-v",
+//     cliente: "Acme Corp",
+//     origen: "VAP",
+//     lugarCarguio: "Andén 5",
+//     destino: "ZOS",
+//     tipoViaje: "Sider",
+//     ocupacion: 85,
+//     permanencia: "24h",
+//     leadTime: {
+//       deadline: "2026-02-15",
+//       status: "on_time",
+//     },
+//     eta: "2026-02-16T14:30:00",
+//     incidencias: ["urgencia", "c4", "c5"],
+//     observaciones:
+//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
+//     prioridad: 1,
+//   },
+//   {
+//     id: "1045782-v",
+//     cliente: "Acme Corp",
+//     origen: "SCL",
+//     lugarCarguio: "Andén 5",
+//     destino: "VAP",
+//     tipoViaje: "Sider",
+//     ocupacion: 85,
+//     permanencia: "24h",
+//     leadTime: {
+//       deadline: "2026-01-15",
+//       status: "on_time",
+//     },
+//     eta: "2026-01-16T14:30:00",
+//     incidencias: ["urgencia", "c4", "c5"],
+//     observaciones:
+//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
+//     prioridad: 1,
+//   },
+//   {
+//     id: "2038491-v",
+//     cliente: "Minera Los Andes",
+//     origen: "SCL",
+//     lugarCarguio: "Dock 3",
+//     destino: "VAP",
+//     tipoViaje: "Doble Sider",
+//     ocupacion: 60,
+//     permanencia: "48h",
+//     leadTime: {
+//       deadline: "2026-01-14",
+//       status: "warning",
+//     },
+//     eta: "2026-01-15T09:00:00",
+//     incidencias: ["shutdown"],
+//     observaciones: "Carga frágil. Requiere supervisión especial.",
+//     prioridad: 2,
+//   },
+//   {
+//     id: "1049760-v",
+//     cliente: "Transportes del Norte",
+//     origen: "SCL",
+//     lugarCarguio: "Plataforma 1",
+//     destino: "VAP",
+//     tipoViaje: "Rampla",
+//     ocupacion: 100,
+//     permanencia: "12h",
+//     leadTime: {
+//       deadline: "2026-01-13",
+//       status: "delayed",
+//     },
+//     eta: "2026-01-14T18:00:00",
+//     incidencias: ["urgencia", "shutdown", "c4", "c5", "c7", "c8", "c9"],
+//     observaciones: "URGENTE: Cliente prioritario. Llamar antes de salir.",
+//     prioridad: 1,
+//   },
+//   {
+//     id: "4815263-v",
+//     cliente: "Agrícola Sur",
+//     origen: "SCL",
+//     lugarCarguio: "Andén 2",
+//     destino: "ZOS",
+//     tipoViaje: "Sider",
+//     ocupacion: 45,
+//     permanencia: "8h",
+//     leadTime: {
+//       deadline: "2026-01-18",
+//       status: "on_time",
+//     },
+//     eta: "2026-01-18T11:30:00",
+//     incidencias: ["c4"],
+//     observaciones: "Productos perecederos. Mantener cadena de frío.",
+//     prioridad: 3,
+//   },
+// ];
 
 /**
  * Client-side sidebar that shows:
@@ -171,6 +245,61 @@ export function PlanningSidebarClient({
       message: "Reasignación cancelada",
     });
   }, [cancelReassignment]);
+
+  // Build API params from search tags
+  const apiParams = useMemo(() => {
+    const params: string[] = [];
+
+    for (const tag of searchTags) {
+      switch (tag.matchType) {
+        case "id":
+          // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
+          const serviceCodeMatch = tag.value.match(/^(\d+)/);
+          const numericServiceCode = serviceCodeMatch
+            ? serviceCodeMatch[1]
+            : tag.value;
+          params.push(`service=${numericServiceCode}`);
+          break;
+        case "cliente":
+          params.push(`customer=${tag.value}`);
+          break;
+        case "origen":
+          params.push(`origin=${tag.value.toUpperCase()}`);
+          break;
+        case "destino":
+          params.push(`destination=${tag.value.toUpperCase()}`);
+          break;
+        // lugarCarguio, permanencia, tipoViaje don't have direct API mappings
+        // They will be filtered client-side if needed
+      }
+    }
+
+    return params.join("&");
+  }, [searchTags]);
+
+  // Fetch tasks from API
+  const {
+    data: myTasksData,
+    error: myTasksError,
+    isLoading: isLoadingTasks,
+  } = useMyTasks(
+    ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
+    false, // showFinished
+    1, // page (1-based, but API uses 0-based internally)
+    100, // limit
+    apiParams || undefined
+  );
+
+  // Transform API data to SelectedService array
+  const apiServices = useMemo(() => {
+    if (!myTasksData?.data) return [];
+
+    const tasks = transformBoardsToTableData(myTasksData.data);
+    return tasks.map(transformTaskToService);
+  }, [myTasksData]);
+
+  // Use only real API data - no fallback to mock
+  const allServices = apiServices;
 
   // Format the selected slot for display
   const formattedSlot = useMemo(() => {
@@ -232,48 +361,66 @@ export function PlanningSidebarClient({
       return 3; // on_time last
     };
 
-    let services = [...MOCK_SERVICES];
+    let services = [...allServices];
 
+    // COMMENTED OUT: Advanced filtering logic (OR/AND) - will be re-enabled later
     // Filter by tags if they exist (tags take priority)
+    // if (searchTags.length > 0) {
+    //   // Filter out invalid tags first
+    //   const validTags = searchTags.filter(
+    //     (tag): tag is { matchType: MatchType; value: string } =>
+    //       tag != null &&
+    //       typeof tag === "object" &&
+    //       "matchType" in tag &&
+    //       "value" in tag &&
+    //       typeof tag.matchType === "string" &&
+    //       typeof tag.value === "string" &&
+    //       tag.value.length > 0
+    //   );
+
+    //   if (validTags.length > 0) {
+    //     // Group tags by matchType (attribute)
+    //     // Example: { origen: ["SCL", "VAP"], destino: ["ZOS"] }
+    //     const tagsByType = new Map<MatchType, string[]>();
+    //     for (const tag of validTags) {
+    //       if (!tagsByType.has(tag.matchType)) {
+    //         tagsByType.set(tag.matchType, []);
+    //       }
+    //       tagsByType.get(tag.matchType)!.push(tag.value);
+    //     }
+
+    //     // Filter services with the logic:
+    //     // - OR within same attribute: (origen: SCL OR origen: VAP)
+    //     // - AND between different attributes: (origen group) AND (destino group)
+    //     // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
+    //     services = services.filter((service) => {
+    //       // Service must match at least one value from EACH attribute type (AND between attribute types)
+    //       return Array.from(tagsByType.entries()).every(([matchType, values]) => {
+    //         // For each attribute type, service must match ANY of its values (OR within same attribute)
+    //         return values.some((value) => {
+    //           const lowerValue = value.toLowerCase();
+    //           return matchesService(service, matchType, lowerValue);
+    //         });
+    //       });
+    //     });
+    //   }
+    // }
+
+    // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
     if (searchTags.length > 0) {
-      // Filter out invalid tags first
-      const validTags = searchTags.filter(
-        (tag): tag is { matchType: MatchType; value: string } =>
-          tag != null &&
-          typeof tag === "object" &&
-          "matchType" in tag &&
-          "value" in tag &&
-          typeof tag.matchType === "string" &&
-          typeof tag.value === "string" &&
-          tag.value.length > 0
+      const clientSideTags = searchTags.filter(
+        (tag) =>
+          tag.matchType === "lugarCarguio" ||
+          tag.matchType === "permanencia" ||
+          tag.matchType === "tipoViaje"
       );
 
-      if (validTags.length > 0) {
-        // Group tags by matchType (attribute)
-        // Example: { origen: ["SCL", "VAP"], destino: ["ZOS"] }
-        const tagsByType = new Map<MatchType, string[]>();
-        for (const tag of validTags) {
-          if (!tagsByType.has(tag.matchType)) {
-            tagsByType.set(tag.matchType, []);
-          }
-          tagsByType.get(tag.matchType)!.push(tag.value);
-        }
-
-        // Filter services with the logic:
-        // - OR within same attribute: (origen: SCL OR origen: VAP)
-        // - AND between different attributes: (origen group) AND (destino group)
-        // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
+      if (clientSideTags.length > 0) {
         services = services.filter((service) => {
-          // Service must match at least one value from EACH attribute type (AND between attribute types)
-          return Array.from(tagsByType.entries()).every(
-            ([matchType, values]) => {
-              // For each attribute type, service must match ANY of its values (OR within same attribute)
-              return values.some((value) => {
-                const lowerValue = value.toLowerCase();
-                return matchesService(service, matchType, lowerValue);
-              });
-            }
-          );
+          return clientSideTags.some((tag) => {
+            const lowerValue = tag.value.toLowerCase();
+            return matchesService(service, tag.matchType, lowerValue);
+          });
         });
       }
     }
@@ -311,40 +458,46 @@ export function PlanningSidebarClient({
       }
     }
 
-    // Sort by tag order if tags exist
-    if (searchTags.length > 0) {
-      // Filter out invalid tags (safety check for malformed tag objects)
-      const validTags = searchTags.filter(
-        (tag): tag is { matchType: MatchType; value: string } =>
-          tag != null &&
-          typeof tag === "object" &&
-          "matchType" in tag &&
-          "value" in tag &&
-          typeof tag.matchType === "string" &&
-          typeof tag.value === "string" &&
-          tag.value.length > 0
-      );
+    // COMMENTED OUT: Sort by tag order - will be re-enabled later
+    // if (searchTags.length > 0) {
+    //   // Filter out invalid tags (safety check for malformed tag objects)
+    //   const validTags = searchTags.filter(
+    //     (tag): tag is { matchType: MatchType; value: string } =>
+    //       tag != null &&
+    //       typeof tag === "object" &&
+    //       "matchType" in tag &&
+    //       "value" in tag &&
+    //       typeof tag.matchType === "string" &&
+    //       typeof tag.value === "string" &&
+    //       tag.value.length > 0
+    //   );
 
-      if (validTags.length > 0) {
-        return services.sort((a, b) => {
-          // First sort by tag order priority
-          for (const tag of validTags) {
-            const lowerValue = tag.value.toLowerCase();
-            const aMatches = matchesService(a, tag.matchType, lowerValue);
-            const bMatches = matchesService(b, tag.matchType, lowerValue);
+    //   if (validTags.length > 0) {
+    //     return services.sort((a, b) => {
+    //       // First sort by tag order priority
+    //       for (const tag of validTags) {
+    //         const lowerValue = tag.value.toLowerCase();
+    //         const aMatches = matchesService(a, tag.matchType, lowerValue);
+    //         const bMatches = matchesService(b, tag.matchType, lowerValue);
 
-            if (aMatches && !bMatches) return -1;
-            if (!aMatches && bMatches) return 1;
-          }
+    //         if (aMatches && !bMatches) return -1;
+    //         if (!aMatches && bMatches) return 1;
+    //       }
 
-          // Then by status priority
-          return getStatusPriority(a) - getStatusPriority(b);
-        });
-      }
-    }
+    //       // Then by status priority
+    //       return getStatusPriority(a) - getStatusPriority(b);
+    //     });
+    //   }
+    // }
 
     return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
-  }, [filteredServiceId, filterMatchType, searchTags, matchesService]);
+  }, [
+    filteredServiceId,
+    filterMatchType,
+    searchTags,
+    matchesService,
+    allServices,
+  ]);
 
   const handleSubmit = (values: Record<string, string | boolean>) => {
     console.log("Form submitted:", { selectedService, values });
@@ -528,11 +681,12 @@ export function PlanningSidebarClient({
             {/* Search bar with autocomplete */}
             <PlanningSearchAutocomplete
               dict={dict}
-              services={MOCK_SERVICES}
+              services={allServices}
               onSelect={handleSearchSelect}
               onMatchTypeSelect={handleMatchTypeSelect}
               onClear={handleSearchClear}
               hasActiveFilter={searchTags.length > 0}
+              isLoading={isLoadingTasks}
             />
 
             {/* Tags manager */}

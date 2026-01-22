@@ -270,7 +270,26 @@
           "cancel": "Cancel",
           "assign": "Assign",
           "back": "Back",
-          "confirm": "Confirm"
+          "confirm": "Confirm",
+          "cancelReassignment": "Cancel",
+          "confirmReassignment": "Reassign"
+        },
+        "contextMenu": {
+          "reassign": "Reassign",
+          "delete": "Delete",
+          "deleteConfirmTitle": "Confirm deletion",
+          "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
+          "cancelReassignment": "Cancel reassignment"
+        },
+        "notifications": {
+          "reassigned": "Service reassigned successfully",
+          "deleted": "Assignment deleted",
+          "reassignmentCancelled": "Reassignment cancelled",
+          "selectNewSlot": "Select a new date and time to reassign the service"
+        },
+        "reassignment": {
+          "title": "Reassigning service",
+          "hint": "Select a date and time in the calendar to reassign"
         }
       }
     },

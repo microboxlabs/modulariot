@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useCallback } from "react";
+import { Fragment, useMemo, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -22,7 +22,15 @@ import {
   usePlanningSelection,
   TIME_WINDOW_COLORS,
   TimeWindowUtils,
+  type PlannedService,
 } from "./planning-selection-context";
+import {
+  ServiceContextMenu,
+  type ContextMenuPosition,
+} from "./service-context-menu";
+import { DeleteConfirmationModal } from "./delete-confirmation-modal";
+import { ReassignmentConnector } from "./reassignment-connector";
+import { ShowNotification } from "@/features/notifications/notification";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
 
@@ -63,7 +71,81 @@ export default function PlanningWeekView({
     getRemainingQuota,
     isSlotBlocked,
     getBlocksForSlot,
+    removeService,
+    startReassignment,
+    reassigningService,
   } = usePlanningSelection();
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: ContextMenuPosition;
+    plannedService: PlannedService | null;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    plannedService: null,
+  });
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    plannedService: PlannedService | null;
+  }>({
+    isOpen: false,
+    plannedService: null,
+  });
+
+  // Context menu handlers
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, plannedService: PlannedService) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu({
+        isOpen: true,
+        position: { x: e.clientX, y: e.clientY },
+        plannedService,
+      });
+    },
+    []
+  );
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleReassign = useCallback(
+    (plannedService: PlannedService) => {
+      startReassignment(plannedService);
+      ShowNotification({
+        type: "info",
+        message: "Seleccione una nueva fecha y hora para reasignar el servicio",
+      });
+    },
+    [startReassignment]
+  );
+
+  const handleDeleteRequest = useCallback((plannedService: PlannedService) => {
+    setDeleteModal({
+      isOpen: true,
+      plannedService,
+    });
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteModal.plannedService) {
+      removeService(deleteModal.plannedService.service.id);
+      ShowNotification({
+        type: "success",
+        message: "Asignación eliminada",
+      });
+    }
+    setDeleteModal({ isOpen: false, plannedService: null });
+  }, [deleteModal.plannedService, removeService]);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteModal({ isOpen: false, plannedService: null });
+  }, []);
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {
@@ -256,6 +338,8 @@ export default function PlanningWeekView({
                   <button
                     type="button"
                     key={`${day.dayNumber}-${slot.label}`}
+                    data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
+                    data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
                     onClick={() => !isDisabled && handleCellClick(day, slot)}
                     disabled={isDisabled}
                     className={twMerge(
@@ -343,17 +427,23 @@ export default function PlanningWeekView({
                         {slotServices.map((ps) => {
                           const hasUrgencia =
                             ps.service.incidencias.includes("urgencia");
+                          const isBeingReassigned =
+                            reassigningService?.service.service.id === ps.service.id;
                           return (
                             <div
                               key={ps.service.id}
+                              onContextMenu={(e) => handleContextMenu(e, ps)}
                               className={twMerge(
-                                "rounded flex items-center justify-start",
+                                "rounded flex items-center justify-start cursor-context-menu",
                                 "text-xs font-medium truncate px-1 border-l-4 h-5",
                                 hasUrgencia
                                   ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
-                                  : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
+                                  : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
+                                // Highlight service being reassigned
+                                isBeingReassigned &&
+                                  "ring-2 ring-amber-500 ring-offset-1 animate-pulse"
                               )}
-                              title={ps.service.id}
+                              title={`${ps.service.id} - Clic derecho para opciones`}
                             >
                               {ps.service.id}
                             </div>
@@ -382,6 +472,33 @@ export default function PlanningWeekView({
           );
         })}
       </div>
+
+      {/* Context Menu */}
+      <ServiceContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        plannedService={contextMenu.plannedService}
+        onReassign={handleReassign}
+        onDelete={handleDeleteRequest}
+        onClose={handleCloseContextMenu}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        plannedService={deleteModal.plannedService}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
+
+      {/* Reassignment Connector - shows line between original and target slot */}
+      {reassigningService && (
+        <ReassignmentConnector
+          originSlot={reassigningService.originalSlot}
+          targetSlot={selectedSlot}
+          serviceId={reassigningService.service.service.id}
+        />
+      )}
     </div>
   );
 }

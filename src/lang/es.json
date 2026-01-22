@@ -270,7 +270,26 @@
           "cancel": "Cancelar",
           "assign": "Asignar",
           "back": "Volver",
-          "confirm": "Confirmar"
+          "confirm": "Confirmar",
+          "cancelReassignment": "Cancelar",
+          "confirmReassignment": "Reasignar"
+        },
+        "contextMenu": {
+          "reassign": "Reasignar",
+          "delete": "Eliminar",
+          "deleteConfirmTitle": "Confirmar eliminación",
+          "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
+          "cancelReassignment": "Cancelar reasignación"
+        },
+        "notifications": {
+          "reassigned": "Servicio reasignado exitosamente",
+          "deleted": "Asignación eliminada",
+          "reassignmentCancelled": "Reasignación cancelada",
+          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio"
+        },
+        "reassignment": {
+          "title": "Reasignando servicio",
+          "hint": "Seleccione una fecha y hora en el calendario para reasignar"
         }
       }
     },

@@ -4,7 +4,8 @@ import { useMemo, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
-import { HiArrowLeft, HiX } from "react-icons/hi";
+import { HiArrowLeft, HiX, HiSwitchHorizontal } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -15,6 +16,7 @@ import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
+import { ShowNotification } from "@/features/notifications/notification";
 
 interface PlanningSidebarClientProps {
   dict: I18nDictionary;
@@ -130,15 +132,45 @@ export function PlanningSidebarClient({
     clearService,
     closeSidebar,
     selectService,
+    reassigningService,
+    cancelReassignment,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
   );
   const [filterMatchType, setFilterMatchType] = useState<{
-    matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+    matchType:
+      | "id"
+      | "cliente"
+      | "origen"
+      | "destino"
+      | "lugarCarguio"
+      | "permanencia"
+      | "tipoViaje";
     query: string;
   } | null>(null);
-  const [searchTags, setSearchTags] = useState<Array<{ matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje"; value: string }>>([]);
+  const [searchTags, setSearchTags] = useState<
+    Array<{
+      matchType:
+        | "id"
+        | "cliente"
+        | "origen"
+        | "destino"
+        | "lugarCarguio"
+        | "permanencia"
+        | "tipoViaje";
+      value: string;
+    }>
+  >([]);
+
+  // Handle cancel reassignment
+  const handleCancelReassignment = useCallback(() => {
+    cancelReassignment();
+    ShowNotification({
+      type: "info",
+      message: "Reasignación cancelada",
+    });
+  }, [cancelReassignment]);
 
   // Format the selected slot for display
   const formattedSlot = useMemo(() => {
@@ -149,33 +181,43 @@ export function PlanningSidebarClient({
     return `${date.format("dddd D MMM")}, ${hour}:${minutes}`;
   }, [selectedSlot]);
 
-  type MatchType = "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+  type MatchType =
+    | "id"
+    | "cliente"
+    | "origen"
+    | "destino"
+    | "lugarCarguio"
+    | "permanencia"
+    | "tipoViaje";
 
   // Helper function to check if service matches a match type
-  const matchesService = useCallback((
-    service: SelectedService,
-    matchType: MatchType,
-    query: string
-  ): boolean => {
-    switch (matchType) {
-      case "id":
-        return service.id.toLowerCase().includes(query);
-      case "cliente":
-        return service.cliente.toLowerCase().includes(query);
-      case "origen":
-        return service.origen.toLowerCase().includes(query);
-      case "destino":
-        return service.destino.toLowerCase().includes(query);
-      case "lugarCarguio":
-        return service.lugarCarguio.toLowerCase().includes(query);
-      case "permanencia":
-        return service.permanencia.toLowerCase().includes(query);
-      case "tipoViaje":
-        return service.tipoViaje.toLowerCase().includes(query);
-      default:
-        return false;
-    }
-  }, []);
+  const matchesService = useCallback(
+    (
+      service: SelectedService,
+      matchType: MatchType,
+      query: string
+    ): boolean => {
+      switch (matchType) {
+        case "id":
+          return service.id.toLowerCase().includes(query);
+        case "cliente":
+          return service.cliente.toLowerCase().includes(query);
+        case "origen":
+          return service.origen.toLowerCase().includes(query);
+        case "destino":
+          return service.destino.toLowerCase().includes(query);
+        case "lugarCarguio":
+          return service.lugarCarguio.toLowerCase().includes(query);
+        case "permanencia":
+          return service.permanencia.toLowerCase().includes(query);
+        case "tipoViaje":
+          return service.tipoViaje.toLowerCase().includes(query);
+        default:
+          return false;
+      }
+    },
+    []
+  );
 
   // Sort services by urgency/status priority:
   // 1. Urgent (red-orange)
@@ -223,17 +265,19 @@ export function PlanningSidebarClient({
         // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
         services = services.filter((service) => {
           // Service must match at least one value from EACH attribute type (AND between attribute types)
-          return Array.from(tagsByType.entries()).every(([matchType, values]) => {
-            // For each attribute type, service must match ANY of its values (OR within same attribute)
-            return values.some((value) => {
-              const lowerValue = value.toLowerCase();
-              return matchesService(service, matchType, lowerValue);
-            });
-          });
+          return Array.from(tagsByType.entries()).every(
+            ([matchType, values]) => {
+              // For each attribute type, service must match ANY of its values (OR within same attribute)
+              return values.some((value) => {
+                const lowerValue = value.toLowerCase();
+                return matchesService(service, matchType, lowerValue);
+              });
+            }
+          );
         });
       }
     }
-    
+
     // Legacy filters (only apply if no tags are active)
     if (searchTags.length === 0) {
       if (filterMatchType) {
@@ -328,12 +372,21 @@ export function PlanningSidebarClient({
   };
 
   const handleMatchTypeSelect = (
-    matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje",
+    matchType:
+      | "id"
+      | "cliente"
+      | "origen"
+      | "destino"
+      | "lugarCarguio"
+      | "permanencia"
+      | "tipoViaje",
     query: string
   ) => {
     // Add tag if not already present (check both matchType and value)
     setSearchTags((prev) => {
-      const exists = prev.some(tag => tag.matchType === matchType && tag.value === query);
+      const exists = prev.some(
+        (tag) => tag.matchType === matchType && tag.value === query
+      );
       if (!exists) {
         return [...prev, { matchType, value: query }];
       }
@@ -343,9 +396,21 @@ export function PlanningSidebarClient({
     setFilteredServiceId(null); // Clear service ID filter
   };
 
-  const handleTagsChange = (tags: Array<{ matchType: "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje"; value: string }>) => {
+  const handleTagsChange = (
+    tags: Array<{
+      matchType:
+        | "id"
+        | "cliente"
+        | "origen"
+        | "destino"
+        | "lugarCarguio"
+        | "permanencia"
+        | "tipoViaje";
+      value: string;
+    }>
+  ) => {
     setSearchTags(tags);
-    
+
     // If all tags are removed, clear all filters
     if (tags.length === 0) {
       setFilterMatchType(null);
@@ -380,7 +445,13 @@ export function PlanningSidebarClient({
             <button
               type="button"
               onClick={handleBack}
-              className="p-1 -ml-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+              disabled={reassigningService !== null}
+              className={twMerge(
+                "p-1 -ml-1 rounded-md transition-colors",
+                reassigningService !== null
+                  ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+              )}
               aria-label={tr("pages.planning.sidebar.form.back", dict)}
             >
               <HiArrowLeft className="w-5 h-5" />
@@ -426,6 +497,34 @@ export function PlanningSidebarClient({
           />
         ) : (
           <div className="flex flex-col gap-3">
+            {/* Reassignment mode banner */}
+            {reassigningService && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                <HiSwitchHorizontal className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                    Reasignando servicio
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 truncate">
+                    {reassigningService.service.service.id}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelReassignment}
+                  className={twMerge(
+                    "shrink-0 px-2 py-1 text-xs font-medium rounded",
+                    "text-amber-700 dark:text-amber-300",
+                    "bg-amber-100 dark:bg-amber-800/50",
+                    "hover:bg-amber-200 dark:hover:bg-amber-700/50",
+                    "transition-colors duration-150"
+                  )}
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
             {/* Search bar with autocomplete */}
             <PlanningSearchAutocomplete
               dict={dict}
@@ -448,9 +547,22 @@ export function PlanningSidebarClient({
             {/* Services list */}
             <div className="flex flex-col gap-1.5">
               {sortedServices.length > 0 ? (
-                sortedServices.map((service) => (
-                  <ServiceEvent key={service.id} service={service} />
-                ))
+                sortedServices.map((service) => {
+                  const isReassigning =
+                    reassigningService?.service.service.id === service.id;
+                  return (
+                    <div
+                      key={service.id}
+                      className={twMerge(
+                        "rounded-xl",
+                        isReassigning &&
+                          "ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
+                      )}
+                    >
+                      <ServiceEvent service={service} />
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                   {tr("pages.planning.sidebar.search.noResults", dict)}
@@ -459,7 +571,9 @@ export function PlanningSidebarClient({
             </div>
 
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
-              {tr("pages.planning.sidebar.selectServiceHint", dict)}
+              {reassigningService
+                ? "Seleccione una fecha y hora en el calendario para reasignar"
+                : tr("pages.planning.sidebar.selectServiceHint", dict)}
             </p>
           </div>
         )}

@@ -12,6 +12,7 @@ import {
 } from "./planning-selection-context";
 import { HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
+import { ShowNotification } from "@/features/notifications/notification";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -27,11 +28,24 @@ export function PlanningSidebarForm({
   onSubmit,
 }: PlanningSidebarFormProps) {
   const [showAllIncidencias, setShowAllIncidencias] = useState(false);
-  const { confirmService, selectedSlot, canAddToSlot } = usePlanningSelection();
+  const {
+    confirmService,
+    selectedSlot,
+    canAddToSlot,
+    reassigningService,
+    cancelReassignment,
+  } = usePlanningSelection();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const wasReassigning = reassigningService !== null;
     confirmService();
+    if (wasReassigning) {
+      ShowNotification({
+        type: "success",
+        message: "Servicio reasignado exitosamente",
+      });
+    }
     onSubmit?.({});
   };
 
@@ -218,13 +232,31 @@ export function PlanningSidebarForm({
 
       {/* Actions */}
       <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+        {reassigningService && (
+          <Button
+            type="button"
+            color="light"
+            className="flex-1"
+            onClick={() => {
+              cancelReassignment();
+              ShowNotification({
+                type: "info",
+                message: "Reasignación cancelada",
+              });
+            }}
+          >
+            {tr("pages.planning.sidebar.form.cancelReassignment", dict)}
+          </Button>
+        )}
         <Button
           type="submit"
           color="blue"
           className="flex-1"
           disabled={!canConfirm}
         >
-          {tr("pages.planning.sidebar.form.confirm", dict)}
+          {reassigningService
+            ? tr("pages.planning.sidebar.form.confirmReassignment", dict)
+            : tr("pages.planning.sidebar.form.confirm", dict)}
         </Button>
       </div>
     </form>

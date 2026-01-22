@@ -749,6 +749,134 @@ const MAX_SERVICES_PER_SLOT = 3;
 
 ---
 
+### Data Model Reference
+
+#### PlannedService (Service Assignment)
+
+**Purpose:** Links a service to a specific calendar slot — this is the assignment record created when user confirms a service placement.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    PlannedService                       │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│   ┌─────────────────┐      ┌─────────────────┐         │
+│   │     service     │      │      slot       │         │
+│   │ (SelectedService)│      │ (SelectedSlot)  │         │
+│   └────────┬────────┘      └────────┬────────┘         │
+│            │                        │                   │
+│            ▼                        ▼                   │
+│   ┌─────────────────┐      ┌─────────────────┐         │
+│   │ id              │      │ date            │         │
+│   │ cliente         │      │ hour            │         │
+│   │ origen          │      │ minutes         │         │
+│   │ destino         │      └─────────────────┘         │
+│   │ tipoViaje       │                                   │
+│   │ ocupacion       │                                   │
+│   │ leadTime        │                                   │
+│   │ eta             │                                   │
+│   │ incidencias     │                                   │
+│   │ ...             │                                   │
+│   └─────────────────┘                                   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**TypeScript Definition:**
+
+```typescript
+interface PlannedService {
+  service: SelectedService;
+  slot: SelectedSlot;
+}
+```
+
+---
+
+#### SelectedSlot (WHERE)
+
+**Purpose:** Represents a specific time cell in the calendar grid.
+
+| Field     | Type     | Description                                     |
+| --------- | -------- | ----------------------------------------------- |
+| `date`    | `Date`   | Calendar date of the slot                       |
+| `hour`    | `number` | Hour of day (0-23)                              |
+| `minutes` | `number` | Minutes (typically 0 or 30 for half-hour slots) |
+
+**Example:**
+
+```typescript
+{
+  date: new Date("2026-01-21"),
+  hour: 9,
+  minutes: 30
+}
+// → January 21, 2026 at 09:30
+```
+
+---
+
+#### SelectedService (WHAT)
+
+**Purpose:** Represents a trip/delivery service that can be scheduled in the planning calendar.
+
+| Field           | Type       | Description                                    |
+| --------------- | ---------- | ---------------------------------------------- |
+| `id`            | `string`   | Unique service identifier                      |
+| `cliente`       | `string`   | Client/customer name                           |
+| `origen`        | `string`   | Origin location name                           |
+| `lugarCarguio`  | `string`   | Loading place/dock                             |
+| `destino`       | `string`   | Destination location                           |
+| `tipoViaje`     | `TripType` | `"Sider"` \| `"Doble Sider"` \| `"Rampla"`     |
+| `ocupacion`     | `number`   | Capacity occupancy percentage (0-100)          |
+| `permanencia`   | `string`   | Expected duration at destination (e.g., "24h") |
+| `leadTime`      | `object`   | Deadline tracking info                         |
+| `eta`           | `string`   | Estimated time of arrival (ISO datetime)       |
+| `incidencias`   | `string[]` | Array of incident/flag codes                   |
+| `observaciones` | `string`   | Free-text notes/observations                   |
+| `prioridad`     | `number`   | Priority ranking (lower = higher priority)     |
+
+**LeadTime Object:**
+
+| Field      | Type             | Description                               |
+| ---------- | ---------------- | ----------------------------------------- |
+| `deadline` | `string`         | ISO date of the deadline                  |
+| `status`   | `LeadTimeStatus` | `"on_time"` \| `"warning"` \| `"delayed"` |
+
+---
+
+#### Complete Assignment Example
+
+```typescript
+const assignment: PlannedService = {
+  slot: {
+    date: new Date("2026-01-21"),
+    hour: 9,
+    minutes: 0,
+  },
+  service: {
+    id: "1045782-v",
+    cliente: "Acme Corp",
+    origen: "SCL",
+    destino: "VAP",
+    tipoViaje: "Sider",
+    ocupacion: 85,
+    permanencia: "24h",
+    leadTime: {
+      deadline: "2026-01-25",
+      status: "on_time",
+    },
+    eta: "2026-01-22T14:30:00",
+    incidencias: ["urgencia"],
+    observaciones: "Contactar a Juan antes de salir",
+    prioridad: 1,
+    lugarCarguio: "Andén 5",
+  },
+};
+```
+
+---
+
 #### Day View Implementation
 
 | Component | Path                                                         | Purpose                       |
@@ -900,37 +1028,43 @@ const MAX_SERVICES_PER_SLOT = 3;
 #### Overview
 
 Refactored the `TimeWindow` interface from individual fields (`startHour`, `endHour`, `days[]`, `weeks[]`, `date`) to a pattern-based structure using:
+
 - `weeklyPattern` string for weekly type (e.g., `"W* 1-5 0900-1700"`)
 - `startTimestamp`/`endTimestamp` ISO format for daily-override type
 
 #### Files Modified
 
-| File | Changes |
-|------|---------|
+| File                             | Changes                                                                          |
+| -------------------------------- | -------------------------------------------------------------------------------- |
 | `planning-selection-context.tsx` | New TimeWindow interface, added TimeWindowUtils helper, ParsedWeeklyPattern type |
-| `quota-manager.tsx` | Updated all CRUD functions to use pattern-based structure |
-| `planning-week-view.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
-| `day-grid.tsx` | Added TimeWindowUtils import, fixed `isWindowStart` calculation |
+| `quota-manager.tsx`              | Updated all CRUD functions to use pattern-based structure                        |
+| `planning-week-view.tsx`         | Added TimeWindowUtils import, fixed `isWindowStart` calculation                  |
+| `day-grid.tsx`                   | Added TimeWindowUtils import, fixed `isWindowStart` calculation                  |
 
 #### Key Changes
 
 **1. TimeWindow Interface**
+
 ```typescript
 // Old structure (individual fields)
 interface TimeWindow {
-  startHour: number; endHour: number;
-  days: number[]; weeks: number[]; date?: string;
+  startHour: number;
+  endHour: number;
+  days: number[];
+  weeks: number[];
+  date?: string;
 }
 
 // New structure (pattern-based)
 interface TimeWindow {
-  weeklyPattern?: string;      // "W* 1-5 0900-1700"
-  startTimestamp?: string;     // "2026-01-20T09:00:00"
-  endTimestamp?: string;       // "2026-01-20T17:00:00"
+  weeklyPattern?: string; // "W* 1-5 0900-1700"
+  startTimestamp?: string; // "2026-01-20T09:00:00"
+  endTimestamp?: string; // "2026-01-20T17:00:00"
 }
 ```
 
 **2. TimeWindowUtils Added**
+
 - `parseWeeklyPattern()` - Extracts hours, days, weeks from pattern string
 - `buildWeeklyPattern()` - Creates pattern from individual values
 - `getTimeRange()` - Works for both weekly and daily-override types
@@ -938,22 +1072,26 @@ interface TimeWindow {
 - `formatDisplay()`, `formatDaysDisplay()`, `formatWeeksDisplay()` - UI formatting
 
 **3. QuotaManager Updates**
+
 - `addTimeWindow()` - Creates window with default pattern `"W* 1-5 0800-1200"`
 - `updateWindowType()` - Converts between weekly/daily-override
 - `toggleDay()`, `toggleWeek()` - Parses and rebuilds pattern
 - All timestamp creation uses `.format("YYYY-MM-DDTHH:mm:ss")` (local time)
 
 **4. Calendar View Fixes**
+
 - `planning-week-view.tsx` and `day-grid.tsx` were accessing old `timeWindow.startHour`
 - Fixed to use `TimeWindowUtils.getTimeRange(timeWindow)`
 
 #### Bug Fixes
 
 **Issue: Calendar not showing time window names/quotas**
+
 - Cause: Views accessing removed `startHour`/`startMinutes` properties
 - Fix: Use `TimeWindowUtils.getTimeRange()` which handles both window types
 
 **Issue: Daily-override windows not matching slots**
+
 - Cause: `.toISOString()` converts to UTC, shifting dates by timezone offset
 - Fix: Use `.format("YYYY-MM-DDTHH:mm:ss")` to preserve local date/time
 

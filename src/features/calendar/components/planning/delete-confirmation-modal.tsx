@@ -1,0 +1,158 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { HiExclamation, HiX } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
+import type { PlannedService } from "./planning-selection-context";
+
+interface DeleteConfirmationModalProps {
+  isOpen: boolean;
+  plannedService: PlannedService | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Confirmation modal for deleting a planned service assignment
+ * Uses portal to render above all other content
+ */
+export function DeleteConfirmationModal({
+  isOpen,
+  plannedService,
+  onConfirm,
+  onCancel,
+}: Readonly<DeleteConfirmationModalProps>) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle escape key
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onCancel]);
+
+  // Focus trap
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const previousActiveElement = document.activeElement as HTMLElement;
+    modalRef.current.focus();
+
+    return () => {
+      previousActiveElement?.focus();
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !plannedService) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-modal-title"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
+        onClick={onCancel}
+      />
+
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className={twMerge(
+          "relative z-10 mx-4",
+          "bg-white dark:bg-gray-800",
+          "rounded-xl shadow-2xl",
+          "animate-in fade-in-0 zoom-in-95 duration-200"
+        )}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onCancel}
+          className={twMerge(
+            "absolute top-2 right-2",
+            "p-1 rounded-lg",
+            "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300",
+            "hover:bg-gray-100 dark:hover:bg-gray-700",
+            "transition-colors duration-150"
+          )}
+          aria-label="Cerrar"
+        >
+          <HiX className="w-4 h-4" />
+        </button>
+
+        {/* Content */}
+        <div className="px-5 py-4">
+          {/* Header with icon and title inline */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 shrink-0">
+              <HiExclamation className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <h3
+              id="delete-modal-title"
+              className="text-base font-semibold text-gray-900 dark:text-white"
+            >
+              Confirmar eliminación
+            </h3>
+          </div>
+
+          {/* Message */}
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 whitespace-nowrap">
+            ¿Eliminar la asignación del servicio{" "}
+            <span className="font-mono font-bold text-gray-900 dark:text-white">
+              {plannedService.service.id}
+            </span>
+            ?
+          </p>
+
+          {/* Actions */}
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={onCancel}
+              className={twMerge(
+                "px-3 py-1.5",
+                "text-sm font-medium",
+                "text-gray-700 dark:text-gray-300",
+                "bg-gray-100 dark:bg-gray-700",
+                "hover:bg-gray-200 dark:hover:bg-gray-600",
+                "rounded-lg",
+                "transition-colors duration-150"
+              )}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className={twMerge(
+                "px-3 py-1.5",
+                "text-sm font-medium",
+                "text-white",
+                "bg-red-600 hover:bg-red-700",
+                "dark:bg-red-600 dark:hover:bg-red-700",
+                "rounded-lg",
+                "transition-colors duration-150"
+              )}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}

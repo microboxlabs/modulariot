@@ -421,12 +421,21 @@ export interface PlannedService {
   slot: SelectedSlot;
 }
 
+/**
+ * Tracks a service being reassigned with its original slot for restoration
+ */
+export interface ReassigningService {
+  service: PlannedService;
+  originalSlot: SelectedSlot;
+}
+
 interface PlanningSelectionContextType {
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
   plannedServices: PlannedService[];
   timeWindows: TimeWindow[];
   timeBlocks: TimeBlock[];
+  reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
   confirmService: () => void;
@@ -446,6 +455,9 @@ interface PlanningSelectionContextType {
   isSlotBlocked: (date: Date, hour: number, minutes: number) => boolean;
   getBlocksForSlot: (date: Date, hour: number, minutes: number) => TimeBlock[];
   isSidebarOpen: boolean;
+  removeService: (serviceId: string) => void;
+  startReassignment: (plannedService: PlannedService) => void;
+  cancelReassignment: () => void;
 }
 
 const MAX_SERVICES_PER_SLOT = 3;
@@ -486,6 +498,8 @@ export function PlanningSelectionProvider({
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
   const [timeWindows, setTimeWindowsState] = useState<TimeWindow[]>([]);
   const [timeBlocks, setTimeBlocksState] = useState<TimeBlock[]>([]);
+  const [reassigningService, setReassigningService] =
+    useState<ReassigningService | null>(null);
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
@@ -505,6 +519,7 @@ export function PlanningSelectionProvider({
 
   /**
    * Count services assigned within a time window for a specific day
+   * Excludes the service being reassigned from the count
    */
   const getServicesInTimeWindow = useCallback(
     (timeWindow: TimeWindow, date: Date): number => {
@@ -516,6 +531,14 @@ export function PlanningSelectionProvider({
       const windowEnd = timeRange.endHour * 60 + timeRange.endMinutes;
 
       return plannedServices.filter((ps) => {
+        // Exclude the service being reassigned from quota calculation
+        if (
+          reassigningService &&
+          ps.service.id === reassigningService.service.service.id
+        ) {
+          return false;
+        }
+
         // Check same day
         if (!dayjs(ps.slot.date).isSame(d, "day")) return false;
 
@@ -524,7 +547,7 @@ export function PlanningSelectionProvider({
         return slotMinutes >= windowStart && slotMinutes < windowEnd;
       }).length;
     },
-    [plannedServices]
+    [plannedServices, reassigningService]
   );
 
   /**
@@ -612,14 +635,23 @@ export function PlanningSelectionProvider({
 
   const getServicesForSlot = useCallback(
     (slot: SelectedSlot) => {
-      return plannedServices.filter(
-        (ps) =>
+      return plannedServices.filter((ps) => {
+        // Exclude the service being reassigned from slot count
+        if (
+          reassigningService &&
+          ps.service.id === reassigningService.service.service.id
+        ) {
+          return false;
+        }
+
+        return (
           dayjs(ps.slot.date).isSame(slot.date, "day") &&
           ps.slot.hour === slot.hour &&
           ps.slot.minutes === slot.minutes
-      );
+        );
+      });
     },
-    [plannedServices]
+    [plannedServices, reassigningService]
   );
 
   const canAddToSlot = useCallback(
@@ -643,6 +675,9 @@ export function PlanningSelectionProvider({
         return;
       }
 
+      // Check if this is a reassignment completion
+      const wasReassigning = reassigningService !== null;
+
       setPlannedServices((prev) => {
         // Remove if already planned (allow re-planning)
         const filtered = prev.filter(
@@ -650,11 +685,20 @@ export function PlanningSelectionProvider({
         );
         return [...filtered, { service: selectedService, slot: selectedSlot }];
       });
+
+      // Clear reassigning state if this was a reassignment
+      if (wasReassigning) {
+        setReassigningService(null);
+      }
+
       // Clear selection after confirming
       setSelectedSlot(null);
       setSelectedService(null);
+
+      return wasReassigning;
     }
-  }, [selectedSlot, selectedService, getServicesForSlot]);
+    return false;
+  }, [selectedSlot, selectedService, getServicesForSlot, reassigningService]);
 
   const clearService = useCallback(() => {
     setSelectedService(null);
@@ -670,6 +714,47 @@ export function PlanningSelectionProvider({
     setSelectedService(null);
   }, []);
 
+  /**
+   * Remove a service from planned services
+   */
+  const removeService = useCallback((serviceId: string) => {
+    setPlannedServices((prev) =>
+      prev.filter((p) => p.service.id !== serviceId)
+    );
+  }, []);
+
+  /**
+   * Start reassignment mode - keeps service in original slot until confirmed
+   * The service remains visible in its original position with a visual indicator
+   */
+  const startReassignment = useCallback((plannedService: PlannedService) => {
+    // Store original slot for visual connection and cancellation
+    setReassigningService({
+      service: plannedService,
+      originalSlot: { ...plannedService.slot },
+    });
+
+    // Pre-select the service for reassignment (but don't remove from planned services yet)
+    setSelectedService(plannedService.service);
+    
+    // Clear any previously selected slot so user can pick a new one
+    setSelectedSlot(null);
+  }, []);
+
+  /**
+   * Cancel reassignment - clear reassigning state without changes
+   */
+  const cancelReassignment = useCallback(() => {
+    if (reassigningService) {
+      // Clear reassigning state (service was never removed, so no need to restore)
+      setReassigningService(null);
+
+      // Clear selection
+      setSelectedSlot(null);
+      setSelectedService(null);
+    }
+  }, [reassigningService]);
+
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;
 
@@ -680,6 +765,7 @@ export function PlanningSelectionProvider({
       plannedServices,
       timeWindows,
       timeBlocks,
+      reassigningService,
       selectSlot,
       selectService,
       confirmService,
@@ -695,6 +781,9 @@ export function PlanningSelectionProvider({
       isSlotBlocked,
       getBlocksForSlot,
       isSidebarOpen,
+      removeService,
+      startReassignment,
+      cancelReassignment,
     }),
     [
       selectedSlot,
@@ -702,6 +791,7 @@ export function PlanningSelectionProvider({
       plannedServices,
       timeWindows,
       timeBlocks,
+      reassigningService,
       selectSlot,
       selectService,
       confirmService,
@@ -717,6 +807,9 @@ export function PlanningSelectionProvider({
       isSlotBlocked,
       getBlocksForSlot,
       isSidebarOpen,
+      removeService,
+      startReassignment,
+      cancelReassignment,
     ]
   );
 

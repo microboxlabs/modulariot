@@ -591,7 +591,7 @@ export function useGetUserStates() {
 
   // Handle 401 errors (session expired) by redirecting to sign-in
   useEffect(() => {
-    if (error && error.status === 401) {
+    if (error?.status === 401) {
       // Extract language from pathname (format: /app/[lang]/... or /[lang]/...)
       const pathSegments = pathname.split("/").filter(Boolean);
       // Remove 'app' prefix if present
@@ -604,7 +604,7 @@ export function useGetUserStates() {
       ) || "es"; // Default to 'es' if not found
       
       // Redirect to sign-in page with language
-      window.location.href = `/${lang}/sign-in`;
+      globalThis.location.href = `/${lang}/sign-in`;
     }
   }, [error, pathname]);
 

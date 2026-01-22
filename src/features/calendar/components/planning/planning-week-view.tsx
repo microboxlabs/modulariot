@@ -9,6 +9,7 @@ import isoWeek from "dayjs/plugin/isoWeek";
 
 dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
+import { Tooltip } from "flowbite-react";
 import type {
   PlanningWeekViewProps,
   WeekDay,
@@ -60,6 +61,8 @@ export default function PlanningWeekView({
     plannedServices,
     getTimeWindowForSlot,
     getRemainingQuota,
+    isSlotBlocked,
+    getBlocksForSlot,
   } = usePlanningSelection();
 
   // Read date from URL, fallback to prop or today
@@ -197,6 +200,21 @@ export default function PlanningWeekView({
               {weekDays.map((day, dayIdx) => {
                 const selected = isSlotSelected(day, slot);
                 const slotServices = getPlannedServicesForSlot(day, slot);
+                const dayIsPast = isPastDay(day);
+
+                // Check if slot is blocked (priority over quotas)
+                const slotBlocked = isSlotBlocked(
+                  day.date,
+                  slot.hour,
+                  slot.minutes
+                );
+                const blocksForSlot = slotBlocked
+                  ? getBlocksForSlot(day.date, slot.hour, slot.minutes)
+                  : [];
+                const blockNames = blocksForSlot
+                  .map((b) => b.name || "Bloqueado")
+                  .join(", ");
+
                 const timeWindow = getTimeWindowForSlot(
                   day.date,
                   slot.hour,
@@ -220,35 +238,44 @@ export default function PlanningWeekView({
                 const isQuotaFull = remainingQuota === 0;
                 const isDailyOverride =
                   hasTimeWindow && timeWindow.type === "daily-override";
-                const dayIsPast = isPastDay(day);
-                const isDisabled = dayIsPast || isQuotaFull;
+                // Blocked slots take priority over everything except past days
+                const isDisabled = dayIsPast || slotBlocked || isQuotaFull;
                 // Get color classes from the time window
                 const windowColor =
                   hasTimeWindow && timeWindow.color
                     ? TIME_WINDOW_COLORS[timeWindow.color]
                     : TIME_WINDOW_COLORS.emerald;
 
-                return (
+                // Diagonal stripes class for blocked slots (light/dark mode compatible)
+                const blockedStripeClass =
+                  slotBlocked && !dayIsPast
+                    ? "[background:repeating-linear-gradient(45deg,rgb(254,242,242),rgb(254,242,242)_4px,rgba(239,68,68,0.2)_4px,rgba(239,68,68,0.2)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(55,48,48),rgb(55,48,48)_4px,rgba(239,68,68,0.3)_4px,rgba(239,68,68,0.3)_8px)]"
+                    : "";
+
+                const cellContent = (
                   <button
                     type="button"
                     key={`${day.dayNumber}-${slot.label}`}
                     onClick={() => !isDisabled && handleCellClick(day, slot)}
                     disabled={isDisabled}
                     className={twMerge(
-                      "min-h-12 w-full relative",
+                      "h-full w-full relative",
                       "border-l border-t border-gray-200 dark:border-gray-700",
                       "transition-all duration-200 p-1",
+                      blockedStripeClass,
                       dayIsPast && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
                       isDisabled ? "cursor-not-allowed" : "cursor-pointer",
-                      !dayIsPast && isQuotaFull && "opacity-60",
-                      // Time window with custom color (not full, not selected, not past)
+                      !dayIsPast && !slotBlocked && isQuotaFull && "opacity-60",
+                      // Time window with custom color (not full, not selected, not past, not blocked)
                       !dayIsPast &&
+                        !slotBlocked &&
                         hasTimeWindow &&
                         !selected &&
                         !isQuotaFull &&
                         windowColor.bg,
-                      // Quota full - show red
+                      // Quota full - show red (not blocked)
                       !dayIsPast &&
+                        !slotBlocked &&
                         hasTimeWindow &&
                         !selected &&
                         isQuotaFull &&
@@ -256,9 +283,11 @@ export default function PlanningWeekView({
                       selected
                         ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
                         : !dayIsPast &&
+                            !slotBlocked &&
                             !hasTimeWindow &&
                             "hover:bg-gray-50 dark:hover:bg-gray-700/50",
                       !dayIsPast &&
+                        !slotBlocked &&
                         hasTimeWindow &&
                         !selected &&
                         !isQuotaFull &&
@@ -269,33 +298,33 @@ export default function PlanningWeekView({
                         isLastSlot(slotIdx) &&
                         "rounded-br-lg"
                     )}
-                    title={
-                      dayIsPast
-                        ? "Día pasado"
-                        : hasTimeWindow
-                          ? isQuotaFull
-                            ? `${timeWindow.name || (isDailyOverride ? "Excepción" : "Ventana")} - Sin cupos disponibles`
-                            : `${timeWindow.name || (isDailyOverride ? "Excepción" : "Ventana")} - Cupos restantes: ${remainingQuota}/${timeWindow.quota}`
-                          : undefined
-                    }
                   >
-                    {/* Time window name - only on first slot and not past day */}
-                    {!dayIsPast && isWindowStart && timeWindow.name && (
-                      <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
-                        <span
-                          className={twMerge(
-                            "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
-                            isQuotaFull
-                              ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
-                              : windowColor.badge
-                          )}
-                        >
-                          {timeWindow.name}
-                        </span>
+                    {/* Blocked slot indicator */}
+                    {!dayIsPast && slotBlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="text-red-500/60 text-lg">⊘</span>
                       </div>
                     )}
-                    {/* Quota badge - only on first slot and not past day */}
-                    {!dayIsPast && isWindowStart && (
+                    {/* Time window name - only on first slot and not past day and not blocked */}
+                    {!dayIsPast &&
+                      !slotBlocked &&
+                      isWindowStart &&
+                      timeWindow.name && (
+                        <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
+                          <span
+                            className={twMerge(
+                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
+                              isQuotaFull
+                                ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
+                                : windowColor.badge
+                            )}
+                          >
+                            {timeWindow.name}
+                          </span>
+                        </div>
+                      )}
+                    {/* Quota badge - only on first slot and not past day and not blocked */}
+                    {!dayIsPast && !slotBlocked && isWindowStart && (
                       <div className="absolute top-0.5 right-0.5">
                         <span
                           className={twMerge(
@@ -334,6 +363,20 @@ export default function PlanningWeekView({
                     )}
                   </button>
                 );
+
+                // Wrap blocked cells with Tooltip showing block names
+                if (slotBlocked && !dayIsPast) {
+                  return (
+                    <div
+                      key={`${day.dayNumber}-${slot.label}`}
+                      className="w-full h-full"
+                    >
+                      {cellContent}
+                    </div>
+                  );
+                }
+
+                return cellContent;
               })}
             </Fragment>
           );

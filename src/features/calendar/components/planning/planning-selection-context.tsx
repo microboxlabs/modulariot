@@ -94,6 +94,20 @@ export const TIME_WINDOW_COLORS = {
 export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
 
 /**
+ * Base time slot configuration shared by TimeWindow and TimeBlock
+ */
+export interface BaseTimeSlot {
+  id: string;
+  name: string;
+  type: "weekly" | "daily-override";
+  // For weekly type: pattern string like "W1-4 1-5 0900-1700"
+  weeklyPattern?: string;
+  // For daily-override type: ISO timestamps
+  startTimestamp?: string; // ISO 8601 format: "2026-01-20T09:00:00"
+  endTimestamp?: string; // ISO 8601 format: "2026-01-20T17:00:00"
+}
+
+/**
  * Time window configuration for quota management
  *
  * Types:
@@ -105,18 +119,20 @@ export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
  * - "daily-override": Uses ISO timestamps for specific date ranges
  *   - Overrides weekly windows for the specified date/time
  */
-export interface TimeWindow {
-  id: string;
-  name: string;
-  type: "weekly" | "daily-override";
+export interface TimeWindow extends BaseTimeSlot {
   quota: number;
   color?: TimeWindowColor;
-  // For weekly type: pattern string like "W1-4 1-5 0900-1700"
-  weeklyPattern?: string;
-  // For daily-override type: ISO timestamps
-  startTimestamp?: string; // ISO 8601 format: "2026-01-20T09:00:00"
-  endTimestamp?: string; // ISO 8601 format: "2026-01-20T17:00:00"
 }
+
+/**
+ * Time block configuration for blocking specific time slots
+ * Similar to TimeWindow but without quota - blocks make slots unselectable
+ *
+ * Types:
+ * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
+ * - "daily-override": Uses ISO timestamps for specific date ranges
+ */
+export interface TimeBlock extends BaseTimeSlot {}
 
 /**
  * Parsed weekly pattern for internal use
@@ -230,10 +246,10 @@ export const TimeWindowUtils = {
   },
 
   /**
-   * Check if a time window matches a specific slot
+   * Check if a time window or block matches a specific slot
    */
   matchesSlot(
-    window: TimeWindow,
+    window: BaseTimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -248,7 +264,7 @@ export const TimeWindowUtils = {
    * Check if a daily-override window matches a slot
    */
   matchesDailyOverride(
-    window: TimeWindow,
+    window: BaseTimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -270,7 +286,7 @@ export const TimeWindowUtils = {
    * Check if a weekly pattern window matches a slot
    */
   matchesWeeklyPattern(
-    window: TimeWindow,
+    window: BaseTimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -302,11 +318,9 @@ export const TimeWindowUtils = {
   },
 
   /**
-   * Get time range from a window (works for both types)
+   * Get time range from a window or block (works for both types)
    */
-  getTimeRange(
-    window: TimeWindow
-  ): {
+  getTimeRange(window: BaseTimeSlot): {
     startHour: number;
     startMinutes: number;
     endHour: number;
@@ -336,17 +350,17 @@ export const TimeWindowUtils = {
   },
 
   /**
-   * Get the date for a daily-override window
+   * Get the date for a daily-override window or block
    */
-  getDate(window: TimeWindow): string | null {
+  getDate(window: BaseTimeSlot): string | null {
     if (window.type !== "daily-override" || !window.startTimestamp) return null;
     return dayjs(window.startTimestamp).format("YYYY-MM-DD");
   },
 
   /**
-   * Check if a daily-override window is expired (before today)
+   * Check if a daily-override window or block is expired (before today)
    */
-  isExpired(window: TimeWindow): boolean {
+  isExpired(window: BaseTimeSlot): boolean {
     if (window.type !== "daily-override" || !window.startTimestamp)
       return false;
     return dayjs(window.startTimestamp).isBefore(dayjs().startOf("day"), "day");
@@ -412,6 +426,7 @@ interface PlanningSelectionContextType {
   selectedService: SelectedService | null;
   plannedServices: PlannedService[];
   timeWindows: TimeWindow[];
+  timeBlocks: TimeBlock[];
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
   confirmService: () => void;
@@ -421,12 +436,15 @@ interface PlanningSelectionContextType {
   getServicesForSlot: (slot: SelectedSlot) => PlannedService[];
   canAddToSlot: (slot: SelectedSlot) => boolean;
   setTimeWindows: (windows: TimeWindow[]) => void;
+  setTimeBlocks: (blocks: TimeBlock[]) => void;
   getTimeWindowForSlot: (
     date: Date,
     hour: number,
     minutes: number
   ) => TimeWindow | null;
   getRemainingQuota: (timeWindow: TimeWindow, date: Date) => number;
+  isSlotBlocked: (date: Date, hour: number, minutes: number) => boolean;
+  getBlocksForSlot: (date: Date, hour: number, minutes: number) => TimeBlock[];
   isSidebarOpen: boolean;
 }
 
@@ -467,6 +485,7 @@ export function PlanningSelectionProvider({
     useState<SelectedService | null>(null);
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
   const [timeWindows, setTimeWindowsState] = useState<TimeWindow[]>([]);
+  const [timeBlocks, setTimeBlocksState] = useState<TimeBlock[]>([]);
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
@@ -478,6 +497,10 @@ export function PlanningSelectionProvider({
 
   const setTimeWindows = useCallback((windows: TimeWindow[]) => {
     setTimeWindowsState(windows);
+  }, []);
+
+  const setTimeBlocks = useCallback((blocks: TimeBlock[]) => {
+    setTimeBlocksState(blocks);
   }, []);
 
   /**
@@ -542,6 +565,49 @@ export function PlanningSelectionProvider({
       return null;
     },
     [timeWindows]
+  );
+
+  /**
+   * Get all blocks that apply to a specific slot
+   * Returns an array for handling overlapping blocks
+   */
+  const getBlocksForSlot = useCallback(
+    (date: Date, hour: number, minutes: number): TimeBlock[] => {
+      const d = dayjs(date);
+      const matchingBlocks: TimeBlock[] = [];
+
+      // Check daily-override blocks first (they have priority)
+      for (const block of timeBlocks) {
+        if (block.type === "daily-override") {
+          if (TimeWindowUtils.matchesSlot(block, d, hour, minutes)) {
+            matchingBlocks.push(block);
+          }
+        }
+      }
+
+      // Then check weekly blocks
+      for (const block of timeBlocks) {
+        if (block.type === "weekly") {
+          if (TimeWindowUtils.matchesSlot(block, d, hour, minutes)) {
+            matchingBlocks.push(block);
+          }
+        }
+      }
+
+      return matchingBlocks;
+    },
+    [timeBlocks]
+  );
+
+  /**
+   * Check if a slot is blocked by any time block
+   * Blocks take priority over quotas
+   */
+  const isSlotBlocked = useCallback(
+    (date: Date, hour: number, minutes: number): boolean => {
+      return getBlocksForSlot(date, hour, minutes).length > 0;
+    },
+    [getBlocksForSlot]
   );
 
   const getServicesForSlot = useCallback(
@@ -613,6 +679,7 @@ export function PlanningSelectionProvider({
       selectedService,
       plannedServices,
       timeWindows,
+      timeBlocks,
       selectSlot,
       selectService,
       confirmService,
@@ -622,8 +689,11 @@ export function PlanningSelectionProvider({
       getServicesForSlot,
       canAddToSlot,
       setTimeWindows,
+      setTimeBlocks,
       getTimeWindowForSlot,
       getRemainingQuota,
+      isSlotBlocked,
+      getBlocksForSlot,
       isSidebarOpen,
     }),
     [
@@ -631,6 +701,7 @@ export function PlanningSelectionProvider({
       selectedService,
       plannedServices,
       timeWindows,
+      timeBlocks,
       selectSlot,
       selectService,
       confirmService,
@@ -640,8 +711,11 @@ export function PlanningSelectionProvider({
       getServicesForSlot,
       canAddToSlot,
       setTimeWindows,
+      setTimeBlocks,
       getTimeWindowForSlot,
       getRemainingQuota,
+      isSlotBlocked,
+      getBlocksForSlot,
       isSidebarOpen,
     ]
   );

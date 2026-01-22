@@ -1044,6 +1044,27 @@
       "day": "Day",
       "week": "Week",
       "month": "Month"
+    },
+    "planning": {
+      "dispatch": "Dispatch",
+      "reception": "Reception"
+    },
+    "timeBlocks": {
+      "title": "Time Blocks",
+      "description": "Define time periods or specific days as blocked",
+      "noBlocks": "No blocks defined",
+      "addBlock": "Block",
+      "apply": "Apply",
+      "deleteBlock": "Delete block",
+      "blockName": "Block name",
+      "blockPlaceholder": "Block {index}",
+      "weekly": "Weekly",
+      "dailyOverride": "Specific day",
+      "selectDate": "Select date",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "blocked": "Blocked",
+      "conflictWarning": "Schedule conflict"
     }
   },
   "footer": {

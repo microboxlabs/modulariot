@@ -31,7 +31,9 @@ const getMatchTypeLabel = (matchType: MatchType, dict: I18nDictionary): string =
     permanencia: tr("pages.planning.sidebar.search.matchType.permanencia", dict),
     tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
   };
-  return labels[matchType];
+  const label = labels[matchType];
+  // Capitalize first letter
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 // Helper to get translated location code or return original if not found

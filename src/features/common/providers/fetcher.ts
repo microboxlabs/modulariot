@@ -462,7 +462,36 @@ export default async function httfetcher<T>(
       contentLength,
     });
 
-    if (!response.ok && response.status !== 401) {
+    // Handle 401 (Unauthorized) errors - session expired
+    if (response.status === 401) {
+      const error = createFetcherError(
+        "Session expired. Please sign in again.",
+        401,
+        FetcherErrorCode.CLIENT_ERROR,
+        { message: "Unauthorized" }
+      );
+      
+      if (shouldLog) {
+        logError(error, {
+          ...buildAccessLogFields({
+            prefix: "OUT",
+            method,
+            pathAndQuery,
+            status: 401,
+            contentLength,
+            userAgent,
+            startedAt,
+            durationMs,
+            requestId,
+            extras: { upstream_host: upstreamHost },
+          }),
+        });
+      }
+      
+      throw error;
+    }
+
+    if (!response.ok) {
       await handleResponseError(response, {
         method,
         pathAndQuery,

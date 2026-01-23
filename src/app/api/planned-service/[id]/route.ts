@@ -133,7 +133,7 @@ export async function PUT(
           date:
             body.slot?.date instanceof Date
               ? body.slot.date.toISOString().split("T")[0]
-              : String(body.slot?.date || ""),
+              : String(body.slot?.date ?? ""),
           hour: body.slot?.hour ?? 0,
           minutes: body.slot?.minutes ?? 0,
         },

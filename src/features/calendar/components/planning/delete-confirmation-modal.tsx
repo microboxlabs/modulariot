@@ -9,7 +9,7 @@ import type { PlannedService } from "./planning-selection-context";
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
   plannedService: PlannedService | null;
-  onConfirm: () => void;
+  onConfirm: (plannedService: PlannedService) => void;
   onCancel: () => void;
 }
 
@@ -70,6 +70,7 @@ export function DeleteConfirmationModal({
       <div
         ref={modalRef}
         tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
         className={twMerge(
           "relative z-10 mx-4",
           "bg-white dark:bg-gray-800",
@@ -136,7 +137,14 @@ export function DeleteConfirmationModal({
             </button>
             <button
               type="button"
-              onClick={onConfirm}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Delete button clicked, calling onConfirm with", plannedService);
+                if (plannedService) {
+                  onConfirm(plannedService);
+                }
+              }}
               className={twMerge(
                 "px-3 py-1.5",
                 "text-sm font-medium",

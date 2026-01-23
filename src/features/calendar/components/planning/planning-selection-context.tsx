@@ -6,11 +6,23 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import {
+  usePlannedServices,
+  createPlannedService,
+  updatePlannedService,
+  deletePlannedService,
+} from "@/features/common/providers/client-api.provider";
+import {
+  apiToLocalPlannedService,
+  localToApiPlannedService,
+} from "@/features/calendar/services/planned-service.service";
+import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -457,7 +469,7 @@ interface PlanningSelectionContextType {
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
-  confirmService: () => void;
+  confirmService: () => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -478,7 +490,7 @@ interface PlanningSelectionContextType {
   isSlotBlocked: (date: Date, hour: number, minutes: number) => boolean;
   getBlocksForSlot: (date: Date, hour: number, minutes: number) => TimeBlock[];
   isSidebarOpen: boolean;
-  removeService: (serviceId: string) => void;
+  removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
 }
@@ -523,6 +535,35 @@ export function PlanningSelectionProvider({
   const [timeSlots, setTimeSlotsState] = useState<TimeSlot[]>([]);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
+  const [plannedServiceIds, setPlannedServiceIds] = useState<
+    Map<string, string>
+  >(new Map()); // Map of service.id -> API id
+
+  // Load planned services from API
+  // For now, load all services (can be optimized later with date range)
+  const { plannedServices: apiPlannedServices, refresh: refreshPlannedServices } =
+    usePlannedServices();
+
+  // Sync API data to local state
+  useEffect(() => {
+    if (apiPlannedServices && apiPlannedServices.length > 0) {
+      const localServices = apiPlannedServices.map(apiToLocalPlannedService);
+      const idMap = new Map<string, string>();
+      
+      apiPlannedServices.forEach((apiService, index) => {
+        if (apiService.id) {
+          idMap.set(localServices[index].service.id, apiService.id);
+        }
+      });
+
+      setPlannedServices(localServices);
+      setPlannedServiceIds(idMap);
+    } else if (apiPlannedServices && apiPlannedServices.length === 0) {
+      // Clear local state if API returns empty array
+      setPlannedServices([]);
+      setPlannedServiceIds(new Map());
+    }
+  }, [apiPlannedServices]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -709,7 +750,7 @@ export function PlanningSelectionProvider({
     [getServicesForSlot]
   );
 
-  const confirmService = useCallback(() => {
+  const confirmService = useCallback(async (): Promise<boolean> => {
     if (selectedSlot && selectedService) {
       // Check if slot has room (unless re-planning same service)
       const existingInSlot = getServicesForSlot(selectedSlot);
@@ -719,33 +760,102 @@ export function PlanningSelectionProvider({
 
       if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
         // Slot is full, cannot add more
-        return;
+        return false;
       }
 
       // Check if this is a reassignment completion
       const wasReassigning = reassigningService !== null;
 
-      setPlannedServices((prev) => {
-        // Remove if already planned (allow re-planning)
-        const filtered = prev.filter(
-          (p) => p.service.id !== selectedService.id
-        );
-        return [...filtered, { service: selectedService, slot: selectedSlot }];
-      });
+      // Create the new planned service
+      const newPlannedService: PlannedService = {
+        service: selectedService,
+        slot: selectedSlot,
+      };
 
-      // Clear reassigning state if this was a reassignment
-      if (wasReassigning) {
-        setReassigningService(null);
+      try {
+        // Check if this service already has an API ID (update) or needs creation
+        const existingApiId = plannedServiceIds.get(selectedService.id);
+        
+        if (existingApiId) {
+          // Update existing planned service
+          const apiData = localToApiPlannedService(newPlannedService);
+          // Convert string date back to Date for UpdatePlannedServiceRequest
+          await updatePlannedService(existingApiId, {
+            id: existingApiId,
+            service: apiData.service,
+            slot: {
+              date: newPlannedService.slot.date, // Use the original Date object
+              hour: apiData.slot.hour,
+              minutes: apiData.slot.minutes,
+            },
+          });
+        } else {
+          // Create new planned service
+          const apiData = localToApiPlannedService(newPlannedService);
+          // For create, we need to convert to the proper format
+          const createRequest: CreatePlannedServiceRequest = {
+            service: apiData.service,
+            slot: {
+              date: newPlannedService.slot.date, // Use the original Date object
+              hour: apiData.slot.hour,
+              minutes: apiData.slot.minutes,
+            },
+          };
+          const response = await createPlannedService(createRequest);
+          
+          // Store the API ID for future updates
+          if (response.id) {
+            setPlannedServiceIds((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(selectedService.id, response.id);
+              return newMap;
+            });
+          }
+        }
+
+        // Update local state
+        setPlannedServices((prev) => {
+          // Remove if already planned (allow re-planning)
+          const filtered = prev.filter(
+            (p) => p.service.id !== selectedService.id
+          );
+          return [...filtered, newPlannedService];
+        });
+
+        // Refresh from API to ensure consistency
+        await refreshPlannedServices();
+
+        // Clear reassigning state if this was a reassignment
+        if (wasReassigning) {
+          setReassigningService(null);
+        }
+
+        // Clear selection after confirming
+        setSelectedSlot(null);
+        setSelectedService(null);
+
+        return wasReassigning;
+      } catch (error) {
+        console.error("Error saving planned service:", error);
+        // Still update local state for optimistic UI, but log the error
+        setPlannedServices((prev) => {
+          const filtered = prev.filter(
+            (p) => p.service.id !== selectedService.id
+          );
+          return [...filtered, newPlannedService];
+        });
+        return wasReassigning;
       }
-
-      // Clear selection after confirming
-      setSelectedSlot(null);
-      setSelectedService(null);
-
-      return wasReassigning;
     }
     return false;
-  }, [selectedSlot, selectedService, getServicesForSlot, reassigningService]);
+  }, [
+    selectedSlot,
+    selectedService,
+    getServicesForSlot,
+    reassigningService,
+    plannedServiceIds,
+    refreshPlannedServices,
+  ]);
 
   const clearService = useCallback(() => {
     setSelectedService(null);
@@ -764,11 +874,65 @@ export function PlanningSelectionProvider({
   /**
    * Remove a service from planned services
    */
-  const removeService = useCallback((serviceId: string) => {
-    setPlannedServices((prev) =>
-      prev.filter((p) => p.service.id !== serviceId)
-    );
-  }, []);
+  const removeService = useCallback(
+    async (serviceId: string) => {
+      console.log("removeService called with serviceId:", serviceId);
+      console.log("plannedServiceIds map:", Array.from(plannedServiceIds.entries()));
+      
+      const apiId = plannedServiceIds.get(serviceId);
+      console.log("apiId found:", apiId);
+      
+      let deleteError: Error | null = null;
+      
+      // Try to delete from API if we have an apiId
+      if (apiId) {
+        try {
+          console.log("Calling deletePlannedService with apiId:", apiId);
+          await deletePlannedService(apiId);
+          console.log("deletePlannedService succeeded");
+          
+          // Remove from ID map
+          setPlannedServiceIds((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(serviceId);
+            return newMap;
+          });
+          // Refresh from API
+          await refreshPlannedServices();
+        } catch (error) {
+          console.error("Error deleting planned service:", error);
+          deleteError = error instanceof Error ? error : new Error("Unknown error");
+          // Still remove from local state for optimistic UI, but throw error for caller to handle
+        }
+      } else {
+        // If no apiId, try using serviceId directly as fallback
+        // This handles cases where the service was created locally or mapping is missing
+        console.warn("No apiId found for serviceId:", serviceId, "- trying serviceId as fallback");
+        try {
+          console.log("Calling deletePlannedService with serviceId as fallback:", serviceId);
+          await deletePlannedService(serviceId);
+          console.log("deletePlannedService with serviceId succeeded");
+          // Refresh from API
+          await refreshPlannedServices();
+        } catch (error) {
+          console.warn("Delete with serviceId also failed:", error);
+          // If both fail, we'll still remove from local state (optimistic update)
+          // Don't throw error in this case since the service might not exist in backend
+        }
+      }
+
+      // Update local state (optimistic UI update)
+      setPlannedServices((prev) =>
+        prev.filter((p) => p.service.id !== serviceId)
+      );
+
+      // If there was an error from the apiId attempt, throw it so the caller can show a notification
+      if (deleteError) {
+        throw deleteError;
+      }
+    },
+    [plannedServiceIds, refreshPlannedServices]
+  );
 
   /**
    * Start reassignment mode - keeps service in original slot until confirmed

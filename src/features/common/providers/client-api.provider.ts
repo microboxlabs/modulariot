@@ -33,6 +33,12 @@ import {
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
+import type {
+  PlannedServiceResponse,
+  PlannedServiceListResponse,
+  CreatePlannedServiceRequest,
+  UpdatePlannedServiceRequest,
+} from "@/features/calendar/types/planned-service.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -1173,4 +1179,108 @@ export function formatDuration(eta: ETAResponse | undefined): string {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
+}
+
+// ============================================================================
+// PlannedService Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch all planned services
+ * @param startDate - Optional start date filter (ISO date string)
+ * @param endDate - Optional end date filter (ISO date string)
+ */
+export function usePlannedServices(startDate?: string, endDate?: string) {
+  const queryParams = new URLSearchParams();
+  if (startDate) queryParams.set("startDate", startDate);
+  if (endDate) queryParams.set("endDate", endDate);
+
+  const url = queryParams.toString()
+    ? `/app/api/planned-service?${queryParams.toString()}`
+    : "/app/api/planned-service";
+
+  const { data, error, isLoading, mutate } = useSWR<
+    PlannedServiceListResponse,
+    FetcherError
+  >(url, fetcher);
+
+  return {
+    plannedServices: data?.data || [],
+    total: data?.total || 0,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Hook to fetch a single planned service by ID
+ */
+export function usePlannedService(id: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<
+    PlannedServiceResponse,
+    FetcherError
+  >(id ? `/app/api/planned-service/${id}` : null, fetcher);
+
+  return {
+    plannedService: data,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Create a new planned service
+ */
+export async function createPlannedService(
+  request: CreatePlannedServiceRequest
+): Promise<PlannedServiceResponse> {
+  const response = await fetch("/app/api/planned-service", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to create planned service");
+  }
+
+  return response.json();
+}
+
+/**
+ * Update an existing planned service
+ */
+export async function updatePlannedService(
+  id: string,
+  request: UpdatePlannedServiceRequest
+): Promise<PlannedServiceResponse> {
+  const response = await fetch(`/app/api/planned-service/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update planned service");
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a planned service
+ */
+export async function deletePlannedService(id: string): Promise<void> {
+  const response = await fetch(`/app/api/planned-service/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete planned service");
+  }
 }

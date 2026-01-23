@@ -22,6 +22,7 @@ import {
   apiToLocalPlannedService,
   localToApiPlannedService,
 } from "@/features/calendar/services/planned-service.service";
+import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -449,7 +450,7 @@ interface PlanningSelectionContextType {
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
-  confirmService: () => Promise<boolean | false>;
+  confirmService: () => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -702,7 +703,7 @@ export function PlanningSelectionProvider({
     [getServicesForSlot]
   );
 
-  const confirmService = useCallback(async () => {
+  const confirmService = useCallback(async (): Promise<boolean> => {
     if (selectedSlot && selectedService) {
       // Check if slot has room (unless re-planning same service)
       const existingInSlot = getServicesForSlot(selectedSlot);
@@ -712,7 +713,7 @@ export function PlanningSelectionProvider({
 
       if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
         // Slot is full, cannot add more
-        return;
+        return false;
       }
 
       // Check if this is a reassignment completion
@@ -731,15 +732,29 @@ export function PlanningSelectionProvider({
         if (existingApiId) {
           // Update existing planned service
           const apiData = localToApiPlannedService(newPlannedService);
+          // Convert string date back to Date for UpdatePlannedServiceRequest
           await updatePlannedService(existingApiId, {
             id: existingApiId,
             service: apiData.service,
-            slot: apiData.slot,
+            slot: {
+              date: newPlannedService.slot.date, // Use the original Date object
+              hour: apiData.slot.hour,
+              minutes: apiData.slot.minutes,
+            },
           });
         } else {
           // Create new planned service
           const apiData = localToApiPlannedService(newPlannedService);
-          const response = await createPlannedService(apiData);
+          // For create, we need to convert to the proper format
+          const createRequest: CreatePlannedServiceRequest = {
+            service: apiData.service,
+            slot: {
+              date: newPlannedService.slot.date, // Use the original Date object
+              hour: apiData.slot.hour,
+              minutes: apiData.slot.minutes,
+            },
+          };
+          const response = await createPlannedService(createRequest);
           
           // Store the API ID for future updates
           if (response.id) {

@@ -2,6 +2,7 @@ import type {
   PlannedService as LocalPlannedService,
   SelectedService,
   SelectedSlot,
+  LeadTimeStatus,
 } from "../components/planning/planning-selection-context";
 import type {
   PlannedServiceResponse,
@@ -59,7 +60,7 @@ function apiToLocalService(apiService: Service): SelectedService {
     permanencia: apiService.permanencia,
     leadTime: {
       deadline: apiService.leadTime.deadline,
-      status: apiService.leadTime.status,
+      status: apiService.leadTime.status as LeadTimeStatus,
     },
     eta: apiService.eta,
     incidencias: apiService.incidencias,

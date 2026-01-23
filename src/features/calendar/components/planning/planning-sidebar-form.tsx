@@ -36,14 +36,19 @@ export function PlanningSidebarForm({
     cancelReassignment,
   } = usePlanningSelection();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const wasReassigning = reassigningService !== null;
-    confirmService();
-    if (wasReassigning) {
+    const result = await confirmService();
+    if (wasReassigning || result) {
       ShowNotification({
         type: "success",
         message: "Servicio reasignado exitosamente",
+      });
+    } else {
+      ShowNotification({
+        type: "success",
+        message: "Servicio asignado exitosamente",
       });
     }
     onSubmit?.({});

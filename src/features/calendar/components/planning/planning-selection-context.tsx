@@ -94,45 +94,60 @@ export const TIME_WINDOW_COLORS = {
 export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
 
 /**
- * Base time slot configuration shared by TimeWindow and TimeBlock
+ * Unified time slot configuration for both quota windows and blocks
+ * Stored in a single database table
+ *
+ * @property kind - Discriminant: "window" (has quota) or "block" (prevents scheduling)
+ * @property type - Pattern type: "weekly" (recurring) or "daily-override" (specific date)
+ * @property quota - Capacity limit (only used when kind="window", ignored for blocks)
+ * @property color - Visual color theme (optional, mainly for windows)
+ *
+ * Pattern formats:
+ * - weekly: Uses weeklyPattern string "W1-4 1-5 0900-1700"
+ *   - W1-4: Weeks 1-4 of month (W* for all weeks)
+ *   - 1-5: Days Monday(1) to Friday(5)
+ *   - 0900-1700: Time range HHMM
+ * - daily-override: Uses ISO timestamps for specific date/time ranges
  */
-export interface BaseTimeSlot {
+export interface TimeSlot {
   id: string;
   name: string;
+  kind: "window" | "block";
   type: "weekly" | "daily-override";
   // For weekly type: pattern string like "W1-4 1-5 0900-1700"
   weeklyPattern?: string;
   // For daily-override type: ISO timestamps
   startTimestamp?: string; // ISO 8601 format: "2026-01-20T09:00:00"
   endTimestamp?: string; // ISO 8601 format: "2026-01-20T17:00:00"
-}
-
-/**
- * Time window configuration for quota management
- *
- * Types:
- * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
- *   - W1-4: Weeks 1-4 of the month (W* for all weeks)
- *   - 1-5: Days 1 (Monday) to 5 (Friday)
- *   - 0900-1700: Time range in HHMM format
- *
- * - "daily-override": Uses ISO timestamps for specific date ranges
- *   - Overrides weekly windows for the specified date/time
- */
-export interface TimeWindow extends BaseTimeSlot {
-  quota: number;
+  // Quota (used when kind="window", can be 0 or omitted for blocks)
+  quota?: number;
+  // Visual color (optional, mainly for windows)
   color?: TimeWindowColor;
 }
 
 /**
- * Time block configuration for blocking specific time slots
- * Similar to TimeWindow but without quota - blocks make slots unselectable
- *
- * Types:
- * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
- * - "daily-override": Uses ISO timestamps for specific date ranges
+ * Type alias for backward compatibility - TimeWindow is a TimeSlot with kind="window"
  */
-export interface TimeBlock extends BaseTimeSlot {}
+export type TimeWindow = TimeSlot & { kind: "window"; quota: number };
+
+/**
+ * Type alias for backward compatibility - TimeBlock is a TimeSlot with kind="block"
+ */
+export type TimeBlock = TimeSlot & { kind: "block" };
+
+/**
+ * Type guard: checks if a TimeSlot is a window (has quota for scheduling limits)
+ */
+export function isTimeWindow(slot: TimeSlot): slot is TimeWindow {
+  return slot.kind === "window";
+}
+
+/**
+ * Type guard: checks if a TimeSlot is a block (prevents any scheduling)
+ */
+export function isTimeBlock(slot: TimeSlot): slot is TimeBlock {
+  return slot.kind === "block";
+}
 
 /**
  * Parsed weekly pattern for internal use
@@ -433,7 +448,11 @@ interface PlanningSelectionContextType {
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
   plannedServices: PlannedService[];
+  /** Unified array of all time slots (windows and blocks) */
+  timeSlots: TimeSlot[];
+  /** Derived: only TimeWindow slots (filtered from timeSlots) */
   timeWindows: TimeWindow[];
+  /** Derived: only TimeBlock slots (filtered from timeSlots) */
   timeBlocks: TimeBlock[];
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
@@ -444,7 +463,11 @@ interface PlanningSelectionContextType {
   clearSelection: () => void;
   getServicesForSlot: (slot: SelectedSlot) => PlannedService[];
   canAddToSlot: (slot: SelectedSlot) => boolean;
+  /** Set the unified time slots array (replaces both windows and blocks) */
+  setTimeSlots: (slots: TimeSlot[]) => void;
+  /** Convenience: set only TimeWindow slots (merges with existing blocks) */
   setTimeWindows: (windows: TimeWindow[]) => void;
+  /** Convenience: set only TimeBlock slots (merges with existing windows) */
   setTimeBlocks: (blocks: TimeBlock[]) => void;
   getTimeWindowForSlot: (
     date: Date,
@@ -496,10 +519,21 @@ export function PlanningSelectionProvider({
   const [selectedService, setSelectedService] =
     useState<SelectedService | null>(null);
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
-  const [timeWindows, setTimeWindowsState] = useState<TimeWindow[]>([]);
-  const [timeBlocks, setTimeBlocksState] = useState<TimeBlock[]>([]);
+  // Unified state: single array for all time slots
+  const [timeSlots, setTimeSlotsState] = useState<TimeSlot[]>([]);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
+
+  // Derived arrays from unified state (memoized for performance)
+  const timeWindows = useMemo(
+    () => timeSlots.filter(isTimeWindow),
+    [timeSlots]
+  );
+
+  const timeBlocks = useMemo(
+    () => timeSlots.filter(isTimeBlock),
+    [timeSlots]
+  );
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
@@ -509,12 +543,25 @@ export function PlanningSelectionProvider({
     setSelectedService(service);
   }, []);
 
-  const setTimeWindows = useCallback((windows: TimeWindow[]) => {
-    setTimeWindowsState(windows);
+  // Primary setter: replaces entire unified array
+  const setTimeSlots = useCallback((slots: TimeSlot[]) => {
+    setTimeSlotsState(slots);
   }, []);
 
+  // Convenience setter: updates only windows, preserves blocks
+  const setTimeWindows = useCallback((windows: TimeWindow[]) => {
+    setTimeSlotsState((current) => [
+      ...current.filter(isTimeBlock),
+      ...windows,
+    ]);
+  }, []);
+
+  // Convenience setter: updates only blocks, preserves windows
   const setTimeBlocks = useCallback((blocks: TimeBlock[]) => {
-    setTimeBlocksState(blocks);
+    setTimeSlotsState((current) => [
+      ...current.filter(isTimeWindow),
+      ...blocks,
+    ]);
   }, []);
 
   /**
@@ -763,6 +810,7 @@ export function PlanningSelectionProvider({
       selectedSlot,
       selectedService,
       plannedServices,
+      timeSlots,
       timeWindows,
       timeBlocks,
       reassigningService,
@@ -774,6 +822,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
+      setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
       getTimeWindowForSlot,
@@ -789,6 +838,7 @@ export function PlanningSelectionProvider({
       selectedSlot,
       selectedService,
       plannedServices,
+      timeSlots,
       timeWindows,
       timeBlocks,
       reassigningService,
@@ -800,6 +850,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
+      setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
       getTimeWindowForSlot,

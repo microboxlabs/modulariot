@@ -276,7 +276,7 @@ export const TimeWindowUtils = {
    * Check if a time window or block matches a specific slot
    */
   matchesSlot(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -291,7 +291,7 @@ export const TimeWindowUtils = {
    * Check if a daily-override window matches a slot
    */
   matchesDailyOverride(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -313,7 +313,7 @@ export const TimeWindowUtils = {
    * Check if a weekly pattern window matches a slot
    */
   matchesWeeklyPattern(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -347,7 +347,7 @@ export const TimeWindowUtils = {
   /**
    * Get time range from a window or block (works for both types)
    */
-  getTimeRange(window: BaseTimeSlot): {
+  getTimeRange(window: TimeSlot): {
     startHour: number;
     startMinutes: number;
     endHour: number;
@@ -379,7 +379,7 @@ export const TimeWindowUtils = {
   /**
    * Get the date for a daily-override window or block
    */
-  getDate(window: BaseTimeSlot): string | null {
+  getDate(window: TimeSlot): string | null {
     if (window.type !== "daily-override" || !window.startTimestamp) return null;
     return dayjs(window.startTimestamp).format("YYYY-MM-DD");
   },
@@ -387,7 +387,7 @@ export const TimeWindowUtils = {
   /**
    * Check if a daily-override window or block is expired (before today)
    */
-  isExpired(window: BaseTimeSlot): boolean {
+  isExpired(window: TimeSlot): boolean {
     if (window.type !== "daily-override" || !window.startTimestamp)
       return false;
     return dayjs(window.startTimestamp).isBefore(dayjs().startOf("day"), "day");
@@ -408,14 +408,59 @@ export const TimeWindowUtils = {
 };
 
 /**
- * Lead time status for a service
+ * Lead time data for a service - tracks compliance of OC lines
  */
-export type LeadTimeStatus = "on_time" | "warning" | "delayed";
+export interface LeadTimeData {
+  total_lineasoc_cumplen: number;
+  total_lineasoc_incumplen: number;
+  lineasoc_pctn_cumplimiento: number; // 0-100
+}
+
+/**
+ * Get lead time status based on compliance percentage
+ * 100% → success, >0% and <100% → warning, 0% → error
+ */
+export function getLeadTimeStatus(
+  leadTime: LeadTimeData
+): "success" | "warning" | "error" {
+  const pct = leadTime.lineasoc_pctn_cumplimiento;
+  if (pct >= 100) return "success";
+  if (pct > 0) return "warning";
+  return "error";
+}
 
 /**
  * Trip type options
  */
 export type TripType = "Sider" | "Doble Sider" | "Rampla";
+
+/**
+ * Debug flag - set to true to show test service in the calendar
+ */
+export const DEBUG_SHOW_TEST_SERVICE = false;
+
+/**
+ * Test service data for development/debugging
+ */
+export const TEST_SERVICE: SelectedService = {
+  id: "TEST-001",
+  cliente: "Cliente de Prueba",
+  origen: "Santiago",
+  lugarCarguio: "Bodega Central",
+  destino: "Valparaíso",
+  tipoViaje: "Sider",
+  ocupacion: 75,
+  permanencia: "2 días",
+  leadTime: {
+    total_lineasoc_cumplen: 3,
+    total_lineasoc_incumplen: 1,
+    lineasoc_pctn_cumplimiento: 100,
+  },
+  eta: "2026-01-25T14:30:00",
+  incidencias: ["urgencia"],
+  observaciones: "Servicio de prueba para desarrollo",
+  prioridad: 1,
+};
 
 /**
  * Represents a service that can be selected in the planning calendar
@@ -430,10 +475,7 @@ export interface SelectedService {
   tipoViaje: TripType;
   ocupacion: number; // percentage 0-100
   permanencia: string;
-  leadTime: {
-    deadline: string; // ISO date
-    status: LeadTimeStatus;
-  };
+  leadTime: LeadTimeData;
   eta: string; // ISO datetime
   incidencias: string[]; // e.g. ['urgencia', 'shutdown', 'c5']
   observaciones: string;
@@ -541,15 +583,17 @@ export function PlanningSelectionProvider({
 
   // Load planned services from API
   // For now, load all services (can be optimized later with date range)
-  const { plannedServices: apiPlannedServices, refresh: refreshPlannedServices } =
-    usePlannedServices();
+  const {
+    plannedServices: apiPlannedServices,
+    refresh: refreshPlannedServices,
+  } = usePlannedServices();
 
   // Sync API data to local state
   useEffect(() => {
     if (apiPlannedServices && apiPlannedServices.length > 0) {
       const localServices = apiPlannedServices.map(apiToLocalPlannedService);
       const idMap = new Map<string, string>();
-      
+
       apiPlannedServices.forEach((apiService, index) => {
         if (apiService.id) {
           idMap.set(localServices[index].service.id, apiService.id);
@@ -571,10 +615,7 @@ export function PlanningSelectionProvider({
     [timeSlots]
   );
 
-  const timeBlocks = useMemo(
-    () => timeSlots.filter(isTimeBlock),
-    [timeSlots]
-  );
+  const timeBlocks = useMemo(() => timeSlots.filter(isTimeBlock), [timeSlots]);
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
@@ -775,7 +816,7 @@ export function PlanningSelectionProvider({
       try {
         // Check if this service already has an API ID (update) or needs creation
         const existingApiId = plannedServiceIds.get(selectedService.id);
-        
+
         if (existingApiId) {
           // Update existing planned service
           const apiData = localToApiPlannedService(newPlannedService);
@@ -802,7 +843,7 @@ export function PlanningSelectionProvider({
             },
           };
           const response = await createPlannedService(createRequest);
-          
+
           // Store the API ID for future updates
           if (response.id) {
             setPlannedServiceIds((prev) => {
@@ -825,10 +866,8 @@ export function PlanningSelectionProvider({
         // Refresh from API to ensure consistency
         await refreshPlannedServices();
 
-        // Clear reassigning state if this was a reassignment
-        if (wasReassigning) {
-          setReassigningService(null);
-        }
+        // Always clear reassigning state after confirmation (not just when wasReassigning)
+        setReassigningService(null);
 
         // Clear selection after confirming
         setSelectedSlot(null);
@@ -844,6 +883,12 @@ export function PlanningSelectionProvider({
           );
           return [...filtered, newPlannedService];
         });
+
+        // Also clear state on error to prevent stuck UI
+        setReassigningService(null);
+        setSelectedSlot(null);
+        setSelectedService(null);
+
         return wasReassigning;
       }
     }
@@ -859,16 +904,19 @@ export function PlanningSelectionProvider({
 
   const clearService = useCallback(() => {
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   const closeSidebar = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   /**
@@ -877,20 +925,23 @@ export function PlanningSelectionProvider({
   const removeService = useCallback(
     async (serviceId: string) => {
       console.log("removeService called with serviceId:", serviceId);
-      console.log("plannedServiceIds map:", Array.from(plannedServiceIds.entries()));
-      
+      console.log(
+        "plannedServiceIds map:",
+        Array.from(plannedServiceIds.entries())
+      );
+
       const apiId = plannedServiceIds.get(serviceId);
       console.log("apiId found:", apiId);
-      
+
       let deleteError: Error | null = null;
-      
+
       // Try to delete from API if we have an apiId
       if (apiId) {
         try {
           console.log("Calling deletePlannedService with apiId:", apiId);
           await deletePlannedService(apiId);
           console.log("deletePlannedService succeeded");
-          
+
           // Remove from ID map
           setPlannedServiceIds((prev) => {
             const newMap = new Map(prev);
@@ -901,15 +952,23 @@ export function PlanningSelectionProvider({
           await refreshPlannedServices();
         } catch (error) {
           console.error("Error deleting planned service:", error);
-          deleteError = error instanceof Error ? error : new Error("Unknown error");
+          deleteError =
+            error instanceof Error ? error : new Error("Unknown error");
           // Still remove from local state for optimistic UI, but throw error for caller to handle
         }
       } else {
         // If no apiId, try using serviceId directly as fallback
         // This handles cases where the service was created locally or mapping is missing
-        console.warn("No apiId found for serviceId:", serviceId, "- trying serviceId as fallback");
+        console.warn(
+          "No apiId found for serviceId:",
+          serviceId,
+          "- trying serviceId as fallback"
+        );
         try {
-          console.log("Calling deletePlannedService with serviceId as fallback:", serviceId);
+          console.log(
+            "Calling deletePlannedService with serviceId as fallback:",
+            serviceId
+          );
           await deletePlannedService(serviceId);
           console.log("deletePlannedService with serviceId succeeded");
           // Refresh from API
@@ -947,7 +1006,7 @@ export function PlanningSelectionProvider({
 
     // Pre-select the service for reassignment (but don't remove from planned services yet)
     setSelectedService(plannedService.service);
-    
+
     // Clear any previously selected slot so user can pick a new one
     setSelectedSlot(null);
   }, []);
@@ -956,15 +1015,13 @@ export function PlanningSelectionProvider({
    * Cancel reassignment - clear reassigning state without changes
    */
   const cancelReassignment = useCallback(() => {
-    if (reassigningService) {
-      // Clear reassigning state (service was never removed, so no need to restore)
-      setReassigningService(null);
+    // Clear reassigning state (service was never removed, so no need to restore)
+    setReassigningService(null);
 
-      // Clear selection
-      setSelectedSlot(null);
-      setSelectedService(null);
-    }
-  }, [reassigningService]);
+    // Clear selection
+    setSelectedSlot(null);
+    setSelectedService(null);
+  }, []);
 
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;

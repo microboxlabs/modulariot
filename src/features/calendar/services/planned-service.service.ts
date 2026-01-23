@@ -2,7 +2,7 @@ import type {
   PlannedService as LocalPlannedService,
   SelectedService,
   SelectedSlot,
-  LeadTimeStatus,
+  LeadTimeData,
 } from "../components/planning/planning-selection-context";
 import type {
   PlannedServiceResponse,
@@ -29,9 +29,10 @@ export function apiToLocalPlannedService(
 /**
  * Convert local PlannedService to API format
  */
-export function localToApiPlannedService(
-  local: LocalPlannedService
-): { service: Service; slot: { date: string; hour: number; minutes: number } } {
+export function localToApiPlannedService(local: LocalPlannedService): {
+  service: Service;
+  slot: { date: string; hour: number; minutes: number };
+} {
   return {
     service: localServiceToApi(local.service),
     slot: {
@@ -58,10 +59,7 @@ function apiToLocalService(apiService: Service): SelectedService {
     tipoViaje: apiService.tipoViaje,
     ocupacion: apiService.ocupacion,
     permanencia: apiService.permanencia,
-    leadTime: {
-      deadline: apiService.leadTime.deadline,
-      status: apiService.leadTime.status as LeadTimeStatus,
-    },
+    leadTime: apiService.leadTime as LeadTimeData,
     eta: apiService.eta,
     incidencias: apiService.incidencias,
     observaciones: apiService.observaciones,
@@ -81,10 +79,7 @@ function localServiceToApi(localService: SelectedService): Service {
     tipoViaje: localService.tipoViaje,
     ocupacion: localService.ocupacion,
     permanencia: localService.permanencia,
-    leadTime: {
-      deadline: localService.leadTime.deadline,
-      status: localService.leadTime.status,
-    },
+    leadTime: localService.leadTime,
     eta: localService.eta,
     incidencias: localService.incidencias,
     observaciones: localService.observaciones,

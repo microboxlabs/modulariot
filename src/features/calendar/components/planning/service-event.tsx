@@ -1,11 +1,13 @@
 "use client";
 
 import { Badge } from "flowbite-react";
-import { HiExclamation, HiClock, HiCheck } from "react-icons/hi";
+import { HiExclamation, HiCheck, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import {
   usePlanningSelection,
   type SelectedService,
+  type LeadTimeData,
+  getLeadTimeStatus,
 } from "./planning-selection-context";
 import { categorizeIncidencias } from "./incidencias.types";
 
@@ -15,14 +17,18 @@ export interface ServiceEventProps {
 }
 
 /**
- * Get the color classes for lead time status
+ * Get the icon and styles for lead time based on compliance percentage
+ * 100% → ✓ CheckMark (success)
+ * > 0% and < 100% → ⚠ Warning
+ * 0% → ✗ Error
  */
-function getLeadTimeStyles(status: "on_time" | "warning" | "delayed"): {
+function getLeadTimeStyles(leadTime: LeadTimeData): {
   text: string;
-  icon: typeof HiCheck | typeof HiExclamation | typeof HiClock;
+  icon: typeof HiCheck | typeof HiExclamation | typeof HiX;
 } {
+  const status = getLeadTimeStatus(leadTime);
   switch (status) {
-    case "on_time":
+    case "success":
       return {
         text: "text-gray-600 dark:text-gray-400",
         icon: HiCheck,
@@ -32,27 +38,19 @@ function getLeadTimeStyles(status: "on_time" | "warning" | "delayed"): {
         text: "text-gray-600 dark:text-gray-400",
         icon: HiExclamation,
       };
-    case "delayed":
+    case "error":
       return {
         text: "text-yellow-400 dark:text-yellow-300",
-        icon: HiClock,
+        icon: HiX,
       };
   }
-}
-
-/**
- * Format date for compact display
- */
-function formatCompactDate(isoDate: string): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
 }
 
 /**
  * Get occupancy color based on percentage
  */
 function getOccupancyColor(percentage: number): string {
-  if (percentage >= 100) return "bg-yellow-300 dark:bg-yellow-300";
+  if (percentage >= 100) return "bg-yellow-400 dark:bg-yellow-300";
   return "bg-gray-400";
 }
 
@@ -67,7 +65,7 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
   const { selectedService, selectService } = usePlanningSelection();
 
   const isSelected = selectedService?.id === service.id;
-  const leadTimeStyles = getLeadTimeStyles(service.leadTime.status);
+  const leadTimeStyles = getLeadTimeStyles(service.leadTime);
 
   // Categorize incidencias
   const { primary, secondary } = categorizeIncidencias(service.incidencias);
@@ -172,13 +170,13 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
         {/* KPIs row */}
         <div className="flex items-center gap-2 text-xs">
-          {/* Lead Time */}
+          {/* Lead Time - shows compliance percentage */}
           <div className="flex items-center gap-1.5">
             <leadTimeStyles.icon
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {formatCompactDate(service.leadTime.deadline)}
+              {service.leadTime.lineasoc_pctn_cumplimiento}%
             </span>
           </div>
 

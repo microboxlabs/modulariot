@@ -132,16 +132,28 @@ export default function PlanningWeekView({
     });
   }, []);
 
-  const handleConfirmDelete = useCallback(() => {
-    if (deleteModal.plannedService) {
-      removeService(deleteModal.plannedService.service.id);
-      ShowNotification({
-        type: "success",
-        message: "Asignación eliminada",
-      });
-    }
-    setDeleteModal({ isOpen: false, plannedService: null });
-  }, [deleteModal.plannedService, removeService]);
+  const handleConfirmDelete = useCallback(
+    async (plannedService: PlannedService) => {
+      console.log("handleConfirmDelete", plannedService);
+      if (plannedService) {
+        try {
+          await removeService(plannedService.service.id);
+          ShowNotification({
+            type: "success",
+            message: "Asignación eliminada",
+          });
+        } catch (error) {
+          console.error("Error deleting planned service:", error);
+          ShowNotification({
+            type: "error",
+            message: "Error al eliminar la asignación. Por favor, intente nuevamente.",
+          });
+        }
+      }
+      setDeleteModal({ isOpen: false, plannedService: null });
+    },
+    [removeService]
+  );
 
   const handleCancelDelete = useCallback(() => {
     setDeleteModal({ isOpen: false, plannedService: null });
@@ -484,12 +496,14 @@ export default function PlanningWeekView({
       />
 
       {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        isOpen={deleteModal.isOpen}
-        plannedService={deleteModal.plannedService}
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
-      />
+      {deleteModal.plannedService && (
+        <DeleteConfirmationModal
+          isOpen={deleteModal.isOpen}
+          plannedService={deleteModal.plannedService}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
 
       {/* Reassignment Connector - shows line between original and target slot */}
       {reassigningService && (

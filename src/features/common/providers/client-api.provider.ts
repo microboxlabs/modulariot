@@ -1,5 +1,7 @@
 "use client";
 import useSWR from "swr";
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import fetcher from "./fetcher";
 import { safeJsonParse } from "./safe-json";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
@@ -585,6 +587,26 @@ export function useGetUserStates() {
     `/app/api/user/states`,
     fetcher
   );
+  const pathname = usePathname();
+
+  // Handle 401 errors (session expired) by redirecting to sign-in
+  useEffect(() => {
+    if (error?.status === 401) {
+      // Extract language from pathname (format: /app/[lang]/... or /[lang]/...)
+      const pathSegments = pathname.split("/").filter(Boolean);
+      // Remove 'app' prefix if present
+      const segmentsWithoutApp = pathSegments[0] === "app" 
+        ? pathSegments.slice(1) 
+        : pathSegments;
+      // Find the language segment (usually 'es' or 'en')
+      const lang = segmentsWithoutApp.find((segment) => 
+        segment === "es" || segment === "en"
+      ) || "es"; // Default to 'es' if not found
+      
+      // Redirect to sign-in page with language
+      globalThis.location.href = `/${lang}/sign-in`;
+    }
+  }, [error, pathname]);
 
   return {
     user_states: data,

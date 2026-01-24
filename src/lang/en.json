@@ -1037,6 +1037,7 @@
         "werehouse": "Werehouse",
         "logistics": "Logistics",
         "planning": "Planning",
+        "calendarPlanning": "Planning",
         "shipping": "Shipping",
         "shippingv1": "Shipping V1",
         "picking": "Picking",

@@ -285,6 +285,7 @@ export default function TimeBlockManager({
           ? {
               id: crypto.randomUUID(),
               name: "",
+              kind: "block",
               type: "weekly",
               weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
                 [], // All weeks
@@ -298,6 +299,7 @@ export default function TimeBlockManager({
           : {
               id: crypto.randomUUID(),
               name: "",
+              kind: "block",
               type: "daily-override",
               startTimestamp: today
                 .hour(8)

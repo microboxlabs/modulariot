@@ -106,45 +106,60 @@ export const TIME_WINDOW_COLORS = {
 export type TimeWindowColor = keyof typeof TIME_WINDOW_COLORS;
 
 /**
- * Base time slot configuration shared by TimeWindow and TimeBlock
+ * Unified time slot configuration for both quota windows and blocks
+ * Stored in a single database table
+ *
+ * @property kind - Discriminant: "window" (has quota) or "block" (prevents scheduling)
+ * @property type - Pattern type: "weekly" (recurring) or "daily-override" (specific date)
+ * @property quota - Capacity limit (only used when kind="window", ignored for blocks)
+ * @property color - Visual color theme (optional, mainly for windows)
+ *
+ * Pattern formats:
+ * - weekly: Uses weeklyPattern string "W1-4 1-5 0900-1700"
+ *   - W1-4: Weeks 1-4 of month (W* for all weeks)
+ *   - 1-5: Days Monday(1) to Friday(5)
+ *   - 0900-1700: Time range HHMM
+ * - daily-override: Uses ISO timestamps for specific date/time ranges
  */
-export interface BaseTimeSlot {
+export interface TimeSlot {
   id: string;
   name: string;
+  kind: "window" | "block";
   type: "weekly" | "daily-override";
   // For weekly type: pattern string like "W1-4 1-5 0900-1700"
   weeklyPattern?: string;
   // For daily-override type: ISO timestamps
   startTimestamp?: string; // ISO 8601 format: "2026-01-20T09:00:00"
   endTimestamp?: string; // ISO 8601 format: "2026-01-20T17:00:00"
-}
-
-/**
- * Time window configuration for quota management
- *
- * Types:
- * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
- *   - W1-4: Weeks 1-4 of the month (W* for all weeks)
- *   - 1-5: Days 1 (Monday) to 5 (Friday)
- *   - 0900-1700: Time range in HHMM format
- *
- * - "daily-override": Uses ISO timestamps for specific date ranges
- *   - Overrides weekly windows for the specified date/time
- */
-export interface TimeWindow extends BaseTimeSlot {
-  quota: number;
+  // Quota (used when kind="window", can be 0 or omitted for blocks)
+  quota?: number;
+  // Visual color (optional, mainly for windows)
   color?: TimeWindowColor;
 }
 
 /**
- * Time block configuration for blocking specific time slots
- * Similar to TimeWindow but without quota - blocks make slots unselectable
- *
- * Types:
- * - "weekly": Uses weeklyPattern string format "W1-4 1-5 0900-1700"
- * - "daily-override": Uses ISO timestamps for specific date ranges
+ * Type alias for backward compatibility - TimeWindow is a TimeSlot with kind="window"
  */
-export interface TimeBlock extends BaseTimeSlot {}
+export type TimeWindow = TimeSlot & { kind: "window"; quota: number };
+
+/**
+ * Type alias for backward compatibility - TimeBlock is a TimeSlot with kind="block"
+ */
+export type TimeBlock = TimeSlot & { kind: "block" };
+
+/**
+ * Type guard: checks if a TimeSlot is a window (has quota for scheduling limits)
+ */
+export function isTimeWindow(slot: TimeSlot): slot is TimeWindow {
+  return slot.kind === "window";
+}
+
+/**
+ * Type guard: checks if a TimeSlot is a block (prevents any scheduling)
+ */
+export function isTimeBlock(slot: TimeSlot): slot is TimeBlock {
+  return slot.kind === "block";
+}
 
 /**
  * Parsed weekly pattern for internal use
@@ -261,7 +276,7 @@ export const TimeWindowUtils = {
    * Check if a time window or block matches a specific slot
    */
   matchesSlot(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -276,7 +291,7 @@ export const TimeWindowUtils = {
    * Check if a daily-override window matches a slot
    */
   matchesDailyOverride(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -298,7 +313,7 @@ export const TimeWindowUtils = {
    * Check if a weekly pattern window matches a slot
    */
   matchesWeeklyPattern(
-    window: BaseTimeSlot,
+    window: TimeSlot,
     date: dayjs.Dayjs,
     hour: number,
     minutes: number
@@ -332,7 +347,7 @@ export const TimeWindowUtils = {
   /**
    * Get time range from a window or block (works for both types)
    */
-  getTimeRange(window: BaseTimeSlot): {
+  getTimeRange(window: TimeSlot): {
     startHour: number;
     startMinutes: number;
     endHour: number;
@@ -364,7 +379,7 @@ export const TimeWindowUtils = {
   /**
    * Get the date for a daily-override window or block
    */
-  getDate(window: BaseTimeSlot): string | null {
+  getDate(window: TimeSlot): string | null {
     if (window.type !== "daily-override" || !window.startTimestamp) return null;
     return dayjs(window.startTimestamp).format("YYYY-MM-DD");
   },
@@ -372,7 +387,7 @@ export const TimeWindowUtils = {
   /**
    * Check if a daily-override window or block is expired (before today)
    */
-  isExpired(window: BaseTimeSlot): boolean {
+  isExpired(window: TimeSlot): boolean {
     if (window.type !== "daily-override" || !window.startTimestamp)
       return false;
     return dayjs(window.startTimestamp).isBefore(dayjs().startOf("day"), "day");
@@ -393,14 +408,59 @@ export const TimeWindowUtils = {
 };
 
 /**
- * Lead time status for a service
+ * Lead time data for a service - tracks compliance of OC lines
  */
-export type LeadTimeStatus = "on_time" | "warning" | "delayed";
+export interface LeadTimeData {
+  total_lineasoc_cumplen: number;
+  total_lineasoc_incumplen: number;
+  lineasoc_pctn_cumplimiento: number; // 0-100
+}
+
+/**
+ * Get lead time status based on compliance percentage
+ * 100% → success, >0% and <100% → warning, 0% → error
+ */
+export function getLeadTimeStatus(
+  leadTime: LeadTimeData
+): "success" | "warning" | "error" {
+  const pct = leadTime.lineasoc_pctn_cumplimiento;
+  if (pct >= 100) return "success";
+  if (pct > 0) return "warning";
+  return "error";
+}
 
 /**
  * Trip type options
  */
 export type TripType = "Sider" | "Doble Sider" | "Rampla";
+
+/**
+ * Debug flag - set to true to show test service in the calendar
+ */
+export const DEBUG_SHOW_TEST_SERVICE = false;
+
+/**
+ * Test service data for development/debugging
+ */
+export const TEST_SERVICE: SelectedService = {
+  id: "TEST-001",
+  cliente: "Cliente de Prueba",
+  origen: "Santiago",
+  lugarCarguio: "Bodega Central",
+  destino: "Valparaíso",
+  tipoViaje: "Sider",
+  ocupacion: 75,
+  permanencia: "2 días",
+  leadTime: {
+    total_lineasoc_cumplen: 3,
+    total_lineasoc_incumplen: 1,
+    lineasoc_pctn_cumplimiento: 100,
+  },
+  eta: "2026-01-25T14:30:00",
+  incidencias: ["urgencia"],
+  observaciones: "Servicio de prueba para desarrollo",
+  prioridad: 1,
+};
 
 /**
  * Represents a service that can be selected in the planning calendar
@@ -415,10 +475,7 @@ export interface SelectedService {
   tipoViaje: TripType;
   ocupacion: number; // percentage 0-100
   permanencia: string;
-  leadTime: {
-    deadline: string; // ISO date
-    status: LeadTimeStatus;
-  };
+  leadTime: LeadTimeData;
   eta: string; // ISO datetime
   incidencias: string[]; // e.g. ['urgencia', 'shutdown', 'c5']
   observaciones: string;
@@ -445,7 +502,11 @@ interface PlanningSelectionContextType {
   selectedSlot: SelectedSlot | null;
   selectedService: SelectedService | null;
   plannedServices: PlannedService[];
+  /** Unified array of all time slots (windows and blocks) */
+  timeSlots: TimeSlot[];
+  /** Derived: only TimeWindow slots (filtered from timeSlots) */
   timeWindows: TimeWindow[];
+  /** Derived: only TimeBlock slots (filtered from timeSlots) */
   timeBlocks: TimeBlock[];
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
@@ -456,7 +517,11 @@ interface PlanningSelectionContextType {
   clearSelection: () => void;
   getServicesForSlot: (slot: SelectedSlot) => PlannedService[];
   canAddToSlot: (slot: SelectedSlot) => boolean;
+  /** Set the unified time slots array (replaces both windows and blocks) */
+  setTimeSlots: (slots: TimeSlot[]) => void;
+  /** Convenience: set only TimeWindow slots (merges with existing blocks) */
   setTimeWindows: (windows: TimeWindow[]) => void;
+  /** Convenience: set only TimeBlock slots (merges with existing windows) */
   setTimeBlocks: (blocks: TimeBlock[]) => void;
   getTimeWindowForSlot: (
     date: Date,
@@ -508,8 +573,8 @@ export function PlanningSelectionProvider({
   const [selectedService, setSelectedService] =
     useState<SelectedService | null>(null);
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
-  const [timeWindows, setTimeWindowsState] = useState<TimeWindow[]>([]);
-  const [timeBlocks, setTimeBlocksState] = useState<TimeBlock[]>([]);
+  // Unified state: single array for all time slots
+  const [timeSlots, setTimeSlotsState] = useState<TimeSlot[]>([]);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
   const [plannedServiceIds, setPlannedServiceIds] = useState<
@@ -518,15 +583,17 @@ export function PlanningSelectionProvider({
 
   // Load planned services from API
   // For now, load all services (can be optimized later with date range)
-  const { plannedServices: apiPlannedServices, refresh: refreshPlannedServices } =
-    usePlannedServices();
+  const {
+    plannedServices: apiPlannedServices,
+    refresh: refreshPlannedServices,
+  } = usePlannedServices();
 
   // Sync API data to local state
   useEffect(() => {
     if (apiPlannedServices && apiPlannedServices.length > 0) {
       const localServices = apiPlannedServices.map(apiToLocalPlannedService);
       const idMap = new Map<string, string>();
-      
+
       apiPlannedServices.forEach((apiService, index) => {
         if (apiService.id) {
           idMap.set(localServices[index].service.id, apiService.id);
@@ -542,6 +609,14 @@ export function PlanningSelectionProvider({
     }
   }, [apiPlannedServices]);
 
+  // Derived arrays from unified state (memoized for performance)
+  const timeWindows = useMemo(
+    () => timeSlots.filter(isTimeWindow),
+    [timeSlots]
+  );
+
+  const timeBlocks = useMemo(() => timeSlots.filter(isTimeBlock), [timeSlots]);
+
   const selectSlot = useCallback((slot: SelectedSlot) => {
     setSelectedSlot(slot);
   }, []);
@@ -550,12 +625,25 @@ export function PlanningSelectionProvider({
     setSelectedService(service);
   }, []);
 
-  const setTimeWindows = useCallback((windows: TimeWindow[]) => {
-    setTimeWindowsState(windows);
+  // Primary setter: replaces entire unified array
+  const setTimeSlots = useCallback((slots: TimeSlot[]) => {
+    setTimeSlotsState(slots);
   }, []);
 
+  // Convenience setter: updates only windows, preserves blocks
+  const setTimeWindows = useCallback((windows: TimeWindow[]) => {
+    setTimeSlotsState((current) => [
+      ...current.filter(isTimeBlock),
+      ...windows,
+    ]);
+  }, []);
+
+  // Convenience setter: updates only blocks, preserves windows
   const setTimeBlocks = useCallback((blocks: TimeBlock[]) => {
-    setTimeBlocksState(blocks);
+    setTimeSlotsState((current) => [
+      ...current.filter(isTimeWindow),
+      ...blocks,
+    ]);
   }, []);
 
   /**
@@ -728,7 +816,7 @@ export function PlanningSelectionProvider({
       try {
         // Check if this service already has an API ID (update) or needs creation
         const existingApiId = plannedServiceIds.get(selectedService.id);
-        
+
         if (existingApiId) {
           // Update existing planned service
           const apiData = localToApiPlannedService(newPlannedService);
@@ -755,7 +843,7 @@ export function PlanningSelectionProvider({
             },
           };
           const response = await createPlannedService(createRequest);
-          
+
           // Store the API ID for future updates
           if (response.id) {
             setPlannedServiceIds((prev) => {
@@ -778,10 +866,8 @@ export function PlanningSelectionProvider({
         // Refresh from API to ensure consistency
         await refreshPlannedServices();
 
-        // Clear reassigning state if this was a reassignment
-        if (wasReassigning) {
-          setReassigningService(null);
-        }
+        // Always clear reassigning state after confirmation (not just when wasReassigning)
+        setReassigningService(null);
 
         // Clear selection after confirming
         setSelectedSlot(null);
@@ -797,6 +883,12 @@ export function PlanningSelectionProvider({
           );
           return [...filtered, newPlannedService];
         });
+
+        // Also clear state on error to prevent stuck UI
+        setReassigningService(null);
+        setSelectedSlot(null);
+        setSelectedService(null);
+
         return wasReassigning;
       }
     }
@@ -812,16 +904,19 @@ export function PlanningSelectionProvider({
 
   const clearService = useCallback(() => {
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   const closeSidebar = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedSlot(null);
     setSelectedService(null);
+    setReassigningService(null);
   }, []);
 
   /**
@@ -830,20 +925,23 @@ export function PlanningSelectionProvider({
   const removeService = useCallback(
     async (serviceId: string) => {
       console.log("removeService called with serviceId:", serviceId);
-      console.log("plannedServiceIds map:", Array.from(plannedServiceIds.entries()));
-      
+      console.log(
+        "plannedServiceIds map:",
+        Array.from(plannedServiceIds.entries())
+      );
+
       const apiId = plannedServiceIds.get(serviceId);
       console.log("apiId found:", apiId);
-      
+
       let deleteError: Error | null = null;
-      
+
       // Try to delete from API if we have an apiId
       if (apiId) {
         try {
           console.log("Calling deletePlannedService with apiId:", apiId);
           await deletePlannedService(apiId);
           console.log("deletePlannedService succeeded");
-          
+
           // Remove from ID map
           setPlannedServiceIds((prev) => {
             const newMap = new Map(prev);
@@ -854,15 +952,23 @@ export function PlanningSelectionProvider({
           await refreshPlannedServices();
         } catch (error) {
           console.error("Error deleting planned service:", error);
-          deleteError = error instanceof Error ? error : new Error("Unknown error");
+          deleteError =
+            error instanceof Error ? error : new Error("Unknown error");
           // Still remove from local state for optimistic UI, but throw error for caller to handle
         }
       } else {
         // If no apiId, try using serviceId directly as fallback
         // This handles cases where the service was created locally or mapping is missing
-        console.warn("No apiId found for serviceId:", serviceId, "- trying serviceId as fallback");
+        console.warn(
+          "No apiId found for serviceId:",
+          serviceId,
+          "- trying serviceId as fallback"
+        );
         try {
-          console.log("Calling deletePlannedService with serviceId as fallback:", serviceId);
+          console.log(
+            "Calling deletePlannedService with serviceId as fallback:",
+            serviceId
+          );
           await deletePlannedService(serviceId);
           console.log("deletePlannedService with serviceId succeeded");
           // Refresh from API
@@ -900,7 +1006,7 @@ export function PlanningSelectionProvider({
 
     // Pre-select the service for reassignment (but don't remove from planned services yet)
     setSelectedService(plannedService.service);
-    
+
     // Clear any previously selected slot so user can pick a new one
     setSelectedSlot(null);
   }, []);
@@ -909,15 +1015,13 @@ export function PlanningSelectionProvider({
    * Cancel reassignment - clear reassigning state without changes
    */
   const cancelReassignment = useCallback(() => {
-    if (reassigningService) {
-      // Clear reassigning state (service was never removed, so no need to restore)
-      setReassigningService(null);
+    // Clear reassigning state (service was never removed, so no need to restore)
+    setReassigningService(null);
 
-      // Clear selection
-      setSelectedSlot(null);
-      setSelectedService(null);
-    }
-  }, [reassigningService]);
+    // Clear selection
+    setSelectedSlot(null);
+    setSelectedService(null);
+  }, []);
 
   // Sidebar is open when either a slot or service is selected
   const isSidebarOpen = selectedSlot !== null || selectedService !== null;
@@ -927,6 +1031,7 @@ export function PlanningSelectionProvider({
       selectedSlot,
       selectedService,
       plannedServices,
+      timeSlots,
       timeWindows,
       timeBlocks,
       reassigningService,
@@ -938,6 +1043,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
+      setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
       getTimeWindowForSlot,
@@ -953,6 +1059,7 @@ export function PlanningSelectionProvider({
       selectedSlot,
       selectedService,
       plannedServices,
+      timeSlots,
       timeWindows,
       timeBlocks,
       reassigningService,
@@ -964,6 +1071,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
+      setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
       getTimeWindowForSlot,

@@ -113,6 +113,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
+
+    totals["calendarPlanning"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>key === "planService"
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
   }
 
   useEffect(() => {

@@ -1047,6 +1047,7 @@
         "werehouse": "Bodega",
         "logistics": "Logística",
         "planning": "Planificación",
+        "calendarPlanning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
         "picking": "Retiros",

@@ -20,7 +20,7 @@ export const pages: SidebarItem[] = [
     items: [
       {
         href: "/calendar/planning",
-        label: "planning",
+        label: "calendarPlanning",
         totals: {},
       },
     ],

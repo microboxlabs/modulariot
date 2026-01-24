@@ -8,6 +8,15 @@ export interface Slot {
 }
 
 /**
+ * Lead time data for OC lines compliance tracking
+ */
+export interface ServiceLeadTime {
+  total_lineasoc_cumplen: number;
+  total_lineasoc_incumplen: number;
+  lineasoc_pctn_cumplimiento: number; // 0-100
+}
+
+/**
  * Service (QUÉ): Represents a service that can be planned
  */
 export interface Service {
@@ -18,10 +27,7 @@ export interface Service {
   tipoViaje: "Sider" | "Doble Sider" | "Rampla";
   ocupacion: number; // 0-100%
   permanencia: string; // e.g. "24h"
-  leadTime: {
-    deadline: string; // ISO date string
-    status: string;
-  };
+  leadTime: ServiceLeadTime;
   eta: string; // ISO datetime string
   incidencias: string[];
   observaciones: string;

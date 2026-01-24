@@ -448,6 +448,7 @@ export default function QuotaManager({
           ? {
               id: crypto.randomUUID(),
               name: "",
+              kind: "window",
               type: "weekly",
               quota: 1,
               color: "emerald",
@@ -463,6 +464,7 @@ export default function QuotaManager({
           : {
               id: crypto.randomUUID(),
               name: "",
+              kind: "window",
               type: "daily-override",
               quota: 1,
               color: "emerald",

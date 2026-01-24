@@ -4,15 +4,21 @@ import { useState } from "react";
 import { Badge, Button } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { FormSection, InfoRow, KpiRow, ProgressBar } from "./form-components";
+import {
+  FormSection,
+  InfoRow,
+  KpiRow,
+  ProgressBar,
+  LeadTimeDisplay,
+} from "./form-components";
 import {
   usePlanningSelection,
   type SelectedService,
-  type LeadTimeStatus,
 } from "./planning-selection-context";
 import { HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 interface PlanningSidebarFormProps {
   readonly dict: I18nRecord;
@@ -69,36 +75,6 @@ export function PlanningSidebarForm({
   // Show secondary directly if no primary and 2 or fewer secondary
   const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;
 
-  // Map leadTime status to display status
-  const mapLeadTimeStatus = (
-    status: LeadTimeStatus
-  ): "success" | "warning" | "error" => {
-    switch (status) {
-      case "on_time":
-        return "success";
-      case "warning":
-        return "warning";
-      case "delayed":
-        return "error";
-    }
-  };
-
-  // Format dates for display
-  const formatDate = (isoDate: string): string => {
-    const date = new Date(isoDate);
-    return date.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
-  };
-
-  const formatDateTime = (isoDateTime: string): string => {
-    const date = new Date(isoDateTime);
-    return date.toLocaleDateString("es-CL", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   // Use real data from selectedService
   const id = selectedService.id;
   const client = selectedService.cliente;
@@ -108,9 +84,7 @@ export function PlanningSidebarForm({
   const tripType = selectedService.tipoViaje;
   const permanence = selectedService.permanencia;
   const notes = selectedService.observaciones;
-  const leadTime = formatDate(selectedService.leadTime.deadline);
-  const leadTimeStatus = mapLeadTimeStatus(selectedService.leadTime.status);
-  const eta = formatDateTime(selectedService.eta);
+  const eta = formatDateString(selectedService.eta, "datetime");
   const occupancy = selectedService.ocupacion;
 
   // Helper to get badge color class for incidencias
@@ -191,7 +165,7 @@ export function PlanningSidebarForm({
 
       {/* KPIs Section */}
       <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>
-        <KpiRow label="Lead Time" value={leadTime} status={leadTimeStatus} />
+        <LeadTimeDisplay leadTime={selectedService.leadTime} />
         <KpiRow label="ETA" value={eta} />
         <ProgressBar
           label={tr("pages.planning.sidebar.form.occupancy", dict)}
@@ -237,22 +211,6 @@ export function PlanningSidebarForm({
 
       {/* Actions */}
       <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-        {reassigningService && (
-          <Button
-            type="button"
-            color="light"
-            className="flex-1"
-            onClick={() => {
-              cancelReassignment();
-              ShowNotification({
-                type: "info",
-                message: "Reasignación cancelada",
-              });
-            }}
-          >
-            {tr("pages.planning.sidebar.form.cancelReassignment", dict)}
-          </Button>
-        )}
         <Button
           type="submit"
           color="blue"

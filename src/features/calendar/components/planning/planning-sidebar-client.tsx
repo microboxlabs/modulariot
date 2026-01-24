@@ -11,6 +11,9 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
+  getLeadTimeStatus,
+  DEBUG_SHOW_TEST_SERVICE,
+  TEST_SERVICE,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -19,6 +22,7 @@ import { PlanningSearchTags } from "./planning-search-tags";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
 import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "@/features/task-forms/services/form.service";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { transformBoardsToTableData } from "@/features/shipping/utils/transform-data";
 
@@ -53,25 +57,23 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     }
   }
 
-  // Determine lead time status from mintral_icuCondition
-  let leadTimeStatus: "on_time" | "warning" | "delayed" = "on_time";
-  if (task.mintral_icuCondition !== undefined) {
-    if (task.mintral_icuCondition < 0) {
-      leadTimeStatus = "delayed";
-    } else if (task.mintral_icuCondition < 3) {
-      leadTimeStatus = "warning";
-    }
-  }
+  // Calculate lead time compliance from mintral_icuCondition
+  // Positive values = compliant, negative = non-compliant
+  const icuCondition = task.mintral_icuCondition ?? 0;
+  const totalLines = 4; // Default total lines for calculation
+  const compliantLines =
+    icuCondition >= 0
+      ? Math.min(totalLines, Math.abs(icuCondition) + 2)
+      : Math.max(0, totalLines - Math.abs(icuCondition));
+  const nonCompliantLines = totalLines - compliantLines;
+  const compliancePercentage = Math.round((compliantLines / totalLines) * 100);
 
   // Extract incidencias from priority code or other fields
   const incidencias: string[] = [];
   if (task.mintral_priorityCode) {
     incidencias.push(task.mintral_priorityCode.toLowerCase());
   }
-  if (
-    task.mintral_icuCondition !== undefined &&
-    task.mintral_icuCondition < 0
-  ) {
+  if (compliancePercentage === 0) {
     incidencias.push("urgencia");
   }
 
@@ -85,8 +87,9 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     ocupacion: 0, // Not available in KanbanBoardTask
     permanencia,
     leadTime: {
-      deadline: task.expectedDepartureDate || task.departureDate || "",
-      status: leadTimeStatus,
+      total_lineasoc_cumplen: compliantLines,
+      total_lineasoc_incumplen: nonCompliantLines,
+      lineasoc_pctn_cumplimiento: compliancePercentage,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
     incidencias,
@@ -299,15 +302,32 @@ export function PlanningSidebarClient({
   }, [myTasksData]);
 
   // Use only real API data - no fallback to mock
-  const allServices = apiServices;
+  // When DEBUG_SHOW_TEST_SERVICE is true, add test service for development
+  const allServices = DEBUG_SHOW_TEST_SERVICE
+    ? [TEST_SERVICE, ...apiServices]
+    : apiServices;
 
-  // Format the selected slot for display
+  // Default slot duration in minutes (can be changed in the future)
+  const SLOT_DURATION_MINUTES = 30;
+
+  // Format the selected slot for display with start and end times
   const formattedSlot = useMemo(() => {
     if (!selectedSlot) return undefined;
-    const date = dayjs(selectedSlot.date).locale("es");
-    const hour = selectedSlot.hour.toString().padStart(2, "0");
-    const minutes = selectedSlot.minutes.toString().padStart(2, "0");
-    return `${date.format("dddd D MMM")}, ${hour}:${minutes}`;
+    const startDate = dayjs(selectedSlot.date)
+      .hour(selectedSlot.hour)
+      .minute(selectedSlot.minutes);
+    const endDate = startDate.add(SLOT_DURATION_MINUTES, "minute");
+
+    const dateStr = formatDateString(startDate.toDate(), "date");
+    const startTime = formatDateString(startDate.toDate(), "time");
+    const endTime = formatDateString(endDate.toDate(), "time");
+
+    return {
+      date: dateStr,
+      startTime,
+      endTime,
+      full: `${dateStr}, ${startTime} - ${endTime}`,
+    };
   }, [selectedSlot]);
 
   type MatchType =
@@ -350,15 +370,16 @@ export function PlanningSidebarClient({
 
   // Sort services by urgency/status priority:
   // 1. Urgent (red-orange)
-  // 2. Delayed (red)
-  // 3. Warning (yellow)
-  // 4. On time (blue)
+  // 2. Error/Delayed (red) - 0% compliance
+  // 3. Warning (yellow) - partial compliance
+  // 4. Success/On time (green) - 100% compliance
   const sortedServices = useMemo(() => {
     const getStatusPriority = (service: SelectedService): number => {
       if (service.incidencias.includes("urgencia")) return 0; // Urgent first
-      if (service.leadTime.status === "delayed") return 1;
-      if (service.leadTime.status === "warning") return 2;
-      return 3; // on_time last
+      const status = getLeadTimeStatus(service.leadTime);
+      if (status === "error") return 1;
+      if (status === "warning") return 2;
+      return 3; // success last
     };
 
     let services = [...allServices];
@@ -585,7 +606,14 @@ export function PlanningSidebarClient({
               {tr("pages.planning.sidebar.form.slot", dict)}:
             </span>
             <span className="font-medium text-gray-900 dark:text-white capitalize">
-              {formattedSlot}
+              {formattedSlot.date}
+            </span>
+            <span className="font-mono font-medium text-gray-900 dark:text-white">
+              {formattedSlot.startTime}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">→</span>
+            <span className="font-mono font-medium text-gray-900 dark:text-white">
+              {formattedSlot.endTime}
             </span>
           </div>
         </div>
@@ -597,15 +625,17 @@ export function PlanningSidebarClient({
           {isFormActive ? (
             <button
               type="button"
-              onClick={handleBack}
-              disabled={reassigningService !== null}
-              className={twMerge(
-                "p-1 -ml-1 rounded-md transition-colors",
+              onClick={
                 reassigningService !== null
-                  ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-              )}
-              aria-label={tr("pages.planning.sidebar.form.back", dict)}
+                  ? handleCancelReassignment
+                  : handleBack
+              }
+              className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+              aria-label={
+                reassigningService !== null
+                  ? tr("pages.planning.sidebar.form.cancelReassignment", dict)
+                  : tr("pages.planning.sidebar.form.back", dict)
+              }
             >
               <HiArrowLeft className="w-5 h-5" />
             </button>
@@ -642,7 +672,7 @@ export function PlanningSidebarClient({
               selectedService
                 ? {
                     ...selectedService,
-                    slot: formattedSlot,
+                    slot: formattedSlot?.full,
                   }
                 : undefined
             }
@@ -662,19 +692,6 @@ export function PlanningSidebarClient({
                     {reassigningService.service.service.id}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCancelReassignment}
-                  className={twMerge(
-                    "shrink-0 px-2 py-1 text-xs font-medium rounded",
-                    "text-amber-700 dark:text-amber-300",
-                    "bg-amber-100 dark:bg-amber-800/50",
-                    "hover:bg-amber-200 dark:hover:bg-amber-700/50",
-                    "transition-colors duration-150"
-                  )}
-                >
-                  Cancelar
-                </button>
               </div>
             )}
 

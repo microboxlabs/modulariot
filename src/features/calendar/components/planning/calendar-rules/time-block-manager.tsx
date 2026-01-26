@@ -247,7 +247,7 @@ interface TimeBlockManagerProps {
 export default function TimeBlockManager({
   onBlocksChange,
 }: Readonly<TimeBlockManagerProps>) {
-  const { timeBlocks, setTimeBlocks } = usePlanningSelection();
+  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } = usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Auto-delete expired daily-override blocks (date before today)
@@ -528,9 +528,18 @@ export default function TimeBlockManager({
     [timeBlocks, setTimeBlocks]
   );
 
-  const handleApply = useCallback(() => {
-    onBlocksChange?.(timeBlocks);
-  }, [timeBlocks, onBlocksChange]);
+  const handleApply = useCallback(async () => {
+    try {
+      // Sync current time blocks to API
+      await syncTimeSlotsToAPI();
+      // Call the parent callback (closes modal, etc.)
+      onBlocksChange?.(timeBlocks);
+    } catch (error) {
+      console.error("Error syncing time blocks to API:", error);
+      // Still call the callback to close modal even if API sync fails
+      onBlocksChange?.(timeBlocks);
+    }
+  }, [timeBlocks, onBlocksChange, syncTimeSlotsToAPI]);
 
   return (
     <div className="z-50 min-w-[320px]">

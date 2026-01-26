@@ -7,8 +7,7 @@ import { getSharedAuthToken } from "../../utils/streamhub-api-client";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { HistoricSignal } from "@/features/signal-history/types/historic-signal.type";
 
-const FLEET_TRIP_API_URL =
-  "https://iot.streamhub.cl/api/v1/avl/fleet/streaming/positions";
+const FLEET_TRIP_API_URL = `${process.env.STREAMHUB_IOT_URL}/api/v1/avl/fleet/streaming/positions`;
 
 const authToken = getSharedAuthToken();
 

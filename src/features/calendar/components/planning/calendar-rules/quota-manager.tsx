@@ -402,7 +402,7 @@ interface QuotaManagerProps {
 export default function QuotaManager({
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
-  const { timeWindows, setTimeWindows } = usePlanningSelection();
+  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } = usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Auto-delete expired daily-override exceptions (date before today)
@@ -773,9 +773,18 @@ export default function QuotaManager({
     [timeWindows, setTimeWindows]
   );
 
-  const handleApply = useCallback(() => {
-    onRulesChange?.(timeWindows, formatString);
-  }, [timeWindows, formatString, onRulesChange]);
+  const handleApply = useCallback(async () => {
+    try {
+      // Sync current time windows to API
+      await syncTimeSlotsToAPI();
+      // Call the parent callback (closes modal, etc.)
+      onRulesChange?.(timeWindows, formatString);
+    } catch (error) {
+      console.error("Error syncing time windows to API:", error);
+      // Still call the callback to close modal even if API sync fails
+      onRulesChange?.(timeWindows, formatString);
+    }
+  }, [timeWindows, formatString, onRulesChange, syncTimeSlotsToAPI]);
 
   return (
     <div className="z-50 min-w-[320px]">

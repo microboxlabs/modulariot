@@ -1,66 +1,33 @@
-import { auth } from "@/auth";
-import { NextRequest, NextResponse } from "next/server";
-import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { NextRequest } from "next/server";
 import type {
   UpdatePlannedServiceRequest,
   PlannedServiceResponse,
 } from "@/features/calendar/types/planned-service.types";
+import {
+  createAlfrescoCrudClient,
+  requireAuth,
+} from "../../utils/alfresco-crud-client";
 
-const ALFRESCO_API_URL = process.env.ECM_API_URL || "";
-const PLANNED_SERVICE_ENDPOINT = `${ALFRESCO_API_URL}/api/planned-services`;
+const plannedServiceClient = createAlfrescoCrudClient({
+  endpoint: "/api/planned-services",
+  resourceName: "planned service",
+  mockOn404: true, // Backend endpoint not yet implemented
+});
 
 /**
  * GET /api/planned-service/[id]
  * Get a specific planned service by ID
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) return authResult.response;
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { id } = await params;
 
-  try {
-    const { id } = await params;
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
-
-    const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
-
-    const response = await fetch(authUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-    });
-
-    // Handle 404 gracefully (endpoint not yet implemented)
-    if (response.status === 404) {
-      return NextResponse.json(
-        { error: "Planned service not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Alfresco API request failed: ${response.status} ${response.statusText}. Response: ${errorText || "No response body"}`
-      );
-    }
-
-    const data = (await response.json()) as PlannedServiceResponse;
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("Error fetching planned service:", error);
-    return NextResponse.json(
-      { error: "Error fetching planned service" },
-      { status: 500 }
-    );
-  }
+  return plannedServiceClient.get<PlannedServiceResponse>(authResult.session, id);
 }
 
 /**
@@ -71,49 +38,34 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) return authResult.response;
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const body = (await request.json()) as UpdatePlannedServiceRequest;
+
+  // Prepare update payload
+  const updatePayload: Partial<PlannedServiceResponse> = {};
+  if (body.service) {
+    updatePayload.service = body.service as PlannedServiceResponse["service"];
+  }
+  if (body.slot) {
+    updatePayload.slot = {
+      date:
+        body.slot.date instanceof Date
+          ? body.slot.date.toISOString().split("T")[0]
+          : String(body.slot.date),
+      hour: body.slot.hour ?? 0,
+      minutes: body.slot.minutes ?? 0,
+    };
   }
 
-  try {
-    const { id } = await params;
-    const body = (await request.json()) as UpdatePlannedServiceRequest;
-
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
-
-    const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
-
-    // Prepare update payload
-    const updatePayload: Partial<PlannedServiceResponse> = {};
-    if (body.service) {
-      updatePayload.service = body.service as PlannedServiceResponse["service"];
-    }
-    if (body.slot) {
-      updatePayload.slot = {
-        date:
-          body.slot.date instanceof Date
-            ? body.slot.date.toISOString().split("T")[0]
-            : String(body.slot.date),
-        hour: body.slot.hour ?? 0,
-        minutes: body.slot.minutes ?? 0,
-      };
-    }
-
-    const response = await fetch(authUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify(updatePayload),
-    });
-
-    // Handle 404 gracefully (endpoint not yet implemented)
-    if (response.status === 404) {
-      // Return the updated data as if it was saved
-      const mockResponse: PlannedServiceResponse = {
+  return plannedServiceClient.update<PlannedServiceResponse>(
+    authResult.session,
+    id,
+    updatePayload,
+    {
+      mockResponse: () => ({
         id,
         service: (body.service as PlannedServiceResponse["service"]) || {
           id: "",
@@ -123,7 +75,11 @@ export async function PUT(
           tipoViaje: "Sider",
           ocupacion: 0,
           permanencia: "",
-          leadTime: { deadline: "", status: "" },
+          leadTime: {
+            total_lineasoc_cumplen: 0,
+            total_lineasoc_incumplen: 0,
+            lineasoc_pctn_cumplimiento: 0,
+          },
           eta: "",
           incidencias: [],
           observaciones: "",
@@ -137,26 +93,9 @@ export async function PUT(
           hour: body.slot?.hour ?? 0,
           minutes: body.slot?.minutes ?? 0,
         },
-      };
-      return NextResponse.json(mockResponse, { status: 200 });
+      }),
     }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Alfresco API request failed: ${response.status} ${response.statusText}. Response: ${errorText || "No response body"}`
-      );
-    }
-
-    const data = (await response.json()) as PlannedServiceResponse;
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error("Error updating planned service:", error);
-    return NextResponse.json(
-      { error: "Error updating planned service" },
-      { status: 500 }
-    );
-  }
+  );
 }
 
 /**
@@ -164,48 +103,13 @@ export async function PUT(
  * Delete a planned service
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) return authResult.response;
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { id } = await params;
 
-  try {
-    const { id } = await params;
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
-
-    const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
-
-    const response = await fetch(authUrl, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-    });
-
-    // Handle 404 gracefully (endpoint not yet implemented)
-    if (response.status === 404) {
-      // Return success as if it was deleted
-      return NextResponse.json({ success: true }, { status: 200 });
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Alfresco API request failed: ${response.status} ${response.statusText}. Response: ${errorText || "No response body"}`
-      );
-    }
-
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error("Error deleting planned service:", error);
-    return NextResponse.json(
-      { error: "Error deleting planned service" },
-      { status: 500 }
-    );
-  }
+  return plannedServiceClient.delete(authResult.session, id);
 }

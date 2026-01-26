@@ -39,6 +39,12 @@ import type {
   CreatePlannedServiceRequest,
   UpdatePlannedServiceRequest,
 } from "@/features/calendar/types/planned-service.types";
+import type {
+  TimeSlotResponse,
+  TimeSlotListResponse,
+  CreateTimeSlotRequest,
+  UpdateTimeSlotRequest,
+} from "@/features/calendar/types/time-slot.types";
 
 // export function useI8n(lang: string) {
 //   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
@@ -1282,5 +1288,121 @@ export async function deletePlannedService(id: string): Promise<void> {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || "Failed to delete planned service");
+  }
+}
+
+// ============================================================================
+// TimeSlot Hooks (Windows and Blocks)
+// ============================================================================
+
+/**
+ * Hook to fetch all time slots, optionally filtered by kind
+ * @param kind - Optional filter: "window" | "block" | undefined (all)
+ */
+export function useTimeSlots(kind?: "window" | "block") {
+  const queryParams = new URLSearchParams();
+  if (kind) queryParams.set("kind", kind);
+
+  const url = queryParams.toString()
+    ? `/app/api/time-slot?${queryParams.toString()}`
+    : "/app/api/time-slot";
+
+  const { data, error, isLoading, mutate } = useSWR<
+    TimeSlotListResponse,
+    FetcherError
+  >(url, fetcher);
+
+  return {
+    timeSlots: data?.data || [],
+    total: data?.total || 0,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Hook to fetch only time windows (kind="window")
+ */
+export function useTimeWindows() {
+  return useTimeSlots("window");
+}
+
+/**
+ * Hook to fetch only time blocks (kind="block")
+ */
+export function useTimeBlocks() {
+  return useTimeSlots("block");
+}
+
+/**
+ * Hook to fetch a single time slot by ID
+ */
+export function useTimeSlot(id: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<
+    TimeSlotResponse,
+    FetcherError
+  >(id ? `/app/api/time-slot/${id}` : null, fetcher);
+
+  return {
+    timeSlot: data,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Create a new time slot
+ */
+export async function createTimeSlot(
+  request: CreateTimeSlotRequest
+): Promise<TimeSlotResponse> {
+  const response = await fetch("/app/api/time-slot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to create time slot");
+  }
+
+  return response.json();
+}
+
+/**
+ * Update an existing time slot
+ */
+export async function updateTimeSlot(
+  id: string,
+  request: UpdateTimeSlotRequest
+): Promise<TimeSlotResponse> {
+  const response = await fetch(`/app/api/time-slot/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update time slot");
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a time slot
+ */
+export async function deleteTimeSlot(id: string): Promise<void> {
+  const response = await fetch(`/app/api/time-slot/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete time slot");
   }
 }

@@ -2,16 +2,16 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type {
-  UpdatePlannedServiceRequest,
-  PlannedServiceResponse,
-} from "@/features/calendar/types/planned-service.types";
+  UpdateTimeSlotRequest,
+  TimeSlotResponse,
+} from "@/features/calendar/types/time-slot.types";
 
 const ALFRESCO_API_URL = process.env.ECM_API_URL || "";
-const PLANNED_SERVICE_ENDPOINT = `${ALFRESCO_API_URL}/api/planned-services`;
+const TIME_SLOT_ENDPOINT = `${ALFRESCO_API_URL}/api/time-slots`;
 
 /**
- * GET /api/planned-service/[id]
- * Get a specific planned service by ID
+ * GET /api/time-slot/[id]
+ * Get a specific time slot by ID
  */
 export async function GET(
   request: NextRequest,
@@ -25,7 +25,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
+    const url = `${TIME_SLOT_ENDPOINT}/${id}`;
 
     const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
 
@@ -40,7 +40,7 @@ export async function GET(
     // Handle 404 gracefully (endpoint not yet implemented)
     if (response.status === 404) {
       return NextResponse.json(
-        { error: "Planned service not found" },
+        { error: "Time slot not found" },
         { status: 404 }
       );
     }
@@ -52,20 +52,20 @@ export async function GET(
       );
     }
 
-    const data = (await response.json()) as PlannedServiceResponse;
+    const data = (await response.json()) as TimeSlotResponse;
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching planned service:", error);
+    console.error("Error fetching time slot:", error);
     return NextResponse.json(
-      { error: "Error fetching planned service" },
+      { error: "Error fetching time slot" },
       { status: 500 }
     );
   }
 }
 
 /**
- * PUT /api/planned-service/[id]
- * Update a planned service
+ * PUT /api/time-slot/[id]
+ * Update a time slot
  */
 export async function PUT(
   request: NextRequest,
@@ -79,27 +79,11 @@ export async function PUT(
 
   try {
     const { id } = await params;
-    const body = (await request.json()) as UpdatePlannedServiceRequest;
+    const body = (await request.json()) as UpdateTimeSlotRequest;
 
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
+    const url = `${TIME_SLOT_ENDPOINT}/${id}`;
 
     const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
-
-    // Prepare update payload
-    const updatePayload: Partial<PlannedServiceResponse> = {};
-    if (body.service) {
-      updatePayload.service = body.service as PlannedServiceResponse["service"];
-    }
-    if (body.slot) {
-      updatePayload.slot = {
-        date:
-          body.slot.date instanceof Date
-            ? body.slot.date.toISOString().split("T")[0]
-            : String(body.slot.date),
-        hour: body.slot.hour ?? 0,
-        minutes: body.slot.minutes ?? 0,
-      };
-    }
 
     const response = await fetch(authUrl, {
       method: "PUT",
@@ -107,36 +91,22 @@ export async function PUT(
         "Content-Type": "application/json",
         ...headers,
       },
-      body: JSON.stringify(updatePayload),
+      body: JSON.stringify(body),
     });
 
     // Handle 404 gracefully (endpoint not yet implemented)
     if (response.status === 404) {
       // Return the updated data as if it was saved
-      const mockResponse: PlannedServiceResponse = {
+      const mockResponse: TimeSlotResponse = {
         id,
-        service: (body.service as PlannedServiceResponse["service"]) || {
-          id: "",
-          cliente: "",
-          origen: "",
-          destino: "",
-          tipoViaje: "Sider",
-          ocupacion: 0,
-          permanencia: "",
-          leadTime: { deadline: "", status: "" },
-          eta: "",
-          incidencias: [],
-          observaciones: "",
-          prioridad: 0,
-        },
-        slot: {
-          date:
-            body.slot?.date instanceof Date
-              ? body.slot.date.toISOString().split("T")[0]
-              : String(body.slot?.date ?? ""),
-          hour: body.slot?.hour ?? 0,
-          minutes: body.slot?.minutes ?? 0,
-        },
+        name: body.name || "",
+        kind: body.kind || "window",
+        type: body.type || "weekly",
+        weeklyPattern: body.weeklyPattern,
+        startTimestamp: body.startTimestamp,
+        endTimestamp: body.endTimestamp,
+        quota: body.quota,
+        color: body.color,
       };
       return NextResponse.json(mockResponse, { status: 200 });
     }
@@ -148,20 +118,20 @@ export async function PUT(
       );
     }
 
-    const data = (await response.json()) as PlannedServiceResponse;
+    const data = (await response.json()) as TimeSlotResponse;
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error updating planned service:", error);
+    console.error("Error updating time slot:", error);
     return NextResponse.json(
-      { error: "Error updating planned service" },
+      { error: "Error updating time slot" },
       { status: 500 }
     );
   }
 }
 
 /**
- * DELETE /api/planned-service/[id]
- * Delete a planned service
+ * DELETE /api/time-slot/[id]
+ * Delete a time slot
  */
 export async function DELETE(
   request: NextRequest,
@@ -175,7 +145,7 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const url = `${PLANNED_SERVICE_ENDPOINT}/${id}`;
+    const url = `${TIME_SLOT_ENDPOINT}/${id}`;
 
     const { url: authUrl, headers } = prepareAlfrescoAuth(url, session);
 
@@ -202,9 +172,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error deleting planned service:", error);
+    console.error("Error deleting time slot:", error);
     return NextResponse.json(
-      { error: "Error deleting planned service" },
+      { error: "Error deleting time slot" },
       { status: 500 }
     );
   }

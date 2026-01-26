@@ -32,6 +32,7 @@ export interface Service {
   incidencias: string[];
   observaciones: string;
   prioridad: number;
+  cm_created?: string; // ISO datetime - creation date
 }
 
 /**

@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parse } from "csv-parse";
 import { Readable } from "stream";
 
-const FLEET_TRIP_API_URL =
-  "https://iot.streamhub.cl/api/v1/avl/fleet/trip/positions";
+const FLEET_TRIP_API_URL = `${process.env.STREAMHUB_IOT_URL}/api/v1/avl/fleet/trip/positions`;
 
 import {
   AuthToken,

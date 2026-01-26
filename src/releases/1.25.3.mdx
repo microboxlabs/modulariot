@@ -1,0 +1,27 @@
+# 🔔 Release Notes v1.25.3 — ModularIoT
+
+### Fecha: 26/01/2026
+
+**Objetivo**: Mejorar la trazabilidad y soporte operativo permitiendo consultar validaciones asociadas a tareas históricas/completadas, evitando respuestas “no encontradas” cuando el flujo ya terminó.
+
+## 🐛 Correcciones
+
+- **🕰️ Soporte de tareas históricas en ValidationService**
+  - **Fix para tareas completadas**: Si `getTaskById(taskId)` no encuentra una tarea activa, se interpreta el `taskId` como `processInstanceId` para recuperar la primera tarea histórica asociada.
+  - **Validaciones correctas en histórico**: Se extraen variables de proceso y `formKey` desde la tarea histórica para construir las validaciones reales, en vez de retornar un “not found” por defecto.
+  - **Evita fallas de consulta post-ejecución**: Permite recuperar validaciones de servicios finalizados (históricos) sin perder información.
+  - Issue: #992 — https://github.com/microboxlabs/coordinador-webclient/issues/992
+
+## 📊 Beneficios
+
+- **🔎 Trazabilidad completa**: Las validaciones quedan disponibles incluso después de completar la tarea.
+- **🛠️ Menos fricción operativa**: Evita diagnósticos erróneos por “not found” cuando la tarea ya no está activa.
+- **✅ Consistencia de datos**: Mismo endpoint y comportamiento coherente para tareas activas e históricas.
+- **📈 Mejor soporte y auditoría**: Facilita revisiones y seguimiento de servicios cerrados.
+- **🧩 Base para mejoras futuras**: Abre la puerta a reporting y debugging sobre historial de procesos.
+
+## 📌 Conclusión
+
+La versión 1.25.3 se enfoca en robustecer el acceso a información histórica dentro del flujo de validaciones. Al incorporar una lógica de fallback para tareas completadas, el sistema deja de depender exclusivamente de tareas activas y puede reconstruir correctamente el contexto necesario para calcular validaciones.
+
+Con esto, el equipo gana visibilidad sobre servicios ya finalizados, mejorando la capacidad de soporte, auditoría y diagnóstico sin afectar el comportamiento existente para tareas activas.

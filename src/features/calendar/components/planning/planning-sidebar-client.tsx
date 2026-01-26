@@ -77,6 +77,19 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     incidencias.push("urgencia");
   }
 
+  // Extract mintral_incidents - filter and map to proper format
+  const mintral_incidents: Array<[string, string]> | undefined = task.mintral_incidents
+    ? task.mintral_incidents
+        .filter(
+          (incident): incident is [string, string] =>
+            Array.isArray(incident) &&
+            incident.length === 2 &&
+            typeof incident[0] === "string" &&
+            typeof incident[1] === "string"
+        )
+        .map((incident) => [incident[0], incident[1]] as [string, string])
+    : undefined;
+
   return {
     id: serviceId,
     cliente: task.client || task.clientCode || "",
@@ -93,9 +106,11 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
     incidencias,
+    mintral_incidents,
     observaciones: task.description || "",
     prioridad:
       task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
+    cm_created: task.cm_created,
   };
 }
 

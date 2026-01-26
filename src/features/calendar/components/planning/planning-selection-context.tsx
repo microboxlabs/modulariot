@@ -17,6 +17,10 @@ import {
   createPlannedService,
   updatePlannedService,
   deletePlannedService,
+  useTimeSlots,
+  createTimeSlot,
+  updateTimeSlot,
+  deleteTimeSlot,
 } from "@/features/common/providers/client-api.provider";
 import {
   apiToLocalPlannedService,
@@ -518,11 +522,13 @@ interface PlanningSelectionContextType {
   getServicesForSlot: (slot: SelectedSlot) => PlannedService[];
   canAddToSlot: (slot: SelectedSlot) => boolean;
   /** Set the unified time slots array (replaces both windows and blocks) */
-  setTimeSlots: (slots: TimeSlot[]) => void;
-  /** Convenience: set only TimeWindow slots (merges with existing blocks) */
+  setTimeSlots: (slots: TimeSlot[]) => Promise<void>;
+  /** Convenience: set only TimeWindow slots (merges with existing blocks) - local state only */
   setTimeWindows: (windows: TimeWindow[]) => void;
-  /** Convenience: set only TimeBlock slots (merges with existing windows) */
+  /** Convenience: set only TimeBlock slots (merges with existing windows) - local state only */
   setTimeBlocks: (blocks: TimeBlock[]) => void;
+  /** Sync current time slots to API (call when user clicks "Aplicar") */
+  syncTimeSlotsToAPI: () => Promise<void>;
   getTimeWindowForSlot: (
     date: Date,
     hour: number,
@@ -588,12 +594,18 @@ export function PlanningSelectionProvider({
     refresh: refreshPlannedServices,
   } = usePlannedServices();
 
+  // Load time slots (windows and blocks) from API
+  const {
+    timeSlots: apiTimeSlots,
+    refresh: refreshTimeSlots,
+  } = useTimeSlots();
+
   // Sync API data to local state
   useEffect(() => {
     if (apiPlannedServices && apiPlannedServices.length > 0) {
       const localServices = apiPlannedServices.map(apiToLocalPlannedService);
       const idMap = new Map<string, string>();
-
+      
       apiPlannedServices.forEach((apiService, index) => {
         if (apiService.id) {
           idMap.set(localServices[index].service.id, apiService.id);
@@ -608,6 +620,17 @@ export function PlanningSelectionProvider({
       setPlannedServiceIds(new Map());
     }
   }, [apiPlannedServices]);
+
+  // Sync time slots from API to local state
+  useEffect(() => {
+    if (apiTimeSlots && apiTimeSlots.length > 0) {
+      // API TimeSlotResponse matches our TimeSlot interface, so we can use directly
+      setTimeSlotsState(apiTimeSlots as TimeSlot[]);
+    } else if (apiTimeSlots && apiTimeSlots.length === 0) {
+      // Clear local state if API returns empty array
+      setTimeSlotsState([]);
+    }
+  }, [apiTimeSlots]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -625,26 +648,106 @@ export function PlanningSelectionProvider({
     setSelectedService(service);
   }, []);
 
-  // Primary setter: replaces entire unified array
-  const setTimeSlots = useCallback((slots: TimeSlot[]) => {
-    setTimeSlotsState(slots);
-  }, []);
+  // Primary setter: replaces entire unified array and syncs to API
+  const setTimeSlots = useCallback(
+    async (slots: TimeSlot[]) => {
+      // Update local state immediately (optimistic update)
+      setTimeSlotsState(slots);
 
-  // Convenience setter: updates only windows, preserves blocks
-  const setTimeWindows = useCallback((windows: TimeWindow[]) => {
-    setTimeSlotsState((current) => [
-      ...current.filter(isTimeBlock),
-      ...windows,
-    ]);
-  }, []);
+      // Sync to API - save all slots
+      try {
+        // Get current API slots to determine what to create/update/delete
+        const currentApiSlots = apiTimeSlots || [];
+        const currentIds = new Set(currentApiSlots.map((s) => s.id));
+        const newIds = new Set(slots.map((s) => s.id));
 
-  // Convenience setter: updates only blocks, preserves windows
-  const setTimeBlocks = useCallback((blocks: TimeBlock[]) => {
-    setTimeSlotsState((current) => [
-      ...current.filter(isTimeWindow),
-      ...blocks,
-    ]);
-  }, []);
+        // Delete slots that are no longer in the new array
+        for (const currentSlot of currentApiSlots) {
+          if (!newIds.has(currentSlot.id)) {
+            try {
+              await deleteTimeSlot(currentSlot.id);
+            } catch (error) {
+              console.error("Error deleting time slot:", error);
+            }
+          }
+        }
+
+        // Create or update slots
+        for (const slot of slots) {
+          try {
+            if (currentIds.has(slot.id)) {
+              // Update existing
+              await updateTimeSlot(slot.id, {
+                id: slot.id,
+                name: slot.name,
+                kind: slot.kind,
+                type: slot.type,
+                weeklyPattern: slot.weeklyPattern,
+                startTimestamp: slot.startTimestamp,
+                endTimestamp: slot.endTimestamp,
+                quota: slot.quota,
+                color: slot.color,
+              });
+            } else {
+              // Create new
+              await createTimeSlot({
+                name: slot.name,
+                kind: slot.kind,
+                type: slot.type,
+                weeklyPattern: slot.weeklyPattern,
+                startTimestamp: slot.startTimestamp,
+                endTimestamp: slot.endTimestamp,
+                quota: slot.quota,
+                color: slot.color,
+              });
+            }
+          } catch (error) {
+            console.error("Error saving time slot:", error);
+          }
+        }
+
+        // Refresh from API to ensure consistency
+        await refreshTimeSlots();
+      } catch (error) {
+        console.error("Error syncing time slots to API:", error);
+        // State was already updated optimistically, so we continue
+      }
+    },
+    [apiTimeSlots, refreshTimeSlots]
+  );
+
+  // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)
+  const setTimeWindows = useCallback(
+    (windows: TimeWindow[]) => {
+      const current = timeSlots;
+      const newSlots = [
+        ...current.filter(isTimeBlock),
+        ...windows,
+      ];
+      // Update local state only (no API sync)
+      setTimeSlotsState(newSlots);
+    },
+    [timeSlots]
+  );
+
+  // Convenience setter: updates only blocks, preserves windows (local state only, no API sync)
+  const setTimeBlocks = useCallback(
+    (blocks: TimeBlock[]) => {
+      const current = timeSlots;
+      const newSlots = [
+        ...current.filter(isTimeWindow),
+        ...blocks,
+      ];
+      // Update local state only (no API sync)
+      setTimeSlotsState(newSlots);
+    },
+    [timeSlots]
+  );
+
+  // Sync current time slots to API (called when user clicks "Aplicar")
+  const syncTimeSlotsToAPI = useCallback(async () => {
+    await setTimeSlots(timeSlots);
+  }, [timeSlots, setTimeSlots]);
 
   /**
    * Count services assigned within a time window for a specific day
@@ -1046,6 +1149,7 @@ export function PlanningSelectionProvider({
       setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
+      syncTimeSlotsToAPI,
       getTimeWindowForSlot,
       getRemainingQuota,
       isSlotBlocked,
@@ -1074,6 +1178,7 @@ export function PlanningSelectionProvider({
       setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
+      syncTimeSlotsToAPI,
       getTimeWindowForSlot,
       getRemainingQuota,
       isSlotBlocked,

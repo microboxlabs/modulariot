@@ -482,6 +482,7 @@ export interface SelectedService {
   leadTime: LeadTimeData;
   eta: string; // ISO datetime
   incidencias: string[]; // e.g. ['urgencia', 'shutdown', 'c5']
+  mintral_incidents?: Array<[string, string]>; // e.g. [["mintral_incident_C306", "SOBREDIMENSION"], ["mintral_incident_C307", "SHUTDOWN"]]
   observaciones: string;
   prioridad: number;
 }

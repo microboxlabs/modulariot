@@ -110,6 +110,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     observaciones: task.description || "",
     prioridad:
       task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
+    cm_created: task.cm_created,
   };
 }
 

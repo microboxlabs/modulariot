@@ -3,6 +3,8 @@
 import { Badge } from "flowbite-react";
 import { HiExclamation, HiCheck, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
+import dayjs from "dayjs";
+import "dayjs/locale/es";
 import {
   usePlanningSelection,
   type SelectedService,
@@ -10,6 +12,9 @@ import {
   getLeadTimeStatus,
 } from "./planning-selection-context";
 import { categorizeIncidencias } from "./incidencias.types";
+
+// Set Spanish locale for dayjs
+dayjs.locale("es");
 
 export interface ServiceEventProps {
   readonly service: SelectedService;
@@ -191,13 +196,13 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
         {/* KPIs row */}
         <div className="flex items-center gap-2 text-xs">
-          {/* Lead Time - shows compliance percentage */}
+          {/* Date (Spanish short format: "1 ago") with lead time icon */}
           <div className="flex items-center gap-1.5">
             <leadTimeStyles.icon
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {service.leadTime.lineasoc_pctn_cumplimiento}%
+              {service.cm_created ? dayjs(service.cm_created).format("D MMM") : "-"}
             </span>
           </div>
 

@@ -5,26 +5,24 @@ import {
   calculateETA,
   ETARequest,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { logger } from "@/lib/logger";
+import {
+  handleApiError,
+  unauthorizedResponse,
+  badRequestResponse,
+} from "@/app/api/utils/api-error-handler";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized", status: 401 },
-        { status: 401 }
-      );
+      return unauthorizedResponse();
     }
 
     const body = (await request.json()) as ETARequest;
 
     // Validate required fields
     if (!body.originGeofence || !body.destinationGeofence) {
-      return NextResponse.json(
-        { error: "Origin and destination geofences are required", status: 400 },
-        { status: 400 }
-      );
+      return badRequestResponse("Origin and destination geofences are required");
     }
 
     // Call Alfresco webscript to calculate ETA
@@ -37,22 +35,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(etaData);
-  } catch (error: any) {
-    logger.error("Error calculating ETA:", error);
-
-    if (error?.status === 401) {
-      return NextResponse.json(
-        { error: "Unauthorized", status: 401 },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error: error?.message || "Failed to calculate ETA",
-        status: error?.status || 500,
-      },
-      { status: error?.status || 500 }
-    );
+  } catch (error: unknown) {
+    return handleApiError(error, "calculating ETA", "Failed to calculate ETA. Please try again.");
   }
 }

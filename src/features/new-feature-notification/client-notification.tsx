@@ -24,7 +24,7 @@ export default function ClientNotification({
   readonly dict: I18nRecord;
 }) {
   const [lastPath, setLastPath] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState<boolean | null>(null); // This will be true if the element dont exists in localStorage or if it exists but is not marked as not show again
+  const [showModal, setShowModal] = useState<boolean | null>(false); // This will be true if the element dont exists in localStorage or if it exists but is not marked as not show again
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isGeneralSlider, setIsGeneralSlider] = useState(false);
 
@@ -34,9 +34,15 @@ export default function ClientNotification({
   const features = getFeatureDescriptors({ dict });
   const selected_feature = features[this_path as keyof typeof features];
 
+  // console.log("")
+
   useEffect(() => {
+    // Reset states when path changes
+    setIsGeneralSlider(false);
+    setShowModal(false);
+
     const stored = localStorage.getItem(this_path);
-    const parsed_stored = JSON.parse(stored as string);
+    const parsed_stored = stored ? JSON.parse(stored) : null;
     const general_slider = localStorage.getItem("general_slider");
 
     if (
@@ -49,23 +55,24 @@ export default function ClientNotification({
       return;
     }
 
+    if (features[this_path as keyof typeof features] === undefined) {
+      return;
+    }
+
     if (
       parsed_stored === null ||
       parsed_stored.state === FeatureState.Declined.toString() ||
       parsed_stored.state === FeatureState.Dismissed.toString() ||
       parsed_stored.id != features[this_path as keyof typeof features].id
     ) {
+      console.log("show modal");
       setShowModal(true);
     }
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (lastPath !== this_path) {
       setLastPath(this_path);
-      const stored = localStorage.getItem(`${this_path}`);
-      if (stored === null || stored === "true") {
-        setShowModal(true);
-      }
     }
   }, [this_path]);
 

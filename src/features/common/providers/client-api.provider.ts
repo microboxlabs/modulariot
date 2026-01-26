@@ -1,6 +1,9 @@
 "use client";
 import useSWR from "swr";
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import fetcher from "./fetcher";
+import { safeJsonParse } from "./safe-json";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
   DownloadDocumentResponse,
@@ -374,13 +377,12 @@ export function useSymptomsIcu(condition?: string) {
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<
     SymptomsICUItemResponse[],
-    Error
+    FetcherError
   >(
     url,
     async (fetchUrl) => {
       const response = await fetch(fetchUrl);
-      if (!response.ok) throw new Error("Failed to fetch ICU data");
-      return response.json();
+      return safeJsonParse<SymptomsICUItemResponse[]>(response);
     },
     {
       revalidateOnFocus: true,
@@ -399,12 +401,11 @@ export function useSymptomsIcu(condition?: string) {
 }
 
 export function useMapPositions() {
-  const { data, error, isLoading, mutate } = useSWR<MapPosition[], Error>(
+  const { data, error, isLoading, mutate } = useSWR<MapPosition[], FetcherError>(
     "/app/api/map",
     async (url: string) => {
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch map positions");
-      const data = (await response.json()) as MapPosition[];
+      const data = await safeJsonParse<MapPosition[]>(response);
       return data?.map((position: MapPosition) => {
         const [longitude, latitude] = MapService.parseWKBPoint(
           position.location
@@ -433,13 +434,11 @@ export function useMapPositions() {
 }
 
 export function useMapPositionsResume() {
-  const { data, error, isLoading, mutate } = useSWR<MapPositionResume, Error>(
+  const { data, error, isLoading, mutate } = useSWR<MapPositionResume, FetcherError>(
     "/app/api/map/resume",
     async (url: string) => {
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch map positions");
-      const data = (await response.json()) as MapPositionResume;
-      return data;
+      return safeJsonParse<MapPositionResume>(response);
     },
     {
       revalidateOnFocus: true,
@@ -600,6 +599,26 @@ export function useGetUserStates() {
     `/app/api/user/states`,
     fetcher
   );
+  const pathname = usePathname();
+
+  // Handle 401 errors (session expired) by redirecting to sign-in
+  useEffect(() => {
+    if (error?.status === 401) {
+      // Extract language from pathname (format: /app/[lang]/... or /[lang]/...)
+      const pathSegments = pathname.split("/").filter(Boolean);
+      // Remove 'app' prefix if present
+      const segmentsWithoutApp = pathSegments[0] === "app" 
+        ? pathSegments.slice(1) 
+        : pathSegments;
+      // Find the language segment (usually 'es' or 'en')
+      const lang = segmentsWithoutApp.find((segment) => 
+        segment === "es" || segment === "en"
+      ) || "es"; // Default to 'es' if not found
+      
+      // Redirect to sign-in page with language
+      globalThis.location.href = `/${lang}/sign-in`;
+    }
+  }, [error, pathname]);
 
   return {
     user_states: data,
@@ -1136,11 +1155,7 @@ export function useLiveETA(
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch ETA");
-      }
-
-      return response.json();
+      return safeJsonParse<ETAResponse>(response);
     },
     {
       refreshInterval: 60000, // Refresh every minute

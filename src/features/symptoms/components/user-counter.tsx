@@ -27,6 +27,12 @@ export default function UserStateCounter({ dict }: { dict: I18nRecord }) {
   }
 
   if (user_states_error) {
+    // If it's a 401 error, the hook will redirect to sign-in
+    // Return empty div to avoid showing error message during redirect
+    if (user_states_error.status === 401) {
+      return <div></div>;
+    }
+    // For other errors, show the error message
     return <div>Error: {user_states_error.message}</div>;
   }
 

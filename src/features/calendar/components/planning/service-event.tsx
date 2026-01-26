@@ -67,8 +67,21 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
   const isSelected = selectedService?.id === service.id;
   const leadTimeStyles = getLeadTimeStyles(service.leadTime);
 
-  // Categorize incidencias
-  const { primary, secondary } = categorizeIncidencias(service.incidencias);
+  // Extract incident codes and create code-to-label map for tooltips
+  const codeToLabelMap = new Map<string, string>();
+  const incidentCodes = service.mintral_incidents
+    ? service.mintral_incidents.map((incident) => {
+        const rawCode = incident[0] as string;
+        const label = incident[1] as string;
+        // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
+        const code = rawCode.replace(/^mintral_incident_/i, "");
+        codeToLabelMap.set(code, label);
+        return code;
+      })
+    : [];
+
+  // Categorize using the codes - the dictionary will map C307/C309 to their configs
+  const { primary, secondary } = categorizeIncidencias(incidentCodes);
   const hasFlags = primary.length > 0 || secondary.length > 0;
   // Show secondary directly if no primary and 2 or fewer secondary
   const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;
@@ -118,17 +131,20 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
         {/* Flags row */}
         {hasFlags && (
-          <div className="flex flex-wrap items-center gap-1 pointer-events-none">
+          <div className="flex flex-wrap items-center gap-1 pointer-events-auto">
             {/* Primary incidencias - always visible */}
             {primary.map(({ key, config }) => {
-              if (key === "urgencia") {
+              const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+              // Use the config color, with special handling for urgencia/C309 (purple with icon)
+              if (config.color === "purple" || key === "urgencia" || key === "C309") {
                 return (
                   <Badge
                     key={key}
-                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 cursor-help"
                     color="purple"
                     icon={HiExclamation}
                     size="xs"
+                    title={tooltip}
                   >
                     {config.label}
                   </Badge>
@@ -137,9 +153,10 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
               return (
                 <Badge
                   key={key}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
-                  color="gray"
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 cursor-help"
+                  color={config.color}
                   size="xs"
+                  title={tooltip}
                 >
                   {config.label}
                 </Badge>
@@ -148,16 +165,20 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
             {/* Secondary incidencias - shown directly if ≤2 and no primary */}
             {showSecondaryDirectly &&
-              secondary.map(({ key, config }) => (
-                <Badge
-                  key={key}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
-                  color="gray"
-                  size="xs"
-                >
-                  {config.label}
-                </Badge>
-              ))}
+              secondary.map(({ key, config }) => {
+                const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                return (
+                  <Badge
+                    key={key}
+                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 cursor-help"
+                    color="gray"
+                    size="xs"
+                    title={tooltip}
+                  >
+                    {config.label}
+                  </Badge>
+                );
+              })}
 
             {/* Secondary incidencias count - not clickable, only if not showing directly */}
             {!showSecondaryDirectly && secondary.length > 0 && (

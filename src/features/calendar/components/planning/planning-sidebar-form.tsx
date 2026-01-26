@@ -67,10 +67,21 @@ export function PlanningSidebarForm({
     return null;
   }
 
+  // Extract incident codes and create code-to-label map for tooltips
+  const codeToLabelMap = new Map<string, string>();
+  const incidentCodes = selectedService.mintral_incidents
+    ? selectedService.mintral_incidents.map((incident) => {
+        const rawCode = incident[0] as string;
+        const label = incident[1] as string;
+        // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
+        const code = rawCode.replace(/^mintral_incident_/i, "");
+        codeToLabelMap.set(code, label);
+        return code;
+      })
+    : [];
+
   // Categorize incidencias into primary (always visible) and secondary (expandable)
-  const { primary, secondary } = categorizeIncidencias(
-    selectedService.incidencias
-  );
+  const { primary, secondary } = categorizeIncidencias(incidentCodes);
   const hasIncidencias = primary.length > 0 || secondary.length > 0;
   // Show secondary directly if no primary and 2 or fewer secondary
   const showSecondaryDirectly = primary.length === 0 && secondary.length <= 2;
@@ -88,8 +99,9 @@ export function PlanningSidebarForm({
   const occupancy = selectedService.ocupacion;
 
   // Helper to get badge color class for incidencias
-  const getIncidenciaBadgeProps = (key: string, color: string) => {
-    if (key === "urgencia") {
+  const getIncidenciaBadgeProps = (key: string, configColor?: string, label?: string) => {
+    // Check if it's urgencia/C309 (purple with icon)
+    if (key === "urgencia" || key === "C309" || label === "C309" || configColor === "purple") {
       return {
         color: "purple" as const,
         className:
@@ -97,8 +109,9 @@ export function PlanningSidebarForm({
         icon: HiExclamation,
       };
     }
+    // Use the config color if available, otherwise gray
     return {
-      color: "gray" as const,
+      color: (configColor as "red" | "yellow" | "green" | "blue" | "gray" | "pink") || "gray",
       className:
         "flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5",
     };
@@ -111,28 +124,36 @@ export function PlanningSidebarForm({
         <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
           <div className="flex flex-wrap gap-2">
             {/* Primary incidencias - always visible */}
-            {primary.map(({ key, config }) => (
-              <Badge
-                key={key}
-                size="xs"
-                {...getIncidenciaBadgeProps(key, config.color)}
-              >
-                {config.label}
-              </Badge>
-            ))}
-
-            {/* Secondary incidencias - shown directly if ≤2 and no primary, otherwise when expanded */}
-            {(showSecondaryDirectly || showAllIncidencias) &&
-              secondary.map(({ key, config }) => (
+            {primary.map(({ key, config }) => {
+              const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+              return (
                 <Badge
                   key={key}
                   size="xs"
-                  color="gray"
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                  title={tooltip}
+                  {...getIncidenciaBadgeProps(key, config.color, config.label)}
                 >
                   {config.label}
                 </Badge>
-              ))}
+              );
+            })}
+
+            {/* Secondary incidencias - shown directly if ≤2 and no primary, otherwise when expanded */}
+            {(showSecondaryDirectly || showAllIncidencias) &&
+              secondary.map(({ key, config }) => {
+                const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                return (
+                  <Badge
+                    key={key}
+                    size="xs"
+                    color="gray"
+                    className="flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5"
+                    title={tooltip}
+                  >
+                    {config.label}
+                  </Badge>
+                );
+              })}
 
             {/* "+N more" button to expand secondary incidencias - only if not showing directly */}
             {!showSecondaryDirectly &&

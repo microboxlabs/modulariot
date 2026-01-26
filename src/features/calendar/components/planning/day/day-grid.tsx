@@ -133,7 +133,8 @@ export default function DayGrid({
           console.error("Error deleting planned service:", error);
           ShowNotification({
             type: "error",
-            message: "Error al eliminar la asignación. Por favor, intente nuevamente.",
+            message:
+              "Error al eliminar la asignación. Por favor, intente nuevamente.",
           });
         }
       }
@@ -242,6 +243,10 @@ export default function DayGrid({
         {timeSlots.map((slot, slotIdx) => {
           const selected = isSlotSelected(slot);
           const slotServices = getPlannedServicesForSlot(slot);
+
+          // Calculate row height based on number of services
+          // Base height is 48px (h-12), add 20px per additional service
+          const rowMinHeight = 48 + Math.max(0, slotServices.length - 1) * 20;
 
           // Check if slot is blocked (priority over quotas)
           const slotBlocked = isSlotBlocked(
@@ -412,8 +417,9 @@ export default function DayGrid({
             <Fragment key={slot.label}>
               {/* Time label column */}
               <div
+                style={{ minHeight: `${rowMinHeight}px` }}
                 className={twMerge(
-                  "h-12 flex items-start justify-end pr-2 pt-0.5",
+                  "flex items-start justify-end pr-2 pt-0.5",
                   "border-l border-t border-gray-200 dark:border-gray-700",
                   "text-xs text-gray-500 dark:text-gray-400",
                   isLastSlot(slotIdx) && "border-b rounded-bl-lg"

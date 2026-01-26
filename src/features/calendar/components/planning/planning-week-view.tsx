@@ -146,7 +146,8 @@ export default function PlanningWeekView({
           console.error("Error deleting planned service:", error);
           ShowNotification({
             type: "error",
-            message: "Error al eliminar la asignación. Por favor, intente nuevamente.",
+            message:
+              "Error al eliminar la asignación. Por favor, intente nuevamente.",
           });
         }
       }
@@ -276,12 +277,23 @@ export default function PlanningWeekView({
 
         {/* Time slots grid */}
         {timeSlots.map((slot, slotIdx) => {
+          // Calculate max services across all days for this time slot to determine row height
+          const maxServicesInRow = Math.max(
+            1,
+            ...weekDays.map(
+              (day) => getPlannedServicesForSlot(day, slot).length
+            )
+          );
+          // Base height is 48px (h-12), add 20px per additional service
+          const rowMinHeight = 48 + Math.max(0, maxServicesInRow - 1) * 20;
+
           return (
             <Fragment key={slot.label}>
               {/* Time label column */}
               <div
+                style={{ minHeight: `${rowMinHeight}px` }}
                 className={twMerge(
-                  "min-h-12 flex items-start justify-end pr-2 pt-0.5",
+                  "flex items-start justify-end pr-2 pt-0.5",
                   "border-l border-t border-gray-200 dark:border-gray-700",
                   "text-xs text-gray-500 dark:text-gray-400",
                   isLastSlot(slotIdx) && "border-b rounded-bl-lg"
@@ -440,7 +452,8 @@ export default function PlanningWeekView({
                           const hasUrgencia =
                             ps.service.incidencias.includes("urgencia");
                           const isBeingReassigned =
-                            reassigningService?.service.service.id === ps.service.id;
+                            reassigningService?.service.service.id ===
+                            ps.service.id;
                           return (
                             <div
                               key={ps.service.id}

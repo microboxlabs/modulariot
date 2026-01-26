@@ -19,6 +19,7 @@ import {
 import CalendarRules from "./calendar-rules/calendar-rules";
 import { tr } from "@/features/i18n/tr.service";
 import PlanningTitle from "./planning-title";
+import { usePlanningSelection } from "./planning-selection-context";
 
 dayjs.extend(weekOfYear);
 
@@ -77,6 +78,7 @@ export default function PlanningHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { setAndenesCount } = usePlanningSelection();
 
   // Read state from URL, fallback to props/defaults
   const currentDate = useMemo(() => {
@@ -175,7 +177,11 @@ export default function PlanningHeader({
             month: calendarDict.month,
           }}
         />
-        <CalendarRules />
+        <CalendarRules
+          onAndenesChange={(config) => {
+            setAndenesCount(config.count);
+          }}
+        />
       </div>
     </div>
   );

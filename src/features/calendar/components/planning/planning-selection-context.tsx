@@ -39,6 +39,8 @@ export interface SelectedSlot {
   hour: number;
   minutes: number;
   dayIndex?: number; // For week view
+  /** The specific andén (platform) number assigned (1-based) */
+  anden?: number;
 }
 
 /**
@@ -439,33 +441,115 @@ export function getLeadTimeStatus(
 export type TripType = "Sider" | "Doble Sider" | "Rampla";
 
 /**
- * Debug flag - set to true to show test service in the calendar
+ * Debug flag - set to true to show test services in the calendar
  */
 export const DEBUG_SHOW_TEST_SERVICE = false;
 
 /**
- * Test service data for development/debugging
+ * Test services data for development/debugging
  */
-export const TEST_SERVICE: SelectedService = {
-  id: "TEST-001",
-  cliente: "Cliente de Prueba",
-  origen: "Santiago",
-  lugarCarguio: "Bodega Central",
-  destino: "Valparaíso",
-  tipoViaje: "Sider",
-  ocupacion: 75,
-  permanencia: "2 días",
-  leadTime: {
-    total_lineasoc_cumplen: 3,
-    total_lineasoc_incumplen: 1,
-    lineasoc_pctn_cumplimiento: 100,
+export const TEST_SERVICES: SelectedService[] = [
+  {
+    id: "TEST-001",
+    cliente: "Cliente de Prueba",
+    origen: "STG",
+    lugarCarguio: "Bodega Central",
+    destino: "VAP",
+    tipoViaje: "Sider",
+    ocupacion: 75,
+    permanencia: "2 días",
+    leadTime: {
+      total_lineasoc_cumplen: 3,
+      total_lineasoc_incumplen: 1,
+      lineasoc_pctn_cumplimiento: 100,
+    },
+    eta: "2026-01-25T14:30:00",
+    incidencias: ["urgencia"],
+    observaciones: "Servicio de prueba para desarrollo",
+    prioridad: 1,
   },
-  eta: "2026-01-25T14:30:00",
-  incidencias: ["urgencia"],
-  observaciones: "Servicio de prueba para desarrollo",
-  prioridad: 1,
-  cm_created: "2026-01-20T10:00:00",
-};
+  {
+    id: "TEST-002",
+    cliente: "Acme Corp",
+    origen: "VAP",
+    lugarCarguio: "Puerto Valparaíso",
+    destino: "STG",
+    tipoViaje: "Doble Sider",
+    ocupacion: 50,
+    permanencia: "1 día",
+    leadTime: {
+      total_lineasoc_cumplen: 2,
+      total_lineasoc_incumplen: 2,
+      lineasoc_pctn_cumplimiento: 50,
+    },
+    eta: "2026-01-26T09:00:00",
+    incidencias: [],
+    observaciones: "Carga frágil - manejar con cuidado",
+    prioridad: 2,
+  },
+  {
+    id: "TEST-003",
+    cliente: "Logística Express",
+    origen: "ANT",
+    lugarCarguio: "Centro de Distribución Norte",
+    destino: "STG",
+    tipoViaje: "Rampla",
+    ocupacion: 90,
+    permanencia: "3 días",
+    leadTime: {
+      total_lineasoc_cumplen: 0,
+      total_lineasoc_incumplen: 4,
+      lineasoc_pctn_cumplimiento: 0,
+    },
+    eta: "2026-01-27T16:00:00",
+    incidencias: ["shutdown", "c5"],
+    observaciones: "Requiere documentación especial",
+    prioridad: 3,
+  },
+  {
+    id: "TEST-004",
+    cliente: "Transportes del Sur",
+    origen: "CON",
+    lugarCarguio: "Terminal Concepción",
+    destino: "VAP",
+    tipoViaje: "Sider",
+    ocupacion: 25,
+    permanencia: "1 día",
+    leadTime: {
+      total_lineasoc_cumplen: 5,
+      total_lineasoc_incumplen: 0,
+      lineasoc_pctn_cumplimiento: 100,
+    },
+    eta: "2026-01-28T11:30:00",
+    incidencias: [],
+    observaciones: "",
+    prioridad: 4,
+  },
+  {
+    id: "TEST-005",
+    cliente: "Global Shipping",
+    origen: "STG",
+    lugarCarguio: "Bodega Sur",
+    destino: "ANT",
+    tipoViaje: "Doble Sider",
+    ocupacion: 100,
+    permanencia: "4 días",
+    leadTime: {
+      total_lineasoc_cumplen: 1,
+      total_lineasoc_incumplen: 3,
+      lineasoc_pctn_cumplimiento: 25,
+    },
+    eta: "2026-01-25T08:00:00",
+    incidencias: ["urgencia"],
+    observaciones: "Cliente VIP - prioridad alta",
+    prioridad: 1,
+  },
+];
+
+/**
+ * @deprecated Use TEST_SERVICES array instead
+ */
+export const TEST_SERVICE: SelectedService = TEST_SERVICES[0];
 
 /**
  * Represents a service that can be selected in the planning calendar
@@ -515,10 +599,13 @@ interface PlanningSelectionContextType {
   timeWindows: TimeWindow[];
   /** Derived: only TimeBlock slots (filtered from timeSlots) */
   timeBlocks: TimeBlock[];
+  /** Number of andenes (platforms) available for simultaneous service */
+  andenesCount: number;
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
-  confirmService: () => Promise<boolean>;
+  /** Confirm service assignment. Pass finalSlot to override the selected slot with specific time/andén */
+  confirmService: (finalSlot?: SelectedSlot) => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -530,6 +617,8 @@ interface PlanningSelectionContextType {
   setTimeWindows: (windows: TimeWindow[]) => void;
   /** Convenience: set only TimeBlock slots (merges with existing windows) - local state only */
   setTimeBlocks: (blocks: TimeBlock[]) => void;
+  /** Set the number of andenes available */
+  setAndenesCount: (count: number) => void;
   /** Sync current time slots to API (call when user clicks "Aplicar") */
   syncTimeSlotsToAPI: () => Promise<void>;
   getTimeWindowForSlot: (
@@ -540,13 +629,17 @@ interface PlanningSelectionContextType {
   getRemainingQuota: (timeWindow: TimeWindow, date: Date) => number;
   isSlotBlocked: (date: Date, hour: number, minutes: number) => boolean;
   getBlocksForSlot: (date: Date, hour: number, minutes: number) => TimeBlock[];
+  /** Get which andenes are occupied for a specific time slot */
+  getOccupiedAndenes: (date: Date, hour: number, minutes: number) => number[];
+  /** Get available (unoccupied) andenes for a specific time slot */
+  getAvailableAndenes: (date: Date, hour: number, minutes: number) => number[];
   isSidebarOpen: boolean;
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
 }
 
-const MAX_SERVICES_PER_SLOT = 3;
+const MAX_SERVICES_PER_SLOT = 99;
 
 const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
@@ -584,6 +677,8 @@ export function PlanningSelectionProvider({
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
   // Unified state: single array for all time slots
   const [timeSlots, setTimeSlotsState] = useState<TimeSlot[]>([]);
+  // Number of andenes (platforms) available
+  const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
   const [plannedServiceIds, setPlannedServiceIds] = useState<
@@ -598,17 +693,14 @@ export function PlanningSelectionProvider({
   } = usePlannedServices();
 
   // Load time slots (windows and blocks) from API
-  const {
-    timeSlots: apiTimeSlots,
-    refresh: refreshTimeSlots,
-  } = useTimeSlots();
+  const { timeSlots: apiTimeSlots, refresh: refreshTimeSlots } = useTimeSlots();
 
   // Sync API data to local state
   useEffect(() => {
     if (apiPlannedServices && apiPlannedServices.length > 0) {
       const localServices = apiPlannedServices.map(apiToLocalPlannedService);
       const idMap = new Map<string, string>();
-      
+
       apiPlannedServices.forEach((apiService, index) => {
         if (apiService.id) {
           idMap.set(localServices[index].service.id, apiService.id);
@@ -723,10 +815,7 @@ export function PlanningSelectionProvider({
   const setTimeWindows = useCallback(
     (windows: TimeWindow[]) => {
       const current = timeSlots;
-      const newSlots = [
-        ...current.filter(isTimeBlock),
-        ...windows,
-      ];
+      const newSlots = [...current.filter(isTimeBlock), ...windows];
       // Update local state only (no API sync)
       setTimeSlotsState(newSlots);
     },
@@ -737,10 +826,7 @@ export function PlanningSelectionProvider({
   const setTimeBlocks = useCallback(
     (blocks: TimeBlock[]) => {
       const current = timeSlots;
-      const newSlots = [
-        ...current.filter(isTimeWindow),
-        ...blocks,
-      ];
+      const newSlots = [...current.filter(isTimeWindow), ...blocks];
       // Update local state only (no API sync)
       setTimeSlotsState(newSlots);
     },
@@ -868,6 +954,60 @@ export function PlanningSelectionProvider({
     [getBlocksForSlot]
   );
 
+  /**
+   * Get which andenes are occupied for a specific time slot
+   * Returns array of andén numbers (1-based) that are already assigned
+   */
+  const getOccupiedAndenes = useCallback(
+    (date: Date, hour: number, minutes: number): number[] => {
+      const d = dayjs(date);
+      const occupied: number[] = [];
+
+      for (const ps of plannedServices) {
+        // Exclude the service being reassigned
+        if (
+          reassigningService &&
+          ps.service.id === reassigningService.service.service.id
+        ) {
+          continue;
+        }
+
+        // Check if this service is in the same time slot
+        if (
+          dayjs(ps.slot.date).isSame(d, "day") &&
+          ps.slot.hour === hour &&
+          ps.slot.minutes === minutes &&
+          ps.slot.anden
+        ) {
+          occupied.push(ps.slot.anden);
+        }
+      }
+
+      return occupied;
+    },
+    [plannedServices, reassigningService]
+  );
+
+  /**
+   * Get available (unoccupied) andenes for a specific time slot
+   * Returns array of andén numbers (1-based) that are available
+   */
+  const getAvailableAndenes = useCallback(
+    (date: Date, hour: number, minutes: number): number[] => {
+      const occupied = getOccupiedAndenes(date, hour, minutes);
+      const available: number[] = [];
+
+      for (let i = 1; i <= andenesCount; i++) {
+        if (!occupied.includes(i)) {
+          available.push(i);
+        }
+      }
+
+      return available;
+    },
+    [getOccupiedAndenes, andenesCount]
+  );
+
   const getServicesForSlot = useCallback(
     (slot: SelectedSlot) => {
       return plannedServices.filter((ps) => {
@@ -897,116 +1037,122 @@ export function PlanningSelectionProvider({
     [getServicesForSlot]
   );
 
-  const confirmService = useCallback(async (): Promise<boolean> => {
-    if (selectedSlot && selectedService) {
-      // Check if slot has room (unless re-planning same service)
-      const existingInSlot = getServicesForSlot(selectedSlot);
-      const isReplanning = existingInSlot.some(
-        (ps) => ps.service.id === selectedService.id
-      );
+  const confirmService = useCallback(
+    async (finalSlot?: SelectedSlot): Promise<boolean> => {
+      // Use finalSlot if provided, otherwise fall back to selectedSlot
+      const slotToUse = finalSlot ?? selectedSlot;
 
-      if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
-        // Slot is full, cannot add more
-        return false;
-      }
+      if (slotToUse && selectedService) {
+        // Check if slot has room (unless re-planning same service)
+        const existingInSlot = getServicesForSlot(slotToUse);
+        const isReplanning = existingInSlot.some(
+          (ps) => ps.service.id === selectedService.id
+        );
 
-      // Check if this is a reassignment completion
-      const wasReassigning = reassigningService !== null;
-
-      // Create the new planned service
-      const newPlannedService: PlannedService = {
-        service: selectedService,
-        slot: selectedSlot,
-      };
-
-      try {
-        // Check if this service already has an API ID (update) or needs creation
-        const existingApiId = plannedServiceIds.get(selectedService.id);
-
-        if (existingApiId) {
-          // Update existing planned service
-          const apiData = localToApiPlannedService(newPlannedService);
-          // Convert string date back to Date for UpdatePlannedServiceRequest
-          await updatePlannedService(existingApiId, {
-            id: existingApiId,
-            service: apiData.service,
-            slot: {
-              date: newPlannedService.slot.date, // Use the original Date object
-              hour: apiData.slot.hour,
-              minutes: apiData.slot.minutes,
-            },
-          });
-        } else {
-          // Create new planned service
-          const apiData = localToApiPlannedService(newPlannedService);
-          // For create, we need to convert to the proper format
-          const createRequest: CreatePlannedServiceRequest = {
-            service: apiData.service,
-            slot: {
-              date: newPlannedService.slot.date, // Use the original Date object
-              hour: apiData.slot.hour,
-              minutes: apiData.slot.minutes,
-            },
-          };
-          const response = await createPlannedService(createRequest);
-
-          // Store the API ID for future updates
-          if (response.id) {
-            setPlannedServiceIds((prev) => {
-              const newMap = new Map(prev);
-              newMap.set(selectedService.id, response.id);
-              return newMap;
-            });
-          }
+        if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
+          // Slot is full, cannot add more
+          return false;
         }
 
-        // Update local state
-        setPlannedServices((prev) => {
-          // Remove if already planned (allow re-planning)
-          const filtered = prev.filter(
-            (p) => p.service.id !== selectedService.id
-          );
-          return [...filtered, newPlannedService];
-        });
+        // Check if this is a reassignment completion
+        const wasReassigning = reassigningService !== null;
 
-        // Refresh from API to ensure consistency
-        await refreshPlannedServices();
+        // Create the new planned service with the final slot (including time and andén)
+        const newPlannedService: PlannedService = {
+          service: selectedService,
+          slot: slotToUse,
+        };
 
-        // Always clear reassigning state after confirmation (not just when wasReassigning)
-        setReassigningService(null);
+        try {
+          // Check if this service already has an API ID (update) or needs creation
+          const existingApiId = plannedServiceIds.get(selectedService.id);
 
-        // Clear selection after confirming
-        setSelectedSlot(null);
-        setSelectedService(null);
+          if (existingApiId) {
+            // Update existing planned service
+            const apiData = localToApiPlannedService(newPlannedService);
+            // Convert string date back to Date for UpdatePlannedServiceRequest
+            await updatePlannedService(existingApiId, {
+              id: existingApiId,
+              service: apiData.service,
+              slot: {
+                date: newPlannedService.slot.date, // Use the original Date object
+                hour: apiData.slot.hour,
+                minutes: apiData.slot.minutes,
+              },
+            });
+          } else {
+            // Create new planned service
+            const apiData = localToApiPlannedService(newPlannedService);
+            // For create, we need to convert to the proper format
+            const createRequest: CreatePlannedServiceRequest = {
+              service: apiData.service,
+              slot: {
+                date: newPlannedService.slot.date, // Use the original Date object
+                hour: apiData.slot.hour,
+                minutes: apiData.slot.minutes,
+              },
+            };
+            const response = await createPlannedService(createRequest);
 
-        return wasReassigning;
-      } catch (error) {
-        console.error("Error saving planned service:", error);
-        // Still update local state for optimistic UI, but log the error
-        setPlannedServices((prev) => {
-          const filtered = prev.filter(
-            (p) => p.service.id !== selectedService.id
-          );
-          return [...filtered, newPlannedService];
-        });
+            // Store the API ID for future updates
+            if (response.id) {
+              setPlannedServiceIds((prev) => {
+                const newMap = new Map(prev);
+                newMap.set(selectedService.id, response.id);
+                return newMap;
+              });
+            }
+          }
 
-        // Also clear state on error to prevent stuck UI
-        setReassigningService(null);
-        setSelectedSlot(null);
-        setSelectedService(null);
+          // Update local state
+          setPlannedServices((prev) => {
+            // Remove if already planned (allow re-planning)
+            const filtered = prev.filter(
+              (p) => p.service.id !== selectedService.id
+            );
+            return [...filtered, newPlannedService];
+          });
 
-        return wasReassigning;
+          // Refresh from API to ensure consistency
+          await refreshPlannedServices();
+
+          // Always clear reassigning state after confirmation (not just when wasReassigning)
+          setReassigningService(null);
+
+          // Clear selection after confirming
+          setSelectedSlot(null);
+          setSelectedService(null);
+
+          return wasReassigning;
+        } catch (error) {
+          console.error("Error saving planned service:", error);
+          // Still update local state for optimistic UI, but log the error
+          setPlannedServices((prev) => {
+            const filtered = prev.filter(
+              (p) => p.service.id !== selectedService.id
+            );
+            return [...filtered, newPlannedService];
+          });
+
+          // Also clear state on error to prevent stuck UI
+          setReassigningService(null);
+          setSelectedSlot(null);
+          setSelectedService(null);
+
+          return wasReassigning;
+        }
       }
-    }
-    return false;
-  }, [
-    selectedSlot,
-    selectedService,
-    getServicesForSlot,
-    reassigningService,
-    plannedServiceIds,
-    refreshPlannedServices,
-  ]);
+      return false;
+    },
+    [
+      selectedSlot,
+      selectedService,
+      getServicesForSlot,
+      reassigningService,
+      plannedServiceIds,
+      refreshPlannedServices,
+    ]
+  );
 
   const clearService = useCallback(() => {
     setSelectedService(null);
@@ -1140,6 +1286,7 @@ export function PlanningSelectionProvider({
       timeSlots,
       timeWindows,
       timeBlocks,
+      andenesCount,
       reassigningService,
       selectSlot,
       selectService,
@@ -1152,11 +1299,14 @@ export function PlanningSelectionProvider({
       setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
+      setAndenesCount,
       syncTimeSlotsToAPI,
       getTimeWindowForSlot,
       getRemainingQuota,
       isSlotBlocked,
       getBlocksForSlot,
+      getOccupiedAndenes,
+      getAvailableAndenes,
       isSidebarOpen,
       removeService,
       startReassignment,
@@ -1169,6 +1319,7 @@ export function PlanningSelectionProvider({
       timeSlots,
       timeWindows,
       timeBlocks,
+      andenesCount,
       reassigningService,
       selectSlot,
       selectService,
@@ -1181,11 +1332,14 @@ export function PlanningSelectionProvider({
       setTimeSlots,
       setTimeWindows,
       setTimeBlocks,
+      setAndenesCount,
       syncTimeSlotsToAPI,
       getTimeWindowForSlot,
       getRemainingQuota,
       isSlotBlocked,
       getBlocksForSlot,
+      getOccupiedAndenes,
+      getAvailableAndenes,
       isSidebarOpen,
       removeService,
       startReassignment,

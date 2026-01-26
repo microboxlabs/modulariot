@@ -64,6 +64,7 @@ function apiToLocalService(apiService: Service): SelectedService {
     incidencias: apiService.incidencias,
     observaciones: apiService.observaciones,
     prioridad: apiService.prioridad,
+    cm_created: apiService.cm_created,
   };
 }
 
@@ -84,5 +85,6 @@ function localServiceToApi(localService: SelectedService): Service {
     incidencias: localService.incidencias,
     observaciones: localService.observaciones,
     prioridad: localService.prioridad,
+    cm_created: localService.cm_created,
   };
 }

@@ -464,6 +464,7 @@ export const TEST_SERVICE: SelectedService = {
   incidencias: ["urgencia"],
   observaciones: "Servicio de prueba para desarrollo",
   prioridad: 1,
+  cm_created: "2026-01-20T10:00:00",
 };
 
 /**
@@ -485,6 +486,7 @@ export interface SelectedService {
   mintral_incidents?: Array<[string, string]>; // e.g. [["mintral_incident_C306", "SOBREDIMENSION"], ["mintral_incident_C307", "SHUTDOWN"]]
   observaciones: string;
   prioridad: number;
+  cm_created?: string; // ISO datetime - creation date
 }
 
 /**

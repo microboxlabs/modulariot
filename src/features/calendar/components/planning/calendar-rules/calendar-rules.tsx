@@ -5,20 +5,25 @@ import { useState } from "react";
 import { FaGear } from "react-icons/fa6";
 import QuotaManager from "./quota-manager";
 import TimeBlockManager from "./time-block-manager";
+import AndenesManager, { type PlatformConfig } from "./andenes-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
+
+type SettingOption = "quota" | "timeBlock" | "andenes" | null;
 
 interface CalendarRulesProps {
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
+  onAndenesChange?: (config: PlatformConfig) => void;
 }
 
 export default function CalendarRules({
   onRulesChange,
   onBlocksChange,
+  onAndenesChange,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<"quota" | "timeBlock" | null>(null);
+  const [selected, setSelected] = useState<SettingOption>(null);
 
   return (
     <div className="relative">
@@ -50,7 +55,7 @@ export default function CalendarRules({
                   setSelected("quota");
                 }
               }}
-              className={`w-full transition-all duration-300 overflow-hidden ${selected !== "timeBlock" ? "h-20" : "h-0"} ${selected === "quota" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+              className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "quota" ? "h-20" : "h-0"} ${selected === "quota" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
             >
               <div
                 className={`flex flex-row h-full items-center px-4 transition-all duration-500 ${selected !== "quota" ? "gap-0" : "gap-4"}`}
@@ -66,7 +71,7 @@ export default function CalendarRules({
                 >
                   <ChevronLeft />
                 </Button>
-                <div className="py-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="py-3 w-full border-b border-gray-200 dark:border-gray-700">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
                     Gestion de cupos
                   </h3>
@@ -103,7 +108,7 @@ export default function CalendarRules({
                 setSelected("timeBlock");
               }
             }}
-            className={`w-full transition-all duration-300 overflow-hidden ${selected !== "quota" ? "h-20" : "h-0"} ${selected === "timeBlock" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+            className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "timeBlock" ? "h-20" : "h-0"} ${selected === "timeBlock" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
           >
             <div className="relative flex flex-row h-full items-center pl-4 pr-4">
               <div
@@ -122,7 +127,7 @@ export default function CalendarRules({
                 </Button>
               </div>
               <div
-                className={`py-3 w-full transition-all duration-300 ease-out ${selected === "timeBlock" ? "ml-14" : "ml-0"}`}
+                className={`py-3 w-full h-full transition-all duration-300 ease-out border-b border-gray-200 dark:border-gray-700 ${selected === "timeBlock" ? "ml-14" : "ml-0"}`}
               >
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
                   Bloqueos temporales
@@ -143,10 +148,66 @@ export default function CalendarRules({
               }}
             />
           </div>
+
+          {/* Andenes Configuration Section */}
+          <div
+            role={selected !== "andenes" ? "button" : undefined}
+            tabIndex={selected !== "andenes" ? 0 : undefined}
+            onClick={() => {
+              if (selected !== "andenes") setSelected("andenes");
+            }}
+            onKeyDown={(e) => {
+              if (
+                selected !== "andenes" &&
+                (e.key === "Enter" || e.key === " ")
+              ) {
+                setSelected("andenes");
+              }
+            }}
+            className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "andenes" ? "h-20" : "h-0"} ${selected === "andenes" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+          >
+            <div className="relative flex flex-row h-full items-center pl-4 pr-4">
+              <div
+                className={`absolute left-4 transition-all duration-300 ease-out ${selected === "andenes" ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none"}`}
+              >
+                <Button
+                  className="h-10 w-10 shrink-0 text-gray-700 p-0"
+                  color="alternative"
+                  disabled={selected !== "andenes"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelected(null);
+                  }}
+                >
+                  <ChevronLeft />
+                </Button>
+              </div>
+              <div
+                className={`py-3 w-full transition-all duration-300 ease-out ${selected === "andenes" ? "ml-14" : "ml-0"}`}
+              >
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
+                  Configuración de andenes
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
+                  Define el número de andenes disponibles por franja.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            className={`${selected !== "andenes" ? "max-h-0 " : "max-h-[500px]"} transition-all duration-300 overflow-hidden`}
+          >
+            <AndenesManager
+              onConfigChange={(config) => {
+                onAndenesChange?.(config);
+                setOpen(false);
+              }}
+            />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export type { TimeWindow, TimeBlock };
+export type { TimeWindow, TimeBlock, PlatformConfig };

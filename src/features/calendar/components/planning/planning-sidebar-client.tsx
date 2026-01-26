@@ -13,7 +13,7 @@ import {
   type SelectedService,
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
-  TEST_SERVICE,
+  TEST_SERVICES,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -211,6 +211,8 @@ export function PlanningSidebarClient({
     selectService,
     reassigningService,
     cancelReassignment,
+    andenesCount,
+    getTimeWindowForSlot,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -302,13 +304,40 @@ export function PlanningSidebarClient({
   }, [myTasksData]);
 
   // Use only real API data - no fallback to mock
-  // When DEBUG_SHOW_TEST_SERVICE is true, add test service for development
+  // When DEBUG_SHOW_TEST_SERVICE is true, add test services for development
   const allServices = DEBUG_SHOW_TEST_SERVICE
-    ? [TEST_SERVICE, ...apiServices]
+    ? [...TEST_SERVICES, ...apiServices]
     : apiServices;
 
   // Default slot duration in minutes (can be changed in the future)
   const SLOT_DURATION_MINUTES = 30;
+
+  // Get the time window for the selected slot to get quota
+  const selectedTimeWindow = useMemo(() => {
+    if (!selectedSlot) return null;
+    return getTimeWindowForSlot(
+      selectedSlot.date,
+      selectedSlot.hour,
+      selectedSlot.minutes
+    );
+  }, [selectedSlot, getTimeWindowForSlot]);
+
+  // Calculate the number of base slots in the time window
+  const windowBaseSlots = useMemo(() => {
+    if (!selectedTimeWindow?.weeklyPattern) return 1;
+    // Parse the window pattern to get start and end times
+    const match = selectedTimeWindow.weeklyPattern.match(/(\d{4})-(\d{4})$/);
+    if (!match) return 1;
+    const [, startTime, endTime] = match;
+    const startHour = parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = parseInt(startTime.slice(2, 4), 10);
+    const endHour = parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+
+    const totalMinutes =
+      endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
+    return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
+  }, [selectedTimeWindow]);
 
   // Format the selected slot for display with start and end times
   const formattedSlot = useMemo(() => {
@@ -677,6 +706,11 @@ export function PlanningSidebarClient({
                 : undefined
             }
             onSubmit={handleSubmit}
+            andenesCount={andenesCount}
+            slotStartTime={formattedSlot?.startTime}
+            slotEndTime={formattedSlot?.endTime}
+            windowQuota={selectedTimeWindow?.quota}
+            windowBaseSlots={windowBaseSlots}
           />
         ) : (
           <div className="flex flex-col gap-3">

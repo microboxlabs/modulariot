@@ -141,6 +141,11 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     prioridad:
       task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
     cm_created: task.cm_created,
+    loadConstraint: task.mintral_loadConstraint,
+    loadMaxUtilization: task.mintral_loadMaxUtilization,
+    loadWeightUtilization: task.mintral_loadWeightUtilization,
+    loadPalletUtilization: task.mintral_loadPalletUtilization,
+    loadVolumeUtilization: task.mintral_loadVolumeUtilization,
   };
 }
 

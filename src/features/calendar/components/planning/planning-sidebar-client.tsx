@@ -30,6 +30,33 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
+/**
+ * Calculate occupation percentage based on load constraint type.
+ * Uses the appropriate utilization value depending on the constraint:
+ * - "Volumen" → mintral_loadVolumeUtilization
+ * - "Weight" → mintral_loadWeightUtilization
+ * - "Pallet" → mintral_loadPalletUtilization
+ * - Default: 0
+ */
+function calculateOccupation(task: KanbanBoardTask): number {
+  const constraint = task.mintral_loadConstraint;
+
+  if (!constraint) {
+    return 0;
+  }
+
+  switch (constraint) {
+    case "Volumen":
+      return task.mintral_loadVolumeUtilization ?? 0;
+    case "Weight":
+      return task.mintral_loadWeightUtilization ?? 0;
+    case "Pallet":
+      return task.mintral_loadPalletUtilization ?? 0;
+    default:
+      return 0;
+  }
+}
+
 // Transform KanbanBoardTask to SelectedService
 function transformTaskToService(task: KanbanBoardTask): SelectedService {
   // Extract service code from name (format: "1045782-V" or "1045782-v")
@@ -90,6 +117,9 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
         .map((incident) => [incident[0], incident[1]] as [string, string])
     : undefined;
 
+  // Calculate occupation based on load constraint type
+  const ocupacion = calculateOccupation(task);
+
   return {
     id: serviceId,
     cliente: task.client || task.clientCode || "",
@@ -97,7 +127,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje: tipoViaje as "Sider" | "Doble Sider" | "Rampla",
-    ocupacion: 0, // Not available in KanbanBoardTask
+    ocupacion,
     permanencia,
     leadTime: {
       total_lineasoc_cumplen: compliantLines,

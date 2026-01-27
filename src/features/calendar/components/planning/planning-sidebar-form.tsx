@@ -448,7 +448,7 @@ export function PlanningSidebarForm({
             label={tr("pages.planning.sidebar.form.maxUtilization", dict)}
             value={
               selectedService.loadMaxUtilization != null
-                ? `${selectedService.loadMaxUtilization.toFixed(1)}%`
+                ? `${selectedService.loadMaxUtilization.toFixed(1)}`
                 : "—"
             }
           />

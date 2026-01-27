@@ -1206,6 +1206,10 @@ export function formatDuration(eta: ETAResponse | undefined): string {
 // PlannedService Hooks
 // ============================================================================
 
+// Stable empty arrays for hooks to prevent infinite re-renders
+const EMPTY_PLANNED_SERVICES: PlannedServiceResponse[] = [];
+const EMPTY_TIME_SLOTS: TimeSlotResponse[] = [];
+
 /**
  * Hook to fetch all planned services
  * @param startDate - Optional start date filter (ISO date string)
@@ -1223,11 +1227,16 @@ export function usePlannedServices(startDate?: string, endDate?: string) {
   const { data, error, isLoading, mutate } = useSWR<
     PlannedServiceListResponse,
     FetcherError
-  >(url, fetcher);
+  >(url, fetcher, {
+    // Disable error retry to prevent infinite loops when API is unavailable
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
 
   return {
-    plannedServices: data?.data || [],
-    total: data?.total || 0,
+    // Use stable empty array reference to prevent infinite re-renders
+    plannedServices: data?.data ?? EMPTY_PLANNED_SERVICES,
+    total: data?.total ?? 0,
     error,
     isLoading,
     refresh: mutate,
@@ -1325,11 +1334,16 @@ export function useTimeSlots(kind?: "window" | "block") {
   const { data, error, isLoading, mutate } = useSWR<
     TimeSlotListResponse,
     FetcherError
-  >(url, fetcher);
+  >(url, fetcher, {
+    // Disable error retry to prevent infinite loops when API is unavailable
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
 
   return {
-    timeSlots: data?.data || [],
-    total: data?.total || 0,
+    // Use stable empty array reference to prevent infinite re-renders
+    timeSlots: data?.data ?? EMPTY_TIME_SLOTS,
+    total: data?.total ?? 0,
     error,
     isLoading,
     refresh: mutate,

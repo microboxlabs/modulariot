@@ -274,7 +274,7 @@
           "confirmReassignment": "Reasignar",
           "loadUtilization": "Utilización de carga",
           "constraint": "Restricción",
-          "maxUtilization": "Utilización máx.",
+          "maxUtilization": "Total",
           "weightUtilization": "Utilización peso",
           "palletUtilization": "Utilización pallets",
           "volumeUtilization": "Utilización volumen"

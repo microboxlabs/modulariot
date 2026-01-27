@@ -571,6 +571,11 @@ export interface SelectedService {
   observaciones: string;
   prioridad: number;
   cm_created?: string; // ISO datetime - creation date
+  loadConstraint?: string; // Dominant constraint: "Carga" | "Pallets" | "Volumen"
+  loadMaxUtilization?: number; // Maximum of the three utilizations %
+  loadWeightUtilization?: number; // Weight capacity utilization %
+  loadPalletUtilization?: number; // Pallet position utilization %
+  loadVolumeUtilization?: number; // Volumetric utilization %
 }
 
 /**

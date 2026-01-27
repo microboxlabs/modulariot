@@ -271,7 +271,13 @@
           "back": "Back",
           "confirm": "Confirm",
           "cancelReassignment": "Cancel",
-          "confirmReassignment": "Reassign"
+          "confirmReassignment": "Reassign",
+          "loadUtilization": "Load Utilization",
+          "constraint": "Constraint",
+          "maxUtilization": "Max. utilization",
+          "weightUtilization": "Weight utilization",
+          "palletUtilization": "Pallet utilization",
+          "volumeUtilization": "Volume utilization"
         },
         "contextMenu": {
           "reassign": "Reassign",

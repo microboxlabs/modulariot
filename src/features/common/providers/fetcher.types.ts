@@ -35,6 +35,9 @@ export const FetcherErrorCode = {
   SERVER_ERROR: "SERVER_ERROR",
   /** Client error (4xx) */
   CLIENT_ERROR: "CLIENT_ERROR",
+  /** Action error (4xx) */
+  ACTION_ERROR: "ACTION_ERROR",
+  
 } as const;
 
 export type FetcherErrorCodeType =

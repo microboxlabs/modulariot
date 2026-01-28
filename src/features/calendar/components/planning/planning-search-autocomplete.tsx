@@ -257,7 +257,7 @@ export function PlanningSearchAutocomplete({
 
   const showHint = query.length === 1;
   // Clear button commented out - removal is handled by tag manager only
-  const showClearButton = false; // query.length > 0 || hasActiveFilter;
+  const showClearButton = false;
 
   return (
     <div ref={containerRef} className="relative">

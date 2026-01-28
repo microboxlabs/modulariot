@@ -1,5 +1,3 @@
-import CustomCard from "@/features/common/components/custom-card/custom-card";
-
 export default function HomePage() {
   return (
     <div className="p-2">

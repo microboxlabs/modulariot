@@ -68,14 +68,12 @@ export const DEFAULT_INCIDENCIA_CONFIG: Required<IncidenciaConfig> = {
  */
 export function getIncidenciaConfig(keyOrLabel: string): Required<IncidenciaConfig> {
   // First try direct lookup (for keys like "urgencia", "shutdown")
-  let config = INCIDENCIA_DICTIONARY[keyOrLabel];
-  let actualKey = keyOrLabel;
+  let config = INCIDENCIA_DICTIONARY[keyOrLabel];  
   
   // If not found, try reverse lookup by label (for labels like "DESPACHO URGENTE", "SHUTDOWN")
   if (!config) {
     const mappedKey = LABEL_TO_KEY_MAP[keyOrLabel];
-    if (mappedKey) {
-      actualKey = mappedKey;
+    if (mappedKey) {      
       config = INCIDENCIA_DICTIONARY[mappedKey];
     }
   }
@@ -83,8 +81,7 @@ export function getIncidenciaConfig(keyOrLabel: string): Required<IncidenciaConf
   // Also try case-insensitive lookup as fallback
   if (!config) {
     const lowerKey = keyOrLabel.toLowerCase();
-    if (INCIDENCIA_DICTIONARY[lowerKey]) {
-      actualKey = lowerKey;
+    if (INCIDENCIA_DICTIONARY[lowerKey]) {      
       config = INCIDENCIA_DICTIONARY[lowerKey];
     }
   }

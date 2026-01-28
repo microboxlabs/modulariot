@@ -70,7 +70,8 @@ export function DeleteConfirmationModal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className={twMerge(
           "relative z-10 mx-4",
           "bg-white dark:bg-gray-800",

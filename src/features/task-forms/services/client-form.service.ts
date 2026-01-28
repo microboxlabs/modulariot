@@ -12,20 +12,6 @@ import {
 } from "@/features/common/providers/fetcher.types";
 import { InfoError } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
-/**
- * Type guard to check if info has the expected error structure
- */
-function hasErrorInfo(
-  info: unknown
-): info is FetcherErrorInfo & { error: NonNullable<FetcherErrorInfo["error"]> } {
-  return (
-    typeof info === "object" &&
-    info !== null &&
-    "error" in info &&
-    typeof (info as FetcherErrorInfo).error === "object" &&
-    (info as FetcherErrorInfo).error !== null
-  );
-}
 
 /**
  * Attempts to extract error message from string info
@@ -39,40 +25,15 @@ function parseErrorMessageFromString(info: string): string | null {
   }
 }
 
-/**
- * Gets error message based on error code
- */
-function getErrorMessageFromCode(
-  errorInfo: NonNullable<FetcherErrorInfo["error"]>
-): string | null {
-  if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
-    return errorInfo.message ?? "Error al iniciar sesión";
-  }
-  if (errorInfo.code === "ERROR_ACCION") {
-    return (
-      errorInfo.details?.involvedObject?.respuesta ??
-      "Error al realizar la acción"
-    );
-  }
-  if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
-    return errorInfo.message ?? "Error al realizar la acción";
-  }
-  return null;
-}
 
 /**
  * Extracts the best error message from a FetcherError
+ * 
+ * NOTE: Simplified for testing centralized error handling in fetcher.ts
  */
 function extractErrorMessage(fetcherError: FetcherError): string {
   if (typeof fetcherError.info === "string") {
     const message = parseErrorMessageFromString(fetcherError.info);
-    if (message) {
-      return message;
-    }
-  }
-
-  if (hasErrorInfo(fetcherError.info)) {
-    const message = getErrorMessageFromCode(fetcherError.info.error);
     if (message) {
       return message;
     }

@@ -29,6 +29,52 @@ const DEBOUNCE_MS = 300;
 const MIN_CHARACTERS = 2;
 const MAX_DROPDOWN_HEIGHT = 300;
 
+/**
+ * Searchable fields configuration for service matching
+ */
+const SEARCHABLE_FIELDS: readonly MatchType[] = [
+  "id",
+  "cliente",
+  "origen",
+  "destino",
+  "lugarCarguio",
+  "permanencia",
+  "tipoViaje",
+] as const;
+
+/**
+ * Check if a service field matches the query and add to match counts
+ */
+function addMatchIfFound(
+  service: SelectedService,
+  field: MatchType,
+  lowerQuery: string,
+  matchCounts: Map<MatchType, Set<string>>
+): void {
+  const fieldValue = service[field];
+  if (typeof fieldValue !== "string") return;
+
+  if (fieldValue.toLowerCase().includes(lowerQuery)) {
+    if (!matchCounts.has(field)) {
+      matchCounts.set(field, new Set());
+    }
+    matchCounts.get(field)!.add(service.id);
+  }
+}
+
+/**
+ * Convert match counts map to sorted grouped results
+ */
+function toGroupedResults(matchCounts: Map<MatchType, Set<string>>): GroupedSearchResult[] {
+  return Array.from(matchCounts.entries())
+    .map(([matchType, serviceIds]) => ({
+      matchType,
+      count: serviceIds.size,
+    }))
+    .filter((result) => result.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
 export function PlanningSearchAutocomplete({
   dict,
   services,
@@ -77,73 +123,12 @@ export function PlanningSearchAutocomplete({
     const matchCounts = new Map<MatchType, Set<string>>();
 
     for (const service of services) {
-      // Search by ID
-      if (service.id.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("id")) {
-          matchCounts.set("id", new Set());
-        }
-        matchCounts.get("id")!.add(service.id);
-      }
-
-      // Search by cliente
-      if (service.cliente.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("cliente")) {
-          matchCounts.set("cliente", new Set());
-        }
-        matchCounts.get("cliente")!.add(service.id);
-      }
-
-      // Search by origen
-      if (service.origen.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("origen")) {
-          matchCounts.set("origen", new Set());
-        }
-        matchCounts.get("origen")!.add(service.id);
-      }
-
-      // Search by destino
-      if (service.destino.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("destino")) {
-          matchCounts.set("destino", new Set());
-        }
-        matchCounts.get("destino")!.add(service.id);
-      }
-
-      // Search by lugarCarguio
-      if (service.lugarCarguio.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("lugarCarguio")) {
-          matchCounts.set("lugarCarguio", new Set());
-        }
-        matchCounts.get("lugarCarguio")!.add(service.id);
-      }
-
-      // Search by permanencia
-      if (service.permanencia.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("permanencia")) {
-          matchCounts.set("permanencia", new Set());
-        }
-        matchCounts.get("permanencia")!.add(service.id);
-      }
-
-      // Search by tipoViaje
-      if (service.tipoViaje.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("tipoViaje")) {
-          matchCounts.set("tipoViaje", new Set());
-        }
-        matchCounts.get("tipoViaje")!.add(service.id);
+      for (const field of SEARCHABLE_FIELDS) {
+        addMatchIfFound(service, field, lowerQuery, matchCounts);
       }
     }
 
-    // Convert to array of grouped results
-    const results: GroupedSearchResult[] = Array.from(matchCounts.entries())
-      .map(([matchType, serviceIds]) => ({
-        matchType,
-        count: serviceIds.size,
-      }))
-      .filter((result) => result.count > 0)
-      .sort((a, b) => b.count - a.count); // Sort by count descending
-
-    return results;
+    return toGroupedResults(matchCounts);
   }, [debouncedQuery, services]);
 
   // Update dropdown visibility

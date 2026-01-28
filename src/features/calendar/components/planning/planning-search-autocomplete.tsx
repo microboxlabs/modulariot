@@ -75,6 +75,83 @@ function toGroupedResults(matchCounts: Map<MatchType, Set<string>>): GroupedSear
     .sort((a, b) => b.count - a.count);
 }
 
+/**
+ * Dropdown content component - renders loading, results, or empty state
+ */
+function DropdownContent({
+  isLoading,
+  searchResults,
+  selectedIndex,
+  debouncedQuery,
+  dict,
+  onMatchTypeSelect,
+  onMouseEnter,
+  getMatchTypeIcon,
+  getMatchTypeLabel,
+}: {
+  isLoading: boolean;
+  searchResults: GroupedSearchResult[];
+  selectedIndex: number;
+  debouncedQuery: string;
+  dict: I18nDictionary;
+  onMatchTypeSelect: (result: GroupedSearchResult) => void;
+  onMouseEnter: (index: number) => void;
+  getMatchTypeIcon: (matchType: MatchType) => React.ReactNode;
+  getMatchTypeLabel: (matchType: MatchType) => string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        {tr("pages.planning.sidebar.search.loading", dict)}
+      </div>
+    );
+  }
+
+  if (searchResults.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div>{tr("pages.planning.sidebar.search.noResults", dict)}</div>
+        <div className="mt-1 text-xs">
+          {tr("pages.planning.sidebar.search.noResultsFor", dict)} "{debouncedQuery}"
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="py-1" role="listbox">
+      {searchResults.map((result, index) => (
+        <li
+          key={result.matchType}
+          role="option"
+          aria-selected={index === selectedIndex}
+          onClick={() => onMatchTypeSelect(result)}
+          onMouseEnter={() => onMouseEnter(index)}
+          className={twMerge(
+            "px-4 py-2 cursor-pointer flex items-center gap-2",
+            "transition-colors",
+            index === selectedIndex
+              ? "bg-blue-50 dark:bg-blue-900/30"
+              : "hover:bg-gray-50 dark:hover:bg-gray-700"
+          )}
+        >
+          <div className="flex items-center justify-center w-5 h-5 shrink-0">
+            {getMatchTypeIcon(result.matchType)}
+          </div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">
+              {getMatchTypeLabel(result.matchType)}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              ({result.count})
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function PlanningSearchAutocomplete({
   dict,
   services,
@@ -326,49 +403,17 @@ export function PlanningSearchAutocomplete({
             "max-h-[300px] overflow-y-auto"
           )}
         >
-          {isLoadingState ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-              {tr("pages.planning.sidebar.search.loading", dict)}
-            </div>
-          ) : searchResults.length > 0 ? (
-            <ul className="py-1" role="listbox">
-              {searchResults.map((result, index) => (
-                <li
-                  key={result.matchType}
-                  role="option"
-                  aria-selected={index === selectedIndex}
-                  onClick={() => handleMatchTypeSelect(result)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={twMerge(
-                    "px-4 py-2 cursor-pointer flex items-center gap-2",
-                    "transition-colors",
-                    index === selectedIndex
-                      ? "bg-blue-50 dark:bg-blue-900/30"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                  )}
-                >
-                  <div className="flex items-center justify-center w-5 h-5 shrink-0">
-                    {getMatchTypeIcon(result.matchType)}
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {getMatchTypeLabel(result.matchType)}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      ({result.count})
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-              <div>{tr("pages.planning.sidebar.search.noResults", dict)}</div>
-              <div className="mt-1 text-xs">
-                {tr("pages.planning.sidebar.search.noResultsFor", dict)} "{debouncedQuery}"
-              </div>
-            </div>
-          )}
+          <DropdownContent
+            isLoading={isLoadingState}
+            searchResults={searchResults}
+            selectedIndex={selectedIndex}
+            debouncedQuery={debouncedQuery}
+            dict={dict}
+            onMatchTypeSelect={handleMatchTypeSelect}
+            onMouseEnter={setSelectedIndex}
+            getMatchTypeIcon={getMatchTypeIcon}
+            getMatchTypeLabel={getMatchTypeLabel}
+          />
         </div>
       )}
     </div>

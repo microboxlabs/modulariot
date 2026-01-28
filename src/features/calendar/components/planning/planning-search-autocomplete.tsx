@@ -241,14 +241,6 @@ export function PlanningSearchAutocomplete({
     return labels[matchType];
   };
 
-  // Helper to get translated location code or return original if not found
-  const getLocationLabel = (code: string): string => {
-    const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
-    const translated = tr(locationKey, dict);
-    // If translation exists and is different from key, return it; otherwise return original code
-    return translated !== locationKey ? translated : code;
-  };
-
   const getMatchTypeIcon = (matchType: MatchType): React.ReactNode => {
     const iconClassName = "w-4 h-4 text-gray-600 dark:text-gray-400";
     const icons: Record<MatchType, React.ReactNode> = {

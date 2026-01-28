@@ -31,8 +31,8 @@ export default function AndenesManager({
   }, [platformCount]);
 
   const commitInputValue = useCallback(() => {
-    const val = parseInt(inputValue, 10);
-    if (!isNaN(val) && val >= 1 && val <= 99) {
+    const val = Number.parseInt(inputValue, 10);
+    if (!Number.isNaN(val) && val >= 1 && val <= 99) {
       setPlatformCount(val);
       setInputValue(String(val));
     } else {

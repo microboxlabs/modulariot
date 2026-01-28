@@ -41,27 +41,33 @@ function parseErrorMessageFromString(info: string): string | null {
 
 /**
  * Gets error message based on error code
+ * 
+ * NOTE: Commented out for testing centralized error handling in fetcher.ts
+ * If the centralized fix works, this function can be removed.
+ * See: https://github.com/... (link to issue)
  */
-function getErrorMessageFromCode(
-  errorInfo: NonNullable<FetcherErrorInfo["error"]>
-): string | null {
-  if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
-    return errorInfo.message ?? "Error al iniciar sesión";
-  }
-  if (errorInfo.code === "ERROR_ACCION") {
-    return (
-      errorInfo.details?.involvedObject?.respuesta ??
-      "Error al realizar la acción"
-    );
-  }
-  if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
-    return errorInfo.message ?? "Error al realizar la acción";
-  }
-  return null;
-}
+// function getErrorMessageFromCode(
+//   errorInfo: NonNullable<FetcherErrorInfo["error"]>
+// ): string | null {
+//   if (errorInfo.code === "ALERCE_LOGIN_ERROR") {
+//     return errorInfo.message ?? "Error al iniciar sesión";
+//   }
+//   if (errorInfo.code === "ERROR_ACCION") {
+//     return (
+//       errorInfo.details?.involvedObject?.respuesta ??
+//       "Error al realizar la acción"
+//     );
+//   }
+//   if (errorInfo.code === "DUPLICATE_LICENSE_PLATE_ERROR") {
+//     return errorInfo.message ?? "Error al realizar la acción";
+//   }
+//   return null;
+// }
 
 /**
  * Extracts the best error message from a FetcherError
+ * 
+ * NOTE: Simplified for testing centralized error handling in fetcher.ts
  */
 function extractErrorMessage(fetcherError: FetcherError): string {
   if (typeof fetcherError.info === "string") {
@@ -71,12 +77,13 @@ function extractErrorMessage(fetcherError: FetcherError): string {
     }
   }
 
-  if (hasErrorInfo(fetcherError.info)) {
-    const message = getErrorMessageFromCode(fetcherError.info.error);
-    if (message) {
-      return message;
-    }
-  }
+  // NOTE: Commented out for testing - getErrorMessageFromCode should no longer be needed
+  // if (hasErrorInfo(fetcherError.info)) {
+  //   const message = getErrorMessageFromCode(fetcherError.info.error);
+  //   if (message) {
+  //     return message;
+  //   }
+  // }
 
   return fetcherError.message;
 }

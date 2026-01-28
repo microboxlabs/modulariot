@@ -57,36 +57,43 @@ function calculateOccupation(task: KanbanBoardTask): number {
   }
 }
 
-// Transform KanbanBoardTask to SelectedService
-function transformTaskToService(task: KanbanBoardTask): SelectedService {
-  // Extract service code from name (format: "1045782-V" or "1045782-v")
-  // Use name if available, otherwise use id
-  const serviceId = task.name || task.id;
+/**
+ * Determine trip type from serviceKind or executionType
+ */
+function determineTripType(task: KanbanBoardTask): "Sider" | "Doble Sider" | "Rampla" {
+  if (task.serviceKind === "Sider") return "Sider";
+  if (task.serviceKind === "Doble Sider") return "Doble Sider";
+  if (task.executionType === "Rampla") return "Rampla";
+  return "Sider"; // Default
+}
 
-  // Determine trip type from serviceKind or executionType
-  const tipoViaje =
-    task.serviceKind === "Sider"
-      ? "Sider"
-      : task.serviceKind === "Doble Sider"
-        ? "Doble Sider"
-        : task.executionType === "Rampla"
-          ? "Rampla"
-          : "Sider"; // Default
-
-  // Calculate permanencia from dates if available
-  let permanencia = "24h"; // Default
-  if (task.departureDate && task.estimatedArrivalDate) {
-    const dep = dayjs(task.departureDate);
-    const arr = dayjs(task.estimatedArrivalDate);
-    if (arr.isValid() && dep.isValid()) {
-      const hours = arr.diff(dep, "hour");
-      permanencia = `${hours}h`;
-    }
+/**
+ * Calculate permanencia (duration) from departure and arrival dates
+ */
+function calculatePermanencia(task: KanbanBoardTask): string {
+  if (!task.departureDate || !task.estimatedArrivalDate) {
+    return "24h"; // Default
   }
 
-  // Calculate lead time compliance from mintral_icuCondition
-  // Positive values = compliant, negative = non-compliant
-  const icuCondition = task.mintral_icuCondition ?? 0;
+  const dep = dayjs(task.departureDate);
+  const arr = dayjs(task.estimatedArrivalDate);
+
+  if (!arr.isValid() || !dep.isValid()) {
+    return "24h"; // Default
+  }
+
+  const hours = arr.diff(dep, "hour");
+  return `${hours}h`;
+}
+
+/**
+ * Calculate lead time compliance metrics from ICU condition
+ */
+function calculateLeadTimeCompliance(icuCondition: number): {
+  compliantLines: number;
+  nonCompliantLines: number;
+  compliancePercentage: number;
+} {
   const totalLines = 4; // Default total lines for calculation
   const compliantLines =
     icuCondition >= 0
@@ -95,8 +102,15 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
   const nonCompliantLines = totalLines - compliantLines;
   const compliancePercentage = Math.round((compliantLines / totalLines) * 100);
 
-  // Extract incidencias from priority code or other fields
+  return { compliantLines, nonCompliantLines, compliancePercentage };
+}
+
+/**
+ * Extract incidencias from task fields
+ */
+function extractIncidencias(task: KanbanBoardTask, compliancePercentage: number): string[] {
   const incidencias: string[] = [];
+
   if (task.mintral_priorityCode) {
     incidencias.push(task.mintral_priorityCode.toLowerCase());
   }
@@ -104,21 +118,36 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     incidencias.push("urgencia");
   }
 
-  // Extract mintral_incidents - filter and map to proper format
-  const mintral_incidents: Array<[string, string]> | undefined = task.mintral_incidents
-    ? task.mintral_incidents
-        .filter(
-          (incident): incident is [string, string] =>
-            Array.isArray(incident) &&
-            incident.length === 2 &&
-            typeof incident[0] === "string" &&
-            typeof incident[1] === "string"
-        )
-        .map((incident) => [incident[0], incident[1]] as [string, string])
-    : undefined;
+  return incidencias;
+}
 
-  // Calculate occupation based on load constraint type
-  const ocupacion = calculateOccupation(task);
+/**
+ * Extract and validate mintral_incidents to proper tuple format
+ */
+function extractMintralIncidents(
+  incidents: KanbanBoardTask["mintral_incidents"]
+): Array<[string, string]> | undefined {
+  if (!incidents) return undefined;
+
+  return incidents
+    .filter(
+      (incident): incident is [string, string] =>
+        Array.isArray(incident) &&
+        incident.length === 2 &&
+        typeof incident[0] === "string" &&
+        typeof incident[1] === "string"
+    )
+    .map((incident) => [incident[0], incident[1]] as [string, string]);
+}
+
+// Transform KanbanBoardTask to SelectedService
+function transformTaskToService(task: KanbanBoardTask): SelectedService {
+  const serviceId = task.name || task.id;
+  const tipoViaje = determineTripType(task);
+  const permanencia = calculatePermanencia(task);
+  const icuCondition = task.mintral_icuCondition ?? 0;
+  const { compliantLines, nonCompliantLines, compliancePercentage } =
+    calculateLeadTimeCompliance(icuCondition);
 
   return {
     id: serviceId,
@@ -126,8 +155,8 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     origen: task.origin || "",
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
-    tipoViaje: tipoViaje as "Sider" | "Doble Sider" | "Rampla",
-    ocupacion,
+    tipoViaje,
+    ocupacion: calculateOccupation(task),
     permanencia,
     leadTime: {
       total_lineasoc_cumplen: compliantLines,
@@ -135,11 +164,10 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
       lineasoc_pctn_cumplimiento: compliancePercentage,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias,
-    mintral_incidents,
+    incidencias: extractIncidencias(task, compliancePercentage),
+    mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
-    prioridad:
-      task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
+    prioridad: task.mintral_icuCondition ?? 0,
     cm_created: task.cm_created,
     loadConstraint: task.mintral_loadConstraint,
     loadMaxUtilization: task.mintral_loadMaxUtilization,

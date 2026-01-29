@@ -27,10 +27,10 @@ import { useUserSite } from "@/features/common/providers/client-api.provider";
 function NavbarLogo({
   isLoading,
   logoUrl,
-}: {
+}: Readonly<{
   isLoading: boolean;
   logoUrl: string | null;
-}) {
+}>) {
   if (isLoading) {
     return (
       <div className="mr-3 h-8 w-[150px] bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />

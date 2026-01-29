@@ -420,3 +420,27 @@ export type InfoError = {
   info?: string;
   message?: string;
 };
+
+/**
+ * Alfresco site information returned from /api/people/{email}/sites
+ */
+export type UserSite = {
+  url: string;
+  sitePreset: string;
+  shortName: string;
+  title: string;
+  description: string;
+  node: string;
+  tagScope: string;
+  siteManagers: string[];
+  isPublic: boolean;
+  visibility: "PUBLIC" | "PRIVATE" | "MODERATED";
+};
+
+/**
+ * Response for user site with logo information
+ */
+export type UserSiteResponse = {
+  site: UserSite | null;
+  logoUrl: string | null;
+};

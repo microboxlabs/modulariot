@@ -8,7 +8,7 @@ import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import logoImage from "@assets/logo-mintral-1.png";
+import defaultLogoImage from "@assets/logo-mintral-1.png";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -19,6 +19,7 @@ import SearchBar from "./searchbar/search-bar";
 // import { Filter } from "flowbite-react-icons/outline";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDebouncedCallback } from "use-debounce";
+import { useUserSite } from "@/features/common/providers/client-api.provider";
 
 export function SecuredNavbar({
   messages,
@@ -35,6 +36,7 @@ export function SecuredNavbar({
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();
+  const { logoUrl, isLoading: isLoadingLogo } = useUserSite();
 
   let unreadNotifications = 0;
   if (
@@ -117,7 +119,25 @@ export function SecuredNavbar({
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
             <NavbarBrand as={Link} href="/">
-              <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
+              {isLoadingLogo ? (
+                <div className="mr-3 h-8 w-[150px] bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+              ) : logoUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  className="mr-3 h-8 object-contain"
+                  alt="Company logo"
+                  src={logoUrl}
+                  width={150}
+                  height={32}
+                />
+              ) : (
+                <Image
+                  className="mr-3 h-8"
+                  alt="Mintral logo"
+                  src={defaultLogoImage}
+                  width={150}
+                />
+              )}
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">

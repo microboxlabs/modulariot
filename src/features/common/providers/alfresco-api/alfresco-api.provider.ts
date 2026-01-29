@@ -21,6 +21,7 @@ import type {
   UploadNodeRequest,
   UploadNodeResponse,
   UserState,
+  UserSite,
   ValidationsResponse,
   CreateTemplateRequest,
   UpdateTemplateRequest,
@@ -660,6 +661,81 @@ export async function getUserFilters(
     headers,
   })) as any;
   return filterResponse?.entry?.id as string;
+}
+
+/**
+ * Gets the sites associated with the current user
+ * @param session - The user session
+ * @returns Array of sites the user belongs to
+ */
+export async function getUserSites(session: Session): Promise<UserSite[]> {
+  const userEmail = session.user?.email;
+  if (!userEmail) {
+    return [];
+  }
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/api/people/${encodeURIComponent(userEmail)}/sites`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as UserSite[];
+}
+
+/**
+ * Gets the logo node ID from a site's document library
+ * @param session - The user session
+ * @param siteName - The site shortName
+ * @returns The node ID of the logo, or null if not found
+ */
+export async function getSiteLogoNodeId(
+  session: Session,
+  siteName: string
+): Promise<string | null> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/${encodeURIComponent(siteName)}/documentLibrary/branding/logo.png`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const response = (await fetcher(url, {
+      method: "GET",
+      headers,
+    })) as NodeEntry;
+    return response?.entry?.id ?? null;
+  } catch {
+    // Logo not found or error fetching
+    return null;
+  }
+}
+
+/**
+ * Gets the logo content (as base64) from a site's document library
+ * @param session - The user session
+ * @param nodeId - The node ID of the logo
+ * @returns The logo content as base64 string, or null if not found
+ */
+export async function getSiteLogoContent(
+  session: Session,
+  nodeId: string
+): Promise<string | null> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const result = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+
+    if (!result.ok) {
+      return null;
+    }
+
+    const buffer = Buffer.from(await result.arrayBuffer());
+    return `data:image/png;base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
 }
 
 export async function getInfoEntity(

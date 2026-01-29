@@ -170,7 +170,7 @@ export function ServiceContextMenu({
           )}
         >
           <HiTrash className="w-4 h-4" />
-          <span>Eliminar</span>
+          <span>Eliminar planificación</span>
         </button>
       </div>
     </div>,

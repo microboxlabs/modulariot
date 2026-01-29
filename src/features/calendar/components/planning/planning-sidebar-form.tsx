@@ -120,7 +120,18 @@ export function PlanningSidebarForm({
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedTripType, setSelectedTripType] = useState<string>("tipo_1");
+  const [isTripTypeDropdownOpen, setIsTripTypeDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tripTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const tripTypeOptions = [
+    { value: "tipo_1", label: "Tipo 1" },
+    { value: "tipo_2", label: "Tipo 2" },
+    { value: "tipo_3", label: "Tipo 3" },
+    { value: "tipo_4", label: "Tipo 4" },
+    { value: "otro", label: "Otro" },
+  ];
   const {
     confirmService,
     selectedSlot,
@@ -138,6 +149,12 @@ export function PlanningSidebarForm({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsDropdownOpen(false);
+      }
+      if (
+        tripTypeDropdownRef.current &&
+        !tripTypeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsTripTypeDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -342,9 +359,18 @@ export function PlanningSidebarForm({
   const occupancy = selectedService.ocupacion;
 
   // Helper to get badge color class for incidencias
-  const getIncidenciaBadgeProps = (key: string, configColor?: string, label?: string) => {
+  const getIncidenciaBadgeProps = (
+    key: string,
+    configColor?: string,
+    label?: string
+  ) => {
     // Check if it's urgencia/C309 (purple with icon)
-    if (key === "urgencia" || key === "C309" || label === "C309" || configColor === "purple") {
+    if (
+      key === "urgencia" ||
+      key === "C309" ||
+      label === "C309" ||
+      configColor === "purple"
+    ) {
       return {
         color: "purple" as const,
         className:
@@ -354,7 +380,14 @@ export function PlanningSidebarForm({
     }
     // Use the config color if available, otherwise gray
     return {
-      color: (configColor as "red" | "yellow" | "green" | "blue" | "gray" | "pink") || "gray",
+      color:
+        (configColor as
+          | "red"
+          | "yellow"
+          | "green"
+          | "blue"
+          | "gray"
+          | "pink") || "gray",
       className:
         "flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5",
     };
@@ -365,10 +398,11 @@ export function PlanningSidebarForm({
       {/* Flags Section */}
       {hasIncidencias && (
         <FormSection title={tr("pages.planning.sidebar.form.flags", dict)}>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
             {/* Primary incidencias - always visible */}
             {primary.map(({ key, config }) => {
-              const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+              const tooltip =
+                codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
               return (
                 <Badge
                   key={key}
@@ -384,7 +418,8 @@ export function PlanningSidebarForm({
             {/* Secondary incidencias - shown directly if ≤2 and no primary, otherwise when expanded */}
             {(showSecondaryDirectly || showAllIncidencias) &&
               secondary.map(({ key, config }) => {
-                const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                const tooltip =
+                  codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
                 return (
                   <Badge
                     key={key}
@@ -473,6 +508,69 @@ export function PlanningSidebarForm({
       {timeOptions.length > 0 && (
         <FormSection title="Asignación de horario">
           <div className="space-y-3">
+            {/* Trip Type Dropdown */}
+            <div ref={tripTypeDropdownRef} className="relative">
+              <Label
+                htmlFor="trip-type-select"
+                className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
+              >
+                Tipo de viaje
+              </Label>
+
+              {/* Dropdown trigger button */}
+              <button
+                type="button"
+                onClick={() =>
+                  setIsTripTypeDropdownOpen(!isTripTypeDropdownOpen)
+                }
+                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {tripTypeOptions.find((opt) => opt.value === selectedTripType)
+                    ?.label || "Seleccionar tipo"}
+                </span>
+                <HiChevronDown
+                  className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Dropdown menu */}
+              {isTripTypeDropdownOpen && (
+                <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {tripTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTripType(option.value);
+                        setIsTripTypeDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                        option.value === selectedTripType
+                          ? "bg-blue-50 dark:bg-blue-900/20"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      } cursor-pointer`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {option.value === selectedTripType && (
+                          <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        )}
+                        <span
+                          className={`text-sm ${
+                            option.value === selectedTripType
+                              ? "text-blue-700 dark:text-blue-300"
+                              : "text-gray-900 dark:text-white"
+                          }`}
+                        >
+                          {option.label}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Custom Time Slot Dropdown */}
             <div ref={dropdownRef} className="relative">
               <Label

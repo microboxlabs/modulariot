@@ -29,6 +29,129 @@ const DEBOUNCE_MS = 300;
 const MIN_CHARACTERS = 2;
 const MAX_DROPDOWN_HEIGHT = 300;
 
+/**
+ * Searchable fields configuration for service matching
+ */
+const SEARCHABLE_FIELDS: readonly MatchType[] = [
+  "id",
+  "cliente",
+  "origen",
+  "destino",
+  "lugarCarguio",
+  "permanencia",
+  "tipoViaje",
+] as const;
+
+/**
+ * Check if a service field matches the query and add to match counts
+ */
+function addMatchIfFound(
+  service: SelectedService,
+  field: MatchType,
+  lowerQuery: string,
+  matchCounts: Map<MatchType, Set<string>>
+): void {
+  const fieldValue = service[field];
+  if (typeof fieldValue !== "string") return;
+
+  if (fieldValue.toLowerCase().includes(lowerQuery)) {
+    if (!matchCounts.has(field)) {
+      matchCounts.set(field, new Set());
+    }
+    matchCounts.get(field)!.add(service.id);
+  }
+}
+
+/**
+ * Convert match counts map to sorted grouped results
+ */
+function toGroupedResults(matchCounts: Map<MatchType, Set<string>>): GroupedSearchResult[] {
+  return Array.from(matchCounts.entries())
+    .map(([matchType, serviceIds]) => ({
+      matchType,
+      count: serviceIds.size,
+    }))
+    .filter((result) => result.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Dropdown content component - renders loading, results, or empty state
+ */
+function DropdownContent({
+  isLoading,
+  searchResults,
+  selectedIndex,
+  debouncedQuery,
+  dict,
+  onMatchTypeSelect,
+  onMouseEnter,
+  getMatchTypeIcon,
+  getMatchTypeLabel,
+}: {
+  isLoading: boolean;
+  searchResults: GroupedSearchResult[];
+  selectedIndex: number;
+  debouncedQuery: string;
+  dict: I18nDictionary;
+  onMatchTypeSelect: (result: GroupedSearchResult) => void;
+  onMouseEnter: (index: number) => void;
+  getMatchTypeIcon: (matchType: MatchType) => React.ReactNode;
+  getMatchTypeLabel: (matchType: MatchType) => string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        {tr("pages.planning.sidebar.search.loading", dict)}
+      </div>
+    );
+  }
+
+  if (searchResults.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        <div>{tr("pages.planning.sidebar.search.noResults", dict)}</div>
+        <div className="mt-1 text-xs">
+          {tr("pages.planning.sidebar.search.noResultsFor", dict)} "{debouncedQuery}"
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="py-1" role="listbox">
+      {searchResults.map((result, index) => (
+        <li
+          key={result.matchType}
+          role="option"
+          aria-selected={index === selectedIndex}
+          onClick={() => onMatchTypeSelect(result)}
+          onMouseEnter={() => onMouseEnter(index)}
+          className={twMerge(
+            "px-4 py-2 cursor-pointer flex items-center gap-2",
+            "transition-colors",
+            index === selectedIndex
+              ? "bg-blue-50 dark:bg-blue-900/30"
+              : "hover:bg-gray-50 dark:hover:bg-gray-700"
+          )}
+        >
+          <div className="flex items-center justify-center w-5 h-5 shrink-0">
+            {getMatchTypeIcon(result.matchType)}
+          </div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-900 dark:text-white">
+              {getMatchTypeLabel(result.matchType)}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              ({result.count})
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function PlanningSearchAutocomplete({
   dict,
   services,
@@ -77,73 +200,12 @@ export function PlanningSearchAutocomplete({
     const matchCounts = new Map<MatchType, Set<string>>();
 
     for (const service of services) {
-      // Search by ID
-      if (service.id.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("id")) {
-          matchCounts.set("id", new Set());
-        }
-        matchCounts.get("id")!.add(service.id);
-      }
-
-      // Search by cliente
-      if (service.cliente.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("cliente")) {
-          matchCounts.set("cliente", new Set());
-        }
-        matchCounts.get("cliente")!.add(service.id);
-      }
-
-      // Search by origen
-      if (service.origen.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("origen")) {
-          matchCounts.set("origen", new Set());
-        }
-        matchCounts.get("origen")!.add(service.id);
-      }
-
-      // Search by destino
-      if (service.destino.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("destino")) {
-          matchCounts.set("destino", new Set());
-        }
-        matchCounts.get("destino")!.add(service.id);
-      }
-
-      // Search by lugarCarguio
-      if (service.lugarCarguio.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("lugarCarguio")) {
-          matchCounts.set("lugarCarguio", new Set());
-        }
-        matchCounts.get("lugarCarguio")!.add(service.id);
-      }
-
-      // Search by permanencia
-      if (service.permanencia.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("permanencia")) {
-          matchCounts.set("permanencia", new Set());
-        }
-        matchCounts.get("permanencia")!.add(service.id);
-      }
-
-      // Search by tipoViaje
-      if (service.tipoViaje.toLowerCase().includes(lowerQuery)) {
-        if (!matchCounts.has("tipoViaje")) {
-          matchCounts.set("tipoViaje", new Set());
-        }
-        matchCounts.get("tipoViaje")!.add(service.id);
+      for (const field of SEARCHABLE_FIELDS) {
+        addMatchIfFound(service, field, lowerQuery, matchCounts);
       }
     }
 
-    // Convert to array of grouped results
-    const results: GroupedSearchResult[] = Array.from(matchCounts.entries())
-      .map(([matchType, serviceIds]) => ({
-        matchType,
-        count: serviceIds.size,
-      }))
-      .filter((result) => result.count > 0)
-      .sort((a, b) => b.count - a.count); // Sort by count descending
-
-    return results;
+    return toGroupedResults(matchCounts);
   }, [debouncedQuery, services]);
 
   // Update dropdown visibility
@@ -256,14 +318,6 @@ export function PlanningSearchAutocomplete({
     return labels[matchType];
   };
 
-  // Helper to get translated location code or return original if not found
-  const getLocationLabel = (code: string): string => {
-    const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
-    const translated = tr(locationKey, dict);
-    // If translation exists and is different from key, return it; otherwise return original code
-    return translated !== locationKey ? translated : code;
-  };
-
   const getMatchTypeIcon = (matchType: MatchType): React.ReactNode => {
     const iconClassName = "w-4 h-4 text-gray-600 dark:text-gray-400";
     const icons: Record<MatchType, React.ReactNode> = {
@@ -280,7 +334,7 @@ export function PlanningSearchAutocomplete({
 
   const showHint = query.length === 1;
   // Clear button commented out - removal is handled by tag manager only
-  const showClearButton = false; // query.length > 0 || hasActiveFilter;
+  const showClearButton = false;
 
   return (
     <div ref={containerRef} className="relative">
@@ -349,49 +403,17 @@ export function PlanningSearchAutocomplete({
             "max-h-[300px] overflow-y-auto"
           )}
         >
-          {isLoadingState ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-              {tr("pages.planning.sidebar.search.loading", dict)}
-            </div>
-          ) : searchResults.length > 0 ? (
-            <ul className="py-1" role="listbox">
-              {searchResults.map((result, index) => (
-                <li
-                  key={result.matchType}
-                  role="option"
-                  aria-selected={index === selectedIndex}
-                  onClick={() => handleMatchTypeSelect(result)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={twMerge(
-                    "px-4 py-2 cursor-pointer flex items-center gap-2",
-                    "transition-colors",
-                    index === selectedIndex
-                      ? "bg-blue-50 dark:bg-blue-900/30"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                  )}
-                >
-                  <div className="flex items-center justify-center w-5 h-5 shrink-0">
-                    {getMatchTypeIcon(result.matchType)}
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {getMatchTypeLabel(result.matchType)}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      ({result.count})
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-              <div>{tr("pages.planning.sidebar.search.noResults", dict)}</div>
-              <div className="mt-1 text-xs">
-                {tr("pages.planning.sidebar.search.noResultsFor", dict)} "{debouncedQuery}"
-              </div>
-            </div>
-          )}
+          <DropdownContent
+            isLoading={isLoadingState}
+            searchResults={searchResults}
+            selectedIndex={selectedIndex}
+            debouncedQuery={debouncedQuery}
+            dict={dict}
+            onMatchTypeSelect={handleMatchTypeSelect}
+            onMouseEnter={setSelectedIndex}
+            getMatchTypeIcon={getMatchTypeIcon}
+            getMatchTypeLabel={getMatchTypeLabel}
+          />
         </div>
       )}
     </div>

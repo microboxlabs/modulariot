@@ -21,6 +21,45 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useDebouncedCallback } from "use-debounce";
 import { useUserSite } from "@/features/common/providers/client-api.provider";
 
+/**
+ * Renders the navbar logo with loading, custom, and default states
+ */
+function NavbarLogo({
+  isLoading,
+  logoUrl,
+}: {
+  isLoading: boolean;
+  logoUrl: string | null;
+}) {
+  if (isLoading) {
+    return (
+      <div className="mr-3 h-8 w-[150px] bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+    );
+  }
+
+  if (logoUrl) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        className="mr-3 h-8 object-contain"
+        alt="Company logo"
+        src={logoUrl}
+        width={150}
+        height={32}
+      />
+    );
+  }
+
+  return (
+    <Image
+      className="mr-3 h-8"
+      alt="Mintral logo"
+      src={defaultLogoImage}
+      width={150}
+    />
+  );
+}
+
 export function SecuredNavbar({
   messages,
   isSeachEnabled = true,
@@ -119,25 +158,7 @@ export function SecuredNavbar({
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
             <NavbarBrand as={Link} href="/">
-              {isLoadingLogo ? (
-                <div className="mr-3 h-8 w-[150px] bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
-              ) : logoUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  className="mr-3 h-8 object-contain"
-                  alt="Company logo"
-                  src={logoUrl}
-                  width={150}
-                  height={32}
-                />
-              ) : (
-                <Image
-                  className="mr-3 h-8"
-                  alt="Mintral logo"
-                  src={defaultLogoImage}
-                  width={150}
-                />
-              )}
+              <NavbarLogo isLoading={isLoadingLogo} logoUrl={logoUrl} />
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">

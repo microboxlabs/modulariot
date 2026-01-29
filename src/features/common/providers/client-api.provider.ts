@@ -34,7 +34,7 @@ import {
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
-import type { ForumDiscussionResponse } from "./alfresco-api/alfresco-api.types";
+import type { ForumDiscussionResponse, UserSiteResponse } from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
 
 // export function useI8n(lang: string) {
@@ -82,6 +82,31 @@ export function useMyTasksCount() {
     data,
     error,
     isLoading,
+  };
+}
+
+/**
+ * Hook to fetch the user's site and logo
+ * Caches the result and doesn't refetch on focus to minimize API calls
+ */
+export function useUserSite() {
+  const { data, error, isLoading } = useSWR<UserSiteResponse, FetcherError>(
+    `/app/api/user/site`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60000, // 1 minute
+    }
+  );
+
+  return {
+    data,
+    error,
+    isLoading,
+    siteName: data?.site?.shortName ?? null,
+    siteTitle: data?.site?.title ?? null,
+    logoUrl: data?.logoUrl ?? null,
   };
 }
 

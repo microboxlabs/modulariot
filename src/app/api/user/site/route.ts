@@ -29,13 +29,13 @@ export async function GET() {
     // Use the first site (primary site)
     const primarySite = sites[0];
 
-    // Try to get the logo node ID
-    const logoNodeId = await getSiteLogoNodeId(session, primarySite.shortName);
+    // Try to get the logo node (SVG first, then PNG)
+    const logoNode = await getSiteLogoNodeId(session, primarySite.shortName);
 
     let logoUrl: string | null = null;
-    if (logoNodeId) {
-      // Get the logo content as base64
-      logoUrl = await getSiteLogoContent(session, logoNodeId);
+    if (logoNode) {
+      // Get the logo content as base64 data URL
+      logoUrl = await getSiteLogoContent(session, logoNode.nodeId, logoNode.mimeType);
     }
 
     const response: UserSiteResponse = {

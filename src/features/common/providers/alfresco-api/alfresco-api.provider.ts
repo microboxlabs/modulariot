@@ -684,39 +684,72 @@ export async function getUserSites(session: Session): Promise<UserSite[]> {
 }
 
 /**
- * Gets the logo node ID from a site's document library
- * @param session - The user session
- * @param siteName - The site shortName
- * @returns The node ID of the logo, or null if not found
+ * Supported logo file formats in order of preference
  */
-export async function getSiteLogoNodeId(
+const LOGO_FORMATS = [
+  { filename: "logo.svg", mimeType: "image/svg+xml" },
+  { filename: "logo.png", mimeType: "image/png" },
+] as const;
+
+/**
+ * Tries to get a logo node by filename from a site's document library
+ */
+async function tryGetLogoNode(
   session: Session,
-  siteName: string
-): Promise<string | null> {
+  siteName: string,
+  filename: string
+): Promise<{ nodeId: string; mimeType: string } | null> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/${encodeURIComponent(siteName)}/documentLibrary/branding/logo.png`;
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/${encodeURIComponent(siteName)}/documentLibrary/branding/${filename}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
     const response = (await fetcher(url, {
       method: "GET",
       headers,
     })) as NodeEntry;
-    return response?.entry?.id ?? null;
+
+    const nodeId = response?.entry?.id;
+    if (!nodeId) return null;
+
+    const format = LOGO_FORMATS.find((f) => f.filename === filename);
+    return { nodeId, mimeType: format?.mimeType ?? "image/png" };
   } catch {
-    // Logo not found or error fetching
     return null;
   }
 }
 
 /**
- * Gets the logo content (as base64) from a site's document library
+ * Gets the logo node ID from a site's document library
+ * Tries SVG first, then falls back to PNG
+ * @param session - The user session
+ * @param siteName - The site shortName
+ * @returns Object with node ID and mime type, or null if not found
+ */
+export async function getSiteLogoNodeId(
+  session: Session,
+  siteName: string
+): Promise<{ nodeId: string; mimeType: string } | null> {
+  // Try each format in order of preference (SVG first, then PNG)
+  for (const format of LOGO_FORMATS) {
+    const result = await tryGetLogoNode(session, siteName, format.filename);
+    if (result) {
+      return result;
+    }
+  }
+  return null;
+}
+
+/**
+ * Gets the logo content (as base64 data URL) from a site's document library
  * @param session - The user session
  * @param nodeId - The node ID of the logo
- * @returns The logo content as base64 string, or null if not found
+ * @param mimeType - The MIME type of the logo (e.g., "image/svg+xml" or "image/png")
+ * @returns The logo content as base64 data URL, or null if not found
  */
 export async function getSiteLogoContent(
   session: Session,
-  nodeId: string
+  nodeId: string,
+  mimeType: string = "image/png"
 ): Promise<string | null> {
   try {
     const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content`;
@@ -732,7 +765,7 @@ export async function getSiteLogoContent(
     }
 
     const buffer = Buffer.from(await result.arrayBuffer());
-    return `data:image/png;base64,${buffer.toString("base64")}`;
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
   } catch {
     return null;
   }

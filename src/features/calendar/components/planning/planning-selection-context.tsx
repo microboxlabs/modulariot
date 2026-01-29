@@ -571,6 +571,11 @@ export interface SelectedService {
   observaciones: string;
   prioridad: number;
   cm_created?: string; // ISO datetime - creation date
+  loadConstraint?: string; // Dominant constraint: "Carga" | "Pallets" | "Volumen"
+  loadMaxUtilization?: number; // Maximum of the three utilizations %
+  loadWeightUtilization?: number; // Weight capacity utilization %
+  loadPalletUtilization?: number; // Pallet position utilization %
+  loadVolumeUtilization?: number; // Volumetric utilization %
 }
 
 /**
@@ -689,14 +694,22 @@ export function PlanningSelectionProvider({
   // For now, load all services (can be optimized later with date range)
   const {
     plannedServices: apiPlannedServices,
+    error: plannedServicesError,
     refresh: refreshPlannedServices,
   } = usePlannedServices();
 
   // Load time slots (windows and blocks) from API
-  const { timeSlots: apiTimeSlots, refresh: refreshTimeSlots } = useTimeSlots();
+  const {
+    timeSlots: apiTimeSlots,
+    error: timeSlotsError,
+    refresh: refreshTimeSlots,
+  } = useTimeSlots();
 
-  // Sync API data to local state
+  // Sync API data to local state (only when there's no error and data has actually changed)
   useEffect(() => {
+    // Skip if there's an error - don't update state based on error responses
+    if (plannedServicesError) return;
+
     if (apiPlannedServices && apiPlannedServices.length > 0) {
       const localServices = apiPlannedServices.map(apiToLocalPlannedService);
       const idMap = new Map<string, string>();
@@ -714,10 +727,13 @@ export function PlanningSelectionProvider({
       setPlannedServices([]);
       setPlannedServiceIds(new Map());
     }
-  }, [apiPlannedServices]);
+  }, [apiPlannedServices, plannedServicesError]);
 
-  // Sync time slots from API to local state
+  // Sync time slots from API to local state (only when there's no error)
   useEffect(() => {
+    // Skip if there's an error - don't update state based on error responses
+    if (timeSlotsError) return;
+
     if (apiTimeSlots && apiTimeSlots.length > 0) {
       // API TimeSlotResponse matches our TimeSlot interface, so we can use directly
       setTimeSlotsState(apiTimeSlots as TimeSlot[]);
@@ -725,7 +741,7 @@ export function PlanningSelectionProvider({
       // Clear local state if API returns empty array
       setTimeSlotsState([]);
     }
-  }, [apiTimeSlots]);
+  }, [apiTimeSlots, timeSlotsError]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(

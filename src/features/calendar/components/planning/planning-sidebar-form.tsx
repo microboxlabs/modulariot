@@ -472,6 +472,54 @@ export function PlanningSidebarForm({
         />
       </FormSection>
 
+      {/* Load Utilization Section */}
+      {selectedService.loadConstraint && (
+        <FormSection title={tr("pages.planning.sidebar.form.loadUtilization", dict)}>
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.constraint", dict)}
+            value={selectedService.loadConstraint}
+          />
+          <InfoRow
+            label={tr("pages.planning.sidebar.form.maxUtilization", dict)}
+            value={
+              selectedService.loadMaxUtilization != null
+                ? `${selectedService.loadMaxUtilization.toFixed(1)}`
+                : "—"
+            }
+          />
+          {selectedService.loadConstraint === "Carga" && (
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.weightUtilization", dict)}
+              value={
+                selectedService.loadWeightUtilization != null
+                  ? `${selectedService.loadWeightUtilization.toFixed(1)}%`
+                  : "—"
+              }
+            />
+          )}
+          {selectedService.loadConstraint === "Pallets" && (
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.palletUtilization", dict)}
+              value={
+                selectedService.loadPalletUtilization != null
+                  ? `${selectedService.loadPalletUtilization.toFixed(1)}%`
+                  : "—"
+              }
+            />
+          )}
+          {selectedService.loadConstraint === "Volumen" && (
+            <InfoRow
+              label={tr("pages.planning.sidebar.form.volumeUtilization", dict)}
+              value={
+                selectedService.loadVolumeUtilization != null
+                  ? `${selectedService.loadVolumeUtilization.toFixed(1)}%`
+                  : "—"
+              }
+            />
+          )}
+        </FormSection>
+      )}
+
       {/* Information Section */}
       <FormSection title={tr("pages.planning.sidebar.form.information", dict)}>
         <InfoRow label={tr("ID", dict)} value={id} />

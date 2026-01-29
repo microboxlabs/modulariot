@@ -1,0 +1,30 @@
+# 🔔 Release Notes v1.25.5 — ModularIoT
+
+### Fecha: 29/01/2026
+
+**Objetivo**: Implementar lógica de des-asignación automática en el flujo de trabajo cuando un servicio pierde la asignación de conductor o camión, garantizando consistencia entre el sistema externo y el estado del workflow.
+
+## 🚀 Evolutivos
+
+- **📍 Des-asignación automática de conductor/camión**
+  - **Detección de pérdida de asignación**: Cuando un servicio sincronizado pierde su conductor (`driver1`) o camión (`truckEntity`) desde el sistema externo, el sistema detecta automáticamente esta condición.
+  - **Retroceso automático de tarea**: El workflow retrocede automáticamente a la tarea `assignDriver` cuando la des-asignación ocurre en los estados `presentDriver`, `prepareService` o `missionControl`.
+  - **Protección de viajes activos**: Los servicios que ya están en `monitorTrip` o estados posteriores NO son afectados, ya que el viaje ya está en curso.
+  - **Consistencia de datos**: Evita que las tareas queden en estados inconsistentes donde el servicio ya no tiene las asignaciones requeridas.
+  - **Integración con SyncServices**: La lógica se ejecuta durante la sincronización de servicios en `ExtTripServiceImpl.handleExistingProcess()`.
+  - Issue: #996 — https://github.com/microboxlabs/coordinador-webclient/issues/996
+
+## 📊 Beneficios
+
+- **🔄 Sincronización bidireccional**: El sistema ahora maneja tanto asignación como des-asignación automática de recursos.
+- **✅ Consistencia de workflow**: Las tareas siempre reflejan el estado real de las asignaciones del servicio.
+- **🛡️ Protección de operaciones activas**: Los viajes en curso no se ven afectados por cambios de asignación externos.
+- **🚫 Eliminación de estados huérfanos**: No más tareas en `presentDriver` o `prepareService` sin conductor/camión asignado.
+- **⚡ Automatización operativa**: Reduce la intervención manual necesaria para corregir inconsistencias.
+- **🔍 Trazabilidad mejorada**: El flujo de trabajo siempre representa el estado correcto del servicio.
+
+## 📌 Conclusión
+
+La versión 1.25.5 introduce una mejora significativa en la gestión del ciclo de vida de asignaciones de conductor y transporte. Al implementar la lógica de des-asignación automática, el sistema ahora puede reaccionar de forma inteligente cuando el sistema externo elimina las asignaciones de un servicio, retrocediendo el workflow al estado apropiado.
+
+Esta funcionalidad complementa la lógica existente de asignación automática (`assignDriver` → `presentDriver`), creando un flujo bidireccional completo. La protección de viajes activos (`monitorTrip` y posteriores) garantiza que las operaciones en curso no se vean interrumpidas por cambios administrativos en el sistema externo.

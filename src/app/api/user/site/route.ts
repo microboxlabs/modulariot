@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
   getUserSites,
-  getSiteLogoNodeId,
+  getSiteLogos,
   getSiteLogoContent,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { UserSiteResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
@@ -21,7 +21,8 @@ export async function GET() {
     if (!sites || sites.length === 0) {
       const response: UserSiteResponse = {
         site: null,
-        logoUrl: null,
+        logoUrlLight: null,
+        logoUrlDark: null,
       };
       return NextResponse.json(response);
     }
@@ -29,18 +30,23 @@ export async function GET() {
     // Use the first site (primary site)
     const primarySite = sites[0];
 
-    // Try to get the logo node (SVG first, then PNG)
-    const logoNode = await getSiteLogoNodeId(session, primarySite.shortName);
+    // Get theme-specific logos (light and dark variants)
+    const logos = await getSiteLogos(session, primarySite.shortName);
 
-    let logoUrl: string | null = null;
-    if (logoNode) {
-      // Get the logo content as base64 data URL
-      logoUrl = await getSiteLogoContent(session, logoNode.nodeId, logoNode.mimeType);
-    }
+    // Fetch logo content for both themes in parallel
+    const [logoUrlLight, logoUrlDark] = await Promise.all([
+      logos.light
+        ? getSiteLogoContent(session, logos.light.nodeId, logos.light.mimeType)
+        : null,
+      logos.dark
+        ? getSiteLogoContent(session, logos.dark.nodeId, logos.dark.mimeType)
+        : null,
+    ]);
 
     const response: UserSiteResponse = {
       site: primarySite,
-      logoUrl,
+      logoUrlLight,
+      logoUrlDark,
     };
 
     return NextResponse.json(response);

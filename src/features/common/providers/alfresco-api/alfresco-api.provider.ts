@@ -684,12 +684,24 @@ export async function getUserSites(session: Session): Promise<UserSite[]> {
 }
 
 /**
- * Supported logo file formats in order of preference
+ * Logo file configurations for different themes
+ * Order matters - first match wins
  */
-const LOGO_FORMATS = [
+const LOGO_LIGHT_THEME = [
+  { filename: "logo-black.svg", mimeType: "image/svg+xml" },
+  { filename: "logo-black.png", mimeType: "image/png" },
   { filename: "logo.svg", mimeType: "image/svg+xml" },
   { filename: "logo.png", mimeType: "image/png" },
 ] as const;
+
+const LOGO_DARK_THEME = [
+  { filename: "logo-white.svg", mimeType: "image/svg+xml" },
+  { filename: "logo-white.png", mimeType: "image/png" },
+  { filename: "logo.svg", mimeType: "image/svg+xml" },
+  { filename: "logo.png", mimeType: "image/png" },
+] as const;
+
+type LogoFormat = { filename: string; mimeType: string };
 
 /**
  * Tries to get a logo node by filename from a site's document library
@@ -697,7 +709,8 @@ const LOGO_FORMATS = [
 async function tryGetLogoNode(
   session: Session,
   siteName: string,
-  filename: string
+  filename: string,
+  mimeType: string
 ): Promise<{ nodeId: string; mimeType: string } | null> {
   try {
     const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/${encodeURIComponent(siteName)}/documentLibrary/branding/${filename}`;
@@ -711,32 +724,61 @@ async function tryGetLogoNode(
     const nodeId = response?.entry?.id;
     if (!nodeId) return null;
 
-    const format = LOGO_FORMATS.find((f) => f.filename === filename);
-    return { nodeId, mimeType: format?.mimeType ?? "image/png" };
+    return { nodeId, mimeType };
   } catch {
     return null;
   }
 }
 
 /**
- * Gets the logo node ID from a site's document library
- * Tries SVG first, then falls back to PNG
- * @param session - The user session
- * @param siteName - The site shortName
- * @returns Object with node ID and mime type, or null if not found
+ * Finds the first available logo from a list of formats
  */
-export async function getSiteLogoNodeId(
+async function findFirstAvailableLogo(
   session: Session,
-  siteName: string
+  siteName: string,
+  formats: readonly LogoFormat[]
 ): Promise<{ nodeId: string; mimeType: string } | null> {
-  // Try each format in order of preference (SVG first, then PNG)
-  for (const format of LOGO_FORMATS) {
-    const result = await tryGetLogoNode(session, siteName, format.filename);
+  for (const format of formats) {
+    const result = await tryGetLogoNode(session, siteName, format.filename, format.mimeType);
     if (result) {
       return result;
     }
   }
   return null;
+}
+
+/**
+ * Gets theme-specific logos for a site
+ * @param session - The user session
+ * @param siteName - The site shortName
+ * @returns Object with light and dark theme logo nodes
+ */
+export async function getSiteLogos(
+  session: Session,
+  siteName: string
+): Promise<{
+  light: { nodeId: string; mimeType: string } | null;
+  dark: { nodeId: string; mimeType: string } | null;
+}> {
+  // Fetch both theme variants in parallel
+  const [light, dark] = await Promise.all([
+    findFirstAvailableLogo(session, siteName, LOGO_LIGHT_THEME),
+    findFirstAvailableLogo(session, siteName, LOGO_DARK_THEME),
+  ]);
+
+  return { light, dark };
+}
+
+/**
+ * @deprecated Use getSiteLogos instead for theme support
+ * Gets the logo node ID from a site's document library
+ * Tries SVG first, then falls back to PNG
+ */
+export async function getSiteLogoNodeId(
+  session: Session,
+  siteName: string
+): Promise<{ nodeId: string; mimeType: string } | null> {
+  return findFirstAvailableLogo(session, siteName, LOGO_LIGHT_THEME);
 }
 
 /**

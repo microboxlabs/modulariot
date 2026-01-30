@@ -439,8 +439,12 @@ export type UserSite = {
 
 /**
  * Response for user site with logo information
+ * Supports theme-specific logos (light/dark mode)
  */
 export type UserSiteResponse = {
   site: UserSite | null;
-  logoUrl: string | null;
+  /** Logo for light theme (logo-black or fallback to logo) */
+  logoUrlLight: string | null;
+  /** Logo for dark theme (logo-white or fallback to logo) */
+  logoUrlDark: string | null;
 };

@@ -86,8 +86,12 @@ export function useMyTasksCount() {
 }
 
 /**
- * Hook to fetch the user's site and logo
+ * Hook to fetch the user's site and theme-specific logos
  * Caches the result and doesn't refetch on focus to minimize API calls
+ * 
+ * Logo priority:
+ * - Light theme: logo-black.svg → logo-black.png → logo.svg → logo.png
+ * - Dark theme: logo-white.svg → logo-white.png → logo.svg → logo.png
  */
 export function useUserSite() {
   const { data, error, isLoading } = useSWR<UserSiteResponse, FetcherError>(
@@ -106,7 +110,10 @@ export function useUserSite() {
     isLoading,
     siteName: data?.site?.shortName ?? null,
     siteTitle: data?.site?.title ?? null,
-    logoUrl: data?.logoUrl ?? null,
+    /** Logo for light theme (logo-black or fallback) */
+    logoUrlLight: data?.logoUrlLight ?? null,
+    /** Logo for dark theme (logo-white or fallback) */
+    logoUrlDark: data?.logoUrlDark ?? null,
   };
 }
 

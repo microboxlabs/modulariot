@@ -22,14 +22,17 @@ import { useDebouncedCallback } from "use-debounce";
 import { useUserSite } from "@/features/common/providers/client-api.provider";
 
 /**
- * Renders the navbar logo with loading, custom, and default states
+ * Renders the navbar logo with theme support
+ * Uses CSS to switch between light/dark logos instantly
  */
 function NavbarLogo({
   isLoading,
-  logoUrl,
+  logoUrlLight,
+  logoUrlDark,
 }: Readonly<{
   isLoading: boolean;
-  logoUrl: string | null;
+  logoUrlLight: string | null;
+  logoUrlDark: string | null;
 }>) {
   if (isLoading) {
     return (
@@ -37,19 +40,55 @@ function NavbarLogo({
     );
   }
 
-  if (logoUrl) {
+  // If we have theme-specific logos, render both and use CSS to show the correct one
+  if (logoUrlLight || logoUrlDark) {
     return (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img
-        className="mr-3 h-8 object-contain"
-        alt="Company logo"
-        src={logoUrl}
-        width={150}
-        height={32}
-      />
+      <>
+        {/* Light theme logo (hidden in dark mode) */}
+        {logoUrlLight && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            className="mr-3 h-8 object-contain block dark:hidden"
+            alt="Company logo"
+            src={logoUrlLight}
+            width={150}
+            height={32}
+          />
+        )}
+        {/* Dark theme logo (hidden in light mode) */}
+        {logoUrlDark && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            className="mr-3 h-8 object-contain hidden dark:block"
+            alt="Company logo"
+            src={logoUrlDark}
+            width={150}
+            height={32}
+          />
+        )}
+        {/* Fallback for light mode if only dark logo exists */}
+        {!logoUrlLight && logoUrlDark && (
+          <Image
+            className="mr-3 h-8 block dark:hidden"
+            alt="Mintral logo"
+            src={defaultLogoImage}
+            width={150}
+          />
+        )}
+        {/* Fallback for dark mode if only light logo exists */}
+        {logoUrlLight && !logoUrlDark && (
+          <Image
+            className="mr-3 h-8 hidden dark:block"
+            alt="Mintral logo"
+            src={defaultLogoImage}
+            width={150}
+          />
+        )}
+      </>
     );
   }
 
+  // No custom logos - show default
   return (
     <Image
       className="mr-3 h-8"
@@ -75,7 +114,7 @@ export function SecuredNavbar({
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
   const { data: notifications } = useLoadNotifications();
-  const { logoUrl, isLoading: isLoadingLogo } = useUserSite();
+  const { logoUrlLight, logoUrlDark, isLoading: isLoadingLogo } = useUserSite();
 
   let unreadNotifications = 0;
   if (
@@ -158,7 +197,7 @@ export function SecuredNavbar({
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
             <NavbarBrand as={Link} href="/">
-              <NavbarLogo isLoading={isLoadingLogo} logoUrl={logoUrl} />
+              <NavbarLogo isLoading={isLoadingLogo} logoUrlLight={logoUrlLight} logoUrlDark={logoUrlDark} />
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">

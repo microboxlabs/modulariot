@@ -78,9 +78,46 @@ export const authConfigSchema = z.object({
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 
 /**
- * Default configuration matching current Mintral setup
+ * Default configuration with OAuth providers and SAML SSO
+ *
+ * To use the legacy Mintral setup (Microsoft + credentials), set:
+ * AUTH_PROVIDERS=microsoft-entra-id*,credentials
  */
 export const DEFAULT_AUTH_CONFIG: AuthConfig = {
+  providers: [
+    {
+      id: "google",
+      name: "pages.login.buttons.google",
+      type: "oauth",
+      provider: "google",
+      icon: "google",
+    },
+    {
+      id: "github",
+      name: "pages.login.buttons.github",
+      type: "oauth",
+      provider: "github",
+      icon: "github",
+    },
+    {
+      id: "saml",
+      name: "pages.login.buttons.saml",
+      type: "saml",
+      icon: "saml",
+      primary: true,
+      teamSlugRequired: true,
+    },
+  ],
+  dividerText: "pages.login.divider",
+  teamSlugLabel: "pages.login.teamSlug.label",
+  teamSlugPlaceholder: "pages.login.teamSlug.placeholder",
+};
+
+/**
+ * Legacy Mintral configuration (Microsoft Entra ID + credentials)
+ * Use by setting: AUTH_PROVIDERS=microsoft-entra-id*,credentials
+ */
+export const LEGACY_MINTRAL_CONFIG: AuthConfig = {
   providers: [
     {
       id: "microsoft-entra-id",
@@ -97,5 +134,5 @@ export const DEFAULT_AUTH_CONFIG: AuthConfig = {
       icon: "user",
     },
   ],
-  dividerText: "o",
+  dividerText: "pages.login.divider",
 };

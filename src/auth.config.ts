@@ -3,6 +3,8 @@ import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import Google from "next-auth/providers/google";
+import GitHub from "next-auth/providers/github";
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
 import {
@@ -10,6 +12,71 @@ import {
   processTokenRefresh,
   cleanupRefreshTokens,
 } from "@/features/auth/providers/entra-token/entra-token-ecm.service";
+
+/**
+ * Builds the list of authentication providers based on available environment variables.
+ * Providers are only included if their required credentials are configured.
+ */
+function buildAuthProviders(): NextAuthConfig["providers"] {
+  const providers: NextAuthConfig["providers"] = [];
+
+  // Microsoft Entra ID - only add if configured
+  if (
+    process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+    process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+    process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
+  ) {
+    providers.push(
+      MicrosoftEntraID({
+        clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+        clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+        issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+        authorization: {
+          params: {
+            scope: "openid profile email User.Read offline_access",
+          },
+        },
+      })
+    );
+  }
+
+  // Google OAuth - only add if configured
+  if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+    providers.push(
+      Google({
+        clientId: process.env.AUTH_GOOGLE_ID,
+        clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      })
+    );
+  }
+
+  // GitHub OAuth - only add if configured
+  if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
+    providers.push(
+      GitHub({
+        clientId: process.env.AUTH_GITHUB_ID,
+        clientSecret: process.env.AUTH_GITHUB_SECRET,
+      })
+    );
+  }
+
+  // Credentials provider - always available
+  providers.push(
+    Credentials({
+      id: "credentials",
+      name: "Credentials",
+      credentials: {
+        username: { label: "Username", type: "text", placeholder: "jsmith" },
+        password: { label: "Password", type: "password" },
+      },
+      authorize: async (credentials) => {
+        return signInWithCredentials(credentials as SignInCredentials);
+      },
+    })
+  );
+
+  return providers;
+}
 
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
@@ -186,29 +253,7 @@ export const authConfig = {
     },
   },
 
-  providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-      authorization: {
-        params: {
-          scope: "openid profile email User.Read offline_access",
-        },
-      },
-    }),
-    Credentials({
-      id: "credentials",
-      name: "Credentials",
-      credentials: {
-        username: { label: "Username", type: "text", placeholder: "jsmith" },
-        password: { label: "Password", type: "password" },
-      },
-      authorize: async (credentials) => {
-        return signInWithCredentials(credentials as SignInCredentials);
-      },
-    }),
-  ],
+  providers: buildAuthProviders(),
 
   logger: {
     error(error: Error) {

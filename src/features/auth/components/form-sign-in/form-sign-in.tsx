@@ -1,21 +1,23 @@
 "use client";
 
-import {
-  authenticateAction,
-  signInWithMicrosoft,
-} from "@/features/auth/services/auth.service";
-import { Button } from "flowbite-react";
-import { Windows } from "flowbite-react-icons/solid";
+import { authenticateAction, signInWithProvider, signInWithSaml } from "@/features/auth/services/auth.service";
 import { FormSignInProps } from "./form-sign-in.types";
-import React, { useActionState, useEffect, useState } from "react";
+import React, { useActionState, useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
 import SignIn from "./sign-in";
-//import { useRouter } from "next/navigation";
+import { LoginButton } from "../login-button";
+import { LoginDivider } from "../login-divider";
+import { TeamSlugInput } from "../team-slug-input";
 
-export default function FormSignIn({ messages: msg }: FormSignInProps) {
-  //const router = useRouter();
+export default function FormSignIn({
+  messages: msg,
+  authConfig,
+  providerLabels,
+  dividerText,
+  samlLabels,
+}: FormSignInProps) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: { email: "", password: "" },
@@ -24,7 +26,10 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
   const { register } = form;
   const [_state, formAction] = useActionState(authenticateAction, {});
   const [pending, setPending] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showCredentialsForm, setShowCredentialsForm] = useState(false);
+  const [teamSlug, setTeamSlug] = useState("");
+  const [teamSlugError, setTeamSlugError] = useState<string | undefined>();
+  const [showTeamSlugInput, setShowTeamSlugInput] = useState(false);
 
   useEffect(() => {
     if (_state?.success) {
@@ -46,9 +51,43 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
         : message;
   };
 
-  return (
-    <form className="space-y-6" action={formAction}>
-      {showLogin ? (
+  // Get OAuth providers (non-SAML)
+  const oauthProviders = authConfig.providers.filter((p) => p.type === "oauth");
+  // Get SAML provider (if any)
+  const samlProvider = authConfig.providers.find((p) => p.type === "saml");
+  // Get credentials provider (if any)
+  const credentialsProvider = authConfig.providers.find((p) => p.type === "credentials");
+
+  // Create sign-in action for OAuth provider
+  const createOAuthAction = useCallback((providerId: string) => {
+    return async () => {
+      await signInWithProvider(providerId);
+    };
+  }, []);
+
+  // Handle SAML sign-in with two-step flow
+  // First click: reveal the team slug input
+  // Second click: validate and submit
+  const handleSamlSignIn = useCallback(async () => {
+    // If team slug is required and input is not visible yet, show it first
+    if (samlProvider?.teamSlugRequired && !showTeamSlugInput) {
+      setShowTeamSlugInput(true);
+      return;
+    }
+
+    // If team slug is required, validate before submitting
+    if (samlProvider?.teamSlugRequired && !teamSlug.trim()) {
+      setTeamSlugError(samlLabels?.teamSlugRequired ?? "Team slug is required");
+      return;
+    }
+    setTeamSlugError(undefined);
+    await signInWithSaml(teamSlug);
+  }, [teamSlug, samlProvider?.teamSlugRequired, samlLabels?.teamSlugRequired, showTeamSlugInput]);
+
+  // If showing credentials form
+  if (showCredentialsForm && credentialsProvider) {
+    return (
+      <form className="space-y-6" action={formAction}>
         <SignIn
           msg={msg}
           register={register}
@@ -56,34 +95,88 @@ export default function FormSignIn({ messages: msg }: FormSignInProps) {
           pending={pending}
           onSubmitForm={onSubmitForm}
           getMessages={getMessages}
-          setShowLogin={setShowLogin}
+          setShowLogin={setShowCredentialsForm}
         />
-      ) : (
-        <div className="flex flex-col gap-y-2">
-          <Button
-            color="blue"
-            // theme={{ inner: { base: "px-5 py-3" } }}
-            className="w-full px-0 py-px"
-            type="submit"
-            formAction={signInWithMicrosoft}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Windows className="h-5 w-5" />
-              {msg.buttonContinueWithMicrosoft}
-            </div>
-          </Button>
-          <div className="flex gap-1 flex-col text-sm justify-center items-center text-gray-500">
-            <p>o</p>
+      </form>
+    );
+  }
+
+  // Check if we need a divider (between OAuth and SAML/credentials)
+  const hasSamlOrCredentials = samlProvider || credentialsProvider;
+  const needsDivider = oauthProviders.length > 0 && hasSamlOrCredentials;
+
+  return (
+    <form className="space-y-6" action={formAction}>
+      <div className="flex flex-col gap-y-3">
+        {/* Render OAuth providers as buttons */}
+        {oauthProviders.map((provider) => (
+          <LoginButton
+            key={provider.id}
+            provider={provider}
+            label={providerLabels[provider.id] ?? provider.name}
+            formAction={createOAuthAction(provider.provider ?? provider.id)}
+            isPrimary={provider.primary}
+          />
+        ))}
+
+        {/* Render divider if needed */}
+        {needsDivider && <LoginDivider text={dividerText} />}
+
+        {/* Render SAML section if configured */}
+        {samlProvider && samlLabels && (
+          <div className="flex flex-col gap-y-3">
+            {/* Team slug input (shown only after first button click) */}
+            {samlProvider.teamSlugRequired && showTeamSlugInput && (
+              <TeamSlugInput
+                label={samlLabels.teamSlugLabel}
+                placeholder={samlLabels.teamSlugPlaceholder}
+                value={teamSlug}
+                onChange={(value) => {
+                  setTeamSlug(value);
+                  if (teamSlugError) setTeamSlugError(undefined);
+                }}
+                error={teamSlugError}
+              />
+            )}
+            {/* SAML button */}
+            <LoginButton
+              provider={samlProvider}
+              label={providerLabels[samlProvider.id] ?? samlProvider.name}
+              onClick={handleSamlSignIn}
+              isPrimary={samlProvider.primary}
+            />
+          </div>
+        )}
+
+        {/* Render credentials link if configured */}
+        {credentialsProvider && (
+          <div className="flex justify-center">
             <a
               href="#"
               className="text-center hover:underline cursor-pointer text-blue-700 text-md"
-              onClick={() => setShowLogin(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                setShowCredentialsForm(true);
+              }}
             >
-              {msg.buttonContinueWithEmail}
+              {providerLabels[credentialsProvider.id] ?? credentialsProvider.name}
             </a>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* If only credentials provider and no OAuth/SAML, show form directly */}
+        {credentialsProvider && oauthProviders.length === 0 && !samlProvider && (
+          <SignIn
+            msg={msg}
+            register={register}
+            _state={_state}
+            pending={pending}
+            onSubmitForm={onSubmitForm}
+            getMessages={getMessages}
+            setShowLogin={setShowCredentialsForm}
+          />
+        )}
+      </div>
     </form>
   );
 }

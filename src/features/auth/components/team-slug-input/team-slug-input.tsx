@@ -4,7 +4,7 @@ import { Label, TextInput } from "flowbite-react";
 import type { TeamSlugInputProps } from "./team-slug-input.types";
 
 // Info circle icon as inline SVG
-function InfoIcon({ className }: { className?: string }) {
+function InfoIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg
       className={className}

@@ -120,6 +120,70 @@ body {
   color: var(--card-icon-color);
 }
 
+/* Postman Intro with Icon */
+.postman-intro {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
+.postman-intro .postman-logo {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.postman-intro span {
+  line-height: 1.5;
+}
+
+/* Download Button */
+.download-btn {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background-color: var(--card-bg);
+  color: var(--foreground);
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease, background-color 0.2s ease;
+}
+
+.download-btn:hover {
+  border-color: var(--card-hover-border);
+  background-color: var(--quick-link-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+.download-btn:active {
+  transform: translateY(0);
+}
+
+.download-btn svg {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  stroke: var(--foreground);
+}
+
+@media (prefers-color-scheme: dark) {
+  .download-btn:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
 /* Dark mode image handling */
 .imgDark {
   display: none;

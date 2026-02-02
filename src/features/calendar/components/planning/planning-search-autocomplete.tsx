@@ -88,7 +88,7 @@ function DropdownContent({
   onMouseEnter,
   getMatchTypeIcon,
   getMatchTypeLabel,
-}: {
+}: Readonly<{
   isLoading: boolean;
   searchResults: GroupedSearchResult[];
   selectedIndex: number;
@@ -98,7 +98,7 @@ function DropdownContent({
   onMouseEnter: (index: number) => void;
   getMatchTypeIcon: (matchType: MatchType) => React.ReactNode;
   getMatchTypeLabel: (matchType: MatchType) => string;
-}) {
+}>) {
   if (isLoading) {
     return (
       <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">

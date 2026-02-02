@@ -44,10 +44,15 @@ function useETAData(
     allValues.mintral_etaMode as string
   );
 
+  const normalizeError = (error: unknown): Error | null => {
+    if (!error) return null;
+    return error instanceof Error ? error : new Error(String(error));
+  };
+
   return {
     data: result.eta ?? null,
     isLoading: result.isLoading,
-    error: result.error ? (result.error instanceof Error ? result.error : new Error(String(result.error))) : null,
+    error: normalizeError(result.error),
   };
 }
 

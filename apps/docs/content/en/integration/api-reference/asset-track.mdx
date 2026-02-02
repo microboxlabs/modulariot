@@ -45,14 +45,13 @@ Authorization: Bearer <access_token>
     "heading": 180
   },
   "metrics": {
-    "schema_version": "1.0",
-    "device_id": "obd-reader-001",
-    "timestamp": "2024-10-22T14:23:45Z",
-    "metrics": [
-      { "key": "engine.rpm", "value": 2500 },
-      { "key": "vehicle.speed", "value": 72 },
-      { "key": "fuel.level", "value": 65 }
-    ]
+    "schema": "miot.metrics@1.0",
+    "items": [
+      { "k": "engine.rpm", "v": 2500, "u": "rpm", "src": "obd2", "q": "ok" },
+      { "k": "vehicle.speed", "v": 72, "u": "km/h", "src": "obd2", "q": "ok" },
+      { "k": "fuel.level", "v": 65, "u": "%", "src": "obd2", "q": "ok" }
+    ],
+    "seq": 12345
   }
 }
 ```
@@ -99,23 +98,65 @@ Authorization: Bearer <access_token>
 
 ### Metrics Object (miot.metrics@1.0)
 
-For sending canonical vehicle/IoT metrics:
+For sending canonical vehicle/IoT metrics using the standardized envelope:
 
 ```json
 {
-  "schema_version": "1.0",
-  "device_id": "obd-reader-001",
-  "timestamp": "2024-10-22T14:23:45Z",
-  "metrics": [
-    { "key": "engine.rpm", "value": 2500 },
-    { "key": "vehicle.speed", "value": 72 },
-    { "key": "engine.coolant_temp", "value": 85 },
-    { "key": "fuel.level", "value": 65 }
-  ]
+  "schema": "miot.metrics@1.0",
+  "items": [
+    { "k": "engine.rpm", "v": 2150, "u": "rpm", "src": "obd2", "q": "ok" },
+    { "k": "engine.coolant_temp", "v": 91, "u": "C", "src": "obd2", "q": "ok" },
+    { "k": "battery.voltage", "v": 13.9, "u": "V", "src": "obd2", "q": "ok" },
+    { "k": "vehicle.speed", "v": 65, "u": "km/h", "src": "obd2", "q": "ok" }
+  ],
+  "seq": 12345,
+  "device_ts": "2024-10-22T14:23:45Z"
 }
 ```
 
+#### MetricsEnvelope Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema` | string | **Yes** | Must be `"miot.metrics@1.0"` |
+| `items` | array | **Yes** | Array of MetricItem objects (min 1, max 200) |
+| `seq` | integer | No | Device sequence number for ordering/deduplication |
+| `device_ts` | string | No | Device clock timestamp (RFC3339) |
+| `capabilities` | object | No | Opaque metadata about supported metrics |
+
+#### MetricItem Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `k` | string | **Yes** | Canonical metric key (e.g., `engine.rpm`) |
+| `v` | any | **Yes** | Value (number, boolean, string, object, or array) |
+| `u` | string | No | Canonical unit (e.g., `rpm`, `km/h`, `C`, `V`, `%`) |
+| `ts` | string | No | Timestamp override for this item (RFC3339) |
+| `src` | string | No | Source: `obd2`, `j1939`, `can`, `oem`, `derived`, `unknown` |
+| `q` | string | No | Quality: `ok`, `estimated`, `stale`, `invalid`, `missing` |
+| `meta` | object | No | Opaque metadata for traceability (PID, SPN, CAN ID) |
+
+> **Key pattern:** Metric keys must match `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,5}$` (2-6 dot-separated lowercase segments)
+
 → See **Reference > Metrics Registry** for all available canonical metric keys.
+
+### Sensors Object
+
+For GPS devices that send sensor data directly (without OBD-II or CAN BUS connection):
+
+```json
+{
+  "odometer": 125432.5,
+  "engine_status": 1
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `odometer` | number | Total distance traveled in kilometers |
+| `engine_status` | integer | Engine state: `1` = on, `0` = off |
+
+> Use this object when the GPS device provides odometer and engine status readings directly, without relying on the vehicle's diagnostic bus.
 
 ---
 
@@ -156,6 +197,23 @@ Returned when the token is invalid or expired.
   "detail": "Connection timeout"
 }
 ```
+
+---
+
+## Postman Collection
+
+Download our ready-to-use Postman collection with all examples:
+
+<a href="/collections/miot-metrics-postman-collection.json" download className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 no-underline font-medium">
+  Download Postman Collection
+</a>
+
+The collection includes:
+- **Authentication** - Pre-configured Auth0 login flow
+- **Track with GPS and Metrics** - Basic OBD2 metrics example
+- **Track with Batched Metrics** - Multiple timestamped metrics
+- **Track with Full Telemetry** - Comprehensive example with all fields
+- **Track with DTC Codes** - Diagnostic trouble codes example
 
 ---
 
@@ -232,16 +290,120 @@ curl --request POST \
       "speed": 65.5
     },
     "metrics": {
-      "schema_version": "1.0",
-      "device_id": "obd-reader-001",
-      "timestamp": "2024-01-15T10:30:00Z",
-      "metrics": [
-        { "key": "engine.rpm", "value": 2500 },
-        { "key": "vehicle.speed", "value": 72 },
-        { "key": "engine.coolant_temp", "value": 85 },
-        { "key": "fuel.level", "value": 65 },
-        { "key": "battery.voltage", "value": 14.2 }
-      ]
+      "schema": "miot.metrics@1.0",
+      "items": [
+        { "k": "engine.rpm", "v": 2500, "u": "rpm", "src": "obd2", "q": "ok" },
+        { "k": "vehicle.speed", "v": 72, "u": "km/h", "src": "obd2", "q": "ok" },
+        { "k": "engine.coolant_temp", "v": 85, "u": "C", "src": "obd2", "q": "ok" },
+        { "k": "fuel.level", "v": 65, "u": "%", "src": "obd2", "q": "ok" },
+        { "k": "battery.voltage", "v": 14.2, "u": "V", "src": "obd2", "q": "ok" }
+      ],
+      "seq": 1001
+    }
+  }'
+```
+
+### With Batched Metrics (Multiple Timestamps)
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-004' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:30Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 58
+    },
+    "metrics": {
+      "schema": "miot.metrics@1.0",
+      "items": [
+        { "k": "engine.rpm", "v": 1800, "u": "rpm", "ts": "2024-01-15T10:30:10Z", "src": "obd2" },
+        { "k": "engine.rpm", "v": 1950, "u": "rpm", "ts": "2024-01-15T10:30:20Z", "src": "obd2" },
+        { "k": "engine.rpm", "v": 2100, "u": "rpm", "ts": "2024-01-15T10:30:30Z", "src": "obd2" },
+        { "k": "vehicle.speed", "v": 52, "u": "km/h", "ts": "2024-01-15T10:30:10Z", "src": "obd2" },
+        { "k": "vehicle.speed", "v": 55, "u": "km/h", "ts": "2024-01-15T10:30:20Z", "src": "obd2" },
+        { "k": "vehicle.speed", "v": 58, "u": "km/h", "ts": "2024-01-15T10:30:30Z", "src": "obd2" }
+      ],
+      "seq": 1002,
+      "device_ts": "2024-01-15T10:30:30Z"
+    }
+  }'
+```
+
+### With DTC Codes (Diagnostic Trouble Codes)
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-005' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 45
+    },
+    "metrics": {
+      "schema": "miot.metrics@1.0",
+      "items": [
+        { "k": "engine.rpm", "v": 2400, "u": "rpm", "src": "obd2", "q": "ok" },
+        { "k": "engine.coolant_temp", "v": 105, "u": "C", "src": "obd2", "q": "ok" },
+        { "k": "dtc.mil_on", "v": true, "src": "obd2", "q": "ok" },
+        { "k": "dtc.count", "v": 2, "src": "obd2", "q": "ok" },
+        {
+          "k": "dtc.codes",
+          "v": ["P0217", "P0128"],
+          "src": "obd2",
+          "q": "ok",
+          "meta": {
+            "descriptions": {
+              "P0217": "Engine Coolant Over Temperature Condition",
+              "P0128": "Coolant Thermostat Below Regulating Temperature"
+            }
+          }
+        }
+      ],
+      "seq": 1003
+    }
+  }'
+```
+
+### With GPS-Connected Sensors (No OBD-II/CAN BUS)
+
+For GPS devices that provide odometer and engine status directly:
+
+```bash
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/asset/track \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Content-Type: application/json' \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-004' \
+  --header 'X-Request-Timestamp: 1705315800' \
+  --data '{
+    "asset_id": "A123456789",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "gps": {
+      "latitude": -33.4489,
+      "longitude": -70.6693,
+      "speed": 65.5,
+      "heading": 180
+    },
+    "sensors": {
+      "odometer": 125432.5,
+      "engine_status": 1
     }
   }'
 ```
@@ -261,7 +423,7 @@ auth = AuthToken(
     grant_type="client_credentials"
 )
 
-# Send tracking data
+# Send tracking data with metrics
 response = requests.post(
     "https://iot.streamhub.cl/v1/asset/track",
     headers={
@@ -280,13 +442,14 @@ response = requests.post(
             "speed": 65.5
         },
         "metrics": {
-            "schema_version": "1.0",
-            "device_id": "obd-reader-001",
-            "timestamp": "2024-01-15T10:30:00Z",
-            "metrics": [
-                {"key": "engine.rpm", "value": 2500},
-                {"key": "vehicle.speed", "value": 72}
-            ]
+            "schema": "miot.metrics@1.0",
+            "items": [
+                {"k": "engine.rpm", "v": 2500, "u": "rpm", "src": "obd2", "q": "ok"},
+                {"k": "vehicle.speed", "v": 72, "u": "km/h", "src": "obd2", "q": "ok"},
+                {"k": "engine.coolant_temp", "v": 85, "u": "C", "src": "obd2", "q": "ok"},
+                {"k": "fuel.level", "v": 65, "u": "%", "src": "obd2", "q": "ok"}
+            ],
+            "seq": 1001
         }
     }
 )
@@ -300,16 +463,20 @@ print(response.json())
 
 Quick reference for frequently used canonical metrics:
 
-| Key | Description | Unit |
-|-----|-------------|------|
-| `engine.rpm` | Engine speed | rpm |
-| `vehicle.speed` | Vehicle speed | km/h |
-| `fuel.level` | Fuel tank level | % |
-| `engine.coolant_temp` | Coolant temperature | °C |
-| `battery.voltage` | Battery voltage | V |
-| `odometer` | Total distance | km |
+| Key | Description | Unit | Source |
+|-----|-------------|------|--------|
+| `engine.rpm` | Engine speed | rpm | OBD PID 0C |
+| `vehicle.speed` | Vehicle speed | km/h | OBD PID 0D |
+| `fuel.level` | Fuel tank level | % | OBD PID 2F |
+| `engine.coolant_temp` | Coolant temperature | C | OBD PID 05 |
+| `engine.load` | Calculated engine load | % | OBD PID 04 |
+| `battery.voltage` | Battery/system voltage | V | OBD PID 42 |
+| `vehicle.odometer` | Total distance | km | OBD PID 31 |
+| `throttle.position` | Throttle opening | % | OBD PID 11 |
+| `dtc.mil_on` | Check engine light status | bool | OBD PID 01 |
+| `dtc.codes` | Active trouble codes | array | OBD Mode 03 |
 
-→ See **Reference > Metrics Registry** for the complete catalog of 31 canonical metrics.
+→ See **Reference > Metrics Registry** for the complete catalog of canonical metrics.
 
 ---
 

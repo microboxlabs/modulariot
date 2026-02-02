@@ -1,0 +1,237 @@
+{
+  "info": {
+    "_postman_id": "miot-metrics-api-v1",
+    "name": "ModularIoT Metrics API",
+    "description": "API collection for sending telemetry data with metrics to ModularIoT using the miot.metrics@1.0 schema.\n\n## Setup\n\n1. Import this collection into Postman\n2. Create an environment with the following variables:\n   - `base_url`: https://iot.streamhub.cl\n   - `auth_url`: https://api.microboxlabs.com/api/v1/login\n   - `client_id`: Your client ID\n   - `client_secret`: Your client secret\n   - `audience`: https://iot.streamhub.cl/v1/asset/track\n3. Run the \"Login\" request first to get an access token\n4. The token will be automatically saved and used in subsequent requests\n\n## Documentation\n\nSee https://docs.modulariot.io/integration/api-reference/asset-track for full API documentation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://iot.streamhub.cl",
+      "type": "string"
+    },
+    {
+      "key": "auth_url",
+      "value": "https://api.microboxlabs.com/api/v1/login",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "YOUR_CLIENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "YOUR_CLIENT_SECRET",
+      "type": "string"
+    },
+    {
+      "key": "audience",
+      "value": "https://iot.streamhub.cl/v1/asset/track",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
+                  "    console.log('Token saved successfully');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"audience\": \"{{audience}}\",\n  \"grant_type\": \"client_credentials\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}",
+              "host": ["{{auth_url}}"]
+            },
+            "description": "Authenticate with Auth0 to get an access token. The token is automatically saved to the collection variables."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Asset Tracking",
+      "item": [
+        {
+          "name": "Track with GPS and Metrics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T15:30:00Z\",\n  \"gps\": {\n    \"latitude\": -33.437913,\n    \"longitude\": -70.650456,\n    \"altitude\": 520,\n    \"speed\": 65,\n    \"heading\": 180,\n    \"satellites\": 12\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2150, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 91, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.9, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 65, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 72, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100001\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Basic example sending GPS location with common OBD2 metrics including engine RPM, coolant temperature, battery voltage, vehicle speed, fuel level, and MIL status."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with Batched Metrics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T15:30:30Z\",\n  \"gps\": {\n    \"latitude\": -33.440521,\n    \"longitude\": -70.648123,\n    \"altitude\": 515,\n    \"speed\": 58,\n    \"heading\": 175,\n    \"satellites\": 14\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 1800, \"u\": \"rpm\", \"ts\": \"2026-02-02T15:30:10Z\", \"src\": \"obd2\" },\n      { \"k\": \"engine.rpm\", \"v\": 1950, \"u\": \"rpm\", \"ts\": \"2026-02-02T15:30:20Z\", \"src\": \"obd2\" },\n      { \"k\": \"engine.rpm\", \"v\": 2100, \"u\": \"rpm\", \"ts\": \"2026-02-02T15:30:30Z\", \"src\": \"obd2\" },\n      { \"k\": \"vehicle.speed\", \"v\": 52, \"u\": \"km/h\", \"ts\": \"2026-02-02T15:30:10Z\", \"src\": \"obd2\" },\n      { \"k\": \"vehicle.speed\", \"v\": 55, \"u\": \"km/h\", \"ts\": \"2026-02-02T15:30:20Z\", \"src\": \"obd2\" },\n      { \"k\": \"vehicle.speed\", \"v\": 58, \"u\": \"km/h\", \"ts\": \"2026-02-02T15:30:30Z\", \"src\": \"obd2\" },\n      { \"k\": \"throttle.position\", \"v\": 35, \"u\": \"%\", \"ts\": \"2026-02-02T15:30:30Z\", \"src\": \"obd2\" },\n      { \"k\": \"engine.load\", \"v\": 42, \"u\": \"%\", \"ts\": \"2026-02-02T15:30:30Z\", \"src\": \"obd2\" }\n    ],\n    \"seq\": 100002,\n    \"device_ts\": \"2026-02-02T15:30:30Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Example showing multiple timestamped metrics in a single request. Useful for devices that buffer data and send in batches. Each metric item can have its own timestamp (ts) override."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with Full Telemetry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T16:00:00Z\",\n  \"gps\": {\n    \"latitude\": -33.452178,\n    \"longitude\": -70.639845,\n    \"altitude\": 498,\n    \"speed\": 0,\n    \"heading\": 90,\n    \"satellites\": 16\n  },\n  \"telecom\": {\n    \"iccid\": \"8956012345678901234\",\n    \"imei\": \"123456789012345\",\n    \"signal_strength\": -67\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true,\n    \"door_open\": false\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 850, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 88, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.intake_air_temp\", \"v\": 32, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 18, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.runtime\", \"v\": 7245, \"u\": \"s\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 0, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"throttle.position\", \"v\": 12, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 14.2, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 68, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.rate\", \"v\": 1.8, \"u\": \"L/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 142587, \"u\": \"km\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"idle.state\", \"v\": true, \"src\": \"derived\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.count\", \"v\": 0, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100003,\n    \"device_ts\": \"2026-02-02T16:00:00Z\",\n    \"capabilities\": {\n      \"obd2\": true,\n      \"can\": false,\n      \"supported_pids\": [\"04\", \"05\", \"0C\", \"0D\", \"0F\", \"11\", \"1F\", \"2F\", \"42\"]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Comprehensive example with GPS, telecom, sensors, and extensive metrics including engine data, fuel consumption, odometer, idling detection, and device capabilities. This represents a full-featured OBD2 integration."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with DTC Codes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T17:15:00Z\",\n  \"gps\": {\n    \"latitude\": -33.448912,\n    \"longitude\": -70.655234,\n    \"altitude\": 510,\n    \"speed\": 45,\n    \"heading\": 270,\n    \"satellites\": 11\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2400, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 105, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 45, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.1, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": true, \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.count\", \"v\": 2, \"src\": \"obd2\", \"q\": \"ok\" },\n      {\n        \"k\": \"dtc.codes\",\n        \"v\": [\"P0217\", \"P0128\"],\n        \"src\": \"obd2\",\n        \"q\": \"ok\",\n        \"meta\": {\n          \"descriptions\": {\n            \"P0217\": \"Engine Coolant Over Temperature Condition\",\n            \"P0128\": \"Coolant Thermostat Below Regulating Temperature\"\n          }\n        }\n      }\n    ],\n    \"seq\": 100004,\n    \"device_ts\": \"2026-02-02T17:15:00Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Example showing diagnostic trouble codes (DTCs) with check engine light on. Includes the MIL status, DTC count, and array of fault codes with optional metadata for descriptions."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

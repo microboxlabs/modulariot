@@ -1,0 +1,37 @@
+# 🔔 Release Notes v1.25.2 — ModularIoT
+
+### Fecha: 16/01/2026
+
+**Objetivo**: Optimizar el rendimiento de la aplicación mediante la migración de dependencias de fecha y corregir la sincronización de datos de viajes en tiempo real con servicios externos.
+
+## 🚀 Evolutivos
+
+- **📦 Migración de moment.js a dayjs**
+  - **Modernización de Dependencias**: Eliminación de moment.js (librería obsoleta desde 2020) y migración completa a dayjs, una alternativa moderna y ligera.
+  - **Reducción del Bundle**: Mejora significativa en el tamaño del bundle (~2KB de dayjs vs ~67KB de moment.js), optimizando los tiempos de carga de la aplicación.
+  - **Archivos Actualizados**: Migración de los componentes `signal-history-form.tsx`, `map-history-view.tsx` y `date-range-picker.tsx` para utilizar la API de dayjs.
+  - **Compatibilidad Mantenida**: La API similar entre moment.js y dayjs garantiza que todas las operaciones de fecha (format, subtract, startOf, endOf) funcionan de manera equivalente.
+  - **Mejora en Mantenibilidad**: Uso de una librería activamente mantenida, asegurando soporte a largo plazo y actualizaciones de seguridad.
+
+## 🐛 Correcciones
+
+- **🔄 Corrección de Notificación de ETA en Live Trip Updates**
+  - **Problema Identificado**: El método `notifyLiveTripUpdateForTask` no estaba manejando las actualizaciones de la Fecha Estimada de Llegada (ETA), impidiendo que los servicios modulares externos recibieran la información correctamente.
+  - **Solución Implementada**: Adición de lógica para extraer y formatear la variable `mintral_estimatedArrivalDate` de las variables del proceso, incluyéndola en el payload JSON enviado al servicio externo.
+  - **Soporte de Múltiples Formatos**: La solución maneja correctamente diferentes tipos de entrada: `String`, `Long` (epoch millis) y `Date`, convirtiéndolos al formato ISO 8601.
+  - **Sincronización Completa**: Los servicios modulares externos ahora reciben notificaciones completas cuando se actualiza el ETA en tareas de coordinación de envíos.
+
+## 📊 Beneficios
+
+- **⚡ Rendimiento Mejorado**: La reducción del tamaño del bundle de dependencias de fecha mejora significativamente los tiempos de carga de la aplicación.
+- **🔄 Sincronización de Datos en Tiempo Real**: La corrección del manejo de ETA asegura que los servicios externos reciban información actualizada y precisa sobre los viajes.
+- **🛡️ Mantenibilidad a Largo Plazo**: La migración a dayjs garantiza soporte continuo y actualizaciones de seguridad, a diferencia de moment.js que está en modo mantenimiento.
+- **📱 Experiencia de Usuario Optimizada**: Tiempos de carga más rápidos mejoran la experiencia general del usuario en la aplicación.
+- **🔗 Integración Confiable**: Los servicios modulares externos ahora reciben datos completos de viajes, incluyendo estimaciones de llegada, mejorando la coordinación logística.
+- **🧹 Código más Limpio**: Eliminación de dependencias obsoletas y simplificación del manejo de fechas en el código fuente.
+
+## 📌 Conclusión
+
+La versión 1.25.2 se centra en la optimización técnica y la corrección de integraciones críticas. La migración de moment.js a dayjs representa una mejora significativa en el rendimiento de la aplicación, reduciendo drásticamente el tamaño del bundle mientras se mantiene toda la funcionalidad de manipulación de fechas. Esta actualización también asegura que el proyecto utilice dependencias activamente mantenidas, lo cual es fundamental para la seguridad y estabilidad a largo plazo.
+
+Por otro lado, la corrección en el sistema de notificaciones de Live Trip Updates resuelve un problema importante en la sincronización de datos con servicios externos. La inclusión correcta del ETA en las notificaciones asegura que toda la cadena de coordinación logística tenga acceso a información precisa y actualizada sobre los tiempos estimados de llegada, mejorando la eficiencia operativa del sistema de coordinación de viajes.

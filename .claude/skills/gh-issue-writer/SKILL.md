@@ -1,7 +1,7 @@
----
+## claude---
+
 name: gh-issue-writer
 description: Create and publish GitHub issues with full project board integration. Use when the user wants to create feature requests (feat:) or bug reports (bug:), track work in GitHub Projects, and set up development branches.
----
 
 # GitHub Issue Writer
 
@@ -20,9 +20,11 @@ Use this skill when the user wants to:
 ### Step 1: Parse User Input
 
 1. Determine issue type from prefix:
+
 - `feat:` → Feature request
 - `bug:` → Bug report
-2. Extract the brief description and additional context
+
+1. Extract the brief description and additional context
 
 ### Step 2: Create the Issue
 

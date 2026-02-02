@@ -41,7 +41,7 @@ const getLocationLabel = (code: string, dict: I18nDictionary): string => {
   const locationKey = `pages.planning.sidebar.search.locationCodes.${code}`;
   const translated = tr(locationKey, dict);
   // If translation exists and is different from key, return it; otherwise return original code
-  return translated !== locationKey ? translated : code;
+  return translated === locationKey ? code : translated;
 };
 
 // Helper to get translated value based on match type

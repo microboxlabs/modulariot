@@ -21,7 +21,6 @@ import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "@/features/task-forms/services/form.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { transformBoardsToTableData } from "@/features/shipping/utils/transform-data";
@@ -176,102 +175,6 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     loadVolumeUtilization: task.mintral_loadVolumeUtilization,
   };
 }
-
-// Mock services commented out - using only real API data
-// const MOCK_SERVICES: SelectedService[] = [
-//   {
-//     id: "1045782-v",
-//     cliente: "Acme Corp",
-//     origen: "VAP",
-//     lugarCarguio: "Andén 5",
-//     destino: "ZOS",
-//     tipoViaje: "Sider",
-//     ocupacion: 85,
-//     permanencia: "24h",
-//     leadTime: {
-//       deadline: "2026-02-15",
-//       status: "on_time",
-//     },
-//     eta: "2026-02-16T14:30:00",
-//     incidencias: ["urgencia", "c4", "c5"],
-//     observaciones:
-//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "1045782-v",
-//     cliente: "Acme Corp",
-//     origen: "SCL",
-//     lugarCarguio: "Andén 5",
-//     destino: "VAP",
-//     tipoViaje: "Sider",
-//     ocupacion: 85,
-//     permanencia: "24h",
-//     leadTime: {
-//       deadline: "2026-01-15",
-//       status: "on_time",
-//     },
-//     eta: "2026-01-16T14:30:00",
-//     incidencias: ["urgencia", "c4", "c5"],
-//     observaciones:
-//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "2038491-v",
-//     cliente: "Minera Los Andes",
-//     origen: "SCL",
-//     lugarCarguio: "Dock 3",
-//     destino: "VAP",
-//     tipoViaje: "Doble Sider",
-//     ocupacion: 60,
-//     permanencia: "48h",
-//     leadTime: {
-//       deadline: "2026-01-14",
-//       status: "warning",
-//     },
-//     eta: "2026-01-15T09:00:00",
-//     incidencias: ["shutdown"],
-//     observaciones: "Carga frágil. Requiere supervisión especial.",
-//     prioridad: 2,
-//   },
-//   {
-//     id: "1049760-v",
-//     cliente: "Transportes del Norte",
-//     origen: "SCL",
-//     lugarCarguio: "Plataforma 1",
-//     destino: "VAP",
-//     tipoViaje: "Rampla",
-//     ocupacion: 100,
-//     permanencia: "12h",
-//     leadTime: {
-//       deadline: "2026-01-13",
-//       status: "delayed",
-//     },
-//     eta: "2026-01-14T18:00:00",
-//     incidencias: ["urgencia", "shutdown", "c4", "c5", "c7", "c8", "c9"],
-//     observaciones: "URGENTE: Cliente prioritario. Llamar antes de salir.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "4815263-v",
-//     cliente: "Agrícola Sur",
-//     origen: "SCL",
-//     lugarCarguio: "Andén 2",
-//     destino: "ZOS",
-//     tipoViaje: "Sider",
-//     ocupacion: 45,
-//     permanencia: "8h",
-//     leadTime: {
-//       deadline: "2026-01-18",
-//       status: "on_time",
-//     },
-//     eta: "2026-01-18T11:30:00",
-//     incidencias: ["c4"],
-//     observaciones: "Productos perecederos. Mantener cadena de frío.",
-//     prioridad: 3,
-//   },
-// ];
 
 /**
  * Client-side sidebar that shows:
@@ -491,48 +394,6 @@ export function PlanningSidebarClient({
 
     let services = [...allServices];
 
-    // COMMENTED OUT: Advanced filtering logic (OR/AND) - will be re-enabled later
-    // Filter by tags if they exist (tags take priority)
-    // if (searchTags.length > 0) {
-    //   // Filter out invalid tags first
-    //   const validTags = searchTags.filter(
-    //     (tag): tag is { matchType: MatchType; value: string } =>
-    //       tag != null &&
-    //       typeof tag === "object" &&
-    //       "matchType" in tag &&
-    //       "value" in tag &&
-    //       typeof tag.matchType === "string" &&
-    //       typeof tag.value === "string" &&
-    //       tag.value.length > 0
-    //   );
-
-    //   if (validTags.length > 0) {
-    //     // Group tags by matchType (attribute)
-    //     // Example: { origen: ["SCL", "VAP"], destino: ["ZOS"] }
-    //     const tagsByType = new Map<MatchType, string[]>();
-    //     for (const tag of validTags) {
-    //       if (!tagsByType.has(tag.matchType)) {
-    //         tagsByType.set(tag.matchType, []);
-    //       }
-    //       tagsByType.get(tag.matchType)!.push(tag.value);
-    //     }
-
-    //     // Filter services with the logic:
-    //     // - OR within same attribute: (origen: SCL OR origen: VAP)
-    //     // - AND between different attributes: (origen group) AND (destino group)
-    //     // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
-    //     services = services.filter((service) => {
-    //       // Service must match at least one value from EACH attribute type (AND between attribute types)
-    //       return Array.from(tagsByType.entries()).every(([matchType, values]) => {
-    //         // For each attribute type, service must match ANY of its values (OR within same attribute)
-    //         return values.some((value) => {
-    //           const lowerValue = value.toLowerCase();
-    //           return matchesService(service, matchType, lowerValue);
-    //         });
-    //       });
-    //     });
-    //   }
-    // }
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
     if (searchTags.length > 0) {
@@ -585,38 +446,6 @@ export function PlanningSidebarClient({
         services = services.filter((s) => s.id === filteredServiceId);
       }
     }
-
-    // COMMENTED OUT: Sort by tag order - will be re-enabled later
-    // if (searchTags.length > 0) {
-    //   // Filter out invalid tags (safety check for malformed tag objects)
-    //   const validTags = searchTags.filter(
-    //     (tag): tag is { matchType: MatchType; value: string } =>
-    //       tag != null &&
-    //       typeof tag === "object" &&
-    //       "matchType" in tag &&
-    //       "value" in tag &&
-    //       typeof tag.matchType === "string" &&
-    //       typeof tag.value === "string" &&
-    //       tag.value.length > 0
-    //   );
-
-    //   if (validTags.length > 0) {
-    //     return services.sort((a, b) => {
-    //       // First sort by tag order priority
-    //       for (const tag of validTags) {
-    //         const lowerValue = tag.value.toLowerCase();
-    //         const aMatches = matchesService(a, tag.matchType, lowerValue);
-    //         const bMatches = matchesService(b, tag.matchType, lowerValue);
-
-    //         if (aMatches && !bMatches) return -1;
-    //         if (!aMatches && bMatches) return 1;
-    //       }
-
-    //       // Then by status priority
-    //       return getStatusPriority(a) - getStatusPriority(b);
-    //     });
-    //   }
-    // }
 
     return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
   }, [

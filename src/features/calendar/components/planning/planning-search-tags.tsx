@@ -87,55 +87,6 @@ export function PlanningSearchTags({
     return `${tag.matchType}-${tag.value}-${index}`;
   };
 
-  // Drag-and-drop handlers commented out - will be used later
-  // const handleDragStart = (e: React.DragEvent, index: number) => {
-  //   setDraggedIndex(index);
-  //   dragStartPos.current = { x: e.clientX, y: e.clientY };
-  //   e.dataTransfer.effectAllowed = "move";
-  //   // Use a custom drag image (invisible)
-  //   const dragImage = document.createElement("div");
-  //   dragImage.style.position = "absolute";
-  //   dragImage.style.top = "-1000px";
-  //   document.body.appendChild(dragImage);
-  //   e.dataTransfer.setDragImage(dragImage, 0, 0);
-  //   setTimeout(() => document.body.removeChild(dragImage), 0);
-  // };
-
-  // const handleDragOver = (e: React.DragEvent, index: number) => {
-  //   e.preventDefault();
-  //   e.dataTransfer.dropEffect = "move";
-  //   if (draggedIndex !== null && draggedIndex !== index) {
-  //     setDragOverIndex(index);
-  //   }
-  // };
-
-  // const handleDragLeave = () => {
-  //   setDragOverIndex(null);
-  // };
-
-  // const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-  //   e.preventDefault();
-  //   setDragOverIndex(null);
-
-  //   if (draggedIndex === null || draggedIndex === dropIndex) {
-  //     setDraggedIndex(null);
-  //     return;
-  //   }
-
-  //   const newTags = [...tags];
-  //   const draggedTag = newTags[draggedIndex];
-  //   newTags.splice(draggedIndex, 1);
-  //   newTags.splice(dropIndex, 0, draggedTag);
-
-  //   onTagsChange(newTags);
-  //   setDraggedIndex(null);
-  // };
-
-  // const handleDragEnd = () => {
-  //   setDraggedIndex(null);
-  //   setDragOverIndex(null);
-  // };
-
   if (tags.length === 0) {
     return null;
   }

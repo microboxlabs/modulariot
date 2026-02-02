@@ -1,9 +1,100 @@
-import { FetcherError } from "./fetcher.types";
+import {
+  FetcherError,
+  FetcherErrorCode,
+  FetcherErrorInfo,
+} from "./fetcher.types";
 import { apiLogger, logError } from "@/lib/logger";
 import {
   buildAccessLogFields,
   generateRequestId,
 } from "@/features/common/utils/access-log";
+
+/**
+ * Checks if the response content-type indicates JSON
+ */
+const isJsonContentType = (response: Response): boolean => {
+  const contentType = response.headers.get("content-type");
+  return contentType?.includes("application/json") ?? false;
+};
+
+/**
+ * Creates a FetcherError with proper structure
+ */
+const createFetcherError = (
+  message: string,
+  status: number,
+  code: string,
+  info?: FetcherErrorInfo | string | null
+): FetcherError => {
+  const error = new Error(message) as FetcherError;
+  error.status = status;
+  error.code = code;
+  error.info = info ?? null;
+  return error;
+};
+
+/**
+ * Attempts to parse JSON response, handling non-JSON responses gracefully
+ */
+const parseJsonResponse = async <T>(response: Response): Promise<T> => {
+  const contentType = response.headers.get("content-type");
+
+  // If content-type is not JSON, this is likely an error page (HTML timeout, gateway error, etc.)
+  if (!isJsonContentType(response)) {
+    const text = await response.text();
+    const isHtml = text.trim().startsWith("<") || contentType?.includes("html");
+
+    // Detect common error patterns
+    let errorMessage = "Server returned an unexpected response format";
+    if (isHtml) {
+      // Check for common timeout/gateway error indicators
+      if (
+        text.toLowerCase().includes("timeout") ||
+        text.toLowerCase().includes("timed out")
+      ) {
+        errorMessage = "The request timed out. Please try again.";
+      } else if (
+        text.toLowerCase().includes("502") ||
+        text.toLowerCase().includes("bad gateway")
+      ) {
+        errorMessage = "Service temporarily unavailable. Please try again.";
+      } else if (
+        text.toLowerCase().includes("503") ||
+        text.toLowerCase().includes("service unavailable")
+      ) {
+        errorMessage = "Service temporarily unavailable. Please try again.";
+      } else if (
+        text.toLowerCase().includes("504") ||
+        text.toLowerCase().includes("gateway timeout")
+      ) {
+        errorMessage = "The service took too long to respond. Please try again.";
+      } else {
+        errorMessage = "Service unavailable. Please try again later.";
+      }
+    }
+
+    throw createFetcherError(
+      errorMessage,
+      response.status || 502,
+      FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+      { contentType, responsePreview: text.substring(0, 200) }
+    );
+  }
+
+  // Try to parse JSON
+  try {
+    return (await response.json()) as T;
+  } catch (parseError) {
+    // JSON parsing failed - this shouldn't happen if content-type was JSON
+    // but handle it gracefully anyway
+    throw createFetcherError(
+      "Failed to parse server response",
+      response.status || 500,
+      FetcherErrorCode.JSON_PARSE_ERROR,
+      { parseError: parseError instanceof Error ? parseError.message : String(parseError) }
+    );
+  }
+};
 
 // moved const shouldLog =
 const shouldLog =
@@ -74,6 +165,309 @@ const buildMergedHeaders = (
   return merged;
 };
 
+/**
+ * Gets error message and code from HTML response content
+ */
+function getHtmlErrorMessage(
+  responseText: string,
+  status: number
+): { message: string; code: string } {
+  const lowerText = responseText.toLowerCase();
+
+  if (lowerText.includes("timeout") || lowerText.includes("timed out")) {
+    return {
+      message: "The request timed out. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 502 || lowerText.includes("bad gateway")) {
+    return {
+      message: "Service temporarily unavailable. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 503 || lowerText.includes("service unavailable")) {
+    return {
+      message: "Service temporarily unavailable. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  if (status === 504 || lowerText.includes("gateway timeout")) {
+    return {
+      message: "The service took too long to respond. Please try again.",
+      code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+    };
+  }
+
+  return {
+    message: "Service unavailable. Please try again later.",
+    code: FetcherErrorCode.INVALID_RESPONSE_FORMAT,
+  };
+}
+
+/**
+ * Attempts to extract error message from JSON response body
+ * Handles Alerce error format and other common API error structures
+ */
+function extractJsonErrorMessage(responseText: string): string | null {
+  try {
+    const json = JSON.parse(responseText);
+    
+    // Handle Alerce error format: { code, message, involvedObject: { respuesta } }
+    if (json.involvedObject?.respuesta) {
+      return json.involvedObject.respuesta;
+    }
+    
+    // Handle standard error format: { message }
+    if (typeof json.message === "string" && json.message.length > 0) {
+      return json.message;
+    }
+    
+    // Handle nested error format: { error: { message } }
+    if (typeof json.error?.message === "string" && json.error.message.length > 0) {
+      return json.error.message;
+    }
+    
+    // Handle error as string: { error: "message" }
+    if (typeof json.error === "string" && json.error.length > 0) {
+      return json.error;
+    }
+    
+    return null;
+  } catch {
+    // Not valid JSON, return null
+    return null;
+  }
+}
+
+/**
+ * Gets error message and code from response
+ */
+function getResponseErrorMessage(
+  response: Response,
+  responseText: string
+): { message: string; code: string } {
+  const isHtmlResponse =
+    responseText.trim().startsWith("<") ||
+    response.headers.get("content-type")?.includes("html");
+
+  if (isHtmlResponse) {
+    return getHtmlErrorMessage(responseText, response.status);
+  }
+
+  // Try to extract error message from JSON response body
+  const jsonErrorMessage = extractJsonErrorMessage(responseText);
+  
+  if (response.status >= 500) {
+    return {
+      message: jsonErrorMessage || response.statusText || "A server error occurred. Please try again.",
+      code: FetcherErrorCode.SERVER_ERROR,
+    };
+  }
+
+  // 4xx client errors - likely action/validation errors from external services
+  if (response.status >= 400) {
+    return {
+      message: jsonErrorMessage || response.statusText || "Request failed",
+      code: FetcherErrorCode.ACTION_ERROR,
+    };
+  }
+
+  return {
+    message: jsonErrorMessage || response.statusText || "Request failed",
+    code: FetcherErrorCode.SERVER_ERROR,
+  };
+}
+
+/**
+ * Logging context for error handling
+ */
+interface LoggingContext {
+  method: string;
+  pathAndQuery: string;
+  upstreamHost: string;
+  userAgent: string;
+  startedAt: Date;
+  durationMs: number;
+  requestId: string;
+  contentLength: string;
+}
+
+/**
+ * Logging context with response status
+ */
+interface RequestLogContext extends LoggingContext {
+  status: number;
+}
+
+/**
+ * Handles non-OK response errors
+ */
+async function handleResponseError(
+  response: Response,
+  loggingContext: LoggingContext
+): Promise<never> {
+  let responseText = "";
+  try {
+    responseText = await response.text();
+  } catch {
+    responseText = "";
+  }
+
+  const { message, code } = getResponseErrorMessage(response, responseText);
+  const error = createFetcherError(message, response.status, code, {
+    responseText: responseText.substring(0, 500),
+  });
+
+  if (shouldLog) {
+    logError(error, {
+      ...buildAccessLogFields({
+        prefix: "OUT",
+        method: loggingContext.method,
+        pathAndQuery: loggingContext.pathAndQuery,
+        status: response.status,
+        contentLength: loggingContext.contentLength,
+        userAgent: loggingContext.userAgent,
+        startedAt: loggingContext.startedAt,
+        durationMs: loggingContext.durationMs,
+        requestId: loggingContext.requestId,
+        extras: { upstream_host: loggingContext.upstreamHost },
+      }),
+    });
+  }
+
+  throw error;
+}
+
+/**
+ * Detects network-level errors and creates appropriate FetcherError
+ */
+function detectNetworkError(err: Error): FetcherError | null {
+  const errorMessage = err.message.toLowerCase();
+  const errorCause =
+    err.cause && typeof err.cause === "object" && "code" in err.cause
+      ? (err.cause as { code: string }).code
+      : "";
+
+  if (
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("timed out") ||
+    errorCause === "ETIMEDOUT" ||
+    errorCause === "UND_ERR_CONNECT_TIMEOUT"
+  ) {
+    return createFetcherError(
+      "The request timed out. Please try again.",
+      504,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  if (
+    errorMessage.includes("econnrefused") ||
+    errorMessage.includes("enotfound") ||
+    errorMessage.includes("network") ||
+    errorCause === "ECONNREFUSED" ||
+    errorCause === "ENOTFOUND"
+  ) {
+    return createFetcherError(
+      "Unable to connect to the server. Please try again.",
+      503,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  if (errorMessage.includes("aborted") || err.name === "AbortError") {
+    return createFetcherError(
+      "The request was cancelled.",
+      499,
+      FetcherErrorCode.NETWORK_ERROR,
+      { originalError: err.message }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Logs successful API request
+ */
+function logSuccessRequest(context: RequestLogContext): void {
+  if (!shouldLog) {
+    return;
+  }
+
+  apiLogger.info(
+    buildAccessLogFields({
+      prefix: "OUT",
+      method: context.method,
+      pathAndQuery: context.pathAndQuery,
+      status: context.status,
+      contentLength: context.contentLength,
+      userAgent: context.userAgent,
+      startedAt: context.startedAt,
+      durationMs: context.durationMs,
+      requestId: context.requestId,
+      extras: { upstream_host: context.upstreamHost },
+    })
+  );
+}
+
+/**
+ * Logs API request error
+ */
+function logRequestError(context: RequestLogContext, err: unknown): void {
+  if (!shouldLog) {
+    return;
+  }
+
+  apiLogger.error({
+    ...buildAccessLogFields({
+      prefix: "OUT",
+      method: context.method,
+      pathAndQuery: context.pathAndQuery,
+      status: context.status,
+      contentLength: context.contentLength,
+      userAgent: context.userAgent,
+      startedAt: context.startedAt,
+      durationMs: context.durationMs,
+      requestId: context.requestId,
+      extras: { upstream_host: context.upstreamHost },
+    }),
+    err,
+  });
+}
+
+/**
+ * Checks if error is already a FetcherError
+ */
+function isFetcherError(err: unknown): err is FetcherError {
+  return err instanceof Error && "code" in err && "status" in err;
+}
+
+/**
+ * Handles errors in the catch block
+ * Always throws, never returns
+ */
+function handleFetchError(err: unknown): never {
+  if (isFetcherError(err)) {
+    throw err;
+  }
+
+  if (err instanceof Error) {
+    const networkError = detectNetworkError(err);
+    if (networkError) {
+      throw networkError;
+    }
+  }
+
+  throw err;
+}
+
 export default async function httfetcher<T>(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -81,16 +475,13 @@ export default async function httfetcher<T>(
   const method = (init?.method || "GET").toUpperCase();
   const { pathAndQuery, upstreamHost } = parseTarget(input);
 
-  // Prepare headers and request id for correlation
   const headers = buildMergedHeaders(input, init?.headers);
   let requestId = headers.get("x-request-id") || generateRequestId();
   if (!headers.has("x-request-id")) {
     headers.set("x-request-id", requestId);
   }
 
-  // Capture user agent if provided in init headers
   const userAgent = headers.get("user-agent") || "-";
-
   const startTime = Date.now();
   const startedAt = new Date();
 
@@ -105,41 +496,34 @@ export default async function httfetcher<T>(
     const status = response.status;
     const contentLength = response.headers.get("content-length") || "-";
 
-    if (shouldLog) {
-      apiLogger.info(
-        buildAccessLogFields({
-          prefix: "OUT",
-          method,
-          pathAndQuery,
-          status,
-          contentLength,
-          userAgent,
-          startedAt,
-          durationMs,
-          requestId,
-          extras: { upstream_host: upstreamHost },
-        })
+    logSuccessRequest({
+      method,
+      pathAndQuery,
+      upstreamHost,
+      userAgent,
+      startedAt,
+      durationMs,
+      requestId,
+      status,
+      contentLength,
+    });
+
+    // Handle 401 (Unauthorized) errors - session expired
+    if (response.status === 401) {
+      const error = createFetcherError(
+        "Session expired. Please sign in again.",
+        401,
+        FetcherErrorCode.CLIENT_ERROR,
+        { message: "Unauthorized" }
       );
-    }
-
-    if (!response.ok && response.status !== 401) {
-      const error = new Error(response.statusText) as FetcherError;
-      error.status = response.status;
-      // Try to parse error response as JSON, but handle cases where there's no body
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        error.info = await response.text();
-      } catch (err) {
-        error.info = null;
-      }
-
+      
       if (shouldLog) {
         logError(error, {
           ...buildAccessLogFields({
             prefix: "OUT",
             method,
             pathAndQuery,
-            status: response.status,
+            status: 401,
             contentLength,
             userAgent,
             startedAt,
@@ -149,43 +533,48 @@ export default async function httfetcher<T>(
           }),
         });
       }
-
+      
       throw error;
     }
 
-    // Handle 204 No Content and other responses with no body
+    if (!response.ok) {
+      await handleResponseError(response, {
+        method,
+        pathAndQuery,
+        upstreamHost,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+        contentLength,
+      });
+    }
+
     if (response.status === 204) {
-      console.log("undefined response", response);
       return null as T;
     }
 
-    /* if (response.headers.get("content-type")?.includes("application/json")) {
-      console.error("content-type is not application/json");
-      return response.text() as T;
-    } */
-
-    return (await response.json()) as T;
+    return await parseJsonResponse<T>(response);
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const status = response?.status ?? 0;
     const contentLength = response?.headers.get("content-length") || "-";
-    if (shouldLog) {
-      apiLogger.error({
-        ...buildAccessLogFields({
-          prefix: "OUT",
-          method,
-          pathAndQuery,
-          status,
-          contentLength,
-          userAgent,
-          startedAt,
-          durationMs,
-          requestId,
-          extras: { upstream_host: upstreamHost },
-        }),
-        err,
-      });
-    }
-    throw err;
+
+    logRequestError(
+      {
+        method,
+        pathAndQuery,
+        upstreamHost,
+        userAgent,
+        startedAt,
+        durationMs,
+        requestId,
+        status,
+        contentLength,
+      },
+      err
+    );
+
+    handleFetchError(err);
   }
 }

@@ -57,19 +57,6 @@ export default function MapVisualization({
           .mapboxgl-ctrl-logo {
             display: none !important;
           }
-          .mapboxgl-ctrl-attrib {
-            position: absolute !important;
-            bottom: 0 !important;
-            right: 0 !important;
-            margin: 0 !important;
-            font-size: 12px !important;
-            background: rgba(255, 255, 255, 0.5) !important;
-            padding: 0 5px !important;
-            border-radius: 2px 0 0 0 !important;
-            z-index: 1000 !important;
-            display: flex !important;
-            flex-direction: row !important;
-          }
           .mapboxgl-ctrl-attrib-inner {
             display: block !important;
           }

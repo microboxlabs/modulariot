@@ -47,6 +47,36 @@ export async function signInWithMicrosoft(): Promise<void> {
   await signIn("microsoft-entra-id", { redirectTo: "/app" });
 }
 
+export async function signInWithGoogle(): Promise<void> {
+  await signIn("google", { redirectTo: "/app" });
+}
+
+export async function signInWithGitHub(): Promise<void> {
+  await signIn("github", { redirectTo: "/app" });
+}
+
+/**
+ * Generic sign-in function that routes to the appropriate provider.
+ * Use this for dynamic provider handling based on configuration.
+ */
+export async function signInWithProvider(providerId: string): Promise<void> {
+  await signIn(providerId, { redirectTo: "/app" });
+}
+
+/**
+ * Sign in with SAML SSO.
+ * The team slug is used to identify the organization's SAML provider.
+ */
+export async function signInWithSaml(teamSlug: string): Promise<void> {
+  // The team slug is passed as a query parameter to identify the organization
+  // The actual SAML provider needs to be configured in auth.config.ts
+  await signIn("saml", {
+    redirectTo: "/app",
+    // Pass team slug to SAML provider for organization identification
+    team: teamSlug,
+  });
+}
+
 export async function authenticateAction(
   prevState: AuthenticateActionState,
   formData: FormData

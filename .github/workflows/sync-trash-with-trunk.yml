@@ -1,0 +1,35 @@
+name: Sync trash with trunk
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout trunk
+        uses: actions/checkout@v4
+        with:
+          ref: trunk
+
+      - name: Fetch trash branch
+        run: git fetch origin trash
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync trash with trunk
+        run: |
+          # Reset trash to trunk
+          git reset --hard origin/trunk
+
+          # Force push to trash branch
+          git push -f origin HEAD:trash

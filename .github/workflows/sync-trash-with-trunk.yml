@@ -26,10 +26,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync trash with trunk
+      - name: Merge trunk into trash
         run: |
-          # Reset trash to trunk
-          git reset --hard origin/trunk
+          # Checkout trunk and fetch latest
+          git checkout trunk
+          git pull origin trunk
 
-          # Force push to trash branch
-          git push -f origin HEAD:trash
+          # Checkout trash branch
+          git checkout trash || git checkout -b trash origin/trash
+
+          # Merge trunk into trash
+          git merge origin/trunk -m "Sync trunk into trash $(date '+%Y-%m-%d %H:%M')"
+
+          # Push updated trash
+          git push origin trash

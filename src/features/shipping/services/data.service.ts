@@ -87,7 +87,7 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     cm_created: task.cm_created as string,
     mintral_incidents: Object.entries(task)
       .filter(([key]) => key.startsWith("mintral_incident"))
-      .map(([key, value]) => [key as string, String(value)] as [string, string]),
+      .map(([key, value]) => [key, String(value)] as [string, string]),
     mintral_loadConstraint: task.mintral_loadConstraint as string,
     mintral_loadVolumeUtilization: task.mintral_loadVolumeUtilization as number,
     mintral_loadWeightUtilization: task.mintral_loadWeightUtilization as number,

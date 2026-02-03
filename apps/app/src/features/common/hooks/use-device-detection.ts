@@ -74,11 +74,13 @@ export function useDeviceDetection(): DeviceInfo {
       }
 
       // Desktop OS detection using multiple methods
+      // Cast to string to avoid TypeScript narrowing issues with platform comparisons
+      const platformStr = platform as string;
 
       // macOS detection
       if (
-        platform === "MacIntel" ||
-        platform === "MacPPC" ||
+        platformStr === "MacIntel" ||
+        platformStr === "MacPPC" ||
         /Mac OS X/.test(userAgent) ||
         userAgentData?.platform === "macOS"
       ) {
@@ -89,8 +91,8 @@ export function useDeviceDetection(): DeviceInfo {
 
       // Windows detection
       if (
-        platform === "Win32" ||
-        platform === "Win64" ||
+        platformStr === "Win32" ||
+        platformStr === "Win64" ||
         /Windows/.test(userAgent) ||
         userAgentData?.platform === "Windows"
       ) {
@@ -101,10 +103,10 @@ export function useDeviceDetection(): DeviceInfo {
 
       // Linux detection
       if (
-        platform === "Linux x86_64" ||
-        platform === "Linux i686" ||
-        platform === "Linux armv7l" ||
-        platform === "Linux aarch64" ||
+        platformStr === "Linux x86_64" ||
+        platformStr === "Linux i686" ||
+        platformStr === "Linux armv7l" ||
+        platformStr === "Linux aarch64" ||
         /Linux/.test(userAgent) ||
         userAgentData?.platform === "Linux"
       ) {
@@ -290,7 +292,7 @@ export const isDesktopDevice = (): boolean => {
 
 // Utility functions for operating system detection
 export const getOperatingSystem = (): OperatingSystem => {
-  const platform = navigator.platform;
+  const platform = navigator.platform as string;
   // Windows detection using multiple methods
   if (platform === "Win32" || platform === "Win64") return "Windows";
 

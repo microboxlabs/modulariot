@@ -18,6 +18,7 @@ const mapStyles = {
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(
     () =>
+      // @ts-expect-error - deck.gl type mismatch between react-map-gl and direct dependencies
       new MapboxOverlay({
         ...props,
         parameters: {
@@ -25,6 +26,7 @@ function DeckGLOverlay(props: DeckProps) {
         },
       })
   );
+  // @ts-expect-error - deck.gl type mismatch between react-map-gl and direct dependencies
   overlay.setProps({
     ...props,
     parameters: {

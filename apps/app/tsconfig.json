@@ -7,6 +7,7 @@
       "@/*": ["./src/*"],
       "@assets/*": ["./public/*"]
     },
+    "types": ["vitest/globals"],
     "noUncheckedIndexedAccess": false,
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],

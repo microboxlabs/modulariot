@@ -4,6 +4,7 @@ import {
   getUserSites,
   getSiteLogos,
   getSiteLogoContent,
+  getPublicOrgLogo,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { UserSiteResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { handleApiError, unauthorizedResponse } from "@/app/api/utils/api-error-handler";
@@ -18,11 +19,15 @@ export async function GET() {
     // Get user's sites
     const sites = await getUserSites(session);
 
+    // First, try to get the public organization logo
+    const publicLogo = await getPublicOrgLogo();
+
     if (!sites || sites.length === 0) {
+      // Return public logo if available, otherwise null
       const response: UserSiteResponse = {
         site: null,
-        logoUrlLight: null,
-        logoUrlDark: null,
+        logoUrlLight: publicLogo,
+        logoUrlDark: publicLogo,
       };
       return NextResponse.json(response);
     }
@@ -30,11 +35,11 @@ export async function GET() {
     // Use the first site (primary site)
     const primarySite = sites[0];
 
-    // Get theme-specific logos (light and dark variants)
+    // Get theme-specific logos (light and dark variants) from site branding folder
     const logos = await getSiteLogos(session, primarySite.shortName);
 
     // Fetch logo content for both themes in parallel
-    const [logoUrlLight, logoUrlDark] = await Promise.all([
+    const [siteLogoLight, siteLogoDark] = await Promise.all([
       logos.light
         ? getSiteLogoContent(session, logos.light.nodeId, logos.light.mimeType)
         : null,
@@ -43,10 +48,11 @@ export async function GET() {
         : null,
     ]);
 
+    // Use site-specific logos if available, otherwise fall back to public org logo
     const response: UserSiteResponse = {
       site: primarySite,
-      logoUrlLight,
-      logoUrlDark,
+      logoUrlLight: siteLogoLight ?? publicLogo,
+      logoUrlDark: siteLogoDark ?? publicLogo,
     };
 
     return NextResponse.json(response);

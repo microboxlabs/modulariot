@@ -1,6 +1,6 @@
 import Image from "next/image";
 // eslint-disable-next-line import/no-unresolved
-import logoImage from "@assets/logo-mintral-1.png";
+import logoImage from "@assets/logo.svg";
 
 interface AppLogoProps {
   width?: number;

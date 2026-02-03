@@ -1380,7 +1380,7 @@ export interface ETARequest {
   startDate?: string;
 }
 
-interface ETAResponse {
+export interface ETAResponse {
   estimatedArrival: string;
   duration: number;
   distance: number;

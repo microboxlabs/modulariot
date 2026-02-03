@@ -31,7 +31,7 @@ todos:
     status: completed
   - id: verify-build
     content: Run pnpm install, check-types, lint, knip, test, and build to verify migration
-    status: in_progress
+    status: completed
 isProject: false
 ---
 

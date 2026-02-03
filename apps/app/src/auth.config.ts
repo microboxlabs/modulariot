@@ -87,7 +87,7 @@ const authMicrosoftLogger = createManagedLogger("auth.providers.microsoft", "Mic
 const authCredentialsLogger = createManagedLogger("auth.providers.credentials", "Credentials Auth", undefined, "auth.providers");
 const authAuthzLogger = createManagedLogger("auth.authorization", "Route Authorization", undefined, "auth");
 
-export const authConfig = {
+export const authConfig: NextAuthConfig = {
   // basePath: "/app/api/auth",
   pages: {
     signIn: "/app/sign-in",

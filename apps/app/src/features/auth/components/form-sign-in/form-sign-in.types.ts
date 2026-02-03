@@ -34,7 +34,7 @@ export type FormSignInProps = Readonly<{
   authConfig: AuthConfig;
   /** Pre-computed labels for each provider */
   providerLabels: ProviderLabels;
-  /** Translated divider text */
+  /** Translated divider text (e.g. "o") – shown without lines between button and secondary link */
   dividerText: string;
   /** SAML-specific labels (only needed if SAML provider is configured) */
   samlLabels?: SamlLabels;

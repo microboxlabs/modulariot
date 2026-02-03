@@ -1,0 +1,67 @@
+# 🔔 Release Notes v1.21.0 — ModularIoT
+
+### Fecha: 06/10/2025
+
+**Objetivo**: introducir la nueva sección "Mis Tareas" con gestión personalizada de listas y filtros, mejorar capacidades administrativas de gestión de tareas, ampliar funcionalidades de búsqueda y persistencia de datos, y corregir errores críticos de usabilidad y visualización.
+
+## 🚀 Evolutivos
+
+- **Mis Tareas - Nueva sección de gestión personalizada**
+  - Nueva sección **"Mis Tareas"** ubicada entre Kanban y Torre de Control en la barra de navegación.
+  - Sistema de **listas personalizadas** con filtros definidos por usuario (etapa, rango de fechas, cliente, urgencia, tipo de origen).
+  - **Backend de persistencia**: modelo de datos `user_task_lists` con CRUD completo, parser de tags a filtros, y validación de permisos por usuario.
+  - **Lista fija del sistema** "Tareas Completadas" (no editable ni eliminable) mostrando todas las tareas con estado completado.
+  - Reutilización de **tooltip gigante de expediente** desde Kanban en lista de Mis Tareas con animación de carga.
+  - Actualización en tiempo real mediante eventos cuando tareas cumplen o dejan de cumplir condiciones de filtros.
+  - Control de visibilidad mediante permisos y feature flag por ambiente/cliente.
+
+- **Barra de búsqueda mejorada**
+  - Soporte para **valores basados en fechas** con selector de fecha integrado.
+  - Cambio de comportamiento: el submenú ahora se abre solo al hacer **clic en la barra de búsqueda**, no al cambiar valor.
+  - **Optimización responsive** para vistas móviles con componentes completamente usables en pantallas pequeñas.
+
+- **Gestión administrativa de tareas**
+  - Nueva funcionalidad de **liberación de tareas** (unclaim) para administradores.
+  - Modal de confirmación con información del propietario actual y advertencias.
+  - Validación de permisos para grupos `GROUP_ALFRESCO_ADMINISTRATORS` y `GROUP_MINTRAL_SYSTEM_ADMIN`.
+  - Endpoint `/api/task/unclaim` con validación en backend y frontend.
+  - Internacionalización completa en español e inglés.
+
+- **Badge de versión de workflow**
+  - Nuevo **badge visual** en el encabezado de tareas mostrando la versión del workflow (ej: "v1", "v2", "v3").
+  - Lectura desde `task.definitionVersion` con fallback a `persistentState.processDefinitionVersion`.
+  - Soporte para modo claro y oscuro.
+  - Facilita identificación de versiones durante debugging, testing y migraciones.
+
+- **Persistencia de carta de porte (Manifest)**
+  - Implementación completa de **persistencia de datos de manifiesto de viaje** en ECM Coordinator.
+  - Nuevo modelo de contenido con aspecto `mintral:manifestAspect` para almacenar datos de carga.
+  - Servicio `ManifestService` con métodos para recuperar y persistir datos de manifest.
+  - Integración en `OnCompleteMissionControlTask` para persistencia automática al iniciar viaje en Mission Control.
+  - Datos accesibles para análisis histórico incluyendo: descripción de viaje, carga (peso, volumen, bultos), información de conductor, detalles de transporte, y expediciones.
+  - Webscript `FindLetterPortServiceWebscript` actualizado para usar nueva capa de servicio.
+
+- **Notificaciones mejoradas de verificación de conductor**
+  - Actualización de visualización de notificaciones SSE para evento `DriverPresented`.
+  - Soporte para **títulos dinámicos** (singular/plural según cantidad de conductores).
+  - Formato estructurado con separación clara de párrafos.
+  - Mensajes incluyen: código de servicio, etapa actual del workflow, estado de validación de condiciones.
+  - Metadatos enriquecidos disponibles en vista expandida.
+
+## 🛠️ Refactorización / UX
+
+- **Limpieza de componentes de comentarios**: eliminación del componente de comentarios antiguo del bento box, manteniendo solo el nuevo componente de foro funcional, reduciendo duplicación de código y mejorando mantenibilidad.
+
+## ✅ Correctivos
+
+- **Manejo de errores mejorado**: corrección del parser de errores para mostrar correctamente mensajes detallados de sistemas de terceros en lugar del genérico "Failed to parse error message". Implementación de extracción adecuada de mensajes de error de respuestas API estructuradas.
+
+- **Experiencia de carga de imágenes**: mejora en redes lentas con textos alternativos adecuados mostrando branding de Mintral y descripciones significativas en lugar de "Flowbite React". Mejora en accesibilidad para usuarios con discapacidad visual.
+
+- **Corrección de excepción null en Kanban**: solución de error `properties of null (reading 'taskFormKey')` que ocurría cuando una tarea con tooltip activo se movía al estado "finished task". Implementación de validación null y cierre automático de tooltip.
+
+- **Búsqueda responsive en móviles**: corrección de usabilidad del componente de barra de búsqueda en vistas móviles, asegurando que todos los elementos sean accesibles y funcionales en pantallas pequeñas.
+
+## 📌 Conclusión
+
+La versión 1.21.0 introduce la nueva sección "Mis Tareas" como centro de gestión personalizada con capacidades avanzadas de filtrado y listas personalizadas, ampliando significativamente las herramientas de organización individual. Se fortalecen las capacidades administrativas con funciones de liberación de tareas, se mejora la visibilidad de versiones de workflow, y se implementa persistencia completa de datos de carta de porte para análisis histórico. La release incluye mejoras críticas en manejo de errores, experiencia de usuario en dispositivos móviles, y optimizaciones en componentes de búsqueda y notificaciones.

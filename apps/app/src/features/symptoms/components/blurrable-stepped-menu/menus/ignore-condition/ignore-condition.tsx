@@ -1,0 +1,194 @@
+"use client";
+
+import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { Button, Select } from "flowbite-react";
+import { useState } from "react";
+import { TiDelete } from "react-icons/ti";
+import { useRouter } from "next/navigation";
+import { ShowNotification } from "@/features/notifications/notification";
+import { tr } from "@/features/i18n/tr.service";
+
+export default function IgnoreCondition({
+  dict,
+  treatmentData,
+  duration,
+  setDuration,
+  scope,
+  setScope,
+  treatmentRequest,
+  setTreatmentRequest,
+  setIsMenuOpen,
+}: {
+  dict: I18nRecord;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  duration: number;
+  setDuration: (duration: number) => void;
+  scope: string;
+  setScope: (scope: string) => void;
+  treatmentRequest: TreatmentsRequest;
+  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
+  setIsMenuOpen: (isMenuOpen: boolean) => void;
+}) {
+  const [durationLocal, setDurationLocal] = useState(duration);
+  const router = useRouter();
+
+  const buttons = [
+    {
+      text: tr("symptoms.save_and_confirm", dict),
+      function: async () => {
+        setTreatmentRequest({
+          ...treatmentRequest,
+          v_symptom_treatment_time: duration,
+          status: "active",
+        });
+        await requestTreatment({
+          ...treatmentRequest,
+          status: "active",
+          treatment_type: "ignorar condicion",
+          v_symptom_treatment_time: duration,
+        });
+        setIsMenuOpen(false);
+        router.push("/symptoms");
+        ShowNotification({
+          type: "success",
+          message: (dict.symptoms as I18nRecord).treatment_saved as string,
+        });
+      },
+    },
+  ];
+
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center gap-2">
+      <div className=" w-full flex flex-col items-center  gap-3 flex-grow">
+        <div className="w-full flex flex-col gap-2">
+          <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
+            {tr("symptoms.service_information", dict)}
+          </h1>
+          <div className="w-full grid grid-cols-2 gap-2">
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.driver_name", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {treatmentData?.trip_info?.driver}
+              </span>
+            </p>
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.vehicle_plate", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {treatmentData?.trip_info?.asset_id}
+              </span>
+            </p>
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.phone", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {treatmentData?.trip_info?.driver_contact}
+              </span>
+            </p>
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.service", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {treatmentData?.symptom_info?.name}
+              </span>
+            </p>
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.load_type", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {treatmentData?.trip_info?.type_load}
+              </span>
+            </p>
+            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
+              {tr("symptoms.recommended_prescription", dict)}:{" "}
+              <span className="font-light text-gray-500 dark:text-gray-400">
+                {tr("symptoms.ignore_condition", dict)}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full flex grid grid-cols-2 gap-2 mt-2">
+          <div className="pr-2">
+            <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
+              {tr("symptoms.duration", dict)}
+            </h1>
+
+            <Select
+              onChange={(e) => {
+                setDuration(parseInt(e.target.value));
+                setDurationLocal(parseInt(e.target.value));
+              }}
+              defaultValue={durationLocal}
+            >
+              {/* values in seconds */}
+              <option value="300">5 {tr("symptoms.minutes", dict)}</option>
+              <option value="1800">30 {tr("symptoms.minutes", dict)}</option>
+              <option value="3600">1 {tr("symptoms.hour", dict)}</option>
+              <option value="7200">2 {tr("symptoms.hours", dict)}</option>
+              <option value="-1">
+                {tr("symptoms.ignore_indefinitely", dict)}
+              </option>
+            </Select>
+          </div>
+          <div className="pl-2 pr-2">
+            <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
+              {tr("symptoms.scope", dict)}
+            </h1>
+
+            <Select
+              onChange={(e) => {
+                setScope(e.target.value);
+              }}
+              defaultValue={scope}
+              disabled={true}
+            >
+              <option value="synthom">
+                {tr("symptoms.this_symptom", dict)}
+              </option>
+              <option value="same_synthoms">
+                {tr("symptoms.same_symptoms", dict)}
+              </option>
+              <option value="all_synthoms">
+                {tr("symptoms.all_symptoms", dict)}
+              </option>
+            </Select>
+          </div>
+          {/* <div>
+            <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
+              {(dict.symptoms as I18nRecord).ignore_indefinitely as string}
+            </h1>
+
+            <Checkbox
+              id="ignore-indefinitely"
+              defaultChecked={ignoreIndefinitelyLocal}
+              onChange={handleCheckboxChange}
+              className="h-4 w-4"
+            />
+          </div> */}
+        </div>
+        <div className="w-full flex flex-col gap-2 bg-orange-50 p-3 rounded-lg">
+          <div className="flex flex-row items-center gap-2 text-orange-800">
+            <TiDelete size={25} />
+            {tr("symptoms.confirmation_required", dict)}
+          </div>
+          <p className="text-sm font-light text-orange-800 dark:text-orange-800">
+            {tr("symptoms.ignore_alert", dict)}
+          </p>
+        </div>
+        <div className="w-full flex flex-col gap-2">
+          {buttons.map((button, index) => (
+            <Button
+              color="blue"
+              key={index}
+              onClick={() => {
+                button.function();
+              }}
+            >
+              {button.text as string}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

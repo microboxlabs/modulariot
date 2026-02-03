@@ -1,0 +1,20 @@
+{
+  "0": "Stable condition",
+  "1": "Under observation",
+  "2": "Compromised condition",
+  "3": "Critical condition",
+  "4": "Code black",
+  "5": "Deteriorating condition",
+  "6": "Under treatment",
+  "7": "Recovery phase",
+  "8": "Remission state",
+  "stable": "0",
+  "under_observation": "1",
+  "compromised_condition": "2",
+  "critical_condition": "3",
+  "code_black": "4",
+  "deteriorating_condition": "5",
+  "under_treatment": "6",
+  "recovery_phase": "7",
+  "remission_state": "8"
+}

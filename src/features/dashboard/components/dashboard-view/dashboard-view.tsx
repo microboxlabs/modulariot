@@ -1,0 +1,411 @@
+"use client";
+
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { Button, ToggleSwitch } from "flowbite-react";
+import { HiPlus } from "react-icons/hi2";
+import {
+  GridLayout,
+  verticalCompactor,
+  type Layout,
+  type LayoutItem,
+} from "react-grid-layout";
+import { useDashboard } from "../../context/dashboard-context";
+import { EmptyState } from "../empty-state";
+import { WidgetRenderer } from "../widget-renderer";
+import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
+import { getWidgetDefaults } from "../../utils/widget-defaults";
+import type { GridLayoutItem } from "../../types/dashboard.types";
+
+import "react-grid-layout/css/styles.css";
+
+/**
+ * Main dashboard view component
+ * Renders all root-level widgets with edit mode controls using react-grid-layout
+ */
+export function DashboardView() {
+  const { widgets, editMode, isLoaded, toggleEditMode, updateWidgetLayouts } =
+    useDashboard();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Measure container width reactively
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      console.log("Container ref not available yet");
+      return;
+    }
+
+    const updateWidth = () => {
+      const width = container.offsetWidth;
+      console.log("Container width measured:", width);
+      if (width > 0) {
+        setContainerWidth(width);
+      }
+    };
+
+    // Initial measurement after a small delay to ensure layout is complete
+    requestAnimationFrame(updateWidth);
+
+    // Use ResizeObserver for reactive updates
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        console.log("ResizeObserver width:", entry.contentRect.width);
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    // Also listen to window resize as fallback
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, [isLoaded]); // Re-run when isLoaded changes
+
+  // Convert widgets to react-grid-layout format
+  const layout: Layout = useMemo(
+    () =>
+      widgets.map((widget, index) => {
+        const defaults = getWidgetDefaults(widget.componentId);
+        return {
+          i: widget.id,
+          x: widget.layout?.x ?? 0,
+          y: widget.layout?.y ?? index,
+          w: widget.layout?.w ?? defaults.minW,
+          h: widget.layout?.h ?? defaults.minH,
+          isDraggable: editMode,
+          isResizable: editMode,
+          minW: widget.layout?.minW ?? defaults.minW,
+          maxW: widget.layout?.maxW ?? 12,
+          minH: widget.layout?.minH ?? defaults.minH,
+          maxH: widget.layout?.maxH ?? Infinity,
+        };
+      }),
+    [widgets, editMode]
+  );
+
+  const handleLayoutChange = useCallback(
+    (newLayout: Layout) => {
+      if (!editMode) return;
+      const items: GridLayoutItem[] = newLayout.map((item: LayoutItem) => {
+        // Find existing widget to preserve min/max values
+        const existingWidget = widgets.find((w) => w.id === item.i);
+        return {
+          i: item.i,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h,
+          minW: existingWidget?.layout?.minW,
+          minH: existingWidget?.layout?.minH,
+          maxW: existingWidget?.layout?.maxW,
+          maxH: existingWidget?.layout?.maxH,
+        };
+      });
+      updateWidgetLayouts(null, items);
+    },
+    [updateWidgetLayouts, editMode, widgets]
+  );
+
+  // Show loading state while data loads from localStorage
+  if (!isLoaded) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  const hasWidgets = widgets.length > 0;
+
+  // Debug logging
+  console.log("Dashboard render:", {
+    hasWidgets,
+    containerWidth,
+    widgetsCount: widgets.length,
+    isLoaded,
+  });
+
+  return (
+    <div className="w-full space-y-6">
+      {/* Header */}
+      <div className="-mx-4 -mt-4 flex flex-col items-start justify-between gap-4 border-b border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          Dashboard
+        </h1>
+        {hasWidgets && (
+          <div className="flex items-center gap-4">
+            <ToggleSwitch
+              checked={editMode}
+              onChange={toggleEditMode}
+              label="Edit Mode"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div ref={containerRef} className="w-full min-h-[200px]">
+        {hasWidgets ? (
+          <>
+            {/* Root-level grid - only render when width is measured */}
+            {containerWidth > 0 ? (
+              <GridLayout
+                className="dashboard-root-grid"
+                layout={layout}
+                width={containerWidth}
+                gridConfig={{
+                  cols: 12,
+                  rowHeight: 80,
+                  margin: [16, 16] as const,
+                  containerPadding: [0, 0] as const,
+                  maxRows: Infinity,
+                }}
+                dragConfig={{
+                  enabled: editMode,
+                  cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
+                }}
+                resizeConfig={{
+                  enabled: editMode,
+                  handles: ["e", "s", "se"],
+                }}
+                compactor={verticalCompactor}
+                onLayoutChange={handleLayoutChange}
+                autoSize={true}
+              >
+                {widgets.map((widget) => (
+                  <div key={widget.id} className="h-full">
+                    <WidgetRenderer widget={widget} isRoot={true} />
+                  </div>
+                ))}
+              </GridLayout>
+            ) : (
+              <div className="text-gray-500">Measuring container width...</div>
+            )}
+
+            {/* Add new widget button */}
+            <div className="mt-6 flex justify-center pb-8">
+              <Button color="light" onClick={() => setIsAddModalOpen(true)}>
+                <HiPlus className="mr-2 h-4 w-4" />
+                Add Widget
+              </Button>
+            </div>
+          </>
+        ) : (
+          <EmptyState onAdd={() => setIsAddModalOpen(true)} />
+        )}
+      </div>
+
+      {/* Add widget modal */}
+      <AddWidgetModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        parentId={null}
+        parentComponentId={null}
+      />
+
+      {/* Custom styles for root grid */}
+      <style jsx global>{`
+        /* Widget controls - hidden by default */
+        .widget-controls {
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.15s ease;
+        }
+
+        /* Show controls ONLY when this specific widget is hovered */
+        .widget-wrapper:hover > .widget-controls {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        /* Hide parent controls when ANY child widget is hovered */
+        .widget-wrapper:has(.widget-wrapper:hover) > .widget-controls {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
+        .dashboard-root-grid {
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        .dashboard-root-grid .react-grid-item {
+          transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+        }
+
+        /* Placeholder shown when dragging/resizing */
+        .dashboard-root-grid .react-grid-item.react-grid-placeholder {
+          background: rgba(59, 130, 246, 0.08) !important;
+          border: 2px dashed rgba(59, 130, 246, 0.4) !important;
+          border-radius: 0.5rem;
+          opacity: 1 !important;
+        }
+
+        .dashboard-root-grid .react-grid-item.react-draggable-dragging {
+          z-index: 100;
+          box-shadow:
+            0 20px 25px -5px rgba(0, 0, 0, 0.1),
+            0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Hide all resize handles by default and reset transforms */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle {
+          background: none !important;
+          opacity: 0;
+          transition: opacity 0.15s ease;
+          transform: none !important;
+        }
+
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle::after {
+          transform: none !important;
+        }
+
+        /* Show handles on hover */
+        .dashboard-root-grid .react-grid-item:hover > .react-resizable-handle {
+          opacity: 1;
+        }
+
+        /* East (right) handle - thin border line */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle-e {
+          width: 6px !important;
+          height: 100% !important;
+          right: 0 !important;
+          top: 0 !important;
+          bottom: auto !important;
+          left: auto !important;
+          cursor: ew-resize;
+        }
+        .dashboard-root-grid
+          .react-grid-item
+          > .react-resizable-handle-e::after {
+          content: "";
+          position: absolute;
+          right: 2px;
+          top: 50%;
+          transform: translateY(-50%) !important;
+          width: 2px;
+          height: 32px;
+          background: rgba(156, 163, 175, 0.35);
+          border-radius: 1px;
+          border: none !important;
+        }
+
+        /* West (left) handle - thin border line */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle-w {
+          width: 6px !important;
+          height: 100% !important;
+          left: 0 !important;
+          top: 0 !important;
+          bottom: auto !important;
+          right: auto !important;
+          cursor: ew-resize;
+        }
+        .dashboard-root-grid
+          .react-grid-item
+          > .react-resizable-handle-w::after {
+          content: "";
+          position: absolute;
+          left: 2px;
+          top: 50%;
+          transform: translateY(-50%) !important;
+          width: 2px;
+          height: 32px;
+          background: rgba(156, 163, 175, 0.35);
+          border-radius: 1px;
+          border: none !important;
+        }
+
+        /* South (bottom) handle - thin border line */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle-s {
+          height: 6px !important;
+          width: 100% !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          top: auto !important;
+          right: auto !important;
+          cursor: ns-resize;
+        }
+        .dashboard-root-grid
+          .react-grid-item
+          > .react-resizable-handle-s::after {
+          content: "";
+          position: absolute;
+          bottom: 2px;
+          left: 50%;
+          transform: translateX(-50%) !important;
+          height: 2px;
+          width: 32px;
+          background: rgba(156, 163, 175, 0.35);
+          border-radius: 1px;
+          border: none !important;
+        }
+
+        /* Southeast corner handle - diagonal lines */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle-se {
+          width: 16px !important;
+          height: 16px !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          top: auto !important;
+          left: auto !important;
+          cursor: nwse-resize;
+        }
+        .dashboard-root-grid
+          .react-grid-item
+          > .react-resizable-handle-se::after {
+          content: "";
+          position: absolute;
+          right: 4px;
+          bottom: 4px;
+          width: 8px;
+          height: 8px;
+          border-right: 2px solid rgba(156, 163, 175, 0.35);
+          border-bottom: 2px solid rgba(156, 163, 175, 0.35);
+          border-radius: 0 0 2px 0;
+          background: none !important;
+          transform: none !important;
+        }
+
+        /* Southwest corner handle - small dot */
+        .dashboard-root-grid .react-grid-item > .react-resizable-handle-sw {
+          width: 12px !important;
+          height: 12px !important;
+          left: 0 !important;
+          bottom: 0 !important;
+          top: auto !important;
+          right: auto !important;
+          cursor: nesw-resize;
+        }
+        .dashboard-root-grid
+          .react-grid-item
+          > .react-resizable-handle-sw::after {
+          content: "";
+          position: absolute;
+          left: 3px;
+          bottom: 3px;
+          width: 6px;
+          height: 6px;
+          background: rgba(156, 163, 175, 0.6);
+          border-radius: 50%;
+          border: none !important;
+          transform: none !important;
+        }
+
+        /* Hover state - make handles more visible */
+        .dashboard-root-grid
+          .react-grid-item:hover
+          > .react-resizable-handle::after {
+          background: rgba(107, 114, 128, 0.8);
+        }
+      `}</style>
+    </div>
+  );
+}

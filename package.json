@@ -58,6 +58,7 @@
     "pino-pretty": "^13.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-grid-layout": "^2.2.2",
     "react-hook-form": "^7.53.0",
     "react-icons": "^5.5.0",
     "react-map-gl": "^7.1.8",

@@ -57,6 +57,8 @@ export default function FormSignIn({
   const samlProvider = authConfig.providers.find((p) => p.type === "saml");
   // Get credentials provider (if any)
   const credentialsProvider = authConfig.providers.find((p) => p.type === "credentials");
+  const hasSamlOrCredentials = samlProvider || credentialsProvider;
+  const needsDivider = oauthProviders.length > 0 && hasSamlOrCredentials;
 
   // Create sign-in action for OAuth provider
   const createOAuthAction = useCallback((providerId: string) => {
@@ -101,10 +103,6 @@ export default function FormSignIn({
     );
   }
 
-  // Check if we need a divider (between OAuth and SAML/credentials)
-  const hasSamlOrCredentials = samlProvider || credentialsProvider;
-  const needsDivider = oauthProviders.length > 0 && hasSamlOrCredentials;
-
   return (
     <form className="space-y-6" action={formAction}>
       <div className="flex flex-col gap-y-3">
@@ -119,7 +117,6 @@ export default function FormSignIn({
           />
         ))}
 
-        {/* Render divider if needed */}
         {needsDivider && <LoginDivider text={dividerText} />}
 
         {/* Render SAML section if configured */}
@@ -153,7 +150,7 @@ export default function FormSignIn({
           <div className="flex justify-center">
             <a
               href="#"
-              className="text-center hover:underline cursor-pointer text-blue-700 text-md"
+              className="text-center text-sm font-normal text-blue-700 hover:underline cursor-pointer dark:text-blue-400"
               onClick={(e) => {
                 e.preventDefault();
                 setShowCredentialsForm(true);

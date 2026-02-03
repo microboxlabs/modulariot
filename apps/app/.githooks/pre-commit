@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Get the current branch name
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# Check if branch is based/develop or develop
+if [ "$branch" = "based/develop" ] || [ "$branch" = "develop" ]; then
+    echo ""
+    echo "❌ No se aceptan ramas based/develop, si quieres desplegar en desarrollo usa la rama trash, no hagar pr hacia el trash"
+    echo ""
+    exit 1
+fi
+
+# Check for dead code using Knip
+echo ""
+echo "🔍 Checking for dead code with Knip..."
+echo ""
+
+# Run knip and capture output
+KNIP_OUTPUT=$(npx knip 2>&1)
+KNIP_EXIT_CODE=$?
+
+if [ $KNIP_EXIT_CODE -ne 0 ]; then
+    # Check if there are actual issues (look for issue indicators in output)
+    if echo "$KNIP_OUTPUT" | grep -qE "(✂️|unused|Unused)"; then
+        echo ""
+        echo "⚠️  Dead code detected! Please review and remove unused code before committing."
+        echo ""
+        echo "To see the full report, run: npm run knip"
+        echo "To focus on unused exports: npm run knip:exports"
+        echo "To focus on unused files: npm run knip:files"
+        echo ""
+        echo "If you want to commit anyway, use: git commit --no-verify"
+        echo ""
+        # Uncomment the line below to make it blocking (fail the commit)
+        # exit 1
+    fi
+else
+    echo "✅ No dead code detected"
+fi
+
+echo ""
+
+exit 0
+

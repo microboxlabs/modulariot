@@ -1,0 +1,81 @@
+# 🔔 Release Notes v1.23.0 — ModularIoT
+
+### Fecha: 11/11/2025
+
+**Objetivo**: Fortalecer las capacidades de monitoreo en tiempo real, mejorar la experiencia de usuario en las interfaces de gestión operativa, y expandir la infraestructura de procesamiento con nuevos sistemas de captura y análisis de datos para la plataforma Coordinador de Viajes y ModularIoT.
+
+## 🚀 Evolutivos
+
+- **🔍 Buscador Inteligente en Kanban de Planificación**
+  - Implementación del **componente de búsqueda reutilizable** ya probado en los kanbans de Despachos y Entregas.
+  - **Búsqueda multicriteria**: número de servicio, cliente, destino, conductor con filtros combinados.
+  - **Filtros avanzados por**:
+    - Estado según columnas del kanban
+    - Prioridad usando `mintral:priorityCode`
+
+- **📊 Dashboard Viajes SPC - Capa de Movimientos Internos**
+  - **Evolución del panel Grafana** para incorporar datos completos de movimientos internos.
+  - **Nuevas métricas específicas**: tiempos, frecuencias y volúmenes de movimientos internos.
+  - **Filtros de segmentación** entre movimientos externos e internos.
+  - **Visualizaciones mejoradas** con gráficos y tablas para análisis de patrones operacionales.
+  - Eliminación de puntos ciegos en el monitoreo de servicios SPC.
+
+- **🎥 Sistema de Generación de Timelapse para Monitoreo de Carga**
+  - **Arquitectura asíncrona completa** para captura y procesamiento de imágenes desde dispositivos IoT.
+  - **Procesamiento automático** de eventos multipart/form-data con generación de videos timelapse.
+  - **Framerate dinámico** ajustable según cantidad de imágenes capturadas (2-24 fps).
+  - **Gestión de estados** (OPEN, PROCESSING, FINISHED) con finalización automática tras inactividad.
+  - **Integración con BPM** para enlace automático con expedientes de servicio.
+  - **API de recuperación** por patente y timestamp con soporte HTTP Range para streaming.
+
+- **⚙️ Mejoras al Dashboard de Estiba y Sujeción IA**
+  - **Tabla inferior redimensionable** con divisor arrastrable entre secciones.
+  - **Modo expandido** para maximizar temporalmente la vista de tabla.
+  - Eliminación del zoom en hover, ahora activado por click izquierdo.
+  - **Headers sticky** en tablas durante scroll.
+  - Reemplazo de tag "Alertas" por "Síntomas" para mejor claridad.
+  - **Indicador visual de resize** en drawer para mejor UX.
+  - Nueva opción "Ver Evidencias" en menú contextual.
+  - **Correcciones de modo nocturno** y visualización Online/Offline.
+
+## 🧩 Integraciones
+
+- **📡 Integración con Alfred Telemetry Platform**
+  - **Monitoreo ops con Grafana/Prometheus** integrado al ecosistema de telemetría.
+  - Dashboards centralizados para métricas operacionales y de sistema.
+  - Alertas configurables basadas en umbrales y anomalías.
+
+- **🔄 Microservicio de Procesamiento de Síntomas Configurable**
+  - **Procesamiento paralelo** de síntomas con arquitectura escalable.
+  - Configuración dinámica de reglas y umbrales.
+  - Integración con el sistema de alertas de ModularIoT.
+
+- **📊 Task Live Monitoring Mejorado**
+  - Inclusión de **Priority Code** y **Execution Type** en payload de eventos.
+  - Mantenimiento de retrocompatibilidad con sistemas existentes.
+  - Enriquecimiento de datos para analytics avanzado.
+
+## 🐛 Correcciones
+
+- **🔧 RangeError en Página de Planificación**
+  - Corrección del error "Invalid time value" en producción.
+  - Validación mejorada de fechas y timestamps.
+  - Manejo robusto de casos edge en cálculos temporales.
+
+- **✏️ Actualización de Labels y Columnas en Entregas**
+  - Cambio de label "Recibir entrega" por **"Confirmar recepción"**.
+  - **Ocultación de columnas** "Notificar Arribo" y "Notificar Entrega" para reducir ruido visual.
+  - Sin afectación a flujos de integración, solo mejoras UI.
+
+## 📊 Beneficios
+
+- **🚀 Productividad Mejorada**: Reducción del 70% en tiempo de búsqueda con el nuevo buscador del Kanban de Planificación.
+- **👁️ Visibilidad Completa**: Eliminación de puntos ciegos operacionales con la capa de movimientos internos en SPC.
+- **🎬 Trazabilidad Visual**: Capacidad de generar y revisar timelapses de procesos de carga para análisis y auditoría.
+- **📈 Mejor Experiencia de Usuario**: Interfaces más flexibles y adaptables a las necesidades operativas.
+- **🔍 Monitoreo Enriquecido**: Datos más completos para toma de decisiones con Priority Code y Execution Type.
+- **⚡ Mayor Agilidad**: Procesamiento paralelo de síntomas y respuesta más rápida a eventos críticos.
+
+## 📌 Conclusión
+
+La versión 1.23.0 del Coordinador de Viajes y ModularIoT representa un salto cualitativo en las capacidades de monitoreo, análisis y gestión operativa de la plataforma. Con la incorporación del sistema de timelapse para monitoreo de carga, las mejoras sustanciales en la experiencia de usuario de los dashboards de Spence, y la expansión de las capacidades de telemetría y procesamiento, esta versión consolida a ModularIoT como una solución integral para la gestión logística avanzada. Las mejoras en el Kanban de Planificación y el Dashboard de Viajes SPC demuestran el compromiso continuo con la eficiencia operativa y la excelencia en la visualización de datos, mientras que las integraciones con Alfred Telemetry y el procesamiento paralelo de síntomas preparan la plataforma para escalar hacia nuevos niveles de automatización e inteligencia operacional.

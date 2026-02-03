@@ -30,7 +30,7 @@
         "microsoft": "Continuar con Microsoft",
         "microsoft-entra-id": "Continuar con Microsoft",
         "saml": "Continuar con SSO",
-        "credentials": "Continuar con Email"
+        "credentials": "Continuar con usuario externo"
       },
       "divider": "o",
       "teamSlug": {

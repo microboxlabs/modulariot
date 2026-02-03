@@ -30,9 +30,9 @@
         "microsoft": "Continue with Microsoft",
         "microsoft-entra-id": "Continue with Microsoft",
         "saml": "Continue with SSO",
-        "credentials": "Continue with Email"
+        "credentials": "Continue with external user"
       },
-      "divider": "or",
+      "divider": "o",
       "teamSlug": {
         "label": "Team identifier",
         "placeholder": "your-team-name",

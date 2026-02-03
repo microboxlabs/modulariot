@@ -826,18 +826,11 @@ export async function getPublicOrgLogo(): Promise<string | null> {
 
     const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
     
-    // Fetch the logo content with a timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
     const response = await fetch(logoUrl, {
-      method: "GET",
-      signal: controller.signal,
+      method: "GET",      
       cache: "no-store",
     });
     
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
       return null;
     }

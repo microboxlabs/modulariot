@@ -1,13 +1,14 @@
 {
-  "name": "coordinador-webclient",
+  "name": "@modulariot/app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack --port 3050",
     "build": "NODE_OPTIONS=--enable-source-maps next build --turbo",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "check-types": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest",
@@ -19,9 +20,7 @@
     "knip:fix": "knip --fix",
     "knip:exports": "knip --exports",
     "knip:files": "knip --files",
-    "upgrade": "next upgrade",
-    "install:hooks": "./scripts/install-hooks.sh",
-    "postinstall": "npm run install:hooks"
+    "upgrade": "next upgrade"
   },
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
@@ -74,6 +73,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -88,17 +89,12 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-import-resolver-typescript": "^3.6.1",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-jsx-a11y": "^6.9.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-react": "^7.35.0",
-    "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^24.0.0",
     "knip": "^5.79.0",
     "node-mocks-http": "^1.16.2",
     "postcss": "^8.5.6",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5",
     "vitest": "^4.0.10",
     "webpack": "^5.93.0"

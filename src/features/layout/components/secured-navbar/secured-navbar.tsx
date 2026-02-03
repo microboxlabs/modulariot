@@ -8,7 +8,7 @@ import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import defaultLogoImage from "@assets/logo-mintral-1.png";
+import defaultLogoImage from "@assets/logo.svg";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
 import { usePathname, useRouter, useSearchParams } from "next/navigation";

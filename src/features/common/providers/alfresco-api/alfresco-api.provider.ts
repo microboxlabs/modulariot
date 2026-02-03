@@ -813,6 +813,49 @@ export async function getSiteLogoContent(
   }
 }
 
+/**
+ * Gets the public organization logo from the /alfresco/s/public/org/logo endpoint
+ * This is a public endpoint that returns the organization's logo without requiring authentication
+ * @returns The logo as a base64 data URL, or null if not available
+ */
+export async function getPublicOrgLogo(): Promise<string | null> {
+  try {
+    const ecmApiUrl = process.env.ECM_API_URL;
+    if (!ecmApiUrl) {      
+      return null;
+    }
+
+    const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
+    
+    // Fetch the logo content with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(logoUrl, {
+      method: "GET",
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    // Get the content type from the response
+    const contentType = response.headers.get("content-type") ?? "image/png";
+    
+    // Convert to base64 data URL
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
+    
+    return base64Logo;
+  } catch (error) {    
+    return null;
+  }
+}
+
 export async function getInfoEntity(
   session: Session,
   licencePlate: string

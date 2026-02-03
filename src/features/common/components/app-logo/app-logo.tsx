@@ -11,7 +11,7 @@ interface AppLogoProps {
 
 export default function AppLogo({
   width = 150,
-  height,
+  height = 32,
   className = "mr-3",
   priority = false,
 }: AppLogoProps) {
@@ -19,10 +19,17 @@ export default function AppLogo({
     <Image
       src={logoImage}
       className={className}
-      alt="Logo Mintral"
+      alt="Default Logo"
       width={width}
       height={height}
       priority={priority}
+      style={{
+        width: width,
+        height: height,
+        maxWidth: width,
+        maxHeight: height,
+        objectFit: "contain",
+      }}
     />
   );
 }

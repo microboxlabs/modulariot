@@ -10,7 +10,8 @@
     "test": "FASTIFY_AUTOLOAD_TYPESCRIPT=true bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@fastify/auth": "^5.0.2",
@@ -26,8 +27,8 @@
     "fastify": "^5.4.0"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
-    "@repo/typescript-config": "*",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "@types/bun": "^1.2.17",
     "@types/node": "^22.15.3",
     "is-ci": "^4.1.0",

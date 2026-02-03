@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Branch protection
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ "$branch" = "based/develop" ] || [ "$branch" = "develop" ]; then
+    echo ""
+    echo "❌ Direct commits to $branch are not allowed"
+    echo ""
+    exit 1
+fi
+
+# Run Knip dead code check on apps/app (warning only)
+echo ""
+echo "🔍 Checking for dead code with Knip..."
+echo ""
+
+KNIP_OUTPUT=$(pnpm --filter @modulariot/app run knip:check 2>&1)
+
+if echo "$KNIP_OUTPUT" | grep -qE "(✂️|unused|Unused)"; then
+    echo ""
+    echo "⚠️  Dead code detected in @modulariot/app"
+    echo "    Run: pnpm --filter @modulariot/app run knip"
+    echo ""
+    # Not blocking - just a warning
+fi
+
+echo "✅ Pre-commit checks passed"
+exit 0

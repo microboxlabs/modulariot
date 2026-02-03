@@ -818,8 +818,7 @@ export async function getSiteLogoContent(
  * This is a public endpoint that returns the organization's logo without requiring authentication
  * @returns The logo as a base64 data URL, or null if not available
  */
-export async function getPublicOrgLogo(): Promise<string | null> {
-  try {
+export async function getPublicOrgLogo(): Promise<string | null> {  
     const ecmApiUrl = process.env.ECM_API_URL;
     if (!ecmApiUrl) {      
       return null;
@@ -850,10 +849,7 @@ export async function getPublicOrgLogo(): Promise<string | null> {
     const buffer = Buffer.from(await response.arrayBuffer());
     const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
     
-    return base64Logo;
-  } catch (error) {    
-    return null;
-  }
+    return base64Logo;  
 }
 
 export async function getInfoEntity(

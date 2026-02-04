@@ -33,8 +33,9 @@ COPY turbo.json ./
 COPY apps/ ./apps/
 COPY packages/ ./packages/
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies with cache mount for pnpm store
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # -----------------------------------------------------------------------------
 # Stage 2: Build the application

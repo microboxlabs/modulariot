@@ -10,7 +10,7 @@
     "test": "FASTIFY_AUTOLOAD_TYPESCRIPT=true bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

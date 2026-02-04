@@ -68,13 +68,13 @@ export default function MegaFooter() {
             <Link href="/" className="flex items-center space-x-2">
               <Image
                 src="/logo.svg"
-                alt="Modular IoT"
+                alt="ModularIoT"
                 width={32}
                 height={32}
                 className="h-8 w-8"
               />
               <span className="text-xl font-bold text-gray-900 dark:text-white">
-                Modular IoT
+                ModularIoT
               </span>
             </Link>
             <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 max-w-md">

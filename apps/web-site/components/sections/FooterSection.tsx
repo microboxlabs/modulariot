@@ -20,7 +20,7 @@ export default function FooterSection() {
           >
             <div className="flex items-center mb-4">
               <Logo size="xs" src="/logo.svg" />
-              <span className="text-xl font-bold">Modular IoT</span>
+              <span className="text-xl font-bold">ModularIoT</span>
             </div>
             <p className="text-gray-300 mb-4 leading-relaxed">
               Real-time fleet data streaming platform. Own your data, control your destiny.

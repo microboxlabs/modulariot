@@ -22,7 +22,7 @@ const tweets = [
     author: 'Marcus Rodriguez',
     handle: 'Head of Engineering at TechFlow',
     avatar: '/logo.svg',
-    content: 'After evaluating 12 IoT platforms, Modular IoT stood out for its open architecture and zero vendor lock-in. Our team was productive from day one.',
+    content: 'After evaluating 12 IoT platforms, ModularIoT stood out for its open architecture and zero vendor lock-in. Our team was productive from day one.',
     likes: 156,
     retweets: 43,
     timestamp: '4h',
@@ -44,7 +44,7 @@ const tweets = [
     author: 'Alex Kim',
     handle: 'IoT Architect at DataFlow Industries',
     avatar: '/logo.svg',
-    content: 'Finally, an IoT platform that doesn\'t fight you. Modular IoT\'s API design is clean, docs are excellent, and the community is super helpful.',
+    content: 'Finally, an IoT platform that doesn\'t fight you. ModularIoT\'s API design is clean, docs are excellent, and the community is super helpful.',
     likes: 278,
     retweets: 81,
     timestamp: '2d',
@@ -66,7 +66,7 @@ export default function CommunityTweets() {
             Loved by developers worldwide
           </h2>
           <p className="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            See what the community is saying about their Modular IoT experience
+            See what the community is saying about their ModularIoT experience
           </p>
         </motion.div>
 

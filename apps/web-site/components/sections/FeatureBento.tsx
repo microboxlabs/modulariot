@@ -78,7 +78,7 @@ export default function FeatureBento() {
             Everything you need for IoT monitoring
           </h2>
           <p className="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            From data ingestion to real-time insights, Modular IoT provides all the tools you need.
+            From data ingestion to real-time insights, ModularIoT provides all the tools you need.
           </p>
         </motion.div>
 

@@ -24,10 +24,10 @@ export default function PromoRibbon() {
         <div className="pr-16 sm:px-16 sm:text-center">
           <p className="font-medium text-white">
             <span className="md:hidden">
-              We just launched Modular IoT v2.0!
+              We just launched ModularIoT v2.0!
             </span>
             <span className="hidden md:inline">
-              🎉 We just launched Modular IoT v2.0 - Now with advanced symptom detection and edge computing!
+              🎉 We just launched ModularIoT v2.0 - Now with advanced symptom detection and edge computing!
             </span>
             <span className="block sm:ml-2 sm:inline-block">
               <a href="#hero" className="font-bold text-white underline">

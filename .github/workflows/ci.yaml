@@ -159,11 +159,14 @@ jobs:
           retention-days: 1
 
       - name: Package web-site build artifacts
-        if: hashFiles('apps/web-site/.next/standalone') != ''
         run: |
-          mkdir -p docker-context/web-site
-          cp -r apps/web-site/.next docker-context/web-site/.next
-          cp -r apps/web-site/public docker-context/web-site/public || mkdir -p docker-context/web-site/public
+          if [ -d "apps/web-site/.next/standalone" ]; then
+            mkdir -p docker-context/web-site
+            cp -r apps/web-site/.next docker-context/web-site/.next
+            cp -r apps/web-site/public docker-context/web-site/public || mkdir -p docker-context/web-site/public
+          else
+            echo "Skipping web-site packaging - standalone build not found"
+          fi
 
       - name: Upload web-site build artifacts
         uses: actions/upload-artifact@v4

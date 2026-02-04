@@ -41,6 +41,9 @@ importers:
       '@deck.gl/layers':
         specifier: 9.1.2
         version: 9.1.2(@deck.gl/core@9.1.2)(@loaders.gl/core@4.3.4)(@luma.gl/core@9.1.2)(@luma.gl/engine@9.2.6(@luma.gl/core@9.1.2)(@luma.gl/shadertools@9.2.6(@luma.gl/core@9.1.2)))
+      '@deck.gl/mapbox':
+        specifier: ^9.2.6
+        version: 9.2.6(@deck.gl/core@9.1.2)(@luma.gl/constants@9.2.6)(@luma.gl/core@9.1.2)(@math.gl/web-mercator@4.1.0)
       '@deck.gl/react':
         specifier: 9.1.2
         version: 9.1.2(@deck.gl/core@9.1.2)(@deck.gl/widgets@9.2.6(@deck.gl/core@9.1.2)(@luma.gl/core@9.1.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)

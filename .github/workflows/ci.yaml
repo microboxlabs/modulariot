@@ -123,8 +123,9 @@ jobs:
       - name: Run type checking
         run: pnpm turbo run check-types --filter='@modulariot/app'
 
+      # Exclude bff (requires bun which is not installed in CI)
       - name: Run tests
-        run: pnpm turbo run test --filter='!@modulariot/web-admin' --filter='!web' -- --run
+        run: pnpm turbo run test --filter='!@modulariot/web-admin' --filter='!@modulariot/bff' --filter='!web' -- --run
         continue-on-error: true
 
       # Only build apps that will be containerized

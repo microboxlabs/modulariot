@@ -26,20 +26,11 @@
     "overrides": {
       "@types/react": "19.2.10",
       "@types/react-dom": "19.2.3",
-      "@luma.gl/core": "9.1.10",
-      "@luma.gl/webgl": "9.1.10",
-      "@luma.gl/engine": "9.1.10",
-      "@luma.gl/shadertools": "9.1.10",
-      "@luma.gl/gltf": "9.1.10",
-      "@luma.gl/constants": "9.1.2",
-      "@deck.gl/core": "9.1.14",
-      "@deck.gl/layers": "9.1.14",
-      "@deck.gl/react": "9.1.14",
-      "@deck.gl/mapbox": "9.1.14",
-      "@deck.gl/google-maps": "9.1.14",
-      "@deck.gl/arcgis": "9.1.14",
-      "@deck.gl/widgets": "9.1.14",
-      "deck.gl": "9.1.14"
+      "@luma.gl/core": "9.1.9",
+      "@luma.gl/engine": "9.1.9",
+      "@luma.gl/gltf": "9.1.9",
+      "@luma.gl/shadertools": "9.1.9",
+      "@luma.gl/webgl": "9.1.9"
     }
   }
 }

@@ -25,6 +25,8 @@
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
     "@auth/core": "^0.34.3",
+    "@deck.gl/core": "9.1.14",
+    "@deck.gl/mapbox": "9.1.14",
     "@formatjs/intl-localematcher": "^0.5.4",
     "@hookform/resolvers": "^3.9.0",
     "@lordicon/react": "^1.10.0",
@@ -101,11 +103,5 @@
     "typescript": "^5",
     "vitest": "^4.0.10",
     "webpack": "^5.93.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "19.2.7",
-      "@types/react-dom": "19.2.3"
-    }
   }
 }

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",
-    "build": "NODE_OPTIONS=--enable-source-maps next build --webpack",
+    "build": "NODE_OPTIONS=--enable-source-maps next build",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

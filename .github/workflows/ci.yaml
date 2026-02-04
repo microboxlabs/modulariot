@@ -147,6 +147,10 @@ jobs:
 
       - name: Package app build artifacts
         run: |
+          echo "Checking app build output..."
+          ls -la apps/app/.next/ || echo "No .next directory"
+          ls -la apps/app/.next/standalone/ || echo "No standalone directory"
+          ls -la apps/app/.next/static/ || echo "No static directory"
           mkdir -p docker-context/app
           cp -r apps/app/.next docker-context/app/.next
           cp -r apps/app/public docker-context/app/public || mkdir -p docker-context/app/public
@@ -198,10 +202,10 @@ jobs:
             dockerfile: docker/nextjs.standalone.Dockerfile
             build-artifact: app-build
           # Uncomment when web-site has standalone build
-          # - app: web-site
-          #   image-name: miot-web-site
-          #   dockerfile: docker/nextjs.standalone.Dockerfile
-          #   build-artifact: web-site-build
+          - app: web-site
+            image-name: miot-web-site
+            dockerfile: docker/nextjs.standalone.Dockerfile
+            build-artifact: web-site-build
 
     permissions:
       contents: read

@@ -2,7 +2,7 @@
  * Auto-generated: DO NOT EDIT BY HAND
  * @module ingest
  */
-import { test, expect, describe, beforeAll, afterAll } from "bun:test";
+import { test, expect, describe, beforeAll, afterAll } from "vitest";
 import { FastifyInstance } from 'fastify';
 import { closeApp, startApp } from "../../utils/tests/infra";
 import * as zlib from 'zlib';

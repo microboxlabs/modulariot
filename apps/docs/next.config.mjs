@@ -10,7 +10,8 @@ const withNextra = nextra({
 })
  
 // Export the final Next.js config with Nextra included
-export default withNextra({
+/** @type {import('next').NextConfig} */
+const nextConfig = withNextra({
   i18n: {
     locales: ['en', 'es'],
     defaultLocale: 'en'
@@ -23,3 +24,5 @@ export default withNextra({
 
   output: 'standalone',
 })
+
+export default nextConfig

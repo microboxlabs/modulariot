@@ -1,3 +1,5 @@
+import type { StaticImageData } from "next/image";
+
 import blackCode from "@assets/conditions/codigo-negro.svg";
 import criticalAlert from "@assets/conditions/alerta-critica.svg";
 import recovery from "@assets/conditions/en-remision.svg";
@@ -44,7 +46,7 @@ export type Condition = {
   secundaryInteraction?: string;
   secundaryInteractionIcon?: string;
   separatorColor?: string;
-  icon: string;
+  icon: StaticImageData;
   borderColor?: string;
 };
 

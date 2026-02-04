@@ -25,13 +25,10 @@
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
     "@auth/core": "^0.34.3",
-    "@deck.gl/core": "9.1.2",
-    "@deck.gl/layers": "9.1.2",
-    "@deck.gl/react": "9.1.2",
     "@formatjs/intl-localematcher": "^0.5.4",
     "@hookform/resolvers": "^3.9.0",
     "@lordicon/react": "^1.10.0",
-    "@luma.gl/core": "9.1.2",
+    "@luma.gl/webgl": "9.1.10",
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
     "@next/mdx": "16.1.1",
@@ -43,7 +40,7 @@
     "csv-parse": "^5.6.0",
     "daterangepicker": "^3.1.0",
     "dayjs": "^1.11.12",
-    "deck.gl": "9.1.2",
+    "deck.gl": "^9.1.14",
     "echarts-for-react": "^3.0.2",
     "flowbite": "^2.4.1",
     "flowbite-react": "^0.12.10",
@@ -108,13 +105,7 @@
   "pnpm": {
     "overrides": {
       "@types/react": "19.2.7",
-      "@types/react-dom": "19.2.3",
-      "@deck.gl/core": "9.1.2",
-      "@deck.gl/layers": "9.1.2",
-      "@deck.gl/react": "9.1.2",
-      "@luma.gl/core": "9.1.2",
-      "@luma.gl/webgl": "9.1.2",
-      "deck.gl": "9.1.2"
+      "@types/react-dom": "19.2.3"
     }
   }
 }

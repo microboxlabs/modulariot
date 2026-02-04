@@ -10,31 +10,31 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Modular IoT - Own Your Fleet Data in Real Time",
-  description: "Modular IoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds without SaaS handcuffs.",
+  title: "ModularIoT - Own Your Fleet Data in Real Time",
+  description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds without SaaS handcuffs.",
   keywords: ["fleet management", "IoT", "real-time data", "streaming", "telematics", "GPS tracking", "sensor data", "open source", "Apache-2.0"],
   authors: [{ name: "MicroboxLabs" }],
   creator: "MicroboxLabs",
   publisher: "MicroboxLabs",
   openGraph: {
-    title: "Modular IoT - Own Your Fleet Data in Real Time",
-    description: "Modular IoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
+    title: "ModularIoT - Own Your Fleet Data in Real Time",
+    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
     url: "https://modulariot.com",
-    siteName: "Modular IoT",
+    siteName: "ModularIoT",
     type: "website",
     images: [
       {
         url: "/hero-pipeline.svg",
         width: 400,
         height: 300,
-        alt: "Modular IoT Real-time Data Pipeline",
+        alt: "ModularIoT Real-time Data Pipeline",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Modular IoT - Own Your Fleet Data in Real Time",
-    description: "Modular IoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
+    title: "ModularIoT - Own Your Fleet Data in Real Time",
+    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
     images: ["/hero-pipeline.svg"],
     creator: "@microboxlabs",
   },

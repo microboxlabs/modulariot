@@ -20,7 +20,7 @@
     },
     "painOutcome": {
         "painTitle": "Problemas Actuales",
-        "outcomeTitle": "Con Modular IoT",
+        "outcomeTitle": "Con ModularIoT",
         "painPoints": [
             "Dependencia de proveedores con costosas tarifas mensuales SaaS",
             "Datos atrapados en sistemas de terceros que no puedes controlar",
@@ -74,7 +74,7 @@
     },
     "liveDemo": {
         "title": "Míralo en Acción",
-        "subtitle": "Observa demos en tiempo real de cómo Modular IoT procesa y responde a eventos de flota",
+        "subtitle": "Observa demos en tiempo real de cómo ModularIoT procesa y responde a eventos de flota",
         "demos": [
             {
                 "title": "Detección de Fatiga del Conductor → Alerta SMS",
@@ -149,7 +149,7 @@
     },
     "caseStudy": {
         "company": "Mintral Logistics",
-        "quote": "Redujimos los incidentes de fatiga del conductor en un 32% en dos semanas de implementar el sistema de monitoreo en tiempo real de Modular IoT.",
+        "quote": "Redujimos los incidentes de fatiga del conductor en un 32% en dos semanas de implementar el sistema de monitoreo en tiempo real de ModularIoT.",
         "attribution": {
             "name": "James Sullivan",
             "title": "Director de Operaciones de Flota",
@@ -228,11 +228,11 @@
     },
     "faq": {
         "title": "Preguntas Frecuentes",
-        "subtitle": "Todo lo que necesitas saber sobre Modular IoT",
+        "subtitle": "Todo lo que necesitas saber sobre ModularIoT",
         "questions": [
             {
-                "question": "¿Cómo se compara Modular IoT con Apache Kafka o Apache Pulsar?",
-                "answer": "Aunque Kafka y Pulsar son excelentes brokers de mensajes, Modular IoT es una plataforma completa de procesamiento de datos de flota en tiempo real. Usamos tecnologías de streaming probadas como Pulsar bajo el capó, pero agregamos procesadores específicos para flotas, modelos ML e integraciones listas para usar. Obtienes streaming de nivel empresarial sin la complejidad de construir todo desde cero."
+                "question": "¿Cómo se compara ModularIoT con Apache Kafka o Apache Pulsar?",
+                "answer": "Aunque Kafka y Pulsar son excelentes brokers de mensajes, ModularIoT es una plataforma completa de procesamiento de datos de flota en tiempo real. Usamos tecnologías de streaming probadas como Pulsar bajo el capó, pero agregamos procesadores específicos para flotas, modelos ML e integraciones listas para usar. Obtienes streaming de nivel empresarial sin la complejidad de construir todo desde cero."
             },
             {
                 "question": "¿Qué pasa con los requisitos GDPR y soberanía de datos?",
@@ -243,8 +243,8 @@
                 "answer": "Sí, proporcionamos IPs de salida estáticas para todas las implementaciones gestionadas. Para implementaciones en tu-nube, tienes control completo sobre la red y puedes configurar IPs estáticas según sea necesario. También soportamos VPC peering y endpoints privados para seguridad mejorada."
             },
             {
-                "question": "¿Cuál es la diferencia entre Modular IoT y los proveedores tradicionales de telemática?",
-                "answer": "Los proveedores tradicionales de telemática te encierran en su ecosistema con tarifas mensuales por vehículo y personalización limitada. Modular IoT te da la infraestructura de streaming cruda para construir tus propias soluciones. Eres dueño de los datos, controlas la lógica de procesamiento y puedes integrar con cualquier sistema. Es la diferencia entre rentar y poseer."
+                "question": "¿Cuál es la diferencia entre ModularIoT y los proveedores tradicionales de telemática?",
+                "answer": "Los proveedores tradicionales de telemática te encierran en su ecosistema con tarifas mensuales por vehículo y personalización limitada. ModularIoT te da la infraestructura de streaming cruda para construir tus propias soluciones. Eres dueño de los datos, controlas la lógica de procesamiento y puedes integrar con cualquier sistema. Es la diferencia entre rentar y poseer."
             },
             {
                 "question": "¿Qué tan rápido podemos comenzar?",

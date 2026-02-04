@@ -20,7 +20,7 @@
     },
     "painOutcome": {
         "painTitle": "Problemas Atuais",
-        "outcomeTitle": "Com Modular IoT",
+        "outcomeTitle": "Com ModularIoT",
         "painPoints": [
             "Dependência de fornecedores com taxas mensais SaaS caras",
             "Dados presos em sistemas de terceiros que você não pode controlar",
@@ -74,7 +74,7 @@
     },
     "liveDemo": {
         "title": "Veja em Ação",
-        "subtitle": "Assista demos em tempo real de como Modular IoT processa e responde a eventos de frota",
+        "subtitle": "Assista demos em tempo real de como ModularIoT processa e responde a eventos de frota",
         "demos": [
             {
                 "title": "Detecção de Fadiga do Motorista → Alerta SMS",
@@ -149,7 +149,7 @@
     },
     "caseStudy": {
         "company": "Mintral Logistics",
-        "quote": "Reduzimos os incidentes de fadiga do motorista em 32% em duas semanas de implementar o sistema de monitoramento em tempo real da Modular IoT.",
+        "quote": "Reduzimos os incidentes de fadiga do motorista em 32% em duas semanas de implementar o sistema de monitoramento em tempo real da ModularIoT.",
         "attribution": {
             "name": "James Sullivan",
             "title": "Diretor de Operações de Frota",
@@ -228,11 +228,11 @@
     },
     "faq": {
         "title": "Perguntas Frequentes",
-        "subtitle": "Tudo que você precisa saber sobre Modular IoT",
+        "subtitle": "Tudo que você precisa saber sobre ModularIoT",
         "questions": [
             {
-                "question": "Como Modular IoT se compara ao Apache Kafka ou Apache Pulsar?",
-                "answer": "Embora Kafka e Pulsar sejam excelentes brokers de mensagens, Modular IoT é uma plataforma completa de processamento de dados de frota em tempo real. Usamos tecnologias de streaming comprovadas como Pulsar por baixo, mas adicionamos processadores específicos para frotas, modelos ML e integrações prontas para uso. Você obtém streaming de nível empresarial sem a complexidade de construir tudo do zero."
+                "question": "Como ModularIoT se compara ao Apache Kafka ou Apache Pulsar?",
+                "answer": "Embora Kafka e Pulsar sejam excelentes brokers de mensagens, ModularIoT é uma plataforma completa de processamento de dados de frota em tempo real. Usamos tecnologias de streaming comprovadas como Pulsar por baixo, mas adicionamos processadores específicos para frotas, modelos ML e integrações prontas para uso. Você obtém streaming de nível empresarial sem a complexidade de construir tudo do zero."
             },
             {
                 "question": "E sobre os requisitos GDPR e soberania de dados?",
@@ -243,8 +243,8 @@
                 "answer": "Sim, fornecemos IPs de saída estáticos para todas as implantações gerenciadas. Para implantações na sua-nuvem, você tem controle total sobre a rede e pode configurar IPs estáticos conforme necessário. Também suportamos VPC peering e endpoints privados para segurança aprimorada."
             },
             {
-                "question": "Qual é a diferença entre Modular IoT e provedores tradicionais de telemática?",
-                "answer": "Provedores tradicionais de telemática te prendem no seu ecossistema com taxas mensais por veículo e personalização limitada. Modular IoT te dá a infraestrutura de streaming bruta para construir suas próprias soluções. Você possui os dados, controla a lógica de processamento e pode integrar com qualquer sistema. É a diferença entre alugar e possuir."
+                "question": "Qual é a diferença entre ModularIoT e provedores tradicionais de telemática?",
+                "answer": "Provedores tradicionais de telemática te prendem no seu ecossistema com taxas mensais por veículo e personalização limitada. ModularIoT te dá a infraestrutura de streaming bruta para construir suas próprias soluções. Você possui os dados, controla a lógica de processamento e pode integrar com qualquer sistema. É a diferença entre alugar e possuir."
             },
             {
                 "question": "Quão rapidamente podemos começar?",

@@ -11,7 +11,7 @@ const quickStarts = [
   {
     id: 1,
     title: 'Helm Chart Deployment',
-    description: 'Deploy Modular IoT to Kubernetes with our production-ready Helm chart. Includes monitoring and auto-scaling.',
+    description: 'Deploy ModularIoT to Kubernetes with our production-ready Helm chart. Includes monitoring and auto-scaling.',
     icon: IoLogoDocker,
     gradient: 'from-blue-500 to-blue-600',
     githubUrl: 'https://github.com/modulariot/helm-charts',

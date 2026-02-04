@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Terms of Service - Modular IoT",
-  description: "Terms of Service for Modular IoT - Rules and guidelines for using our IoT monitoring platform.",
+  title: "Terms of Service - ModularIoT",
+  description: "Terms of Service for ModularIoT - Rules and guidelines for using our IoT monitoring platform.",
 };
 
 export default function TermsOfService() {
@@ -37,7 +37,7 @@ export default function TermsOfService() {
               <div className="mt-8 flex items-center space-x-4">
                 <Image 
                   src="/logo.svg" 
-                  alt="Modular IoT" 
+                  alt="ModularIoT" 
                   width={48}
                   height={48}
                 />
@@ -51,7 +51,7 @@ export default function TermsOfService() {
               <section className="mb-10">
                 <h2 className="text-2xl font-semibold text-blue-400 mb-4">1. Agreement to Terms</h2>
                 <p className="text-gray-300 leading-relaxed">
-                  These Terms of Service (&quot;Terms&quot;) constitute a legally binding agreement between you and MicroboxLabs (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) governing your access to and use of the Modular IoT platform, including our website, APIs, software, and related services (collectively, the &quot;Services&quot;). By accessing or using the Services, you agree to be bound by these Terms. If you do not agree to these Terms, you may not use the Services.
+                  These Terms of Service (&quot;Terms&quot;) constitute a legally binding agreement between you and MicroboxLabs (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) governing your access to and use of the ModularIoT platform, including our website, APIs, software, and related services (collectively, the &quot;Services&quot;). By accessing or using the Services, you agree to be bound by these Terms. If you do not agree to these Terms, you may not use the Services.
                 </p>
               </section>
 
@@ -65,7 +65,7 @@ export default function TermsOfService() {
               <section className="mb-10">
                 <h2 className="text-2xl font-semibold text-blue-400 mb-4">3. Description of Services</h2>
                 <p className="text-gray-300 leading-relaxed">
-                  Modular IoT is an open-source IoT monitoring platform that enables real-time fleet monitoring, device telemetry, and related analytics. We may offer both self-hosted software (under applicable open-source licenses) and hosted services. We reserve the right to modify, suspend, or discontinue any part of the Services at any time, with or without notice.
+                  ModularIoT is an open-source IoT monitoring platform that enables real-time fleet monitoring, device telemetry, and related analytics. We may offer both self-hosted software (under applicable open-source licenses) and hosted services. We reserve the right to modify, suspend, or discontinue any part of the Services at any time, with or without notice.
                 </p>
               </section>
 

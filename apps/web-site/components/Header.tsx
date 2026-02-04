@@ -64,13 +64,13 @@ export default function Header({ dict }: HeaderProps) {
           <Link href="/" className="flex items-center space-x-3">
             <Image
               src="/headlogo.svg"
-              alt="Modular IoT Logo"
+              alt="ModularIoT Logo"
               width={32}
               height={32}
               className="w-8 h-8"
             />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
-              Modular IoT
+              ModularIoT
             </span>
           </Link>
 

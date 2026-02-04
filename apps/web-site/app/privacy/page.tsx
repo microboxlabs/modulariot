@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Privacy Policy - Modular IoT",
-  description: "Privacy Policy for Modular IoT - Learn how we collect, use, and protect your data.",
+  title: "Privacy Policy - ModularIoT",
+  description: "Privacy Policy for ModularIoT - Learn how we collect, use, and protect your data.",
 };
 
 export default function PrivacyPolicy() {
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
               <div className="mt-8 flex items-center space-x-4">
                 <Image 
                   src="/logo.svg" 
-                  alt="Modular IoT" 
+                  alt="ModularIoT" 
                   width={48}
                   height={48}
                 />
@@ -51,7 +51,7 @@ export default function PrivacyPolicy() {
               <section className="mb-10">
                 <h2 className="text-2xl font-semibold text-blue-400 mb-4">1. Introduction</h2>
                 <p className="text-gray-300 leading-relaxed">
-                  Welcome to Modular IoT, operated by MicroboxLabs (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our open-source IoT monitoring platform and related services.
+                  Welcome to ModularIoT, operated by MicroboxLabs (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our open-source IoT monitoring platform and related services.
                 </p>
               </section>
 
@@ -97,7 +97,7 @@ export default function PrivacyPolicy() {
                   <li><strong className="text-white">Service Providers:</strong> With third-party vendors who perform services on our behalf (hosting, analytics, payment processing).</li>
                   <li><strong className="text-white">Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets.</li>
                   <li><strong className="text-white">Legal Requirements:</strong> When required by law, court order, or governmental authority.</li>
-                  <li><strong className="text-white">Protection of Rights:</strong> To protect the rights, property, or safety of Modular IoT, our users, or others.</li>
+                  <li><strong className="text-white">Protection of Rights:</strong> To protect the rights, property, or safety of ModularIoT, our users, or others.</li>
                   <li><strong className="text-white">With Your Consent:</strong> When you have given us explicit permission to share your information.</li>
                 </ul>
                 <p className="text-gray-300 mt-4">
@@ -152,7 +152,7 @@ export default function PrivacyPolicy() {
               <section className="mb-10">
                 <h2 className="text-2xl font-semibold text-blue-400 mb-4">10. Open Source Considerations</h2>
                 <p className="text-gray-300 leading-relaxed">
-                  Modular IoT is an open-source platform. When you self-host our software, you are responsible for data collection and privacy practices on your own infrastructure. This Privacy Policy applies only to services hosted and operated directly by MicroboxLabs.
+                  ModularIoT is an open-source platform. When you self-host our software, you are responsible for data collection and privacy practices on your own infrastructure. This Privacy Policy applies only to services hosted and operated directly by MicroboxLabs.
                 </p>
               </section>
 

@@ -132,11 +132,15 @@ jobs:
         run: pnpm turbo run build --filter='!@modulariot/web-admin'
 
       # Package build artifacts for Docker - restructure for Dockerfile context
+      # pnpm creates symlinks in .pnpm/node_modules/ that may point to packages
+      # not included in Next.js standalone trace. Remove broken symlinks first,
+      # then use rsync to dereference remaining symlinks.
       - name: Package docs build artifacts
         run: |
           mkdir -p docker-context/docs
-          cp -r apps/docs/.next docker-context/docs/.next
-          cp -r apps/docs/public docker-context/docs/public || mkdir -p docker-context/docs/public
+          find apps/docs/.next -xtype l -delete 2>/dev/null || true
+          rsync -a --copy-links apps/docs/.next/ docker-context/docs/.next/
+          rsync -a --copy-links apps/docs/public/ docker-context/docs/public/ || mkdir -p docker-context/docs/public
 
       - name: Upload docs build artifacts
         uses: actions/upload-artifact@v6
@@ -153,8 +157,9 @@ jobs:
           ls -la apps/app/.next/standalone/ || echo "No standalone directory"
           ls -la apps/app/.next/static/ || echo "No static directory"
           mkdir -p docker-context/app
-          cp -r apps/app/.next docker-context/app/.next
-          cp -r apps/app/public docker-context/app/public || mkdir -p docker-context/app/public
+          find apps/app/.next -xtype l -delete 2>/dev/null || true
+          rsync -a --copy-links apps/app/.next/ docker-context/app/.next/
+          rsync -a --copy-links apps/app/public/ docker-context/app/public/ || mkdir -p docker-context/app/public
 
       - name: Upload app build artifacts
         uses: actions/upload-artifact@v6
@@ -168,8 +173,9 @@ jobs:
         run: |
           if [ -d "apps/web-site/.next/standalone" ]; then
             mkdir -p docker-context/web-site
-            cp -r apps/web-site/.next docker-context/web-site/.next
-            cp -r apps/web-site/public docker-context/web-site/public || mkdir -p docker-context/web-site/public
+            find apps/web-site/.next -xtype l -delete 2>/dev/null || true
+            rsync -a --copy-links apps/web-site/.next/ docker-context/web-site/.next/
+            rsync -a --copy-links apps/web-site/public/ docker-context/web-site/public/ || mkdir -p docker-context/web-site/public
           else
             echo "Skipping web-site packaging - standalone build not found"
           fi

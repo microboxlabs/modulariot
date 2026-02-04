@@ -167,6 +167,9 @@ importers:
       sonner:
         specifier: ^1.7.2
         version: 1.7.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      styled-jsx:
+        specifier: 5.1.6
+        version: 5.1.6(@babel/core@7.29.0)(react@19.2.3)
       supercluster:
         specifier: ^8.0.1
         version: 8.0.1
@@ -537,6 +540,9 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
+      styled-jsx:
+        specifier: 5.1.6
+        version: 5.1.6(react@19.2.4)
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*

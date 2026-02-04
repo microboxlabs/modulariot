@@ -57,12 +57,12 @@ env:
 
 jobs:
   # ===========================================================================
-  # Build Job - Install, Lint, Test, and Build all apps
+  # Lint and Type Check - Fast feedback on code quality
   # ===========================================================================
-  build:
-    name: Build and Test
+  lint:
+    name: Lint and Type Check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     permissions:
       contents: read
@@ -88,14 +88,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
-      - name: Cache turbo build
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
-
       - name: Determine version
         id: version
         run: |
@@ -114,89 +106,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Exclude web-admin (deprecated) and web (React 19 type issues)
       - name: Run linting
         run: pnpm turbo run lint --filter='!@modulariot/web-admin'
 
-      # Only run check-types on main app
-      # Other packages have type issues that need separate resolution
       - name: Run type checking
         run: pnpm turbo run check-types --filter='!@modulariot/web-admin'
 
-      # - name: Run tests
-      #   run: pnpm turbo run test --filter='!@modulariot/web-admin' -- --run
-      #   continue-on-error: true
-
-      # Only build apps that will be containerized
-      - name: Build applications
-        run: pnpm turbo run build --filter='!@modulariot/web-admin'
-
-      # Package build artifacts for Docker - restructure for Dockerfile context
-      # pnpm creates symlinks in .pnpm/node_modules/ that may point to packages
-      # not included in Next.js standalone trace. Remove broken symlinks first,
-      # then use rsync to dereference remaining symlinks.
-      - name: Package docs build artifacts
-        run: |
-          mkdir -p docker-context/docs
-          find apps/docs/.next -xtype l -delete 2>/dev/null || true
-          rsync -a --copy-links apps/docs/.next/ docker-context/docs/.next/
-          rsync -a --copy-links apps/docs/public/ docker-context/docs/public/ || mkdir -p docker-context/docs/public
-
-      - name: Upload docs build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: docs-build
-          path: docker-context/docs
-          retention-days: 1
-          include-hidden-files: true
-
-      - name: Package app build artifacts
-        run: |
-          echo "Checking app build output..."
-          ls -la apps/app/.next/ || echo "No .next directory"
-          ls -la apps/app/.next/standalone/ || echo "No standalone directory"
-          ls -la apps/app/.next/static/ || echo "No static directory"
-          mkdir -p docker-context/app
-          find apps/app/.next -xtype l -delete 2>/dev/null || true
-          rsync -a --copy-links apps/app/.next/ docker-context/app/.next/
-          rsync -a --copy-links apps/app/public/ docker-context/app/public/ || mkdir -p docker-context/app/public
-
-      - name: Upload app build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: app-build
-          path: docker-context/app
-          retention-days: 1
-          include-hidden-files: true
-
-      - name: Package web-site build artifacts
-        run: |
-          if [ -d "apps/web-site/.next/standalone" ]; then
-            mkdir -p docker-context/web-site
-            find apps/web-site/.next -xtype l -delete 2>/dev/null || true
-            rsync -a --copy-links apps/web-site/.next/ docker-context/web-site/.next/
-            rsync -a --copy-links apps/web-site/public/ docker-context/web-site/public/ || mkdir -p docker-context/web-site/public
-          else
-            echo "Skipping web-site packaging - standalone build not found"
-          fi
-
-      - name: Upload web-site build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: web-site-build
-          path: docker-context/web-site
-          retention-days: 1
-          if-no-files-found: ignore
-          include-hidden-files: true
-
   # ===========================================================================
-  # Publish Docker Images - Matrix strategy for multiple apps
+  # Publish Docker Images - Multi-stage build inside Docker
   # ===========================================================================
   publish-docker:
     name: Publish ${{ matrix.app }} Image
     runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 15
+    needs: lint
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -204,17 +127,10 @@ jobs:
         include:
           - app: docs
             image-name: miot-docs
-            dockerfile: docker/nextjs.standalone-docs.Dockerfile
-            build-artifact: docs-build
           - app: app
             image-name: miot-app
-            dockerfile: docker/nextjs.standalone.Dockerfile
-            build-artifact: app-build
-          # Uncomment when web-site has standalone build
           - app: web-site
             image-name: miot-web-site
-            dockerfile: docker/nextjs.standalone.Dockerfile
-            build-artifact: web-site-build
 
     permissions:
       contents: read
@@ -229,20 +145,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v6
-        with:
-          name: ${{ matrix.build-artifact }}
-          path: docker-context/${{ matrix.app }}
-
-      - name: Verify artifacts
-        run: |
-          echo "📦 Downloaded artifacts for ${{ matrix.app }}:"
-          ls -la docker-context/${{ matrix.app }}/
-          ls -la docker-context/${{ matrix.app }}/.next/standalone/ || true
-          ls -la docker-context/${{ matrix.app }}/.next/static/ || true
+        uses: actions/checkout@v4
 
       # =========================================================================
       # Docker Build Setup
@@ -296,20 +199,21 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
       # =========================================================================
-      # Build and Push
+      # Build and Push - Multi-stage build handles pnpm properly
       # =========================================================================
       - name: Build and push Docker image
         id: build-push
         uses: docker/build-push-action@v6
         with:
-          context: docker-context/${{ matrix.app }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: docker/nextjs.monorepo.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_NAME=${{ matrix.app }}
+            NEXT_PUBLIC_INGEST_URL=${{ env.NEXT_PUBLIC_INGEST_URL }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           provenance: true
@@ -369,7 +273,7 @@ jobs:
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build, publish-docker]
+    needs: [lint, publish-docker]
     if: always()
 
     steps:
@@ -379,10 +283,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build & Test | ${{ needs.build.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Types | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Publish | ${{ needs.publish-docker.result == 'success' && '✅ Published' || needs.publish-docker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release:** ${{ needs.build.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.lint.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ needs.lint.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY

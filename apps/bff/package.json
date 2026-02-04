@@ -24,7 +24,9 @@
     "@fastify/swagger-ui": "^5.2.3",
     "auth0": "^4.26.0",
     "awilix": "^12.0.5",
-    "fastify": "^5.4.0"
+    "env-schema": "^6.0.0",
+    "fastify": "^5.4.0",
+    "fastify-plugin": "^5.0.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

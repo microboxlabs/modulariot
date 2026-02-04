@@ -519,7 +519,7 @@ export type SymptomType = {
   secundaryInteraction?: string;
   secundaryInteractionIcon?: string;
   separatorColor?: string;
-  icon: string;
+  icon: StaticImageData;
   borderColor?: string;
 };
 

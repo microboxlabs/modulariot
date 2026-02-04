@@ -10,7 +10,7 @@ const stories = [
     id: 1,
     company: 'Mintral Systems',
     logo: '/mintral-logo.svg',
-    quote: 'Modular IoT reduced our deployment time by 80% and gave us unprecedented visibility into our fleet operations.',
+    quote: 'ModularIoT reduced our deployment time by 80% and gave us unprecedented visibility into our fleet operations.',
     author: 'Sarah Chen',
     role: 'CTO, Mintral Systems',
     industry: 'Manufacturing',
@@ -63,7 +63,7 @@ export default function CustomerStories() {
             Trusted by industry leaders
           </h2>
           <p className="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">
-            See how companies are transforming their IoT operations with Modular IoT
+            See how companies are transforming their IoT operations with ModularIoT
           </p>
         </motion.div>
 

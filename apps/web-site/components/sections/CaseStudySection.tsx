@@ -31,7 +31,7 @@ export default function CaseStudySection() {
               <span className="text-6xl text-blue-500 leading-none">&ldquo;</span>
               <em className="italic">
                 We cut driver-fatigue incidents by 32% within two weeks of implementing 
-                Modular IoT&apos;s real-time monitoring system.
+                ModularIoT&apos;s real-time monitoring system.
               </em>
               <span className="text-6xl text-blue-500 leading-none">&rdquo;</span>
             </blockquote>

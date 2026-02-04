@@ -1,6 +1,6 @@
 import nextra from 'nextra'
+import path from 'path'
 
- 
 // Set up Nextra with its configuration
 const withNextra = nextra({
   // ... Add Nextra-specific options here
@@ -10,7 +10,8 @@ const withNextra = nextra({
 })
  
 // Export the final Next.js config with Nextra included
-export default withNextra({
+/** @type {import('next').NextConfig} */
+const nextConfig = withNextra({
   i18n: {
     locales: ['en', 'es'],
     defaultLocale: 'en'
@@ -20,6 +21,9 @@ export default withNextra({
       'next-mdx-import-source-file': './mdx-components.js'
     }
   },
-
   output: 'standalone',
+  // Required for pnpm monorepo: trace dependencies from monorepo root
+  outputFileTracingRoot: path.join(import.meta.dirname, '../../'),
 })
+
+export default nextConfig

@@ -7,17 +7,17 @@
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
-    "generate:component": "turbo gen react-component",
-    "check-types": "tsc --noEmit"
+    "generate:component": "turbo gen react-component"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@turbo/gen": "^2.5.0",
     "@types/node": "^22.15.3",
-    "@types/react": "19.1.0",
-    "@types/react-dom": "19.1.1",
+    "@types/react": "19.2.10",
+    "@types/react-dom": "19.2.3",
     "eslint": "^9.29.0",
+    "next": "^16.1.6",
     "typescript": "5.8.2"
   },
   "dependencies": {
@@ -25,5 +25,8 @@
     "react-dom": "^19.1.0",
     "flowbite-react": "^0.11.7",
     "lucide-react": "^0.522.0"
+  },
+  "peerDependencies": {
+    "next": ">=14.0.0"
   }
 }

@@ -28,7 +28,7 @@ export default function FrameworkBanner() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl mb-4">
-            Use Modular IoT with any fleet hardware & any cloud
+            Use ModularIoT with any fleet hardware & any cloud
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-12">
             Connect seamlessly across protocols and deploy anywhere

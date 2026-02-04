@@ -2,6 +2,12 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
   "globalDependencies": [".env"],
+  "globalEnv": [
+    "NEXT_PUBLIC_INGEST_URL",
+    "NODE_ENV",
+    "LOG_LEVEL",
+    "LOG_HANDLERS_CONFIG"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

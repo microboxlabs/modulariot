@@ -32,7 +32,7 @@ const footer = (
   </Footer>
 )
 
-export default async function RootLayout({ children, params }: { children: React.ReactNode, params: Promise<{ lang: string }> }) {
+export default async function RootLayout({ children, params }: { children: React.ReactNode, params: Promise<{ lang: string }> }): Promise<React.ReactElement> {
   const { lang } = await params
   const pageMap = (await getPageMap(`/${lang}`));
 

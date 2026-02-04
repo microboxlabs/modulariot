@@ -121,7 +121,7 @@ export default async function ingestRoutes(fastify: FastifyInstance) {
         });
 
       } catch (error) {
-        fastify.log.error('Ingest endpoint error:', error);
+        fastify.log.error({ err: error }, 'Ingest endpoint error');
         return reply.code(500).send({
           error: 'INTERNAL_ERROR',
           message: 'Failed to process ingest request'

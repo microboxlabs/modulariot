@@ -39,7 +39,7 @@ export default function LiveDemoSection() {
             See It In Action
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Watch real-time demos of how Modular IoT processes and responds to fleet events
+            Watch real-time demos of how ModularIoT processes and responds to fleet events
           </p>
         </motion.div>
 

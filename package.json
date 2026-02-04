@@ -24,10 +24,13 @@
   "packageManager": "pnpm@9.15.0",
   "pnpm": {
     "overrides": {
-      "@luma.gl/core": "9.1.2",
-      "@deck.gl/core": "9.1.2",
-      "@deck.gl/layers": "9.1.2",
-      "@deck.gl/react": "9.1.2"
+      "@types/react": "19.2.10",
+      "@types/react-dom": "19.2.3",
+      "@luma.gl/core": "9.1.9",
+      "@luma.gl/engine": "9.1.9",
+      "@luma.gl/gltf": "9.1.9",
+      "@luma.gl/shadertools": "9.1.9",
+      "@luma.gl/webgl": "9.1.9"
     }
   }
 }

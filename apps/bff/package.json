@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "FASTIFY_AUTOLOAD_TYPESCRIPT=true bun --watch src/server.ts --port 3030",
-    "build": "bun build src/server.ts --outdir dist",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup src/server.ts --format esm --outDir dist",
     "start": "node dist/server.js",
-    "test": "FASTIFY_AUTOLOAD_TYPESCRIPT=true bun test",
-    "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage",
-    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,14 +24,18 @@
     "@fastify/swagger-ui": "^5.2.3",
     "auth0": "^4.26.0",
     "awilix": "^12.0.5",
-    "fastify": "^5.4.0"
+    "env-schema": "^6.0.0",
+    "fastify": "^5.4.0",
+    "fastify-plugin": "^5.0.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/bun": "^1.2.17",
     "@types/node": "^22.15.3",
     "is-ci": "^4.1.0",
-    "typescript": "5.8.2"
+    "tsup": "^8.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "5.8.2",
+    "vitest": "^4.0.0"
   }
 }

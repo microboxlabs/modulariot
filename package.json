@@ -24,6 +24,8 @@
   "packageManager": "pnpm@9.15.0",
   "pnpm": {
     "overrides": {
+      "@types/react": "19.2.10",
+      "@types/react-dom": "19.2.3",
       "@luma.gl/core": "9.1.2",
       "@luma.gl/webgl": "9.1.2",
       "@luma.gl/constants": "9.1.2",

@@ -41,15 +41,18 @@ export default function ComingSoon() {
             </div>
             
             {/* Main heading */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-6 lg:h-16">
-              Coming Soon
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2 lg:h-16">
+              ModularIoT
             </h1>
-            
+
+            {/* Secondary branding */}
+            <p className="text-sm text-gray-400 mb-6">
+              by MicroboxLabs
+            </p>
+
             {/* Subtitle */}
             <p className="text-xl sm:text-2xl text-gray-300 mb-8 leading-relaxed">
-              We&apos;re building the future of 
-              <span className="text-blue-400 font-semibold"> open-source </span>
-              real-time fleet monitoring
+              Open-source real-time fleet monitoring
             </p>
             
             {/* Description */}

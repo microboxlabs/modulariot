@@ -61,7 +61,7 @@ export default function PainOutcomeSection() {
             className="space-y-6"
           >
             <h2 className="text-2xl font-bold text-green-400 mb-8">
-              With Modular IoT
+              With ModularIoT
             </h2>
             <div className="space-y-4">
               {outcomes.map((outcome, index) => (

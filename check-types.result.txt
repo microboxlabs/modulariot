@@ -1,0 +1,28 @@
+• Packages in scope: @modulariot/app, @modulariot/bff, @modulariot/db, @modulariot/docs, @modulariot/ui, @modulariot/web-site, @repo/eslint-config, @repo/typescript-config, web
+• Running check-types in 9 packages
+• Remote caching disabled
+@modulariot/bff:check-types: cache miss, executing 87c6c710662e5f37
+@modulariot/app:check-types: cache hit, replaying logs bfa19b29af41f819
+@modulariot/app:check-types: 
+@modulariot/app:check-types: > @modulariot/app@0.1.0 check-types /Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/apps/app
+@modulariot/app:check-types: > tsc --noEmit
+@modulariot/app:check-types: 
+@modulariot/web-site:check-types: cache miss, executing 155eaafc71e776fa
+@modulariot/docs:check-types: cache miss, executing 65f0dd3d07fcd86a
+web:check-types: cache miss, executing 439c43c3535f05a8
+@modulariot/bff:check-types: 
+@modulariot/bff:check-types: > @modulariot/bff@0.1.0 check-types /Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/apps/bff
+@modulariot/bff:check-types: > tsc --noEmit
+@modulariot/bff:check-types: 
+@modulariot/web-site:check-types: 
+@modulariot/web-site:check-types: > @modulariot/web-site@0.1.0 check-types /Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/apps/web-site
+@modulariot/web-site:check-types: > tsc --noEmit
+@modulariot/web-site:check-types: 
+@modulariot/docs:check-types: 
+@modulariot/docs:check-types: > @modulariot/docs@0.1.0 check-types /Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/apps/docs
+@modulariot/docs:check-types: > tsc --noEmit
+@modulariot/docs:check-types: 
+web:check-types: 
+web:check-types: > web@0.1.0 check-types /Users/korutx/Documents/microboxlabs/projects/streamhub/monorepo-tests/modulariot-tuborepo/apps/web
+web:check-types: > tsc --noEmit
+web:check-types: 

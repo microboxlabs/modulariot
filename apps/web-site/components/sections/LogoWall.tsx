@@ -42,7 +42,7 @@ export default function LogoWall() {
           </div>
         </div>
       </div>
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes scroll {
           0% {
             transform: translateX(0);
@@ -51,7 +51,7 @@ export default function LogoWall() {
             transform: translateX(-50%);
           }
         }
-      `}</style>
+      `}} />
     </section>
   );
 } 

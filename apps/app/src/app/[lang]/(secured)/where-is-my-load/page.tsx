@@ -11,9 +11,10 @@ export default async function WheresMyLoadPage({
   params,
   searchParams,
 }: ParamsWithLang & {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { lang } = await params;
+  const resolvedSearchParams = await searchParams;
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
   const session = await auth();
@@ -28,7 +29,7 @@ export default async function WheresMyLoadPage({
       <div className="h-full flex flex-col">
         <TimelineHeader
           dict={dictionary as I18nRecord}
-          searchParams={searchParams}
+          searchParams={resolvedSearchParams}
         />
         <div className="h-full w-full flex flex-row justify-center overflow-auto p-4 relative">
           <Timeline

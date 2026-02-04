@@ -32,7 +32,7 @@ export default function ArchitectureSection() {
           <div className="relative w-full">
             <Image
               src="/architecture.svg"
-              alt="Modular IoT Architecture Diagram"
+              alt="ModularIoT Architecture Diagram"
               width={800}
               height={400}
               className="w-full h-auto"

@@ -8,8 +8,8 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const faqs = [
     {
-      question: "How does Modular IoT compare to Apache Kafka or Apache Pulsar?",
-      answer: "While Kafka and Pulsar are excellent message brokers, Modular IoT is a complete real-time fleet data processing platform. We use proven streaming technologies like Pulsar under the hood, but add fleet-specific processors, ML models, and integrations out of the box. You get enterprise-grade streaming without the complexity of building everything from scratch."
+      question: "How does ModularIoT compare to Apache Kafka or Apache Pulsar?",
+      answer: "While Kafka and Pulsar are excellent message brokers, ModularIoT is a complete real-time fleet data processing platform. We use proven streaming technologies like Pulsar under the hood, but add fleet-specific processors, ML models, and integrations out of the box. You get enterprise-grade streaming without the complexity of building everything from scratch."
     },
     {
       question: "What about GDPR and data sovereignty requirements?",
@@ -20,8 +20,8 @@ export default function FAQSection() {
       answer: "Yes, we provide static egress IPs for all managed deployments. For your-cloud deployments, you have full control over networking and can configure static IPs as needed. We also support VPC peering and private endpoints for enhanced security."
     },
     {
-      question: "What's the difference between Modular IoT and traditional telematics providers?",
-      answer: "Traditional telematics providers lock you into their ecosystem with monthly per-vehicle fees and limited customization. Modular IoT gives you the raw streaming infrastructure to build your own solutions. You own the data, control the processing logic, and can integrate with any system. It's the difference between renting and owning."
+      question: "What's the difference between ModularIoT and traditional telematics providers?",
+      answer: "Traditional telematics providers lock you into their ecosystem with monthly per-vehicle fees and limited customization. ModularIoT gives you the raw streaming infrastructure to build your own solutions. You own the data, control the processing logic, and can integrate with any system. It's the difference between renting and owning."
     },
     {
       question: "How quickly can we get started?",
@@ -47,7 +47,7 @@ export default function FAQSection() {
             Frequently Asked Questions
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300">
-            Everything you need to know about Modular IoT
+            Everything you need to know about ModularIoT
           </p>
         </motion.div>
 

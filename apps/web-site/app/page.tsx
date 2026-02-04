@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Modular IoT - Coming Soon",
-  description: "Modular IoT is launching soon. Be the first to experience open-source real-time fleet monitoring.",
+  title: "ModularIoT",
+  description: "ModularIoT is launching soon. Be the first to experience open-source real-time fleet monitoring.",
   robots: {
     index: false,
     follow: false,
@@ -33,7 +33,7 @@ export default function ComingSoon() {
             <div className="mb-8">
               <Image 
                 src="/logo.svg" 
-                alt="Modular IoT" 
+                alt="ModularIoT" 
                 className="size-3xs mx-auto"
                 width={256}
                 height={256}
@@ -105,6 +105,12 @@ export default function ComingSoon() {
                   className="hover:text-white transition-colors duration-200"
                 >
                   Privacy Policy
+                </a>
+                <a 
+                  href="/terms" 
+                  className="hover:text-white transition-colors duration-200"
+                >
+                  Terms of Service
                 </a>
               </div>
             </div>

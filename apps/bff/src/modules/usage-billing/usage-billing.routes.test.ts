@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startApp, closeApp } from '../../utils/tests/infra';
 import { FastifyInstance } from 'fastify';
 

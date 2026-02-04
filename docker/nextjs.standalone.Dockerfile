@@ -1,39 +1,57 @@
-# Production image, copy all the files and run next
-FROM oven/bun:1-debian
+# =============================================================================
+# Next.js Standalone Production Image
+# =============================================================================
+# This Dockerfile is used by the CI to build standalone Next.js applications.
+# It expects the build artifacts to be pre-built and copied into the context.
+#
+# Build context should contain:
+#   - .next/standalone/ - The standalone build output
+#   - .next/static/     - Static files
+#   - public/           - Public assets
+#
+# Build args:
+#   - APP_NAME: Name of the app (e.g., app, web-admin) - determines the path
+# =============================================================================
+
+FROM node:22-alpine
+
+# Build argument for app name (used for proper path resolution)
+# Must be declared before using it in COPY commands
+ARG APP_NAME=app
+
 WORKDIR /app
 
-# Build argument for server path
-ARG SERVER_PATH=server.js
-ENV SERVER_PATH=${SERVER_PATH}
+ENV NODE_ENV=production
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
 
-ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Copy public assets if they exist
+COPY --chown=nextjs:nodejs public ./public
 
-RUN groupadd --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 --gid nodejs nextjs
-
-COPY public ./public
-
-# Copy Prisma schema first
-# COPY --chown=nextjs:nodejs prisma ./prisma/
-
-# Copy package.json from the web app
-COPY --chown=nextjs:nodejs package.json ./
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Copy standalone build output
 COPY --chown=nextjs:nodejs .next/standalone ./
-COPY --chown=nextjs:nodejs .next/static ./apps/docs/.next/static
 
-USER root
+# Copy static files to the correct location relative to server.js
+# Since standalone output places server.js in apps/<app>/server.js,
+# static files should be at apps/<app>/.next/static
+COPY --chown=nextjs:nodejs .next/static ./apps/${APP_NAME}/.next/static
+
+# Copy public to the app-specific location as well (for basePath routing)
+COPY --chown=nextjs:nodejs public ./apps/${APP_NAME}/public
+
+# Switch to non-root user
+USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME 0.0.0.0
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-CMD sh -c "node ${SERVER_PATH}"
+# Change to the app directory and run server
+WORKDIR /app/apps/${APP_NAME}
+
+CMD ["node", "server.js"]

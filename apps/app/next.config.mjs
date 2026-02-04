@@ -1,10 +1,13 @@
 import withMDX from "@next/mdx";
 import withFlowbiteReact from "flowbite-react/plugin/nextjs";
+import path from "path";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
   output: "standalone",
+  // Required for pnpm monorepo: trace dependencies from monorepo root
+  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   basePath: "/app",
   // Enable source maps for production/staging debugging
   productionBrowserSourceMaps: true,

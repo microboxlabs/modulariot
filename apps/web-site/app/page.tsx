@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "ModularIoT - Coming Soon",
+  title: "ModularIoT",
   description: "ModularIoT is launching soon. Be the first to experience open-source real-time fleet monitoring.",
   robots: {
     index: false,

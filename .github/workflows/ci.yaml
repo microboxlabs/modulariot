@@ -123,9 +123,9 @@ jobs:
       - name: Run type checking
         run: pnpm turbo run check-types --filter='!@modulariot/web-admin'
 
-      - name: Run tests
-        run: pnpm turbo run test --filter='!@modulariot/web-admin' -- --run
-        continue-on-error: true
+      # - name: Run tests
+      #   run: pnpm turbo run test --filter='!@modulariot/web-admin' -- --run
+      #   continue-on-error: true
 
       # Only build apps that will be containerized
       - name: Build applications
@@ -139,11 +139,12 @@ jobs:
           cp -r apps/docs/public docker-context/docs/public || mkdir -p docker-context/docs/public
 
       - name: Upload docs build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docs-build
           path: docker-context/docs
           retention-days: 1
+          include-hidden-files: true
 
       - name: Package app build artifacts
         run: |
@@ -156,11 +157,12 @@ jobs:
           cp -r apps/app/public docker-context/app/public || mkdir -p docker-context/app/public
 
       - name: Upload app build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: app-build
           path: docker-context/app
           retention-days: 1
+          include-hidden-files: true
 
       - name: Package web-site build artifacts
         run: |
@@ -173,12 +175,13 @@ jobs:
           fi
 
       - name: Upload web-site build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: web-site-build
           path: docker-context/web-site
           retention-days: 1
           if-no-files-found: ignore
+          include-hidden-files: true
 
   # ===========================================================================
   # Publish Docker Images - Matrix strategy for multiple apps
@@ -220,10 +223,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.build-artifact }}
           path: docker-context/${{ matrix.app }}

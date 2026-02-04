@@ -106,6 +106,12 @@ export default function ComingSoon() {
                 >
                   Privacy Policy
                 </a>
+                <a 
+                  href="/terms" 
+                  className="hover:text-white transition-colors duration-200"
+                >
+                  Terms of Service
+                </a>
               </div>
             </div>
           </div>

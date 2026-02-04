@@ -4,6 +4,19 @@
 // IMPORTANT: This file must NOT have top-level imports/exports to remain an
 // ambient declaration file. Use import() type syntax instead.
 
+// deck.gl/mapbox types (provided by deck.gl but not exported separately)
+declare module "@deck.gl/mapbox" {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export class MapboxOverlay implements import("react-map-gl").IControl<any> {
+    constructor(props: import("@deck.gl/core").DeckProps);
+    setProps(props: import("@deck.gl/core").DeckProps): void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onAdd(map: any): HTMLDivElement;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onRemove(map: any): void;
+  }
+}
+
 declare module "*.svg" {
   const content: import("next/image").StaticImageData;
   export default content;

@@ -1,8 +1,8 @@
 # Dashboard Widget System
 
-> **Status**: 🔄 Refactoring (Chartset → Dashboard/Widget Architecture)  
+> **Status**: ✅ Implemented (Widget Architecture with react-grid-layout)  
 > **Location**: `/home` page (`src/app/[lang]/(secured)/home/page.tsx`)  
-> **Feature Path**: `src/features/dashboard/` (previously `src/features/chartset/`)
+> **Feature Path**: `src/features/dashboard/`
 
 ## Overview
 
@@ -16,6 +16,7 @@ The Dashboard system is a customizable widget-based layout that allows users to 
 - **Dashlet registry**: Self-contained components with metadata, component, and optional settings modal
 - **Persistent settings**: Widget configurations stored in localStorage
 - **Edit mode toggle**: Settings gear icon, delete buttons, and resize handles only appear in edit mode
+- **Centralized widget defaults**: All widget size constraints defined in one file
 
 ---
 
@@ -38,8 +39,12 @@ interface GridLayoutItem {
   i: string; // Widget ID (matches widget.id)
   x: number; // Column position (0-based)
   y: number; // Row position (0-based)
-  w: number; // Width in grid units (1-3)
-  h: number; // Height in grid units (1-4)
+  w: number; // Width in grid units
+  h: number; // Height in grid units
+  minW?: number; // Minimum width in grid units
+  minH?: number; // Minimum height in grid units
+  maxW?: number; // Maximum width in grid units
+  maxH?: number; // Maximum height in grid units
 }
 ```
 
@@ -232,15 +237,44 @@ type CardBackgroundColor =
 
 ## Grid Configuration
 
+### Root Level Grid (dashboard-view)
+
 | Property              | Value          | Notes                                  |
 | --------------------- | -------------- | -------------------------------------- |
-| **Columns**           | 3              | Fits 1/3, 2/3, full-width layouts      |
-| **Row height**        | 160px          | Consistent widget heights              |
+| **Columns**           | 12             | Consistent across all grid levels      |
+| **Row height**        | 80px           | Root level row height                  |
+| **Margin**            | [16, 16]       | Gap between widgets                    |
 | **Draggable**         | Edit mode only | Controlled by edit mode toggle         |
-| **Resizable**         | Edit mode only | Width: 1-3 cols, Height: 1-4 rows      |
+| **Resizable**         | Edit mode only | Width: minW-12 cols                    |
 | **Resize handles**    | `e`, `s`, `se` | Right edge, bottom edge, corner        |
 | **Compact type**      | `'vertical'`   | Widgets stack vertically when possible |
 | **Prevent collision** | `false`        | Widgets reflow on collision            |
+
+### Nested Grids (container & labeled-container)
+
+| Property       | Value          | Notes                              |
+| -------------- | -------------- | ---------------------------------- |
+| **Columns**    | 12             | Same as root for consistent sizing |
+| **Row height** | 40px           | Smaller for nested content         |
+| **Margin**     | [8, 8]         | Tighter spacing inside containers  |
+| **Draggable**  | Edit mode only | Uses `.no-drag` cancel selector    |
+| **Resizable**  | Edit mode only | Width: minW-12 cols                |
+
+### Widget Default Sizes
+
+Centralized in `src/features/dashboard/utils/widget-defaults.ts`:
+
+```typescript
+const WIDGET_DEFAULTS: Record<string, WidgetSizeDefaults> = {
+  "labeled-container": { minW: 4, minH: 2 },
+  card: { minW: 2, minH: 4 },
+  container: { minW: 4, minH: 4 },
+};
+```
+
+- `minW`/`minH` are used as both minimum constraints AND initial size
+- Change sizes in one place, applies everywhere
+- Individual widgets can override via `widget.layout.minW`/`minH`
 
 ---
 
@@ -253,15 +287,16 @@ DashboardProvider (context)
 └── DashboardView
     ├── Header (title + edit mode toggle)
     ├── EmptyState (shown when no widgets)
-    └── Widget list (root level)
+    └── GridLayout (root level, 12 cols, 80px row height)
         └── WidgetRenderer (recursive)
+            ├── widget-wrapper div (for CSS hover detection)
+            ├── widget-controls (settings gear, delete - hover visible)
             ├── Renders dashlet Component based on componentId
-            ├── Settings gear icon (edit mode, hasSettings)
-            ├── Delete button (edit mode)
-            └── For containers: AddWidgetButton + nested WidgetRenderers
+            └── For containers: nested GridLayout + AddWidgetButton
 
 AddWidgetModal (portal)
-├── Sticky search input at top
+├── ModalHeader with close button
+├── Search input
 ├── Scrollable categorized list
 │   ├── "Containers" category
 │   │   ├── Bento Box
@@ -361,13 +396,12 @@ DashletSettingsModal (per dashlet)
 src/features/dashboard/
 ├── components/
 │   ├── dashboard-view/
-│   │   └── dashboard-view.tsx      # Main dashboard container
+│   │   └── dashboard-view.tsx      # Main dashboard with root GridLayout
 │   ├── widget-renderer/
-│   │   ├── widget-renderer.tsx     # Recursive widget rendering
+│   │   ├── widget-renderer.tsx     # Recursive widget rendering with hover controls
 │   │   └── index.ts
 │   ├── add-widget-modal/
-│   │   ├── add-widget-modal.tsx    # Component selector modal
-│   │   ├── dashlet-option.tsx      # Single dashlet option in grid
+│   │   ├── add-widget-modal.tsx    # Component selector modal with header
 │   │   └── index.ts
 │   ├── confirm-modal/
 │   │   ├── confirm-modal.tsx       # Reusable confirmation modal
@@ -381,11 +415,11 @@ src/features/dashboard/
 │   ├── index.ts                    # Registry
 │   ├── types.ts                    # Dashlet type definitions
 │   ├── container/
-│   │   ├── container.tsx
+│   │   ├── container.tsx           # Bento box with nested GridLayout
 │   │   ├── container.meta.ts
 │   │   └── index.ts
 │   ├── labeled-container/
-│   │   ├── labeled-container.tsx
+│   │   ├── labeled-container.tsx   # Group with nested GridLayout
 │   │   ├── labeled-container.settings.tsx
 │   │   ├── labeled-container.meta.ts
 │   │   └── index.ts
@@ -395,11 +429,13 @@ src/features/dashboard/
 │       ├── card.meta.ts
 │       └── index.ts
 ├── context/
-│   └── dashboard-context.tsx       # State management
+│   └── dashboard-context.tsx       # State management with updateWidgetConstraints
 ├── hooks/
 │   └── use-dashboard-storage.ts    # localStorage with migration
 ├── types/
-│   └── dashboard.types.ts          # Widget, storage schema types
+│   └── dashboard.types.ts          # Widget, GridLayoutItem with min/max
+├── utils/
+│   └── widget-defaults.ts          # Centralized widget size defaults
 └── index.ts (barrel export)
 ```
 
@@ -447,11 +483,22 @@ src/features/dashboard/
 21. [x] Integrate settings modals for each dashlet
 22. [x] Persist config changes to localStorage
 
-### Phase 7: Polish
+### Phase 7: Polish & Advanced Features
 
-23. [ ] Test all nesting scenarios
-24. [ ] Test migration from old chartset data
-25. [ ] Update visual styling for labeled container
+23. [x] Test all nesting scenarios
+24. [x] Test migration from old chartset data
+25. [x] Update visual styling for labeled container
+26. [x] Implement hover-based widget controls (show on hover only)
+27. [x] CSS `:has()` selector for parent/child hover isolation
+28. [x] Add minimalistic resize handles (show on hover)
+29. [x] Light blue dashed border placeholder on drag
+30. [x] Make containers scrollable when content overflows
+31. [x] Add button always visible at bottom of containers
+32. [x] Centralize widget size defaults in `widget-defaults.ts`
+33. [x] Support `minW`, `minH`, `maxW`, `maxH` per widget
+34. [x] Add `updateWidgetConstraints()` to context
+35. [x] Unify all grids to 12 columns for consistent sizing
+36. [x] Add close button to AddWidgetModal
 
 ---
 
@@ -580,3 +627,9 @@ The label "cuts into" the top border using:
 - `user-select: none` applied to grid area during drag operations
 - All buttons in draggable areas need `no-drag` class and `onMouseDown` stopPropagation
 - Settings are persisted to localStorage immediately on save
+- Widget controls (gear, delete) only show when hovering that specific widget
+- CSS `:has(.widget-wrapper:hover)` hides parent controls when child is hovered
+- Nested grids use cancel selector `.nested-grid-wrapper .react-grid-item` to prevent parent drag
+- Containers use conditional `h-full` and `overflow-auto` based on edit mode
+- Label background is context-aware: `bg-gray-50` at root, `bg-white` inside containers
+- All widget defaults centralized in `utils/widget-defaults.ts` - change once, applies everywhere

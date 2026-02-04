@@ -12,6 +12,7 @@ import {
   getCategoryLabel,
   type DashletMeta,
 } from "../../dashlets";
+import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 
 interface AddWidgetModalProps {
   isOpen: boolean;
@@ -79,20 +80,15 @@ export function AddWidgetModal({
     e.stopPropagation();
   };
 
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !isOpen) return null;
 
   const modalContent = (
-    <Modal
-      show={isOpen}
-      onClose={handleClose}
-      size="lg"
-      onMouseDown={handleMouseDown}
+    <AbsoluteModal
+      selected={isOpen}
+      setSelected={handleClose}
+      className="border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg"
     >
-      {/* Header with close button */}
-      <ModalHeader>Add Widget</ModalHeader>
-
-      {/* Search input */}
-      <div className="border-b border-gray-200 p-4 dark:border-gray-700">
+      <div className="p-2 w-full">
         <TextInput
           icon={HiMagnifyingGlass}
           placeholder="Search components..."
@@ -105,7 +101,7 @@ export function AddWidgetModal({
       </div>
 
       {/* Scrollable content */}
-      <div className="max-h-[400px] overflow-y-auto p-4">
+      <div className="max-h-[400px] overflow-y-auto p-2">
         {categories.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-gray-500 dark:text-gray-400">
             <p>No components found</p>
@@ -120,7 +116,7 @@ export function AddWidgetModal({
                 </h3>
 
                 {/* Dashlet grid */}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="flex flex-col">
                   {category.dashlets.map((dashlet) => (
                     <DashletOption
                       key={dashlet.meta.id}
@@ -134,7 +130,7 @@ export function AddWidgetModal({
           </div>
         )}
       </div>
-    </Modal>
+    </AbsoluteModal>
   );
 
   return createPortal(modalContent, document.body);
@@ -156,15 +152,17 @@ function DashletOption({ meta, onSelect }: DashletOptionProps) {
       type="button"
       onClick={onSelect}
       onMouseDown={(e) => e.stopPropagation()}
-      className="no-drag flex flex-col items-center rounded-lg border border-gray-200 p-4 text-center transition-all hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/20"
+      className="no-drag w-full items-center rounded-lg border border-gray-200 p-2 gap-2 text-center transition-all hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/20 flex flex-row"
     >
-      <Icon className="mb-2 h-8 w-8 text-gray-500 dark:text-gray-400" />
-      <span className="text-sm font-medium text-gray-900 dark:text-white">
-        {meta.name}
-      </span>
-      <span className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {meta.description}
-      </span>
+      <Icon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-left text-gray-900 dark:text-white">
+          {meta.name}
+        </span>
+        <span className="mt-1 text-xs text-left text-gray-500 dark:text-gray-400">
+          {meta.description}
+        </span>
+      </div>
     </button>
   );
 }

@@ -1,5 +1,12 @@
 /**
- * Card Dashlet Module
+ * Dashlet Module Index
+ *
+ * This file wires everything together. You shouldn't need to edit this
+ * unless you're adding new exports.
+ *
+ * To register this dashlet:
+ * 1. Import { dashletDefinition } from "./your-folder-name"
+ * 2. Add it to DASHLET_DEFINITIONS array in dashlets/index.ts
  */
 
 import type { DashletDefinition } from "../types";
@@ -16,15 +23,8 @@ export const dashletDefinition: DashletDefinition = {
   getLayoutDefaults,
 };
 
-// Re-export for direct access
+// Re-export individual pieces if needed elsewhere
 export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";
 export { DashletSettings } from "./dashlet.settings";
 export { dashletMeta } from "./dashlet.meta";
-export type { DashletConfig, CardBackgroundColor, CardIcon } from "./dashlet";
-
-// Legacy aliases for backwards compatibility
-export { Dashlet as Card } from "./dashlet";
-export { DashletSettings as CardSettings } from "./dashlet.settings";
-export { dashletMeta as cardMeta } from "./dashlet.meta";
-export { getLayoutDefaults as getCardLayoutDefaults } from "./dashlet";
-export { dashletDefinition as cardDefinition } from "./index";
+export type { DashletConfig } from "./dashlet";

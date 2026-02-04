@@ -3,54 +3,41 @@
  *
  * Central registry for all available dashlets. Provides functions to
  * retrieve dashlet definitions, filter by category, and validate nesting rules.
+ *
+ * TO ADD A NEW DASHLET:
+ * 1. Copy _template folder to your-dashlet-name
+ * 2. Update dashlet.meta.ts (set id to folder name)
+ * 3. Import { dashletDefinition as yourDashletDefinition } below
+ * 4. Add yourDashletDefinition to DASHLET_DEFINITIONS array
  */
 
 import type { DashletDefinition, DashletMeta } from "./types";
 import type { DashletCategory } from "../types/dashboard.types";
+import type { ContainerConfig, ContainerVariant } from "./container";
 
-// Import dashlets
-import {
-  Container,
-  containerMeta,
-  defaultConfig as containerDefaultConfig,
-} from "./container";
-import {
-  LabeledContainer,
-  LabeledContainerSettings,
-  labeledContainerMeta,
-  defaultConfig as labeledContainerDefaultConfig,
-} from "./labeled-container";
-import {
-  Card,
-  CardSettings,
-  cardMeta,
-  defaultConfig as cardDefaultConfig,
-} from "./card";
+// Import dashlet definitions (each folder exports dashletDefinition)
+import { dashletDefinition as containerDefinition } from "./container";
+import { dashletDefinition as cardDefinition } from "./card";
+import { dashletDefinition as labeledDataDefinition } from "./labeled_data";
+
+// ============================================================================
+// DASHLET REGISTRY - Add new dashlets here
+// ============================================================================
+const DASHLET_DEFINITIONS: DashletDefinition[] = [
+  containerDefinition,
+  cardDefinition,
+  labeledDataDefinition,
+];
 
 /** Registry of all available dashlets */
-const DASHLET_REGISTRY: Record<string, DashletDefinition> = {
-  container: {
-    meta: containerMeta,
-    Component: Container,
-    SettingsModal: undefined,
-    defaultConfig: containerDefaultConfig as unknown as Record<string, unknown>,
-  },
-  "labeled-container": {
-    meta: labeledContainerMeta,
-    Component: LabeledContainer,
-    SettingsModal: LabeledContainerSettings,
-    defaultConfig: labeledContainerDefaultConfig as unknown as Record<
-      string,
-      unknown
-    >,
-  },
-  card: {
-    meta: cardMeta,
-    Component: Card,
-    SettingsModal: CardSettings,
-    defaultConfig: cardDefaultConfig as unknown as Record<string, unknown>,
-  },
-};
+const DASHLET_REGISTRY: Record<string, DashletDefinition> =
+  DASHLET_DEFINITIONS.reduce<Record<string, DashletDefinition>>(
+    (registry, definition) => {
+      registry[definition.meta.id] = definition;
+      return registry;
+    },
+    {}
+  );
 
 /**
  * Get a dashlet definition by its component ID
@@ -87,27 +74,44 @@ export function getDashletsByCategory(
 /**
  * Get dashlets that can be nested inside a specific parent
  * @param parentComponentId - The parent's componentId, or null for root level
+ * @param parentConfig - The parent's config for variant-based nesting rules
  */
 export function getValidDashletsForParent(
-  parentComponentId: string | null
+  parentComponentId: string | null,
+  parentConfig?: Record<string, unknown>
 ): DashletDefinition[] {
   return Object.values(DASHLET_REGISTRY).filter((d) => {
     // If placing at root level, all widgets are valid
     if (parentComponentId === null) {
       return true;
     }
-    // If placing inside a parent, exclude widgets marked as isRootOnly
-    // (e.g., bento boxes cannot be nested inside other widgets)
-    return !d.meta.isRootOnly;
+    // If parent is a container with bento-box variant, only allow non-bento-box containers
+    // (labeled-group can be nested inside bento-box)
+    if (parentComponentId === "container") {
+      const parentVariant = (parentConfig as ContainerConfig | undefined)
+        ?.variant;
+      if (parentVariant === "bento-box" && d.meta.id === "container") {
+        // Container can only be added if it will be a labeled-group (context-aware default)
+        // We allow it because the default variant when nested will be labeled-group
+        return true;
+      }
+    }
+    return true;
   });
 }
 
 /**
  * Check if a dashlet can be nested inside a specific parent
+ * @param childComponentId - The child's componentId
+ * @param parentComponentId - The parent's componentId, or null for root level
+ * @param childVariant - The child's variant (for containers)
+ * @param parentConfig - The parent's config for variant-based nesting rules
  */
 export function canNestIn(
   childComponentId: string,
-  parentComponentId: string | null
+  parentComponentId: string | null,
+  childVariant?: ContainerVariant,
+  parentConfig?: Record<string, unknown>
 ): boolean {
   const dashlet = DASHLET_REGISTRY[childComponentId];
   if (!dashlet) return false;
@@ -117,8 +121,34 @@ export function canNestIn(
     return true;
   }
 
-  // If placing inside a parent, check if it's not root-only
-  return !dashlet.meta.isRootOnly;
+  // Container variant-based nesting rules:
+  // - bento-box cannot be nested inside another bento-box
+  // - labeled-group can be nested anywhere
+  if (childComponentId === "container" && parentComponentId === "container") {
+    const parentVariant = (parentConfig as ContainerConfig | undefined)
+      ?.variant;
+    // If parent is bento-box, child cannot be bento-box
+    if (parentVariant === "bento-box" && childVariant === "bento-box") {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Get the default variant for a new container based on context
+ * @param parentComponentId - The parent's componentId, or null for root level
+ */
+export function getDefaultContainerVariant(
+  parentComponentId: string | null
+): ContainerVariant {
+  // At root level, default to bento-box
+  if (parentComponentId === null) {
+    return "bento-box";
+  }
+  // When nested inside any container, default to labeled-group
+  return "labeled-group";
 }
 
 /**
@@ -144,5 +174,9 @@ export function getCategoryLabel(category: DashletCategory): string {
 }
 
 // Re-export types
-export type { DashletDefinition, DashletMeta } from "./types";
+export type {
+  DashletDefinition,
+  DashletMeta,
+  DashletLayoutDefaults,
+} from "./types";
 export type { DashletComponentProps, DashletSettingsProps } from "./types";

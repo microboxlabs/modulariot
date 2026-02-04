@@ -13,7 +13,7 @@ import {
 } from "flowbite-react";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
-import type { CardConfig, CardBackgroundColor, CardIcon } from "./card";
+import type { DashletConfig, CardBackgroundColor, CardIcon } from "./dashlet";
 
 /** Background color options for dropdown */
 const BG_COLOR_OPTIONS: { value: CardBackgroundColor; label: string }[] = [
@@ -37,16 +37,15 @@ const ICON_OPTIONS: { value: CardIcon; label: string }[] = [
 ];
 
 /**
- * Settings modal for Card dashlet
- * Allows editing name, value, background color, and icon
+ * Settings Modal
  */
-export function CardSettings({
+export function DashletSettings({
   isOpen,
   onClose,
   config,
   onSave,
 }: DashletSettingsProps) {
-  const typedConfig = config as unknown as CardConfig;
+  const typedConfig = config as unknown as DashletConfig;
   const [name, setName] = useState(typedConfig.name || "Metric");
   const [value, setValue] = useState(typedConfig.value || "0");
   const [backgroundColor, setBackgroundColor] = useState<CardBackgroundColor>(

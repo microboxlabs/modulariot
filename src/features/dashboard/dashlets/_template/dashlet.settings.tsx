@@ -12,23 +12,30 @@ import {
 } from "flowbite-react";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
-import type { LabeledContainerConfig } from "./labeled-container";
+import type { DashletConfig } from "./dashlet";
 
 /**
- * Settings modal for Labeled Container
- * Allows editing the label text
+ * Settings Modal
+ *
+ * Edit this component to customize the settings form.
+ * The `config` prop contains current values, call `onSave` with new values.
  */
-export function LabeledContainerSettings({
+export function DashletSettings({
   isOpen,
   onClose,
   config,
   onSave,
 }: DashletSettingsProps) {
-  const typedConfig = config as unknown as LabeledContainerConfig;
-  const [label, setLabel] = useState(typedConfig.label || "Group");
+  const typedConfig = config as unknown as DashletConfig;
+
+  // Add state for each config field
+  const [title, setTitle] = useState(typedConfig.title || "");
 
   const handleSave = () => {
-    onSave({ label: label.trim() || "Group" });
+    onSave({
+      title: title.trim() || "Default Title",
+      // Add other fields here
+    });
     onClose();
   };
 
@@ -42,25 +49,22 @@ export function LabeledContainerSettings({
     <Modal
       show={isOpen}
       onClose={onClose}
-      size="sm"
+      size="md"
       onMouseDown={handleMouseDown}
     >
-      <ModalHeader>Group Settings</ModalHeader>
+      <ModalHeader>Settings</ModalHeader>
       <ModalBody>
         <div className="space-y-4">
+          {/* Add your form fields here */}
           <div>
-            <Label htmlFor="label" className="mb-2 block">
-              Label
+            <Label htmlFor="dashlet-title" className="mb-2 block">
+              Title
             </Label>
             <TextInput
-              id="label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Enter label..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
-                if (e.key === "Escape") onClose();
-              }}
+              id="dashlet-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter title..."
             />
           </div>
         </div>

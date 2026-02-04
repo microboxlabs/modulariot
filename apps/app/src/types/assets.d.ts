@@ -6,10 +6,10 @@
 
 // deck.gl/mapbox types (provided by deck.gl but not exported separately)
 declare module "@deck.gl/mapbox" {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  export class MapboxOverlay implements import("react-map-gl").IControl<any> {
+  export class MapboxOverlay {
     constructor(props: import("@deck.gl/core").DeckProps);
     setProps(props: import("@deck.gl/core").DeckProps): void;
+    // IControl interface methods
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onAdd(map: any): HTMLDivElement;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

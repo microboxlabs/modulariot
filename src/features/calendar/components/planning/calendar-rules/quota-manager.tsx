@@ -14,6 +14,10 @@ import {
   TimeWindowUtils,
   usePlanningSelection,
 } from "../planning-selection-context";
+import {
+  ColorPickerDropdown,
+  type ColorOption,
+} from "@/features/common/components/color-picker-dropdown";
 
 /**
  * Time window configuration
@@ -49,15 +53,28 @@ const WEEKS_OF_MONTH = [
   { value: 5, label: "S5", fullLabel: "Semana 5" },
 ];
 
-const COLOR_OPTIONS: { value: TimeWindowColor; label: string }[] = [
-  { value: "emerald", label: "Verde" },
-  { value: "blue", label: "Azul" },
-  { value: "violet", label: "Violeta" },
-  { value: "rose", label: "Rosa" },
-  { value: "amber", label: "Ámbar" },
-  { value: "cyan", label: "Cian" },
-  { value: "lime", label: "Lima" },
-  { value: "orange", label: "Naranja" },
+/** Color options for time windows using the common ColorPickerDropdown */
+const COLOR_OPTIONS: ColorOption<TimeWindowColor>[] = [
+  {
+    value: "emerald",
+    label: "Verde",
+    dotClass: TIME_WINDOW_COLORS.emerald.dot,
+  },
+  { value: "blue", label: "Azul", dotClass: TIME_WINDOW_COLORS.blue.dot },
+  {
+    value: "violet",
+    label: "Violeta",
+    dotClass: TIME_WINDOW_COLORS.violet.dot,
+  },
+  { value: "rose", label: "Rosa", dotClass: TIME_WINDOW_COLORS.rose.dot },
+  { value: "amber", label: "Ámbar", dotClass: TIME_WINDOW_COLORS.amber.dot },
+  { value: "cyan", label: "Cian", dotClass: TIME_WINDOW_COLORS.cyan.dot },
+  { value: "lime", label: "Lima", dotClass: TIME_WINDOW_COLORS.lime.dot },
+  {
+    value: "orange",
+    label: "Naranja",
+    dotClass: TIME_WINDOW_COLORS.orange.dot,
+  },
 ];
 
 function generateTimeOptions(
@@ -287,114 +304,6 @@ function PortalDatepicker({
   );
 }
 
-/**
- * Custom color picker dropdown with color circles (portal-based)
- */
-function ColorPickerDropdown({
-  value,
-  onChange,
-}: {
-  value: TimeWindowColor;
-  onChange: (color: TimeWindowColor) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.right + window.scrollX - 120, // Align right edge
-      });
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !target.closest("[data-colorpicker-portal]") &&
-        !triggerRef.current?.contains(target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isOpen]);
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={twMerge(
-          "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-          "bg-gray-100 dark:bg-gray-900/50 hover:bg-gray-200 dark:hover:bg-gray-700",
-          "focus:outline-none focus:ring-2 focus:ring-primary-300"
-        )}
-        title="Cambiar color"
-      >
-        <span
-          className={twMerge(
-            "w-4 h-4 rounded-full",
-            TIME_WINDOW_COLORS[value].dot
-          )}
-        />
-      </button>
-      {isOpen &&
-        createPortal(
-          <div
-            data-colorpicker-portal
-            className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
-            style={{ top: position.top, left: position.left }}
-          >
-            {COLOR_OPTIONS.map((colorOpt) => (
-              <button
-                key={colorOpt.value}
-                type="button"
-                onClick={() => {
-                  onChange(colorOpt.value);
-                  setIsOpen(false);
-                }}
-                className={twMerge(
-                  "w-full px-3 py-1.5 flex items-center gap-2 text-left text-xs transition-colors",
-                  "hover:bg-gray-100 dark:hover:bg-gray-700",
-                  value === colorOpt.value && "bg-gray-50 dark:bg-gray-700/50"
-                )}
-              >
-                <span
-                  className={twMerge(
-                    "w-3 h-3 rounded-full shrink-0",
-                    TIME_WINDOW_COLORS[colorOpt.value].dot
-                  )}
-                />
-                <span className="text-gray-700 dark:text-gray-300">
-                  {colorOpt.label}
-                </span>
-                {value === colorOpt.value && (
-                  <HiCheck className="ml-auto h-3 w-3 text-primary-500" />
-                )}
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
 interface QuotaManagerProps {
   onRulesChange?: (windows: TimeWindow[], formatString: string) => void;
 }
@@ -402,7 +311,8 @@ interface QuotaManagerProps {
 export default function QuotaManager({
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
-  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } = usePlanningSelection();
+  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } =
+    usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Auto-delete expired daily-override exceptions (date before today)
@@ -943,6 +853,7 @@ export default function QuotaManager({
                   <ColorPickerDropdown
                     value={window.color || "emerald"}
                     onChange={(color) => updateWindowColor(window.id, color)}
+                    options={COLOR_OPTIONS}
                   />
                 </div>
 

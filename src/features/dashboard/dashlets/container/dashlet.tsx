@@ -1,0 +1,534 @@
+"use client";
+
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { HiArrowRight } from "react-icons/hi2";
+import {
+  GridLayout,
+  verticalCompactor,
+  type Layout,
+  type LayoutItem,
+} from "react-grid-layout";
+import type { DashletComponentProps } from "../types";
+import type { GridLayoutItem } from "../../types/dashboard.types";
+import { useDashboard } from "../../context/dashboard-context";
+import type { DashletLayoutDefaults } from "../types";
+
+import "react-grid-layout/css/styles.css";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Container variant type */
+export type ContainerVariant = "bento-box" | "labeled-group";
+
+/** Available border colors for labeled-group variant (light colors) */
+export type LabelBorderColor =
+  | "gray"
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "purple"
+  | "pink";
+
+/** Border color class mapping (using 300 variants for light colors) */
+export const BORDER_COLOR_CLASSES: Record<LabelBorderColor, string> = {
+  gray: "border-gray-300 dark:border-gray-600",
+  red: "border-red-300 dark:border-red-400",
+  orange: "border-orange-300 dark:border-orange-400",
+  yellow: "border-yellow-300 dark:border-yellow-400",
+  green: "border-green-300 dark:border-green-400",
+  teal: "border-teal-300 dark:border-teal-400",
+  blue: "border-blue-300 dark:border-blue-400",
+  indigo: "border-indigo-300 dark:border-indigo-400",
+  purple: "border-purple-300 dark:border-purple-400",
+  pink: "border-pink-300 dark:border-pink-400",
+};
+
+/** All available border colors for settings select */
+export const LABEL_BORDER_COLORS: LabelBorderColor[] = [
+  "gray",
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "teal",
+  "blue",
+  "indigo",
+  "purple",
+  "pink",
+];
+
+/** Configuration for container dashlet */
+export interface DashletConfig {
+  /** Container variant: bento-box or labeled-group */
+  variant: ContainerVariant;
+
+  // Bento Box specific fields
+  /** Name/title for bento-box variant */
+  name?: string;
+  /** Description for bento-box variant */
+  description?: string;
+  /** URL for "Ver más" button in bento-box variant */
+  verMasUrl?: string;
+
+  // Labeled Group specific fields
+  /** Label text for labeled-group variant */
+  label?: string;
+  /** Border color for labeled-group variant */
+  borderColor?: LabelBorderColor;
+}
+
+/** Default configuration for a new container */
+export const defaultConfig: DashletConfig = {
+  variant: "bento-box",
+  name: "Untitled",
+  description: "",
+  verMasUrl: "",
+  label: "Group",
+  borderColor: "gray",
+};
+
+const CONTAINER_VARIANT_LAYOUT_DEFAULTS: Record<
+  ContainerVariant,
+  DashletLayoutDefaults
+> = {
+  "bento-box": { minW: 4, minH: 4 },
+  "labeled-group": { minW: 4, minH: 2 },
+};
+
+export function getLayoutDefaults(
+  config?: Record<string, unknown>
+): DashletLayoutDefaults {
+  const variant = (config as DashletConfig | undefined)?.variant ?? "bento-box";
+  return (
+    CONTAINER_VARIANT_LAYOUT_DEFAULTS[variant] ??
+    CONTAINER_VARIANT_LAYOUT_DEFAULTS["bento-box"]
+  );
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Unified Container Dashlet
+ *
+ * Can be configured as:
+ * - Bento Box: Full header with name, description, and "Ver más" link
+ * - Labeled Group: Fieldset-legend style with colored border
+ */
+export function Dashlet({
+  widget,
+  editMode,
+  isRoot,
+  onAddChild,
+  children,
+}: DashletComponentProps) {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { updateWidgetLayouts } = useDashboard();
+
+  const config = (widget.config as unknown as DashletConfig) ?? defaultConfig;
+  const variant = config.variant ?? "bento-box";
+  const widgetChildren = widget.children ?? [];
+  const hasChildren = widgetChildren.length > 0;
+
+  // Calculate responsive columns based on container width
+  // Use ceil so column width is always <= 100px (items never grow larger than intended)
+  const cols = useMemo(() => {
+    if (containerWidth <= 0) return 12;
+    // Target max 100px per column, minimum 2 cols, maximum 12 cols
+    const calculatedCols = Math.ceil(containerWidth / 100);
+    return Math.max(2, Math.min(12, calculatedCols));
+  }, [containerWidth]);
+
+  // Measure container dimensions
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(container);
+    setContainerWidth(container.offsetWidth);
+    setContainerHeight(container.offsetHeight);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Convert children to react-grid-layout format
+  // Clamp x positions and widths to fit within current column count
+  const layout: Layout = useMemo(
+    () =>
+      widgetChildren.map((child, index) => {
+        const fallbackMinW = Math.max(
+          1,
+          child.layout?.minW ?? child.layout?.w ?? 1
+        );
+        const fallbackMinH = Math.max(
+          1,
+          child.layout?.minH ?? child.layout?.h ?? 1
+        );
+        const savedW = child.layout?.w ?? fallbackMinW;
+        const savedX = child.layout?.x ?? index % cols;
+        // Clamp width to fit within cols, and adjust x if needed
+        const w = Math.min(savedW, cols);
+        const x = Math.min(savedX, cols - w);
+        return {
+          i: child.id,
+          x,
+          y: child.layout?.y ?? Math.floor(index / cols),
+          w,
+          h: child.layout?.h ?? fallbackMinH,
+          isDraggable: editMode,
+          isResizable: editMode,
+          minW: Math.min(child.layout?.minW ?? fallbackMinW, cols),
+          maxW: Math.min(child.layout?.maxW ?? 12, cols),
+          minH: child.layout?.minH ?? fallbackMinH,
+          maxH: child.layout?.maxH ?? Infinity,
+        };
+      }),
+    [widgetChildren, editMode, cols]
+  );
+
+  // Handler for user-initiated drag/resize stop - only save on user interaction
+  const handleDragResizeStop = useCallback(
+    (layout: Layout) => {
+      if (!editMode) return;
+      const items: GridLayoutItem[] = layout.map((item: LayoutItem) => {
+        const existingChild = widgetChildren.find((c) => c.id === item.i);
+        return {
+          i: item.i,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h,
+          minW: existingChild?.layout?.minW,
+          minH: existingChild?.layout?.minH,
+          maxW: existingChild?.layout?.maxW,
+          maxH: existingChild?.layout?.maxH,
+        };
+      });
+      updateWidgetLayouts(widget.id, items);
+    },
+    [widget.id, updateWidgetLayouts, editMode, widgetChildren]
+  );
+
+  const handleVerMasClick = () => {
+    if (config.verMasUrl) {
+      window.open(config.verMasUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  // Get border color class for labeled-group
+  const borderColorClass =
+    variant === "labeled-group"
+      ? BORDER_COLOR_CLASSES[config.borderColor ?? "gray"]
+      : "";
+
+  // Background color for label depends on context
+  const labelBgClass = isRoot
+    ? "bg-gray-50 dark:bg-gray-900"
+    : "bg-white dark:bg-gray-800";
+
+  // Labeled group layout helpers (call hooks unconditionally to preserve order)
+  const labeledGroupMarginY = 9;
+
+  const maxRows = useMemo(() => {
+    if (variant !== "labeled-group" || widgetChildren.length === 0) return 1;
+    return Math.max(
+      ...widgetChildren.map((child) => {
+        const y = child.layout?.y ?? 0;
+        const height = Math.max(1, child.layout?.h ?? child.layout?.minH ?? 1);
+        return y + height;
+      })
+    );
+  }, [variant, widgetChildren]);
+
+  const labeledGroupRowHeight = useMemo(() => {
+    if (variant !== "labeled-group") return 80;
+    if (containerHeight <= 0 || maxRows <= 0) return 80;
+    const availableHeight = containerHeight;
+    const totalMargins = (maxRows - 1) * labeledGroupMarginY;
+    const calculatedRowHeight = (availableHeight - totalMargins) / maxRows;
+    return Math.max(40, Math.min(120, calculatedRowHeight));
+  }, [variant, containerHeight, maxRows, labeledGroupMarginY]);
+
+  // ============================================================================
+  // Bento Box Variant
+  // ============================================================================
+  if (variant === "bento-box") {
+    return (
+      <div
+        className={`flex flex-col rounded-lg ring-1 ring-gray-200 bg-white shadow-sm dark:ring-gray-700 dark:bg-gray-800 h-full`}
+      >
+        {/* Header with name, description, and Ver más button - fixed 80px height (1 row) */}
+        <div className="flex h-20 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
+          <div className="min-w-0 flex-1">
+            {/* Name */}
+            <h3 className="truncate text-lg font-semibold text-gray-900 dark:text-white">
+              {config.name || "Untitled"}
+            </h3>
+
+            {/* Description */}
+            {config.description && (
+              <p className="truncate text-sm text-gray-500 dark:text-gray-400">
+                {config.description}
+              </p>
+            )}
+          </div>
+
+          {/* Ver más button */}
+          {config.verMasUrl && (
+            <button
+              type="button"
+              onClick={handleVerMasClick}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="no-drag ml-4 flex shrink-0 items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Ver más
+              <HiArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Grid Content */}
+        <div ref={containerRef} className={`p-2 min-h-0 flex-1 overflow-auto`}>
+          {hasChildren ? (
+            containerWidth > 0 ? (
+              <div className="nested-grid-wrapper">
+                <GridLayout
+                  className="container-grid"
+                  layout={layout}
+                  width={containerWidth}
+                  gridConfig={{
+                    cols,
+                    rowHeight: 80,
+                    margin: [16, 16] as const,
+                    containerPadding: [0, 0] as const,
+                    maxRows: Infinity,
+                  }}
+                  dragConfig={{
+                    enabled: editMode,
+                    cancel: ".no-drag",
+                  }}
+                  resizeConfig={{
+                    enabled: editMode,
+                    handles: ["se"],
+                  }}
+                  compactor={verticalCompactor}
+                  onDragStop={(layout) => handleDragResizeStop(layout)}
+                  onResizeStop={(layout) => handleDragResizeStop(layout)}
+                  autoSize={true}
+                >
+                  {children}
+                </GridLayout>
+              </div>
+            ) : (
+              <div className="flex h-20 items-center justify-center text-gray-400">
+                <p className="text-sm">Measuring...</p>
+              </div>
+            )
+          ) : (
+            !editMode && (
+              <div className="flex h-20 flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                <p className="text-sm">No widgets yet</p>
+              </div>
+            )
+          )}
+        </div>
+
+        <ContainerGridStyles />
+      </div>
+    );
+  }
+  // ============================================================================
+  // Labeled Group Variant
+  // ============================================================================
+  return (
+    <div
+      className={`relative flex flex-col rounded-lg border ${borderColorClass} pt-1 h-full`}
+    >
+      {/* Label that cuts into border (fieldset-legend style) */}
+      <span
+        className={`absolute -top-3 left-3 z-10 px-2 text-sm font-medium text-gray-500 dark:text-gray-400 ${labelBgClass}`}
+      >
+        {config.label || "Group"}
+      </span>
+
+      {/* Children content with grid layout */}
+      <div
+        ref={containerRef}
+        className={`p-2.5 min-h-0 flex-1 overflow-hidden`}
+      >
+        {hasChildren ? (
+          containerWidth > 0 && containerHeight > 0 ? (
+            <div className="nested-grid-wrapper">
+              <GridLayout
+                className="container-grid"
+                layout={layout}
+                width={containerWidth}
+                gridConfig={{
+                  cols,
+                  rowHeight: labeledGroupRowHeight,
+                  margin: [16, labeledGroupMarginY] as const,
+                  containerPadding: [0, 0] as const,
+                  maxRows: Infinity,
+                }}
+                dragConfig={{
+                  enabled: editMode,
+                  cancel: ".no-drag",
+                }}
+                resizeConfig={{
+                  enabled: editMode,
+                  handles: ["se"],
+                }}
+                compactor={verticalCompactor}
+                onDragStop={(layout) => handleDragResizeStop(layout)}
+                onResizeStop={(layout) => handleDragResizeStop(layout)}
+                autoSize={true}
+              >
+                {children}
+              </GridLayout>
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-gray-400">
+              <p className="text-sm">Measuring...</p>
+            </div>
+          )
+        ) : (
+          !editMode && (
+            <div className="flex flex-1 items-center justify-center text-gray-400 dark:text-gray-500">
+              <p className="text-sm">Empty group</p>
+            </div>
+          )
+        )}
+      </div>
+
+      <ContainerGridStyles />
+    </div>
+  );
+}
+
+// ============================================================================
+// Shared Grid Styles
+// ============================================================================
+
+function ContainerGridStyles() {
+  return (
+    <style jsx global>{`
+      .container-grid {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .container-grid .react-grid-item {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .container-grid .react-grid-item.react-grid-placeholder {
+        background: rgba(59, 130, 246, 0.08) !important;
+        border-radius: 0.5rem;
+        border: 2px dashed rgba(59, 130, 246, 0.4) !important;
+        opacity: 1 !important;
+      }
+      .container-grid .react-grid-item.react-draggable-dragging {
+        z-index: 100;
+        opacity: 0.9;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* Hide all resize handles by default */
+      .container-grid .react-grid-item > .react-resizable-handle {
+        background: none !important;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        transform: none !important;
+      }
+      .container-grid .react-grid-item > .react-resizable-handle::after {
+        transform: none !important;
+      }
+
+      /* Show handles on hover */
+      .container-grid .react-grid-item:hover > .react-resizable-handle {
+        opacity: 1;
+      }
+
+      /* East (right) handle */
+      .container-grid .react-grid-item > .react-resizable-handle-e {
+        width: 6px !important;
+        height: 100% !important;
+        right: 0 !important;
+        top: 0 !important;
+        cursor: ew-resize;
+      }
+      .container-grid .react-grid-item > .react-resizable-handle-e::after {
+        content: "";
+        position: absolute;
+        right: 2px;
+        top: 50%;
+        transform: translateY(-50%) !important;
+        width: 2px;
+        height: 24px;
+        background: rgba(156, 163, 175, 0.35);
+        border-radius: 1px;
+        border: none !important;
+      }
+
+      /* South (bottom) handle */
+      .container-grid .react-grid-item > .react-resizable-handle-s {
+        height: 6px !important;
+        width: 100% !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        cursor: ns-resize;
+      }
+      .container-grid .react-grid-item > .react-resizable-handle-s::after {
+        content: "";
+        position: absolute;
+        bottom: 2px;
+        left: 50%;
+        transform: translateX(-50%) !important;
+        height: 2px;
+        width: 24px;
+        background: rgba(156, 163, 175, 0.35);
+        border-radius: 1px;
+        border: none !important;
+      }
+
+      /* Southeast corner handle */
+      .container-grid .react-grid-item > .react-resizable-handle-se {
+        width: 14px !important;
+        height: 14px !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        cursor: nwse-resize;
+      }
+      .container-grid .react-grid-item > .react-resizable-handle-se::after {
+        content: "";
+        position: absolute;
+        right: 3px;
+        bottom: 3px;
+        width: 6px;
+        height: 6px;
+        border-right: 2px solid rgba(156, 163, 175, 0.35);
+        border-bottom: 2px solid rgba(156, 163, 175, 0.35);
+        border-radius: 0 0 2px 0;
+        background: none !important;
+        transform: none !important;
+      }
+    `}</style>
+  );
+}

@@ -8,7 +8,11 @@ import {
   HiClock,
   HiCheckCircle,
 } from "react-icons/hi2";
-import type { DashletComponentProps } from "../types";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+
+// ============================================================================
+// Configuration Types
+// ============================================================================
 
 /** Available background colors for card */
 export type CardBackgroundColor =
@@ -29,13 +33,38 @@ export type CardIcon =
   | "clock"
   | "check";
 
-/** Configuration for card dashlet */
-export interface CardConfig {
+/** Configuration for this dashlet */
+export interface DashletConfig {
   name: string;
   value: string;
   backgroundColor: CardBackgroundColor;
   icon: CardIcon;
 }
+
+/** Default configuration */
+export const defaultConfig: DashletConfig = {
+  name: "Metric",
+  value: "0",
+  backgroundColor: "white",
+  icon: "chart",
+};
+
+// ============================================================================
+// Layout Defaults
+// ============================================================================
+
+export const layoutDefaults: DashletLayoutDefaults = {
+  minW: 2,
+  minH: 1,
+};
+
+export function getLayoutDefaults(): DashletLayoutDefaults {
+  return layoutDefaults;
+}
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
 
 /** Background color Tailwind classes */
 const BG_COLORS: Record<CardBackgroundColor, string> = {
@@ -69,12 +98,16 @@ const ICONS: Record<CardIcon, React.ComponentType<{ className?: string }>> = {
   check: HiCheckCircle,
 };
 
+// ============================================================================
+// Component
+// ============================================================================
+
 /**
  * Card Dashlet
  * Displays a key metric with icon, label, and large value
  */
-export function Card({ widget }: DashletComponentProps) {
-  const config = widget.config as unknown as CardConfig;
+export function Dashlet({ widget }: DashletComponentProps) {
+  const config = widget.config as unknown as DashletConfig;
   const name = config.name || "Metric";
   const value = config.value || "0";
   const bgColor = config.backgroundColor || "white";
@@ -86,22 +119,15 @@ export function Card({ widget }: DashletComponentProps) {
 
   return (
     <div
-      className={`flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 p-4 dark:border-gray-700 ${bgClass}`}
+      className={`flex h-full flex-col rounded-lg border border-gray-200 p-2 dark:border-gray-700 ${bgClass}`}
     >
-      <Icon className={`h-8 w-8 ${iconClass}`} />
-      <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-        {name}
-      </p>
-      <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
-        {value}
-      </p>
+      <div className="flex w-full flex-row gap-2">
+        <Icon className={`h-5 w-5 ${iconClass}`} />
+        <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
+          {name}
+        </p>
+      </div>
+      <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }
-
-export const defaultConfig: CardConfig = {
-  name: "Metric",
-  value: "0",
-  backgroundColor: "white",
-  icon: "chart",
-};

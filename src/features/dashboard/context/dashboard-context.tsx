@@ -8,8 +8,7 @@ import {
 } from "react";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
 import type { Widget, GridLayoutItem } from "../types/dashboard.types";
-import { getDashlet, canNestIn } from "../dashlets";
-import { getWidgetDefaults } from "../utils/widget-defaults";
+import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 
 /** Context value type */
 interface DashboardContextValue {
@@ -23,7 +22,8 @@ interface DashboardContextValue {
   // Widget actions
   createWidget: (
     componentId: string,
-    parentId?: string | null
+    parentId?: string | null,
+    configOverride?: Record<string, unknown>
   ) => Widget | null;
   updateWidgetConfig: (
     widgetId: string,
@@ -114,9 +114,14 @@ export function DashboardProvider({ children }: PropsWithChildren) {
   } = useDashboardStorage();
 
   const createWidget = useCallback(
-    (componentId: string, parentId?: string | null): Widget | null => {
+    (
+      componentId: string,
+      parentId?: string | null,
+      configOverride?: Record<string, unknown>
+    ): Widget | null => {
       // Get parent's componentId for nesting validation
       let parentComponentId: string | null = null;
+      let parentConfig: Record<string, unknown> | undefined;
       if (parentId) {
         const parent = findWidget(parentId);
         if (!parent) {
@@ -124,10 +129,26 @@ export function DashboardProvider({ children }: PropsWithChildren) {
           return null;
         }
         parentComponentId = parent.componentId;
+        parentConfig = parent.config;
       }
 
-      // Validate nesting rules
-      if (!canNestIn(componentId, parentComponentId)) {
+      // Build the config with context-aware defaults for containers
+      let widgetConfig = configOverride ?? {};
+      if (componentId === "container" && !("variant" in widgetConfig)) {
+        widgetConfig = {
+          ...widgetConfig,
+          variant: getDefaultContainerVariant(parentComponentId),
+        };
+      }
+
+      // Validate nesting rules with variant
+      const childVariant =
+        componentId === "container"
+          ? (widgetConfig.variant as "bento-box" | "labeled-group" | undefined)
+          : undefined;
+      if (
+        !canNestIn(componentId, parentComponentId, childVariant, parentConfig)
+      ) {
         console.error(
           `Cannot nest ${componentId} in ${parentComponentId ?? "root"}`
         );
@@ -143,7 +164,11 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       const now = new Date().toISOString();
       const id = generateId();
 
-      const defaultSize = getWidgetDefaults(componentId);
+      const layoutDefaults = dashlet.getLayoutDefaults(widgetConfig);
+      const defaultSize = {
+        minW: Math.max(1, layoutDefaults.minW),
+        minH: Math.max(1, layoutDefaults.minH),
+      };
 
       // Determine position based on siblings
       let position = { x: 0, y: 0 };
@@ -168,7 +193,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
           minW: defaultSize.minW,
           minH: defaultSize.minH,
         },
-        config: { ...dashlet.defaultConfig },
+        config: { ...dashlet.defaultConfig, ...widgetConfig },
         children: dashlet.meta.hasChildren ? [] : undefined,
         createdAt: now,
         updatedAt: now,

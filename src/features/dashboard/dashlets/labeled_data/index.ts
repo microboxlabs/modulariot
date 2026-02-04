@@ -1,6 +1,6 @@
 /**
- * CONTAINER DASHLET
- * =================
+ * LABELED DATA DASHLET
+ * =====================
  * Standard structure following dashlet template pattern.
  *
  * Files:
@@ -15,8 +15,7 @@ import {
   Dashlet,
   defaultConfig,
   getLayoutDefaults,
-  BORDER_COLOR_CLASSES,
-  LABEL_BORDER_COLORS,
+  layoutDefaults,
 } from "./dashlet";
 import { DashletSettings } from "./dashlet.settings";
 import { dashletMeta } from "./dashlet.meta";
@@ -36,23 +35,22 @@ export const dashletDefinition: DashletDefinition = {
 // LEGACY ALIASES (for backwards compatibility)
 // ============================================================================
 export {
-  Dashlet as Container,
-  defaultConfig,
-  getLayoutDefaults as getContainerLayoutDefaults,
-  BORDER_COLOR_CLASSES,
-  LABEL_BORDER_COLORS,
-  DashletSettings as ContainerSettings,
-  dashletMeta as containerMeta,
+  Dashlet as LabeledData,
+  defaultConfig as labeledDataDefaultConfig,
+  getLayoutDefaults as getLabeledDataLayoutDefaults,
+  layoutDefaults as labeledDataLayoutDefaults,
+  DashletSettings as LabeledDataSettings,
+  dashletMeta as labeledDataMeta,
 };
 
 /** @deprecated Use dashletDefinition instead */
-export const containerDefinition = dashletDefinition;
+export const labeledDataDefinition = dashletDefinition;
 
 // ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 export type {
-  DashletConfig as ContainerConfig,
-  ContainerVariant,
-  LabelBorderColor,
+  DashletConfig as LabeledDataConfig,
+  BackgroundColor as LabeledDataBackgroundColor,
+  IconType as LabeledDataIcon,
 } from "./dashlet";

@@ -8,6 +8,11 @@
 import type { ComponentType, ReactNode } from "react";
 import type { Widget, DashletCategory } from "../types/dashboard.types";
 
+export interface DashletLayoutDefaults {
+  minW: number;
+  minH: number;
+}
+
 /**
  * Dashlet metadata for registry and selector
  */
@@ -83,4 +88,8 @@ export interface DashletDefinition {
   SettingsModal?: ComponentType<DashletSettingsProps>;
   /** Default configuration values */
   defaultConfig: Record<string, unknown>;
+  /** Resolver for default layout constraints */
+  getLayoutDefaults: (
+    config?: Record<string, unknown>
+  ) => DashletLayoutDefaults;
 }

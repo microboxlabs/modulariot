@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { HiCog6Tooth, HiTrash } from "react-icons/hi2";
+import { HiCog6Tooth, HiPlus, HiTrash } from "react-icons/hi2";
 import type { Widget } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
 import { getDashlet } from "../../dashlets";
@@ -91,6 +91,17 @@ export function WidgetRenderer({
         {/* Edit mode controls - visibility controlled by CSS */}
         {editMode && (
           <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
+            {meta.hasChildren && (
+              <button
+                type="button"
+                onClick={handleOpenAddChild}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
+                title="Add widget"
+              >
+                <HiPlus className="h-4 w-4" />
+              </button>
+            )}
             {meta.hasSettings && SettingsModal && (
               <button
                 type="button"
@@ -162,6 +173,17 @@ export function WidgetRenderer({
       {/* Edit mode controls - visibility controlled by CSS */}
       {editMode && (
         <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
+          {meta.hasChildren && (
+            <button
+              type="button"
+              onClick={handleOpenAddChild}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
+              title="Add widget"
+            >
+              <HiPlus className="h-4 w-4" />
+            </button>
+          )}
           {meta.hasSettings && SettingsModal && (
             <button
               type="button"

@@ -13,7 +13,7 @@ import { useDashboard } from "../../context/dashboard-context";
 import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
-import { getWidgetDefaults } from "../../utils/widget-defaults";
+import { getDashlet } from "../../dashlets";
 import type { GridLayoutItem } from "../../types/dashboard.types";
 
 import "react-grid-layout/css/styles.css";
@@ -71,18 +71,21 @@ export function DashboardView() {
   const layout: Layout = useMemo(
     () =>
       widgets.map((widget, index) => {
-        const defaults = getWidgetDefaults(widget.componentId);
+        const dashlet = getDashlet(widget.componentId);
+        const layoutDefaults = dashlet?.getLayoutDefaults(widget.config);
+        const fallbackMinW = Math.max(1, layoutDefaults?.minW ?? 1);
+        const fallbackMinH = Math.max(1, layoutDefaults?.minH ?? 1);
         return {
           i: widget.id,
           x: widget.layout?.x ?? 0,
           y: widget.layout?.y ?? index,
-          w: widget.layout?.w ?? defaults.minW,
-          h: widget.layout?.h ?? defaults.minH,
+          w: widget.layout?.w ?? fallbackMinW,
+          h: widget.layout?.h ?? fallbackMinH,
           isDraggable: editMode,
           isResizable: editMode,
-          minW: widget.layout?.minW ?? defaults.minW,
+          minW: widget.layout?.minW ?? fallbackMinW,
           maxW: widget.layout?.maxW ?? 12,
-          minH: widget.layout?.minH ?? defaults.minH,
+          minH: widget.layout?.minH ?? fallbackMinH,
           maxH: widget.layout?.maxH ?? Infinity,
         };
       }),
@@ -132,9 +135,9 @@ export function DashboardView() {
   });
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full">
       {/* Header */}
-      <div className="-mx-4 -mt-4 flex flex-col items-start justify-between gap-4 border-b border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
+      <div className="-mx-4 -mt-4 flex flex-col items-start justify-between border-b border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
           Dashboard
         </h1>
@@ -163,7 +166,7 @@ export function DashboardView() {
                   cols: 12,
                   rowHeight: 80,
                   margin: [16, 16] as const,
-                  containerPadding: [0, 0] as const,
+                  containerPadding: [0, 16] as const,
                   maxRows: Infinity,
                 }}
                 dragConfig={{
@@ -172,7 +175,7 @@ export function DashboardView() {
                 }}
                 resizeConfig={{
                   enabled: editMode,
-                  handles: ["e", "s", "se"],
+                  handles: ["se"],
                 }}
                 compactor={verticalCompactor}
                 onLayoutChange={handleLayoutChange}
@@ -189,12 +192,14 @@ export function DashboardView() {
             )}
 
             {/* Add new widget button */}
-            <div className="mt-6 flex justify-center pb-8">
-              <Button color="light" onClick={() => setIsAddModalOpen(true)}>
-                <HiPlus className="mr-2 h-4 w-4" />
-                Add Widget
-              </Button>
-            </div>
+            {editMode && (
+              <div className=" flex justify-center">
+                <Button color="light" onClick={() => setIsAddModalOpen(true)}>
+                  <HiPlus className="mr-2 h-4 w-4" />
+                  Add Widget
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <EmptyState onAdd={() => setIsAddModalOpen(true)} />

@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Required for pnpm monorepo: trace dependencies from monorepo root
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
+  transpilePackages: ["flowbite-react"],
 };
 
 export default withFlowbiteReact(nextConfig);

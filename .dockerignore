@@ -1,0 +1,53 @@
+# Dependencies - will be installed fresh in Docker
+node_modules
+**/node_modules
+
+# Build outputs - will be built fresh in Docker
+**/.next
+**/dist
+**/.turbo
+
+# Version control
+.git
+.gitignore
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+.cursor
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Documentation and non-essential
+*.md
+!README.md
+LICENSE
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/coverage
+**/__tests__
+
+# Development files
+.husky
+.eslintcache
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

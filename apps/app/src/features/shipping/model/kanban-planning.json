@@ -1,0 +1,31 @@
+[
+  {
+    "id": 1,
+    "title": "consolidateLoad",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 2,
+    "title": "separateDocuments",
+    "description": "Presentar Conductor",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 3,
+    "title": "planService",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  },
+  {
+    "id": 4,
+    "title": "assignDriver",
+    "finished": false,
+    "state": "pending",
+    "tasks": []
+  }
+]

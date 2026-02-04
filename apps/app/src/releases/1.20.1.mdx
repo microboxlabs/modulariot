@@ -1,0 +1,21 @@
+# 🔔 Release Notes v1.20.1 — ModularIoT
+
+### Fecha: 30/09/2025
+
+**Objetivo**: refactorizar la arquitectura del flujo de trabajo para mejorar la experiencia de navegación y simplificar la estructura de procesos mediante la reorganización del punto de bifurcación y soporte para navegación hacia atrás.
+
+## 🛠️ Refactorización / UX
+
+- **Refactorización del flujo de trabajo de confirmación**
+  - Reubicación del **punto de bifurcación** del workflow para ejecutarse después de la confirmación de llegada, en lugar de inmediatamente después de la tarea `monitorTrip`.
+  - Implementación de soporte para **navegación hacia atrás** en el flujo de trabajo sin la complejidad de unir ramas bifurcadas.
+  - Nueva secuencia de flujo: MonitorTrip → Confirmación de Llegada → Bifurcación (Rama de Confirmación de Entrega).
+  - **Estrategia de migración** implementada para transición de versiones de workflow actuales a la nueva estructura sin interrumpir procesos existentes.
+  - Simplificación de la estructura del workflow manteniendo la integridad del estado.
+  - Mejora significativa en la experiencia de usuario al revisar o modificar pasos del flujo de trabajo.
+  - Mantenimiento de capacidades de procesamiento paralelo para confirmación de entrega.
+  - Compatibilidad hacia atrás durante el período de migración con gestión adecuada de workflows activos.
+
+## 📌 Conclusión
+
+La versión 1.20.1 introduce una refactorización estructural significativa del flujo de trabajo de confirmación, reubicando estratégicamente el punto de bifurcación para mejorar la navegabilidad y simplificar la arquitectura de procesos. Esta actualización incluye una estrategia de migración robusta que garantiza una transición fluida desde la estructura anterior sin afectar workflows en ejecución, mejorando sustancialmente la experiencia de usuario y la mantenibilidad del sistema.

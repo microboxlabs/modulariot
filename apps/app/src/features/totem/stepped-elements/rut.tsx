@@ -1,0 +1,112 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { FaIdCard } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { isRutValid } from "@/utils/rut";
+import { Button } from "flowbite-react";
+import { logger } from "@/lib/logger";
+
+export default function Rut({
+  setCurrentStep,
+  currentStep,
+  dict,
+  onRutValidated,
+  rut,
+  setRut,
+}: {
+  setCurrentStep: (step: number) => void;
+  currentStep: number;
+  dict: I18nRecord;
+  onRutValidated: (data: { rut: string; rut_validated: boolean }) => void;
+  rut: string;
+  setRut: (rut: string) => void;
+}) {
+  const [isQrCaptured, setIsQrCaptured] = useState(false);
+  const [error, setError] = useState("");
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (count >= 3) {
+      setCurrentStep(3);
+    }
+  }, [count]);
+
+  const handleRutChange = (_value: string) => {
+    if (rut.length > 0 && rut.indexOf("mrz") !== -1 && !isQrCaptured) {
+      logger.info("rut:" + rut);
+      setIsQrCaptured(true);
+      const runPosition = rut.indexOf("RUN");
+      const rutCaptured = rut.substring(runPosition + 4, runPosition + 14);
+      logger.info("rutCaptured:" + rutCaptured);
+      setTimeout(() => {
+        logger.info("rutCaptured.replace:" + rutCaptured.replace(/\D/g, ""));
+        setRut(rutCaptured.replace(/\D/g, ""));
+      }, 500);
+    }
+  };
+
+  const handleValidateRut = async () => {
+    if (!rut.trim()) {
+      setError((dict.totem as I18nRecord).rut_required as string);
+      setCount(count + 1);
+      return;
+    }
+    let rutText = rut;
+    if (!rutText.includes("-")) {
+      //add a - to the rut int the positon before the last digit
+      rutText = rutText.slice(0, -1) + "-" + rutText.slice(-1);
+      setRut(rutText);
+    }
+
+    if (!isRutValid(rutText)) {
+      setError((dict.totem as I18nRecord).rut_invalid as string);
+      setCount(count + 1);
+      return;
+    }
+    onRutValidated({ rut: rutText, rut_validated: false });
+    setCurrentStep(currentStep + 1);
+  };
+
+  return (
+    <div className="flex flex-col gap-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-4 w-full shadow-md ">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-lg text-gray-800 font-light dark:text-gray-300">
+          {(dict.totem as I18nRecord).write_your_rut as string}
+        </h1>
+        <div className="relative w-full h-10 flex flex-row items-center border-2 border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+          <div className=" h-full text-gray-400 pl-2 pr-1 py-2 flex items-center">
+            <FaIdCard className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            placeholder="RUT"
+            autoFocus
+            value={rut}
+            onChange={(e) => {
+              setRut(e.target.value);
+              handleRutChange(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleValidateRut();
+              }
+            }}
+            className="w-full h-full caret-gray-800 dark:caret-gray-200 font-light border-none bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-base pl-1 px-2"
+            style={{
+              boxShadow: "none",
+            }}
+          />
+        </div>
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <Button
+        onClick={handleValidateRut}
+        className="bg-[#F1B300] dark:bg-[#F1B300] text-black dark:text-black hover:bg-white dark:hover:bg-white font-bold p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+        color="white"
+      >
+        <p className="text-base font-light">
+          {(dict.totem as I18nRecord).continue as string}
+        </p>
+      </Button>
+    </div>
+  );
+}

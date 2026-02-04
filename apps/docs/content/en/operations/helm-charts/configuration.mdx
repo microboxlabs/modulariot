@@ -1,0 +1,343 @@
+# Configuration
+
+This guide covers common configuration patterns for ModularIoT Helm charts.
+
+## Values Files
+
+### Creating Values Files
+
+Create a `values.yaml` file for your deployment:
+
+```yaml
+# values.yaml
+replicaCount: 2
+
+image:
+  repository: ghcr.io/microboxlabs/miot-app
+  tag: "v1.0.0"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+Apply with:
+
+```bash
+helm install miot-app microboxlabs/miot-app -f values.yaml
+```
+
+### Multiple Values Files
+
+Use multiple files for environment-specific configuration:
+
+```bash
+# Base configuration + environment overrides
+helm install miot-app microboxlabs/miot-app \
+  -f values-base.yaml \
+  -f values-production.yaml
+```
+
+Later files override earlier ones.
+
+## Image Configuration
+
+### Using a Private Registry
+
+```yaml
+image:
+  repository: your-registry.com/miot-app
+  tag: "v1.0.0"
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: registry-credentials
+```
+
+Create the secret:
+
+```bash
+kubectl create secret docker-registry registry-credentials \
+  --docker-server=your-registry.com \
+  --docker-username=user \
+  --docker-password=password \
+  --namespace modulariot
+```
+
+### Using GitHub Container Registry
+
+```yaml
+image:
+  repository: ghcr.io/microboxlabs/miot-app
+  tag: "v1.0.0"
+
+imagePullSecrets:
+  - name: ghcr-secret
+```
+
+Create GHCR secret:
+
+```bash
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USERNAME \
+  --docker-password=YOUR_GITHUB_PAT \
+  --namespace modulariot
+```
+
+## Resource Management
+
+### Setting Resources
+
+```yaml
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+```
+
+### Resource Recommendations
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| miot-app | 256Mi / 100m | 512Mi / 250m |
+| miot-docs | 128Mi / 50m | 256Mi / 100m |
+| miot-web-site | 128Mi / 50m | 256Mi / 100m |
+
+## Ingress Configuration
+
+### NGINX Ingress
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: app-tls
+      hosts:
+        - app.example.com
+```
+
+### Traefik Ingress
+
+```yaml
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+### AWS ALB Ingress
+
+```yaml
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+## TLS/SSL Certificates
+
+### Using cert-manager
+
+```yaml
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: app-tls
+      hosts:
+        - app.example.com
+```
+
+### Using Existing Certificate
+
+```bash
+# Create TLS secret
+kubectl create secret tls app-tls \
+  --cert=path/to/cert.pem \
+  --key=path/to/key.pem \
+  -n modulariot
+```
+
+```yaml
+ingress:
+  tls:
+    - secretName: app-tls
+      hosts:
+        - app.example.com
+```
+
+## Environment Variables
+
+### Direct Values
+
+```yaml
+env:
+  - name: LOG_LEVEL
+    value: "info"
+  - name: FEATURE_FLAG
+    value: "true"
+```
+
+### From ConfigMap
+
+```yaml
+envFrom:
+  - configMapRef:
+      name: app-config
+```
+
+Create ConfigMap:
+
+```bash
+kubectl create configmap app-config \
+  --from-literal=LOG_LEVEL=info \
+  --from-literal=API_URL=https://api.example.com \
+  -n modulariot
+```
+
+### From Secret
+
+```yaml
+envFrom:
+  - secretRef:
+      name: app-secrets
+
+env:
+  - name: DATABASE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: db-credentials
+        key: password
+```
+
+## Autoscaling
+
+### Horizontal Pod Autoscaler
+
+```yaml
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+```
+
+### Pod Disruption Budget
+
+Add to your deployment:
+
+```yaml
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+```
+
+## Health Checks
+
+### Custom Health Endpoints
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /api/health/live
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/health/ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+```
+
+## Node Selection
+
+### Node Selector
+
+```yaml
+nodeSelector:
+  node-type: application
+  kubernetes.io/arch: amd64
+```
+
+### Tolerations
+
+```yaml
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "app"
+    effect: "NoSchedule"
+```
+
+### Affinity
+
+```yaml
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: miot-app
+          topologyKey: kubernetes.io/hostname
+```
+
+## Service Account
+
+### Custom Service Account
+
+```yaml
+serviceAccount:
+  create: true
+  name: "miot-app-sa"
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/miot-app-role
+```
+
+### Using Existing Service Account
+
+```yaml
+serviceAccount:
+  create: false
+  name: "existing-sa"
+```

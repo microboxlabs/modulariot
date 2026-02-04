@@ -1,0 +1,167 @@
+# miot-web-site Chart
+
+The `miot-web-site` chart deploys the ModularIoT marketing website - a Next.js application with Flowbite and TailwindCSS.
+
+## Installation
+
+```bash
+helm install miot-web-site microboxlabs/miot-web-site \
+  --namespace modulariot \
+  --create-namespace
+```
+
+## Parameters
+
+### Image Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Image repository | `ghcr.io/microboxlabs/miot-web-site` |
+| `image.tag` | Image tag | Chart appVersion |
+| `image.pullPolicy` | Pull policy | `IfNotPresent` |
+| `imagePullSecrets` | Pull secrets | `[]` |
+
+### Deployment Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of replicas | `1` |
+| `podAnnotations` | Pod annotations | `{}` |
+| `podLabels` | Pod labels | `{}` |
+| `nodeSelector` | Node selector | `{}` |
+| `tolerations` | Tolerations | `[]` |
+| `affinity` | Affinity rules | `{}` |
+
+### Service Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.type` | Service type | `ClusterIP` |
+| `service.port` | Service port | `3000` |
+
+### Ingress Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts[0].host` | Default hostname | `www.modulariot.local` |
+| `ingress.tls` | TLS configuration | `[]` |
+
+### Resource Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `resources.limits.cpu` | CPU limit | Not set |
+| `resources.limits.memory` | Memory limit | Not set |
+| `resources.requests.cpu` | CPU request | Not set |
+| `resources.requests.memory` | Memory request | Not set |
+
+### Autoscaling Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `autoscaling.enabled` | Enable HPA | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `10` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target CPU | `80` |
+
+## Environment Variables
+
+Add custom environment variables:
+
+```yaml
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: NEXT_TELEMETRY_DISABLED
+    value: "1"
+```
+
+## Example Values
+
+### Development
+
+```yaml
+replicaCount: 1
+
+image:
+  tag: "latest"
+
+service:
+  type: NodePort
+```
+
+### Production
+
+```yaml
+replicaCount: 2
+
+image:
+  tag: "v1.0.0"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+  hosts:
+    - host: www.modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: website-tls
+      hosts:
+        - www.modulariot.example.com
+        - modulariot.example.com
+```
+
+## SEO and Performance
+
+For optimal SEO and performance:
+
+### Enable Compression
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/enable-compression: "true"
+    nginx.ingress.kubernetes.io/compression-types: "application/javascript application/json text/css text/html text/javascript"
+```
+
+### Cache Static Assets
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+      }
+```
+
+### WWW Redirect
+
+Redirect non-www to www (or vice versa):
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+```

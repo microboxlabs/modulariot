@@ -1,0 +1,262 @@
+# Umbrella Chart
+
+The `modulariot` umbrella chart deploys the complete ModularIoT platform with all components in a single release.
+
+## Overview
+
+The umbrella chart includes:
+
+- **miot-app** - Main application with authentication and IoT features
+- **miot-docs** - Documentation site
+- **miot-web-site** - Marketing website
+
+Each sub-chart can be enabled or disabled independently.
+
+## Installation
+
+```bash
+# Install with all components
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --create-namespace
+
+# Install with specific components disabled
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --set miot-docs.enabled=false
+```
+
+## Parameters
+
+### Global Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `global.imagePullSecrets` | Image pull secrets for all charts | `[]` |
+| `global.labels` | Labels applied to all resources | `{}` |
+
+### Component Enable/Disable
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `miot-app.enabled` | Deploy main application | `true` |
+| `miot-docs.enabled` | Deploy documentation | `true` |
+| `miot-web-site.enabled` | Deploy website | `true` |
+
+### Sub-chart Configuration
+
+Each sub-chart accepts all parameters documented in its individual chart. Prefix with the chart name:
+
+```yaml
+# miot-app parameters
+miot-app:
+  replicaCount: 2
+  ingress:
+    enabled: true
+
+# miot-docs parameters
+miot-docs:
+  replicaCount: 1
+
+# miot-web-site parameters
+miot-web-site:
+  enabled: false
+```
+
+## Dependency Management
+
+The umbrella chart uses file-based dependencies during development:
+
+```yaml
+dependencies:
+  - name: miot-docs
+    version: "0.1.0"
+    repository: "file://../miot-docs"
+    condition: miot-docs.enabled
+  - name: miot-web-site
+    version: "0.1.0"
+    repository: "file://../miot-web-site"
+    condition: miot-web-site.enabled
+  - name: miot-app
+    version: "0.1.0"
+    repository: "file://../miot-app"
+    condition: miot-app.enabled
+```
+
+## Example Values
+
+### Development
+
+Deploy all components with minimal configuration:
+
+```yaml
+global:
+  imagePullSecrets: []
+
+miot-app:
+  enabled: true
+  replicaCount: 1
+  auth:
+    secret: "dev-secret"
+
+miot-docs:
+  enabled: true
+  replicaCount: 1
+
+miot-web-site:
+  enabled: true
+  replicaCount: 1
+```
+
+### Production
+
+Full production configuration:
+
+```yaml
+global:
+  imagePullSecrets:
+    - name: ghcr-credentials
+  labels:
+    environment: production
+    team: platform
+
+miot-app:
+  enabled: true
+  replicaCount: 3
+  image:
+    tag: "v1.2.0"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: app.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: app-tls
+        hosts:
+          - app.modulariot.com
+  auth:
+    existingSecret: miot-auth-prod
+    providers:
+      google:
+        enabled: true
+
+miot-docs:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "v1.2.0"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: docs.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: docs-tls
+        hosts:
+          - docs.modulariot.com
+
+miot-web-site:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "v1.2.0"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+    hosts:
+      - host: www.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: website-tls
+        hosts:
+          - www.modulariot.com
+          - modulariot.com
+```
+
+### Minimal (App Only)
+
+Deploy only the main application:
+
+```yaml
+miot-app:
+  enabled: true
+  replicaCount: 1
+
+miot-docs:
+  enabled: false
+
+miot-web-site:
+  enabled: false
+```
+
+## Upgrading
+
+Update all components together:
+
+```bash
+# Update repository
+helm repo update
+
+# Upgrade the release
+helm upgrade modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  -f production-values.yaml
+```
+
+## Accessing Components
+
+After deployment, access each component:
+
+```bash
+# Check all pods
+kubectl get pods -n modulariot -l "app.kubernetes.io/instance=modulariot"
+
+# Port-forward to each service
+kubectl port-forward svc/modulariot-miot-app 3050:3000 -n modulariot
+kubectl port-forward svc/modulariot-miot-docs 3001:3000 -n modulariot
+kubectl port-forward svc/modulariot-miot-web-site 3040:3000 -n modulariot
+```

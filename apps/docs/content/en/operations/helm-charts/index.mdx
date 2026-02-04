@@ -1,0 +1,73 @@
+# Helm Charts
+
+ModularIoT provides official Helm charts for deploying the platform on Kubernetes. These charts are designed to be flexible, production-ready, and follow Kubernetes best practices.
+
+## Available Charts
+
+| Chart | Description | Version |
+|-------|-------------|---------|
+| **modulariot** | Umbrella chart that deploys all components | 0.1.0 |
+| **miot-app** | Main ModularIoT application | 0.1.0 |
+| **miot-docs** | Documentation site | 0.1.0 |
+| **miot-web-site** | Marketing website | 0.1.0 |
+
+## Chart Repository
+
+Charts are available from the MicroboxLabs Helm repository:
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+```
+
+## Quick Start
+
+Deploy the complete ModularIoT platform:
+
+```bash
+# Install the umbrella chart
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --create-namespace
+
+# Or deploy individual components
+helm install miot-app microboxlabs/miot-app --namespace modulariot
+helm install miot-docs microboxlabs/miot-docs --namespace modulariot
+helm install miot-web-site microboxlabs/miot-web-site --namespace modulariot
+```
+
+## Features
+
+All charts include:
+
+- **Deployment** - Kubernetes Deployment with configurable replicas
+- **Service** - ClusterIP service for internal communication
+- **Ingress** - Optional ingress with TLS support
+- **HPA** - Horizontal Pod Autoscaler for automatic scaling
+- **ServiceAccount** - Dedicated service account with RBAC
+- **Health Checks** - Liveness and readiness probes
+- **Resource Management** - CPU and memory limits/requests
+
+## Architecture
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         modulariot (umbrella)       │
+                    └─────────────────────────────────────┘
+                                      │
+              ┌───────────────────────┼───────────────────────┐
+              │                       │                       │
+              ▼                       ▼                       ▼
+    ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+    │    miot-app     │     │    miot-docs    │     │  miot-web-site  │
+    │   (Next.js)     │     │    (Nextra)     │     │   (Next.js)     │
+    │   Port: 3000    │     │   Port: 3000    │     │   Port: 3000    │
+    └─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+## Prerequisites
+
+- Kubernetes 1.19+
+- Helm 3.0+
+- PV provisioner support (if using persistent storage)
+- Ingress controller (optional, for external access)

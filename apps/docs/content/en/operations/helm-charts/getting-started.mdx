@@ -1,0 +1,188 @@
+# Getting Started
+
+This guide walks you through deploying ModularIoT on Kubernetes using Helm charts.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+1. **Kubernetes cluster** (v1.19+) - Local (minikube, kind, Docker Desktop) or cloud (GKE, EKS, AKS)
+2. **Helm** (v3.0+) - [Installation guide](https://helm.sh/docs/intro/install/)
+3. **kubectl** - Configured to connect to your cluster
+
+Verify your setup:
+
+```bash
+# Check Kubernetes
+kubectl cluster-info
+
+# Check Helm
+helm version
+```
+
+## Add the Helm Repository
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+```
+
+## Basic Installation
+
+### Option 1: Deploy All Components (Recommended)
+
+Use the umbrella chart to deploy the complete platform:
+
+```bash
+# Create namespace
+kubectl create namespace modulariot
+
+# Install with default values
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot
+
+# Check deployment status
+kubectl get pods -n modulariot
+```
+
+### Option 2: Deploy Individual Components
+
+Deploy only the components you need:
+
+```bash
+# Deploy the main application
+helm install miot-app microboxlabs/miot-app \
+  --namespace modulariot \
+  --create-namespace
+
+# Deploy documentation (optional)
+helm install miot-docs microboxlabs/miot-docs \
+  --namespace modulariot
+
+# Deploy website (optional)
+helm install miot-web-site microboxlabs/miot-web-site \
+  --namespace modulariot
+```
+
+## Verify the Installation
+
+Check that all pods are running:
+
+```bash
+kubectl get pods -n modulariot
+```
+
+Expected output:
+
+```
+NAME                              READY   STATUS    RESTARTS   AGE
+modulariot-miot-app-xxx           1/1     Running   0          2m
+modulariot-miot-docs-xxx          1/1     Running   0          2m
+modulariot-miot-web-site-xxx      1/1     Running   0          2m
+```
+
+## Access the Applications
+
+### Port Forwarding (Development)
+
+Access applications locally using port-forward:
+
+```bash
+# Main application
+kubectl port-forward svc/modulariot-miot-app 3050:3000 -n modulariot
+# Visit: http://localhost:3050
+
+# Documentation
+kubectl port-forward svc/modulariot-miot-docs 3001:3000 -n modulariot
+# Visit: http://localhost:3001
+
+# Website
+kubectl port-forward svc/modulariot-miot-web-site 3040:3000 -n modulariot
+# Visit: http://localhost:3040
+```
+
+### Enable Ingress (Production)
+
+For external access, enable ingress in your values:
+
+```yaml
+# values.yaml
+miot-app:
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: app.modulariot.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: app-tls
+        hosts:
+          - app.modulariot.example.com
+```
+
+Apply the configuration:
+
+```bash
+helm upgrade modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  -f values.yaml
+```
+
+## Customize Your Deployment
+
+Create a `values.yaml` file for customization:
+
+```yaml
+# Global settings
+global:
+  imagePullSecrets:
+    - name: ghcr-secret
+
+# Main application
+miot-app:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# Disable components you don't need
+miot-docs:
+  enabled: false
+
+miot-web-site:
+  enabled: true
+  replicaCount: 1
+```
+
+Install with your values:
+
+```bash
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  -f values.yaml
+```
+
+## Uninstall
+
+Remove the deployment:
+
+```bash
+# Uninstall umbrella chart
+helm uninstall modulariot -n modulariot
+
+# Delete namespace (optional)
+kubectl delete namespace modulariot
+```
+
+## Next Steps
+
+- [Configure authentication](/operations/helm-charts/miot-app#authentication)
+- [Set up production deployment](/operations/helm-charts/production-deployment)
+- [Configure monitoring](/operations/monitoring)

@@ -1,0 +1,244 @@
+# miot-app Chart
+
+The `miot-app` chart deploys the main ModularIoT application - a Next.js application with authentication, maps, and IoT management capabilities.
+
+## Installation
+
+```bash
+helm install miot-app microboxlabs/miot-app \
+  --namespace modulariot \
+  --create-namespace
+```
+
+## Parameters
+
+### Image Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Image repository | `ghcr.io/microboxlabs/miot-app` |
+| `image.tag` | Image tag | Chart appVersion |
+| `image.pullPolicy` | Pull policy | `IfNotPresent` |
+| `imagePullSecrets` | Pull secrets | `[]` |
+
+### Deployment Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of replicas | `1` |
+| `podAnnotations` | Pod annotations | `{}` |
+| `podLabels` | Pod labels | `{}` |
+| `nodeSelector` | Node selector | `{}` |
+| `tolerations` | Tolerations | `[]` |
+| `affinity` | Affinity rules | `{}` |
+
+### Service Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.type` | Service type | `ClusterIP` |
+| `service.port` | Service port | `3000` |
+
+### Ingress Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts` | Ingress hosts | See values.yaml |
+| `ingress.tls` | TLS configuration | `[]` |
+
+### Authentication Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `auth.secret` | Auth secret for JWT signing | `""` |
+| `auth.existingSecret` | Use existing secret | `""` |
+| `auth.existingSecretKey` | Key in existing secret | `auth-secret` |
+| `auth.providers.google.enabled` | Enable Google OAuth | `false` |
+| `auth.providers.google.clientId` | Google client ID | `""` |
+| `auth.providers.google.clientSecret` | Google client secret | `""` |
+
+### Resource Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `resources.limits.cpu` | CPU limit | Not set |
+| `resources.limits.memory` | Memory limit | Not set |
+| `resources.requests.cpu` | CPU request | Not set |
+| `resources.requests.memory` | Memory request | Not set |
+
+### Autoscaling Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `autoscaling.enabled` | Enable HPA | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `10` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target CPU | `80` |
+
+## Authentication
+
+The application uses NextAuth.js for authentication. Configure it properly for production:
+
+### Using Auth Secret
+
+Generate a secure secret:
+
+```bash
+openssl rand -base64 32
+```
+
+Set it in your values:
+
+```yaml
+auth:
+  secret: "your-generated-secret-here"
+```
+
+### Using Existing Secret
+
+Create a Kubernetes secret:
+
+```bash
+kubectl create secret generic miot-auth \
+  --from-literal=auth-secret="your-secret" \
+  --from-literal=google-client-id="your-google-id" \
+  --from-literal=google-client-secret="your-google-secret" \
+  -n modulariot
+```
+
+Reference it in values:
+
+```yaml
+auth:
+  existingSecret: miot-auth
+  providers:
+    google:
+      enabled: true
+```
+
+### Google OAuth Setup
+
+1. Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Set authorized redirect URI: `https://app.yourdomain.com/api/auth/callback/google`
+3. Configure in values:
+
+```yaml
+auth:
+  secret: "your-jwt-secret"
+  providers:
+    google:
+      enabled: true
+      clientId: "your-client-id.apps.googleusercontent.com"
+      clientSecret: "your-client-secret"
+```
+
+## Environment Variables
+
+Add custom environment variables:
+
+```yaml
+env:
+  - name: NEXTAUTH_URL
+    value: "https://app.modulariot.example.com"
+  - name: NEXT_TELEMETRY_DISABLED
+    value: "1"
+
+envFrom:
+  - configMapRef:
+      name: app-config
+  - secretRef:
+      name: app-secrets
+```
+
+## Health Checks
+
+The chart configures liveness and readiness probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+Customize if your app has specific health endpoints:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+```
+
+## Example Values
+
+### Development
+
+```yaml
+replicaCount: 1
+
+image:
+  tag: "latest"
+
+service:
+  type: NodePort
+
+auth:
+  secret: "dev-secret-change-in-production"
+```
+
+### Production
+
+```yaml
+replicaCount: 3
+
+image:
+  tag: "v1.0.0"
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: app.modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: app-tls
+      hosts:
+        - app.modulariot.example.com
+
+auth:
+  existingSecret: miot-auth-production
+  providers:
+    google:
+      enabled: true
+```

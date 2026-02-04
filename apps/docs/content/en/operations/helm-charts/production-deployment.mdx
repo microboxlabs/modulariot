@@ -1,0 +1,391 @@
+# Production Deployment
+
+This guide covers best practices for deploying ModularIoT in production environments.
+
+## Pre-deployment Checklist
+
+Before deploying to production, ensure you have:
+
+- [ ] Kubernetes cluster with sufficient resources
+- [ ] Ingress controller installed (nginx, traefik, or cloud-specific)
+- [ ] cert-manager for automatic TLS (recommended)
+- [ ] Container registry access configured
+- [ ] DNS records pointing to your cluster
+- [ ] Secrets management solution (external-secrets, vault, etc.)
+- [ ] Monitoring stack (Prometheus, Grafana)
+- [ ] Log aggregation (Loki, ELK, CloudWatch)
+
+## Production Values
+
+### Complete Production Configuration
+
+```yaml
+# production-values.yaml
+
+global:
+  imagePullSecrets:
+    - name: ghcr-credentials
+
+# Main Application
+miot-app:
+  enabled: true
+
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/microboxlabs/miot-app
+    tag: "v1.0.0"  # Always use specific tags in production
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+
+  # Pod distribution
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: miot-app
+            topologyKey: topology.kubernetes.io/zone
+
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # Ingress
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    hosts:
+      - host: app.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: miot-app-tls
+        hosts:
+          - app.modulariot.com
+
+  # Authentication (use external secrets in production)
+  auth:
+    existingSecret: miot-auth-production
+    providers:
+      google:
+        enabled: true
+
+  # Environment
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: NEXT_TELEMETRY_DISABLED
+      value: "1"
+
+# Documentation
+miot-docs:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    tag: "v1.0.0"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: docs.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: miot-docs-tls
+        hosts:
+          - docs.modulariot.com
+
+# Website
+miot-web-site:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    tag: "v1.0.0"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+    hosts:
+      - host: www.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: miot-website-tls
+        hosts:
+          - www.modulariot.com
+          - modulariot.com
+```
+
+## Secrets Management
+
+### Using External Secrets Operator
+
+```yaml
+# external-secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: miot-auth-production
+  namespace: modulariot
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets-manager
+  target:
+    name: miot-auth-production
+  data:
+    - secretKey: auth-secret
+      remoteRef:
+        key: modulariot/production/auth
+        property: AUTH_SECRET
+    - secretKey: google-client-id
+      remoteRef:
+        key: modulariot/production/auth
+        property: GOOGLE_CLIENT_ID
+    - secretKey: google-client-secret
+      remoteRef:
+        key: modulariot/production/auth
+        property: GOOGLE_CLIENT_SECRET
+```
+
+### Using Sealed Secrets
+
+```bash
+# Encrypt secrets
+kubeseal --format yaml < secret.yaml > sealed-secret.yaml
+kubectl apply -f sealed-secret.yaml
+```
+
+## High Availability
+
+### Multi-Zone Deployment
+
+```yaml
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: miot-app
+        topologyKey: topology.kubernetes.io/zone
+```
+
+### Pod Disruption Budget
+
+Create PDB for each component:
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: miot-app-pdb
+  namespace: modulariot
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: miot-app
+```
+
+## Monitoring
+
+### ServiceMonitor for Prometheus
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: miot-app
+  namespace: modulariot
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: miot-app
+  endpoints:
+    - port: http
+      path: /api/metrics
+      interval: 30s
+```
+
+### Alerts
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: miot-app-alerts
+  namespace: modulariot
+spec:
+  groups:
+    - name: miot-app
+      rules:
+        - alert: MiotAppDown
+          expr: up{job="miot-app"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ModularIoT App is down"
+        - alert: MiotAppHighLatency
+          expr: http_request_duration_seconds{job="miot-app",quantile="0.99"} > 2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High latency detected"
+```
+
+## Backup and Recovery
+
+### Database Backups
+
+If using a database, ensure regular backups:
+
+```yaml
+# CronJob for database backup
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: modulariot
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: postgres:15
+              command: ["/bin/sh", "-c"]
+              args:
+                - pg_dump -h $DB_HOST -U $DB_USER $DB_NAME | gzip > /backup/db-$(date +%Y%m%d).sql.gz
+          restartPolicy: OnFailure
+```
+
+## Deployment Process
+
+### Rolling Updates
+
+The default deployment strategy is RollingUpdate:
+
+```yaml
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+```
+
+### Blue-Green Deployment
+
+For zero-downtime deployments:
+
+```bash
+# Deploy new version with different release name
+helm install modulariot-v2 microboxlabs/modulariot \
+  -f production-values.yaml \
+  --set image.tag=v2.0.0
+
+# Switch traffic via ingress
+kubectl patch ingress miot-app \
+  -p '{"spec":{"rules":[{"host":"app.modulariot.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"modulariot-v2-miot-app","port":{"number":3000}}}}]}}]}}'
+
+# Remove old version after verification
+helm uninstall modulariot
+```
+
+## Troubleshooting
+
+### Check Pod Status
+
+```bash
+kubectl get pods -n modulariot
+kubectl describe pod <pod-name> -n modulariot
+kubectl logs <pod-name> -n modulariot
+```
+
+### Check Events
+
+```bash
+kubectl get events -n modulariot --sort-by='.lastTimestamp'
+```
+
+### Test Connectivity
+
+```bash
+# Test from within cluster
+kubectl run test --rm -it --image=busybox --restart=Never -- \
+  wget -qO- http://modulariot-miot-app:3000/
+
+# Test ingress
+curl -v https://app.modulariot.com/
+```

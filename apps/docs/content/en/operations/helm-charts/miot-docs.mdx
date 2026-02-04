@@ -1,0 +1,141 @@
+# miot-docs Chart
+
+The `miot-docs` chart deploys the ModularIoT documentation site - a Next.js application using Nextra for documentation.
+
+## Installation
+
+```bash
+helm install miot-docs microboxlabs/miot-docs \
+  --namespace modulariot \
+  --create-namespace
+```
+
+## Parameters
+
+### Image Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Image repository | `ghcr.io/microboxlabs/miot-docs` |
+| `image.tag` | Image tag | Chart appVersion |
+| `image.pullPolicy` | Pull policy | `IfNotPresent` |
+| `imagePullSecrets` | Pull secrets | `[]` |
+
+### Deployment Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of replicas | `1` |
+| `podAnnotations` | Pod annotations | `{}` |
+| `podLabels` | Pod labels | `{}` |
+| `nodeSelector` | Node selector | `{}` |
+| `tolerations` | Tolerations | `[]` |
+| `affinity` | Affinity rules | `{}` |
+
+### Service Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.type` | Service type | `ClusterIP` |
+| `service.port` | Service port | `3000` |
+
+### Ingress Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts[0].host` | Default hostname | `docs.modulariot.local` |
+| `ingress.tls` | TLS configuration | `[]` |
+
+### Resource Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `resources.limits.cpu` | CPU limit | Not set |
+| `resources.limits.memory` | Memory limit | Not set |
+| `resources.requests.cpu` | CPU request | Not set |
+| `resources.requests.memory` | Memory request | Not set |
+
+### Autoscaling Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `autoscaling.enabled` | Enable HPA | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `10` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target CPU | `80` |
+
+## Environment Variables
+
+Add custom environment variables:
+
+```yaml
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: NEXT_TELEMETRY_DISABLED
+    value: "1"
+```
+
+## Example Values
+
+### Development
+
+```yaml
+replicaCount: 1
+
+image:
+  tag: "latest"
+
+service:
+  type: NodePort
+```
+
+### Production
+
+```yaml
+replicaCount: 2
+
+image:
+  tag: "v1.0.0"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: docs.modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: docs-tls
+      hosts:
+        - docs.modulariot.example.com
+```
+
+## Caching
+
+For better performance in production, consider adding a caching layer:
+
+```yaml
+podAnnotations:
+  nginx.ingress.kubernetes.io/proxy-buffering: "on"
+  nginx.ingress.kubernetes.io/configuration-snippet: |
+    proxy_cache_valid 200 1h;
+```
+
+## Search Configuration
+
+The documentation uses Pagefind for client-side search. The search index is built at build time and served statically. No additional configuration is required.

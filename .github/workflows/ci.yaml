@@ -1,77 +1,368 @@
-name: CI
- 
+# =============================================================================
+# Build and Publish - ModularIoT Monorepo
+# =============================================================================
+# This workflow builds and publishes Docker images for multiple applications
+# in the monorepo.
+#
+# Docker Images published to:
+#   - GitHub Container Registry (GHCR) - Primary registry
+#   - Docker Hub - Secondary mirror (non-PR builds only)
+#
+# Applications built:
+#   - docs: Documentation site (miot-docs)
+#   - app: Main application (miot-app)
+#   - web-site: Public website (miot-web-site)
+#
+# Tagging Strategy:
+#   - PRs:        ghcr.io/microboxlabs/<image>:pr-<number>
+#   - trunk:      ghcr.io/microboxlabs/<image>:latest
+#   - Tags:       ghcr.io/microboxlabs/<image>:<version>
+#
+# Required Secrets:
+#   Docker Hub:
+#     - DOCKERHUB_USERNAME: Docker Hub username
+#     - DOCKERHUB_TOKEN: Docker Hub access token
+#
+# Required Variables:
+#   - NEXT_PUBLIC_INGEST_URL: Ingest URL for the app
+# =============================================================================
+
+name: Build and Publish
+
+run-name: ${{ github.actor }} is building ${{ github.repository }} 🚀
+
 on:
   push:
-    branches: ["trunk"]
+    branches:
+      - trunk
+      - main
+    tags:
+      - "v*"
   pull_request:
-    types: [opened, synchronize]
- 
+    branches:
+      - trunk
+      - main
+
 env:
+  # Registry configuration
+  GHCR_REGISTRY: ghcr.io
+  DOCKERHUB_REGISTRY: docker.io
+  # Organization/owner for images
+  IMAGE_OWNER: microboxlabs
+  # Build configuration
+  NODE_VERSION: "22"
+  PNPM_VERSION: "9.15.0"
+  # Application environment
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
-  REGION: ${{ vars.GCP_DEFAULT_REGION }}
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  GAR_LOCATION: ${{ vars.GCP_DEFAULT_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mainbox/miot-docs
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} # GitHub Actions uses different ref names for PRs and pushes
 
 jobs:
+  # ===========================================================================
+  # Build Job - Install, Lint, Test, and Build all apps
+  # ===========================================================================
   build:
     name: Build and Test
-    timeout-minutes: 15
     runs-on: ubuntu-latest
-    # To use Remote Caching, uncomment the next lines and follow the steps below.
-    # env:
-    #  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-    #  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
- 
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-release: ${{ steps.version.outputs.is-release }}
+
     steps:
-      - name: Check out code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Cache turbo build setup
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Cache turbo build
         uses: actions/cache@v4
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-
- 
-      - uses: oven-sh/setup-bun@v2
- 
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
- 
-      - name: Install dependencies
-        run: bun install
- 
-      - name: Build
+
+      - name: Determine version
+        id: version
         run: |
-          bun run build -F '@modulariot/docs'
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is-release=true" >> $GITHUB_OUTPUT
+            echo "📦 Release version: $VERSION"
+          else
+            VERSION="0.0.0-$(echo $GITHUB_SHA | cut -c1-7)"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is-release=false" >> $GITHUB_OUTPUT
+            echo "📦 Development version: $VERSION"
+          fi
 
-      - name: "Auth"
-        uses: "google-github-actions/auth@v2"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linting
+        run: pnpm run lint
+
+      - name: Run type checking
+        run: pnpm run check-types
+
+      - name: Run tests
+        run: pnpm run test -- --run
+        continue-on-error: true
+
+      - name: Build all applications
+        run: pnpm run build
+
+      # Package build artifacts for Docker - restructure for Dockerfile context
+      - name: Package docs build artifacts
+        run: |
+          mkdir -p docker-context/docs
+          cp -r apps/docs/.next docker-context/docs/.next
+          cp -r apps/docs/public docker-context/docs/public || mkdir -p docker-context/docs/public
+
+      - name: Upload docs build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+          name: docs-build
+          path: docker-context/docs
+          retention-days: 1
 
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v2"
+      - name: Package app build artifacts
+        run: |
+          mkdir -p docker-context/app
+          cp -r apps/app/.next docker-context/app/.next
+          cp -r apps/app/public docker-context/app/public || mkdir -p docker-context/app/public
 
-      - name: "Use gcloud CLI"
-        run: "gcloud info"
+      - name: Upload app build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: docker-context/app
+          retention-days: 1
 
-      - name: "Docker auth"
-        run: |-
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      - name: Package web-site build artifacts
+        if: hashFiles('apps/web-site/.next/standalone') != ''
+        run: |
+          mkdir -p docker-context/web-site
+          cp -r apps/web-site/.next docker-context/web-site/.next
+          cp -r apps/web-site/public docker-context/web-site/public || mkdir -p docker-context/web-site/public
 
-      - name: "Build and Push Docker image"
-        run: |-
-          SHORT_SHA=${GITHUB_SHA::7}
-          BRANCH=$(echo "${{ env.BRANCH_NAME }}" | tr / - | tr '[:upper:]' '[:lower:]' | xargs)
-          docker build apps/docs \
-          -f docker/nextjs.standalone-docs.Dockerfile \
-          --build-arg SERVER_PATH=apps/docs/server.js \
-          -t ${{ env.GAR_LOCATION }}:$BRANCH-$SHORT_SHA
-          docker push ${{ env.GAR_LOCATION }}:$BRANCH-$SHORT_SHA
+      - name: Upload web-site build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-site-build
+          path: docker-context/web-site
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # ===========================================================================
+  # Publish Docker Images - Matrix strategy for multiple apps
+  # ===========================================================================
+  publish-docker:
+    name: Publish ${{ matrix.app }} Image
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: docs
+            image-name: miot-docs
+            dockerfile: docker/nextjs.standalone-docs.Dockerfile
+            build-artifact: docs-build
+          - app: app
+            image-name: miot-app
+            dockerfile: docker/nextjs.standalone.Dockerfile
+            build-artifact: app-build
+          # Uncomment when web-site has standalone build
+          # - app: web-site
+          #   image-name: miot-web-site
+          #   dockerfile: docker/nextjs.standalone.Dockerfile
+          #   build-artifact: web-site-build
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+      security-events: write
+
+    outputs:
+      image-tags: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build-push.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.build-artifact }}
+          path: docker-context/${{ matrix.app }}
+
+      - name: Verify artifacts
+        run: |
+          echo "📦 Downloaded artifacts for ${{ matrix.app }}:"
+          ls -la docker-context/${{ matrix.app }}/
+          ls -la docker-context/${{ matrix.app }}/.next/standalone/ || true
+          ls -la docker-context/${{ matrix.app }}/.next/static/ || true
+
+      # =========================================================================
+      # Docker Build Setup
+      # =========================================================================
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # =========================================================================
+      # Registry Authentication
+      # =========================================================================
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKERHUB_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # =========================================================================
+      # Image Metadata and Tags
+      # =========================================================================
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}
+            ${{ github.event_name != 'pull_request' && format('{0}/{1}/{2}', env.DOCKERHUB_REGISTRY, env.IMAGE_OWNER, matrix.image-name) || '' }}
+          tags: |
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image-name }}
+            org.opencontainers.image.description=ModularIoT ${{ matrix.app }} application
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+
+      # =========================================================================
+      # Build and Push
+      # =========================================================================
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/${{ matrix.app }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_NAME=${{ matrix.app }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          provenance: true
+          sbom: true
+
+      # =========================================================================
+      # Post-build Information
+      # =========================================================================
+      - name: Output image information
+        run: |
+          echo "## 🐳 Docker Image Published: ${{ matrix.image-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Digest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.build-push.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# From GitHub Container Registry (primary)" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}:sha-${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# From Docker Hub (mirror)" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}:sha-${GITHUB_SHA::7}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # =========================================================================
+      # Security Scan
+      # =========================================================================
+      - name: Run Trivy vulnerability scanner
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}@${{ steps.build-push.outputs.digest }}"
+          format: "sarif"
+          output: "trivy-results-${{ matrix.app }}.sarif"
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results-${{ matrix.app }}.sarif"
+          category: "${{ matrix.app }}-security"
+        continue-on-error: true
+
+  # ===========================================================================
+  # Summary Job - Aggregate results
+  # ===========================================================================
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build, publish-docker]
+    if: always()
+
+    steps:
+      - name: Create summary
+        run: |
+          echo "# 📊 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build & Test | ${{ needs.build.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Publish | ${{ needs.publish-docker.result == 'success' && '✅ Published' || needs.publish-docker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ needs.build.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY

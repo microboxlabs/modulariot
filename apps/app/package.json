@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 3050",
-    "build": "NODE_OPTIONS=--enable-source-maps next build --turbo",
+    "dev": "next dev --port 3050",
+    "build": "NODE_OPTIONS=--enable-source-maps next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -25,13 +25,13 @@
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
     "@auth/core": "^0.34.3",
-    "@deck.gl/core": "^9.1.2",
-    "@deck.gl/layers": "^9.1.2",
-    "@deck.gl/react": "^9.1.2",
+    "@deck.gl/core": "9.1.2",
+    "@deck.gl/layers": "9.1.2",
+    "@deck.gl/react": "9.1.2",
     "@formatjs/intl-localematcher": "^0.5.4",
     "@hookform/resolvers": "^3.9.0",
     "@lordicon/react": "^1.10.0",
-    "@luma.gl/core": "^9.1.2",
+    "@luma.gl/core": "9.1.2",
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
     "@next/mdx": "16.1.1",
@@ -43,7 +43,7 @@
     "csv-parse": "^5.6.0",
     "daterangepicker": "^3.1.0",
     "dayjs": "^1.11.12",
-    "deck.gl": "^9.1.2",
+    "deck.gl": "9.1.2",
     "echarts-for-react": "^3.0.2",
     "flowbite": "^2.4.1",
     "flowbite-react": "^0.12.10",
@@ -105,12 +105,16 @@
     "vitest": "^4.0.10",
     "webpack": "^5.93.0"
   },
-  "overrides": {
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@deck.gl/core": "^9.1.2",
-    "@deck.gl/layers": "^9.1.2",
-    "@deck.gl/react": "^9.1.2",
-    "@luma.gl/core": "^9.1.2"
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.7",
+      "@types/react-dom": "19.2.3",
+      "@deck.gl/core": "9.1.2",
+      "@deck.gl/layers": "9.1.2",
+      "@deck.gl/react": "9.1.2",
+      "@luma.gl/core": "9.1.2",
+      "@luma.gl/webgl": "9.1.2",
+      "deck.gl": "9.1.2"
+    }
   }
 }

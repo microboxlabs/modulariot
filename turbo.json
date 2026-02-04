@@ -24,6 +24,12 @@
       "cache": false,
       "persistent": true
     },
+    "knip": {
+      "cache": false
+    },
+    "knip:check": {
+      "cache": false
+    },
     "db:generate": {
       "cache": false
     },

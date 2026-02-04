@@ -99,6 +99,14 @@ export default function ComingSoon() {
             {/* Footer */}
             <div className="mt-16 text-gray-500 text-sm">
               <p>&copy; 2025 MicroboxLabs. Built with passion for open source.</p>
+              <div className="mt-4 flex justify-center space-x-4">
+                <a 
+                  href="/privacy" 
+                  className="hover:text-white transition-colors duration-200"
+                >
+                  Privacy Policy
+                </a>
+              </div>
             </div>
           </div>
         </div>

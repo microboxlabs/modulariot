@@ -1,0 +1,624 @@
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import {
+  MissionControlValidationOutcome,
+  MonitoringInCourseTripOutcome,
+  ShippingCoordinatorProcessTask,
+  SovosDigitalSignatureOutcome,
+  OverlordTripInitOutcome,
+  ShippingCoordinatorProcessFormsV2,
+  ShippingCoordinatorProcessTaskV2,
+  TaskOutcomeV2,
+  DeliveryProcessForms,
+  DeliveryProcessTask,
+  TaskOutcomeDelivery,
+  ShippingFinishedCoordinatorProcessTask,
+  PlanningProcessTask,
+  PlanningProcessForms,
+  TaskOutcomePlanning,
+  GeneralTaskOutcome,
+} from "./form.service.types";
+import {
+  HiOutlineArrowLeft,
+  HiOutlineArrowRight,
+  HiTrash,
+} from "react-icons/hi";
+import { ElementType } from "react";
+
+export const OUTCOME_NORMAL_INITIATION: MissionControlValidationOutcome =
+  "Iniciado Normal";
+
+export const OUTCOME_OVERLORD_AUTHORIZED_WITHOUT_GPS: OverlordTripInitOutcome =
+  "Autorizado Sin GPS";
+
+export const OUTCOME_OVERLORD_AUTHORIZED_WITH_REPAIRS: OverlordTripInitOutcome =
+  "Autorizado Con Reparos";
+
+export const OUTCOME_OVERLORD_ANULLED: OverlordTripInitOutcome =
+  "Anulado por Overlord";
+
+export const OUTCOME_OVERLORD_CANCELED: OverlordTripInitOutcome =
+  "Cancelado por Overlord";
+
+export const OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Arribo a Destino";
+
+export const OUTCOME_CONFIRM_DEPARTURE_TO_DESTINATION: MonitoringInCourseTripOutcome =
+  "Confirmar Salida del Destino";
+
+export const OUTCOME_CONFIRM_DELIVERY: MonitoringInCourseTripOutcome =
+  "Confirmar Entrega";
+
+export const OUTCOME_REDIRECT_TO_MISSION_CONTROL: MonitoringInCourseTripOutcome =
+  "Devolver a Torre de Control";
+
+export const OUTCOME_CONFIRM_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Confirmar Cierre Monitoreo / Entrega";
+
+export const OUTCOME_MONITORING_FINALIZATION: MonitoringInCourseTripOutcome =
+  "Cerrar Monitoreo";
+
+export const OUTCOME_INITIATION_WITH_OBJECTIONS: MissionControlValidationOutcome =
+  "Iniciado Con Reparos";
+
+export const OUTCOME_OVERLORD_REQUIRED: MissionControlValidationOutcome =
+  "Requiere Overlord";
+
+export const OUTCOME_CANCELED: MissionControlValidationOutcome = "Cancelado";
+
+export const OUTCOME_ANNULLED: MissionControlValidationOutcome = "Anulado";
+
+export const OUTCOME_INITIATED_WITHOUT_SOVOS_SIGNATURE: MissionControlValidationOutcome =
+  "Iniciado sin Firma Sovos";
+
+export const TASK_TRANSPORT_VALIDATION: ShippingCoordinatorProcessTask =
+  "transportValidation";
+
+export const TASK_MISSION_CONTROL_TRIP_INIT: ShippingCoordinatorProcessTask =
+  "missionControlTripInit";
+
+export const TASK_OVERLORD_TRIP_INIT: ShippingCoordinatorProcessTask =
+  "overlordTripInit";
+
+export const TASK_SOVOS_DIGITAL_SIGNATURE: ShippingCoordinatorProcessTask =
+  "sovosDigitalSignature";
+
+export const TASK_TRIP_OUTSIDE_INITIATED: ShippingCoordinatorProcessTask =
+  "tripOutsideInitiated";
+
+export const TASK_MONITORING_IN_COURSE_TRIP: ShippingCoordinatorProcessTask =
+  "monitoringInCourseTrip";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationArrival";
+
+export const TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE: ShippingCoordinatorProcessTask =
+  "confirmTripDestinationDeparture";
+
+export const TASK_CONFIRM_DELIVERY: ShippingCoordinatorProcessTask =
+  "confirmDelivery";
+
+export const TASK_CONFIRM_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "confirmMonitoringFinalization";
+
+export const TASK_MONITORING_FINALIZATION: ShippingCoordinatorProcessTask =
+  "monitoringFinalization";
+
+export const TASK_FINISHED = "finished";
+
+export const OUTCOME_RETURN_TO_MISSION_CONTROL: SovosDigitalSignatureOutcome =
+  "Devolver a Torre de Control";
+
+export const OUTCOME_RETURN_TO_TRANSPORT_VALIDATION: SovosDigitalSignatureOutcome =
+  "Devolver a Validacion de Transporte";
+
+export const OUTCOME_RETURN_TO_OVERLORD: SovosDigitalSignatureOutcome =
+  "Devolver a Overlord";
+
+export const OUTCOME_TRIP_INITIATED: SovosDigitalSignatureOutcome =
+  "Viaje Iniciado";
+
+export const OUTCOME_TRIP_CANCELED: SovosDigitalSignatureOutcome =
+  "Viaje Cancelado";
+
+export const OUTCOME_TRIP_ANNULLED: SovosDigitalSignatureOutcome =
+  "Viaje Anulado";
+
+export const SHIPPING_COORDINATOR_PROCESS_TASKS: ShippingCoordinatorProcessTask[] =
+  [
+    TASK_TRANSPORT_VALIDATION,
+    TASK_MISSION_CONTROL_TRIP_INIT,
+    TASK_OVERLORD_TRIP_INIT,
+    TASK_SOVOS_DIGITAL_SIGNATURE,
+    TASK_TRIP_OUTSIDE_INITIATED,
+    TASK_MONITORING_IN_COURSE_TRIP,
+    TASK_CONFIRM_TRIP_DESTINATION_ARRIVAL,
+    //TASK_CONFIRM_DELIVERY,
+    TASK_CONFIRM_TRIP_DESTINATION_DEPARTURE,
+    TASK_CONFIRM_MONITORING_FINALIZATION,
+    TASK_MONITORING_FINALIZATION,
+    TASK_FINISHED,
+  ];
+
+/* ------------------------------------------------------------- */
+/* Shipping Finished Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export const TASK_CANCELED: ShippingFinishedCoordinatorProcessTask = "canceled";
+
+export const TASK_TRIP_CANCELED: ShippingFinishedCoordinatorProcessTask =
+  "tripCancelled";
+
+export const TASK_TRIP_NULLIFIED: ShippingFinishedCoordinatorProcessTask =
+  "tripNullified";
+
+export const TASK_TRIP_NULLIFIED_BY_OVERLORD: ShippingFinishedCoordinatorProcessTask =
+  "tripNullifiedByOverlord";
+
+export const TASK_TRIP_CANCELED_BY_OVERLORD: ShippingFinishedCoordinatorProcessTask =
+  "tripCanceledByOverlord";
+
+export const TASK_NULLIFIED: ShippingFinishedCoordinatorProcessTask =
+  "nullified";
+
+export const SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS: ShippingFinishedCoordinatorProcessTask[] =
+  [
+    TASK_FINISHED,
+    TASK_MONITORING_FINALIZATION,
+    TASK_CANCELED,
+    TASK_TRIP_CANCELED,
+    TASK_TRIP_CANCELED_BY_OVERLORD,
+    TASK_NULLIFIED,
+    TASK_TRIP_NULLIFIED,
+    TASK_TRIP_NULLIFIED_BY_OVERLORD,
+  ];
+
+/* ------------------------------------------------------------- */
+/* Shipping Coordinator Process V2 */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFSHIP2_ASSIGN_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:assignDriverTask";
+
+export const TYPE_WFSHIP2_PRESENT_DRIVER_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:presentDriverTask";
+
+export const TYPE_WFSHIP2_PREPARE_SERVICE_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:prepareServiceTask";
+
+export const TYPE_WFSHIP2_MISSION_CONTROL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:missionControlTask";
+
+export const TYPE_WFSHIP2_MONITOR_TRIP_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:monitorTripTask";
+
+export const TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:confirmArrivalTask";
+
+export const TYPE_WFSHIP2_CLOSE_MONITORING_TASK: ShippingCoordinatorProcessFormsV2 =
+  "wfship2:closeMonitoringTask";
+
+export const TASK_PRESENT_DRIVER: ShippingCoordinatorProcessTaskV2 =
+  "presentDriver";
+
+export const TASK_PREPARE_SERVICE: ShippingCoordinatorProcessTaskV2 =
+  "prepareService";
+
+export const TASK_MISSION_CONTROL: ShippingCoordinatorProcessTaskV2 =
+  "missionControl";
+
+export const TASK_MONITOR_TRIP: ShippingCoordinatorProcessTaskV2 =
+  "monitorTrip";
+
+export const TASK_CONFIRM_ARRIVAL: ShippingCoordinatorProcessTaskV2 =
+  "confirmArrival";
+
+export const TASK_CLOSE_MONITORING: ShippingCoordinatorProcessTaskV2 =
+  "closeMonitoring";
+
+export const SHIPPING_COORDINATOR_PROCESS_TASKS_V2: ShippingCoordinatorProcessTaskV2[] =
+  [
+    TASK_PRESENT_DRIVER,
+    TASK_PREPARE_SERVICE,
+    TASK_MISSION_CONTROL,
+    TASK_MONITOR_TRIP,
+    TASK_CONFIRM_ARRIVAL,
+    TASK_CLOSE_MONITORING,
+    TASK_FINISHED,
+  ];
+
+export const OUTCOME_TO_ASSIGN_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_ASSIGN_DRIVER_V2: TaskOutcomeV2 =
+  "Asignar Conductor/Transporte";
+export const OUTCOME_TO_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Preparar Servicio";
+export const OUTCOME_PRESENT_DRIVER_V2: TaskOutcomeV2 = "Presentar Conductor";
+export const OUTCOME_TO_PREPARE_SERVICE_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje";
+export const OUTCOME_PREPARE_SERVICE_V2: TaskOutcomeV2 = "Preparar Servicio";
+export const OUTCOME_TO_MISSION_CONTROL_V2: TaskOutcomeV2 =
+  "Monitorear viaje en curso";
+export const OUTCOME_MISSION_CONTROL_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje";
+export const OUTCOME_TO_MONITOR_TRIP_V2: TaskOutcomeV2 = "Confirmar Arribo";
+
+export const OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
+  "Torre de Control: Iniciar Viaje sin firma"; // TODO: this could change
+export const OUTCOME_TO__MISSION_CONTROL_WITHOUT_SIGNATURE_V2: TaskOutcomeV2 =
+  "Confirmar Arribo";
+
+export const OUTCOME_MONITOR_TRIP_V2: TaskOutcomeV2 =
+  "Monitorear viaje en curso";
+export const OUTCOME_TO_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 =
+  "Confirmar Cierre Monitoreo / Entrega";
+export const OUTCOME_CONFIRM_ARRIVAL_V2: TaskOutcomeV2 = "Confirmar Arribo";
+export const OUTCOME_TO_CLOSE_MONITORING_V2: TaskOutcomeV2 = "Viaje Finalizado";
+export const OUTCOME_CLOSE_MONITORING_V2: TaskOutcomeV2 =
+  "Confirmar Cierre Monitoreo / Entrega";
+export const OUTCOME_OVERLORD_CANCELED_V2: TaskOutcomeV2 = "Viaje Cancelado";
+export const OUTCOME_OVERLORD_ANULLED_V2: TaskOutcomeV2 = "Viaje Anulado";
+export const OUTCOME_OVERLORD_CANCELED_SOVOS_V2: TaskOutcomeDelivery =
+  "Viaje Rechazado";
+export const OUTCOME_OVERLORD_REQUIRED_V2: TaskOutcomeV2 = "Requiere Overlord";
+
+export const getTransitionIdV2 = (
+  taskType:
+    | ShippingCoordinatorProcessFormsV2
+    | DeliveryProcessForms
+    | PlanningProcessForms,
+  outcome: TaskOutcomeV2
+): GeneralTaskOutcome => {
+  switch (taskType) {
+    case TYPE_WFSHIP2_ASSIGN_DRIVER_TASK:
+      return OUTCOME_TO_ASSIGN_DRIVER_V2;
+    case TYPE_WFSHIP2_PRESENT_DRIVER_TASK:
+      return OUTCOME_TO_PRESENT_DRIVER_V2;
+    case TYPE_WFSHIP2_PREPARE_SERVICE_TASK:
+      return OUTCOME_TO_PREPARE_SERVICE_V2;
+    case TYPE_WFSHIP2_MISSION_CONTROL_TASK:
+      return OUTCOME_TO_MISSION_CONTROL_V2;
+    case TYPE_WFSHIP2_MONITOR_TRIP_TASK:
+      return OUTCOME_TO_MONITOR_TRIP_V2;
+    case TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK:
+      return OUTCOME_TO_CONFIRM_ARRIVAL_V2;
+    case TYPE_WFSHIP2_CLOSE_MONITORING_TASK:
+      return OUTCOME_TO_CLOSE_MONITORING_V2;
+    case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
+      return OUTCOME_TO_CONFIRM_DELIVERY_V2;
+    case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
+      return OUTCOME_TO_RECEIVE_DELIVERY_V2;
+    case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
+      return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
+    case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
+      return OUTCOME_TO_CLOSE_MONITORING_V2;
+    case TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK:
+      return OUTCOME_TO_CONSOLIDATE_LOAD;
+    case TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK:
+      return OUTCOME_TO_SEPARATE_DOCUMENTS;
+    case TYPE_WFPLANNING_PLAN_SERVICE_TASK:
+      return OUTCOME_TO_PLAN_SERVICE;
+    default:
+      return outcome;
+  }
+};
+
+export const getSecondaryTransitionIdV2 = (
+  taskType:
+    | ShippingCoordinatorProcessFormsV2
+    | DeliveryProcessForms
+    | PlanningProcessForms,
+  dict: I18nRecord
+): {
+  id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
+  label: string;
+  icon: ElementType;
+}[] => {
+  const otherOptions: {
+    id: TaskOutcomeV2 | TaskOutcomeDelivery | TaskOutcomePlanning;
+    label: string;
+    icon: ElementType;
+  }[] = [];
+  if (taskType === TYPE_WFSHIP2_PRESENT_DRIVER_TASK) {
+    otherOptions.push({
+      id: OUTCOME_ASSIGN_DRIVER_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_PREPARE_SERVICE_TASK) {
+    otherOptions.push({
+      id: OUTCOME_PRESENT_DRIVER_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_PRESENT_DRIVER_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_PRESENT_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_PRESENT_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_PREPARE_SERVICE_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_PREPARE_SERVICE_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_OVERLORD_REQUIRED_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_OVERLORD_REQUIRED_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFSHIP2_MONITOR_TRIP_TASK) {
+    otherOptions.push({
+      id: OUTCOME_MISSION_CONTROL_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_MISSION_CONTROL_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK) {
+    otherOptions.push({
+      id: OUTCOME_MONITOR_TRIP_V2,
+      label: (dict.outcome as I18nRecord)[OUTCOME_MONITOR_TRIP_V2] as string,
+      icon: HiOutlineArrowLeft,
+    });
+  } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
+    // nothing to do here
+  } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      },
+      {
+        id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_OVERLORD_CANCELED_SOVOS_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONFIRM_DELIVERY_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_CONFIRM_DELIVERY_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      },
+      {
+        id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_OVERLORD_CANCELED_SOVOS_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_RECEIVE_DELIVERY_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_RECEIVE_DELIVERY_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_NOTIFY_TMS_ARRIVAL_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_NOTIFY_TMS_ARRIVAL_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_CLOSE_MONITORING_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_CLOSE_MONITORING_V2
+        ] as string,
+        icon: HiOutlineArrowRight,
+      }
+    );
+  } else if (taskType === TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_TO_ASSIGN_DRIVER_V2,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_TO_ASSIGN_DRIVER_V2
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFPLANNING_PLAN_SERVICE_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  } else if (taskType === TYPE_WFSHIP2_ASSIGN_DRIVER_TASK) {
+    otherOptions.push(
+      {
+        id: OUTCOME_CONSOLIDATE_LOAD,
+        label: (dict.outcome as I18nRecord)[OUTCOME_CONSOLIDATE_LOAD] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_SEPARATE_DOCUMENTS,
+        label: (dict.outcome as I18nRecord)[
+          OUTCOME_SEPARATE_DOCUMENTS
+        ] as string,
+        icon: HiOutlineArrowLeft,
+      },
+      {
+        id: OUTCOME_PLAN_SERVICE,
+        label: (dict.outcome as I18nRecord)[OUTCOME_PLAN_SERVICE] as string,
+        icon: HiOutlineArrowLeft,
+      }
+    );
+  }
+  otherOptions.push(
+    {
+      id: OUTCOME_OVERLORD_CANCELED_V2,
+      label: (dict.outcome as I18nRecord).canceled as string,
+      icon: HiOutlineArrowLeft,
+    },
+    {
+      id: OUTCOME_OVERLORD_ANULLED_V2,
+      label: (dict.outcome as I18nRecord).annulled as string,
+      icon: HiTrash,
+    }
+  );
+  return otherOptions;
+};
+
+/* ------------------------------------------------------------- */
+/* Delivery Process */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:confirmDeliveryTask";
+
+export const TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:receiveDeliveryTask";
+
+export const TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK: DeliveryProcessForms =
+  "wfship2:notifyTMSArrivalTask";
+
+export const TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK: DeliveryProcessForms =
+  "wfship2:notifyTMSDeliveryTask";
+
+export const TASK_CONFIRM_DELIVERY_V2: DeliveryProcessTask = "confirmDelivery";
+
+export const TASK_RECEIVE_DELIVERY: DeliveryProcessTask = "receiveDelivery";
+
+export const TASK_NOTIFY_TMS_ARRIVAL: DeliveryProcessTask = "notifyTMSArrival";
+
+export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
+  "notifyTMSDelivery";
+
+export const OUTCOME_TO_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
+  "Recibir Entrega";
+
+export const OUTCOME_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
+  "Confirmar Entrega";
+
+export const OUTCOME_TO_RECEIVE_DELIVERY_V2: TaskOutcomeDelivery =
+  "Notificar Arribo (4.7)";
+
+export const OUTCOME_RECEIVE_DELIVERY_V2: TaskOutcomeDelivery =
+  "Recibir Entrega";
+
+export const OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2: TaskOutcomeDelivery =
+  "Notificar Entrega (5.11)";
+
+export const OUTCOME_NOTIFY_TMS_ARRIVAL_V2: TaskOutcomeDelivery =
+  "Notificar Arribo (4.7)";
+
+export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =
+  "Notificar Entrega (5.11)";
+
+export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
+  TASK_CONFIRM_DELIVERY_V2,
+  TASK_RECEIVE_DELIVERY,
+  TASK_NOTIFY_TMS_ARRIVAL,
+  TASK_NOTIFY_TMS_DELIVERY,
+];
+
+/* ------------------------------------------------------------- */
+/* Planning Coordinator Process */
+/* ------------------------------------------------------------- */
+
+export const TYPE_WFPLANNING_CONSOLIDATE_LOAD_TASK: PlanningProcessForms =
+  "wfship2:consolidateLoadTask";
+export const TYPE_WFPLANNING_SEPARATE_DOCUMENTS_TASK: PlanningProcessForms =
+  "wfship2:separateDocumentsTask";
+export const TYPE_WFPLANNING_PLAN_SERVICE_TASK: PlanningProcessForms =
+  "wfship2:planServiceTask";
+
+export const TASK_CONSOLIDATE_LOAD: PlanningProcessTask = "consolidateLoad";
+export const TASK_SEPARATE_DOCUMENTS: PlanningProcessTask = "separateDocuments";
+export const TASK_PLAN_SERVICE: PlanningProcessTask = "planService";
+export const TASK_ASSIGN_DRIVER: PlanningProcessTask = "assignDriver";
+
+export const OUTCOME_TO_CONSOLIDATE_LOAD: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_CONSOLIDATE_LOAD: TaskOutcomePlanning = "Consolidar Carga";
+export const OUTCOME_TO_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
+  "Planificar Servicio";
+export const OUTCOME_SEPARATE_DOCUMENTS: TaskOutcomePlanning =
+  "Separar Documentos";
+export const OUTCOME_TO_PLAN_SERVICE: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
+export const OUTCOME_PLAN_SERVICE: TaskOutcomePlanning = "Planificar Servicio";
+export const OUTCOME_ASSIGN_DRIVER: TaskOutcomePlanning =
+  "Asignar Conductor/Transporte";
+
+export const PLANNING_COORDINATOR_PROCESS_TASKS: PlanningProcessTask[] = [
+  TASK_CONSOLIDATE_LOAD,
+  TASK_SEPARATE_DOCUMENTS,
+  TASK_PLAN_SERVICE,
+  TASK_ASSIGN_DRIVER,
+];

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+
+# Cache directories
+.cache/
+
+# Environment files
+.env*
+
+# Log files
+*.log
+
+# Database files
+*.db
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Package manager lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated files
+*.generated.*
+
+# Config files that should maintain specific formatting
+*.config.js
+*.config.ts
+next.config.js
+tailwind.config.js

@@ -1,0 +1,279 @@
+"use client";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import CustomCard from "@/features/common/components/custom-card/custom-card";
+import React from "react";
+import SymptomIcon from "@/features/symptoms/components/symtom-icon";
+import ConditionIcon from "@/features/symptoms/components/condition-icon";
+import { useTreatmentsTrip } from "@/features/symptoms/hooks/use-treatments-trip";
+import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+
+// Symptom data structure
+interface SymptomData {
+  id: string;
+  key: string;
+  icon: string;
+  label: string;
+  count: number;
+  conditions: string[];
+}
+
+function getSymptom(symptoms: any[], id: string) {
+  if (!symptoms) {
+    return [];
+  }
+
+  if (Object.keys(symptoms).length === 0) {
+    return [];
+  }
+
+  return symptoms.filter((e) => e[id]);
+}
+
+function getTotalSymptoms(symptoms: any[], id: string): number {
+  const existingElement = getSymptom(symptoms, id);
+  return existingElement.length > 0 ? existingElement[0][id].total_symptoms : 0;
+}
+
+function getConditions(symptoms: any[], id: string): string[] {
+  const existingElement = getSymptom(symptoms, id);
+  return existingElement.length > 0
+    ? Object.keys(existingElement[0][id])
+        .filter((e) => e !== "total_symptoms")
+        .map((e: any) => e.toLowerCase())
+    : [];
+}
+
+// Symptom card component
+const SymptomCard = ({
+  symptom,
+  dict,
+  loading = false,
+}: {
+  symptom: SymptomData;
+  dict: I18nRecord;
+  loading?: boolean;
+}) => {
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-1 p-2 w-min-[150px] h-[70px] ">
+      {/* min-w-fit */}
+      {/* First column: Icon and conditions */}
+      <div className="flex flex-col items-center gap-1 min-w-0.5">
+        <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-lg p-1">
+          <SymptomIcon
+            type={symptom.icon}
+            size="h-6 w-6"
+            dict={dict}
+            fixed_label={symptom.label}
+          />
+        </div>
+        <div className="flex gap-1">
+          <div className="flex -space-x-2.5 transition-all duration-[0.5s] animate-show-flex">
+            {Array.from(symptom.conditions).map((condition) => (
+              <ConditionIcon
+                key={condition}
+                condition={condition ?? ""}
+                size="h-4 w-4"
+                dict={dict}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Second column: Label */}
+      <div className="flex-1 justify-center text-gray-900 dark:text-gray-100 text-[11px] font-light min-w-0 overflow-hidden">
+        {/*  <span className="text-sm text-gray-700 font-light truncate block"> */}
+        {symptom.label}
+        {/* </span> */}
+      </div>
+
+      {/* Third column: Number */}
+      <div className="text-xl text-gray-800 dark:text-gray-200 flex-shrink-0">
+        {loading ? (
+          <div className="bg-gray-300 dark:bg-gray-700 text-gray-300 dark:text-gray-700 animate-pulse rounded-lg h-full w-full">
+            00
+          </div>
+        ) : (
+          symptom.count.toString().padStart(2, "0")
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default function SymptomsCard({
+  dict,
+  task,
+  reactive = true,
+}: {
+  readonly dict: I18nRecord;
+  readonly task: TaskResponse;
+  readonly reactive?: boolean;
+}) {
+  const {
+    treatmentsTripData: symptoms,
+    isLoading,
+    error,
+  } = useTreatmentsTrip(task.mintral_serviceCode);
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  }
+
+  // Define all symptoms with their icons and default values
+  const allSymptoms: SymptomData[] = [
+    {
+      key: "driver_change",
+      icon: "DOUBLE DRIVER ROTATION CHECK",
+      id: "Double Driver Rotation Check",
+      label: (dict.symptoms as I18nRecord)
+        .double_driver_rotation_check as string,
+      count: getTotalSymptoms(symptoms, "Double Driver Rotation Check") || 0,
+      conditions: getConditions(symptoms, "Double Driver Rotation Check") || [
+        "",
+      ],
+    },
+    {
+      key: "speed_limit",
+      icon: "SPEED LIMIT STANDARD",
+      id: "Speed Limit standard",
+      label: (dict.symptoms as I18nRecord)["Speed Limit Standard"] as string,
+      count: getTotalSymptoms(symptoms, "Speed Limit Standard") || 0,
+      conditions: getConditions(symptoms, "Speed Limit Standard") || [""],
+    },
+    {
+      key: "speed_limit_custom",
+      icon: "SPEED LIMIT CUSTOM",
+      id: "Speed Limit Custom",
+      label: (dict.symptoms as I18nRecord)["Speed Limit Custom"] as string,
+      count: getTotalSymptoms(symptoms, "Speed Limit Custom") || 0,
+      conditions: getConditions(symptoms, "Speed Limit Custom") || [""],
+    },
+    {
+      key: "stay_risk",
+      icon: "STAY RISK",
+      id: "Stay Risk",
+      label: (dict.symptoms as I18nRecord)["RISK ZONE STOP"] as string,
+      count: getTotalSymptoms(symptoms, "Stay Risk") || 0,
+      conditions: getConditions(symptoms, "Stay Risk") || [""],
+    },
+    {
+      key: "night_stay_risk",
+      icon: "NIGHT STAY RISK",
+      id: "Night Stay Risk",
+      label: (dict.symptoms as I18nRecord)["RISK ZONE SLEEP"] as string,
+      count: getTotalSymptoms(symptoms, "Night Stay Risk") || 0,
+      conditions: getConditions(symptoms, "Night Stay Risk") || [""],
+    },
+    {
+      key: "off_hours_driving",
+      icon: "OFF HOURS DRIVING",
+      id: "Off Hours Driving",
+      label: (dict.symptoms as I18nRecord)["OFF HOURS DRIVING"] as string,
+      count: getTotalSymptoms(symptoms, "Off Hours Driving") || 0,
+      conditions: getConditions(symptoms, "Off Hours Driving") || [""],
+    },
+    {
+      key: "continuous_driving",
+      icon: "CONTINUOUS DRIVE CHECK",
+      id: "Continuous Drive Check",
+      label: (dict.symptoms as I18nRecord)["CONTINUOUS DRIVE CHECK"] as string,
+      count: getTotalSymptoms(symptoms, "Continuous Drive Check") || 0,
+      conditions: getConditions(symptoms, "Continuous Drive Check") || [""],
+    },
+    {
+      key: "continuous_resting",
+      icon: "CONTINUOUS RESTING CHECK",
+      id: "Continuous Resting Check",
+      label: (dict.symptoms as I18nRecord)[
+        "CONTINUOUS RESTING CHECK"
+      ] as string,
+      count: getTotalSymptoms(symptoms, "Continuous Resting Check") || 0,
+      conditions: getConditions(symptoms, "Continuous Resting Check") || [""],
+    },
+    {
+      key: "signal_loss",
+      icon: "LOST SIGNAL",
+      id: "Lost Signal",
+      label: (dict.symptoms as I18nRecord)["LOST SIGNAL"] as string,
+      count: getTotalSymptoms(symptoms, "Lost Signal") || 0,
+      conditions: getConditions(symptoms, "Lost Signal") || [""],
+    },
+    {
+      key: "deficient_cargo_securing",
+      icon: "DEFICIENT CARGO SECURING",
+      id: "Deficient Cargo Securing",
+      label: (dict.symptoms as I18nRecord).deficient_cargo_securing as string,
+      count: getTotalSymptoms(symptoms, "Deficient Cargo Securing") || 0,
+      conditions: getConditions(symptoms, "Deficient Cargo Securing") || [""],
+    },
+    {
+      key: "absence_cargo_securing",
+      icon: "NO CARGO SECURING",
+      id: "No Cargo Securing",
+      label: (dict.symptoms as I18nRecord).absence_cargo_securing as string,
+      count: getTotalSymptoms(symptoms, "No Cargo Securing") || 0,
+      conditions: getConditions(symptoms, "No Cargo Securing") || [""],
+    },
+    {
+      key: "movement_with_cargo",
+      icon: "MOVEMENT WITH CARGO",
+      id: "Movement With Cargo",
+      label: (dict.symptoms as I18nRecord).movement_with_cargo as string,
+      count: getTotalSymptoms(symptoms, "Movement With Cargo") || 0,
+      conditions: getConditions(symptoms, "Movement With Cargo") || [""],
+    },
+    {
+      key: "Deviation_Eta_Late",
+      icon: "Deviation_Eta_Late",
+      id: "Deviation_Eta_Late",
+      label: (dict.symptoms as I18nRecord).Deviation_Eta_Late as string,
+      count: getTotalSymptoms(symptoms, "Deviation_Eta_Late") || 0,
+      conditions: getConditions(symptoms, "Deviation_Eta_Late") || [""],
+    },
+    {
+      key: "Deviation_Eta_Early",
+      icon: "Deviation_Eta_Early",
+      id: "Deviation_Eta_Early",
+      label: (dict.symptoms as I18nRecord).Deviation_Eta_Early as string,
+      count: getTotalSymptoms(symptoms, "Deviation_Eta_Early") || 0,
+      conditions: getConditions(symptoms, "Deviation_Eta_Early") || [""],
+    },
+    {
+      key: "Fatigue And Drowsiness",
+      icon: "Fatigue And Drowsiness",
+      id: "Fatigue And Drowsiness",
+      label: (dict.symptoms as I18nRecord)["Fatigue And Drowsiness"] as string,
+      count: getTotalSymptoms(symptoms, "Fatigue And Drowsiness") || 0,
+      conditions: getConditions(symptoms, "Fatigue And Drowsiness") || [""],
+    },
+    {
+      key: "Fatigue And Drowsiness Sensor",
+      icon: "Fatigue And Drowsiness Sensor",
+      id: "Fatigue And Drowsiness Sensor",
+      label: (dict.symptoms as I18nRecord)[
+        "Fatigue And Drowsiness Sensor"
+      ] as string,
+      count: getTotalSymptoms(symptoms, "Fatigue And Drowsiness Sensor") || 0,
+      conditions: getConditions(symptoms, "Fatigue And Drowsiness Sensor") || [
+        "",
+      ],
+    },
+  ];
+
+  return (
+    <CustomCard
+      title={(dict.bento as I18nRecord).symptoms_present_in_the_trip as string}
+      subtitle={null}
+    >
+      <div
+        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-2 md:grid-cols-3"}`}
+      >
+        {allSymptoms.map((symptom) => (
+          <div key={symptom.key}>
+            <SymptomCard symptom={symptom} dict={dict} loading={isLoading} />
+          </div>
+        ))}
+      </div>
+    </CustomCard>
+  );
+}

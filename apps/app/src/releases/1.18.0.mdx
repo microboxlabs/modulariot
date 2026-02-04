@@ -1,0 +1,33 @@
+# 🔔 Release Notes v1.18.0 — ModularIoT
+
+### Fecha: 26/08/2025
+
+**Objetivo**: estabilizar flujos críticos (coordinador, uploads, asignaciones), mejorar autenticación con Microsoft Entra ID, y elevar la UX con tooltips contextuales y foro conectado a datos.
+
+## 🚀 Evolutivos
+
+- **Foro conectado a datos**: integración del Forum con razones de rechazo/rollback
+- **App de control de condiciones en flujo del coordinador**, incorporada al pipeline operativo
+- **Validaciones con etiqueta opcional**: backend habilita label contextual; frontend muestra tooltips enriquecidos cuando hay etiqueta.
+- **Autenticación Microsoft (unificada)**: método corporativo único; “ticket directo con Microsoft” habilitado.
+- **Lector OCR**: Sistema soporta la lectura QR de documento de identidad (cédula)
+
+## 🛠️ Refactorización / UX
+
+- **Tooltips de validación**: incorporación y ajuste de tamaños/estilos; fallback garantizado ante respuestas antiguas.
+- **Foro (antes Comentarios)**: layout tipo chat y visualización de motivos de rechazo.
+- **Label en negrita** para mayor visualización al momento de interpretar información.
+- **Miniaturas de documentos**, en sección Drag & Drop de documentos e imágenes.
+
+## ✅ Correctivos
+
+- **Bentobox**: inicialización/guards de propiedades al cargar metadata lateral.
+- **RUT con dígito ‘k/K’**: normalización y comparaciones case-insensitive en verificación biométrica y firma HO.
+- **Escalamiento Overlord**: el grupo Overlord puede tomar/continuar para realizar acciones correspondientes.
+- **Label en negrita (UI)**.
+- **Miniaturas de documentos**.
+- **SPC/Spence – reportes históricos/actuales**.
+
+## 📌 Conclusión
+
+El release 1.18.0 consolida mejoras clave en la estabilidad operativa y la experiencia de usuario. Se fortalecen los flujos críticos de coordinación y autenticación, se agregan nuevas capacidades como el lector OCR, y se optimiza la usabilidad con ajustes en tooltips, foro y visualización de documentos. Además, se corrigen fallos importantes en Bentobox, validaciones de RUT y escalamiento Overlord, asegurando mayor confiabilidad y continuidad en la operación. En conjunto, esta versión entrega un ecosistema más robusto, seguro y orientado a la eficiencia de los operadores y clientes.

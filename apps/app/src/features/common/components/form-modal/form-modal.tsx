@@ -1,0 +1,129 @@
+"use client";
+
+import { ReactNode } from "react";
+import {
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Button,
+  Alert,
+} from "flowbite-react";
+import { ErrorWithAlfrescoError } from "@/features/task-forms/components/task-confirm-modal/task-confirm-modal.types";
+import { ErrorAlert } from "@/features/task-forms/components/error-alert";
+
+export type FormModalProps = Readonly<{
+  /** Whether the modal is open */
+  isOpen: boolean;
+  /** Callback when modal closes */
+  onClose: () => void;
+  /** Modal title */
+  title: string;
+  /** Modal subtitle (optional) */
+  subtitle?: string;
+  /** Modal content */
+  children: ReactNode;
+  /** Submit button label */
+  submitLabel: string;
+  /** Cancel button label (optional, defaults to "Cancel") */
+  cancelLabel?: string;
+  /** Whether form is processing */
+  isProcessing?: boolean;
+  /** Error to display (supports both generic Error and Alfresco-specific errors) */
+  error?: Error | ErrorWithAlfrescoError | null;
+  /** Form submit handler */
+  onSubmit: () => void;
+  /** Modal size */
+  size?:
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "5xl"
+    | "6xl"
+    | "7xl";
+  /** Whether to show cancel button */
+  showCancelButton?: boolean;
+}>;
+
+/**
+ * Check if error is an Alfresco-specific error
+ */
+function isAlfrescoError(
+  error: Error | ErrorWithAlfrescoError
+): error is ErrorWithAlfrescoError {
+  return (
+    "info" in error && typeof error.info === "object" && error.info !== null
+  );
+}
+
+/**
+ * FormModal - A standardized modal shell for forms.
+ *
+ * This component provides a consistent look and feel matching the task transition modal.
+ * Use this as the base for any form modal in the application.
+ */
+export default function FormModal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  submitLabel,
+  cancelLabel = "Cancelar",
+  isProcessing = false,
+  error = null,
+  onSubmit,
+  size = "4xl",
+  showCancelButton = false,
+}: FormModalProps) {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onSubmit();
+  };
+
+  return (
+    <Modal dismissible show={isOpen} onClose={onClose} size={size}>
+      <form onSubmit={handleSubmit}>
+        <ModalHeader className="border-none">
+          <div className="flex flex-col items-start">
+            <h2 className="text-base font-semibold">{title}</h2>
+            {subtitle && (
+              <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            )}
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="flex flex-col my-4">{children}</div>
+          {error && (
+            <div className="mt-4 mb-4 space-y-2">
+              {isAlfrescoError(error) ? (
+                <ErrorAlert error={error} />
+              ) : (
+                <Alert color="red">{error.message}</Alert>
+              )}
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter className="border-none">
+          {showCancelButton && (
+            <Button color="gray" onClick={onClose} disabled={isProcessing}>
+              {cancelLabel}
+            </Button>
+          )}
+          <Button
+            className="ml-auto mt-[-41px]"
+            color="blue"
+            type="submit"
+            disabled={isProcessing}
+          >
+            {submitLabel}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+  );
+}

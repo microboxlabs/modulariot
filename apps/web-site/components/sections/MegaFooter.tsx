@@ -189,7 +189,7 @@ export default function MegaFooter() {
                   Privacy
                 </a>
                 <a
-                  href="#terms"
+                  href="/terms"
                   className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   Terms

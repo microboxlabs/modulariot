@@ -114,18 +114,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Exclude web-admin from all tasks (deprecated app)
       - name: Run linting
-        run: pnpm run lint
+        run: pnpm turbo run lint --filter='!@modulariot/web-admin'
 
       - name: Run type checking
-        run: pnpm run check-types
+        run: pnpm turbo run check-types --filter='!@modulariot/web-admin'
 
       - name: Run tests
-        run: pnpm run test -- --run
+        run: pnpm turbo run test --filter='!@modulariot/web-admin' -- --run
         continue-on-error: true
 
       - name: Build all applications
-        run: pnpm run build
+        run: pnpm turbo run build --filter='!@modulariot/web-admin'
 
       # Package build artifacts for Docker - restructure for Dockerfile context
       - name: Package docs build artifacts

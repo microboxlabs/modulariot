@@ -90,7 +90,7 @@ Movimiento del vehículo y comportamiento del conductor.
 
 | Clave | Tipo | Unidad | Rango | Descripción |
 |-------|------|--------|-------|-------------|
-| `odometer` | NUMBER | km | 0–∞ | Distancia total recorrida del vehículo |
+| `vehicle.odometer` | NUMBER | km | 0–∞ | Distancia total recorrida del vehículo |
 | `idle.state` | BOOLEAN | — | true/false | Motor funcionando con velocidad cercana a cero |
 | `accelerator.position` | NUMBER | % | 0–100 | Posición del pedal del acelerador |
 | `brake.state` | BOOLEAN | — | true/false | Pedal de freno presionado |
@@ -99,7 +99,7 @@ Movimiento del vehículo y comportamiento del conductor.
 
 | Métrica | PID OBD-II | SPN J1939 | Notas |
 |---------|------------|-----------|-------|
-| `odometer` | 0xA6 | 245 | Servicio 01 o 09 |
+| `vehicle.odometer` | 0xA6 | 245 | Servicio 01 o 09 |
 | `idle.state` | — | — | Derivado: rpm>0 && velocidad≈0 |
 | `accelerator.position` | 0x49 | 91 | PID: A×100/255 |
 | `brake.state` | — | 597 | Interruptor de freno J1939 |

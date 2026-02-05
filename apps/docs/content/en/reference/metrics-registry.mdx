@@ -90,7 +90,7 @@ Vehicle movement and driver behavior.
 
 | Key | Type | Unit | Range | Description |
 |-----|------|------|-------|-------------|
-| `odometer` | NUMBER | km | 0–∞ | Total vehicle distance traveled |
+| `vehicle.odometer` | NUMBER | km | 0–∞ | Total vehicle distance traveled |
 | `idle.state` | BOOLEAN | — | true/false | Engine running with near-zero speed |
 | `accelerator.position` | NUMBER | % | 0–100 | Accelerator pedal position |
 | `brake.state` | BOOLEAN | — | true/false | Brake pedal depressed |
@@ -99,7 +99,7 @@ Vehicle movement and driver behavior.
 
 | Metric | OBD-II PID | J1939 SPN | Notes |
 |--------|------------|-----------|-------|
-| `odometer` | 0xA6 | 245 | Service 01 or 09 |
+| `vehicle.odometer` | 0xA6 | 245 | Service 01 or 09 |
 | `idle.state` | — | — | Derived: rpm>0 && speed≈0 |
 | `accelerator.position` | 0x49 | 91 | PID: A×100/255 |
 | `brake.state` | — | 597 | J1939 brake switch |

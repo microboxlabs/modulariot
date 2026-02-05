@@ -24,6 +24,7 @@ export function CalendarViewSwitcher({
   return (
     <ButtonGroup>
       <Button
+        key="day"
         color="alternative"
         onClick={() => onViewChange("day")}
         disabled={activeView === "day"}
@@ -32,6 +33,7 @@ export function CalendarViewSwitcher({
         {labels.day}
       </Button>
       <Button
+        key="week"
         color="alternative"
         onClick={() => onViewChange("week")}
         disabled={activeView === "week"}
@@ -40,6 +42,7 @@ export function CalendarViewSwitcher({
         {labels.week}
       </Button>
       <Button
+        key="month"
         color="alternative"
         onClick={() => onViewChange("month")}
         disabled={activeView === "month"}

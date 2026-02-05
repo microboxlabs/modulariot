@@ -47,6 +47,12 @@ export type KanbanBoardTask = {
   areaType?: string;
   duration?: string;
   cm_created?: string;
+  mintral_incidents?: Array<[string, unknown]>;
+  mintral_loadConstraint?: string;
+  mintral_loadVolumeUtilization?: number;
+  mintral_loadWeightUtilization?: number;
+  mintral_loadPalletUtilization?: number;
+  mintral_loadMaxUtilization?: number;
 };
 
 export type KanbanBoardTaskMember = {

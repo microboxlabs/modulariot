@@ -227,6 +227,90 @@
         "carrierName": "Transportista",
         "customerCode": "Código Cliente",
         "customer": "Cliente"
+      },
+      "sidebar": {
+        "title": "Planificar viaje",
+        "servicesList": "Servicios del día",
+        "noServiceSelected": "Seleccione un servicio del calendario para asignar conductor y vehículo",
+        "selectServiceHint": "Seleccione un servicio para asignar conductor y vehículo",
+        "searchPlaceholder": "Buscar por cliente, id, origen, destino, lugarCarguio, permanencia, tipoViaje...",
+        "search": {
+          "loading": "Buscando...",
+          "noResults": "No se encontraron resultados",
+          "noResultsFor": "No se encontraron resultados para",
+          "minCharacters": "Escribe al menos 2 caracteres",
+          "clear": "Limpiar búsqueda",
+          "matchType": {
+            "id": "id",
+            "cliente": "cliente",
+            "origen": "origen",
+            "destino": "destino",
+            "lugarCarguio": "lugarCarguio",
+            "permanencia": "permanencia",
+            "tipoViaje": "tipoViaje"
+          },
+          "locationCodes": {
+            "SCL": "Santiago",
+            "VAP": "Valparaíso",
+            "ZOS": "Osorno",
+            "ANF": "Antofagasta",
+            "CCP": "Concepción",
+            "PMC": "Puerto Montt",
+            "IQQ": "Iquique"
+          }
+        },
+        "form": {
+          "serviceNumber": "Servicio Nº",
+          "slot": "Slot",
+          "selectService": "Seleccionar Servicio",
+          "selectServicePlaceholder": "Seleccione un servicio...",
+          "sort": "Ordenar",
+          "flags": "Flags",
+          "urgent": "URGENTE",
+          "shutdown": "SHUTDOWN",
+          "incidents": "Incidencias",
+          "kpis": "KPIs",
+          "onTime": "A tiempo",
+          "atRisk": "En riesgo",
+          "delayed": "Retrasado",
+          "occupancy": "Ocupación",
+          "information": "Información",
+          "client": "Cliente",
+          "route": "Ruta",
+          "loadingPlace": "Lugar Cargío",
+          "tripType": "Tipo Viaje",
+          "permanence": "Permanencia",
+          "notes": "Observaciones",
+          "cancel": "Cancelar",
+          "assign": "Asignar",
+          "back": "Volver",
+          "confirm": "Confirmar",
+          "cancelReassignment": "Cancelar",
+          "confirmReassignment": "Reasignar",
+          "loadUtilization": "Utilización de carga",
+          "constraint": "Restricción",
+          "maxUtilization": "Total",
+          "weightUtilization": "Utilización peso",
+          "palletUtilization": "Utilización pallets",
+          "volumeUtilization": "Utilización volumen"
+        },
+        "contextMenu": {
+          "reassign": "Reasignar",
+          "delete": "Eliminar",
+          "deleteConfirmTitle": "Confirmar eliminación",
+          "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
+          "cancelReassignment": "Cancelar reasignación"
+        },
+        "notifications": {
+          "reassigned": "Servicio reasignado exitosamente",
+          "deleted": "Asignación eliminada",
+          "reassignmentCancelled": "Reasignación cancelada",
+          "selectNewSlot": "Seleccione una nueva fecha y hora para reasignar el servicio"
+        },
+        "reassignment": {
+          "title": "Reasignando servicio",
+          "hint": "Seleccione una fecha y hora en el calendario para reasignar"
+        }
       }
     },
     "shipping": {
@@ -983,6 +1067,7 @@
         "werehouse": "Bodega",
         "logistics": "Logística",
         "planning": "Planificación",
+        "calendarPlanning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
         "picking": "Retiros",
@@ -1013,6 +1098,27 @@
       "day": "Día",
       "week": "Semana",
       "month": "Mes"
+    },
+    "planning": {
+      "dispatch": "Despacho",
+      "reception": "Recepción"
+    },
+    "timeBlocks": {
+      "title": "Bloqueos temporales",
+      "description": "Define periodos horarios o diarios como bloqueados",
+      "noBlocks": "No hay bloqueos definidos",
+      "addBlock": "Bloqueo",
+      "apply": "Aplicar",
+      "deleteBlock": "Eliminar bloqueo",
+      "blockName": "Nombre del bloqueo",
+      "blockPlaceholder": "Bloqueo {index}",
+      "weekly": "Semanal",
+      "dailyOverride": "Día específico",
+      "selectDate": "Seleccionar fecha",
+      "selectAll": "Seleccionar todos",
+      "deselectAll": "Deseleccionar todos",
+      "blocked": "Bloqueado",
+      "conflictWarning": "Conflicto de horarios"
     }
   },
   "footer": {

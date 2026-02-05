@@ -44,6 +44,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
 
   useEffect(() => {
     if (userFiltersData && userFiltersData?.length > 0) {
+      const taskPositions = pages.findIndex((page) => page.label === "tasks");
       userFiltersData.forEach((filter) => {
         const filterArray = filter.split("&");
         const filterPart = filterArray
@@ -70,11 +71,11 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
         ).then((total) => {
           if (
             pages &&
-            pages[2] &&
-            pages[2].items &&
-            pages[2].items?.length <= userFiltersData?.length
+            pages[taskPositions] &&
+            pages[taskPositions].items &&
+            pages[taskPositions].items?.length <= userFiltersData?.length
           ) {
-            pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
+            pages[taskPositions].items?.splice(position ? parseInt(position) : 0, 0, {
               href: `/mytasks?${filterPart}`,
               label,
               totals: { [label]: total.total },
@@ -110,6 +111,12 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
     totals["planning"] = Object.entries(data?.totals ?? {})
       .filter(([key]) =>
         PLANNING_COORDINATOR_PROCESS_TASKS.includes(key as any)
+      )
+      .map(([_, value]) => value as number)
+      .reduce((a, b) => a + b, 0);
+
+    totals["calendarPlanning"] = Object.entries(data?.totals ?? {})
+      .filter(([key]) =>key === "planService"
       )
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);

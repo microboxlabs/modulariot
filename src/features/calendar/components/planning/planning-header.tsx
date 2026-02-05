@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -8,12 +8,18 @@ import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
+import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { Button } from "flowbite-react";
 import { CalendarNavigation } from "./calendar-navigation";
 import { CalendarViewSwitcher } from "./calendar-view-switcher";
 import {
   DATE_FORMAT,
   isValidViewMode,
 } from "@/features/calendar/services/calendar.service";
+import CalendarRules from "./calendar-rules/calendar-rules";
+import { tr } from "@/features/i18n/tr.service";
+import PlanningTitle from "./planning-title";
+import { usePlanningSelection } from "./planning-selection-context";
 
 dayjs.extend(weekOfYear);
 
@@ -72,6 +78,7 @@ export default function PlanningHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { setAndenesCount } = usePlanningSelection();
 
   // Read state from URL, fallback to props/defaults
   const currentDate = useMemo(() => {
@@ -127,25 +134,38 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      {/* Title */}
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-        {dict.layout?.secured?.sidebar?.planning ?? "Planificación"}
-      </h1>
+      <PlanningTitle dict={dict} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
-        {/* Navigation */}
+        {/* Today Button */}
         <CalendarNavigation
-          onPrev={handlePrev}
-          onNext={handleNext}
           onToday={handleToday}
           todayLabel={calendarDict.today}
         />
 
-        {/* Current Date Display */}
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[180px] text-center capitalize">
-          {formatDateDisplay(currentDate, viewMode, lang)}
-        </span>
+        {/* Date Navigation: [prev] [date] [next] */}
+        <div className="inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-600">
+          <Button
+            color="alternative"
+            size="sm"
+            onClick={handlePrev}
+            className="rounded-r-none border-0"
+          >
+            <HiChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="px-2 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[180px] text-center capitalize border-x border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800">
+            {formatDateDisplay(currentDate, viewMode, lang)}
+          </span>
+          <Button
+            color="alternative"
+            size="sm"
+            onClick={handleNext}
+            className="rounded-l-none border-0"
+          >
+            <HiChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* View Switcher */}
         <CalendarViewSwitcher
@@ -155,6 +175,11 @@ export default function PlanningHeader({
             day: calendarDict.day,
             week: calendarDict.week,
             month: calendarDict.month,
+          }}
+        />
+        <CalendarRules
+          onAndenesChange={(config) => {
+            setAndenesCount(config.count);
           }}
         />
       </div>

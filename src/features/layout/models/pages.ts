@@ -8,7 +8,7 @@ import VideoCameraIcon from "@/features/icons/video-camera";
 
 export const pages: SidebarItem[] = [
   {
-    href: "/",
+    href: "/home",
     icon: HomeIcon,
     label: "home",
     totals: {},
@@ -20,7 +20,7 @@ export const pages: SidebarItem[] = [
     items: [
       {
         href: "/calendar/planning",
-        label: "planning",
+        label: "calendarPlanning",
         totals: {},
       },
     ],

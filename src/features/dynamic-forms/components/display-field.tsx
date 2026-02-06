@@ -24,7 +24,7 @@ export function DisplayField({
   field,
   value,
   customRenderer,
-}: DisplayFieldProps) {
+}: Readonly<DisplayFieldProps>) {
   const displayValue = typeof value === "boolean" ? value.toString() : value;
   const format = field.displayFormat || "text";
 

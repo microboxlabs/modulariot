@@ -16,6 +16,7 @@ function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
 
 export default function PlanningDayView({
   lang,
+  dict,
   currentDate: propDate,
   startHour = 8,
   endHour = 22,
@@ -34,6 +35,7 @@ export default function PlanningDayView({
     <div className="h-full">
       <DayGrid
         lang={lang}
+        dict={dict}
         currentDate={currentDate}
         startHour={startHour}
         endHour={endHour}

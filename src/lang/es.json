@@ -1101,7 +1101,14 @@
     },
     "planning": {
       "dispatch": "Despacho",
-      "reception": "Recepción"
+      "reception": "Recepción",
+      "deleteModal": {
+        "title": "Confirmar eliminación",
+        "message": "¿Eliminar la asignación del servicio {serviceId}?",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      }
     },
     "timeBlocks": {
       "title": "Bloqueos temporales",

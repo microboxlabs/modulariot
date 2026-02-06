@@ -30,7 +30,10 @@ import {
   ServiceContextMenu,
   type ContextMenuPosition,
 } from "./service-context-menu";
-import { DeleteConfirmationModal } from "./delete-confirmation-modal";
+import {
+  DeleteConfirmationModal,
+  getDeleteModalMessages,
+} from "./delete-confirmation-modal";
 import { ReassignmentConnector } from "./reassignment-connector";
 import { ShowNotification } from "@/features/notifications/notification";
 
@@ -201,6 +204,7 @@ function WeekSlotCell({
 
 export default function PlanningWeekView({
   lang,
+  dict,
   currentDate: propDate,
   startHour = 8,
   endHour = 22,
@@ -496,6 +500,10 @@ export default function PlanningWeekView({
         <DeleteConfirmationModal
           isOpen={deleteModal.isOpen}
           plannedService={deleteModal.plannedService}
+          messages={getDeleteModalMessages(
+            dict,
+            deleteModal.plannedService.service.id
+          )}
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />

@@ -1087,7 +1087,14 @@
     },
     "planning": {
       "dispatch": "Dispatch",
-      "reception": "Reception"
+      "reception": "Reception",
+      "deleteModal": {
+        "title": "Confirm deletion",
+        "message": "Delete assignment for service {serviceId}?",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
     },
     "timeBlocks": {
       "title": "Time Blocks",

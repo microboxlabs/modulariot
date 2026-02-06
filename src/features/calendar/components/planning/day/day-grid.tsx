@@ -18,12 +18,17 @@ import {
   ServiceContextMenu,
   type ContextMenuPosition,
 } from "../service-context-menu";
-import { DeleteConfirmationModal } from "../delete-confirmation-modal";
+import {
+  DeleteConfirmationModal,
+  getDeleteModalMessages,
+} from "../delete-confirmation-modal";
 import { ReassignmentConnector } from "../reassignment-connector";
 import { ShowNotification } from "@/features/notifications/notification";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 interface DayGridProps {
   lang: string;
+  dict: I18nDictionary;
   currentDate: Date;
   startHour?: number;
   endHour?: number;
@@ -297,12 +302,12 @@ function PlannedServiceChip({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onContextMenu={(e) => onContextMenu(e, plannedService)}
       onKeyDown={handleKeyDown}
       className={twMerge(
+        "m-0 border-0 bg-transparent p-0 text-left font-inherit min-w-0",
         "flex-1 rounded flex items-center justify-start cursor-context-menu",
         "text-xs font-medium truncate px-1 border-l-4",
         hasUrgencia
@@ -313,12 +318,13 @@ function PlannedServiceChip({
       title={`${plannedService.service.id} - Clic derecho para opciones`}
     >
       {plannedService.service.id}
-    </div>
+    </button>
   );
 }
 
 export default function DayGrid({
   lang,
+  dict,
   currentDate,
   startHour = 8,
   endHour = 22,
@@ -567,6 +573,10 @@ export default function DayGrid({
         <DeleteConfirmationModal
           isOpen={deleteModal.isOpen}
           plannedService={deleteModal.plannedService}
+          messages={getDeleteModalMessages(
+            dict,
+            deleteModal.plannedService.service.id
+          )}
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />

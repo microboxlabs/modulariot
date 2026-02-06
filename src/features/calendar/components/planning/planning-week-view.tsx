@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useCallback, useState } from "react";
+import { Fragment, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -14,8 +14,8 @@ import type {
   WeekDay,
 } from "./planning-week-view.types";
 import {
-  DATE_FORMAT,
   generateTimeSlots,
+  parseUrlDate,
 } from "@/features/calendar/services/calendar.service";
 import {
   usePlanningSelection,
@@ -26,24 +26,16 @@ import {
   getSlotCellClassName,
   type SlotState,
 } from "./planning-slot-utils";
-import {
-  ServiceContextMenu,
-  type ContextMenuPosition,
-} from "./service-context-menu";
+import { ServiceContextMenu } from "./service-context-menu";
 import {
   DeleteConfirmationModal,
   getDeleteModalMessages,
 } from "./delete-confirmation-modal";
 import { ReassignmentConnector } from "./reassignment-connector";
-import { ShowNotification } from "@/features/notifications/notification";
+import { PlannedServiceChip } from "./planned-service-chip";
+import { useServiceActions } from "./use-service-actions";
 
 const DAYS_IN_WORK_WEEK = 7; // Mon-Sat
-
-function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
-  if (!dateStr) return null;
-  const parsed = dayjs(dateStr, DATE_FORMAT, true);
-  return parsed.isValid() ? parsed : null;
-}
 
 function generateWeekDays(currentDate: Date, lang: string): WeekDay[] {
   const locale = lang === "es" ? "es" : "en";
@@ -59,39 +51,6 @@ function generateWeekDays(currentDate: Date, lang: string): WeekDay[] {
       isToday: date.isSame(today, "day"),
     };
   });
-}
-
-interface WeekPlannedServiceChipProps {
-  plannedService: PlannedService;
-  isBeingReassigned: boolean;
-  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-}
-
-function WeekPlannedServiceChip({
-  plannedService,
-  isBeingReassigned,
-  onContextMenu,
-}: Readonly<WeekPlannedServiceChipProps>) {
-  const hasUrgencia = plannedService.service.incidencias.includes("urgencia");
-  return (
-    <button
-      type="button"
-      onContextMenu={(e) => onContextMenu(e, plannedService)}
-      className={twMerge(
-        "w-full text-left rounded flex items-center justify-start cursor-context-menu",
-        "text-xs font-medium truncate px-1 border-0 border-l-4 h-5",
-        hasUrgencia
-          ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
-          : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
-        isBeingReassigned &&
-          "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-      )}
-      title={`${plannedService.service.id} - Clic derecho para opciones`}
-    >
-      {plannedService.service.id}
-    </button>
-  );
 }
 
 interface WeekSlotCellProps {
@@ -185,13 +144,14 @@ function WeekSlotCell({
       {slotServices.length > 0 && (
         <div className="flex flex-col gap-0.5">
           {slotServices.map((ps) => (
-            <WeekPlannedServiceChip
+            <PlannedServiceChip
               key={ps.service.id}
               plannedService={ps}
               isBeingReassigned={
                 reassigningService?.service.service.id === ps.service.id
               }
               onContextMenu={onContextMenu}
+              className="w-full h-5"
             />
           ))}
         </div>
@@ -225,89 +185,17 @@ export default function PlanningWeekView({
     reassigningService,
   } = usePlanningSelection();
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState<{
-    isOpen: boolean;
-    position: ContextMenuPosition;
-    plannedService: PlannedService | null;
-  }>({
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    plannedService: null,
-  });
-
-  // Delete confirmation modal state
-  const [deleteModal, setDeleteModal] = useState<{
-    isOpen: boolean;
-    plannedService: PlannedService | null;
-  }>({
-    isOpen: false,
-    plannedService: null,
-  });
-
-  // Context menu handlers
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent, plannedService: PlannedService) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setContextMenu({
-        isOpen: true,
-        position: { x: e.clientX, y: e.clientY },
-        plannedService,
-      });
-    },
-    []
-  );
-
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu((prev) => ({ ...prev, isOpen: false }));
-  }, []);
-
-  const handleReassign = useCallback(
-    (plannedService: PlannedService) => {
-      startReassignment(plannedService);
-      ShowNotification({
-        type: "info",
-        message: "Seleccione una nueva fecha y hora para reasignar el servicio",
-      });
-    },
-    [startReassignment]
-  );
-
-  const handleDeleteRequest = useCallback((plannedService: PlannedService) => {
-    setDeleteModal({
-      isOpen: true,
-      plannedService,
-    });
-  }, []);
-
-  const handleConfirmDelete = useCallback(
-    async (plannedService: PlannedService) => {
-      console.log("handleConfirmDelete", plannedService);
-      if (plannedService) {
-        try {
-          await removeService(plannedService.service.id);
-          ShowNotification({
-            type: "success",
-            message: "Asignación eliminada",
-          });
-        } catch (error) {
-          console.error("Error deleting planned service:", error);
-          ShowNotification({
-            type: "error",
-            message:
-              "Error al eliminar la asignación. Por favor, intente nuevamente.",
-          });
-        }
-      }
-      setDeleteModal({ isOpen: false, plannedService: null });
-    },
-    [removeService]
-  );
-
-  const handleCancelDelete = useCallback(() => {
-    setDeleteModal({ isOpen: false, plannedService: null });
-  }, []);
+  // Use shared hook for context menu and delete modal
+  const {
+    contextMenu,
+    deleteModal,
+    handleContextMenu,
+    handleCloseContextMenu,
+    handleReassign,
+    handleDeleteRequest,
+    handleConfirmDelete,
+    handleCancelDelete,
+  } = useServiceActions({ removeService, startReassignment });
 
   // Read date from URL, fallback to prop or today
   const currentDate = useMemo(() => {

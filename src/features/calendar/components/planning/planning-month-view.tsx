@@ -11,18 +11,19 @@ import type {
   PlanningMonthViewProps,
   MonthDay,
 } from "./planning-month-view.types";
-import { DATE_FORMAT } from "@/features/calendar/services/calendar.service";
+import {
+  DATE_FORMAT,
+  parseUrlDate,
+} from "@/features/calendar/services/calendar.service";
 import { usePlanningSelection } from "./planning-selection-context";
+import {
+  getPlannedServiceChipClassName,
+  hasUrgenciaIncidencia,
+} from "./planned-service-chip";
 
 dayjs.extend(isoWeek);
 
 const DAYS_IN_WEEK = 7;
-
-function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
-  if (!dateStr) return null;
-  const parsed = dayjs(dateStr, DATE_FORMAT, true);
-  return parsed.isValid() ? parsed : null;
-}
 
 function getWeekdayNames(lang: string): string[] {
   const locale = lang === "es" ? "es" : "en";
@@ -171,26 +172,22 @@ export default function PlanningMonthView({
                 {/* Planned services for this day */}
                 {dayServices.length > 0 && (
                   <div className="mt-2 flex flex-col gap-1 overflow-hidden w-full">
-                    {dayServices.slice(0, 3).map((ps) => {
-                      const hasUrgencia =
-                        ps.service.incidencias.includes("urgencia");
-                      return (
-                        <div
-                          key={ps.service.id}
-                          className={twMerge(
-                            "rounded px-2 py-1",
-                            "text-xs font-medium truncate text-left",
-                            "border-l-4",
-                            hasUrgencia
-                              ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
-                              : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
-                          )}
-                          title={ps.service.id}
-                        >
-                          {ps.service.id}
-                        </div>
-                      );
-                    })}
+                    {dayServices.slice(0, 3).map((ps) => (
+                      <div
+                        key={ps.service.id}
+                        className={twMerge(
+                          "rounded px-2 py-1",
+                          "text-xs font-medium truncate text-left",
+                          "border-l-4",
+                          getPlannedServiceChipClassName(
+                            hasUrgenciaIncidencia(ps.service)
+                          )
+                        )}
+                        title={ps.service.id}
+                      >
+                        {ps.service.id}
+                      </div>
+                    ))}
                     {dayServices.length > 3 && (
                       <div className="flex justify-center">
                         <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">

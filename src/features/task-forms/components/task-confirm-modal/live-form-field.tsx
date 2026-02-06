@@ -102,7 +102,6 @@ export function LiveFormField({
   return (
     <GenericLiveFormField
       field={field}
-      allValues={allValues}
       isVisible={isVisible}
       liveDataResult={hookResult}
       formatData={(data) => {

@@ -502,9 +502,9 @@ export function PlanningSidebarForm({
             <InfoRow
               label={tr("pages.planning.sidebar.form.palletUtilization", dict)}
               value={
-                selectedService.loadPalletUtilization != null
-                  ? `${selectedService.loadPalletUtilization.toFixed(1)}%`
-                  : "—"
+                selectedService.loadPalletUtilization == null
+                  ? "—"
+                  : `${selectedService.loadPalletUtilization.toFixed(1)}%`
               }
             />
           )}

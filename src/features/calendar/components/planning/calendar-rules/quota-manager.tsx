@@ -45,6 +45,32 @@ const DAYS_OF_WEEK = [
   { value: 7, label: "D", fullLabel: "Domingo" },
 ];
 
+function getDayButtonClassName(
+  isSelected: boolean,
+  isWeekend: boolean
+): string {
+  if (isSelected) {
+    return "bg-primary-500 text-white shadow-sm hover:bg-primary-600";
+  }
+  if (isWeekend) {
+    return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+}
+
+function getWeekButtonClassName(
+  isSelected: boolean,
+  isAllWeeks: boolean
+): string {
+  if (isSelected) {
+    return "bg-cyan-500 text-white shadow-sm hover:bg-cyan-600";
+  }
+  if (isAllWeeks) {
+    return "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+}
+
 const WEEKS_OF_MONTH = [
   { value: 1, label: "S1", fullLabel: "Semana 1" },
   { value: 2, label: "S2", fullLabel: "Semana 2" },
@@ -929,11 +955,7 @@ export default function QuotaManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-primary-500 text-white shadow-sm hover:bg-primary-600"
-                                : isWeekend
-                                  ? "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getDayButtonClassName(isSelected, isWeekend)
                             )}
                           >
                             {day.label}
@@ -983,11 +1005,7 @@ export default function QuotaManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-cyan-500 text-white shadow-sm hover:bg-cyan-600"
-                                : isAllWeeks
-                                  ? "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getWeekButtonClassName(isSelected, isAllWeeks)
                             )}
                           >
                             {week.label}

@@ -167,7 +167,7 @@ export const authConfig = {
         }
 
         // When user signs in with Auth0 (Google, GitHub, or Auth0 credentials)
-        if (account && account.provider === "auth0") {
+        if (account?.provider === "auth0") {
           authAuth0Logger.debug({
             hasAccessToken: !!account.access_token,
             hasIdToken: !!account.id_token,
@@ -332,10 +332,8 @@ export const authConfig = {
         }, "User signed in via Microsoft Entra ID");
       } else if (account?.provider === "auth0") {
         // Auth0 profile contains connection info to identify the identity provider
-        const connection = (profile as any)?.["https://miot.cl/claims/provider"]
-          ?? (profile as any)?.sub?.split("|")[0]
-          ?? "auth0";
-        authAuth0Logger.info({
+        const connection = profile?.sub?.split("|")[0] ?? "auth0";
+        authAuth0Logger.info({  
           userId: user.id,
           email: user.email,
           connection,

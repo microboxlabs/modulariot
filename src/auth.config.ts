@@ -3,8 +3,6 @@ import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import Google from "next-auth/providers/google";
-import GitHub from "next-auth/providers/github";
 import Auth0 from "next-auth/providers/auth0"
 
 import { NextResponse } from "next/server";
@@ -154,6 +152,18 @@ export const authConfig = {
         // When user signs in with OAuth providers (like Microsoft Entra ID)
         if (account && account.provider === "microsoft-entra-id") {
           token = await processMicrosoftEntraAccount(token, account, user, authJwtLogger);
+        }
+
+        // Attempt rotation for OAuth tokens on subsequent invocations (Microsoft Entra ID only)
+        const isMicrosoftConfigured = !!(
+          process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+          process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+          process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
+        );
+        if (isMicrosoftConfigured && token.refreshToken && !account) {
+          const rotatedToken = await processTokenRefresh(token, authJwtLogger);
+          token.rawJWT = rotatedToken.rawJWT;
+          token.accessTokenExpiresAt = rotatedToken.accessTokenExpiresAt;
         }
 
         // When user signs in with Auth0 (Google, GitHub, or Auth0 credentials)

@@ -142,7 +142,8 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
 
   if (compact) {
     return (
-      <div className="flex items-center justify-between gap-3">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+        {/* Column 1: Label with OC count */}
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-gray-500 dark:text-gray-400 font-light">
             Lead Time
@@ -151,19 +152,10 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             ({totalLines} OC)
           </span>
         </div>
-        <div className="flex items-center gap-2 flex-1 max-w-[160px]">
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400">
-              <HiCheck className="w-3 h-3" />
-              {leadTime.total_lineasoc_cumplen}
-            </span>
-            <span className="text-gray-300 dark:text-gray-600">/</span>
-            <span className="flex items-center gap-0.5 text-yellow-600 dark:text-yellow-400">
-              <HiX className="w-3 h-3" />
-              {leadTime.total_lineasoc_incumplen}
-            </span>
-          </div>
-          <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        {/* Column 2: Progress bar + percentage + metadata */}
+        <div className="flex items-center gap-2">
+          {/* Progress bar */}
+          <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className={twMerge(
                 "h-full rounded-full transition-all",
@@ -172,6 +164,7 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
               style={{ width: `${leadTime.lineasoc_pctn_cumplimiento}%` }}
             />
           </div>
+          {/* Percentage */}
           <span
             className={twMerge(
               "text-xs font-medium w-8 text-right",
@@ -179,6 +172,13 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             )}
           >
             {leadTime.lineasoc_pctn_cumplimiento}%
+          </span>
+          {/* Source breakdown: cumplen/incumplen */}
+          <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[100px]">
+            (<HiCheck className="w-3 h-3 inline" />
+            {leadTime.total_lineasoc_cumplen} /{" "}
+            <HiX className="w-3 h-3 inline text-yellow-600 dark:text-yellow-400" />
+            {leadTime.total_lineasoc_incumplen})
           </span>
         </div>
       </div>

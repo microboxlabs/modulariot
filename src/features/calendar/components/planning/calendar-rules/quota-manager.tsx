@@ -23,7 +23,6 @@ import {
   generateTimeOptions,
   parseTime,
   formatTime,
-  timeToMinutes,
   adjustTimeRange,
   getSlotPattern,
   buildWeeklySlot,

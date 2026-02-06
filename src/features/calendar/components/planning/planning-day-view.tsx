@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import dayjs from "dayjs";
 import type { PlanningDayViewProps } from "./planning-day-view.types";
 import DayGrid from "./day/day-grid";
 import { parseUrlDate } from "@/features/calendar/services/calendar.service";

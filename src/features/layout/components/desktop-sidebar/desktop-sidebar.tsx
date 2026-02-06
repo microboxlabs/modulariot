@@ -75,11 +75,15 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
             pages[taskPositions].items &&
             pages[taskPositions].items?.length <= userFiltersData?.length
           ) {
-            pages[taskPositions].items?.splice(position ? parseInt(position) : 0, 0, {
-              href: `/mytasks?${filterPart}`,
-              label,
-              totals: { [label]: total.total },
-            });
+            pages[taskPositions].items?.splice(
+              position ? Number.parseInt(position) : 0,
+              0,
+              {
+                href: `/mytasks?${filterPart}`,
+                label,
+                totals: { [label]: total.total },
+              }
+            );
           }
           setTotals({ ...totals });
         });
@@ -116,8 +120,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       .reduce((a, b) => a + b, 0);
 
     totals["calendarPlanning"] = Object.entries(data?.totals ?? {})
-      .filter(([key]) =>key === "planService"
-      )
+      .filter(([key]) => key === "planService")
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
   }

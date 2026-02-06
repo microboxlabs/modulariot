@@ -213,10 +213,10 @@ function getCollidingWindowIds(
 function PortalDatepicker({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
-}) {
+}>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -787,13 +787,15 @@ export default function QuotaManager({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           const value =
-                            parseInt((e.target as HTMLInputElement).value) || 0;
+                            Number.parseInt(
+                              (e.target as HTMLInputElement).value
+                            ) || 0;
                           updateQuota(window.id, value);
                           (e.target as HTMLInputElement).blur();
                         }
                       }}
                       onBlur={(e) => {
-                        const value = parseInt(e.target.value) || 0;
+                        const value = Number.parseInt(e.target.value) || 0;
                         updateQuota(window.id, value);
                       }}
                       className="w-8 text-center text-sm font-bold text-primary-700 dark:text-primary-300 bg-transparent border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"

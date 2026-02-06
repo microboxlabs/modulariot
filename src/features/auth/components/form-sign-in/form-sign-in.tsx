@@ -1,6 +1,10 @@
 "use client";
 
-import { authenticateAction, signInWithProvider, signInWithSaml } from "@/features/auth/services/auth.service";
+import {
+  authenticateAction,
+  signInWithProvider,
+  signInWithSaml,
+} from "@/features/auth/services/auth.service";
 import { FormSignInProps } from "./form-sign-in.types";
 import React, { useActionState, useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -56,15 +60,15 @@ export default function FormSignIn({
   // Get SAML provider (if any)
   const samlProvider = authConfig.providers.find((p) => p.type === "saml");
   // Get credentials provider (if any)
-  const credentialsProvider = authConfig.providers.find((p) => p.type === "credentials");
+  const credentialsProvider = authConfig.providers.find(
+    (p) => p.type === "credentials"
+  );
   const hasSamlOrCredentials = samlProvider || credentialsProvider;
   const needsDivider = oauthProviders.length > 0 && hasSamlOrCredentials;
 
   // Create sign-in action for OAuth provider
   const createOAuthAction = useCallback((providerId: string) => {
-    return async () => {
-      await signInWithProvider(providerId);
-    };
+    return () => signInWithProvider(providerId);
   }, []);
 
   // Handle SAML sign-in with two-step flow
@@ -84,7 +88,12 @@ export default function FormSignIn({
     }
     setTeamSlugError(undefined);
     await signInWithSaml(teamSlug);
-  }, [teamSlug, samlProvider?.teamSlugRequired, samlLabels?.teamSlugRequired, showTeamSlugInput]);
+  }, [
+    teamSlug,
+    samlProvider?.teamSlugRequired,
+    samlLabels?.teamSlugRequired,
+    showTeamSlugInput,
+  ]);
 
   // If showing credentials form
   if (showCredentialsForm && credentialsProvider) {
@@ -156,23 +165,26 @@ export default function FormSignIn({
                 setShowCredentialsForm(true);
               }}
             >
-              {providerLabels[credentialsProvider.id] ?? credentialsProvider.name}
+              {providerLabels[credentialsProvider.id] ??
+                credentialsProvider.name}
             </a>
           </div>
         )}
 
         {/* If only credentials provider and no OAuth/SAML, show form directly */}
-        {credentialsProvider && oauthProviders.length === 0 && !samlProvider && (
-          <SignIn
-            msg={msg}
-            register={register}
-            _state={_state}
-            pending={pending}
-            onSubmitForm={onSubmitForm}
-            getMessages={getMessages}
-            setShowLogin={setShowCredentialsForm}
-          />
-        )}
+        {credentialsProvider &&
+          oauthProviders.length === 0 &&
+          !samlProvider && (
+            <SignIn
+              msg={msg}
+              register={register}
+              _state={_state}
+              pending={pending}
+              onSubmitForm={onSubmitForm}
+              getMessages={getMessages}
+              setShowLogin={setShowCredentialsForm}
+            />
+          )}
       </div>
     </form>
   );

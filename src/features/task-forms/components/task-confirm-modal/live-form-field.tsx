@@ -50,6 +50,18 @@ function ETADetailsRenderer({
   );
 }
 
+interface ETADetailsRendererWrapperProps {
+  data: ReturnType<typeof useLiveETA>["eta"];
+  dict: I18nRecord;
+}
+
+function ETADetailsRendererWrapper({
+  data,
+  dict,
+}: ETADetailsRendererWrapperProps) {
+  return <ETADetailsRenderer data={data} dict={dict} />;
+}
+
 interface LiveFormFieldProps {
   field: DynamicFieldConfig;
   allValues: Record<string, unknown>;
@@ -103,7 +115,7 @@ export function LiveFormField({
 
   const etaCustomRenderer = useCallback(
     (data: unknown) => (
-      <ETADetailsRenderer
+      <ETADetailsRendererWrapper
         data={data as ReturnType<typeof useLiveETA>["eta"]}
         dict={dict}
       />

@@ -243,7 +243,7 @@ export function PlanningSidebarClient({
 
     for (const tag of searchTags) {
       switch (tag.matchType) {
-        case "id":
+        case "id": {
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
           const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
@@ -251,6 +251,7 @@ export function PlanningSidebarClient({
             : tag.value;
           params.push(`service=${numericServiceCode}`);
           break;
+        }
         case "cliente":
           params.push(`customer=${tag.value}`);
           break;
@@ -269,11 +270,7 @@ export function PlanningSidebarClient({
   }, [searchTags]);
 
   // Fetch tasks from API
-  const {
-    data: myTasksData,
-    error: myTasksError,
-    isLoading: isLoadingTasks,
-  } = useMyTasks(
+  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
     ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)

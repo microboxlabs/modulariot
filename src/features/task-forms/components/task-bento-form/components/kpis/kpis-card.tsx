@@ -12,23 +12,17 @@ interface KpisCardProps {
 }
 
 /**
- * Calculate lead time compliance metrics from ICU condition
+ * Get lead time compliance metrics from task fields
  */
-function calculateLeadTimeFromTask(task: TaskResponse): LeadTimeData {
-  const icuCondition = (task.mintral_icuCondition as number) ?? 0;
-  const totalLines = 4; // Default total lines for calculation
-
-  const compliantLines =
-    icuCondition >= 0
-      ? Math.min(totalLines, Math.abs(icuCondition) + 2)
-      : Math.max(0, totalLines - Math.abs(icuCondition));
-  const nonCompliantLines = totalLines - compliantLines;
-  const compliancePercentage = Math.round((compliantLines / totalLines) * 100);
+function getLeadTimeFromTask(task: TaskResponse): LeadTimeData {
+  const compliantLines = (task.mintral_compliantOrderLines as number) ?? 0;
+  const nonCompliantLines = (task.mintral_nonCompliantOrderLines as number) ?? 0;
+  const complianceRate = (task.mintral_deliveryComplianceRate as number) ?? 0;
 
   return {
     total_lineasoc_cumplen: compliantLines,
     total_lineasoc_incumplen: nonCompliantLines,
-    lineasoc_pctn_cumplimiento: compliancePercentage,
+    lineasoc_pctn_cumplimiento: Math.round(complianceRate * 100),
   };
 }
 
@@ -88,10 +82,18 @@ function formatNumber(value: number): string {
 }
 
 /**
- * Get bar color based on percentage
+ * Get bar color for lead time (yellow when error/low compliance)
  */
-function getBarColor(percentage: number, isError: boolean = false): string {
-  if (isError || percentage >= 100) return "bg-yellow-400 dark:bg-yellow-300";
+function getLeadTimeBarColor(status: "success" | "warning" | "error"): string {
+  if (status === "error") return "bg-yellow-400 dark:bg-yellow-300";
+  return "bg-gray-400";
+}
+
+/**
+ * Get bar color for occupancy (yellow when at/over capacity)
+ */
+function getOccupancyBarColor(percentage: number): string {
+  if (percentage >= 100) return "bg-yellow-400 dark:bg-yellow-300";
   return "bg-gray-400";
 }
 
@@ -106,7 +108,7 @@ const leadTimeStatusColors = {
  * Both rows share the same grid for alignment
  */
 export default function KpisCard({ task, dict }: KpisCardProps) {
-  const leadTime = calculateLeadTimeFromTask(task);
+  const leadTime = getLeadTimeFromTask(task);
   const capacityDisplay = getCapacityDisplay(task);
   const leadTimeStatus = getLeadTimeStatus(leadTime);
   const totalLines = leadTime.total_lineasoc_cumplen + leadTime.total_lineasoc_incumplen;
@@ -126,7 +128,7 @@ export default function KpisCard({ task, dict }: KpisCardProps) {
       {/* Column 2: Progress bar */}
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${getBarColor(leadTime.lineasoc_pctn_cumplimiento, leadTimeStatus === "error")}`}
+          className={`h-full rounded-full transition-all ${getLeadTimeBarColor(leadTimeStatus)}`}
           style={{ width: `${leadTime.lineasoc_pctn_cumplimiento}%` }}
         />
       </div>
@@ -139,7 +141,7 @@ export default function KpisCard({ task, dict }: KpisCardProps) {
       {/* Column 4: Metadata */}
       <span className="text-xs text-gray-500 dark:text-gray-400">
         (<HiCheck className="w-3 h-3 inline" />
-        {leadTime.total_lineasoc_cumplen} /{" "}
+        {leadTime.total_lineasoc_cumplen} |{" "}
         <HiX className="w-3 h-3 inline text-yellow-600 dark:text-yellow-400" />
         {leadTime.total_lineasoc_incumplen})
       </span>
@@ -152,7 +154,7 @@ export default function KpisCard({ task, dict }: KpisCardProps) {
       {/* Column 2: Progress bar */}
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${getBarColor(capacityDisplay?.utilization ?? 0)}`}
+          className={`h-full rounded-full transition-all ${getOccupancyBarColor(capacityDisplay?.utilization ?? 0)}`}
           style={{
             width: `${Math.min(100, capacityDisplay?.utilization ?? 0)}%`,
           }}

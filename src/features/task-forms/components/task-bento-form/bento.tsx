@@ -33,6 +33,10 @@ export default function Bento({
   enableActions?: boolean;
   showActions?: boolean;
 }) {
+  // Check if there's a second driver
+  const driver2Name = task.mintral_driver2Name as string;
+  const hasTwoDrivers = driver2Name && driver2Name.trim() !== "";
+
   return (
     <div className="flex flex-col w-full h-full ">
       {/* Head */}
@@ -49,8 +53,11 @@ export default function Bento({
 
       {/* Content */}
       <div className="gap-2 p-2 bg-gray-50 dark:bg-gray-900 h-fit grid grid-cols-1 lg:grid-cols-5">
-        {/* First column: Trip Information + KPIs stacked vertically (2/5 = 40%) */}
-        <div className="col-span-1 lg:col-span-2 flex flex-col gap-2">
+        {/* First column: Trip Information + KPIs stacked vertically */}
+        {/* 3/5 when 1 driver, 2/5 when 2 drivers */}
+        <div
+          className={`col-span-1 flex flex-col gap-2 ${hasTwoDrivers ? "lg:col-span-2" : "lg:col-span-3"}`}
+        >
           {/* Trip Information - shrinks to fit content */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700">
             <TripInformation task={task} msg={dict} />
@@ -62,8 +69,11 @@ export default function Bento({
           </div>
         </div>
 
-        {/* Second column: Driver Info (2/5 = 40%) */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 col-span-1 lg:col-span-2">
+        {/* Second column: Driver Info */}
+        {/* 1/5 when 1 driver, 2/5 when 2 drivers */}
+        <div
+          className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 col-span-1 ${hasTwoDrivers ? "lg:col-span-2" : "lg:col-span-1"}`}
+        >
           <DriverInfo task={task} msg={dict} />
         </div>
 

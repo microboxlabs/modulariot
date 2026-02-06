@@ -9,24 +9,20 @@ import { twMerge } from "tailwind-merge";
 import dayjs from "dayjs";
 import {
   type TimeBlock,
-  type ParsedWeeklyPattern,
   TimeWindowUtils,
   usePlanningSelection,
 } from "../planning-selection-context";
-
-const MIN_HOUR = 0;
-const MAX_HOUR = 23;
-
-// Days using format standard: 1=Monday, 7=Sunday
-const DAYS_OF_WEEK = [
-  { value: 1, label: "L", fullLabel: "Lunes" },
-  { value: 2, label: "M", fullLabel: "Martes" },
-  { value: 3, label: "X", fullLabel: "Miércoles" },
-  { value: 4, label: "J", fullLabel: "Jueves" },
-  { value: 5, label: "V", fullLabel: "Viernes" },
-  { value: 6, label: "S", fullLabel: "Sábado" },
-  { value: 7, label: "D", fullLabel: "Domingo" },
-];
+import {
+  DAYS_OF_WEEK,
+  generateTimeOptions,
+  parseTime,
+  formatTime,
+  adjustTimeRange,
+  getSlotPattern,
+  buildWeeklySlot,
+  buildDailyOverrideSlot,
+  calculateCollisions,
+} from "./time-slot-utils";
 
 function getBlockDayButtonClassName(
   isSelected: boolean,
@@ -39,121 +35,6 @@ function getBlockDayButtonClassName(
     return "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40";
   }
   return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
-}
-
-function generateTimeOptions(
-  minHour = MIN_HOUR,
-  maxHour = MAX_HOUR
-): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    for (const minutes of [0, 30]) {
-      if (hour === maxHour && minutes > 0) continue;
-      const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      options.push({ value, label: value });
-    }
-  }
-  return options;
-}
-
-function parseTime(timeStr: string): { hour: number; minutes: number } {
-  const [hour, minutes] = timeStr.split(":").map(Number);
-  return { hour, minutes };
-}
-
-function formatTime(hour: number, minutes: number): string {
-  return `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-}
-
-function timeToMinutes(hour: number, minutes: number): number {
-  return hour * 60 + minutes;
-}
-
-/**
- * Get parsed weekly pattern or default values for a time block
- */
-function getBlockPattern(block: TimeBlock): ParsedWeeklyPattern {
-  if (block.type === "weekly" && block.weeklyPattern) {
-    const parsed = TimeWindowUtils.parseWeeklyPattern(block.weeklyPattern);
-    if (parsed) return parsed;
-  }
-  if (block.type === "daily-override") {
-    const timeRange = TimeWindowUtils.getTimeRange(block);
-    if (timeRange) {
-      return {
-        weeks: [],
-        days: [],
-        ...timeRange,
-      };
-    }
-  }
-  // Default values
-  return {
-    weeks: [],
-    days: [1, 2, 3, 4, 5],
-    startHour: 8,
-    startMinutes: 0,
-    endHour: 12,
-    endMinutes: 0,
-  };
-}
-
-/**
- * Check if two time blocks have overlapping days
- */
-function hasOverlappingDays(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  return aPattern.days.some((day) => bPattern.days.includes(day));
-}
-
-/**
- * Check if two time blocks have overlapping weeks
- */
-function hasOverlappingWeeks(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  if (aPattern.weeks.length === 0 || bPattern.weeks.length === 0) return true;
-  return aPattern.weeks.some((week) => bPattern.weeks.includes(week));
-}
-
-/**
- * Check if two time ranges overlap
- */
-function hasOverlappingTime(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  const aStart = timeToMinutes(aPattern.startHour, aPattern.startMinutes);
-  const aEnd = timeToMinutes(aPattern.endHour, aPattern.endMinutes);
-  const bStart = timeToMinutes(bPattern.startHour, bPattern.startMinutes);
-  const bEnd = timeToMinutes(bPattern.endHour, bPattern.endMinutes);
-  return aStart < bEnd && bStart < aEnd;
-}
-
-/**
- * Check if two time blocks collide (overlap in days, weeks, AND time)
- */
-function blocksCollide(a: TimeBlock, b: TimeBlock): boolean {
-  if (a.type === "daily-override" || b.type === "daily-override") {
-    return false;
-  }
-  return (
-    hasOverlappingDays(a, b) &&
-    hasOverlappingWeeks(a, b) &&
-    hasOverlappingTime(a, b)
-  );
-}
-
-/**
- * Get IDs of blocks that collide with the given block
- */
-function getCollidingBlockIds(
-  block: TimeBlock,
-  allBlocks: TimeBlock[]
-): string[] {
-  return allBlocks
-    .filter((b) => b.id !== block.id && blocksCollide(block, b))
-    .map((b) => b.id);
 }
 
 /**
@@ -276,18 +157,10 @@ export default function TimeBlockManager({
   }, [timeBlocks, setTimeBlocks]);
 
   // Calculate which blocks have collisions (only weekly vs weekly)
-  const blocksWithCollisions = useMemo(() => {
-    const collisions = new Set<string>();
-    const weeklyBlocks = timeBlocks.filter((b) => b.type === "weekly");
-    for (const block of weeklyBlocks) {
-      const collidingIds = getCollidingBlockIds(block, weeklyBlocks);
-      if (collidingIds.length > 0) {
-        collisions.add(block.id);
-        collidingIds.forEach((id) => collisions.add(id));
-      }
-    }
-    return collisions;
-  }, [timeBlocks]);
+  const blocksWithCollisions = useMemo(
+    () => calculateCollisions(timeBlocks),
+    [timeBlocks]
+  );
 
   const hasAnyCollision = blocksWithCollisions.size > 0;
 
@@ -336,40 +209,23 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id) return b;
-          const pattern = getBlockPattern(b);
-          const today = dayjs();
+          const pattern = getSlotPattern(b);
 
           if (type === "daily-override") {
-            return {
-              ...b,
-              type,
-              weeklyPattern: undefined,
-              startTimestamp: today
-                .hour(pattern.startHour)
-                .minute(pattern.startMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-              endTimestamp: today
-                .hour(pattern.endHour)
-                .minute(pattern.endMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-            };
-          }
-          return {
-            ...b,
-            type,
-            startTimestamp: undefined,
-            endTimestamp: undefined,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              [],
-              [1, 2, 3, 4, 5],
+            return buildDailyOverrideSlot(
+              b,
+              dayjs(),
               pattern.startHour,
               pattern.startMinutes,
               pattern.endHour,
               pattern.endMinutes
-            ),
-          };
+            );
+          }
+          return buildWeeklySlot(b, {
+            ...pattern,
+            weeks: [],
+            days: [1, 2, 3, 4, 5],
+          });
         })
       );
     },
@@ -381,21 +237,15 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "daily-override") return b;
-          const pattern = getBlockPattern(b);
-          const newDate = dayjs(date);
-          return {
-            ...b,
-            startTimestamp: newDate
-              .hour(pattern.startHour)
-              .minute(pattern.startMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: newDate
-              .hour(pattern.endHour)
-              .minute(pattern.endMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          const pattern = getSlotPattern(b);
+          return buildDailyOverrideSlot(
+            b,
+            dayjs(date),
+            pattern.startHour,
+            pattern.startMinutes,
+            pattern.endHour,
+            pattern.endMinutes
+          );
         })
       );
     },
@@ -421,21 +271,11 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "weekly") return b;
-          const pattern = getBlockPattern(b);
+          const pattern = getSlotPattern(b);
           const days = pattern.days.includes(day)
             ? pattern.days.filter((d) => d !== day)
             : [...pattern.days, day];
-          return {
-            ...b,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(b, { ...pattern, days });
         })
       );
     },
@@ -447,21 +287,11 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "weekly") return b;
-          const pattern = getBlockPattern(b);
+          const pattern = getSlotPattern(b);
           const allDays = DAYS_OF_WEEK.map((d) => d.value);
           const hasAllDays = allDays.every((d) => pattern.days.includes(d));
-          const newDays = hasAllDays ? [] : allDays;
-          return {
-            ...b,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              newDays,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const days = hasAllDays ? [] : [...allDays];
+          return buildWeeklySlot(b, { ...pattern, days });
         })
       );
     },
@@ -474,68 +304,24 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id) return b;
-          const pattern = getBlockPattern(b);
-
-          let newStartHour = pattern.startHour;
-          let newStartMinutes = pattern.startMinutes;
-          let newEndHour = pattern.endHour;
-          let newEndMinutes = pattern.endMinutes;
-
-          if (field === "start") {
-            const newStartMin = timeToMinutes(hour, minutes);
-            const endMin = timeToMinutes(pattern.endHour, pattern.endMinutes);
-            if (newStartMin >= endMin) {
-              const adjustedEnd = newStartMin + 30;
-              newEndHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
-              newEndMinutes = newEndHour === MAX_HOUR ? 0 : adjustedEnd % 60;
-            }
-            newStartHour = hour;
-            newStartMinutes = minutes;
-          } else {
-            const startMin = timeToMinutes(
-              pattern.startHour,
-              pattern.startMinutes
-            );
-            const newEndMin = timeToMinutes(hour, minutes);
-            if (newEndMin <= startMin) {
-              const adjustedStart = Math.max(newEndMin - 30, 0);
-              newStartHour = Math.floor(adjustedStart / 60);
-              newStartMinutes = adjustedStart % 60;
-            }
-            newEndHour = hour;
-            newEndMinutes = minutes;
-          }
+          const pattern = getSlotPattern(b);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
 
           if (b.type === "weekly") {
-            return {
-              ...b,
-              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-                pattern.weeks,
-                pattern.days,
-                newStartHour,
-                newStartMinutes,
-                newEndHour,
-                newEndMinutes
-              ),
-            };
+            return buildWeeklySlot(b, { ...pattern, ...adjusted });
           }
 
           const currentDate = b.startTimestamp
             ? dayjs(b.startTimestamp)
             : dayjs();
-          return {
-            ...b,
-            startTimestamp: currentDate
-              .hour(newStartHour)
-              .minute(newStartMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: currentDate
-              .hour(newEndHour)
-              .minute(newEndMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          return buildDailyOverrideSlot(
+            b,
+            currentDate,
+            adjusted.startHour,
+            adjusted.startMinutes,
+            adjusted.endHour,
+            adjusted.endMinutes
+          );
         })
       );
     },
@@ -566,7 +352,7 @@ export default function TimeBlockManager({
           </div>
         )}
         {timeBlocks.map((block, index) => {
-          const pattern = getBlockPattern(block);
+          const pattern = getSlotPattern(block);
           const hasCollision = blocksWithCollisions.has(block.id);
           const blockDate = TimeWindowUtils.getDate(block);
 

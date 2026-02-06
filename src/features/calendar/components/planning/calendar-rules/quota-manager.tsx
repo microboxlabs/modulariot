@@ -9,7 +9,6 @@ import dayjs from "dayjs";
 import {
   type TimeWindow,
   type TimeWindowColor,
-  type ParsedWeeklyPattern,
   TIME_WINDOW_COLORS,
   TimeWindowUtils,
   usePlanningSelection,
@@ -18,6 +17,19 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
+import {
+  DAYS_OF_WEEK,
+  WEEKS_OF_MONTH,
+  generateTimeOptions,
+  parseTime,
+  formatTime,
+  timeToMinutes,
+  adjustTimeRange,
+  getSlotPattern,
+  buildWeeklySlot,
+  buildDailyOverrideSlot,
+  calculateCollisions,
+} from "./time-slot-utils";
 
 /**
  * Time window configuration
@@ -30,20 +42,6 @@ import {
  * - "weekly": Applies to multiple days per week (default)
  * - "daily-override": Applies to a specific date, overrides weekly windows
  */
-
-const MIN_HOUR = 0;
-const MAX_HOUR = 23;
-
-// Days using format standard: 1=Monday, 7=Sunday
-const DAYS_OF_WEEK = [
-  { value: 1, label: "L", fullLabel: "Lunes" },
-  { value: 2, label: "M", fullLabel: "Martes" },
-  { value: 3, label: "X", fullLabel: "Miércoles" },
-  { value: 4, label: "J", fullLabel: "Jueves" },
-  { value: 5, label: "V", fullLabel: "Viernes" },
-  { value: 6, label: "S", fullLabel: "Sábado" },
-  { value: 7, label: "D", fullLabel: "Domingo" },
-];
 
 function getDayButtonClassName(
   isSelected: boolean,
@@ -71,14 +69,6 @@ function getWeekButtonClassName(
   return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
 }
 
-const WEEKS_OF_MONTH = [
-  { value: 1, label: "S1", fullLabel: "Semana 1" },
-  { value: 2, label: "S2", fullLabel: "Semana 2" },
-  { value: 3, label: "S3", fullLabel: "Semana 3" },
-  { value: 4, label: "S4", fullLabel: "Semana 4" },
-  { value: 5, label: "S5", fullLabel: "Semana 5" },
-];
-
 /** Color options for time windows using the common ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<TimeWindowColor>[] = [
   {
@@ -103,134 +93,12 @@ const COLOR_OPTIONS: ColorOption<TimeWindowColor>[] = [
   },
 ];
 
-function generateTimeOptions(
-  minHour = MIN_HOUR,
-  maxHour = MAX_HOUR
-): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    for (const minutes of [0, 30]) {
-      if (hour === maxHour && minutes > 0) continue;
-      const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      options.push({ value, label: value });
-    }
-  }
-  return options;
-}
-
-function parseTime(timeStr: string): { hour: number; minutes: number } {
-  const [hour, minutes] = timeStr.split(":").map(Number);
-  return { hour, minutes };
-}
-
-function formatTime(hour: number, minutes: number): string {
-  return `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-}
-
-function timeToMinutes(hour: number, minutes: number): number {
-  return hour * 60 + minutes;
-}
-
 /**
  * Generates the full format string for a time window
  * Uses TimeWindowUtils.formatDisplay for the new structure
  */
 function formatTimeWindowCode(window: TimeWindow): string {
   return TimeWindowUtils.formatDisplay(window);
-}
-
-/**
- * Get parsed weekly pattern or default values
- */
-function getWindowPattern(window: TimeWindow): ParsedWeeklyPattern {
-  if (window.type === "weekly" && window.weeklyPattern) {
-    const parsed = TimeWindowUtils.parseWeeklyPattern(window.weeklyPattern);
-    if (parsed) return parsed;
-  }
-  if (window.type === "daily-override") {
-    const timeRange = TimeWindowUtils.getTimeRange(window);
-    if (timeRange) {
-      return {
-        weeks: [],
-        days: [],
-        ...timeRange,
-      };
-    }
-  }
-  // Default values
-  return {
-    weeks: [],
-    days: [1, 2, 3, 4, 5],
-    startHour: 8,
-    startMinutes: 0,
-    endHour: 12,
-    endMinutes: 0,
-  };
-}
-
-/**
- * Check if two time windows have overlapping days
- */
-function hasOverlappingDays(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  return aPattern.days.some((day) => bPattern.days.includes(day));
-}
-
-/**
- * Check if two time windows have overlapping weeks
- * Empty weeks array means "all weeks"
- */
-function hasOverlappingWeeks(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  // If either has empty weeks (all weeks), they overlap
-  if (aPattern.weeks.length === 0 || bPattern.weeks.length === 0) return true;
-  return aPattern.weeks.some((week) => bPattern.weeks.includes(week));
-}
-
-/**
- * Check if two time ranges overlap
- */
-function hasOverlappingTime(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  const aStart = timeToMinutes(aPattern.startHour, aPattern.startMinutes);
-  const aEnd = timeToMinutes(aPattern.endHour, aPattern.endMinutes);
-  const bStart = timeToMinutes(bPattern.startHour, bPattern.startMinutes);
-  const bEnd = timeToMinutes(bPattern.endHour, bPattern.endMinutes);
-
-  // Two ranges overlap if one starts before the other ends
-  return aStart < bEnd && bStart < aEnd;
-}
-
-/**
- * Check if two time windows collide (overlap in days, weeks, AND time)
- * Note: weekly windows can collide with each other
- * Daily-override windows don't collide - they override weekly windows instead
- */
-function windowsCollide(a: TimeWindow, b: TimeWindow): boolean {
-  // Daily-override windows don't collide with anything - they override
-  if (a.type === "daily-override" || b.type === "daily-override") {
-    return false;
-  }
-  return (
-    hasOverlappingDays(a, b) &&
-    hasOverlappingWeeks(a, b) &&
-    hasOverlappingTime(a, b)
-  );
-}
-
-/**
- * Get IDs of windows that collide with the given window
- */
-function getCollidingWindowIds(
-  window: TimeWindow,
-  allWindows: TimeWindow[]
-): string[] {
-  return allWindows
-    .filter((w) => w.id !== window.id && windowsCollide(window, w))
-    .map((w) => w.id);
 }
 
 /**
@@ -361,18 +229,10 @@ export default function QuotaManager({
   }, [timeWindows]);
 
   // Calculate which windows have collisions (only weekly vs weekly)
-  const windowsWithCollisions = useMemo(() => {
-    const collisions = new Set<string>();
-    const weeklyWindows = timeWindows.filter((w) => w.type === "weekly");
-    for (const window of weeklyWindows) {
-      const collidingIds = getCollidingWindowIds(window, weeklyWindows);
-      if (collidingIds.length > 0) {
-        collisions.add(window.id);
-        collidingIds.forEach((id) => collisions.add(id));
-      }
-    }
-    return collisions;
-  }, [timeWindows]);
+  const windowsWithCollisions = useMemo(
+    () => calculateCollisions(timeWindows),
+    [timeWindows]
+  );
 
   const hasAnyCollision = windowsWithCollisions.size > 0;
 
@@ -425,42 +285,23 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
-          const pattern = getWindowPattern(w);
-          const today = dayjs();
+          const pattern = getSlotPattern(w);
 
           if (type === "daily-override") {
-            // Convert to daily-override: use today + existing time
-            return {
-              ...w,
-              type,
-              weeklyPattern: undefined,
-              startTimestamp: today
-                .hour(pattern.startHour)
-                .minute(pattern.startMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-              endTimestamp: today
-                .hour(pattern.endHour)
-                .minute(pattern.endMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-            };
-          }
-          // Convert to weekly: use existing time + default weekdays
-          return {
-            ...w,
-            type,
-            startTimestamp: undefined,
-            endTimestamp: undefined,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              [],
-              [1, 2, 3, 4, 5],
+            return buildDailyOverrideSlot(
+              w,
+              dayjs(),
               pattern.startHour,
               pattern.startMinutes,
               pattern.endHour,
               pattern.endMinutes
-            ),
-          };
+            );
+          }
+          return buildWeeklySlot(w, {
+            ...pattern,
+            weeks: [],
+            days: [1, 2, 3, 4, 5],
+          });
         })
       );
     },
@@ -472,21 +313,15 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "daily-override") return w;
-          const pattern = getWindowPattern(w);
-          const newDate = dayjs(date);
-          return {
-            ...w,
-            startTimestamp: newDate
-              .hour(pattern.startHour)
-              .minute(pattern.startMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: newDate
-              .hour(pattern.endHour)
-              .minute(pattern.endMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          const pattern = getSlotPattern(w);
+          return buildDailyOverrideSlot(
+            w,
+            dayjs(date),
+            pattern.startHour,
+            pattern.startMinutes,
+            pattern.endHour,
+            pattern.endMinutes
+          );
         })
       );
     },
@@ -523,21 +358,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const days = pattern.days.includes(day)
             ? pattern.days.filter((d) => d !== day)
             : [...pattern.days, day];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(w, { ...pattern, days });
         })
       );
     },
@@ -549,21 +374,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const allDays = DAYS_OF_WEEK.map((d) => d.value);
           const hasAllDays = allDays.every((d) => pattern.days.includes(d));
-          const newDays = hasAllDays ? [] : allDays;
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              newDays,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const days = hasAllDays ? [] : [...allDays];
+          return buildWeeklySlot(w, { ...pattern, days });
         })
       );
     },
@@ -575,21 +390,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const weeks = pattern.weeks.includes(week)
             ? pattern.weeks.filter((wk) => wk !== week)
             : [...pattern.weeks, week];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              weeks,
-              pattern.days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(w, { ...pattern, weeks });
         })
       );
     },
@@ -601,20 +406,10 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const hasAllWeeks = pattern.weeks.length === 0;
-          const newWeeks = hasAllWeeks ? [1, 2, 3, 4] : [];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              newWeeks,
-              pattern.days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const weeks = hasAllWeeks ? [1, 2, 3, 4] : [];
+          return buildWeeklySlot(w, { ...pattern, weeks });
         })
       );
     },
@@ -638,71 +433,24 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
-          const pattern = getWindowPattern(w);
-
-          let newStartHour = pattern.startHour;
-          let newStartMinutes = pattern.startMinutes;
-          let newEndHour = pattern.endHour;
-          let newEndMinutes = pattern.endMinutes;
-
-          if (field === "start") {
-            const newStartMin = timeToMinutes(hour, minutes);
-            const endMin = timeToMinutes(pattern.endHour, pattern.endMinutes);
-            if (newStartMin >= endMin) {
-              // Adjust end time
-              const adjustedEnd = newStartMin + 30;
-              newEndHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
-              newEndMinutes = newEndHour === MAX_HOUR ? 0 : adjustedEnd % 60;
-            }
-            newStartHour = hour;
-            newStartMinutes = minutes;
-          } else {
-            const startMin = timeToMinutes(
-              pattern.startHour,
-              pattern.startMinutes
-            );
-            const newEndMin = timeToMinutes(hour, minutes);
-            if (newEndMin <= startMin) {
-              // Adjust start time
-              const adjustedStart = Math.max(newEndMin - 30, 0);
-              newStartHour = Math.floor(adjustedStart / 60);
-              newStartMinutes = adjustedStart % 60;
-            }
-            newEndHour = hour;
-            newEndMinutes = minutes;
-          }
+          const pattern = getSlotPattern(w);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
 
           if (w.type === "weekly") {
-            return {
-              ...w,
-              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-                pattern.weeks,
-                pattern.days,
-                newStartHour,
-                newStartMinutes,
-                newEndHour,
-                newEndMinutes
-              ),
-            };
+            return buildWeeklySlot(w, { ...pattern, ...adjusted });
           }
 
-          // For daily-override, update timestamps
           const currentDate = w.startTimestamp
             ? dayjs(w.startTimestamp)
             : dayjs();
-          return {
-            ...w,
-            startTimestamp: currentDate
-              .hour(newStartHour)
-              .minute(newStartMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: currentDate
-              .hour(newEndHour)
-              .minute(newEndMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          return buildDailyOverrideSlot(
+            w,
+            currentDate,
+            adjusted.startHour,
+            adjusted.startMinutes,
+            adjusted.endHour,
+            adjusted.endMinutes
+          );
         })
       );
     },
@@ -736,7 +484,7 @@ export default function QuotaManager({
         )}
         {timeWindows.map((window, index) => {
           const windowCode = formatTimeWindowCode(window);
-          const pattern = getWindowPattern(window);
+          const pattern = getSlotPattern(window);
           const isAllWeeks = pattern.weeks.length === 0;
           const hasCollision = windowsWithCollisions.has(window.id);
           const windowDate = TimeWindowUtils.getDate(window);

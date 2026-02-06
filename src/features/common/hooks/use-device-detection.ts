@@ -54,21 +54,21 @@ export function useDeviceDetection(): DeviceInfo {
 
       // iOS detection (mobile devices)
       if (/iPad|iPhone|iPod/.test(userAgent)) {
-        const match = userAgent.match(/OS (\d+_\d+)/);
+        const match = /OS (\d+_\d+)/.exec(userAgent);
         const version = match ? match[1].replace("_", ".") : undefined;
         return { os: "iOS", version };
       }
 
       // Android detection (mobile devices)
       if (/Android/.test(userAgent)) {
-        const match = userAgent.match(/Android (\d+\.\d+)/);
+        const match = /Android (\d+\.\d+)/.exec(userAgent);
         const version = match ? match[1] : undefined;
         return { os: "Android", version };
       }
 
       // ChromeOS detection
       if (/CrOS/.test(userAgent)) {
-        const match = userAgent.match(/CrOS (\d+\.\d+)/);
+        const match = /CrOS (\d+\.\d+)/.exec(userAgent);
         const version = match ? match[1] : undefined;
         return { os: "ChromeOS", version };
       }
@@ -82,7 +82,7 @@ export function useDeviceDetection(): DeviceInfo {
         /Mac OS X/.test(userAgent) ||
         userAgentData?.platform === "macOS"
       ) {
-        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+        const match = /Mac OS X (\d+[._]\d+)/.exec(userAgent);
         const version = match ? match[1].replace("_", ".") : undefined;
         return { os: "macOS", version };
       }
@@ -94,7 +94,7 @@ export function useDeviceDetection(): DeviceInfo {
         /Windows/.test(userAgent) ||
         userAgentData?.platform === "Windows"
       ) {
-        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
+        const match = /Windows NT (\d+\.\d+)/.exec(userAgent);
         const version = match ? match[1] : undefined;
         return { os: "Windows", version };
       }
@@ -113,13 +113,13 @@ export function useDeviceDetection(): DeviceInfo {
 
       // Fallback: Try to detect from user agent string only
       if (/Mac OS X/.test(userAgent)) {
-        const match = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+        const match = /Mac OS X (\d+[._]\d+)/.exec(userAgent);
         const version = match ? match[1].replace("_", ".") : undefined;
         return { os: "macOS", version };
       }
 
       if (/Windows/.test(userAgent)) {
-        const match = userAgent.match(/Windows NT (\d+\.\d+)/);
+        const match = /Windows NT (\d+\.\d+)/.exec(userAgent);
         const version = match ? match[1] : undefined;
         return { os: "Windows", version };
       }
@@ -303,23 +303,23 @@ export const getOSVersion = (): string | undefined => {
   const userAgent = navigator.userAgent;
 
   // iOS version
-  const iosMatch = userAgent.match(/OS (\d+_\d+)/);
+  const iosMatch = /OS (\d+_\d+)/.exec(userAgent);
   if (iosMatch) return iosMatch[1].replace("_", ".");
 
   // Android version
-  const androidMatch = userAgent.match(/Android (\d+\.\d+)/);
+  const androidMatch = /Android (\d+\.\d+)/.exec(userAgent);
   if (androidMatch) return androidMatch[1];
 
   // Windows version
-  const windowsMatch = userAgent.match(/Windows NT (\d+\.\d+)/);
+  const windowsMatch = /Windows NT (\d+\.\d+)/.exec(userAgent);
   if (windowsMatch) return windowsMatch[1];
 
   // macOS version
-  const macMatch = userAgent.match(/Mac OS X (\d+[._]\d+)/);
+  const macMatch = /Mac OS X (\d+[._]\d+)/.exec(userAgent);
   if (macMatch) return macMatch[1].replace("_", ".");
 
   // ChromeOS version
-  const chromeMatch = userAgent.match(/CrOS (\d+\.\d+)/);
+  const chromeMatch = /CrOS (\d+\.\d+)/.exec(userAgent);
   if (chromeMatch) return chromeMatch[1];
 
   return undefined;

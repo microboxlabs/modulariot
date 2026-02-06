@@ -245,7 +245,7 @@ export function PlanningSidebarClient({
       switch (tag.matchType) {
         case "id":
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
-          const serviceCodeMatch = tag.value.match(/^(\d+)/);
+          const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
             ? serviceCodeMatch[1]
             : tag.value;
@@ -312,7 +312,7 @@ export function PlanningSidebarClient({
   const windowBaseSlots = useMemo(() => {
     if (!selectedTimeWindow?.weeklyPattern) return 1;
     // Parse the window pattern to get start and end times
-    const match = selectedTimeWindow.weeklyPattern.match(/(\d{4})-(\d{4})$/);
+    const match = /(\d{4})-(\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
     if (!match) return 1;
     const [, startTime, endTime] = match;
     const startHour = Number.parseInt(startTime.slice(0, 2), 10);

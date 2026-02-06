@@ -271,7 +271,7 @@ export const TimeWindowUtils = {
       sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
 
     if (isRange) {
-      return `${prefix}${sorted[0]}-${sorted[sorted.length - 1]}`;
+      return `${prefix}${sorted[0]}-${sorted.at(-1)}`;
     }
     return `${prefix}${sorted.join(",")}`;
   },

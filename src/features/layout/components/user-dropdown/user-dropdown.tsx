@@ -19,10 +19,10 @@ async function handleSignOut() {
 
   // If Auth0 is configured, redirect to Auth0 logout for federated logout
   if (auth0LogoutUrl) {
-    window.location.href = auth0LogoutUrl;
+    globalThis.location.href = auth0LogoutUrl;
   } else {
     // Fallback to sign-in page if Auth0 is not configured
-    window.location.href = "/sign-in";
+    globalThis.location.href = "/sign-in";
   }
 }
 

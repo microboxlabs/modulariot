@@ -48,17 +48,12 @@ export async function signInWithMicrosoft(): Promise<void> {
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  await signIn("auth0", {
-    redirectTo: "/app",
-    authorizationParams: { connection: "google-oauth2" },
-  });
+  // Third argument passes authorization params to Auth0 (connection skips Universal Login)
+  await signIn("auth0", { redirectTo: "/app" }, { connection: "google-oauth2" });
 }
 
 export async function signInWithGitHub(): Promise<void> {
-  await signIn("auth0", {
-    redirectTo: "/app",
-    authorizationParams: { connection: "github" },
-  });
+  await signIn("auth0", { redirectTo: "/app" }, { connection: "github" });
 }
 
 /**
@@ -70,13 +65,14 @@ export async function signInWithGitHub(): Promise<void> {
 export async function signInWithAuth0Credentials(
   email?: string
 ): Promise<void> {
-  await signIn("auth0", {
-    redirectTo: "/app",
-    authorizationParams: {
+  await signIn(
+    "auth0",
+    { redirectTo: "/app" },
+    {
       connection: "Username-Password-Authentication",
       ...(email && { login_hint: email }),
-    },
-  });
+    }
+  );
 }
 
 /**
@@ -104,10 +100,8 @@ export async function signInWithProvider(providerId: string): Promise<void> {
 
   // If Auth0 is configured and we have a connection mapping, use Auth0 as broker
   if (auth0Connection) {
-    await signIn("auth0", {
-      redirectTo: "/app",
-      authorizationParams: { connection: auth0Connection },
-    });
+    // Third argument passes authorization params to Auth0 (connection skips Universal Login)
+    await signIn("auth0", { redirectTo: "/app" }, { connection: auth0Connection });
     return;
   }
 

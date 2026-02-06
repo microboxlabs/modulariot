@@ -9,6 +9,7 @@
  * For a completely generic LiveFormField, import from @/features/dynamic-forms
  */
 
+import { useCallback } from "react";
 import {
   LiveFormField as GenericLiveFormField,
   type DynamicFieldConfig,
@@ -28,7 +29,10 @@ interface ETADetailsRendererProps {
   dict: I18nRecord;
 }
 
-function ETADetailsRenderer({ data: eta, dict }: ETADetailsRendererProps) {
+function ETADetailsRenderer({
+  data: eta,
+  dict,
+}: Readonly<ETADetailsRendererProps>) {
   if (!eta) return null;
   return (
     <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
@@ -82,6 +86,7 @@ function useETAData(
   const normalizeError = (error: unknown): Error | null => {
     if (!error) return null;
     if (error instanceof Error) return error;
+    if (typeof error === "string") return new Error(error);
     if (typeof error === "object") {
       const message =
         "message" in error && typeof error.message === "string"
@@ -89,7 +94,7 @@ function useETAData(
           : JSON.stringify(error);
       return new Error(message);
     }
-    return new Error(String(error));
+    return new Error(JSON.stringify(error));
   };
 
   return {
@@ -107,6 +112,16 @@ export function LiveFormField({
 }: LiveFormFieldProps) {
   const isETAField = field.liveField?.dataKey === "eta";
   const hookResult = useETAData(isETAField && isVisible, allValues);
+
+  const etaCustomRenderer = useCallback(
+    (data: unknown) => (
+      <ETADetailsRendererWrapper
+        data={data as ReturnType<typeof useLiveETA>["eta"]}
+        dict={dict}
+      />
+    ),
+    [dict]
+  );
 
   if (!isVisible) return null;
 
@@ -127,12 +142,7 @@ export function LiveFormField({
       notAvailableMessage={tr("etaNotAvailable", dict)}
       customRenderer={
         field.liveField?.displayFormat === "datetime"
-          ? (data) => (
-              <ETADetailsRendererWrapper
-                data={data as ReturnType<typeof useLiveETA>["eta"]}
-                dict={dict}
-              />
-            )
+          ? etaCustomRenderer
           : undefined
       }
     />

@@ -1,13 +1,11 @@
 import type {
   PlannedService as LocalPlannedService,
   SelectedService,
-  SelectedSlot,
   LeadTimeData,
 } from "../components/planning/planning-selection-context";
 import type {
   PlannedServiceResponse,
   Service,
-  Slot,
 } from "../types/planned-service.types";
 
 /**

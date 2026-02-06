@@ -413,27 +413,13 @@ export const TimeWindowUtils = {
   },
 };
 
-/**
- * Lead time data for a service - tracks compliance of OC lines
- */
-export interface LeadTimeData {
-  total_lineasoc_cumplen: number;
-  total_lineasoc_incumplen: number;
-  lineasoc_pctn_cumplimiento: number; // 0-100
-}
+// Re-export from common components for backward compatibility
+export {
+  type LeadTimeData,
+  getLeadTimeStatus,
+} from "@/features/common/components/kpi-display";
 
-/**
- * Get lead time status based on compliance percentage
- * 100% → success, >0% and <100% → warning, 0% → error
- */
-export function getLeadTimeStatus(
-  leadTime: LeadTimeData
-): "success" | "warning" | "error" {
-  const pct = leadTime.lineasoc_pctn_cumplimiento;
-  if (pct >= 100) return "success";
-  if (pct > 0) return "warning";
-  return "error";
-}
+import type { LeadTimeData } from "@/features/common/components/kpi-display";
 
 /**
  * Trip type options

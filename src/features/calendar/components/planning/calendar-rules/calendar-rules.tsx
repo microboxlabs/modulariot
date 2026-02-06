@@ -30,87 +30,90 @@ function isKeyboardActivate(key: string): boolean {
   return key === "Enter" || key === " ";
 }
 
-interface CalendarRulesSectionProps {
-  option: NonNullable<SettingOption>;
-  selected: SettingOption;
-  setSelected: (v: SettingOption) => void;
+function getSectionClasses(expanded: boolean, active: boolean) {
+  return {
+    headerHeightClass: expanded ? "h-20" : "h-0",
+    headerInteractiveClass: active
+      ? ""
+      : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700",
+    contentMaxHeightClass: active ? "max-h-[500px]" : "max-h-0 ",
+  };
+}
+
+interface SectionLayoutProps {
+  active: boolean;
   title: string;
   description: string;
   children: ReactNode;
-  layout: "quota" | "default";
+  classes: ReturnType<typeof getSectionClasses>;
+  onSelect: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onBack: (e: React.MouseEvent) => void;
 }
 
-function CalendarRulesSection({
-  option,
-  selected,
-  setSelected,
+function QuotaSectionLayout({
+  active,
   title,
   description,
   children,
-  layout,
-}: Readonly<CalendarRulesSectionProps>) {
-  const active = isSectionActive(selected, option);
-  const expanded = isSectionExpanded(selected, option);
-
-  const handleSelect = () => {
-    if (!active) setSelected(option);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!active && isKeyboardActivate(e.key)) setSelected(option);
-  };
-
-  const handleBack = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelected(null);
-  };
-
-  const headerHeightClass = expanded ? "h-20" : "h-0";
-  const headerInteractiveClass = active
-    ? ""
-    : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700";
-  const contentMaxHeightClass = active ? "max-h-[500px]" : "max-h-0 ";
-
-  if (layout === "quota") {
-    return (
-      <div>
+  classes,
+  onSelect,
+  onKeyDown,
+  onBack,
+}: Readonly<SectionLayoutProps>) {
+  const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
+    classes;
+  return (
+    <div>
+      <div
+        role={active ? undefined : "button"}
+        tabIndex={active ? undefined : 0}
+        onClick={onSelect}
+        onKeyDown={onKeyDown}
+        className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
+      >
         <div
-          role={active ? undefined : "button"}
-          tabIndex={active ? undefined : 0}
-          onClick={handleSelect}
-          onKeyDown={handleKeyDown}
-          className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
+          className={`flex flex-row h-full items-center px-4 transition-all duration-500 ${active ? "gap-4" : "gap-0"}`}
         >
-          <div
-            className={`flex flex-row h-full items-center px-4 transition-all duration-500 ${active ? "gap-4" : "gap-0"}`}
+          <Button
+            className={`h-10 w-10 shrink-0 text-gray-700 p-0 transition-all duration-300 overflow-hidden ${active ? "opacity-100 max-w-10 scale-100" : "opacity-0 max-w-0 scale-75"}`}
+            color="alternative"
+            disabled={!active}
+            onClick={onBack}
           >
-            <Button
-              className={`h-10 w-10 shrink-0 text-gray-700 p-0 transition-all duration-300 overflow-hidden ${active ? "opacity-100 max-w-10 scale-100" : "opacity-0 max-w-0 scale-75"}`}
-              color="alternative"
-              disabled={!active}
-              onClick={handleBack}
-            >
-              <ChevronLeft />
-            </Button>
-            <div className="py-3 w-full border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
-                {title}
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                {description}
-              </p>
-            </div>
+            <ChevronLeft />
+          </Button>
+          <div className="py-3 w-full border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
+              {title}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
+              {description}
+            </p>
           </div>
         </div>
-        <div
-          className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
-        >
-          {children}
-        </div>
       </div>
-    );
-  }
+      <div
+        className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
+function DefaultSectionLayout({
+  active,
+  title,
+  description,
+  children,
+  classes,
+  onSelect,
+  onKeyDown,
+  onBack,
+}: Readonly<SectionLayoutProps>) {
+  const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
+    classes;
   const backButtonOpacityClass = active
     ? "opacity-100 translate-x-0"
     : "opacity-0 -translate-x-2 pointer-events-none";
@@ -121,8 +124,8 @@ function CalendarRulesSection({
       <div
         role={active ? undefined : "button"}
         tabIndex={active ? undefined : 0}
-        onClick={handleSelect}
-        onKeyDown={handleKeyDown}
+        onClick={onSelect}
+        onKeyDown={onKeyDown}
         className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
       >
         <div className="relative flex flex-row h-full items-center pl-4 pr-4">
@@ -133,7 +136,7 @@ function CalendarRulesSection({
               className="h-10 w-10 shrink-0 text-gray-700 p-0"
               color="alternative"
               disabled={!active}
-              onClick={handleBack}
+              onClick={onBack}
             >
               <ChevronLeft />
             </Button>
@@ -157,6 +160,59 @@ function CalendarRulesSection({
       </div>
     </>
   );
+}
+
+interface CalendarRulesSectionProps {
+  option: NonNullable<SettingOption>;
+  selected: SettingOption;
+  setSelected: (v: SettingOption) => void;
+  title: string;
+  description: string;
+  children: ReactNode;
+  layout: "quota" | "default";
+}
+
+function CalendarRulesSection({
+  option,
+  selected,
+  setSelected,
+  title,
+  description,
+  children,
+  layout,
+}: Readonly<CalendarRulesSectionProps>) {
+  const active = isSectionActive(selected, option);
+  const expanded = isSectionExpanded(selected, option);
+  const classes = getSectionClasses(expanded, active);
+
+  const handleSelect = () => {
+    if (!active) setSelected(option);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!active && isKeyboardActivate(e.key)) setSelected(option);
+  };
+
+  const handleBack = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelected(null);
+  };
+
+  const layoutProps = {
+    active,
+    title,
+    description,
+    children,
+    classes,
+    onSelect: handleSelect,
+    onKeyDown: handleKeyDown,
+    onBack: handleBack,
+  };
+
+  if (layout === "quota") {
+    return <QuotaSectionLayout {...layoutProps} />;
+  }
+  return <DefaultSectionLayout {...layoutProps} />;
 }
 
 interface CalendarRulesProps {

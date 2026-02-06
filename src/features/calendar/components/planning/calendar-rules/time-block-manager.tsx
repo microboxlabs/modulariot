@@ -779,4 +779,4 @@ export default function TimeBlockManager({
   );
 }
 
-export type { TimeBlock };
+export type { TimeBlock } from "../planning-selection-context";

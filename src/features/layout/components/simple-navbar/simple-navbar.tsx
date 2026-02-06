@@ -3,10 +3,14 @@ import "server-only";
 import { Navbar, NavbarBrand, Tooltip } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import logoImage from "@assets/logo-mintral-1.png";
+import defaultLogoImage from "@assets/logo.svg";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
+import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export async function SimpleNavbar() {
+  // Try to get the organization logo from the public endpoint
+  const orgLogo = await getPublicOrgLogo();
+
   return (
     <Navbar
       fluid
@@ -16,7 +20,22 @@ export async function SimpleNavbar() {
         <div className="flex items-center">
           <div className="flex items-start justify-start flex-1">
             <Link href="https://www.mintral.cl/" className="flex items-center">
-              <Image className="mr-3 h-8" alt="" src={logoImage} width={150} />
+              {orgLogo ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  className="mr-3 h-8"
+                  alt="Organization logo"
+                  src={orgLogo}
+                  width={150}
+                />
+              ) : (
+                <Image
+                  className="mr-3 h-8"
+                  alt="Default Logo"
+                  src={defaultLogoImage}
+                  width={150}
+                />
+              )}
             </Link>
           </div>
           <div className="flex items-center justify-end flex-1 lg:gap-3">

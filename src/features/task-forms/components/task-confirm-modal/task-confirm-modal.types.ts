@@ -69,10 +69,10 @@ export type SelectOptionsConfig = {
 
 // Re-export form field types from dynamic-forms module for backward compatibility
 export type {
-  FormFieldType,
-  FormFieldOption,
-  FormFieldConfig,
-  CustomFormConfig,
+  DynamicFieldType,
+  DynamicFieldOption,
+  DynamicFieldConfig,
+  DynamicFormConfig,
 } from "@/features/dynamic-forms";
 
 export type TaskFormConfig = {

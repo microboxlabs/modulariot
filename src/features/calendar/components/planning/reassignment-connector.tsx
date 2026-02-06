@@ -107,7 +107,7 @@ export function ReassignmentConnector({
   const dy = targetPos.y - originPos.y;
   const isHorizontal = Math.abs(dy) < 30; // Same row (same time)
   const isVertical = Math.abs(dx) < 30; // Same column (same day)
-  const length = Math.sqrt(dx * dx + dy * dy);
+  const length = Math.hypot(dx, dy);
 
   // For horizontal lines, curve above/below; for vertical lines, curve left/right
   const horizontalCurveOffset = isHorizontal ? Math.min(60, length * 0.3) : 0;

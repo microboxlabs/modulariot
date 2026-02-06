@@ -6,6 +6,7 @@ import FooterSignIn from "@/features/auth/components/footer-sign-in/footer-sign-
 import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
 import { buildSignInFormMessages } from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
 import type { ProviderLabels, SamlLabels } from "@/features/auth/components/form-sign-in/form-sign-in.types";
 import type { AuthConfig } from "@/features/auth/config/auth-providers.types";
@@ -68,6 +69,7 @@ export default async function SignInPage(params: ParamsWithLang) {
   const { lang } = await params.params;
   const [dict] = await getDictionary(lang);
   const signInMessages = buildSignInFormMessages({ messages: dict });
+  const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
   const providerLabels = buildProviderLabels(authConfig, dict);
   const dividerText = authConfig.dividerText?.includes(".")
@@ -77,7 +79,7 @@ export default async function SignInPage(params: ParamsWithLang) {
 
   return (
     <div className="mx-auto flex flex-col px-6 pt-8 md:h-screen">
-      <NavbarSignIn />
+      <NavbarSignIn orgLogoUrl={orgLogo} />
       <div className="flex flex-1 flex-col items-center justify-center">
         <div className="w-full md:max-w-lg">
           <Card

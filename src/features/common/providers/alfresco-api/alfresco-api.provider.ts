@@ -21,6 +21,7 @@ import type {
   UploadNodeRequest,
   UploadNodeResponse,
   UserState,
+  UserSite,
   ValidationsResponse,
   CreateTemplateRequest,
   UpdateTemplateRequest,
@@ -660,6 +661,188 @@ export async function getUserFilters(
     headers,
   })) as any;
   return filterResponse?.entry?.id as string;
+}
+
+/**
+ * Gets the sites associated with the current user
+ * @param session - The user session
+ * @returns Array of sites the user belongs to
+ */
+export async function getUserSites(session: Session): Promise<UserSite[]> {
+  const userEmail = session.user?.email;
+  if (!userEmail) {
+    return [];
+  }
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/service/api/people/${encodeURIComponent(userEmail)}/sites`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+  const result = await fetcher(url, {
+    method: "GET",
+    headers,
+  });
+  return result as UserSite[];
+}
+
+/**
+ * Logo file configurations for different themes
+ * Order matters - first match wins
+ */
+const LOGO_LIGHT_THEME = [
+  { filename: "logo-black.svg", mimeType: "image/svg+xml" },
+  { filename: "logo-black.png", mimeType: "image/png" },
+  { filename: "logo.svg", mimeType: "image/svg+xml" },
+  { filename: "logo.png", mimeType: "image/png" },
+] as const;
+
+const LOGO_DARK_THEME = [
+  { filename: "logo-white.svg", mimeType: "image/svg+xml" },
+  { filename: "logo-white.png", mimeType: "image/png" },
+  { filename: "logo.svg", mimeType: "image/svg+xml" },
+  { filename: "logo.png", mimeType: "image/png" },
+] as const;
+
+type LogoFormat = { filename: string; mimeType: string };
+
+/**
+ * Tries to get a logo node by filename from a site's document library
+ */
+async function tryGetLogoNode(
+  session: Session,
+  siteName: string,
+  filename: string,
+  mimeType: string
+): Promise<{ nodeId: string; mimeType: string } | null> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/-root-?relativePath=Sites/${encodeURIComponent(siteName)}/documentLibrary/branding/${filename}`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const response = (await fetcher(url, {
+      method: "GET",
+      headers,
+    })) as NodeEntry;
+
+    const nodeId = response?.entry?.id;
+    if (!nodeId) return null;
+
+    return { nodeId, mimeType };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Finds the first available logo from a list of formats
+ */
+async function findFirstAvailableLogo(
+  session: Session,
+  siteName: string,
+  formats: readonly LogoFormat[]
+): Promise<{ nodeId: string; mimeType: string } | null> {
+  for (const format of formats) {
+    const result = await tryGetLogoNode(session, siteName, format.filename, format.mimeType);
+    if (result) {
+      return result;
+    }
+  }
+  return null;
+}
+
+/**
+ * Gets theme-specific logos for a site
+ * @param session - The user session
+ * @param siteName - The site shortName
+ * @returns Object with light and dark theme logo nodes
+ */
+export async function getSiteLogos(
+  session: Session,
+  siteName: string
+): Promise<{
+  light: { nodeId: string; mimeType: string } | null;
+  dark: { nodeId: string; mimeType: string } | null;
+}> {
+  // Fetch both theme variants in parallel
+  const [light, dark] = await Promise.all([
+    findFirstAvailableLogo(session, siteName, LOGO_LIGHT_THEME),
+    findFirstAvailableLogo(session, siteName, LOGO_DARK_THEME),
+  ]);
+
+  return { light, dark };
+}
+
+/**
+ * @deprecated Use getSiteLogos instead for theme support
+ * Gets the logo node ID from a site's document library
+ * Tries SVG first, then falls back to PNG
+ */
+export async function getSiteLogoNodeId(
+  session: Session,
+  siteName: string
+): Promise<{ nodeId: string; mimeType: string } | null> {
+  return findFirstAvailableLogo(session, siteName, LOGO_LIGHT_THEME);
+}
+
+/**
+ * Gets the logo content (as base64 data URL) from a site's document library
+ * @param session - The user session
+ * @param nodeId - The node ID of the logo
+ * @param mimeType - The MIME type of the logo (e.g., "image/svg+xml" or "image/png")
+ * @returns The logo content as base64 data URL, or null if not found
+ */
+export async function getSiteLogoContent(
+  session: Session,
+  nodeId: string,
+  mimeType: string = "image/png"
+): Promise<string | null> {
+  try {
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content`;
+    const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+
+    const result = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+
+    if (!result.ok) {
+      return null;
+    }
+
+    const buffer = Buffer.from(await result.arrayBuffer());
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Gets the public organization logo from the /alfresco/s/public/org/logo endpoint
+ * This is a public endpoint that returns the organization's logo without requiring authentication
+ * @returns The logo as a base64 data URL, or null if not available
+ */
+export async function getPublicOrgLogo(): Promise<string | null> {  
+    const ecmApiUrl = process.env.ECM_API_URL;
+    if (!ecmApiUrl) {      
+      return null;
+    }
+
+    const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
+    
+    const response = await fetch(logoUrl, {
+      method: "GET",      
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+
+    // Get the content type from the response
+    const contentType = response.headers.get("content-type") ?? "image/png";
+    
+    // Convert to base64 data URL
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
+    
+    return base64Logo;  
 }
 
 export async function getInfoEntity(

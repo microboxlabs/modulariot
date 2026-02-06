@@ -1,7 +1,5 @@
 "use client";
 
-// import { signOutAction } from "@/features/auth/services/client-auth.service";
-// import { getBase64UserAvatar } from "@/features/common/providers/alfresco-api.provider";
 import {
   Dropdown,
   DropdownHeader,
@@ -10,7 +8,7 @@ import {
 } from "flowbite-react";
 import { signOut, useSession } from "next-auth/react";
 import { UserDropdownProps } from "./user-dropdown.types";
-import { useRouter } from "next/navigation";
+import { getAuth0LogoutUrl } from "@/features/auth/services/auth.service";
 
 export default function UserDropdown({ messages }: UserDropdownProps) {
   const { data: session, status } = useSession({
@@ -20,15 +18,24 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
     },
   });
 
-  const router = useRouter();
-
   if (status === "loading") {
     return <Spinner aria-label="Default status example" />;
   }
 
   async function handleSignOut() {
+    // Get Auth0 logout URL before signing out of NextAuth
+    const auth0LogoutUrl = await getAuth0LogoutUrl();
+
+    // Sign out of NextAuth first
     await signOut({ redirect: false });
-    router.replace("/sign-in");
+
+    // If Auth0 is configured, redirect to Auth0 logout for federated logout
+    if (auth0LogoutUrl) {
+      window.location.href = auth0LogoutUrl;
+    } else {
+      // Fallback to sign-in page if Auth0 is not configured
+      window.location.href = "/sign-in";
+    }
   }
   // const session = await auth();
   // if (!session) {

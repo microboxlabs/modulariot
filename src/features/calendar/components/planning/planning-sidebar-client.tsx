@@ -243,7 +243,7 @@ export function PlanningSidebarClient({
 
     for (const tag of searchTags) {
       switch (tag.matchType) {
-        case "id":
+        case "id": {
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
           const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
@@ -251,6 +251,7 @@ export function PlanningSidebarClient({
             : tag.value;
           params.push(`service=${numericServiceCode}`);
           break;
+        }
         case "cliente":
           params.push(`customer=${tag.value}`);
           break;

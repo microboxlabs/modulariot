@@ -137,7 +137,6 @@ export function PlanningSidebarForm({
     selectedSlot,
     canAddToSlot,
     reassigningService,
-    cancelReassignment,
     getOccupiedAndenes,
   } = usePlanningSelection();
 
@@ -474,7 +473,9 @@ export function PlanningSidebarForm({
 
       {/* Load Utilization Section */}
       {selectedService.loadConstraint && (
-        <FormSection title={tr("pages.planning.sidebar.form.loadUtilization", dict)}>
+        <FormSection
+          title={tr("pages.planning.sidebar.form.loadUtilization", dict)}
+        >
           <InfoRow
             label={tr("pages.planning.sidebar.form.constraint", dict)}
             value={selectedService.loadConstraint}

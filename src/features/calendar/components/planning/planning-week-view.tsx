@@ -74,20 +74,23 @@ function WeekPlannedServiceChip({
 }: Readonly<WeekPlannedServiceChipProps>) {
   const hasUrgencia = plannedService.service.incidencias.includes("urgencia");
   return (
-    <div
+    <button
+      type="button"
       onContextMenu={(e) => onContextMenu(e, plannedService)}
       className={twMerge(
-        "rounded flex items-center justify-start cursor-context-menu",
-        "text-xs font-medium truncate px-1 border-l-4 h-5",
+        "w-full text-left rounded flex items-center justify-start cursor-context-menu",
+        "text-xs font-medium truncate px-1 border-0 border-l-4 h-5",
         hasUrgencia
           ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
           : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
-        isBeingReassigned && "ring-2 ring-amber-500 ring-offset-1 animate-pulse"
+        isBeingReassigned &&
+          "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
       )}
       title={`${plannedService.service.id} - Clic derecho para opciones`}
     >
       {plannedService.service.id}
-    </div>
+    </button>
   );
 }
 
@@ -217,7 +220,6 @@ export default function PlanningWeekView({
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    getBlocksForSlot,
     removeService,
     startReassignment,
     reassigningService,

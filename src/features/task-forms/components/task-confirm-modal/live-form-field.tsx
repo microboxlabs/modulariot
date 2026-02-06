@@ -58,7 +58,7 @@ interface ETADetailsRendererWrapperProps {
 function ETADetailsRendererWrapper({
   data,
   dict,
-}: ETADetailsRendererWrapperProps) {
+}: Readonly<ETADetailsRendererWrapperProps>) {
   return <ETADetailsRenderer data={data} dict={dict} />;
 }
 

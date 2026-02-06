@@ -206,10 +206,10 @@ export const TimeWindowUtils = {
     const days = this.parseRangeString(daysStr);
 
     // Parse times
-    const startHour = parseInt(startTime.slice(0, 2), 10);
-    const startMinutes = parseInt(startTime.slice(2, 4), 10);
-    const endHour = parseInt(endTime.slice(0, 2), 10);
-    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+    const startHour = Number.parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = Number.parseInt(startTime.slice(2, 4), 10);
+    const endHour = Number.parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = Number.parseInt(endTime.slice(2, 4), 10);
 
     return { weeks, days, startHour, startMinutes, endHour, endMinutes };
   },

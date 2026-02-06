@@ -66,10 +66,11 @@ function QuotaSectionLayout({
   return (
     <div>
       <div
-        role={active ? undefined : "button"}
-        tabIndex={active ? undefined : 0}
+        role="button"
+        tabIndex={active ? -1 : 0}
         onClick={onSelect}
         onKeyDown={onKeyDown}
+        aria-disabled={active}
         className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
       >
         <div
@@ -122,10 +123,11 @@ function DefaultSectionLayout({
   return (
     <>
       <div
-        role={active ? undefined : "button"}
-        tabIndex={active ? undefined : 0}
+        role="button"
+        tabIndex={active ? -1 : 0}
         onClick={onSelect}
         onKeyDown={onKeyDown}
+        aria-disabled={active}
         className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
       >
         <div className="relative flex flex-row h-full items-center pl-4 pr-4">

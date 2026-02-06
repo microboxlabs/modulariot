@@ -11,9 +11,7 @@ import {
   usePlanningSelection,
   type PlannedService,
 } from "../planning-selection-context";
-import {
-  ServiceContextMenu,
-} from "../service-context-menu";
+import { ServiceContextMenu } from "../service-context-menu";
 import {
   DeleteConfirmationModal,
   getDeleteModalMessages,

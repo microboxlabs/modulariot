@@ -15,7 +15,9 @@ export function getPlannedServiceChipClassName(hasUrgencia: boolean): string {
 /**
  * Check if a planned service has urgencia incidencia
  */
-export function hasUrgenciaIncidencia(service: PlannedService["service"]): boolean {
+export function hasUrgenciaIncidencia(
+  service: PlannedService["service"]
+): boolean {
   return service.incidencias.includes("urgencia");
 }
 
@@ -63,7 +65,8 @@ export function PlannedServiceChip({
         "rounded flex items-center justify-start cursor-context-menu",
         "text-xs font-medium truncate px-1 border-l-4",
         getPlannedServiceChipClassName(hasUrgencia),
-        isBeingReassigned && "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
+        isBeingReassigned &&
+          "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
         className
       )}

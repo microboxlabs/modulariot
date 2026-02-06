@@ -23,6 +23,29 @@ import {
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
+interface ETADetailsRendererProps {
+  data: ReturnType<typeof useLiveETA>["eta"];
+  dict: I18nRecord;
+}
+
+function ETADetailsRenderer({ data: eta, dict }: ETADetailsRendererProps) {
+  if (!eta) return null;
+  return (
+    <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
+      {eta.duration && (
+        <div>
+          {tr("duration", dict)}: {formatDuration(eta)}
+        </div>
+      )}
+      {eta.distance && (
+        <div>
+          {tr("distance", dict)}: {eta.distance.toFixed(2)} km
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface LiveFormFieldProps {
   field: DynamicFieldConfig;
   allValues: Record<string, unknown>;
@@ -46,7 +69,15 @@ function useETAData(
 
   const normalizeError = (error: unknown): Error | null => {
     if (!error) return null;
-    return error instanceof Error ? error : new Error(String(error));
+    if (error instanceof Error) return error;
+    if (typeof error === "object") {
+      const message =
+        "message" in error && typeof error.message === "string"
+          ? error.message
+          : JSON.stringify(error);
+      return new Error(message);
+    }
+    return new Error(String(error));
   };
 
   return {
@@ -85,24 +116,12 @@ export function LiveFormField({
       notAvailableMessage={tr("etaNotAvailable", dict)}
       customRenderer={
         field.liveField?.displayFormat === "datetime"
-          ? (data) => {
-              const eta = data as ReturnType<typeof useLiveETA>["eta"];
-              if (!eta) return null;
-              return (
-                <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
-                  {eta.duration && (
-                    <div>
-                      {tr("duration", dict)}: {formatDuration(eta)}
-                    </div>
-                  )}
-                  {eta.distance && (
-                    <div>
-                      {tr("distance", dict)}: {eta.distance.toFixed(2)} km
-                    </div>
-                  )}
-                </div>
-              );
-            }
+          ? (data) => (
+              <ETADetailsRenderer
+                data={data as ReturnType<typeof useLiveETA>["eta"]}
+                dict={dict}
+              />
+            )
           : undefined
       }
     />

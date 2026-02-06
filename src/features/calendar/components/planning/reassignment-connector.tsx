@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { twMerge } from "tailwind-merge";
 import type { SelectedSlot } from "./planning-selection-context";
 import dayjs from "dayjs";
 
@@ -26,7 +25,7 @@ function getSlotElement(slot: SelectedSlot): HTMLElement | null {
   // Format the slot identifier that matches the data attribute
   const dateStr = dayjs(slot.date).format("YYYY-MM-DD");
   const timeStr = `${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`;
-  
+
   // Try to find the slot element using data attributes
   const selector = `[data-slot-date="${dateStr}"][data-slot-time="${timeStr}"]`;
   return document.querySelector(selector);
@@ -113,7 +112,7 @@ export function ReassignmentConnector({
   // For horizontal lines, curve above/below; for vertical lines, curve left/right
   const horizontalCurveOffset = isHorizontal ? Math.min(60, length * 0.3) : 0;
   const verticalCurveOffset = isVertical ? Math.min(60, length * 0.3) : 0;
-  
+
   // Arc direction for horizontal: up if moving right, down if moving left
   const horizontalArcDirection = dx > 0 ? -1 : 1;
   // Arc direction for vertical: right if moving down, left if moving up
@@ -178,13 +177,25 @@ export function ReassignmentConnector({
     >
       <defs>
         {/* Gradient for the line */}
-        <linearGradient id={`connector-gradient-${serviceId}`} x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient
+          id={`connector-gradient-${serviceId}`}
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="0%"
+        >
           <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.6" />
           <stop offset="100%" stopColor="#f59e0b" stopOpacity="1" />
         </linearGradient>
-        
+
         {/* Glow filter */}
-        <filter id={`connector-glow-${serviceId}`} x="-50%" y="-50%" width="200%" height="200%">
+        <filter
+          id={`connector-glow-${serviceId}`}
+          x="-50%"
+          y="-50%"
+          width="200%"
+          height="200%"
+        >
           <feGaussianBlur stdDeviation="2" result="coloredBlur" />
           <feMerge>
             <feMergeNode in="coloredBlur" />

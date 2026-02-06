@@ -9,7 +9,6 @@ import {
   Button,
 } from "flowbite-react";
 import { HiExclamation, HiInformationCircle, HiCheck } from "react-icons/hi";
-import { twMerge } from "tailwind-merge";
 
 export type ConfirmationModalVariant =
   | "danger"

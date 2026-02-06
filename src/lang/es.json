@@ -1104,7 +1104,8 @@
       "reception": "Recepción",
       "deleteModal": {
         "title": "Confirmar eliminación",
-        "message": "¿Eliminar la asignación del servicio {serviceId}?",
+        "messagePrefix": "¿Eliminar la asignación del servicio ",
+        "messageSuffix": "?",
         "close": "Cerrar",
         "cancel": "Cancelar",
         "delete": "Eliminar"

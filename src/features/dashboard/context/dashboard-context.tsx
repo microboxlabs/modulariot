@@ -45,6 +45,10 @@ interface DashboardContextValue {
   // Preferences
   toggleEditMode: () => void;
   setEditMode: (value: boolean) => void;
+
+  // Import/Export
+  exportDashboard: () => string;
+  importDashboard: (jsonString: string) => { success: boolean; error?: string };
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -111,6 +115,8 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     deleteWidget: deleteWidgetStorage,
     setEditMode: setEditModeStorage,
     findWidget,
+    exportDashboard,
+    importDashboard,
   } = useDashboardStorage();
 
   const createWidget = useCallback(
@@ -295,6 +301,8 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     findWidget,
     toggleEditMode,
     setEditMode,
+    exportDashboard,
+    importDashboard,
   };
 
   return (

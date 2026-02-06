@@ -149,74 +149,79 @@ function getValidDashletsForParent(
 
 ## Dashlet Specifications
 
-### Container (Bento Box)
+### Container (Unified)
 
-| Property        | Value                                |
-| --------------- | ------------------------------------ |
-| **ID**          | `'container'`                        |
-| **Name**        | "Bento Box"                          |
-| **Description** | "A draggable grid container"         |
-| **Category**    | `'containers'`                       |
-| **canNestIn**   | `[]` (root level only)               |
-| **hasSettings** | `false`                              |
-| **Children**    | Yes - renders nested widgets in grid |
+The container dashlet supports two variants: **Bento Box** and **Labeled Group**.
+
+| Property        | Value                                      |
+| --------------- | ------------------------------------------ |
+| **ID**          | `'container'`                              |
+| **Name**        | "Container"                                |
+| **Description** | "A draggable grid container with variants" |
+| **Category**    | `'containers'`                             |
+| **canNestIn**   | `[]` (root level only)                     |
+| **hasSettings** | `true` (variant, name/label, colors)       |
+| **Children**    | Yes - renders nested widgets in grid       |
+
+**Config Schema**:
+
+```typescript
+type ContainerVariant = "bento-box" | "labeled-group";
+
+type LabelBorderColor =
+  | "gray"
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "purple"
+  | "pink";
+
+interface ContainerConfig {
+  variant: ContainerVariant; // Default: "bento-box"
+  // Bento Box fields
+  name?: string; // Default: "Untitled"
+  description?: string; // Default: ""
+  verMasUrl?: string; // URL for "Ver más" button
+  // Labeled Group fields
+  label?: string; // Default: "Group"
+  borderColor?: LabelBorderColor; // Default: "gray"
+}
+```
+
+**Layout Defaults by Variant**:
+
+- `bento-box`: minW: 4, minH: 4
+- `labeled-group`: minW: 4, minH: 2
 
 **Behavior**:
 
 - Uses `react-grid-layout` for child arrangement
-- Children can be labeled-containers or dashlets (NOT other containers)
-- Has inline-editable name and description in header
-- Shows "+ Add widget" button when in edit mode
+- Children can be other dashlets (NOT other containers at root)
+- Bento Box: Card-style with header, description, and optional "Ver más" link
+- Labeled Group: Bordered group with legend-style label and configurable border color
 
-### Labeled Container
-
-| Property        | Value                                |
-| --------------- | ------------------------------------ |
-| **ID**          | `'labeled-container'`                |
-| **Name**        | "Labeled Group"                      |
-| **Description** | "Group widgets with a label"         |
-| **Category**    | `'containers'`                       |
-| **canNestIn**   | `['container', 'labeled-container']` |
-| **hasSettings** | `true` (label text)                  |
-| **Children**    | Yes - renders nested widgets         |
-
-**Config Schema**:
-
-```typescript
-interface LabeledContainerConfig {
-  label: string; // Default: "Group"
-}
-```
-
-**Visual Style** (Tailwind):
-
-- Rounded border: `rounded-lg border border-gray-200`
-- Label cuts into border (fieldset-legend style):
-  - `absolute -top-3 left-3 bg-white px-2 text-sm text-gray-500`
-- Container padding: `p-4 pt-5 mt-2`
-- Relative positioning: `relative`
+---
 
 ### Card
 
-| Property        | Value                                |
-| --------------- | ------------------------------------ |
-| **ID**          | `'card'`                             |
-| **Name**        | "Data Card"                          |
-| **Description** | "Display a key metric"               |
-| **Category**    | `'data-display'`                     |
-| **canNestIn**   | `['container', 'labeled-container']` |
-| **hasSettings** | `true` (name, number, color)         |
-| **Children**    | No                                   |
+| Property        | Value                             |
+| --------------- | --------------------------------- |
+| **ID**          | `'card'`                          |
+| **Name**        | "Data Card"                       |
+| **Description** | "Display a key metric with icon"  |
+| **Category**    | `'data-display'`                  |
+| **canNestIn**   | `['container']`                   |
+| **hasSettings** | `true` (name, value, icon, color) |
+| **Children**    | No                                |
+| **Layout**      | minW: 3, minH: 2                  |
 
 **Config Schema**:
 
 ```typescript
-interface CardConfig {
-  name: string; // Label text, default: "Metric"
-  value: string; // Display value, default: "0"
-  backgroundColor: CardBackgroundColor; // Default: 'white'
-}
-
 type CardBackgroundColor =
   | "white"
   | "gray"
@@ -225,30 +230,165 @@ type CardBackgroundColor =
   | "yellow"
   | "red"
   | "purple";
+
+type CardIcon = "chart" | "currency" | "users" | "cart" | "clock" | "check";
+
+interface CardConfig {
+  name: string; // Default: "Metric"
+  value: string; // Default: "0"
+  backgroundColor: CardBackgroundColor; // Default: "white"
+  icon: CardIcon; // Default: "chart"
+}
 ```
 
 **Visual Style**:
 
-- Shows icon (configurable in future), label, and large number
-- Background color from dropdown selection
-- Rounded corners, subtle shadow
+- Icon + label + large value display
+- Configurable background color and icon
+- Settings uses IconPickerDropdown and ColorPickerDropdown
 
 ---
 
-## Grid Configuration
+### Labeled Data
 
-### Root Level Grid (dashboard-view)
+| Property        | Value                                |
+| --------------- | ------------------------------------ |
+| **ID**          | `'labeled_data'`                     |
+| **Name**        | "Labeled Data"                       |
+| **Description** | "Display a labeled metric with icon" |
+| **Category**    | `'data-display'`                     |
+| **canNestIn**   | `['container']`                      |
+| **hasSettings** | `true` (name, value, icon, color)    |
+| **Children**    | No                                   |
+| **Layout**      | minW: 4, minH: 1                     |
 
-| Property              | Value          | Notes                                  |
-| --------------------- | -------------- | -------------------------------------- |
-| **Columns**           | 12             | Consistent across all grid levels      |
-| **Row height**        | 80px           | Root level row height                  |
-| **Margin**            | [16, 16]       | Gap between widgets                    |
-| **Draggable**         | Edit mode only | Controlled by edit mode toggle         |
-| **Resizable**         | Edit mode only | Width: minW-12 cols                    |
-| **Resize handles**    | `e`, `s`, `se` | Right edge, bottom edge, corner        |
-| **Compact type**      | `'vertical'`   | Widgets stack vertically when possible |
-| **Prevent collision** | `false`        | Widgets reflow on collision            |
+**Config Schema**:
+
+```typescript
+type ColorTheme =
+  | "gray"
+  | "blue"
+  | "green"
+  | "yellow"
+  | "red"
+  | "purple"
+  | "teal"
+  | "orange";
+
+type IconType = "chart" | "currency" | "users" | "cart" | "clock" | "check";
+
+interface LabeledDataConfig {
+  name: string; // Default: "Metric"
+  value: string; // Default: "0"
+  color: ColorTheme; // Default: "gray"
+  icon: IconType; // Default: "chart"
+}
+```
+
+**Visual Style**:
+
+- Horizontal layout: icon box + label on left, value on right
+- Unified color theme affects: background, text, icon, and icon background
+- Dark mode support with appropriate color variants
+- Settings uses IconPickerDropdown and ColorPickerDropdown
+
+---
+
+### Percentage Value
+
+| Property        | Value                         |
+| --------------- | ----------------------------- |
+| **ID**          | `'percentage_value'`          |
+| **Name**        | "Progress"                    |
+| **Description** | "Display progress with a bar" |
+| **Category**    | `'data-display'`              |
+| **canNestIn**   | `['container']`               |
+| **hasSettings** | `true` (title, value, max)    |
+| **Children**    | No                            |
+| **Layout**      | minW: 2, minH: 1              |
+
+**Config Schema**:
+
+```typescript
+interface PercentageValueConfig {
+  title: string; // Default: "Progress"
+  value: number; // Default: 6
+  max: number; // Default: 10
+}
+```
+
+**Visual Style**:
+
+- Title at top
+- Value display as "X / Y" format with percentage
+- Progress bar that fills based on `value / max`
+- Blue progress bar with rounded corners
+
+---
+
+## Common Components
+
+### IconPickerDropdown
+
+Located at: `src/features/common/components/icon-picker-dropdown/`
+
+A portal-based dropdown for selecting icons, matching the ColorPickerDropdown style.
+
+```typescript
+interface IconOption<T extends string> {
+  value: T;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface IconPickerDropdownProps<T extends string> {
+  value: T;
+  onChange: (icon: T) => void;
+  options: IconOption<T>[];
+  title?: string;
+  className?: string;
+}
+```
+
+**Visual**: Small 28x28px button showing the selected icon, opens dropdown with icon + label list.
+
+### ColorPickerDropdown
+
+Located at: `src/features/common/components/color-picker-dropdown/`
+
+A portal-based dropdown for selecting colors with colored dots.
+
+```typescript
+interface ColorOption<T extends string> {
+  value: T;
+  label: string;
+  dotClass: string; // Tailwind class for color dot (e.g., "bg-blue-500")
+}
+
+interface ColorPickerDropdownProps<T extends string> {
+  value: T;
+  onChange: (color: T) => void;
+  options: ColorOption<T>[];
+  title?: string;
+  className?: string;
+}
+```
+
+**Visual**: Small 28x28px button showing a colored dot, opens dropdown with dot + label list.
+
+### AbsoluteModal
+
+Located at: `src/features/common/components/absolute-modal/`
+
+A compact modal component used for dashlet settings. All dashlet settings use this for consistent styling.
+
+**Settings Modal Pattern**:
+
+- Compact inputs with `sizing="sm"`
+- Labels with `text-xs`
+- Full-width Cancel/Save buttons
+- Uses `createPortal` to render at document body
+  | **Prevent collision** | `false` | Widgets reflow on collision |
 
 ### Nested Grids (container & labeled-container)
 

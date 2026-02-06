@@ -14,15 +14,16 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 // Configuration Types
 // ============================================================================
 
-/** Available background colors */
-export type BackgroundColor =
-  | "white"
+/** Available color themes */
+export type ColorTheme =
   | "gray"
   | "blue"
   | "green"
   | "yellow"
   | "red"
-  | "purple";
+  | "purple"
+  | "teal"
+  | "orange";
 
 /** Available icons */
 export type IconType =
@@ -37,7 +38,7 @@ export type IconType =
 export interface DashletConfig {
   name: string;
   value: string;
-  backgroundColor: BackgroundColor;
+  color: ColorTheme;
   icon: IconType;
 }
 
@@ -45,7 +46,7 @@ export interface DashletConfig {
 export const defaultConfig: DashletConfig = {
   name: "Metric",
   value: "0",
-  backgroundColor: "white",
+  color: "gray",
   icon: "chart",
 };
 
@@ -54,7 +55,7 @@ export const defaultConfig: DashletConfig = {
 // ============================================================================
 
 export const layoutDefaults: DashletLayoutDefaults = {
-  minW: 2,
+  minW: 4,
   minH: 1,
 };
 
@@ -66,26 +67,73 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Internal Helpers
 // ============================================================================
 
-/** Background color Tailwind classes */
-const BG_COLORS: Record<BackgroundColor, string> = {
-  white: "bg-white dark:bg-gray-800",
-  gray: "bg-gray-100 dark:bg-gray-700",
-  blue: "bg-blue-50 dark:bg-blue-900/30",
-  green: "bg-green-50 dark:bg-green-900/30",
-  yellow: "bg-yellow-50 dark:bg-yellow-900/30",
-  red: "bg-red-50 dark:bg-red-900/30",
-  purple: "bg-purple-50 dark:bg-purple-900/30",
-};
+/** Color theme configuration with bg, text, and icon colors */
+interface ThemeColors {
+  bg: string;
+  text: string;
+  icon: string;
+  iconBg: string;
+  dotClass: string;
+}
 
-/** Icon color Tailwind classes */
-const ICON_COLORS: Record<BackgroundColor, string> = {
-  white: "text-gray-500 dark:text-gray-400",
-  gray: "text-gray-600 dark:text-gray-300",
-  blue: "text-blue-600 dark:text-blue-400",
-  green: "text-green-600 dark:text-green-400",
-  yellow: "text-yellow-600 dark:text-yellow-400",
-  red: "text-red-600 dark:text-red-400",
-  purple: "text-purple-600 dark:text-purple-400",
+/** All color themes with their Tailwind classes */
+export const COLOR_THEMES: Record<ColorTheme, ThemeColors> = {
+  gray: {
+    bg: "bg-gray-50 dark:bg-gray-800",
+    text: "text-gray-700 dark:text-gray-300",
+    icon: "text-gray-600 dark:text-gray-400",
+    iconBg: "bg-gray-100 dark:bg-gray-700",
+    dotClass: "bg-gray-500",
+  },
+  blue: {
+    bg: "bg-blue-50 dark:bg-blue-900/10",
+    text: "text-blue-700 dark:text-blue-200",
+    icon: "text-blue-600 dark:text-blue-200",
+    iconBg: "bg-blue-100 dark:bg-blue-900/50",
+    dotClass: "bg-blue-500",
+  },
+  green: {
+    bg: "bg-green-50 dark:bg-green-900/10",
+    text: "text-green-700 dark:text-green-200",
+    icon: "text-green-600 dark:text-green-200",
+    iconBg: "bg-green-100 dark:bg-green-900/50",
+    dotClass: "bg-green-500",
+  },
+  yellow: {
+    bg: "bg-yellow-50 dark:bg-yellow-900/10",
+    text: "text-yellow-700 dark:text-yellow-200",
+    icon: "text-yellow-600 dark:text-yellow-200",
+    iconBg: "bg-yellow-100 dark:bg-yellow-900/50",
+    dotClass: "bg-yellow-500",
+  },
+  red: {
+    bg: "bg-red-50 dark:bg-red-900/10",
+    text: "text-red-700 dark:text-red-200",
+    icon: "text-red-600 dark:text-red-200",
+    iconBg: "bg-red-100 dark:bg-red-900/50",
+    dotClass: "bg-red-500",
+  },
+  purple: {
+    bg: "bg-purple-50 dark:bg-purple-900/10",
+    text: "text-purple-700 dark:text-purple-200",
+    icon: "text-purple-600 dark:text-purple-200",
+    iconBg: "bg-purple-100 dark:bg-purple-900/50",
+    dotClass: "bg-purple-500",
+  },
+  teal: {
+    bg: "bg-teal-50 dark:bg-teal-900/10",
+    text: "text-teal-700 dark:text-teal-200",
+    icon: "text-teal-600 dark:text-teal-200",
+    iconBg: "bg-teal-100 dark:bg-teal-900/50",
+    dotClass: "bg-teal-500",
+  },
+  orange: {
+    bg: "bg-orange-50 dark:bg-orange-900/10",
+    text: "text-orange-700 dark:text-orange-200",
+    icon: "text-orange-600 dark:text-orange-200",
+    iconBg: "bg-orange-100 dark:bg-orange-900/50",
+    dotClass: "bg-orange-500",
+  },
 };
 
 /** Icon components map */
@@ -110,26 +158,25 @@ export function Dashlet({ widget }: DashletComponentProps) {
   const config = widget.config as unknown as DashletConfig;
   const name = config.name || "Metric";
   const value = config.value || "0";
-  const bgColor = config.backgroundColor || "white";
+  const colorTheme = config.color || "gray";
   const iconType = config.icon || "chart";
 
   const Icon = ICONS[iconType];
-  const bgClass = BG_COLORS[bgColor];
-  const iconClass = ICON_COLORS[bgColor];
+  const theme = COLOR_THEMES[colorTheme];
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 p-2 dark:border-gray-700 ${bgClass}`}
+      className={`flex h-full flex-row items-center justify-between rounded-lg border border-gray-200 p-2 dark:border-gray-700 gap-2 ${theme.bg}`}
     >
-      <div className="flex w-full items-center gap-2">
-        <Icon className={`h-5 w-5 ${iconClass}`} />
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {name}
-        </p>
+      <div className="flex flex-row items-center gap-2">
+        <div
+          className={`h-9 w-9 rounded-lg flex items-center justify-center ${theme.iconBg}`}
+        >
+          <Icon className={`h-6 w-6 ${theme.icon}`} />
+        </div>
+        <p className={`text-md font-medium ${theme.text}`}>{name}</p>
       </div>
-      <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
-        {value}
-      </p>
+      <div className={`text-lg font-semibold ${theme.text}`}>{value}</div>
     </div>
   );
 }

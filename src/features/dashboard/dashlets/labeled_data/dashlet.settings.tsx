@@ -2,38 +2,51 @@
 
 import { useState } from "react";
 import {
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
   Button,
   TextInput,
   Label,
-  Select,
 } from "flowbite-react";
+import {
+  HiChartBar,
+  HiCurrencyDollar,
+  HiUsers,
+  HiShoppingCart,
+  HiClock,
+  HiCheckCircle,
+} from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, BackgroundColor, IconType } from "./dashlet";
+import type { DashletConfig, ColorTheme, IconType } from "./dashlet";
+import {
+  ColorPickerDropdown,
+  type ColorOption,
+} from "@/features/common/components/color-picker-dropdown";
+import {
+  IconPickerDropdown,
+  type IconOption,
+} from "@/features/common/components/icon-picker-dropdown";
+import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 
-/** Background color options for dropdown */
-const BG_COLOR_OPTIONS: { value: BackgroundColor; label: string }[] = [
-  { value: "white", label: "White" },
-  { value: "gray", label: "Gray" },
-  { value: "blue", label: "Blue" },
-  { value: "green", label: "Green" },
-  { value: "yellow", label: "Yellow" },
-  { value: "red", label: "Red" },
-  { value: "purple", label: "Purple" },
+/** Color options for ColorPickerDropdown */
+const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
+  { value: "gray", label: "Gray", dotClass: "bg-gray-500" },
+  { value: "blue", label: "Blue", dotClass: "bg-blue-500" },
+  { value: "green", label: "Green", dotClass: "bg-green-500" },
+  { value: "yellow", label: "Yellow", dotClass: "bg-yellow-500" },
+  { value: "red", label: "Red", dotClass: "bg-red-500" },
+  { value: "purple", label: "Purple", dotClass: "bg-purple-500" },
+  { value: "teal", label: "Teal", dotClass: "bg-teal-500" },
+  { value: "orange", label: "Orange", dotClass: "bg-orange-500" },
 ];
 
-/** Icon options for dropdown */
-const ICON_OPTIONS: { value: IconType; label: string }[] = [
-  { value: "chart", label: "📊 Chart" },
-  { value: "currency", label: "💰 Currency" },
-  { value: "users", label: "👥 Users" },
-  { value: "cart", label: "🛒 Cart" },
-  { value: "clock", label: "⏰ Clock" },
-  { value: "check", label: "✅ Check" },
+/** Icon options for IconPickerDropdown */
+const ICON_OPTIONS: IconOption<IconType>[] = [
+  { value: "chart", label: "Chart", icon: HiChartBar },
+  { value: "currency", label: "Currency", icon: HiCurrencyDollar },
+  { value: "users", label: "Users", icon: HiUsers },
+  { value: "cart", label: "Cart", icon: HiShoppingCart },
+  { value: "clock", label: "Clock", icon: HiClock },
+  { value: "check", label: "Check", icon: HiCheckCircle },
 ];
 
 /**
@@ -48,123 +61,90 @@ export function DashletSettings({
   const typedConfig = config as unknown as DashletConfig;
   const [name, setName] = useState(typedConfig.name || "Metric");
   const [value, setValue] = useState(typedConfig.value || "0");
-  const [backgroundColor, setBackgroundColor] = useState<BackgroundColor>(
-    typedConfig.backgroundColor || "white"
-  );
+  const [color, setColor] = useState<ColorTheme>(typedConfig.color || "gray");
   const [icon, setIcon] = useState<IconType>(typedConfig.icon || "chart");
 
   const handleSave = () => {
     onSave({
       name: name.trim() || "Metric",
       value: value.trim() || "0",
-      backgroundColor,
+      color,
       icon,
     });
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   if (typeof window === "undefined") return null;
 
   const modalContent = (
-    <Modal
-      show={isOpen}
-      onClose={onClose}
-      size="md"
-      onMouseDown={handleMouseDown}
+    <AbsoluteModal
+      selected={isOpen}
+      setSelected={(selected) => {
+        if (!selected) onClose();
+      }}
+      className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
-      <ModalHeader>Labeled Data Settings</ModalHeader>
-      <ModalBody>
-        <div className="space-y-4">
-          {/* Name */}
-          <div>
-            <Label htmlFor="dashlet-name" className="mb-2 block">
-              Label
-            </Label>
-            <TextInput
-              id="dashlet-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter label..."
-            />
-          </div>
+      <div className="flex w-full flex-col gap-3">
+        {/* Name */}
+        <div>
+          <Label htmlFor="dashlet-name" className="mb-1 block text-sm">
+            Label
+          </Label>
+          <TextInput
+            id="dashlet-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Enter label..."
+            sizing="sm"
+          />
+        </div>
 
-          {/* Value */}
-          <div>
-            <Label htmlFor="dashlet-value" className="mb-2 block">
-              Value
-            </Label>
-            <TextInput
-              id="dashlet-value"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Enter value..."
-            />
-          </div>
+        {/* Value */}
+        <div>
+          <Label htmlFor="dashlet-value" className="mb-1 block text-sm">
+            Value
+          </Label>
+          <TextInput
+            id="dashlet-value"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Enter value..."
+            sizing="sm"
+          />
+        </div>
 
-          {/* Icon */}
-          <div>
-            <Label htmlFor="dashlet-icon" className="mb-2 block">
+        {/* Icon & Color side by side */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Label className="text-sm">
               Icon
             </Label>
-            <Select
-              id="dashlet-icon"
+            <IconPickerDropdown
+              options={ICON_OPTIONS}
               value={icon}
-              onChange={(e) => setIcon(e.target.value as IconType)}
-            >
-              {ICON_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+              onChange={setIcon}
+              title="Select icon"
+            />
           </div>
-
-          {/* Background Color */}
-          <div>
-            <Label htmlFor="dashlet-bg" className="mb-2 block">
-              Background Color
+          <div className="flex items-center gap-1.5">
+            <Label className="text-sm">
+              Color
             </Label>
-            <Select
-              id="dashlet-bg"
-              value={backgroundColor}
-              onChange={(e) =>
-                setBackgroundColor(e.target.value as BackgroundColor)
-              }
-            >
-              {BG_COLOR_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+            <ColorPickerDropdown
+              options={COLOR_OPTIONS}
+              value={color}
+              onChange={setColor}
+              title="Select color"
+            />
           </div>
         </div>
-      </ModalBody>
-      <ModalFooter>
-        <div className="flex w-full justify-end gap-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            className="no-drag"
-            onMouseDown={handleMouseDown}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            className="no-drag"
-            onMouseDown={handleMouseDown}
-          >
-            Save
-          </Button>
-        </div>
-      </ModalFooter>
-    </Modal>
+
+        {/* Save Button */}
+        <Button onClick={handleSave} size="sm" className="w-full">
+          Save
+        </Button>
+      </div>
+    </AbsoluteModal>
   );
 
   return createPortal(modalContent, document.body);

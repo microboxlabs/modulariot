@@ -242,11 +242,11 @@ export function Dashlet({
     ? "bg-gray-50 dark:bg-gray-900"
     : "bg-white dark:bg-gray-800";
 
-  // Labeled group layout helpers (call hooks unconditionally to preserve order)
-  const labeledGroupMarginY = 9;
+  // Dynamic row height calculation to fit items without scrolling
+  const marginY = 9;
 
   const maxRows = useMemo(() => {
-    if (variant !== "labeled-group" || widgetChildren.length === 0) return 1;
+    if (widgetChildren.length === 0) return 1;
     return Math.max(
       ...widgetChildren.map((child) => {
         const y = child.layout?.y ?? 0;
@@ -254,16 +254,15 @@ export function Dashlet({
         return y + height;
       })
     );
-  }, [variant, widgetChildren]);
+  }, [widgetChildren]);
 
-  const labeledGroupRowHeight = useMemo(() => {
-    if (variant !== "labeled-group") return 80;
+  const dynamicRowHeight = useMemo(() => {
     if (containerHeight <= 0 || maxRows <= 0) return 80;
     const availableHeight = containerHeight;
-    const totalMargins = (maxRows - 1) * labeledGroupMarginY;
+    const totalMargins = (maxRows - 1) * marginY;
     const calculatedRowHeight = (availableHeight - totalMargins) / maxRows;
-    return Math.max(40, Math.min(120, calculatedRowHeight));
-  }, [variant, containerHeight, maxRows, labeledGroupMarginY]);
+    return Math.max(40, Math.min(55, calculatedRowHeight));
+  }, [containerHeight, maxRows, marginY]);
 
   // ============================================================================
   // Bento Box Variant
@@ -274,7 +273,7 @@ export function Dashlet({
         className={`flex flex-col rounded-lg ring-1 ring-gray-200 bg-white shadow-sm dark:ring-gray-700 dark:bg-gray-800 h-full`}
       >
         {/* Header with name, description, and Ver más button - fixed 80px height (1 row) */}
-        <div className="flex h-20 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
+        <div className="flex h-[65px] shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
           <div className="min-w-0 flex-1">
             {/* Name */}
             <h3 className="truncate text-lg font-semibold text-gray-900 dark:text-white">
@@ -295,7 +294,7 @@ export function Dashlet({
               type="button"
               onClick={handleVerMasClick}
               onMouseDown={(e) => e.stopPropagation()}
-              className="no-drag ml-4 flex shrink-0 items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="no-drag ml-4 flex shrink-0 items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer"
             >
               Ver más
               <HiArrowRight className="h-4 w-4" />
@@ -304,7 +303,10 @@ export function Dashlet({
         </div>
 
         {/* Grid Content */}
-        <div ref={containerRef} className={`p-2 min-h-0 flex-1 overflow-auto`}>
+        <div
+          ref={containerRef}
+          className={`p-2 min-h-0 flex-1 overflow-hidden`}
+        >
           {hasChildren ? (
             containerWidth > 0 ? (
               <div className="nested-grid-wrapper">
@@ -314,8 +316,8 @@ export function Dashlet({
                   width={containerWidth}
                   gridConfig={{
                     cols,
-                    rowHeight: 80,
-                    margin: [16, 16] as const,
+                    rowHeight: dynamicRowHeight,
+                    margin: [16, marginY] as const,
                     containerPadding: [0, 0] as const,
                     maxRows: Infinity,
                   }}
@@ -381,8 +383,8 @@ export function Dashlet({
                 width={containerWidth}
                 gridConfig={{
                   cols,
-                  rowHeight: labeledGroupRowHeight,
-                  margin: [16, labeledGroupMarginY] as const,
+                  rowHeight: dynamicRowHeight,
+                  margin: [16, marginY] as const,
                   containerPadding: [0, 0] as const,
                   maxRows: Infinity,
                 }}

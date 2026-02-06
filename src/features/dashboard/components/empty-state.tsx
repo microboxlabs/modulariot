@@ -18,19 +18,19 @@ export function EmptyState({ onAdd }: EmptyStateProps) {
 
       {/* Title */}
       <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
-        No dashboards yet
+        No widgets yet
       </h2>
 
       {/* Description */}
       <p className="mb-6 max-w-sm text-center text-gray-500 dark:text-gray-400">
-        Create your first bento box to visualize your data your way. Add charts,
-        KPIs, and tables to track what matters most.
+        Start building your dashboard by adding widgets. Choose from charts,
+        metrics, containers, and more to visualize your data.
       </p>
 
       {/* CTA Button */}
       <Button color="blue" onClick={onAdd}>
         <HiPlus className="mr-2 h-4 w-4" />
-        Create Bento Box
+        Add Widget
       </Button>
     </div>
   );

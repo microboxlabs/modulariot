@@ -19,6 +19,8 @@ import type { ContainerConfig, ContainerVariant } from "./container";
 import { dashletDefinition as containerDefinition } from "./container";
 import { dashletDefinition as cardDefinition } from "./card";
 import { dashletDefinition as labeledDataDefinition } from "./labeled_data";
+import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
+import { dashletDefinition as exampleDefinition } from "./example";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -27,6 +29,8 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   containerDefinition,
   cardDefinition,
   labeledDataDefinition,
+  percentageValueDefinition,
+  exampleDefinition,
 ];
 
 /** Registry of all available dashlets */

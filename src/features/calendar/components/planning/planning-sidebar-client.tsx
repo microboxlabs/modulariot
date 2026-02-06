@@ -29,6 +29,15 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
+type PlanningSearchMatchType =
+  | "id"
+  | "cliente"
+  | "origen"
+  | "destino"
+  | "lugarCarguio"
+  | "permanencia"
+  | "tipoViaje";
+
 /**
  * Calculate occupation percentage based on load constraint type.
  * Uses the appropriate utilization value depending on the constraint:
@@ -204,28 +213,11 @@ export function PlanningSidebarClient({
     null
   );
   const [filterMatchType, setFilterMatchType] = useState<{
-    matchType:
-      | "id"
-      | "cliente"
-      | "origen"
-      | "destino"
-      | "lugarCarguio"
-      | "permanencia"
-      | "tipoViaje";
+    matchType: PlanningSearchMatchType;
     query: string;
   } | null>(null);
   const [searchTags, setSearchTags] = useState<
-    Array<{
-      matchType:
-        | "id"
-        | "cliente"
-        | "origen"
-        | "destino"
-        | "lugarCarguio"
-        | "permanencia"
-        | "tipoViaje";
-      value: string;
-    }>
+    Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
 
   // Handle cancel reassignment
@@ -563,15 +555,15 @@ export function PlanningSidebarClient({
             <button
               type="button"
               onClick={
-                reassigningService !== null
-                  ? handleCancelReassignment
-                  : handleBack
+                reassigningService === null
+                  ? handleBack
+                  : handleCancelReassignment
               }
               className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
               aria-label={
-                reassigningService !== null
-                  ? tr("pages.planning.sidebar.form.cancelReassignment", dict)
-                  : tr("pages.planning.sidebar.form.back", dict)
+                reassigningService === null
+                  ? tr("pages.planning.sidebar.form.back", dict)
+                  : tr("pages.planning.sidebar.form.cancelReassignment", dict)
               }
             >
               <HiArrowLeft className="w-5 h-5" />

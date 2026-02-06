@@ -7,6 +7,7 @@ import QuotaManager from "./quota-manager";
 import TimeBlockManager from "./time-block-manager";
 import AndenesManager, { type PlatformConfig } from "./andenes-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
+import { twMerge } from "tailwind-merge";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
 import type { ReactNode } from "react";
 
@@ -26,10 +27,6 @@ function isSectionActive(
   return selected === option;
 }
 
-function isKeyboardActivate(key: string): boolean {
-  return key === "Enter" || key === " ";
-}
-
 function getSectionClasses(expanded: boolean, active: boolean) {
   return {
     headerHeightClass: expanded ? "h-20" : "h-0",
@@ -47,7 +44,6 @@ interface SectionLayoutProps {
   children: ReactNode;
   classes: ReturnType<typeof getSectionClasses>;
   onSelect: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
   onBack: (e: React.MouseEvent) => void;
 }
 
@@ -58,20 +54,22 @@ function QuotaSectionLayout({
   children,
   classes,
   onSelect,
-  onKeyDown,
   onBack,
 }: Readonly<SectionLayoutProps>) {
   const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
     classes;
   return (
     <div>
-      <div
-        role="button"
-        tabIndex={active ? -1 : 0}
+      <button
+        type="button"
+        disabled={active}
         onClick={onSelect}
-        onKeyDown={onKeyDown}
-        aria-disabled={active}
-        className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
+        className={twMerge(
+          "border-0 bg-transparent p-0 m-0 w-full text-left font-inherit min-w-0",
+          "transition-all duration-300 overflow-hidden",
+          headerHeightClass,
+          headerInteractiveClass
+        )}
       >
         <div
           className={`flex flex-row h-full items-center px-4 transition-all duration-500 ${active ? "gap-4" : "gap-0"}`}
@@ -93,7 +91,7 @@ function QuotaSectionLayout({
             </p>
           </div>
         </div>
-      </div>
+      </button>
       <div
         className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
       >
@@ -110,7 +108,6 @@ function DefaultSectionLayout({
   children,
   classes,
   onSelect,
-  onKeyDown,
   onBack,
 }: Readonly<SectionLayoutProps>) {
   const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
@@ -122,13 +119,16 @@ function DefaultSectionLayout({
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={active ? -1 : 0}
+      <button
+        type="button"
+        disabled={active}
         onClick={onSelect}
-        onKeyDown={onKeyDown}
-        aria-disabled={active}
-        className={`w-full transition-all duration-300 overflow-hidden ${headerHeightClass} ${headerInteractiveClass}`}
+        className={twMerge(
+          "border-0 bg-transparent p-0 m-0 w-full text-left font-inherit min-w-0",
+          "transition-all duration-300 overflow-hidden",
+          headerHeightClass,
+          headerInteractiveClass
+        )}
       >
         <div className="relative flex flex-row h-full items-center pl-4 pr-4">
           <div
@@ -154,7 +154,7 @@ function DefaultSectionLayout({
             </p>
           </div>
         </div>
-      </div>
+      </button>
       <div
         className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
       >
@@ -191,10 +191,6 @@ function CalendarRulesSection({
     if (!active) setSelected(option);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!active && isKeyboardActivate(e.key)) setSelected(option);
-  };
-
   const handleBack = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelected(null);
@@ -207,7 +203,6 @@ function CalendarRulesSection({
     children,
     classes,
     onSelect: handleSelect,
-    onKeyDown: handleKeyDown,
     onBack: handleBack,
   };
 

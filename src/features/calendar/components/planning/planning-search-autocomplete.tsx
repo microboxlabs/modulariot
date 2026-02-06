@@ -134,7 +134,6 @@ function DropdownContent({
         <li key={result.matchType}>
           <button
             type="button"
-            aria-selected={index === selectedIndex}
             tabIndex={index === selectedIndex ? 0 : -1}
             onClick={() => onMatchTypeSelect(result)}
             onKeyDown={(e) => {

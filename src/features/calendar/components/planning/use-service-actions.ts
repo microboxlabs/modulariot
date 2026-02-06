@@ -24,7 +24,10 @@ interface UseServiceActionsProps {
 interface UseServiceActionsResult {
   contextMenu: ContextMenuState;
   deleteModal: DeleteModalState;
-  handleContextMenu: (e: React.MouseEvent, plannedService: PlannedService) => void;
+  handleContextMenu: (
+    e: React.MouseEvent,
+    plannedService: PlannedService
+  ) => void;
   handleCloseContextMenu: () => void;
   handleReassign: (plannedService: PlannedService) => void;
   handleDeleteRequest: (plannedService: PlannedService) => void;

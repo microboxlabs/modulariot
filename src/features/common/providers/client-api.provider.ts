@@ -34,7 +34,10 @@ import {
   ValidateIdCardRequest,
 } from "./5cap-api/5cap-api.provider.types";
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
-import type { ForumDiscussionResponse, UserSiteResponse } from "./alfresco-api/alfresco-api.types";
+import type {
+  ForumDiscussionResponse,
+  UserSiteResponse,
+} from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
 import type {
   PlannedServiceResponse,
@@ -100,7 +103,7 @@ export function useMyTasksCount() {
 /**
  * Hook to fetch the user's site and theme-specific logos
  * Caches the result and doesn't refetch on focus to minimize API calls
- * 
+ *
  * Logo priority:
  * - Light theme: logo-black.svg → logo-black.png → logo.svg → logo.png
  * - Dark theme: logo-white.svg → logo-white.png → logo.svg → logo.png
@@ -433,7 +436,10 @@ export function useSymptomsIcu(condition?: string) {
 }
 
 export function useMapPositions() {
-  const { data, error, isLoading, mutate } = useSWR<MapPosition[], FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<
+    MapPosition[],
+    FetcherError
+  >(
     "/app/api/map",
     async (url: string) => {
       const response = await fetch(url);
@@ -466,7 +472,10 @@ export function useMapPositions() {
 }
 
 export function useMapPositionsResume() {
-  const { data, error, isLoading, mutate } = useSWR<MapPositionResume, FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<
+    MapPositionResume,
+    FetcherError
+  >(
     "/app/api/map/resume",
     async (url: string) => {
       const response = await fetch(url);
@@ -639,14 +648,14 @@ export function useGetUserStates() {
       // Extract language from pathname (format: /app/[lang]/... or /[lang]/...)
       const pathSegments = pathname.split("/").filter(Boolean);
       // Remove 'app' prefix if present
-      const segmentsWithoutApp = pathSegments[0] === "app" 
-        ? pathSegments.slice(1) 
-        : pathSegments;
+      const segmentsWithoutApp =
+        pathSegments[0] === "app" ? pathSegments.slice(1) : pathSegments;
       // Find the language segment (usually 'es' or 'en')
-      const lang = segmentsWithoutApp.find((segment) => 
-        segment === "es" || segment === "en"
-      ) || "es"; // Default to 'es' if not found
-      
+      const lang =
+        segmentsWithoutApp.find(
+          (segment) => segment === "es" || segment === "en"
+        ) || "es"; // Default to 'es' if not found
+
       // Redirect to sign-in page with language
       globalThis.location.href = `/${lang}/sign-in`;
     }

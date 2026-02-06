@@ -67,7 +67,9 @@ export async function signInWithGitHub(): Promise<void> {
  *
  * @param email - Optional email to pre-fill (login_hint)
  */
-export async function signInWithAuth0Credentials(email?: string): Promise<void> {
+export async function signInWithAuth0Credentials(
+  email?: string
+): Promise<void> {
   await signIn("auth0", {
     redirectTo: "/app",
     authorizationParams: {
@@ -79,11 +81,14 @@ export async function signInWithAuth0Credentials(email?: string): Promise<void> 
 
 /**
  * Maps UI provider IDs to Auth0 connection names.
- * When Auth0 is the OIDC broker, social logins are routed through Auth0 connections.
+ * When Auth0 is the OIDC broker, all identity providers are routed through Auth0 connections.
  */
 const AUTH0_CONNECTION_MAP: Record<string, string> = {
   google: "google-oauth2",
   github: "github",
+  // Microsoft/Azure AD enterprise connection (configured in Auth0)
+  "microsoft-entra-id": "Mintral-Entra-ID",
+  microsoft: "Mintral-Entra-ID",
   // Add more mappings as needed (e.g., "facebook": "facebook", "apple": "apple")
 };
 
@@ -122,6 +127,34 @@ export async function signInWithSaml(teamSlug: string): Promise<void> {
     // Pass team slug to SAML provider for organization identification
     team: teamSlug,
   });
+}
+
+/**
+ * Get the Auth0 logout URL for federated logout.
+ * After signing out of NextAuth, redirect to this URL to also sign out of Auth0.
+ *
+ * @param returnTo - URL to redirect back to after Auth0 logout (must be in Allowed Logout URLs)
+ * @returns The Auth0 logout URL, or null if Auth0 is not configured
+ */
+export async function getAuth0LogoutUrl(
+  returnTo?: string
+): Promise<string | null> {
+  const issuer = process.env.AUTH_AUTH0_ISSUER;
+  const clientId = process.env.AUTH_AUTH0_ID;
+
+  if (!issuer || !clientId) {
+    return null;
+  }
+
+  // Default returnTo is the sign-in page
+  const returnToUrl = returnTo || `${process.env.NEXTAUTH_URL || ""}`;
+
+  // Auth0 logout endpoint: https://YOUR_DOMAIN/v2/logout
+  const logoutUrl = new URL("/v2/logout", issuer);
+  logoutUrl.searchParams.set("client_id", clientId);
+  logoutUrl.searchParams.set("returnTo", returnToUrl);
+
+  return logoutUrl.toString();
 }
 
 export async function authenticateAction(

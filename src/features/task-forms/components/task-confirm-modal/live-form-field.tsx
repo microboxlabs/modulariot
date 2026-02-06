@@ -46,6 +46,18 @@ function ETADetailsRenderer({ data: eta, dict }: ETADetailsRendererProps) {
   );
 }
 
+interface ETADetailsRendererWrapperProps {
+  data: ReturnType<typeof useLiveETA>["eta"];
+  dict: I18nRecord;
+}
+
+function ETADetailsRendererWrapper({
+  data,
+  dict,
+}: ETADetailsRendererWrapperProps) {
+  return <ETADetailsRenderer data={data} dict={dict} />;
+}
+
 interface LiveFormFieldProps {
   field: DynamicFieldConfig;
   allValues: Record<string, unknown>;
@@ -116,7 +128,7 @@ export function LiveFormField({
       customRenderer={
         field.liveField?.displayFormat === "datetime"
           ? (data) => (
-              <ETADetailsRenderer
+              <ETADetailsRendererWrapper
                 data={data as ReturnType<typeof useLiveETA>["eta"]}
                 dict={dict}
               />

@@ -116,7 +116,7 @@ export function AddWidgetModal({
                 </h3>
 
                 {/* Dashlet grid */}
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-2">
                   {category.dashlets.map((dashlet) => (
                     <DashletOption
                       key={dashlet.meta.id}

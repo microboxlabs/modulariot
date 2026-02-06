@@ -352,6 +352,60 @@ export function useDashboardStorage() {
     [data, saveData]
   );
 
+  // Export dashboard as JSON string
+  const exportDashboard = useCallback((): string => {
+    return JSON.stringify(data, null, 2);
+  }, [data]);
+
+  // Import dashboard from JSON string
+  const importDashboard = useCallback(
+    (jsonString: string): { success: boolean; error?: string } => {
+      try {
+        const parsed = JSON.parse(jsonString) as unknown;
+
+        // Validate basic structure
+        if (
+          typeof parsed !== "object" ||
+          parsed === null ||
+          !("version" in parsed) ||
+          !("widgets" in parsed)
+        ) {
+          return { success: false, error: "Invalid dashboard format" };
+        }
+
+        const imported = parsed as DashboardStorageSchema;
+
+        // Check version
+        if (imported.version !== 2) {
+          return {
+            success: false,
+            error: `Unsupported version: ${imported.version}`,
+          };
+        }
+
+        // Ensure all widgets have proper defaults
+        const normalizedWidgets = imported.widgets.map((widget, index) =>
+          ensureWidgetDefaults(widget, index)
+        );
+
+        const newData: DashboardStorageSchema = {
+          version: 2,
+          widgets: normalizedWidgets,
+          preferences: imported.preferences ?? { editMode: false },
+        };
+
+        saveData(newData);
+        return { success: true };
+      } catch (e) {
+        return {
+          success: false,
+          error: e instanceof Error ? e.message : "Failed to parse JSON",
+        };
+      }
+    },
+    [saveData]
+  );
+
   return {
     widgets: data.widgets,
     preferences: data.preferences,
@@ -364,5 +418,7 @@ export function useDashboardStorage() {
     setEditMode,
     findWidget,
     findParent,
+    exportDashboard,
+    importDashboard,
   };
 }

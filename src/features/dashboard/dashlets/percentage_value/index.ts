@@ -1,6 +1,6 @@
 /**
- * LABELED DATA DASHLET
- * =====================
+ * PERCENTAGE VALUE DASHLET
+ * =========================
  * Standard structure following dashlet template pattern.
  *
  * Files:
@@ -11,12 +11,7 @@
  */
 
 import type { DashletDefinition } from "../types";
-import {
-  Dashlet,
-  defaultConfig,
-  getLayoutDefaults,
-  layoutDefaults,
-} from "./dashlet";
+import { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";
 import { DashletSettings } from "./dashlet.settings";
 import { dashletMeta } from "./dashlet.meta";
 
@@ -32,24 +27,7 @@ export const dashletDefinition: DashletDefinition = {
 };
 
 // ============================================================================
-// LEGACY ALIASES (for backwards compatibility)
+// RE-EXPORTS for direct imports
 // ============================================================================
-export {
-  Dashlet as LabeledData,
-  defaultConfig as labeledDataDefaultConfig,
-  getLayoutDefaults as getLabeledDataLayoutDefaults,
-  layoutDefaults as labeledDataLayoutDefaults,
-  DashletSettings as LabeledDataSettings,
-  dashletMeta as labeledDataMeta,
-};
-
-/** @deprecated Use dashletDefinition instead */
-export const labeledDataDefinition = dashletDefinition;
-
-// ============================================================================
-// TYPE EXPORTS
-// ============================================================================
-export type {
-  DashletConfig as LabeledDataConfig,
-  IconType as LabeledDataIcon,
-} from "./dashlet";
+export { Dashlet, DashletSettings, dashletMeta };
+export type { DashletConfig } from "./dashlet";

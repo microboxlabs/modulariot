@@ -54,8 +54,8 @@ export const defaultConfig: DashletConfig = {
 // ============================================================================
 
 export const layoutDefaults: DashletLayoutDefaults = {
-  minW: 2,
-  minH: 1,
+  minW: 3,
+  minH: 2,
 };
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
@@ -79,13 +79,13 @@ const BG_COLORS: Record<CardBackgroundColor, string> = {
 
 /** Icon color Tailwind classes */
 const ICON_COLORS: Record<CardBackgroundColor, string> = {
-  white: "text-gray-500 dark:text-gray-400",
-  gray: "text-gray-600 dark:text-gray-300",
-  blue: "text-blue-600 dark:text-blue-400",
-  green: "text-green-600 dark:text-green-400",
-  yellow: "text-yellow-600 dark:text-yellow-400",
-  red: "text-red-600 dark:text-red-400",
-  purple: "text-purple-600 dark:text-purple-400",
+  white: "text-gray-700 dark:text-gray-200",
+  gray: "text-gray-700 dark:text-gray-200",
+  blue: "text-blue-700 dark:text-blue-200",
+  green: "text-green-700 dark:text-green-200",
+  yellow: "text-yellow-700 dark:text-yellow-200",
+  red: "text-red-700 dark:text-red-200",
+  purple: "text-purple-700 dark:text-purple-200",
 };
 
 /** Icon components map */
@@ -119,15 +119,20 @@ export function Dashlet({ widget }: DashletComponentProps) {
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 p-2 dark:border-gray-700 ${bgClass}`}
+      className={`flex h-full flex-col rounded-lg border border-gray-200 p-2 [container-type:size] dark:border-gray-700 ${bgClass}`}
     >
       <div className="flex w-full flex-row gap-2">
         <Icon className={`h-5 w-5 ${iconClass}`} />
-        <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
           {name}
         </p>
       </div>
-      <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
+      <div className="flex flex-col flex-1 items-start overflow-hidden [container-type:size]">
+        <p className="text-[70cqh] font-bold leading-none text-gray-900 dark:text-white h-full">
+          {value}
+        </p>
+        <p className="text-gray-300 text-sm">12.7Km recorridos</p>
+      </div>
     </div>
   );
 }

@@ -202,15 +202,13 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
 
         {/* KPIs row */}
         <div className="flex items-center gap-2 text-xs">
-          {/* Date (Spanish short format: "1 ago") with lead time icon */}
+          {/* Lead time percentage with status icon */}
           <div className="flex items-center gap-1.5">
             <leadTimeStyles.icon
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {service.cm_created
-                ? dayjs(service.cm_created).format("D MMM")
-                : "-"}
+              {service.leadTime.lineasoc_pctn_cumplimiento}%
             </span>
           </div>
 

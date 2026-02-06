@@ -23,62 +23,46 @@ export function DeleteConfirmationModal({
   onConfirm,
   onCancel,
 }: Readonly<DeleteConfirmationModalProps>) {
-  const modalRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Handle escape key
+  // Sync dialog open state with isOpen
   useEffect(() => {
-    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onCancel]);
-
-  // Focus trap
-  useEffect(() => {
-    if (!isOpen || !modalRef.current) return;
-
-    const previousActiveElement = document.activeElement as HTMLElement;
-    modalRef.current.focus();
-
-    return () => {
-      previousActiveElement?.focus();
-    };
+    if (isOpen) {
+      dialog.showModal();
+    } else {
+      dialog.close();
+    }
   }, [isOpen]);
+
+  // When dialog is closed by Escape or backdrop click, sync parent state
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleClose = () => onCancel();
+    dialog.addEventListener("close", handleClose);
+    return () => dialog.removeEventListener("close", handleClose);
+  }, [onCancel]);
 
   if (!isOpen || !plannedService) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
       aria-labelledby="delete-modal-title"
+      className={twMerge(
+        "relative z-[9999] mx-auto max-w-[calc(100vw-2rem)]",
+        "border-0 rounded-xl shadow-2xl p-0",
+        "bg-white dark:bg-gray-800",
+        "animate-in fade-in-0 zoom-in-95 duration-200",
+        "[&::backdrop]:bg-black/50 [&::backdrop]:backdrop-blur-sm [&::backdrop]:animate-in [&::backdrop]:fade-in-0 [&::backdrop]:duration-200"
+      )}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
     >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
-        onClick={onCancel}
-      />
-
-      {/* Modal */}
-      <div
-        ref={modalRef}
-        tabIndex={-1}
-        onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        className={twMerge(
-          "relative z-10 mx-4",
-          "bg-white dark:bg-gray-800",
-          "rounded-xl shadow-2xl",
-          "animate-in fade-in-0 zoom-in-95 duration-200"
-        )}
-      >
         {/* Close button */}
         <button
           type="button"
@@ -160,8 +144,7 @@ export function DeleteConfirmationModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>,
+    </dialog>,
     document.body
   );
 }

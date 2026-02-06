@@ -665,7 +665,7 @@ export function PlanningSelectionProvider({
     useState<SelectedService | null>(null);
   const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
   // Unified state: single array for all time slots
-  const [timeSlots, setTimeSlotsState] = useState<TimeSlot[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   // Number of andenes (platforms) available
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
@@ -706,7 +706,7 @@ export function PlanningSelectionProvider({
 
       setPlannedServices(localServices);
       setPlannedServiceIds(idMap);
-    } else if (apiPlannedServices && apiPlannedServices.length === 0) {
+    } else if (apiPlannedServices?.length === 0) {
       // Clear local state if API returns empty array
       setPlannedServices([]);
       setPlannedServiceIds(new Map());
@@ -718,12 +718,12 @@ export function PlanningSelectionProvider({
     // Skip if there's an error - don't update state based on error responses
     if (timeSlotsError) return;
 
-    if (apiTimeSlots && apiTimeSlots.length > 0) {
+    if (apiTimeSlots?.length > 0) {
       // API TimeSlotResponse matches our TimeSlot interface, so we can use directly
-      setTimeSlotsState(apiTimeSlots as TimeSlot[]);
-    } else if (apiTimeSlots && apiTimeSlots.length === 0) {
+      setTimeSlots(apiTimeSlots as TimeSlot[]);
+    } else if (apiTimeSlots?.length === 0) {
       // Clear local state if API returns empty array
-      setTimeSlotsState([]);
+      setTimeSlots([]);
     }
   }, [apiTimeSlots, timeSlotsError]);
 
@@ -744,10 +744,10 @@ export function PlanningSelectionProvider({
   }, []);
 
   // Primary setter: replaces entire unified array and syncs to API
-  const setTimeSlots = useCallback(
+  const setTimeSlotsAndSync = useCallback(
     async (slots: TimeSlot[]) => {
       // Update local state immediately (optimistic update)
-      setTimeSlotsState(slots);
+      setTimeSlots(slots);
 
       // Sync to API - save all slots
       try {
@@ -817,7 +817,7 @@ export function PlanningSelectionProvider({
       const current = timeSlots;
       const newSlots = [...current.filter(isTimeBlock), ...windows];
       // Update local state only (no API sync)
-      setTimeSlotsState(newSlots);
+      setTimeSlots(newSlots);
     },
     [timeSlots]
   );
@@ -828,15 +828,15 @@ export function PlanningSelectionProvider({
       const current = timeSlots;
       const newSlots = [...current.filter(isTimeWindow), ...blocks];
       // Update local state only (no API sync)
-      setTimeSlotsState(newSlots);
+      setTimeSlots(newSlots);
     },
     [timeSlots]
   );
 
   // Sync current time slots to API (called when user clicks "Aplicar")
   const syncTimeSlotsToAPI = useCallback(async () => {
-    await setTimeSlots(timeSlots);
-  }, [timeSlots, setTimeSlots]);
+    await setTimeSlotsAndSync(timeSlots);
+  }, [timeSlots, setTimeSlotsAndSync]);
 
   /**
    * Count services assigned within a time window for a specific day
@@ -1296,7 +1296,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
-      setTimeSlots,
+      setTimeSlots: setTimeSlotsAndSync,
       setTimeWindows,
       setTimeBlocks,
       setAndenesCount,
@@ -1329,7 +1329,7 @@ export function PlanningSelectionProvider({
       clearSelection,
       getServicesForSlot,
       canAddToSlot,
-      setTimeSlots,
+      setTimeSlotsAndSync,
       setTimeWindows,
       setTimeBlocks,
       setAndenesCount,

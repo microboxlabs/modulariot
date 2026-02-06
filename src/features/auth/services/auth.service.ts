@@ -82,10 +82,12 @@ export async function signInWithAuth0Credentials(
 const AUTH0_CONNECTION_MAP: Record<string, string> = {
   google: "google-oauth2",
   github: "github",
-  // Microsoft/Azure AD enterprise connection (configured in Auth0)
-  "microsoft-entra-id": "Mintral-Entra-ID",
-  microsoft: "Mintral-Entra-ID",
-  // Add more mappings as needed (e.g., "facebook": "facebook", "apple": "apple")
+  // Microsoft/Azure AD: Only route through Auth0 if enabled (requires Azure AD redirect_uri update)
+  // Set ROUTE_MICROSOFT_VIA_AUTH0=true once Auth0 callback is registered in Azure AD
+  ...(process.env.ROUTE_MICROSOFT_VIA_AUTH0 === "true" && {
+    "microsoft-entra-id": "Mintral-Entra-ID",
+    microsoft: "Mintral-Entra-ID",
+  }),
 };
 
 /**

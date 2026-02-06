@@ -22,7 +22,7 @@ export default function PlanningTitle({
         renderTrigger={() => (
           <Button
             color="alternative"
-            className="text-lg font-normal text-gray-500 dark:text-white bg-white px-2 py-1 rounded-lg flex items-center"
+            className="text-lg font-normal text-gray-500 dark:text-white bg-white px-2 py-1 h-8 rounded-lg flex items-center"
           >
             {type === "dispatch"
               ? tr("layout.planning.dispatch", dict)

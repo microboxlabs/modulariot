@@ -17,7 +17,9 @@ import {
   isValidViewMode,
   parseUrlDate,
 } from "@/features/calendar/services/calendar.service";
-import CalendarRules from "./calendar-rules/calendar-rules";
+import CalendarRules, {
+  getCalendarRulesMessages,
+} from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
 
@@ -172,6 +174,8 @@ export default function PlanningHeader({
           }}
         />
         <CalendarRules
+          dict={dict}
+          messages={getCalendarRulesMessages(dict)}
           onAndenesChange={(config) => {
             setAndenesCount(config.count);
           }}

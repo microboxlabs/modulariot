@@ -23,6 +23,8 @@ import {
   buildDailyOverrideSlot,
   calculateCollisions,
 } from "./time-slot-utils";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 function getBlockDayButtonClassName(
   isSelected: boolean,
@@ -43,9 +45,11 @@ function getBlockDayButtonClassName(
 function PortalDatepicker({
   value,
   onChange,
+  messages,
 }: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
+  messages: { selectDate: string; today: string; clear: string };
 }>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -85,7 +89,7 @@ function PortalDatepicker({
 
   const displayDate = value
     ? dayjs(value).format("DD/MM/YYYY")
-    : "Seleccionar fecha";
+    : messages.selectDate;
   const dayName = value ? dayjs(value).format("dddd") : "";
   const minDate = dayjs().startOf("day").toDate();
 
@@ -123,8 +127,8 @@ function PortalDatepicker({
                 setIsOpen(false);
               }}
               language="es-ES"
-              labelTodayButton="Hoy"
-              labelClearButton="Limpiar"
+              labelTodayButton={messages.today}
+              labelClearButton={messages.clear}
               showClearButton={false}
             />
           </div>,
@@ -134,11 +138,52 @@ function PortalDatepicker({
   );
 }
 
+export interface TimeBlockManagerMessages {
+  noBlocks: string;
+  blockPlaceholder: string;
+  deleteBlock: string;
+  weekly: string;
+  dailyOverride: string;
+  selectDate: string;
+  selectAll: string;
+  deselectAll: string;
+  scheduleConflict: string;
+  addBlock: string;
+  apply: string;
+  today: string;
+  clear: string;
+}
+
+const TIME_BLOCK_MANAGER_BASE =
+  "layout.planning.calendarRules.timeBlocks" as const;
+
+export function getTimeBlockManagerMessages(
+  dict: I18nDictionary
+): TimeBlockManagerMessages {
+  return {
+    noBlocks: tr(`${TIME_BLOCK_MANAGER_BASE}.noBlocks`, dict),
+    blockPlaceholder: tr(`${TIME_BLOCK_MANAGER_BASE}.blockPlaceholder`, dict),
+    deleteBlock: tr(`${TIME_BLOCK_MANAGER_BASE}.deleteBlock`, dict),
+    weekly: tr(`${TIME_BLOCK_MANAGER_BASE}.weekly`, dict),
+    dailyOverride: tr(`${TIME_BLOCK_MANAGER_BASE}.dailyOverride`, dict),
+    selectDate: tr(`${TIME_BLOCK_MANAGER_BASE}.selectDate`, dict),
+    selectAll: tr(`${TIME_BLOCK_MANAGER_BASE}.selectAll`, dict),
+    deselectAll: tr(`${TIME_BLOCK_MANAGER_BASE}.deselectAll`, dict),
+    scheduleConflict: tr(`${TIME_BLOCK_MANAGER_BASE}.scheduleConflict`, dict),
+    addBlock: tr(`${TIME_BLOCK_MANAGER_BASE}.addBlock`, dict),
+    apply: tr(`${TIME_BLOCK_MANAGER_BASE}.apply`, dict),
+    today: tr(`${TIME_BLOCK_MANAGER_BASE}.today`, dict),
+    clear: tr(`${TIME_BLOCK_MANAGER_BASE}.clear`, dict),
+  };
+}
+
 interface TimeBlockManagerProps {
+  messages: TimeBlockManagerMessages;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
 }
 
 export default function TimeBlockManager({
+  messages,
   onBlocksChange,
 }: Readonly<TimeBlockManagerProps>) {
   const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } =
@@ -348,7 +393,7 @@ export default function TimeBlockManager({
         {timeBlocks.length === 0 && (
           <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
             <HiNoSymbol className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            No hay bloqueos definidos
+            {messages.noBlocks}
           </div>
         )}
         {timeBlocks.map((block, index) => {
@@ -382,7 +427,7 @@ export default function TimeBlockManager({
                   {hasCollision && (
                     <span
                       className="text-orange-500 text-xs"
-                      title="Conflicto de horarios"
+                      title={messages.scheduleConflict}
                     >
                       ⚠️
                     </span>
@@ -391,7 +436,10 @@ export default function TimeBlockManager({
                     type="text"
                     value={block.name}
                     onChange={(e) => updateBlockName(block.id, e.target.value)}
-                    placeholder={`Bloqueo ${index + 1}`}
+                    placeholder={messages.blockPlaceholder.replace(
+                      "{index}",
+                      String(index + 1)
+                    )}
                     className={twMerge(
                       "text-sm font-semibold bg-transparent border-0 focus:ring-0 p-0 flex-1 max-w-[180px] placeholder:text-gray-400",
                       hasCollision
@@ -404,7 +452,7 @@ export default function TimeBlockManager({
                   type="button"
                   onClick={() => removeTimeBlock(block.id)}
                   className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                  title="Eliminar bloqueo"
+                  title={messages.deleteBlock}
                 >
                   <HiTrash className="h-3.5 w-3.5" />
                 </button>
@@ -425,7 +473,7 @@ export default function TimeBlockManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Semanal
+                      {messages.weekly}
                     </button>
                     <button
                       type="button"
@@ -439,7 +487,7 @@ export default function TimeBlockManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Día específico
+                      {messages.dailyOverride}
                     </button>
                   </div>
                 </div>
@@ -488,8 +536,8 @@ export default function TimeBlockManager({
                       onClick={() => toggleAllDays(block.id)}
                       title={
                         pattern.days.length === 7
-                          ? "Deseleccionar todos"
-                          : "Seleccionar todos"
+                          ? messages.deselectAll
+                          : messages.selectAll
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -528,6 +576,11 @@ export default function TimeBlockManager({
                   <PortalDatepicker
                     value={blockDate ?? undefined}
                     onChange={(date) => updateDailyOverrideDate(block.id, date)}
+                    messages={{
+                      selectDate: messages.selectDate,
+                      today: messages.today,
+                      clear: messages.clear,
+                    }}
                   />
                 )}
               </div>
@@ -547,7 +600,7 @@ export default function TimeBlockManager({
       >
         <Button color="light" size="sm" onClick={() => addTimeBlock("weekly")}>
           <HiPlus className="h-4 w-4 mr-1.5" />
-          Bloqueo
+          {messages.addBlock}
         </Button>
 
         <Button
@@ -558,7 +611,7 @@ export default function TimeBlockManager({
           className={hasAnyCollision ? "opacity-50 cursor-not-allowed" : ""}
         >
           <HiCheck className="h-4 w-4 mr-1.5" />
-          Aplicar
+          {messages.apply}
         </Button>
       </div>
     </div>

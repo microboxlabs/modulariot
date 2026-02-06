@@ -29,6 +29,8 @@ import {
   buildDailyOverrideSlot,
   calculateCollisions,
 } from "./time-slot-utils";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 /**
  * Time window configuration
@@ -69,28 +71,52 @@ function getWeekButtonClassName(
 }
 
 /** Color options for time windows using the common ColorPickerDropdown */
-const COLOR_OPTIONS: ColorOption<TimeWindowColor>[] = [
-  {
-    value: "emerald",
-    label: "Verde",
-    dotClass: TIME_WINDOW_COLORS.emerald.dot,
-  },
-  { value: "blue", label: "Azul", dotClass: TIME_WINDOW_COLORS.blue.dot },
-  {
-    value: "violet",
-    label: "Violeta",
-    dotClass: TIME_WINDOW_COLORS.violet.dot,
-  },
-  { value: "rose", label: "Rosa", dotClass: TIME_WINDOW_COLORS.rose.dot },
-  { value: "amber", label: "Ámbar", dotClass: TIME_WINDOW_COLORS.amber.dot },
-  { value: "cyan", label: "Cian", dotClass: TIME_WINDOW_COLORS.cyan.dot },
-  { value: "lime", label: "Lima", dotClass: TIME_WINDOW_COLORS.lime.dot },
-  {
-    value: "orange",
-    label: "Naranja",
-    dotClass: TIME_WINDOW_COLORS.orange.dot,
-  },
-];
+function getColorOptions(
+  messages: QuotaManagerMessages
+): ColorOption<TimeWindowColor>[] {
+  return [
+    {
+      value: "emerald",
+      label: messages.colors.emerald,
+      dotClass: TIME_WINDOW_COLORS.emerald.dot,
+    },
+    {
+      value: "blue",
+      label: messages.colors.blue,
+      dotClass: TIME_WINDOW_COLORS.blue.dot,
+    },
+    {
+      value: "violet",
+      label: messages.colors.violet,
+      dotClass: TIME_WINDOW_COLORS.violet.dot,
+    },
+    {
+      value: "rose",
+      label: messages.colors.rose,
+      dotClass: TIME_WINDOW_COLORS.rose.dot,
+    },
+    {
+      value: "amber",
+      label: messages.colors.amber,
+      dotClass: TIME_WINDOW_COLORS.amber.dot,
+    },
+    {
+      value: "cyan",
+      label: messages.colors.cyan,
+      dotClass: TIME_WINDOW_COLORS.cyan.dot,
+    },
+    {
+      value: "lime",
+      label: messages.colors.lime,
+      dotClass: TIME_WINDOW_COLORS.lime.dot,
+    },
+    {
+      value: "orange",
+      label: messages.colors.orange,
+      dotClass: TIME_WINDOW_COLORS.orange.dot,
+    },
+  ];
+}
 
 /**
  * Generates the full format string for a time window
@@ -106,9 +132,11 @@ function formatTimeWindowCode(window: TimeWindow): string {
 function PortalDatepicker({
   value,
   onChange,
+  messages,
 }: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
+  messages: { selectDate: string; today: string; clear: string };
 }>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -148,7 +176,7 @@ function PortalDatepicker({
 
   const displayDate = value
     ? dayjs(value).format("DD/MM/YYYY")
-    : "Seleccionar fecha";
+    : messages.selectDate;
   const dayName = value ? dayjs(value).format("dddd") : "";
   const minDate = dayjs().startOf("day").toDate();
 
@@ -186,8 +214,8 @@ function PortalDatepicker({
                 setIsOpen(false);
               }}
               language="es-ES"
-              labelTodayButton="Hoy"
-              labelClearButton="Limpiar"
+              labelTodayButton={messages.today}
+              labelClearButton={messages.clear}
               showClearButton={false}
             />
           </div>,
@@ -197,16 +225,84 @@ function PortalDatepicker({
   );
 }
 
+export interface QuotaManagerMessages {
+  noWindows: string;
+  windowPlaceholder: string;
+  availableQuotas: string;
+  deleteWindow: string;
+  weekly: string;
+  dailyException: string;
+  selectDate: string;
+  selectAll: string;
+  deselectAll: string;
+  selectWeeks: string;
+  allWeeks: string;
+  scheduleConflict: string;
+  addWindow: string;
+  apply: string;
+  today: string;
+  clear: string;
+  colors: {
+    emerald: string;
+    blue: string;
+    violet: string;
+    rose: string;
+    amber: string;
+    cyan: string;
+    lime: string;
+    orange: string;
+  };
+}
+
+const QUOTA_MANAGER_BASE =
+  "layout.planning.calendarRules.quotaManagement" as const;
+
+export function getQuotaManagerMessages(
+  dict: I18nDictionary
+): QuotaManagerMessages {
+  return {
+    noWindows: tr(`${QUOTA_MANAGER_BASE}.noWindows`, dict),
+    windowPlaceholder: tr(`${QUOTA_MANAGER_BASE}.windowPlaceholder`, dict),
+    availableQuotas: tr(`${QUOTA_MANAGER_BASE}.availableQuotas`, dict),
+    deleteWindow: tr(`${QUOTA_MANAGER_BASE}.deleteWindow`, dict),
+    weekly: tr(`${QUOTA_MANAGER_BASE}.weekly`, dict),
+    dailyException: tr(`${QUOTA_MANAGER_BASE}.dailyException`, dict),
+    selectDate: tr(`${QUOTA_MANAGER_BASE}.selectDate`, dict),
+    selectAll: tr(`${QUOTA_MANAGER_BASE}.selectAll`, dict),
+    deselectAll: tr(`${QUOTA_MANAGER_BASE}.deselectAll`, dict),
+    selectWeeks: tr(`${QUOTA_MANAGER_BASE}.selectWeeks`, dict),
+    allWeeks: tr(`${QUOTA_MANAGER_BASE}.allWeeks`, dict),
+    scheduleConflict: tr(`${QUOTA_MANAGER_BASE}.scheduleConflict`, dict),
+    addWindow: tr(`${QUOTA_MANAGER_BASE}.addWindow`, dict),
+    apply: tr(`${QUOTA_MANAGER_BASE}.apply`, dict),
+    today: tr(`${QUOTA_MANAGER_BASE}.today`, dict),
+    clear: tr(`${QUOTA_MANAGER_BASE}.clear`, dict),
+    colors: {
+      emerald: tr(`${QUOTA_MANAGER_BASE}.colors.emerald`, dict),
+      blue: tr(`${QUOTA_MANAGER_BASE}.colors.blue`, dict),
+      violet: tr(`${QUOTA_MANAGER_BASE}.colors.violet`, dict),
+      rose: tr(`${QUOTA_MANAGER_BASE}.colors.rose`, dict),
+      amber: tr(`${QUOTA_MANAGER_BASE}.colors.amber`, dict),
+      cyan: tr(`${QUOTA_MANAGER_BASE}.colors.cyan`, dict),
+      lime: tr(`${QUOTA_MANAGER_BASE}.colors.lime`, dict),
+      orange: tr(`${QUOTA_MANAGER_BASE}.colors.orange`, dict),
+    },
+  };
+}
+
 interface QuotaManagerProps {
+  messages: QuotaManagerMessages;
   onRulesChange?: (windows: TimeWindow[], formatString: string) => void;
 }
 
 export default function QuotaManager({
+  messages,
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
   const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } =
     usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
+  const colorOptions = useMemo(() => getColorOptions(messages), [messages]);
 
   // Auto-delete expired daily-override exceptions (date before today)
   useEffect(() => {
@@ -478,7 +574,7 @@ export default function QuotaManager({
         {timeWindows.length === 0 && (
           <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
             <HiCalendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            No hay ventanas definidas
+            {messages.noWindows}
           </div>
         )}
         {timeWindows.map((window, index) => {
@@ -513,7 +609,7 @@ export default function QuotaManager({
                   {hasCollision && (
                     <span
                       className="text-red-500 text-xs"
-                      title="Conflicto de horarios"
+                      title={messages.scheduleConflict}
                     >
                       ⚠️
                     </span>
@@ -524,7 +620,10 @@ export default function QuotaManager({
                     onChange={(e) =>
                       updateTimeWindowName(window.id, e.target.value)
                     }
-                    placeholder={`Ventana ${index + 1}`}
+                    placeholder={messages.windowPlaceholder.replace(
+                      "{index}",
+                      String(index + 1)
+                    )}
                     className={twMerge(
                       "text-sm font-semibold bg-transparent border-0 focus:ring-0 p-0 flex-1 max-w-[140px] placeholder:text-gray-400",
                       hasCollision
@@ -537,7 +636,7 @@ export default function QuotaManager({
                   {/* Quota badge */}
                   <div
                     className="flex items-center bg-primary-100 dark:bg-primary-900/30 rounded-full"
-                    title="Cupos disponibles"
+                    title={messages.availableQuotas}
                   >
                     <button
                       type="button"
@@ -585,7 +684,7 @@ export default function QuotaManager({
                     type="button"
                     onClick={() => removeTimeWindow(window.id)}
                     className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                    title="Eliminar ventana"
+                    title={messages.deleteWindow}
                   >
                     <HiTrash className="h-3.5 w-3.5" />
                   </button>
@@ -607,7 +706,7 @@ export default function QuotaManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Semanal
+                      {messages.weekly}
                     </button>
                     <button
                       type="button"
@@ -621,14 +720,14 @@ export default function QuotaManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Excepción día
+                      {messages.dailyException}
                     </button>
                   </div>
                   {/* Color Picker Dropdown */}
                   <ColorPickerDropdown
                     value={window.color || "emerald"}
                     onChange={(color) => updateWindowColor(window.id, color)}
-                    options={COLOR_OPTIONS}
+                    options={colorOptions}
                   />
                 </div>
 
@@ -676,8 +775,8 @@ export default function QuotaManager({
                       onClick={() => toggleAllDays(window.id)}
                       title={
                         pattern.days.length === 7
-                          ? "Deseleccionar todos"
-                          : "Seleccionar todos"
+                          ? messages.deselectAll
+                          : messages.selectAll
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -718,6 +817,11 @@ export default function QuotaManager({
                     onChange={(date) =>
                       updateDailyOverrideDate(window.id, date)
                     }
+                    messages={{
+                      selectDate: messages.selectDate,
+                      today: messages.today,
+                      clear: messages.clear,
+                    }}
                   />
                 )}
 
@@ -728,7 +832,7 @@ export default function QuotaManager({
                       type="button"
                       onClick={() => toggleAllWeeks(window.id)}
                       title={
-                        isAllWeeks ? "Seleccionar semanas" : "Todas las semanas"
+                        isAllWeeks ? messages.selectWeeks : messages.allWeeks
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -788,7 +892,7 @@ export default function QuotaManager({
       >
         <Button color="light" size="sm" onClick={() => addTimeWindow("weekly")}>
           <HiPlus className="h-4 w-4 mr-1.5" />
-          Ventana
+          {messages.addWindow}
         </Button>
 
         <Button
@@ -799,7 +903,7 @@ export default function QuotaManager({
           className={hasAnyCollision ? "opacity-50 cursor-not-allowed" : ""}
         >
           <HiCheck className="h-4 w-4 mr-1.5" />
-          Aplicar
+          {messages.apply}
         </Button>
       </div>
     </div>

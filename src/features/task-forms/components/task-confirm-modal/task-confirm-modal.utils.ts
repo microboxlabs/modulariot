@@ -1,7 +1,6 @@
 import { SelectConfig } from "./task-confirm-modal.types";
+import { DynamicFormValues } from "@/features/dynamic-forms";
 import dayjs from "dayjs";
-
-export type CustomFormValues = Record<string, string | boolean>;
 
 export interface FormDataParams {
   taskId: string;
@@ -11,7 +10,7 @@ export interface FormDataParams {
   selectedValues: string[];
   selectConfig: SelectConfig | null;
   extraData?: Record<string, any>;
-  customFormValues?: CustomFormValues;
+  customFormValues?: DynamicFormValues;
 }
 
 export function prepareFormData({

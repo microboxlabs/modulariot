@@ -112,22 +112,3 @@ export type LiveFieldFetcherProps = {
 export type LiveFieldFetcher = (
   props: LiveFieldFetcherProps
 ) => Promise<string | null>;
-
-// ============================================
-// Legacy type aliases for backward compatibility
-// ============================================
-
-/** @deprecated Use DynamicFieldType instead */
-export type FormFieldType = DynamicFieldType;
-
-/** @deprecated Use DynamicFieldOption instead */
-export type FormFieldOption = DynamicFieldOption;
-
-/** @deprecated Use DynamicFieldConfig instead */
-export type FormFieldConfig = DynamicFieldConfig;
-
-/** @deprecated Use DynamicFormConfig instead */
-export type CustomFormConfig = DynamicFormConfig;
-
-/** @deprecated Use DynamicFormValues instead */
-export type CustomFormValues = DynamicFormValues;

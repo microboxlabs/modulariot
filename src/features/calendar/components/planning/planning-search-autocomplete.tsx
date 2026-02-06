@@ -131,40 +131,42 @@ function DropdownContent({
   return (
     <ul className="py-1" role="listbox">
       {searchResults.map((result, index) => (
-        <li
-          key={result.matchType}
-          role="option"
-          aria-selected={index === selectedIndex}
-          tabIndex={index === selectedIndex ? 0 : -1}
-          onClick={() => onMatchTypeSelect(result)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onMatchTypeSelect(result);
-            }
-          }}
-          onMouseEnter={() => onMouseEnter(index)}
-          onFocus={() => onMouseEnter(index)}
-          onBlur={() => {}}
-          className={twMerge(
-            "px-4 py-2 cursor-pointer flex items-center gap-2",
-            "transition-colors",
-            index === selectedIndex
-              ? "bg-blue-50 dark:bg-blue-900/30"
-              : "hover:bg-gray-50 dark:hover:bg-gray-700"
-          )}
-        >
-          <div className="flex items-center justify-center w-5 h-5 shrink-0">
-            {getMatchTypeIcon(result.matchType)}
-          </div>
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
-              {getMatchTypeLabel(result.matchType)}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              ({result.count})
-            </span>
-          </div>
+        <li key={result.matchType}>
+          <button
+            type="button"
+            role="option"
+            aria-selected={index === selectedIndex}
+            tabIndex={index === selectedIndex ? 0 : -1}
+            onClick={() => onMatchTypeSelect(result)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onMatchTypeSelect(result);
+              }
+            }}
+            onMouseEnter={() => onMouseEnter(index)}
+            onFocus={() => onMouseEnter(index)}
+            onBlur={() => {}}
+            className={twMerge(
+              "w-full text-left px-4 py-2 cursor-pointer flex items-center gap-2",
+              "transition-colors border-0 bg-transparent",
+              index === selectedIndex
+                ? "bg-blue-50 dark:bg-blue-900/30"
+                : "hover:bg-gray-50 dark:hover:bg-gray-700"
+            )}
+          >
+            <div className="flex items-center justify-center w-5 h-5 shrink-0">
+              {getMatchTypeIcon(result.matchType)}
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {getMatchTypeLabel(result.matchType)}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                ({result.count})
+              </span>
+            </div>
+          </button>
         </li>
       ))}
     </ul>

@@ -1090,7 +1090,8 @@
       "reception": "Reception",
       "deleteModal": {
         "title": "Confirm deletion",
-        "message": "Delete assignment for service {serviceId}?",
+        "messagePrefix": "Delete assignment for service ",
+        "messageSuffix": "?",
         "close": "Close",
         "cancel": "Cancel",
         "delete": "Delete"

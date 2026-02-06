@@ -10,7 +10,8 @@ import type { PlannedService } from "./planning-selection-context";
 
 export interface DeleteConfirmationModalMessages {
   title: string;
-  message: string;
+  messagePrefix: string;
+  messageSuffix: string;
   close: string;
   cancel: string;
   delete: string;
@@ -28,11 +29,12 @@ const DELETE_MODAL_BASE = "layout.planning.deleteModal" as const;
 
 export function getDeleteModalMessages(
   dict: I18nDictionary,
-  serviceId: string
+  _serviceId: string
 ): DeleteConfirmationModalMessages {
   return {
     title: tr(`${DELETE_MODAL_BASE}.title`, dict),
-    message: tr(`${DELETE_MODAL_BASE}.message`, dict, { serviceId }),
+    messagePrefix: tr(`${DELETE_MODAL_BASE}.messagePrefix`, dict),
+    messageSuffix: tr(`${DELETE_MODAL_BASE}.messageSuffix`, dict),
     close: tr(`${DELETE_MODAL_BASE}.close`, dict),
     cancel: tr(`${DELETE_MODAL_BASE}.cancel`, dict),
     delete: tr(`${DELETE_MODAL_BASE}.delete`, dict),
@@ -121,7 +123,12 @@ export function DeleteConfirmationModal({
 
         {/* Message */}
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 whitespace-nowrap">
-          {messages.message}
+          {messages.messagePrefix}
+          <span className="font-mono font-bold text-gray-900 dark:text-white">
+            {plannedService.service.id}
+          </span>
+          {/* */}
+          {messages.messageSuffix}
         </p>
 
         {/* Actions */}

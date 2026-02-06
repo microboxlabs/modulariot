@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -17,7 +17,6 @@ import {
   isValidViewMode,
 } from "@/features/calendar/services/calendar.service";
 import CalendarRules from "./calendar-rules/calendar-rules";
-import { tr } from "@/features/i18n/tr.service";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
 

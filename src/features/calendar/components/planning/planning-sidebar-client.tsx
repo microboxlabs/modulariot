@@ -270,11 +270,7 @@ export function PlanningSidebarClient({
   }, [searchTags]);
 
   // Fetch tasks from API
-  const {
-    data: myTasksData,
-    error: myTasksError,
-    isLoading: isLoadingTasks,
-  } = useMyTasks(
+  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
     ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)

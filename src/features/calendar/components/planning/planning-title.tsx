@@ -4,7 +4,7 @@ import { Dropdown, DropdownItem, Button } from "flowbite-react";
 import { ChevronDown } from "flowbite-react-icons/outline";
 import { useState } from "react";
 
-export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
+export default function PlanningTitle({ dict }: Readonly<{ dict: I18nRecord }>) {
   const [type, setType] = useState<"dispatch" | "reception">("dispatch");
 
   return (

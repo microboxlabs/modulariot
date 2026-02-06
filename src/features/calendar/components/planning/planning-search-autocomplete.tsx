@@ -133,9 +133,19 @@ function DropdownContent({
       {searchResults.map((result, index) => (
         <li
           key={result.matchType}
+          role="option"
           aria-selected={index === selectedIndex}
+          tabIndex={index === selectedIndex ? 0 : -1}
           onClick={() => onMatchTypeSelect(result)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onMatchTypeSelect(result);
+            }
+          }}
           onMouseEnter={() => onMouseEnter(index)}
+          onFocus={() => onMouseEnter(index)}
+          onBlur={() => {}}
           className={twMerge(
             "px-4 py-2 cursor-pointer flex items-center gap-2",
             "transition-colors",

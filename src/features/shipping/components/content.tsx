@@ -151,11 +151,23 @@ export default function PageContent({
     }
   }, [searchTasksData, myTasksData, page, searchParams.get("search")]);
 
-  if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
-    router.replace(`/${lang}/sign-in`);
+  useEffect(() => {
+    if (myTasksError?.status === 401 || searchTasksError?.status === 401) {
+      router.replace(`/${lang}/sign-in`);
+    }
+  }, [myTasksError?.status, searchTasksError?.status, lang, router]);
+
+  const isUnauthorized =
+    myTasksError?.status === 401 || searchTasksError?.status === 401;
+  const hasOtherError =
+    (myTasksError && myTasksError.status !== 401) ||
+    (searchTasksError && searchTasksError.status !== 401);
+
+  if (isUnauthorized) {
+    return null;
   }
 
-  if (myTasksError || searchTasksError) {
+  if (hasOtherError) {
     return (
       <div>Error: {myTasksError?.message || searchTasksError?.message}</div>
     );

@@ -3,13 +3,20 @@
 import { Button } from "flowbite-react";
 import { useState } from "react";
 import { FaGear } from "react-icons/fa6";
-import QuotaManager from "./quota-manager";
-import TimeBlockManager from "./time-block-manager";
-import AndenesManager, { type PlatformConfig } from "./andenes-manager";
+import QuotaManager, { getQuotaManagerMessages } from "./quota-manager";
+import TimeBlockManager, {
+  getTimeBlockManagerMessages,
+} from "./time-block-manager";
+import AndenesManager, {
+  type PlatformConfig,
+  getAndenesManagerMessages,
+} from "./andenes-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { twMerge } from "tailwind-merge";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
 import type { ReactNode } from "react";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 type SettingOption = "quota" | "timeBlock" | "andenes" | null;
 
@@ -161,13 +168,64 @@ function CalendarRulesSection({
   );
 }
 
+export interface CalendarRulesMessages {
+  configureTimeWindows: string;
+  quotaManagement: {
+    title: string;
+    description: string;
+  };
+  timeBlocks: {
+    title: string;
+    description: string;
+  };
+  platformConfig: {
+    title: string;
+    description: string;
+  };
+}
+
+const CALENDAR_RULES_BASE = "layout.planning.calendarRules" as const;
+
+export function getCalendarRulesMessages(
+  dict: I18nDictionary
+): CalendarRulesMessages {
+  return {
+    configureTimeWindows: tr(
+      `${CALENDAR_RULES_BASE}.configureTimeWindows`,
+      dict
+    ),
+    quotaManagement: {
+      title: tr(`${CALENDAR_RULES_BASE}.quotaManagement.title`, dict),
+      description: tr(
+        `${CALENDAR_RULES_BASE}.quotaManagement.description`,
+        dict
+      ),
+    },
+    timeBlocks: {
+      title: tr(`${CALENDAR_RULES_BASE}.timeBlocks.title`, dict),
+      description: tr(`${CALENDAR_RULES_BASE}.timeBlocks.description`, dict),
+    },
+    platformConfig: {
+      title: tr(`${CALENDAR_RULES_BASE}.platformConfig.title`, dict),
+      description: tr(
+        `${CALENDAR_RULES_BASE}.platformConfig.description`,
+        dict
+      ),
+    },
+  };
+}
+
 interface CalendarRulesProps {
+  dict: I18nDictionary;
+  messages: CalendarRulesMessages;
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
 }
 
 export default function CalendarRules({
+  dict,
+  messages,
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
@@ -188,7 +246,7 @@ export default function CalendarRules({
         color="alternative"
         size="sm"
         onClick={togglePanel}
-        title="Configurar ventanas de tiempo"
+        title={messages.configureTimeWindows}
       >
         <FaGear />
       </Button>
@@ -198,10 +256,11 @@ export default function CalendarRules({
             option="quota"
             selected={selected}
             setSelected={setSelected}
-            title="Gestion de cupos"
-            description="Define las ventanas de tiempo disponibles asi como sus cupos maximos."
+            title={messages.quotaManagement.title}
+            description={messages.quotaManagement.description}
           >
             <QuotaManager
+              messages={getQuotaManagerMessages(dict)}
               onRulesChange={(windows) => {
                 onRulesChange?.(windows);
                 closePanel();
@@ -213,10 +272,11 @@ export default function CalendarRules({
             option="timeBlock"
             selected={selected}
             setSelected={setSelected}
-            title="Bloqueos temporales"
-            description='Define periodos horarios o diarios como "bloqueados".'
+            title={messages.timeBlocks.title}
+            description={messages.timeBlocks.description}
           >
             <TimeBlockManager
+              messages={getTimeBlockManagerMessages(dict)}
               onBlocksChange={(blocks) => {
                 onBlocksChange?.(blocks);
                 closePanel();
@@ -228,10 +288,11 @@ export default function CalendarRules({
             option="andenes"
             selected={selected}
             setSelected={setSelected}
-            title="Configuración de andenes"
-            description="Define el número de andenes disponibles por franja."
+            title={messages.platformConfig.title}
+            description={messages.platformConfig.description}
           >
             <AndenesManager
+              messages={getAndenesManagerMessages(dict)}
               onConfigChange={(config) => {
                 onAndenesChange?.(config);
                 closePanel();

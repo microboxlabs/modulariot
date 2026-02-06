@@ -48,18 +48,65 @@ export async function signInWithMicrosoft(): Promise<void> {
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  await signIn("google", { redirectTo: "/app" });
+  await signIn("auth0", {
+    redirectTo: "/app",
+    authorizationParams: { connection: "google-oauth2" },
+  });
 }
 
 export async function signInWithGitHub(): Promise<void> {
-  await signIn("github", { redirectTo: "/app" });
+  await signIn("auth0", {
+    redirectTo: "/app",
+    authorizationParams: { connection: "github" },
+  });
 }
 
 /**
+ * Sign in with Auth0 database connection (username/password).
+ * Redirects to Auth0 with connection hint for the database.
+ *
+ * @param email - Optional email to pre-fill (login_hint)
+ */
+export async function signInWithAuth0Credentials(email?: string): Promise<void> {
+  await signIn("auth0", {
+    redirectTo: "/app",
+    authorizationParams: {
+      connection: "Username-Password-Authentication",
+      ...(email && { login_hint: email }),
+    },
+  });
+}
+
+/**
+ * Maps UI provider IDs to Auth0 connection names.
+ * When Auth0 is the OIDC broker, social logins are routed through Auth0 connections.
+ */
+const AUTH0_CONNECTION_MAP: Record<string, string> = {
+  google: "google-oauth2",
+  github: "github",
+  // Add more mappings as needed (e.g., "facebook": "facebook", "apple": "apple")
+};
+
+/**
  * Generic sign-in function that routes to the appropriate provider.
- * Use this for dynamic provider handling based on configuration.
+ *
+ * When Auth0 is configured (AUTH_AUTH0_ID is set), social providers like
+ * "google" and "github" are routed through Auth0 with the appropriate connection.
+ * Otherwise, falls back to direct OAuth provider sign-in.
  */
 export async function signInWithProvider(providerId: string): Promise<void> {
+  const auth0Connection = AUTH0_CONNECTION_MAP[providerId];
+
+  // If Auth0 is configured and we have a connection mapping, use Auth0 as broker
+  if (auth0Connection) {
+    await signIn("auth0", {
+      redirectTo: "/app",
+      authorizationParams: { connection: auth0Connection },
+    });
+    return;
+  }
+
+  // Fallback to direct provider sign-in (for providers not brokered through Auth0)
   await signIn(providerId, { redirectTo: "/app" });
 }
 

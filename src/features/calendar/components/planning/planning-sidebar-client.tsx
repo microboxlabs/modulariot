@@ -59,7 +59,9 @@ function calculateOccupation(task: KanbanBoardTask): number {
 /**
  * Determine trip type from serviceKind or executionType
  */
-function determineTripType(task: KanbanBoardTask): "Sider" | "Doble Sider" | "Rampla" {
+function determineTripType(
+  task: KanbanBoardTask
+): "Sider" | "Doble Sider" | "Rampla" {
   if (task.serviceKind === "Sider") return "Sider";
   if (task.serviceKind === "Doble Sider") return "Doble Sider";
   if (task.executionType === "Rampla") return "Rampla";
@@ -107,7 +109,10 @@ function calculateLeadTimeCompliance(icuCondition: number): {
 /**
  * Extract incidencias from task fields
  */
-function extractIncidencias(task: KanbanBoardTask, compliancePercentage: number): string[] {
+function extractIncidencias(
+  task: KanbanBoardTask,
+  compliancePercentage: number
+): string[] {
   const incidencias: string[] = [];
 
   if (task.mintral_priorityCode) {
@@ -240,7 +245,7 @@ export function PlanningSidebarClient({
       switch (tag.matchType) {
         case "id":
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
-          const serviceCodeMatch = tag.value.match(/^(\d+)/);
+          const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
             ? serviceCodeMatch[1]
             : tag.value;
@@ -307,13 +312,13 @@ export function PlanningSidebarClient({
   const windowBaseSlots = useMemo(() => {
     if (!selectedTimeWindow?.weeklyPattern) return 1;
     // Parse the window pattern to get start and end times
-    const match = selectedTimeWindow.weeklyPattern.match(/(\d{4})-(\d{4})$/);
+    const match = /(\d{4})-(\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
     if (!match) return 1;
     const [, startTime, endTime] = match;
-    const startHour = parseInt(startTime.slice(0, 2), 10);
-    const startMinutes = parseInt(startTime.slice(2, 4), 10);
-    const endHour = parseInt(endTime.slice(0, 2), 10);
-    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+    const startHour = Number.parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = Number.parseInt(startTime.slice(2, 4), 10);
+    const endHour = Number.parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = Number.parseInt(endTime.slice(2, 4), 10);
 
     const totalMinutes =
       endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
@@ -393,7 +398,6 @@ export function PlanningSidebarClient({
     };
 
     let services = [...allServices];
-
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
     if (searchTags.length > 0) {

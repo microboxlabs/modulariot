@@ -189,9 +189,7 @@ export const TimeWindowUtils = {
    */
   parseWeeklyPattern(pattern: string): ParsedWeeklyPattern | null {
     if (!pattern) return null;
-    const match = pattern.match(
-      /^W(\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/
-    );
+    const match = /^W(\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/.exec(pattern);
     if (!match) return null;
 
     const [, weeksStr, daysStr, startTime, endTime] = match;
@@ -206,10 +204,10 @@ export const TimeWindowUtils = {
     const days = this.parseRangeString(daysStr);
 
     // Parse times
-    const startHour = parseInt(startTime.slice(0, 2), 10);
-    const startMinutes = parseInt(startTime.slice(2, 4), 10);
-    const endHour = parseInt(endTime.slice(0, 2), 10);
-    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+    const startHour = Number.parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = Number.parseInt(startTime.slice(2, 4), 10);
+    const endHour = Number.parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = Number.parseInt(endTime.slice(2, 4), 10);
 
     return { weeks, days, startHour, startMinutes, endHour, endMinutes };
   },
@@ -413,27 +411,13 @@ export const TimeWindowUtils = {
   },
 };
 
-/**
- * Lead time data for a service - tracks compliance of OC lines
- */
-export interface LeadTimeData {
-  total_lineasoc_cumplen: number;
-  total_lineasoc_incumplen: number;
-  lineasoc_pctn_cumplimiento: number; // 0-100
-}
+// Re-export from common components for backward compatibility
+export {
+  type LeadTimeData,
+  getLeadTimeStatus,
+} from "@/features/common/components/kpi-display";
 
-/**
- * Get lead time status based on compliance percentage
- * 100% → success, >0% and <100% → warning, 0% → error
- */
-export function getLeadTimeStatus(
-  leadTime: LeadTimeData
-): "success" | "warning" | "error" {
-  const pct = leadTime.lineasoc_pctn_cumplimiento;
-  if (pct >= 100) return "success";
-  if (pct > 0) return "warning";
-  return "error";
-}
+import type { LeadTimeData } from "@/features/common/components/kpi-display";
 
 /**
  * Trip type options

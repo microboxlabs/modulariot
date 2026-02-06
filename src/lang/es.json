@@ -21,7 +21,22 @@
       "buttons": {
         "submit": "Ingresar a tu cuenta",
         "continueWithMicrosoft": "Continuar con usuario Mintral",
-        "continueWithEmail": "Continuar con usuario externo"
+        "continueWithEmail": "Continuar con usuario externo",
+        "continueWithGoogle": "Continuar con Google",
+        "continueWithGitHub": "Continuar con GitHub",
+        "continueWithSAML": "Continuar con SAML SSO",
+        "google": "Continuar con Google",
+        "github": "Continuar con GitHub",
+        "microsoft": "Continuar con Microsoft",
+        "microsoft-entra-id": "Continuar con Microsoft",
+        "saml": "Continuar con SSO",
+        "credentials": "Continuar con usuario externo"
+      },
+      "divider": "o",
+      "teamSlug": {
+        "label": "Identificador del equipo",
+        "placeholder": "nombre-de-tu-equipo",
+        "required": "El identificador del equipo es requerido"
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
@@ -1086,7 +1101,15 @@
     },
     "planning": {
       "dispatch": "Despacho",
-      "reception": "Recepción"
+      "reception": "Recepción",
+      "deleteModal": {
+        "title": "Confirmar eliminación",
+        "messagePrefix": "¿Eliminar la asignación del servicio ",
+        "messageSuffix": "?",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      }
     },
     "timeBlocks": {
       "title": "Bloqueos temporales",

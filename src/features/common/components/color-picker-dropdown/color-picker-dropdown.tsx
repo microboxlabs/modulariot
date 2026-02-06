@@ -37,7 +37,7 @@ export function ColorPickerDropdown<T extends string = string>({
   options,
   title = "Cambiar color",
   className,
-}: ColorPickerDropdownProps<T>) {
+}: Readonly<ColorPickerDropdownProps<T>>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);

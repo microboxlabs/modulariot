@@ -76,8 +76,8 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
   const codeToLabelMap = new Map<string, string>();
   const incidentCodes = service.mintral_incidents
     ? service.mintral_incidents.map((incident) => {
-        const rawCode = incident[0] as string;
-        const label = incident[1] as string;
+        const rawCode = incident[0];
+        const label = incident[1];
         // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
         const code = rawCode.replace(/^mintral_incident_/i, "");
         codeToLabelMap.set(code, label);
@@ -139,9 +139,14 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
           <div className="flex flex-wrap items-center gap-1 pointer-events-auto">
             {/* Primary incidencias - always visible */}
             {primary.map(({ key, config }) => {
-              const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+              const tooltip =
+                codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
               // Use the config color, with special handling for urgencia/C309 (purple with icon)
-              if (config.color === "purple" || key === "urgencia" || key === "C309") {
+              if (
+                config.color === "purple" ||
+                key === "urgencia" ||
+                key === "C309"
+              ) {
                 return (
                   <Badge
                     key={key}
@@ -171,7 +176,8 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
             {/* Secondary incidencias - shown directly if ≤2 and no primary */}
             {showSecondaryDirectly &&
               secondary.map(({ key, config }) => {
-                const tooltip = codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
+                const tooltip =
+                  codeToLabelMap.get(key) || codeToLabelMap.get(config.label);
                 return (
                   <Badge
                     key={key}
@@ -202,7 +208,9 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
               className={twMerge("w-3.5 h-3.5", leadTimeStyles.text)}
             />
             <span className={twMerge("font-medium", leadTimeStyles.text)}>
-              {service.cm_created ? dayjs(service.cm_created).format("D MMM") : "-"}
+              {service.cm_created
+                ? dayjs(service.cm_created).format("D MMM")
+                : "-"}
             </span>
           </div>
 

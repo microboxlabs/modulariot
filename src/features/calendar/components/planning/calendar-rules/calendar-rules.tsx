@@ -303,4 +303,5 @@ export default function CalendarRules({
   );
 }
 
-export type { TimeWindow, TimeBlock, PlatformConfig };
+export type { TimeWindow, TimeBlock } from "../planning-selection-context";
+export type { PlatformConfig } from "./andenes-manager";

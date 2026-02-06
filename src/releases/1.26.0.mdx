@@ -1,0 +1,119 @@
+# 🔔 Release Notes v1.26.0 — ModularIoT
+
+### Fecha: 06/02/2026
+
+**Objetivo**: Introducir el nuevo módulo de Planificación de Viajes con calendario interactivo, expandir las capacidades de procesamiento de eventos MIOT con métricas de utilización e incidencias, implementar el módulo de monitoreo de Live Streams, y mejorar la experiencia de usuario con indicadores de Lead Time visuales y navegación optimizada por perfil.
+
+## 🚀 Evolutivos
+
+- **📅 Módulo de Planificación de Viajes (Calendar Planning)**
+  - **Estructura de Navegación**: Nuevo ítem "Calendar" en el sidebar con acceso a la planificación de viajes.
+  - **Layout de Planificación**: Estructura de página con header de controles, área principal de calendario y sidebar lateral para asignación de servicios.
+  - **Header Interactivo**: Controles de navegación (anterior/siguiente/hoy), selector de vista (día/semana/mes) y visualización de fecha actual.
+  - **Vista Semanal MVP**: Grilla de calendario Lunes-Sábado con slots de 30 minutos (8:00-19:00), integrada con el estado de URL para navegación.
+  - **Vista Diaria MVP**: Layout dividido con grilla horaria y panel de eventos, sincronizado con la navegación del header.
+  - **Sidebar de Asignación**: Formulario para seleccionar y asignar servicios a slots del calendario con visualización de KPIs, flags y observaciones.
+  - **Configuración de Muelles**: Nuevo ajuste para configurar el número de muelles de carga que afecta la capacidad de slots.
+  - **Selector de Hora de Presentación**: Dropdown con validación de capacidad basada en ventanas de tiempo y muelles disponibles.
+
+- **📊 Procesador de Eventos de Expediciones con Métricas de Utilización**
+  - **Evento MIOT**: Nuevo procesador para eventos `Otros_Expediciones` que captura asignaciones de expediciones a viajes.
+  - **Integración PgRest**: Cliente para consultar métricas de utilización de servicio (`get_service_utilizacion`).
+  - **Aspecto de Utilización**: Nuevo `mintral:serviceUtilizationAspect` con propiedades de carga (peso, pallets, volumen), cumplimiento de entregas y metadata de expediciones.
+  - **KPIs de Capacidad**: Visualización del porcentaje de utilización máxima y restricción dominante (Carga/Pallets/Volumen).
+
+- **🚨 Procesador de Eventos de Incidencias**
+  - **Evento MIOT**: Nuevo procesador para eventos `Otros_Incidencia` que gestiona la creación y actualización de incidencias.
+  - **Modelo de Contenido**: Nuevo tipo `mintral:incident` con asociación hijo al folder de servicio.
+  - **Variables de Tarea**: Configuración automática de variables `mintral_incident_<code>` para filtrado y ordenamiento.
+  - **Eventos en DB**: Nuevos registros en `eventos_miot` para Incident Created, Incident Updated, Expedition Assigned/Removed.
+
+- **📈 Lead Time con Barra de Progreso y Totales de Cumplimiento**
+  - **Visualización Mejorada**: Reemplazo del campo de fecha por barra de progreso que muestra el porcentaje de cumplimiento.
+  - **Totales de Líneas**: Indicadores de líneas que cumplen vs total de líneas de orden.
+  - **Iconos de Estado**: CheckMark (100%), Warning (>0% <100%), Error (0%) según nivel de cumplimiento.
+  - **Alcance**: Implementado en formulario de búsqueda y tarjeta de servicio.
+
+- **📹 Módulo de Live Streams - Listado de Dispositivos**
+  - **Vista de Dispositivos**: Página con grid de tarjetas mostrando estado live/offline de dispositivos de streaming.
+  - **Filtros por Estado**: ButtonGroup para filtrar dispositivos por All/Live/Offline con contadores dinámicos.
+  - **Indicadores Visuales**: Badges con animación de pulso para dispositivos en vivo y thumbnails placeholder.
+  - **Soporte i18n**: Traducciones completas en español e inglés.
+
+- **🔖 Navegación de Tareas Pendientes**
+  - **Nuevo Item de Sidebar**: Acceso directo a "Tareas Pendientes" (`/mytasks?status=pending`) en la sección de tareas.
+  - **Filtro Automático**: Lista de tareas pre-filtrada para mostrar solo items pendientes.
+
+- **👤 Ajuste de Perfil MINTRAL_REVISOR**
+  - **Ocultación de "Mis Tareas"**: Sección de tareas oculta para usuarios con perfil de revisor (no participan en tareas operacionales).
+  - **Acceso a "Historial de Señales"**: Desbloqueada la sección de Signal History para revisores, permitiendo seguimiento y trazabilidad.
+
+- **📷 Transformación Automática PDF a PNG para POD**
+  - **Behavior Automático**: `PodPdfTransformBehavior` detecta y transforma documentos PDF de tipo PROOF_OF_DELIVERY a PNG.
+  - **Ejecución Asíncrona**: Procesamiento en `TRANSACTION_COMMIT` sin bloquear la carga de archivos.
+  - **Aspecto de Transformación**: Marca documentos transformados con `mintral:transformedDocument`.
+  - **Bloqueo de Workflow**: Validación de imágenes válidas antes de completar viaje para notificación Alerce.
+  - **Webscript Manual**: Endpoint POST `/mintral/transform/pod-to-png` para reprocesamiento.
+
+- **⚡ Cache de Memoria para Validación de Tokens HLS**
+  - **Optimización de Redis**: Cache local en `RedisHlsTokenService` para validación de tokens, reduciendo llamadas a Redis.
+  - **Beneficio de Streaming**: Una llamada por token en lugar de una por segmento durante sesiones HLS.
+
+- **🔬 Función get_service_incidences para MIOT**
+  - **Endpoint PostgreSQL**: Función expuesta vía pgrest API para obtener detalles de incidencias por servicio.
+  - **Respuesta Estructurada**: Código de tipo, cantidad de incidencias y descripción por tipo de incidencia.
+
+## 🔧 Integraciones
+
+- **🔗 Variable de Entorno STREAMHUB_IOT_URL**
+  - **Configuración Centralizada**: Nueva variable para el URL base de API de IoT de StreamHub.
+  - **Rutas Afectadas**: `/api/map/trip` y `/api/map/historic-pulses` ahora usan la configuración dinámica.
+  - **Flexibilidad**: Permite cambiar entre ambientes (producción, desarrollo) sin modificar código.
+
+- **🧪 Cobertura de Tests para SonarQube Cloud**
+  - **Configuración Vitest**: Reporter LCOV habilitado para generar reportes de cobertura.
+  - **Propiedades SonarQube**: Configuración de paths para reportes de cobertura JavaScript/TypeScript.
+  - **Pipeline CI/CD**: Integración de generación de cobertura antes del análisis de SonarQube.
+
+- **💰 Optimización de Costos - Remoción de PVC StreamHub**
+  - **Migración a GCS**: El almacenamiento de video migrado a Google Cloud Storage bucket `stream-frame`.
+  - **Eliminación de PVC**: Removido `prod-streamhub-quarkus-http-pulsar-publisher-pvc` de 50Gi para reducir costos de almacenamiento.
+  - **Configuración Helm**: Storage template condicional deshabilitado por defecto en el chart.
+
+## 🐛 Correcciones
+
+- **📊 Dashboard de Servicios no Muestra ETA Más Reciente**
+  - **Causa Raíz**: Selección incorrecta del ETA en `alerce.fn_services_dashboard` cuando existen múltiples actualizaciones.
+  - **Solución**: Corrección de la lógica SQL en el CTE `eta_procs` para garantizar el ETA más reciente por proceso.
+  - **Impacto**: Ordenamiento correcto y cálculo de estado (Atrasado/En Tiempo) utilizando el ETA actual.
+
+- **🛡️ API Propaga Errores de Parsing JSON al Frontend**
+  - **Problema**: Errores técnicos como `Unexpected token '<'...` se mostraban a usuarios cuando Alfresco retornaba páginas HTML de error.
+  - **Solución**: Mejora en `fetcher.ts` para detectar content-type y manejar errores de red (ETIMEDOUT, ECONNREFUSED).
+  - **Resultado**: Mensajes amigables como "El servicio no está disponible temporalmente" en lugar de errores técnicos.
+
+- **🔒 Token JWT Expuesto en Archivo .env**
+  - **Vulnerabilidad**: Token `OPENAPI_TOKEN` comprometido en el repositorio.
+  - **Remediación**: Revocación del token, generación de uno nuevo y limpieza del historial de Git.
+  - **Prevención**: Archivo `.env` contiene solo valores de ejemplo, secretos manejados por variables de ambiente seguras.
+
+- **🔄 Sesión Expirada no Redirige al Login**
+  - **Problema**: Hook `useGetUserStates` no manejaba correctamente respuestas 401, mostrando errores genéricos.
+  - **Solución**: Detección de errores 401 en fetcher y redirección automática al login.
+  - **UX Mejorado**: Transición fluida al expirar la sesión sin mensajes de error técnicos.
+
+## 📊 Beneficios
+
+- **📅 Planificación Visual**: El nuevo módulo de calendario permite a los planificadores gestionar asignaciones de viajes de forma intuitiva con visualización de capacidad y KPIs en tiempo real.
+- **🔍 Trazabilidad de Incidencias**: El procesamiento automatizado de eventos MIOT proporciona visibilidad completa sobre incidencias y su impacto en los servicios.
+- **📈 Métricas de Utilización**: Los nuevos KPIs de carga permiten decisiones basadas en datos sobre capacidad de vehículos y cumplimiento de SLAs.
+- **👁️ Monitoreo de Streaming**: El módulo de Live Streams ofrece supervisión en tiempo real del estado de dispositivos de video.
+- **⚡ Rendimiento Optimizado**: El cache de validación de tokens reduce latencia en streaming HLS y carga en Redis.
+- **🔐 Seguridad Reforzada**: Corrección de vulnerabilidades de exposición de secretos y manejo seguro de sesiones expiradas.
+- **💰 Reducción de Costos**: Eliminación de almacenamiento persistente innecesario tras migración a GCS.
+
+## 📌 Conclusión
+
+La versión 1.26.0 marca la introducción del módulo de Planificación de Viajes, una herramienta fundamental para la gestión operativa que permite visualizar y asignar servicios a través de un calendario interactivo con validación de capacidad. Esta funcionalidad se complementa con mejoras significativas en el procesamiento de eventos MIOT, ahora capaz de capturar métricas de utilización de carga y gestionar incidencias de forma automatizada.
+
+El release también fortalece la plataforma con el módulo inicial de Live Streams para monitoreo de dispositivos, mejoras visuales en los indicadores de Lead Time, y optimizaciones de rendimiento en el servicio de tokens HLS. Las correcciones de seguridad implementadas, junto con la migración a almacenamiento cloud y la integración de cobertura de tests en SonarQube, reflejan el compromiso continuo con la calidad, seguridad y eficiencia operacional del sistema.

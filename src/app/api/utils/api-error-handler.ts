@@ -34,6 +34,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   [FetcherErrorCode.NETWORK_ERROR]: "Unable to connect to the service. Please try again.",
   [FetcherErrorCode.SERVER_ERROR]: "A server error occurred. Please try again.",
   [FetcherErrorCode.CLIENT_ERROR]: "Invalid request. Please check your input.",
+  [FetcherErrorCode.ACTION_ERROR]: "Action failed. Please try again.",
 };
 
 /**

@@ -44,6 +44,41 @@
 - Use Zod for runtime validation of external data
 - Create separate `.types.ts` files for complex type definitions
 
+## Cognitive Complexity
+
+Cognitive Complexity measures how hard it is to understand the control flow of code. High cognitive complexity makes code hard to read, understand, test, and modify.
+
+**What increases cognitive complexity:**
+- Loop structures (for, while, do-while)
+- Conditionals (if, else, ternary operators)
+- Nested conditions and loops (each nesting level compounds complexity)
+- Mixed operators in conditions (`&&`, `||` combined)
+- Switch statements, catches, and jumps to labels
+
+**How to reduce cognitive complexity:**
+
+- **Extract complex conditions into functions** - A well-named function summarizes multiple lines and reduces cognitive load
+- **Break down large functions** - Each function should have a single responsibility
+- **Return early to avoid deep nesting** - Process exceptional cases first and return
+- **Use null-safe operations** - Prefer `?.` and `??` operators over multiple null checks
+- **Avoid nested ternaries** - Extract to variables or helper functions
+
+**Example - Before (high complexity):**
+```typescript
+return error ? (error instanceof Error ? error : new Error(String(error))) : null;
+```
+
+**Example - After (lower complexity):**
+```typescript
+const normalizeError = (error: unknown): Error | null => {
+  if (!error) return null;
+  return error instanceof Error ? error : new Error(String(error));
+};
+return normalizeError(error);
+```
+
+Note: Method calls are free (don't add complexity), but recursive calls do increment the score.
+
 ## Styling
 
 - Use Tailwind CSS utility classes

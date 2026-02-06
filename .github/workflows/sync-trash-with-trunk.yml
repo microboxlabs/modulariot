@@ -1,0 +1,42 @@
+name: Sync trash with trunk
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout trunk
+        uses: actions/checkout@v4
+        with:
+          ref: trunk
+
+      - name: Fetch trash branch
+        run: git fetch origin trash
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge trunk into trash
+        run: |
+          # Checkout trunk and fetch latest
+          git checkout trunk
+          git pull origin trunk
+
+          # Checkout trash branch
+          git checkout trash || git checkout -b trash origin/trash
+
+          # Merge trunk into trash
+          git merge origin/trunk -m "Sync trunk into trash $(date '+%Y-%m-%d %H:%M')"
+
+          # Push updated trash
+          git push origin trash

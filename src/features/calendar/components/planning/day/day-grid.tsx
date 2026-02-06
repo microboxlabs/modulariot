@@ -312,7 +312,6 @@ export default function DayGrid({
     getTimeWindowForSlot,
     getRemainingQuota,
     isSlotBlocked,
-    getBlocksForSlot,
     removeService,
     startReassignment,
     reassigningService,

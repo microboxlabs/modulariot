@@ -189,9 +189,7 @@ export const TimeWindowUtils = {
    */
   parseWeeklyPattern(pattern: string): ParsedWeeklyPattern | null {
     if (!pattern) return null;
-    const match = pattern.match(
-      /^W(\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/
-    );
+    const match = /^W(\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/.exec(pattern);
     if (!match) return null;
 
     const [, weeksStr, daysStr, startTime, endTime] = match;

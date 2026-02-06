@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useCallback, useState } from "react";
+import { Fragment, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
 import "dayjs/locale/en";
@@ -9,22 +9,24 @@ import type { DayInfo } from "../planning-day-view.types";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
 import {
   usePlanningSelection,
-  TIME_WINDOW_COLORS,
-  TimeWindowUtils,
   type PlannedService,
-  type TimeWindow,
 } from "../planning-selection-context";
 import {
   ServiceContextMenu,
-  type ContextMenuPosition,
 } from "../service-context-menu";
 import {
   DeleteConfirmationModal,
   getDeleteModalMessages,
 } from "../delete-confirmation-modal";
 import { ReassignmentConnector } from "../reassignment-connector";
-import { ShowNotification } from "@/features/notifications/notification";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { PlannedServiceChip } from "../planned-service-chip";
+import {
+  computeSlotState,
+  getSlotCellClassName,
+  type SlotState,
+} from "../planning-slot-utils";
+import { useServiceActions } from "../use-service-actions";
 
 interface DayGridProps {
   lang: string;
@@ -47,124 +49,6 @@ function getDayInfo(date: Date, lang: string): DayInfo {
     year: d.year(),
     isToday: d.isSame(today, "day"),
   };
-}
-
-const BLOCKED_STRIPE_CLASS =
-  "[background:repeating-linear-gradient(45deg,rgb(254,242,242),rgb(254,242,242)_4px,rgba(239,68,68,0.2)_4px,rgba(239,68,68,0.2)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(55,48,48),rgb(55,48,48)_4px,rgba(239,68,68,0.3)_4px,rgba(239,68,68,0.3)_8px)]";
-
-interface SlotState {
-  slotBlocked: boolean;
-  timeWindow: TimeWindow | null;
-  hasTimeWindow: boolean;
-  isWindowStart: boolean;
-  remainingQuota: number;
-  isQuotaFull: boolean;
-  isDisabled: boolean;
-  windowColor: { bg: string; hover: string; badge: string };
-  blockedStripeClass: string;
-}
-
-function computeSlotState(
-  currentDate: Date,
-  slot: { hour: number; minutes: number },
-  isPastDay: boolean,
-  deps: {
-    getTimeWindowForSlot: (
-      date: Date,
-      hour: number,
-      minutes: number
-    ) => TimeWindow | null;
-    getRemainingQuota: (window: TimeWindow, date: Date) => number;
-    isSlotBlocked: (date: Date, hour: number, minutes: number) => boolean;
-  }
-): SlotState {
-  const slotBlocked = deps.isSlotBlocked(currentDate, slot.hour, slot.minutes);
-  const timeWindow = deps.getTimeWindowForSlot(
-    currentDate,
-    slot.hour,
-    slot.minutes
-  );
-  const hasTimeWindow = timeWindow !== null;
-  const timeRange = hasTimeWindow
-    ? TimeWindowUtils.getTimeRange(timeWindow)
-    : null;
-  const isWindowStart =
-    hasTimeWindow &&
-    timeRange !== null &&
-    slot.hour === timeRange.startHour &&
-    slot.minutes === timeRange.startMinutes;
-  const remainingQuota = hasTimeWindow
-    ? deps.getRemainingQuota(timeWindow, currentDate)
-    : 0;
-  const isQuotaFull = remainingQuota === 0;
-  const isDisabled = isPastDay || slotBlocked || isQuotaFull;
-  const windowColor =
-    hasTimeWindow && timeWindow.color
-      ? TIME_WINDOW_COLORS[timeWindow.color]
-      : TIME_WINDOW_COLORS.emerald;
-  const blockedStripeClass =
-    slotBlocked && !isPastDay ? BLOCKED_STRIPE_CLASS : "";
-  return {
-    slotBlocked,
-    timeWindow,
-    hasTimeWindow,
-    isWindowStart,
-    remainingQuota,
-    isQuotaFull,
-    isDisabled,
-    windowColor,
-    blockedStripeClass,
-  };
-}
-
-function getSlotCellClassName(
-  state: SlotState,
-  isPastDay: boolean,
-  selected: boolean,
-  isLast: boolean
-): string {
-  const {
-    slotBlocked,
-    hasTimeWindow,
-    isQuotaFull,
-    isDisabled,
-    windowColor,
-    blockedStripeClass,
-  } = state;
-  return twMerge(
-    "h-full w-full relative",
-    "border-l border-t border-r border-gray-200 dark:border-gray-700",
-    "transition-all duration-200 p-1",
-    blockedStripeClass,
-    isPastDay && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
-    isDisabled ? "cursor-not-allowed" : "cursor-pointer",
-    !isPastDay && !slotBlocked && isQuotaFull && "opacity-60",
-    !isPastDay &&
-      !slotBlocked &&
-      hasTimeWindow &&
-      !selected &&
-      !isQuotaFull &&
-      windowColor.bg,
-    !isPastDay &&
-      !slotBlocked &&
-      hasTimeWindow &&
-      !selected &&
-      isQuotaFull &&
-      "bg-red-50 dark:bg-red-900/20",
-    selected
-      ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-      : !isPastDay &&
-          !slotBlocked &&
-          !hasTimeWindow &&
-          "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-    !isPastDay &&
-      !slotBlocked &&
-      hasTimeWindow &&
-      !selected &&
-      !isQuotaFull &&
-      windowColor.hover,
-    isLast && "border-b rounded-br-lg"
-  );
 }
 
 interface DayGridSlotCellProps {
@@ -216,7 +100,9 @@ function DayGridSlotCell({
       data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
       onClick={handleClick}
       disabled={isDisabled}
-      className={getSlotCellClassName(state, isPastDay, selected, isLastSlot)}
+      className={getSlotCellClassName(state, isPastDay, selected, {
+        isLastSlot,
+      })}
     >
       {!isPastDay && slotBlocked && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -261,6 +147,7 @@ function DayGridSlotCell({
                 reassigningService?.service.service.id === ps.service.id
               }
               onContextMenu={onContextMenu}
+              className="flex-1"
             />
           ))}
         </div>
@@ -272,54 +159,6 @@ function DayGridSlotCell({
     return <div className="w-full h-full">{cellContent}</div>;
   }
   return cellContent;
-}
-
-interface PlannedServiceChipProps {
-  plannedService: PlannedService;
-  isBeingReassigned: boolean;
-  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
-}
-
-function PlannedServiceChip({
-  plannedService,
-  isBeingReassigned,
-  onContextMenu,
-}: Readonly<PlannedServiceChipProps>) {
-  const hasUrgencia = plannedService.service.incidencias.includes("urgencia");
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ContextMenu" || e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      const rect = e.currentTarget.getBoundingClientRect();
-      const syntheticEvent = {
-        preventDefault: () => {},
-        stopPropagation: () => {},
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2,
-      } as React.MouseEvent;
-      onContextMenu(syntheticEvent, plannedService);
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onContextMenu={(e) => onContextMenu(e, plannedService)}
-      onKeyDown={handleKeyDown}
-      className={twMerge(
-        "m-0 border-0 bg-transparent p-0 text-left font-inherit min-w-0",
-        "flex-1 rounded flex items-center justify-start cursor-context-menu",
-        "text-xs font-medium truncate px-1 border-l-4",
-        hasUrgencia
-          ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
-          : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
-        isBeingReassigned && "ring-2 ring-amber-500 ring-offset-1 animate-pulse"
-      )}
-      title={`${plannedService.service.id} - Clic derecho para opciones`}
-    >
-      {plannedService.service.id}
-    </button>
-  );
 }
 
 export default function DayGrid({
@@ -341,89 +180,17 @@ export default function DayGrid({
     reassigningService,
   } = usePlanningSelection();
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState<{
-    isOpen: boolean;
-    position: ContextMenuPosition;
-    plannedService: PlannedService | null;
-  }>({
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    plannedService: null,
-  });
-
-  // Delete confirmation modal state
-  const [deleteModal, setDeleteModal] = useState<{
-    isOpen: boolean;
-    plannedService: PlannedService | null;
-  }>({
-    isOpen: false,
-    plannedService: null,
-  });
-
-  // Context menu handlers
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent, plannedService: PlannedService) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setContextMenu({
-        isOpen: true,
-        position: { x: e.clientX, y: e.clientY },
-        plannedService,
-      });
-    },
-    []
-  );
-
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu((prev) => ({ ...prev, isOpen: false }));
-  }, []);
-
-  const handleReassign = useCallback(
-    (plannedService: PlannedService) => {
-      startReassignment(plannedService);
-      ShowNotification({
-        type: "info",
-        message: "Seleccione una nueva fecha y hora para reasignar el servicio",
-      });
-    },
-    [startReassignment]
-  );
-
-  const handleDeleteRequest = useCallback((plannedService: PlannedService) => {
-    setDeleteModal({
-      isOpen: true,
-      plannedService,
-    });
-  }, []);
-
-  const handleConfirmDelete = useCallback(
-    async (plannedService: PlannedService) => {
-      console.log("handleConfirmDelete", plannedService);
-      if (plannedService) {
-        try {
-          await removeService(plannedService.service.id);
-          ShowNotification({
-            type: "success",
-            message: "Asignación eliminada",
-          });
-        } catch (error) {
-          console.error("Error deleting planned service:", error);
-          ShowNotification({
-            type: "error",
-            message:
-              "Error al eliminar la asignación. Por favor, intente nuevamente.",
-          });
-        }
-      }
-      setDeleteModal({ isOpen: false, plannedService: null });
-    },
-    [removeService]
-  );
-
-  const handleCancelDelete = useCallback(() => {
-    setDeleteModal({ isOpen: false, plannedService: null });
-  }, []);
+  // Use shared hook for context menu and delete modal
+  const {
+    contextMenu,
+    deleteModal,
+    handleContextMenu,
+    handleCloseContextMenu,
+    handleReassign,
+    handleDeleteRequest,
+    handleConfirmDelete,
+    handleCancelDelete,
+  } = useServiceActions({ removeService, startReassignment });
 
   const timeSlots = useMemo(
     () => generateTimeSlots(startHour, endHour),

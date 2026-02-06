@@ -15,18 +15,13 @@ import { CalendarViewSwitcher } from "./calendar-view-switcher";
 import {
   DATE_FORMAT,
   isValidViewMode,
+  parseUrlDate,
 } from "@/features/calendar/services/calendar.service";
 import CalendarRules from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
 
 dayjs.extend(weekOfYear);
-
-function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
-  if (!dateStr) return null;
-  const parsed = dayjs(dateStr, DATE_FORMAT, true);
-  return parsed.isValid() ? parsed : null;
-}
 
 function getLocaleCode(lang: string): string {
   return lang === "es" ? "es" : "en";

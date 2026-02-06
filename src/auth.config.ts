@@ -3,6 +3,8 @@ import Credentials from "next-auth/providers/credentials";
 import { signInWithCredentials } from "@/features/auth/services/auth.service";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import Auth0 from "next-auth/providers/auth0"
+
 import { NextResponse } from "next/server";
 import { createManagedLogger } from "./lib/logger";
 import {
@@ -11,6 +13,74 @@ import {
   cleanupRefreshTokens,
 } from "@/features/auth/providers/entra-token/entra-token-ecm.service";
 
+/**
+ * Builds the list of authentication providers based on available environment variables.
+ * Providers are only included if their required credentials are configured.
+ */
+function buildAuthProviders(): NextAuthConfig["providers"] {
+  const providers: NextAuthConfig["providers"] = [];
+
+  if (
+    process.env.AUTH_AUTH0_ID &&
+    process.env.AUTH_AUTH0_SECRET &&
+    process.env.AUTH_AUTH0_ISSUER
+  ) {
+    providers.push(
+      Auth0({
+        clientId: process.env.AUTH_AUTH0_ID,
+        clientSecret: process.env.AUTH_AUTH0_SECRET,
+        issuer: process.env.AUTH_AUTH0_ISSUER,
+        authorization: {
+          params: {
+            // Only include audience if configured (requires API to be authorized for app)
+            ...(process.env.AUTH_AUTH0_AUDIENCE && { audience: process.env.AUTH_AUTH0_AUDIENCE }),
+            scope: "openid profile email offline_access",
+          },
+        },
+      })
+    );
+  }
+
+  // Microsoft Entra ID - only add if configured
+  if (
+    process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+    process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+    process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
+  ) {
+    providers.push(
+      MicrosoftEntraID({
+        clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+        clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+        issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+        authorization: {
+          params: {
+            scope: "openid profile email User.Read offline_access",
+          },
+        },
+      })
+    );
+  }
+
+  
+
+  // Credentials provider - always available
+  providers.push(
+    Credentials({
+      id: "credentials",
+      name: "Credentials",
+      credentials: {
+        username: { label: "Username", type: "text", placeholder: "jsmith" },
+        password: { label: "Password", type: "password" },
+      },
+      authorize: async (credentials) => {
+        return signInWithCredentials(credentials as SignInCredentials);
+      },
+    })
+  );
+
+  return providers;
+}
+
 // Create hierarchical auth loggers for better management
 const authLogger = createManagedLogger("auth", "Authentication System");
 const authJwtLogger = createManagedLogger("auth.jwt", "JWT Processing", undefined, "auth");
@@ -18,6 +88,7 @@ const authSessionLogger = createManagedLogger("auth.session", "Session Managemen
 const authProviderLogger = createManagedLogger("auth.providers", "Auth Providers", undefined, "auth");
 const authMicrosoftLogger = createManagedLogger("auth.providers.microsoft", "Microsoft Entra ID", undefined, "auth.providers");
 const authCredentialsLogger = createManagedLogger("auth.providers.credentials", "Credentials Auth", undefined, "auth.providers");
+const authAuth0Logger = createManagedLogger("auth.providers.auth0", "Auth0 OIDC", undefined, "auth.providers");
 const authAuthzLogger = createManagedLogger("auth.authorization", "Route Authorization", undefined, "auth");
 
 export const authConfig = {
@@ -39,7 +110,7 @@ export const authConfig = {
         if (
           nextUrl.pathname.endsWith("/sign-in") ||
           nextUrl.pathname.endsWith("/totem") ||
-          nextUrl.pathname == "/app/favicon.ico" ||
+          nextUrl.pathname.endsWith("/favicon.ico") ||
           nextUrl.pathname.endsWith("/app/release") ||
           nextUrl.pathname.includes("/release/")
         ) {
@@ -83,10 +154,49 @@ export const authConfig = {
           token = await processMicrosoftEntraAccount(token, account, user, authJwtLogger);
         }
 
+        // Attempt rotation for OAuth tokens on subsequent invocations (Microsoft Entra ID only)
+        const isMicrosoftConfigured = !!(
+          process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
+          process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
+          process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER
+        );
+        if (isMicrosoftConfigured && token.refreshToken && !account) {
+          const rotatedToken = await processTokenRefresh(token, authJwtLogger);
+          token.rawJWT = rotatedToken.rawJWT;
+          token.accessTokenExpiresAt = rotatedToken.accessTokenExpiresAt;
+        }
+
+        // When user signs in with Auth0 (Google, GitHub, or Auth0 credentials)
+        if (account?.provider === "auth0") {
+          authAuth0Logger.debug({
+            hasAccessToken: !!account.access_token,
+            hasIdToken: !!account.id_token,
+            hasRefreshToken: !!account.refresh_token,
+            expiresAt: account.expires_at,
+          }, "Processing Auth0 authentication");
+
+          // Store Auth0 access token for backend API authorization
+          // With audience configured, access_token is a JWT meant for the API (ECM)
+          token.rawJWT = account.id_token;
+          token.accessTokenExpiresAt = account.expires_at;
+          token.refreshToken = account.refresh_token;
+
+          // Store user info from initial sign-in
+          if (user) {
+            token.name = user.name;
+            token.email = user.email;
+            token.picture = user.image;
+          }
+
+          authAuth0Logger.debug({
+            email: token.email,
+            hasRawJWT: !!token.rawJWT,
+            expiresAt: token.accessTokenExpiresAt,
+          }, "Auth0 tokens stored in JWT");
+        }
+
         // Attempt rotation for OAuth tokens on subsequent invocations
-        const rotatedToken = await processTokenRefresh(token, authJwtLogger);
-        token.rawJWT = rotatedToken.rawJWT;
-        token.accessTokenExpiresAt = rotatedToken.accessTokenExpiresAt;
+        
         // Handle credentials provider
         if (account && account.provider === "credentials") {
             authCredentialsLogger.debug( {
@@ -186,39 +296,29 @@ export const authConfig = {
     },
   },
 
-  providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-      authorization: {
-        params: {
-          scope: "openid profile email User.Read offline_access",
-        },
-      },
-    }),
-    Credentials({
-      id: "credentials",
-      name: "Credentials",
-      credentials: {
-        username: { label: "Username", type: "text", placeholder: "jsmith" },
-        password: { label: "Password", type: "password" },
-      },
-      authorize: async (credentials) => {
-        return signInWithCredentials(credentials as SignInCredentials);
-      },
-    }),
-  ],
+  providers: buildAuthProviders(),
 
   logger: {
     error(error: Error) {
-      // authLogger.error(error);
+      // Log the cause which contains the actual error details
+      const cause = (error as any).cause;
+      authLogger.error({
+        error,
+        message: error.message,
+        cause: cause?.message || cause,
+        causeStack: cause?.stack,
+      }, "NextAuth error");
+      console.error("[NextAuth Error]", error);
+      if (cause) {
+        console.error("[NextAuth Error Cause]", cause);
+      }
     },
     warn(code: string) {
-      // authLogger.warn(code);
+      authLogger.warn({ code }, "NextAuth warning");
+      console.warn("[NextAuth Warning]", code);
     },
     debug(code: string, ...message: any[]) {
-      // authLogger.debug(message, code);
+      authLogger.debug({ code, message }, "NextAuth debug");
     },
   },
   
@@ -230,6 +330,15 @@ export const authConfig = {
           email: user.email,
           isNewUser,
         }, "User signed in via Microsoft Entra ID");
+      } else if (account?.provider === "auth0") {
+        // Auth0 profile contains connection info to identify the identity provider
+        const connection = profile?.sub?.split("|")[0] ?? "auth0";
+        authAuth0Logger.info({  
+          userId: user.id,
+          email: user.email,
+          connection,
+          isNewUser,
+        }, "User signed in via Auth0");
       } else if (account?.provider === "credentials") {
         authCredentialsLogger.info( {
           userId: user.id,

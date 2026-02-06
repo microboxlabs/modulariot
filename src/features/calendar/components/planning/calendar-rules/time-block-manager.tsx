@@ -28,6 +28,19 @@ const DAYS_OF_WEEK = [
   { value: 7, label: "D", fullLabel: "Domingo" },
 ];
 
+function getBlockDayButtonClassName(
+  isSelected: boolean,
+  isWeekend: boolean
+): string {
+  if (isSelected) {
+    return "bg-red-500 text-white shadow-sm hover:bg-red-600";
+  }
+  if (isWeekend) {
+    return "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+}
+
 function generateTimeOptions(
   minHour = MIN_HOUR,
   maxHour = MAX_HOUR
@@ -149,10 +162,10 @@ function getCollidingBlockIds(
 function PortalDatepicker({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
-}) {
+}>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -247,7 +260,8 @@ interface TimeBlockManagerProps {
 export default function TimeBlockManager({
   onBlocksChange,
 }: Readonly<TimeBlockManagerProps>) {
-  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } = usePlanningSelection();
+  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } =
+    usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Auto-delete expired daily-override blocks (date before today)
@@ -714,11 +728,7 @@ export default function TimeBlockManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-red-500 text-white shadow-sm hover:bg-red-600"
-                                : isWeekend
-                                  ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getBlockDayButtonClassName(isSelected, isWeekend)
                             )}
                           >
                             {day.label}
@@ -769,4 +779,4 @@ export default function TimeBlockManager({
   );
 }
 
-export type { TimeBlock };
+export type { TimeBlock } from "../planning-selection-context";

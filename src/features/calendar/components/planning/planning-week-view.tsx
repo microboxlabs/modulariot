@@ -9,7 +9,6 @@ import isoWeek from "dayjs/plugin/isoWeek";
 
 dayjs.extend(isoWeek);
 import { twMerge } from "tailwind-merge";
-import { Tooltip } from "flowbite-react";
 import type {
   PlanningWeekViewProps,
   WeekDay,
@@ -20,15 +19,21 @@ import {
 } from "@/features/calendar/services/calendar.service";
 import {
   usePlanningSelection,
-  TIME_WINDOW_COLORS,
-  TimeWindowUtils,
   type PlannedService,
 } from "./planning-selection-context";
+import {
+  computeSlotState,
+  getSlotCellClassName,
+  type SlotState,
+} from "./planning-slot-utils";
 import {
   ServiceContextMenu,
   type ContextMenuPosition,
 } from "./service-context-menu";
-import { DeleteConfirmationModal } from "./delete-confirmation-modal";
+import {
+  DeleteConfirmationModal,
+  getDeleteModalMessages,
+} from "./delete-confirmation-modal";
 import { ReassignmentConnector } from "./reassignment-connector";
 import { ShowNotification } from "@/features/notifications/notification";
 
@@ -56,8 +61,150 @@ function generateWeekDays(currentDate: Date, lang: string): WeekDay[] {
   });
 }
 
+interface WeekPlannedServiceChipProps {
+  plannedService: PlannedService;
+  isBeingReassigned: boolean;
+  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+}
+
+function WeekPlannedServiceChip({
+  plannedService,
+  isBeingReassigned,
+  onContextMenu,
+}: Readonly<WeekPlannedServiceChipProps>) {
+  const hasUrgencia = plannedService.service.incidencias.includes("urgencia");
+  return (
+    <div
+      onContextMenu={(e) => onContextMenu(e, plannedService)}
+      className={twMerge(
+        "rounded flex items-center justify-start cursor-context-menu",
+        "text-xs font-medium truncate px-1 border-l-4 h-5",
+        hasUrgencia
+          ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
+          : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
+        isBeingReassigned && "ring-2 ring-amber-500 ring-offset-1 animate-pulse"
+      )}
+      title={`${plannedService.service.id} - Clic derecho para opciones`}
+    >
+      {plannedService.service.id}
+    </div>
+  );
+}
+
+interface WeekSlotCellProps {
+  day: WeekDay;
+  slot: { hour: number; minutes: number; label: string };
+  slotState: SlotState;
+  selected: boolean;
+  slotServices: PlannedService[];
+  isLastDay: boolean;
+  isLastSlot: boolean;
+  reassigningService: {
+    service: PlannedService;
+    originalSlot: { date: Date; hour: number; minutes: number };
+  } | null;
+  onCellClick: (day: WeekDay, slot: { hour: number; minutes: number }) => void;
+  onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
+}
+
+function WeekSlotCell({
+  day,
+  slot,
+  slotState,
+  selected,
+  slotServices,
+  isLastDay,
+  isLastSlot,
+  reassigningService,
+  onCellClick,
+  onContextMenu,
+}: Readonly<WeekSlotCellProps>) {
+  const {
+    slotBlocked,
+    timeWindow,
+    isWindowStart,
+    remainingQuota,
+    isQuotaFull,
+    isDisabled,
+    windowColor,
+  } = slotState;
+  const dayIsPast = dayjs(day.date).isBefore(dayjs().startOf("day"), "day");
+
+  const handleClick = () => {
+    if (!isDisabled) onCellClick(day, slot);
+  };
+
+  const cellContent = (
+    <button
+      type="button"
+      data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
+      data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
+      onClick={handleClick}
+      disabled={isDisabled}
+      className={getSlotCellClassName(slotState, dayIsPast, selected, {
+        isLastDay,
+        isLastSlot,
+      })}
+    >
+      {!dayIsPast && slotBlocked && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-red-500/60 text-lg">⊘</span>
+        </div>
+      )}
+      {!dayIsPast && !slotBlocked && isWindowStart && timeWindow?.name && (
+        <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
+          <span
+            className={twMerge(
+              "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
+              isQuotaFull
+                ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
+                : windowColor.badge
+            )}
+          >
+            {timeWindow.name}
+          </span>
+        </div>
+      )}
+      {!dayIsPast && !slotBlocked && isWindowStart && timeWindow && (
+        <div className="absolute top-0.5 right-0.5">
+          <span
+            className={twMerge(
+              "text-[9px] font-bold px-1 rounded",
+              isQuotaFull
+                ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
+                : windowColor.badge
+            )}
+          >
+            {remainingQuota}/{timeWindow.quota}
+          </span>
+        </div>
+      )}
+      {slotServices.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          {slotServices.map((ps) => (
+            <WeekPlannedServiceChip
+              key={ps.service.id}
+              plannedService={ps}
+              isBeingReassigned={
+                reassigningService?.service.service.id === ps.service.id
+              }
+              onContextMenu={onContextMenu}
+            />
+          ))}
+        </div>
+      )}
+    </button>
+  );
+
+  if (slotBlocked && !dayIsPast) {
+    return <div className="w-full h-full">{cellContent}</div>;
+  }
+  return cellContent;
+}
+
 export default function PlanningWeekView({
   lang,
+  dict,
   currentDate: propDate,
   startHour = 8,
   endHour = 22,
@@ -304,194 +451,34 @@ export default function PlanningWeekView({
 
               {/* Day cells */}
               {weekDays.map((day, dayIdx) => {
+                const slotState = computeSlotState(
+                  day.date,
+                  slot,
+                  isPastDay(day),
+                  {
+                    getTimeWindowForSlot,
+                    getRemainingQuota,
+                    isSlotBlocked,
+                  }
+                );
                 const selected = isSlotSelected(day, slot);
                 const slotServices = getPlannedServicesForSlot(day, slot);
-                const dayIsPast = isPastDay(day);
 
-                // Check if slot is blocked (priority over quotas)
-                const slotBlocked = isSlotBlocked(
-                  day.date,
-                  slot.hour,
-                  slot.minutes
-                );
-                const blocksForSlot = slotBlocked
-                  ? getBlocksForSlot(day.date, slot.hour, slot.minutes)
-                  : [];
-                const blockNames = blocksForSlot
-                  .map((b) => b.name || "Bloqueado")
-                  .join(", ");
-
-                const timeWindow = getTimeWindowForSlot(
-                  day.date,
-                  slot.hour,
-                  slot.minutes
-                );
-                const hasTimeWindow = timeWindow !== null;
-                // Get time range for this window
-                const timeRange = hasTimeWindow
-                  ? TimeWindowUtils.getTimeRange(timeWindow)
-                  : null;
-                // Show name only on the first slot of the time window
-                const isWindowStart =
-                  hasTimeWindow &&
-                  timeRange !== null &&
-                  slot.hour === timeRange.startHour &&
-                  slot.minutes === timeRange.startMinutes;
-                // Get remaining quota for this day
-                const remainingQuota = hasTimeWindow
-                  ? getRemainingQuota(timeWindow, day.date)
-                  : 0;
-                const isQuotaFull = remainingQuota === 0;
-                const isDailyOverride =
-                  hasTimeWindow && timeWindow.type === "daily-override";
-                // Blocked slots take priority over everything except past days
-                const isDisabled = dayIsPast || slotBlocked || isQuotaFull;
-                // Get color classes from the time window
-                const windowColor =
-                  hasTimeWindow && timeWindow.color
-                    ? TIME_WINDOW_COLORS[timeWindow.color]
-                    : TIME_WINDOW_COLORS.emerald;
-
-                // Diagonal stripes class for blocked slots (light/dark mode compatible)
-                const blockedStripeClass =
-                  slotBlocked && !dayIsPast
-                    ? "[background:repeating-linear-gradient(45deg,rgb(254,242,242),rgb(254,242,242)_4px,rgba(239,68,68,0.2)_4px,rgba(239,68,68,0.2)_8px)] dark:[background:repeating-linear-gradient(45deg,rgb(55,48,48),rgb(55,48,48)_4px,rgba(239,68,68,0.3)_4px,rgba(239,68,68,0.3)_8px)]"
-                    : "";
-
-                const cellContent = (
-                  <button
-                    type="button"
+                return (
+                  <WeekSlotCell
                     key={`${day.dayNumber}-${slot.label}`}
-                    data-slot-date={dayjs(day.date).format("YYYY-MM-DD")}
-                    data-slot-time={`${slot.hour.toString().padStart(2, "0")}:${slot.minutes.toString().padStart(2, "0")}`}
-                    onClick={() => !isDisabled && handleCellClick(day, slot)}
-                    disabled={isDisabled}
-                    className={twMerge(
-                      "h-full w-full relative",
-                      "border-l border-t border-gray-200 dark:border-gray-700",
-                      "transition-all duration-200 p-1",
-                      blockedStripeClass,
-                      dayIsPast && "bg-gray-100 dark:bg-gray-900/50 opacity-50",
-                      isDisabled ? "cursor-not-allowed" : "cursor-pointer",
-                      !dayIsPast && !slotBlocked && isQuotaFull && "opacity-60",
-                      // Time window with custom color (not full, not selected, not past, not blocked)
-                      !dayIsPast &&
-                        !slotBlocked &&
-                        hasTimeWindow &&
-                        !selected &&
-                        !isQuotaFull &&
-                        windowColor.bg,
-                      // Quota full - show red (not blocked)
-                      !dayIsPast &&
-                        !slotBlocked &&
-                        hasTimeWindow &&
-                        !selected &&
-                        isQuotaFull &&
-                        "bg-red-50 dark:bg-red-900/20",
-                      selected
-                        ? "bg-primary-100 dark:bg-primary-900/40 ring-2 ring-inset ring-primary-500"
-                        : !dayIsPast &&
-                            !slotBlocked &&
-                            !hasTimeWindow &&
-                            "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-                      !dayIsPast &&
-                        !slotBlocked &&
-                        hasTimeWindow &&
-                        !selected &&
-                        !isQuotaFull &&
-                        windowColor.hover,
-                      isLastDay(dayIdx) && "border-r",
-                      isLastSlot(slotIdx) && "border-b",
-                      isLastDay(dayIdx) &&
-                        isLastSlot(slotIdx) &&
-                        "rounded-br-lg"
-                    )}
-                  >
-                    {/* Blocked slot indicator */}
-                    {!dayIsPast && slotBlocked && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="text-red-500/60 text-lg">⊘</span>
-                      </div>
-                    )}
-                    {/* Time window name - only on first slot and not past day and not blocked */}
-                    {!dayIsPast &&
-                      !slotBlocked &&
-                      isWindowStart &&
-                      timeWindow.name && (
-                        <div className="absolute -top-0.5 left-1 right-1 flex items-center justify-center pointer-events-none">
-                          <span
-                            className={twMerge(
-                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-b shadow-sm truncate max-w-full",
-                              isQuotaFull
-                                ? "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/80"
-                                : windowColor.badge
-                            )}
-                          >
-                            {timeWindow.name}
-                          </span>
-                        </div>
-                      )}
-                    {/* Quota badge - only on first slot and not past day and not blocked */}
-                    {!dayIsPast && !slotBlocked && isWindowStart && (
-                      <div className="absolute top-0.5 right-0.5">
-                        <span
-                          className={twMerge(
-                            "text-[9px] font-bold px-1 rounded",
-                            isQuotaFull
-                              ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50"
-                              : windowColor.badge
-                          )}
-                        >
-                          {remainingQuota}/{timeWindow.quota}
-                        </span>
-                      </div>
-                    )}
-                    {slotServices.length > 0 && (
-                      <div className="flex flex-col gap-0.5">
-                        {slotServices.map((ps) => {
-                          const hasUrgencia =
-                            ps.service.incidencias.includes("urgencia");
-                          const isBeingReassigned =
-                            reassigningService?.service.service.id ===
-                            ps.service.id;
-                          return (
-                            <div
-                              key={ps.service.id}
-                              onContextMenu={(e) => handleContextMenu(e, ps)}
-                              className={twMerge(
-                                "rounded flex items-center justify-start cursor-context-menu",
-                                "text-xs font-medium truncate px-1 border-l-4 h-5",
-                                hasUrgencia
-                                  ? "bg-purple-100 text-purple-800 border-purple-600 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-400"
-                                  : "bg-blue-100 text-blue-800 border-blue-600 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400",
-                                // Highlight service being reassigned
-                                isBeingReassigned &&
-                                  "ring-2 ring-amber-500 ring-offset-1 animate-pulse"
-                              )}
-                              title={`${ps.service.id} - Clic derecho para opciones`}
-                            >
-                              {ps.service.id}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </button>
+                    day={day}
+                    slot={slot}
+                    slotState={slotState}
+                    selected={selected}
+                    slotServices={slotServices}
+                    isLastDay={isLastDay(dayIdx)}
+                    isLastSlot={isLastSlot(slotIdx)}
+                    reassigningService={reassigningService}
+                    onCellClick={handleCellClick}
+                    onContextMenu={handleContextMenu}
+                  />
                 );
-
-                // Wrap blocked cells with Tooltip showing block names
-                if (slotBlocked && !dayIsPast) {
-                  return (
-                    <div
-                      key={`${day.dayNumber}-${slot.label}`}
-                      className="w-full h-full"
-                    >
-                      {cellContent}
-                    </div>
-                  );
-                }
-
-                return cellContent;
               })}
             </Fragment>
           );
@@ -513,6 +500,10 @@ export default function PlanningWeekView({
         <DeleteConfirmationModal
           isOpen={deleteModal.isOpen}
           plannedService={deleteModal.plannedService}
+          messages={getDeleteModalMessages(
+            dict,
+            deleteModal.plannedService.service.id
+          )}
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />

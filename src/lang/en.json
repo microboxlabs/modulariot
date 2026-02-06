@@ -21,7 +21,22 @@
       "buttons": {
         "submit": "Sign in to your account",
         "continueWithMicrosoft": "Continue with Mintral user",
-        "continueWithEmail": "Continue with external user"
+        "continueWithEmail": "Continue with external user",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithGitHub": "Continue with GitHub",
+        "continueWithSAML": "Continue with SAML SSO",
+        "google": "Continue with Google",
+        "github": "Continue with GitHub",
+        "microsoft": "Continue with Microsoft",
+        "microsoft-entra-id": "Continue with Microsoft",
+        "saml": "Continue with SSO",
+        "credentials": "Continue with external user"
+      },
+      "divider": "o",
+      "teamSlug": {
+        "label": "Team identifier",
+        "placeholder": "your-team-name",
+        "required": "Team identifier is required"
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
@@ -1072,7 +1087,15 @@
     },
     "planning": {
       "dispatch": "Dispatch",
-      "reception": "Reception"
+      "reception": "Reception",
+      "deleteModal": {
+        "title": "Confirm deletion",
+        "messagePrefix": "Delete assignment for service ",
+        "messageSuffix": "?",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
     },
     "timeBlocks": {
       "title": "Time Blocks",

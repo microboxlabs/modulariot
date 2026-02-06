@@ -209,6 +209,41 @@ function getHtmlErrorMessage(
 }
 
 /**
+ * Attempts to extract error message from JSON response body
+ * Handles Alerce error format and other common API error structures
+ */
+function extractJsonErrorMessage(responseText: string): string | null {
+  try {
+    const json = JSON.parse(responseText);
+    
+    // Handle Alerce error format: { code, message, involvedObject: { respuesta } }
+    if (json.involvedObject?.respuesta) {
+      return json.involvedObject.respuesta;
+    }
+    
+    // Handle standard error format: { message }
+    if (typeof json.message === "string" && json.message.length > 0) {
+      return json.message;
+    }
+    
+    // Handle nested error format: { error: { message } }
+    if (typeof json.error?.message === "string" && json.error.message.length > 0) {
+      return json.error.message;
+    }
+    
+    // Handle error as string: { error: "message" }
+    if (typeof json.error === "string" && json.error.length > 0) {
+      return json.error;
+    }
+    
+    return null;
+  } catch {
+    // Not valid JSON, return null
+    return null;
+  }
+}
+
+/**
  * Gets error message and code from response
  */
 function getResponseErrorMessage(
@@ -223,15 +258,26 @@ function getResponseErrorMessage(
     return getHtmlErrorMessage(responseText, response.status);
   }
 
+  // Try to extract error message from JSON response body
+  const jsonErrorMessage = extractJsonErrorMessage(responseText);
+  
   if (response.status >= 500) {
     return {
-      message: "A server error occurred. Please try again.",
+      message: jsonErrorMessage || response.statusText || "A server error occurred. Please try again.",
       code: FetcherErrorCode.SERVER_ERROR,
     };
   }
 
+  // 4xx client errors - likely action/validation errors from external services
+  if (response.status >= 400) {
+    return {
+      message: jsonErrorMessage || response.statusText || "Request failed",
+      code: FetcherErrorCode.ACTION_ERROR,
+    };
+  }
+
   return {
-    message: response.statusText || "Request failed",
+    message: jsonErrorMessage || response.statusText || "Request failed",
     code: FetcherErrorCode.SERVER_ERROR,
   };
 }

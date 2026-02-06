@@ -44,6 +44,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
 
   useEffect(() => {
     if (userFiltersData && userFiltersData?.length > 0) {
+      const taskPositions = pages.findIndex((page) => page.label === "tasks");
       userFiltersData.forEach((filter) => {
         const filterArray = filter.split("&");
         const filterPart = filterArray
@@ -70,15 +71,19 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
         ).then((total) => {
           if (
             pages &&
-            pages[2] &&
-            pages[2].items &&
-            pages[2].items?.length <= userFiltersData?.length
+            pages[taskPositions] &&
+            pages[taskPositions].items &&
+            pages[taskPositions].items?.length <= userFiltersData?.length
           ) {
-            pages[2].items?.splice(position ? parseInt(position) : 0, 0, {
-              href: `/mytasks?${filterPart}`,
-              label,
-              totals: { [label]: total.total },
-            });
+            pages[taskPositions].items?.splice(
+              position ? Number.parseInt(position) : 0,
+              0,
+              {
+                href: `/mytasks?${filterPart}`,
+                label,
+                totals: { [label]: total.total },
+              }
+            );
           }
           setTotals({ ...totals });
         });
@@ -115,8 +120,7 @@ export default function DesktopSidebar({ dict }: PropsWithI18nDict) {
       .reduce((a, b) => a + b, 0);
 
     totals["calendarPlanning"] = Object.entries(data?.totals ?? {})
-      .filter(([key]) =>key === "planService"
-      )
+      .filter(([key]) => key === "planService")
       .map(([_, value]) => value as number)
       .reduce((a, b) => a + b, 0);
   }

@@ -10,6 +10,22 @@ import { signOut, useSession } from "next-auth/react";
 import { UserDropdownProps } from "./user-dropdown.types";
 import { getAuth0LogoutUrl } from "@/features/auth/services/auth.service";
 
+async function handleSignOut() {
+  // Get Auth0 logout URL before signing out of NextAuth
+  const auth0LogoutUrl = await getAuth0LogoutUrl();
+
+  // Sign out of NextAuth first
+  await signOut({ redirect: false });
+
+  // If Auth0 is configured, redirect to Auth0 logout for federated logout
+  if (auth0LogoutUrl) {
+    window.location.href = auth0LogoutUrl;
+  } else {
+    // Fallback to sign-in page if Auth0 is not configured
+    window.location.href = "/sign-in";
+  }
+}
+
 export default function UserDropdown({ messages }: UserDropdownProps) {
   const { data: session, status } = useSession({
     required: true,
@@ -22,21 +38,6 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
     return <Spinner aria-label="Default status example" />;
   }
 
-  async function handleSignOut() {
-    // Get Auth0 logout URL before signing out of NextAuth
-    const auth0LogoutUrl = await getAuth0LogoutUrl();
-
-    // Sign out of NextAuth first
-    await signOut({ redirect: false });
-
-    // If Auth0 is configured, redirect to Auth0 logout for federated logout
-    if (auth0LogoutUrl) {
-      window.location.href = auth0LogoutUrl;
-    } else {
-      // Fallback to sign-in page if Auth0 is not configured
-      window.location.href = "/sign-in";
-    }
-  }
   // const session = await auth();
   // if (!session) {
   //   return <Dropdown label="Loading..." />;

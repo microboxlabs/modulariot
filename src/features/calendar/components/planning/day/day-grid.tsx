@@ -281,9 +281,27 @@ function PlannedServiceChip({
   onContextMenu,
 }: Readonly<PlannedServiceChipProps>) {
   const hasUrgencia = plannedService.service.incidencias.includes("urgencia");
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ContextMenu" || e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const syntheticEvent = {
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+      } as React.MouseEvent;
+      onContextMenu(syntheticEvent, plannedService);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       onContextMenu={(e) => onContextMenu(e, plannedService)}
+      onKeyDown={handleKeyDown}
       className={twMerge(
         "flex-1 rounded flex items-center justify-start cursor-context-menu",
         "text-xs font-medium truncate px-1 border-l-4",

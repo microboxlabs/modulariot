@@ -48,18 +48,66 @@ export async function signInWithMicrosoft(): Promise<void> {
 }
 
 export async function signInWithGoogle(): Promise<void> {
-  await signIn("google", { redirectTo: "/app" });
+  // Third argument passes authorization params to Auth0 (connection skips Universal Login)
+  await signIn("auth0", { redirectTo: "/app" }, { connection: "google-oauth2" });
 }
 
 export async function signInWithGitHub(): Promise<void> {
-  await signIn("github", { redirectTo: "/app" });
+  await signIn("auth0", { redirectTo: "/app" }, { connection: "github" });
 }
 
 /**
+ * Sign in with Auth0 database connection (username/password).
+ * Redirects to Auth0 with connection hint for the database.
+ *
+ * @param email - Optional email to pre-fill (login_hint)
+ */
+export async function signInWithAuth0Credentials(
+  email?: string
+): Promise<void> {
+  await signIn(
+    "auth0",
+    { redirectTo: "/app" },
+    {
+      connection: "Username-Password-Authentication",
+      ...(email && { login_hint: email }),
+    }
+  );
+}
+
+/**
+ * Maps UI provider IDs to Auth0 connection names.
+ * When Auth0 is the OIDC broker, all identity providers are routed through Auth0 connections.
+ */
+const AUTH0_CONNECTION_MAP: Record<string, string> = {
+  google: "google-oauth2",
+  github: "github",
+  // Microsoft/Azure AD: Only route through Auth0 if enabled (requires Azure AD redirect_uri update)
+  // Set ROUTE_MICROSOFT_VIA_AUTH0=true once Auth0 callback is registered in Azure AD
+  ...(process.env.ROUTE_MICROSOFT_VIA_AUTH0 === "true" && {
+    "microsoft-entra-id": "Mintral-Entra-ID",
+    microsoft: "Mintral-Entra-ID",
+  }),
+};
+
+/**
  * Generic sign-in function that routes to the appropriate provider.
- * Use this for dynamic provider handling based on configuration.
+ *
+ * When Auth0 is configured (AUTH_AUTH0_ID is set), social providers like
+ * "google" and "github" are routed through Auth0 with the appropriate connection.
+ * Otherwise, falls back to direct OAuth provider sign-in.
  */
 export async function signInWithProvider(providerId: string): Promise<void> {
+  const auth0Connection = AUTH0_CONNECTION_MAP[providerId];
+
+  // If Auth0 is configured and we have a connection mapping, use Auth0 as broker
+  if (auth0Connection) {
+    // Third argument passes authorization params to Auth0 (connection skips Universal Login)
+    await signIn("auth0", { redirectTo: "/app" }, { connection: auth0Connection });
+    return;
+  }
+
+  // Fallback to direct provider sign-in (for providers not brokered through Auth0)
   await signIn(providerId, { redirectTo: "/app" });
 }
 
@@ -75,6 +123,34 @@ export async function signInWithSaml(teamSlug: string): Promise<void> {
     // Pass team slug to SAML provider for organization identification
     team: teamSlug,
   });
+}
+
+/**
+ * Get the Auth0 logout URL for federated logout.
+ * After signing out of NextAuth, redirect to this URL to also sign out of Auth0.
+ *
+ * @param returnTo - URL to redirect back to after Auth0 logout (must be in Allowed Logout URLs)
+ * @returns The Auth0 logout URL, or null if Auth0 is not configured
+ */
+export async function getAuth0LogoutUrl(
+  returnTo?: string
+): Promise<string | null> {
+  const issuer = process.env.AUTH_AUTH0_ISSUER;
+  const clientId = process.env.AUTH_AUTH0_ID;
+
+  if (!issuer || !clientId) {
+    return null;
+  }
+
+  // Default returnTo is the sign-in page
+  const returnToUrl = returnTo || `${process.env.NEXTAUTH_URL || ""}`;
+
+  // Auth0 logout endpoint: https://YOUR_DOMAIN/v2/logout
+  const logoutUrl = new URL("/v2/logout", issuer);
+  logoutUrl.searchParams.set("client_id", clientId);
+  logoutUrl.searchParams.set("returnTo", returnToUrl);
+
+  return logoutUrl.toString();
 }
 
 export async function authenticateAction(

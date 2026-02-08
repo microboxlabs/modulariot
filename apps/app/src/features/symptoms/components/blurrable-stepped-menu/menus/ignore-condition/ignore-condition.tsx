@@ -115,8 +115,8 @@ export default function IgnoreCondition({
 
             <Select
               onChange={(e) => {
-                setDuration(parseInt(e.target.value));
-                setDurationLocal(parseInt(e.target.value));
+                setDuration(Number.parseInt(e.target.value));
+                setDurationLocal(Number.parseInt(e.target.value));
               }}
               defaultValue={durationLocal}
             >

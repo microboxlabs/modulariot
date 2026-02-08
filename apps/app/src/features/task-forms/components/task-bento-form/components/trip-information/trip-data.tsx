@@ -156,16 +156,6 @@ export default function TripData({
       label: (msg!.cards as I18nRecord).supplierName as string,
       value: (task.mintral_supplierName as string) ?? "-",
     },
-    {
-      icon: <FaCalendarAlt className="w-4 h-4" />,
-      label: tr("cards.departure", msg),
-      value: (
-        <FormattedDate
-          date={etd.format("MM/DD/YYYY HH:mm")}
-          format="datetime"
-        />
-      ),
-    },
   ];
 
   // Editable arrival date field - rendered separately for inline editing
@@ -211,22 +201,40 @@ export default function TripData({
           icon={item.icon}
         />
       ))}
-      {/* Editable ETA field with multi-field modal */}
-      <ETAEditModal
-        taskId={taskId}
-        currentMode={currentEtaMode}
-        currentArrivalDate={currentArrivalDate}
-        currentReason={currentEtaReason}
-        currentReasonOther={currentEtaReasonOther}
-        originGeofence={task.mintral_originDelegateCode as string}
-        destinationGeofence={task.mintral_destinationDelegateCode as string}
-        onUpdate={handleETAUpdate}
-        triggerLabel={arrivalLabel}
-        displayValue={arrivalDisplayValue}
-        icon={<FaCalendarAlt className="w-4 h-4" />}
-        disabled={isLoading}
-        dict={msg}
-      />
+      {/* Departure and Arrival dates in the same row on desktop, stacked on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-x-4">
+        <div className="shrink-0">
+          <LoadableLabel
+            label={tr("cards.departure", msg)}
+            value={
+              <FormattedDate
+                date={etd.format("MM/DD/YYYY HH:mm")}
+                format="datetime"
+              />
+            }
+            isLoading={isLoading}
+            icon={<FaCalendarAlt className="w-4 h-4" />}
+          />
+        </div>
+        {/* Editable ETA field with multi-field modal */}
+        <div className="shrink-0">
+          <ETAEditModal
+            taskId={taskId}
+            currentMode={currentEtaMode}
+            currentArrivalDate={currentArrivalDate}
+            currentReason={currentEtaReason}
+            currentReasonOther={currentEtaReasonOther}
+            originGeofence={task.mintral_originDelegateCode as string}
+            destinationGeofence={task.mintral_destinationDelegateCode as string}
+            onUpdate={handleETAUpdate}
+            triggerLabel={arrivalLabel}
+            displayValue={arrivalDisplayValue}
+            icon={<FaCalendarAlt className="w-4 h-4" />}
+            disabled={isLoading}
+            dict={msg}
+          />
+        </div>
+      </div>
     </div>
   );
 }

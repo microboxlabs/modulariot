@@ -51,7 +51,6 @@ env:
   IMAGE_OWNER: microboxlabs
   # Build configuration
   NODE_VERSION: "22"
-  PNPM_VERSION: "9.15.0"
   # Application environment
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}
 
@@ -77,16 +76,11 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          cache: "npm"
 
       - name: Determine version
         id: version
@@ -104,13 +98,13 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci --legacy-peer-deps
 
       - name: Run linting
-        run: pnpm turbo run lint --filter='!@modulariot/web-admin'
+        run: npx turbo run lint --filter='!@modulariot/web-admin'
 
       - name: Run type checking
-        run: pnpm turbo run check-types --filter='!@modulariot/web-admin'
+        run: npx turbo run check-types --filter='!@modulariot/web-admin'
 
   # ===========================================================================
   # Publish Docker Images - Multi-stage build inside Docker
@@ -199,7 +193,7 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
       # =========================================================================
-      # Build and Push - Multi-stage build handles pnpm properly
+      # Build and Push - Multi-stage build handles npm workspaces
       # =========================================================================
       - name: Build and push Docker image
         id: build-push

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { HiSwitchHorizontal, HiTrash } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { PlannedService } from "./planning-selection-context";
+import { Button } from "flowbite-react";
 
 export interface ContextMenuPosition {
   x: number;
@@ -145,33 +146,24 @@ export function ServiceContextMenu({
 
       {/* Menu items */}
       <div className="py-1">
-        <button
+        <Button
+          color={"alternative"}
           type="button"
           onClick={handleReassign}
-          className={twMerge(
-            "w-full flex items-center gap-2 px-3 py-2",
-            "text-sm text-gray-700 dark:text-gray-200",
-            "hover:bg-gray-100 dark:hover:bg-gray-700",
-            "transition-colors duration-150"
-          )}
+          className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <span>Reasignar</span>
-        </button>
-
-        <button
+        </Button>
+        <Button
+          color={"alternative"}
           type="button"
           onClick={handleDelete}
-          className={twMerge(
-            "w-full flex items-center gap-2 px-3 py-2",
-            "text-sm text-red-600 dark:text-red-400",
-            "hover:bg-red-50 dark:hover:bg-red-900/20",
-            "transition-colors duration-150"
-          )}
+          className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiTrash className="w-4 h-4" />
           <span>Eliminar planificación</span>
-        </button>
+        </Button>
       </div>
     </div>,
     document.body

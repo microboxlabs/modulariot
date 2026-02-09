@@ -1087,7 +1087,73 @@
     },
     "planning": {
       "dispatch": "Dispatch",
-      "reception": "Reception"
+      "reception": "Reception",
+      "deleteModal": {
+        "title": "Confirm deletion",
+        "messagePrefix": "Delete assignment for service ",
+        "messageSuffix": "?",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "calendarRules": {
+        "configureTimeWindows": "Configure time windows",
+        "quotaManagement": {
+          "title": "Quota management",
+          "description": "Define available time windows and their maximum quotas.",
+          "noWindows": "No windows defined",
+          "windowPlaceholder": "Window {index}",
+          "availableQuotas": "Available quotas",
+          "deleteWindow": "Delete window",
+          "weekly": "Weekly",
+          "dailyException": "Day exception",
+          "selectDate": "Select date",
+          "selectAll": "Select all",
+          "deselectAll": "Deselect all",
+          "selectWeeks": "Select weeks",
+          "allWeeks": "All weeks",
+          "scheduleConflict": "Schedule conflict",
+          "addWindow": "Window",
+          "apply": "Apply",
+          "today": "Today",
+          "clear": "Clear",
+          "colors": {
+            "emerald": "Green",
+            "blue": "Blue",
+            "violet": "Violet",
+            "rose": "Rose",
+            "amber": "Amber",
+            "cyan": "Cyan",
+            "lime": "Lime",
+            "orange": "Orange"
+          }
+        },
+        "timeBlocks": {
+          "title": "Time blocks",
+          "description": "Define hourly or daily periods as \"blocked\".",
+          "noBlocks": "No blocks defined",
+          "blockPlaceholder": "Block {index}",
+          "deleteBlock": "Delete block",
+          "weekly": "Weekly",
+          "dailyOverride": "Specific day",
+          "selectDate": "Select date",
+          "selectAll": "Select all",
+          "deselectAll": "Deselect all",
+          "scheduleConflict": "Schedule conflict",
+          "addBlock": "Block",
+          "apply": "Apply",
+          "today": "Today",
+          "clear": "Clear"
+        },
+        "platformConfig": {
+          "title": "Platform configuration",
+          "description": "Define the number of platforms available per time slot.",
+          "availablePlatforms": "Available platforms in the terminal",
+          "infoSingular": "Users can schedule up to {count} service in the same time slot.",
+          "infoPlural": "Users can schedule up to {count} services in the same time slot.",
+          "save": "Save"
+        }
+      }
     },
     "timeBlocks": {
       "title": "Time Blocks",

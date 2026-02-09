@@ -26,7 +26,7 @@ export default function PlanningCalendar({
 
   switch (viewMode) {
     case "day":
-      return <PlanningDayView lang={lang} />;
+      return <PlanningDayView lang={lang} dict={dict} />;
     case "week":
       return <PlanningWeekView lang={lang} dict={dict} />;
     case "month":

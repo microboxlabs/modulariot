@@ -8,7 +8,14 @@ import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { SelectedService } from "./planning-selection-context";
 
-type MatchType = "id" | "cliente" | "origen" | "destino" | "lugarCarguio" | "permanencia" | "tipoViaje";
+type MatchType =
+  | "id"
+  | "cliente"
+  | "origen"
+  | "destino"
+  | "lugarCarguio"
+  | "permanencia"
+  | "tipoViaje";
 
 interface GroupedSearchResult {
   matchType: MatchType;
@@ -65,7 +72,9 @@ function addMatchIfFound(
 /**
  * Convert match counts map to sorted grouped results
  */
-function toGroupedResults(matchCounts: Map<MatchType, Set<string>>): GroupedSearchResult[] {
+function toGroupedResults(
+  matchCounts: Map<MatchType, Set<string>>
+): GroupedSearchResult[] {
   return Array.from(matchCounts.entries())
     .map(([matchType, serviceIds]) => ({
       matchType,
@@ -112,7 +121,8 @@ function DropdownContent({
       <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
         <div>{tr("pages.planning.sidebar.search.noResults", dict)}</div>
         <div className="mt-1 text-xs">
-          {tr("pages.planning.sidebar.search.noResultsFor", dict)} "{debouncedQuery}"
+          {tr("pages.planning.sidebar.search.noResultsFor", dict)} "
+          {debouncedQuery}"
         </div>
       </div>
     );
@@ -121,31 +131,40 @@ function DropdownContent({
   return (
     <ul className="py-1" role="listbox">
       {searchResults.map((result, index) => (
-        <li
-          key={result.matchType}
-          role="option"
-          aria-selected={index === selectedIndex}
-          onClick={() => onMatchTypeSelect(result)}
-          onMouseEnter={() => onMouseEnter(index)}
-          className={twMerge(
-            "px-4 py-2 cursor-pointer flex items-center gap-2",
-            "transition-colors",
-            index === selectedIndex
-              ? "bg-blue-50 dark:bg-blue-900/30"
-              : "hover:bg-gray-50 dark:hover:bg-gray-700"
-          )}
-        >
-          <div className="flex items-center justify-center w-5 h-5 shrink-0">
-            {getMatchTypeIcon(result.matchType)}
-          </div>
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
-              {getMatchTypeLabel(result.matchType)}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              ({result.count})
-            </span>
-          </div>
+        <li key={result.matchType}>
+          <button
+            type="button"
+            tabIndex={index === selectedIndex ? 0 : -1}
+            onClick={() => onMatchTypeSelect(result)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onMatchTypeSelect(result);
+              }
+            }}
+            onMouseEnter={() => onMouseEnter(index)}
+            onFocus={() => onMouseEnter(index)}
+            onBlur={() => {}}
+            className={twMerge(
+              "w-full text-left px-4 py-2 cursor-pointer flex items-center gap-2",
+              "transition-colors border-0 bg-transparent",
+              index === selectedIndex
+                ? "bg-blue-50 dark:bg-blue-900/30"
+                : "hover:bg-gray-50 dark:hover:bg-gray-700"
+            )}
+          >
+            <div className="flex items-center justify-center w-5 h-5 shrink-0">
+              {getMatchTypeIcon(result.matchType)}
+            </div>
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {getMatchTypeLabel(result.matchType)}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                ({result.count})
+              </span>
+            </div>
+          </button>
         </li>
       ))}
     </ul>
@@ -166,7 +185,7 @@ export function PlanningSearchAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Combine external loading state with internal debounce loading
   const isLoadingState = externalIsLoading || isLoading;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -212,7 +231,11 @@ export function PlanningSearchAutocomplete({
   useEffect(() => {
     if (debouncedQuery.length >= MIN_CHARACTERS && searchResults.length > 0) {
       setIsOpen(true);
-    } else if (debouncedQuery.length >= MIN_CHARACTERS && searchResults.length === 0 && !isLoadingState) {
+    } else if (
+      debouncedQuery.length >= MIN_CHARACTERS &&
+      searchResults.length === 0 &&
+      !isLoadingState
+    ) {
       setIsOpen(true);
     } else {
       setIsOpen(false);
@@ -233,7 +256,8 @@ export function PlanningSearchAutocomplete({
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
@@ -311,8 +335,14 @@ export function PlanningSearchAutocomplete({
       cliente: tr("pages.planning.sidebar.search.matchType.cliente", dict),
       origen: tr("pages.planning.sidebar.search.matchType.origen", dict),
       destino: tr("pages.planning.sidebar.search.matchType.destino", dict),
-      lugarCarguio: tr("pages.planning.sidebar.search.matchType.lugarCarguio", dict),
-      permanencia: tr("pages.planning.sidebar.search.matchType.permanencia", dict),
+      lugarCarguio: tr(
+        "pages.planning.sidebar.search.matchType.lugarCarguio",
+        dict
+      ),
+      permanencia: tr(
+        "pages.planning.sidebar.search.matchType.permanencia",
+        dict
+      ),
       tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
     };
     return labels[matchType];

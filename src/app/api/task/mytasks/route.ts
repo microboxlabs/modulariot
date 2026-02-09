@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
   let total = 0;
 
   const options = {
-    from: from ? parseInt(from) : 0,
-    size: size ? parseInt(size) : 10,
+    from: from ? Number.parseInt(from) : 0,
+    size: size ? Number.parseInt(size) : 10,
     filter: {
       mintralKey: serviceCode ? `v${serviceCode}` : undefined,
       licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,
@@ -71,8 +71,8 @@ export async function GET(req: NextRequest) {
       taskResponses = (await Promise.all([
         ...columns.map((column) => {
           return getFinishedWorkflows(session, {
-            from: from ? parseInt(from) : 0,
-            size: size ? parseInt(size) : 10,
+            from: from ? Number.parseInt(from) : 0,
+            size: size ? Number.parseInt(size) : 10,
             definitionKey: column,
             filter: {
               mintralKey: serviceCode ? `v${serviceCode}` : undefined,

@@ -3,21 +3,229 @@
 import { Button } from "flowbite-react";
 import { useState } from "react";
 import { FaGear } from "react-icons/fa6";
-import QuotaManager from "./quota-manager";
-import TimeBlockManager from "./time-block-manager";
-import AndenesManager, { type PlatformConfig } from "./andenes-manager";
+import QuotaManager, { getQuotaManagerMessages } from "./quota-manager";
+import TimeBlockManager, {
+  getTimeBlockManagerMessages,
+} from "./time-block-manager";
+import AndenesManager, {
+  type PlatformConfig,
+  getAndenesManagerMessages,
+} from "./andenes-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
+import { twMerge } from "tailwind-merge";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
+import type { ReactNode } from "react";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 type SettingOption = "quota" | "timeBlock" | "andenes" | null;
 
+function isSectionExpanded(
+  selected: SettingOption,
+  option: SettingOption
+): boolean {
+  return selected === null || selected === option;
+}
+
+function isSectionActive(
+  selected: SettingOption,
+  option: SettingOption
+): boolean {
+  return selected === option;
+}
+
+function getSectionClasses(expanded: boolean, active: boolean) {
+  return {
+    headerHeightClass: expanded ? "h-20" : "h-0",
+    headerInteractiveClass: active
+      ? ""
+      : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-full",
+    contentMaxHeightClass: active ? "max-h-[500px]" : "max-h-0 ",
+  };
+}
+
+interface SectionLayoutProps {
+  active: boolean;
+  title: string;
+  description: string;
+  children: ReactNode;
+  classes: ReturnType<typeof getSectionClasses>;
+  onSelect: () => void;
+  onBack: (e: React.MouseEvent) => void;
+}
+
+function SectionLayout({
+  active,
+  title,
+  description,
+  children,
+  classes,
+  onSelect,
+  onBack,
+}: Readonly<SectionLayoutProps>) {
+  const { headerHeightClass, headerInteractiveClass, contentMaxHeightClass } =
+    classes;
+  const backButtonClass = active
+    ? "opacity-100 w-10"
+    : "opacity-0 w-0 pointer-events-none";
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (active) {
+      onBack(e);
+    } else {
+      onSelect();
+    }
+  };
+
+  return (
+    <div>
+      <div
+        className={twMerge(
+          "transition-all duration-300 overflow-hidden",
+          headerHeightClass
+        )}
+      >
+        <Button
+          type="button"
+          color="alternative"
+          onClick={handleClick}
+          className={twMerge(
+            "w-full border-0 bg-transparent p-0 m-0 text-left font-inherit",
+            "flex flex-row h-full items-center transition-all duration-300",
+            "border-b border-gray-200 dark:border-gray-700 rounded-none",
+            headerInteractiveClass
+          )}
+        >
+          <span
+            className={twMerge(
+              "h-10 ml-3 mr-3 shrink-0 flex items-center justify-center",
+              "text-gray-700 dark:text-gray-300 transition-all duration-300 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg",
+              backButtonClass
+            )}
+          >
+            <ChevronLeft />
+          </span>
+          <span className="flex-1 py-3 pr-3 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
+              {title}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
+              {description}
+            </p>
+          </span>
+        </Button>
+      </div>
+      <div
+        className={`${contentMaxHeightClass} transition-all duration-300 overflow-hidden`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface CalendarRulesSectionProps {
+  option: NonNullable<SettingOption>;
+  selected: SettingOption;
+  setSelected: (v: SettingOption) => void;
+  title: string;
+  description: string;
+  children: ReactNode;
+}
+
+function CalendarRulesSection({
+  option,
+  selected,
+  setSelected,
+  title,
+  description,
+  children,
+}: Readonly<CalendarRulesSectionProps>) {
+  const active = isSectionActive(selected, option);
+  const expanded = isSectionExpanded(selected, option);
+  const classes = getSectionClasses(expanded, active);
+
+  const handleSelect = () => {
+    if (!active) setSelected(option);
+  };
+
+  const handleBack = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelected(null);
+  };
+
+  return (
+    <SectionLayout
+      active={active}
+      title={title}
+      description={description}
+      classes={classes}
+      onSelect={handleSelect}
+      onBack={handleBack}
+    >
+      {children}
+    </SectionLayout>
+  );
+}
+
+export interface CalendarRulesMessages {
+  configureTimeWindows: string;
+  quotaManagement: {
+    title: string;
+    description: string;
+  };
+  timeBlocks: {
+    title: string;
+    description: string;
+  };
+  platformConfig: {
+    title: string;
+    description: string;
+  };
+}
+
+const CALENDAR_RULES_BASE = "layout.planning.calendarRules" as const;
+
+export function getCalendarRulesMessages(
+  dict: I18nDictionary
+): CalendarRulesMessages {
+  return {
+    configureTimeWindows: tr(
+      `${CALENDAR_RULES_BASE}.configureTimeWindows`,
+      dict
+    ),
+    quotaManagement: {
+      title: tr(`${CALENDAR_RULES_BASE}.quotaManagement.title`, dict),
+      description: tr(
+        `${CALENDAR_RULES_BASE}.quotaManagement.description`,
+        dict
+      ),
+    },
+    timeBlocks: {
+      title: tr(`${CALENDAR_RULES_BASE}.timeBlocks.title`, dict),
+      description: tr(`${CALENDAR_RULES_BASE}.timeBlocks.description`, dict),
+    },
+    platformConfig: {
+      title: tr(`${CALENDAR_RULES_BASE}.platformConfig.title`, dict),
+      description: tr(
+        `${CALENDAR_RULES_BASE}.platformConfig.description`,
+        dict
+      ),
+    },
+  };
+}
+
 interface CalendarRulesProps {
+  dict: I18nDictionary;
+  messages: CalendarRulesMessages;
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
 }
 
 export default function CalendarRules({
+  dict,
+  messages,
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
@@ -25,189 +233,77 @@ export default function CalendarRules({
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
 
+  const togglePanel = () => {
+    setSelected(null);
+    setOpen((prev) => !prev);
+  };
+
+  const closePanel = () => setOpen(false);
+
   return (
     <div className="relative">
       <Button
         color="alternative"
         size="sm"
-        onClick={() => {
-          setSelected(null);
-          setOpen(!open);
-        }}
-        title="Configurar ventanas de tiempo"
+        onClick={togglePanel}
+        title={messages.configureTimeWindows}
       >
         <FaGear />
       </Button>
       {open && (
         <div className="absolute z-50 right-0 top-full mt-2 h-fit bg-white dark:bg-gray-800 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[320px] w-[400px]">
-          <div className="">
-            <div
-              role={selected !== "quota" ? "button" : undefined}
-              tabIndex={selected !== "quota" ? 0 : undefined}
-              onClick={() => {
-                if (selected !== "quota") setSelected("quota");
-              }}
-              onKeyDown={(e) => {
-                if (
-                  selected !== "quota" &&
-                  (e.key === "Enter" || e.key === " ")
-                ) {
-                  setSelected("quota");
-                }
-              }}
-              className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "quota" ? "h-20" : "h-0"} ${selected === "quota" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
-            >
-              <div
-                className={`flex flex-row h-full items-center px-4 transition-all duration-500 ${selected !== "quota" ? "gap-0" : "gap-4"}`}
-              >
-                <Button
-                  className={`h-10 w-10 shrink-0 text-gray-700 p-0 transition-all duration-300 overflow-hidden ${selected !== "quota" ? "opacity-0 max-w-0 scale-75" : "opacity-100 max-w-10 scale-100"}`}
-                  color="alternative"
-                  disabled={selected !== "quota"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelected(null);
-                  }}
-                >
-                  <ChevronLeft />
-                </Button>
-                <div className="py-3 w-full border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
-                    Gestion de cupos
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                    Define las ventanas de tiempo disponibles asi como sus cupos
-                    maximos.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div
-              className={`${selected !== "quota" ? "max-h-0 " : "max-h-[500px]"} transition-all duration-300 overflow-hidden`}
-            >
-              <QuotaManager
-                onRulesChange={(windows) => {
-                  onRulesChange?.(windows);
-                  setOpen(false);
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            role={selected !== "timeBlock" ? "button" : undefined}
-            tabIndex={selected !== "timeBlock" ? 0 : undefined}
-            onClick={() => {
-              if (selected !== "timeBlock") setSelected("timeBlock");
-            }}
-            onKeyDown={(e) => {
-              if (
-                selected !== "timeBlock" &&
-                (e.key === "Enter" || e.key === " ")
-              ) {
-                setSelected("timeBlock");
-              }
-            }}
-            className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "timeBlock" ? "h-20" : "h-0"} ${selected === "timeBlock" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+          <CalendarRulesSection
+            option="quota"
+            selected={selected}
+            setSelected={setSelected}
+            title={messages.quotaManagement.title}
+            description={messages.quotaManagement.description}
           >
-            <div className="relative flex flex-row h-full items-center pl-4 pr-4">
-              <div
-                className={`absolute left-4 transition-all duration-300 ease-out ${selected === "timeBlock" ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none"}`}
-              >
-                <Button
-                  className="h-10 w-10 shrink-0 text-gray-700 p-0"
-                  color="alternative"
-                  disabled={selected !== "timeBlock"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelected(null);
-                  }}
-                >
-                  <ChevronLeft />
-                </Button>
-              </div>
-              <div
-                className={`py-3 w-full h-full transition-all duration-300 ease-out border-b border-gray-200 dark:border-gray-700 ${selected === "timeBlock" ? "ml-14" : "ml-0"}`}
-              >
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
-                  Bloqueos temporales
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                  Define periodos horarios o diarios como "bloqueados".
-                </p>
-              </div>
-            </div>
-          </div>
-          <div
-            className={`${selected !== "timeBlock" ? "max-h-0 " : "max-h-[500px]"} transition-all duration-300 overflow-hidden`}
+            <QuotaManager
+              messages={getQuotaManagerMessages(dict)}
+              onRulesChange={(windows) => {
+                onRulesChange?.(windows);
+                closePanel();
+              }}
+            />
+          </CalendarRulesSection>
+
+          <CalendarRulesSection
+            option="timeBlock"
+            selected={selected}
+            setSelected={setSelected}
+            title={messages.timeBlocks.title}
+            description={messages.timeBlocks.description}
           >
             <TimeBlockManager
+              messages={getTimeBlockManagerMessages(dict)}
               onBlocksChange={(blocks) => {
                 onBlocksChange?.(blocks);
-                setOpen(false);
+                closePanel();
               }}
             />
-          </div>
+          </CalendarRulesSection>
 
-          {/* Andenes Configuration Section */}
-          <div
-            role={selected !== "andenes" ? "button" : undefined}
-            tabIndex={selected !== "andenes" ? 0 : undefined}
-            onClick={() => {
-              if (selected !== "andenes") setSelected("andenes");
-            }}
-            onKeyDown={(e) => {
-              if (
-                selected !== "andenes" &&
-                (e.key === "Enter" || e.key === " ")
-              ) {
-                setSelected("andenes");
-              }
-            }}
-            className={`w-full transition-all duration-300 overflow-hidden ${selected === null || selected === "andenes" ? "h-20" : "h-0"} ${selected === "andenes" ? "" : "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"}`}
-          >
-            <div className="relative flex flex-row h-full items-center pl-4 pr-4">
-              <div
-                className={`absolute left-4 transition-all duration-300 ease-out ${selected === "andenes" ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none"}`}
-              >
-                <Button
-                  className="h-10 w-10 shrink-0 text-gray-700 p-0"
-                  color="alternative"
-                  disabled={selected !== "andenes"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelected(null);
-                  }}
-                >
-                  <ChevronLeft />
-                </Button>
-              </div>
-              <div
-                className={`py-3 w-full transition-all duration-300 ease-out ${selected === "andenes" ? "ml-14" : "ml-0"}`}
-              >
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white text-left">
-                  Configuración de andenes
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-left">
-                  Define el número de andenes disponibles por franja.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div
-            className={`${selected !== "andenes" ? "max-h-0 " : "max-h-[500px]"} transition-all duration-300 overflow-hidden`}
+          <CalendarRulesSection
+            option="andenes"
+            selected={selected}
+            setSelected={setSelected}
+            title={messages.platformConfig.title}
+            description={messages.platformConfig.description}
           >
             <AndenesManager
+              messages={getAndenesManagerMessages(dict)}
               onConfigChange={(config) => {
                 onAndenesChange?.(config);
-                setOpen(false);
+                closePanel();
               }}
             />
-          </div>
+          </CalendarRulesSection>
         </div>
       )}
     </div>
   );
 }
 
-export type { TimeWindow, TimeBlock, PlatformConfig };
+export type { TimeWindow, TimeBlock } from "../planning-selection-context";
+export type { PlatformConfig } from "./andenes-manager";

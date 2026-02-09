@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -15,19 +15,15 @@ import { CalendarViewSwitcher } from "./calendar-view-switcher";
 import {
   DATE_FORMAT,
   isValidViewMode,
+  parseUrlDate,
 } from "@/features/calendar/services/calendar.service";
-import CalendarRules from "./calendar-rules/calendar-rules";
-import { tr } from "@/features/i18n/tr.service";
+import CalendarRules, {
+  getCalendarRulesMessages,
+} from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
 
 dayjs.extend(weekOfYear);
-
-function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
-  if (!dateStr) return null;
-  const parsed = dayjs(dateStr, DATE_FORMAT, true);
-  return parsed.isValid() ? parsed : null;
-}
 
 function getLocaleCode(lang: string): string {
   return lang === "es" ? "es" : "en";
@@ -178,6 +174,8 @@ export default function PlanningHeader({
           }}
         />
         <CalendarRules
+          dict={dict}
+          messages={getCalendarRulesMessages(dict)}
           onAndenesChange={(config) => {
             setAndenesCount(config.count);
           }}

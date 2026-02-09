@@ -19,8 +19,6 @@ export interface LiveDataHookResult<T = unknown> {
 export interface LiveFormFieldProps {
   /** Field configuration */
   field: DynamicFieldConfig;
-  /** All form values (for dependency tracking) */
-  allValues: Record<string, unknown>;
   /** Whether field is visible */
   isVisible: boolean;
   /** Loading message */
@@ -51,7 +49,6 @@ export interface LiveFormFieldProps {
  *
  * <LiveFormField
  *   field={field}
- *   allValues={formValues}
  *   isVisible={isFieldVisible(field)}
  *   liveDataResult={etaResult}
  *   formatData={(data) => formatETA(data as ETAResponse)}
@@ -69,7 +66,7 @@ export function LiveFormField({
   liveDataResult,
   formatData,
   customRenderer,
-}: LiveFormFieldProps) {
+}: Readonly<LiveFormFieldProps>) {
   const { data, isLoading, error } = liveDataResult;
 
   if (!isVisible) return null;

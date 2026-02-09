@@ -1101,7 +1101,73 @@
     },
     "planning": {
       "dispatch": "Despacho",
-      "reception": "Recepción"
+      "reception": "Recepción",
+      "deleteModal": {
+        "title": "Confirmar eliminación",
+        "messagePrefix": "¿Eliminar la asignación del servicio ",
+        "messageSuffix": "?",
+        "close": "Cerrar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      },
+      "calendarRules": {
+        "configureTimeWindows": "Configurar ventanas de tiempo",
+        "quotaManagement": {
+          "title": "Gestión de cupos",
+          "description": "Define las ventanas de tiempo disponibles así como sus cupos máximos.",
+          "noWindows": "No hay ventanas definidas",
+          "windowPlaceholder": "Ventana {index}",
+          "availableQuotas": "Cupos disponibles",
+          "deleteWindow": "Eliminar ventana",
+          "weekly": "Semanal",
+          "dailyException": "Excepción día",
+          "selectDate": "Seleccionar fecha",
+          "selectAll": "Seleccionar todos",
+          "deselectAll": "Deseleccionar todos",
+          "selectWeeks": "Seleccionar semanas",
+          "allWeeks": "Todas las semanas",
+          "scheduleConflict": "Conflicto de horarios",
+          "addWindow": "Ventana",
+          "apply": "Aplicar",
+          "today": "Hoy",
+          "clear": "Limpiar",
+          "colors": {
+            "emerald": "Verde",
+            "blue": "Azul",
+            "violet": "Violeta",
+            "rose": "Rosa",
+            "amber": "Ámbar",
+            "cyan": "Cian",
+            "lime": "Lima",
+            "orange": "Naranja"
+          }
+        },
+        "timeBlocks": {
+          "title": "Bloqueos temporales",
+          "description": "Define periodos horarios o diarios como \"bloqueados\".",
+          "noBlocks": "No hay bloqueos definidos",
+          "blockPlaceholder": "Bloqueo {index}",
+          "deleteBlock": "Eliminar bloqueo",
+          "weekly": "Semanal",
+          "dailyOverride": "Día específico",
+          "selectDate": "Seleccionar fecha",
+          "selectAll": "Seleccionar todos",
+          "deselectAll": "Deseleccionar todos",
+          "scheduleConflict": "Conflicto de horarios",
+          "addBlock": "Bloqueo",
+          "apply": "Aplicar",
+          "today": "Hoy",
+          "clear": "Limpiar"
+        },
+        "platformConfig": {
+          "title": "Configuración de andenes",
+          "description": "Define el número de andenes disponibles por franja.",
+          "availablePlatforms": "Andenes disponibles en el terminal",
+          "infoSingular": "Los usuarios podrán agendar hasta {count} servicio en la misma franja horaria.",
+          "infoPlural": "Los usuarios podrán agendar hasta {count} servicios en la misma franja horaria.",
+          "save": "Guardar"
+        }
+      }
     },
     "timeBlocks": {
       "title": "Bloqueos temporales",

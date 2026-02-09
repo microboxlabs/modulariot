@@ -3,7 +3,7 @@ name: Sync trash with trunk
 on:
   schedule:
     # Run every hour
-    - cron: '0 * * * *'
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -28,15 +28,16 @@ jobs:
 
       - name: Merge trunk into trash
         run: |
-          # Checkout trunk and fetch latest
+          # Ensure we have latest trunk
+          git fetch origin trunk
           git checkout trunk
           git pull origin trunk
 
-          # Checkout trash branch
-          git checkout trash || git checkout -b trash origin/trash
+          # Checkout trash (create local branch tracking origin/trash if needed)
+          git checkout trash 2>/dev/null || git checkout -b trash origin/trash
 
-          # Merge trunk into trash
-          git merge origin/trunk -m "Sync trunk into trash $(date '+%Y-%m-%d %H:%M')"
+          # Merge trunk into trash; allow unrelated histories so initial sync works
+          git merge origin/trunk -m "Sync trunk into trash $(date '+%Y-%m-%d %H:%M')" --allow-unrelated-histories
 
           # Push updated trash
           git push origin trash

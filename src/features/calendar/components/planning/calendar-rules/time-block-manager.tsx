@@ -9,138 +9,34 @@ import { twMerge } from "tailwind-merge";
 import dayjs from "dayjs";
 import {
   type TimeBlock,
-  type ParsedWeeklyPattern,
   TimeWindowUtils,
   usePlanningSelection,
 } from "../planning-selection-context";
+import {
+  DAYS_OF_WEEK,
+  generateTimeOptions,
+  parseTime,
+  formatTime,
+  adjustTimeRange,
+  getSlotPattern,
+  buildWeeklySlot,
+  buildDailyOverrideSlot,
+  calculateCollisions,
+} from "./time-slot-utils";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
-const MIN_HOUR = 0;
-const MAX_HOUR = 23;
-
-// Days using format standard: 1=Monday, 7=Sunday
-const DAYS_OF_WEEK = [
-  { value: 1, label: "L", fullLabel: "Lunes" },
-  { value: 2, label: "M", fullLabel: "Martes" },
-  { value: 3, label: "X", fullLabel: "Miércoles" },
-  { value: 4, label: "J", fullLabel: "Jueves" },
-  { value: 5, label: "V", fullLabel: "Viernes" },
-  { value: 6, label: "S", fullLabel: "Sábado" },
-  { value: 7, label: "D", fullLabel: "Domingo" },
-];
-
-function generateTimeOptions(
-  minHour = MIN_HOUR,
-  maxHour = MAX_HOUR
-): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    for (const minutes of [0, 30]) {
-      if (hour === maxHour && minutes > 0) continue;
-      const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      options.push({ value, label: value });
-    }
+function getBlockDayButtonClassName(
+  isSelected: boolean,
+  isWeekend: boolean
+): string {
+  if (isSelected) {
+    return "bg-red-500 text-white shadow-sm hover:bg-red-600";
   }
-  return options;
-}
-
-function parseTime(timeStr: string): { hour: number; minutes: number } {
-  const [hour, minutes] = timeStr.split(":").map(Number);
-  return { hour, minutes };
-}
-
-function formatTime(hour: number, minutes: number): string {
-  return `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-}
-
-function timeToMinutes(hour: number, minutes: number): number {
-  return hour * 60 + minutes;
-}
-
-/**
- * Get parsed weekly pattern or default values for a time block
- */
-function getBlockPattern(block: TimeBlock): ParsedWeeklyPattern {
-  if (block.type === "weekly" && block.weeklyPattern) {
-    const parsed = TimeWindowUtils.parseWeeklyPattern(block.weeklyPattern);
-    if (parsed) return parsed;
+  if (isWeekend) {
+    return "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40";
   }
-  if (block.type === "daily-override") {
-    const timeRange = TimeWindowUtils.getTimeRange(block);
-    if (timeRange) {
-      return {
-        weeks: [],
-        days: [],
-        ...timeRange,
-      };
-    }
-  }
-  // Default values
-  return {
-    weeks: [],
-    days: [1, 2, 3, 4, 5],
-    startHour: 8,
-    startMinutes: 0,
-    endHour: 12,
-    endMinutes: 0,
-  };
-}
-
-/**
- * Check if two time blocks have overlapping days
- */
-function hasOverlappingDays(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  return aPattern.days.some((day) => bPattern.days.includes(day));
-}
-
-/**
- * Check if two time blocks have overlapping weeks
- */
-function hasOverlappingWeeks(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  if (aPattern.weeks.length === 0 || bPattern.weeks.length === 0) return true;
-  return aPattern.weeks.some((week) => bPattern.weeks.includes(week));
-}
-
-/**
- * Check if two time ranges overlap
- */
-function hasOverlappingTime(a: TimeBlock, b: TimeBlock): boolean {
-  const aPattern = getBlockPattern(a);
-  const bPattern = getBlockPattern(b);
-  const aStart = timeToMinutes(aPattern.startHour, aPattern.startMinutes);
-  const aEnd = timeToMinutes(aPattern.endHour, aPattern.endMinutes);
-  const bStart = timeToMinutes(bPattern.startHour, bPattern.startMinutes);
-  const bEnd = timeToMinutes(bPattern.endHour, bPattern.endMinutes);
-  return aStart < bEnd && bStart < aEnd;
-}
-
-/**
- * Check if two time blocks collide (overlap in days, weeks, AND time)
- */
-function blocksCollide(a: TimeBlock, b: TimeBlock): boolean {
-  if (a.type === "daily-override" || b.type === "daily-override") {
-    return false;
-  }
-  return (
-    hasOverlappingDays(a, b) &&
-    hasOverlappingWeeks(a, b) &&
-    hasOverlappingTime(a, b)
-  );
-}
-
-/**
- * Get IDs of blocks that collide with the given block
- */
-function getCollidingBlockIds(
-  block: TimeBlock,
-  allBlocks: TimeBlock[]
-): string[] {
-  return allBlocks
-    .filter((b) => b.id !== block.id && blocksCollide(block, b))
-    .map((b) => b.id);
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
 }
 
 /**
@@ -149,10 +45,12 @@ function getCollidingBlockIds(
 function PortalDatepicker({
   value,
   onChange,
-}: {
+  messages,
+}: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
-}) {
+  messages: { selectDate: string; today: string; clear: string };
+}>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -191,7 +89,7 @@ function PortalDatepicker({
 
   const displayDate = value
     ? dayjs(value).format("DD/MM/YYYY")
-    : "Seleccionar fecha";
+    : messages.selectDate;
   const dayName = value ? dayjs(value).format("dddd") : "";
   const minDate = dayjs().startOf("day").toDate();
 
@@ -229,8 +127,8 @@ function PortalDatepicker({
                 setIsOpen(false);
               }}
               language="es-ES"
-              labelTodayButton="Hoy"
-              labelClearButton="Limpiar"
+              labelTodayButton={messages.today}
+              labelClearButton={messages.clear}
               showClearButton={false}
             />
           </div>,
@@ -240,14 +138,56 @@ function PortalDatepicker({
   );
 }
 
+export interface TimeBlockManagerMessages {
+  noBlocks: string;
+  blockPlaceholder: string;
+  deleteBlock: string;
+  weekly: string;
+  dailyOverride: string;
+  selectDate: string;
+  selectAll: string;
+  deselectAll: string;
+  scheduleConflict: string;
+  addBlock: string;
+  apply: string;
+  today: string;
+  clear: string;
+}
+
+const TIME_BLOCK_MANAGER_BASE =
+  "layout.planning.calendarRules.timeBlocks" as const;
+
+export function getTimeBlockManagerMessages(
+  dict: I18nDictionary
+): TimeBlockManagerMessages {
+  return {
+    noBlocks: tr(`${TIME_BLOCK_MANAGER_BASE}.noBlocks`, dict),
+    blockPlaceholder: tr(`${TIME_BLOCK_MANAGER_BASE}.blockPlaceholder`, dict),
+    deleteBlock: tr(`${TIME_BLOCK_MANAGER_BASE}.deleteBlock`, dict),
+    weekly: tr(`${TIME_BLOCK_MANAGER_BASE}.weekly`, dict),
+    dailyOverride: tr(`${TIME_BLOCK_MANAGER_BASE}.dailyOverride`, dict),
+    selectDate: tr(`${TIME_BLOCK_MANAGER_BASE}.selectDate`, dict),
+    selectAll: tr(`${TIME_BLOCK_MANAGER_BASE}.selectAll`, dict),
+    deselectAll: tr(`${TIME_BLOCK_MANAGER_BASE}.deselectAll`, dict),
+    scheduleConflict: tr(`${TIME_BLOCK_MANAGER_BASE}.scheduleConflict`, dict),
+    addBlock: tr(`${TIME_BLOCK_MANAGER_BASE}.addBlock`, dict),
+    apply: tr(`${TIME_BLOCK_MANAGER_BASE}.apply`, dict),
+    today: tr(`${TIME_BLOCK_MANAGER_BASE}.today`, dict),
+    clear: tr(`${TIME_BLOCK_MANAGER_BASE}.clear`, dict),
+  };
+}
+
 interface TimeBlockManagerProps {
+  messages: TimeBlockManagerMessages;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
 }
 
 export default function TimeBlockManager({
+  messages,
   onBlocksChange,
 }: Readonly<TimeBlockManagerProps>) {
-  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } = usePlanningSelection();
+  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } =
+    usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   // Auto-delete expired daily-override blocks (date before today)
@@ -262,18 +202,10 @@ export default function TimeBlockManager({
   }, [timeBlocks, setTimeBlocks]);
 
   // Calculate which blocks have collisions (only weekly vs weekly)
-  const blocksWithCollisions = useMemo(() => {
-    const collisions = new Set<string>();
-    const weeklyBlocks = timeBlocks.filter((b) => b.type === "weekly");
-    for (const block of weeklyBlocks) {
-      const collidingIds = getCollidingBlockIds(block, weeklyBlocks);
-      if (collidingIds.length > 0) {
-        collisions.add(block.id);
-        collidingIds.forEach((id) => collisions.add(id));
-      }
-    }
-    return collisions;
-  }, [timeBlocks]);
+  const blocksWithCollisions = useMemo(
+    () => calculateCollisions(timeBlocks),
+    [timeBlocks]
+  );
 
   const hasAnyCollision = blocksWithCollisions.size > 0;
 
@@ -322,40 +254,23 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id) return b;
-          const pattern = getBlockPattern(b);
-          const today = dayjs();
+          const pattern = getSlotPattern(b);
 
           if (type === "daily-override") {
-            return {
-              ...b,
-              type,
-              weeklyPattern: undefined,
-              startTimestamp: today
-                .hour(pattern.startHour)
-                .minute(pattern.startMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-              endTimestamp: today
-                .hour(pattern.endHour)
-                .minute(pattern.endMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-            };
-          }
-          return {
-            ...b,
-            type,
-            startTimestamp: undefined,
-            endTimestamp: undefined,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              [],
-              [1, 2, 3, 4, 5],
+            return buildDailyOverrideSlot(
+              b,
+              dayjs(),
               pattern.startHour,
               pattern.startMinutes,
               pattern.endHour,
               pattern.endMinutes
-            ),
-          };
+            );
+          }
+          return buildWeeklySlot(b, {
+            ...pattern,
+            weeks: [],
+            days: [1, 2, 3, 4, 5],
+          });
         })
       );
     },
@@ -367,21 +282,15 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "daily-override") return b;
-          const pattern = getBlockPattern(b);
-          const newDate = dayjs(date);
-          return {
-            ...b,
-            startTimestamp: newDate
-              .hour(pattern.startHour)
-              .minute(pattern.startMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: newDate
-              .hour(pattern.endHour)
-              .minute(pattern.endMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          const pattern = getSlotPattern(b);
+          return buildDailyOverrideSlot(
+            b,
+            dayjs(date),
+            pattern.startHour,
+            pattern.startMinutes,
+            pattern.endHour,
+            pattern.endMinutes
+          );
         })
       );
     },
@@ -407,21 +316,11 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "weekly") return b;
-          const pattern = getBlockPattern(b);
+          const pattern = getSlotPattern(b);
           const days = pattern.days.includes(day)
             ? pattern.days.filter((d) => d !== day)
             : [...pattern.days, day];
-          return {
-            ...b,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(b, { ...pattern, days });
         })
       );
     },
@@ -433,21 +332,11 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id || b.type !== "weekly") return b;
-          const pattern = getBlockPattern(b);
+          const pattern = getSlotPattern(b);
           const allDays = DAYS_OF_WEEK.map((d) => d.value);
           const hasAllDays = allDays.every((d) => pattern.days.includes(d));
-          const newDays = hasAllDays ? [] : allDays;
-          return {
-            ...b,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              newDays,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const days = hasAllDays ? [] : [...allDays];
+          return buildWeeklySlot(b, { ...pattern, days });
         })
       );
     },
@@ -460,68 +349,24 @@ export default function TimeBlockManager({
       setTimeBlocks(
         timeBlocks.map((b) => {
           if (b.id !== id) return b;
-          const pattern = getBlockPattern(b);
-
-          let newStartHour = pattern.startHour;
-          let newStartMinutes = pattern.startMinutes;
-          let newEndHour = pattern.endHour;
-          let newEndMinutes = pattern.endMinutes;
-
-          if (field === "start") {
-            const newStartMin = timeToMinutes(hour, minutes);
-            const endMin = timeToMinutes(pattern.endHour, pattern.endMinutes);
-            if (newStartMin >= endMin) {
-              const adjustedEnd = newStartMin + 30;
-              newEndHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
-              newEndMinutes = newEndHour === MAX_HOUR ? 0 : adjustedEnd % 60;
-            }
-            newStartHour = hour;
-            newStartMinutes = minutes;
-          } else {
-            const startMin = timeToMinutes(
-              pattern.startHour,
-              pattern.startMinutes
-            );
-            const newEndMin = timeToMinutes(hour, minutes);
-            if (newEndMin <= startMin) {
-              const adjustedStart = Math.max(newEndMin - 30, 0);
-              newStartHour = Math.floor(adjustedStart / 60);
-              newStartMinutes = adjustedStart % 60;
-            }
-            newEndHour = hour;
-            newEndMinutes = minutes;
-          }
+          const pattern = getSlotPattern(b);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
 
           if (b.type === "weekly") {
-            return {
-              ...b,
-              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-                pattern.weeks,
-                pattern.days,
-                newStartHour,
-                newStartMinutes,
-                newEndHour,
-                newEndMinutes
-              ),
-            };
+            return buildWeeklySlot(b, { ...pattern, ...adjusted });
           }
 
           const currentDate = b.startTimestamp
             ? dayjs(b.startTimestamp)
             : dayjs();
-          return {
-            ...b,
-            startTimestamp: currentDate
-              .hour(newStartHour)
-              .minute(newStartMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: currentDate
-              .hour(newEndHour)
-              .minute(newEndMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          return buildDailyOverrideSlot(
+            b,
+            currentDate,
+            adjusted.startHour,
+            adjusted.startMinutes,
+            adjusted.endHour,
+            adjusted.endMinutes
+          );
         })
       );
     },
@@ -548,11 +393,11 @@ export default function TimeBlockManager({
         {timeBlocks.length === 0 && (
           <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
             <HiNoSymbol className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            No hay bloqueos definidos
+            {messages.noBlocks}
           </div>
         )}
         {timeBlocks.map((block, index) => {
-          const pattern = getBlockPattern(block);
+          const pattern = getSlotPattern(block);
           const hasCollision = blocksWithCollisions.has(block.id);
           const blockDate = TimeWindowUtils.getDate(block);
 
@@ -582,7 +427,7 @@ export default function TimeBlockManager({
                   {hasCollision && (
                     <span
                       className="text-orange-500 text-xs"
-                      title="Conflicto de horarios"
+                      title={messages.scheduleConflict}
                     >
                       ⚠️
                     </span>
@@ -591,7 +436,10 @@ export default function TimeBlockManager({
                     type="text"
                     value={block.name}
                     onChange={(e) => updateBlockName(block.id, e.target.value)}
-                    placeholder={`Bloqueo ${index + 1}`}
+                    placeholder={messages.blockPlaceholder.replace(
+                      "{index}",
+                      String(index + 1)
+                    )}
                     className={twMerge(
                       "text-sm font-semibold bg-transparent border-0 focus:ring-0 p-0 flex-1 max-w-[180px] placeholder:text-gray-400",
                       hasCollision
@@ -604,7 +452,7 @@ export default function TimeBlockManager({
                   type="button"
                   onClick={() => removeTimeBlock(block.id)}
                   className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                  title="Eliminar bloqueo"
+                  title={messages.deleteBlock}
                 >
                   <HiTrash className="h-3.5 w-3.5" />
                 </button>
@@ -625,7 +473,7 @@ export default function TimeBlockManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Semanal
+                      {messages.weekly}
                     </button>
                     <button
                       type="button"
@@ -639,7 +487,7 @@ export default function TimeBlockManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Día específico
+                      {messages.dailyOverride}
                     </button>
                   </div>
                 </div>
@@ -688,8 +536,8 @@ export default function TimeBlockManager({
                       onClick={() => toggleAllDays(block.id)}
                       title={
                         pattern.days.length === 7
-                          ? "Deseleccionar todos"
-                          : "Seleccionar todos"
+                          ? messages.deselectAll
+                          : messages.selectAll
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -714,11 +562,7 @@ export default function TimeBlockManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-red-500 text-white shadow-sm hover:bg-red-600"
-                                : isWeekend
-                                  ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getBlockDayButtonClassName(isSelected, isWeekend)
                             )}
                           >
                             {day.label}
@@ -732,6 +576,11 @@ export default function TimeBlockManager({
                   <PortalDatepicker
                     value={blockDate ?? undefined}
                     onChange={(date) => updateDailyOverrideDate(block.id, date)}
+                    messages={{
+                      selectDate: messages.selectDate,
+                      today: messages.today,
+                      clear: messages.clear,
+                    }}
                   />
                 )}
               </div>
@@ -751,7 +600,7 @@ export default function TimeBlockManager({
       >
         <Button color="light" size="sm" onClick={() => addTimeBlock("weekly")}>
           <HiPlus className="h-4 w-4 mr-1.5" />
-          Bloqueo
+          {messages.addBlock}
         </Button>
 
         <Button
@@ -762,11 +611,11 @@ export default function TimeBlockManager({
           className={hasAnyCollision ? "opacity-50 cursor-not-allowed" : ""}
         >
           <HiCheck className="h-4 w-4 mr-1.5" />
-          Aplicar
+          {messages.apply}
         </Button>
       </div>
     </div>
   );
 }
 
-export type { TimeBlock };
+export type { TimeBlock } from "../planning-selection-context";

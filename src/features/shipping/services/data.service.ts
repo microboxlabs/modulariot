@@ -51,7 +51,7 @@ export const taskShippingBoardMap: Record<string, string> = {
   "wfship2:planServiceTask": "planService",
 };
 
-function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
+function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {  
   const serviceCode = task.mintral_serviceCode as number;
   const serviceType = task.mintral_serviceType as string;
   const name = `${serviceCode}-${serviceType.toUpperCase()}`;
@@ -85,6 +85,14 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     mintral_icuCondition: task.mintral_icuCondition as number,
     isEditable: task.isEditable as boolean,
     cm_created: task.cm_created as string,
+    mintral_incidents: Object.entries(task)
+      .filter(([key]) => key.startsWith("mintral_incident"))
+      .map(([key, value]) => [key, String(value)] as [string, string]),
+    mintral_loadConstraint: task.mintral_loadConstraint as string,
+    mintral_loadVolumeUtilization: task.mintral_loadVolumeUtilization as number,
+    mintral_loadWeightUtilization: task.mintral_loadWeightUtilization as number,
+    mintral_loadPalletUtilization: task.mintral_loadPalletUtilization as number,
+    mintral_loadMaxUtilization: task.mintral_loadMaxUtilization as number,
   };
 }
 

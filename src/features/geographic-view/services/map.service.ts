@@ -47,7 +47,7 @@ export class MapService {
     const view = new DataView(buffer);
 
     for (let i = 0; i < 8; i++) {
-      view.setUint8(i, parseInt(bytes.substring(i * 2, i * 2 + 2), 16));
+      view.setUint8(i, Number.parseInt(bytes.substring(i * 2, i * 2 + 2), 16));
     }
 
     return view.getFloat64(0, false); // false for big-endian

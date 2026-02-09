@@ -32,7 +32,7 @@ export function ConfirmModal({
   confirmText = "Confirm",
   cancelText = "Cancel",
   confirmColor = "red",
-}: ConfirmModalProps) {
+}: Readonly<ConfirmModalProps>) {
   const handleConfirm = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();

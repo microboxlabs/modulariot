@@ -154,7 +154,7 @@ const ICONS: Record<IconType, React.ComponentType<{ className?: string }>> = {
  * Labeled Data Dashlet
  * Displays a key metric with icon, label, and large value
  */
-export function Dashlet({ widget }: DashletComponentProps) {
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const name = config.name || "Metric";
   const value = config.value || "0";

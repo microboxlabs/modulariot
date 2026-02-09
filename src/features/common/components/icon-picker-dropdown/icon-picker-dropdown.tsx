@@ -37,7 +37,7 @@ export function IconPickerDropdown<T extends string = string>({
   options,
   title = "Select icon",
   className,
-}: IconPickerDropdownProps<T>) {
+}: Readonly<IconPickerDropdownProps<T>>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<{
     top: number;

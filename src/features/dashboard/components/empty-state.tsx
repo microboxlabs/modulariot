@@ -8,7 +8,7 @@ interface EmptyStateProps {
   onAdd: () => void;
 }
 
-export function EmptyState({ onAdd }: EmptyStateProps) {
+export function EmptyState({ onAdd }: Readonly<EmptyStateProps>) {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-16">
       {/* Icon */}

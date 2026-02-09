@@ -75,7 +75,7 @@ export function DashletSettings({
     onClose();
   };
 
-  if (typeof window === "undefined") return null;
+  if (typeof globalThis.window === "undefined") return null;
 
   const modalContent = (
     <AbsoluteModal
@@ -117,9 +117,7 @@ export function DashletSettings({
         {/* Icon & Color side by side */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <Label className="text-sm">
-              Icon
-            </Label>
+            <Label className="text-sm">Icon</Label>
             <IconPickerDropdown
               options={ICON_OPTIONS}
               value={icon}
@@ -128,9 +126,7 @@ export function DashletSettings({
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Label className="text-sm">
-              Color
-            </Label>
+            <Label className="text-sm">Color</Label>
             <ColorPickerDropdown
               options={BG_COLOR_OPTIONS}
               value={backgroundColor}

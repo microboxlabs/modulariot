@@ -33,7 +33,7 @@ export function DashletSettings({
     e.stopPropagation();
   };
 
-  if (typeof window === "undefined") return null;
+  if (typeof globalThis.window === "undefined") return null;
 
   const modalContent = (
     <AbsoluteModal

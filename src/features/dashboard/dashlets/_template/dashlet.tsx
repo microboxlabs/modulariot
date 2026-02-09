@@ -41,7 +41,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  * Edit this component to customize how the dashlet renders.
  * The `widget.config` contains the configuration from DashletConfig.
  */
-export function Dashlet({ widget }: DashletComponentProps) {
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
   return (

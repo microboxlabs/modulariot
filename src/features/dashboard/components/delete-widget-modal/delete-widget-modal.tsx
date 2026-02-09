@@ -17,7 +17,7 @@ export function DeleteWidgetModal({
   onClose,
   onConfirm,
   widgetName,
-}: DeleteWidgetModalProps) {
+}: Readonly<DeleteWidgetModalProps>) {
   return (
     <ConfirmModal
       isOpen={isOpen}

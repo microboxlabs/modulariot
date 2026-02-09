@@ -11,13 +11,7 @@
  */
 
 import type { DashletDefinition } from "../types";
-import {
-  Dashlet,
-  defaultConfig,
-  getLayoutDefaults,
-  BORDER_COLOR_CLASSES,
-  LABEL_BORDER_COLORS,
-} from "./dashlet";
+import { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";
 import { DashletSettings } from "./dashlet.settings";
 import { dashletMeta } from "./dashlet.meta";
 
@@ -41,9 +35,9 @@ export {
   getLayoutDefaults as getContainerLayoutDefaults,
   BORDER_COLOR_CLASSES,
   LABEL_BORDER_COLORS,
-  DashletSettings as ContainerSettings,
-  dashletMeta as containerMeta,
-};
+} from "./dashlet";
+export { DashletSettings as ContainerSettings } from "./dashlet.settings";
+export { dashletMeta as containerMeta } from "./dashlet.meta";
 
 /** @deprecated Use dashletDefinition instead */
 export const containerDefinition = dashletDefinition;

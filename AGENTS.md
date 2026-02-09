@@ -105,13 +105,75 @@ function Parent() {
 **Example - Correct (extracted component):**
 
 ```tsx
-function ChildComponent({ data }: Props) {
+function ChildComponent({ data }: Readonly<Props>) {
   return <div>...</div>;
 }
 
 function Parent() {
   return <ChildComponent data={data} />;
 }
+```
+
+## Read-Only Props
+
+- **Always mark React component props as read-only** using `Readonly<Props>` wrapper
+- This ensures props are treated as immutable, which is a React best practice
+- SonarQube enforces this rule: "Mark the props of the component as read-only"
+
+**Example - Avoid:**
+
+```tsx
+function MyComponent({ title, onClick }: MyComponentProps) {
+  return <div onClick={onClick}>{title}</div>;
+}
+```
+
+**Example - Correct:**
+
+```tsx
+function MyComponent({ title, onClick }: Readonly<MyComponentProps>) {
+  return <div onClick={onClick}>{title}</div>;
+}
+```
+
+For generic components, apply `Readonly` to the typed props:
+
+```tsx
+function GenericComponent<T extends string>({
+  value,
+  onChange,
+}: Readonly<GenericComponentProps<T>>) {
+  // ...
+}
+```
+
+## Accessibility
+
+- **Never add event handlers to non-interactive elements** (`<div>`, `<span>`) without proper accessibility attributes
+- If a `<div>` or `<span>` needs click/touch handlers for **actual user interaction**, convert it to a `<button>` or add `role`, `tabIndex`, and keyboard support
+- If event handlers are only for **event propagation control** (e.g., `stopPropagation`), add `role="presentation"` to indicate the element is not interactive
+- SonarQube/ESLint enforces: "Avoid non-native interactive elements"
+
+**Example - Avoid (non-interactive div with handlers):**
+
+```tsx
+<div onClick={handleClick}>Click me</div>
+```
+
+**Example - Correct (use native button):**
+
+```tsx
+<button type="button" onClick={handleClick}>
+  Click me
+</button>
+```
+
+**Example - Correct (propagation control only, not interactive):**
+
+```tsx
+<div role="presentation" onMouseDown={(e) => e.stopPropagation()}>
+  {children}
+</div>
 ```
 
 ## Styling
@@ -127,6 +189,32 @@ function Parent() {
 - Use React Hook Form for form state management
 - Use Zod with `@hookform/resolvers` for form validation
 - Server components are preferred; use `"use client"` only when necessary
+
+## Context Provider Rules
+
+- **Always wrap Context Provider values in `useMemo`** to prevent unnecessary re-renders
+- SonarQube enforces: "The 'value' object passed as the value prop to the Context provider changes every render"
+- Include all values and callbacks in the dependency array
+
+**Example - Avoid:**
+
+```tsx
+function MyProvider({ children }: PropsWithChildren) {
+  const [state, setState] = useState(0);
+  const value = { state, setState }; // Creates new object every render
+  return <MyContext.Provider value={value}>{children}</MyContext.Provider>;
+}
+```
+
+**Example - Correct:**
+
+```tsx
+function MyProvider({ children }: PropsWithChildren) {
+  const [state, setState] = useState(0);
+  const value = useMemo(() => ({ state, setState }), [state]);
+  return <MyContext.Provider value={value}>{children}</MyContext.Provider>;
+}
+```
 
 ## Internationalization
 

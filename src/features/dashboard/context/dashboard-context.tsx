@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useCallback,
+  useMemo,
   type PropsWithChildren,
 } from "react";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
@@ -289,21 +290,38 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     [setEditModeStorage]
   );
 
-  const value: DashboardContextValue = {
-    widgets,
-    editMode: preferences.editMode,
-    isLoaded,
-    createWidget,
-    updateWidgetConfig,
-    updateWidgetLayouts,
-    updateWidgetConstraints,
-    deleteWidget,
-    findWidget,
-    toggleEditMode,
-    setEditMode,
-    exportDashboard,
-    importDashboard,
-  };
+  const value: DashboardContextValue = useMemo(
+    () => ({
+      widgets,
+      editMode: preferences.editMode,
+      isLoaded,
+      createWidget,
+      updateWidgetConfig,
+      updateWidgetLayouts,
+      updateWidgetConstraints,
+      deleteWidget,
+      findWidget,
+      toggleEditMode,
+      setEditMode,
+      exportDashboard,
+      importDashboard,
+    }),
+    [
+      widgets,
+      preferences.editMode,
+      isLoaded,
+      createWidget,
+      updateWidgetConfig,
+      updateWidgetLayouts,
+      updateWidgetConstraints,
+      deleteWidget,
+      findWidget,
+      toggleEditMode,
+      setEditMode,
+      exportDashboard,
+      importDashboard,
+    ]
+  );
 
   return (
     <DashboardContext.Provider value={value}>

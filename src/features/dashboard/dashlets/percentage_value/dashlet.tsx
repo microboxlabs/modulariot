@@ -41,7 +41,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
  * Percentage Value Dashlet
  * Displays a progress indicator with title, value/max, and progress bar
  */
-export function Dashlet({ widget }: DashletComponentProps) {
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const title = config.title || "Progress";
   const value = config.value ?? 6;

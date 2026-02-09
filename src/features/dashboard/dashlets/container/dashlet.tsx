@@ -8,10 +8,9 @@ import {
   type Layout,
   type LayoutItem,
 } from "react-grid-layout";
-import type { DashletComponentProps } from "../types";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { GridLayoutItem } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
-import type { DashletLayoutDefaults } from "../types";
 
 import "react-grid-layout/css/styles.css";
 
@@ -112,6 +111,46 @@ export function getLayoutDefaults(
 }
 
 // ============================================================================
+// Helper Components
+// ============================================================================
+
+interface GridContentProps {
+  hasChildren: boolean;
+  isReady: boolean;
+  editMode: boolean;
+  emptyMessage: string;
+  children: React.ReactNode;
+}
+
+/** Renders the grid content based on state - avoids nested ternaries */
+function GridContent({
+  hasChildren,
+  isReady,
+  editMode,
+  emptyMessage,
+  children,
+}: Readonly<GridContentProps>) {
+  if (!hasChildren) {
+    if (editMode) return null;
+    return (
+      <div className="flex h-20 flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+        <p className="text-sm">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <div className="flex h-20 items-center justify-center text-gray-400">
+        <p className="text-sm">Measuring...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -128,7 +167,7 @@ export function Dashlet({
   isRoot,
   onAddChild,
   children,
-}: DashletComponentProps) {
+}: Readonly<DashletComponentProps>) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -307,75 +346,12 @@ export function Dashlet({
           ref={containerRef}
           className={`p-2 min-h-0 flex-1 overflow-hidden`}
         >
-          {hasChildren ? (
-            containerWidth > 0 ? (
-              <div className="nested-grid-wrapper">
-                <GridLayout
-                  className="container-grid"
-                  layout={layout}
-                  width={containerWidth}
-                  gridConfig={{
-                    cols,
-                    rowHeight: dynamicRowHeight,
-                    margin: [16, marginY] as const,
-                    containerPadding: [0, 0] as const,
-                    maxRows: Infinity,
-                  }}
-                  dragConfig={{
-                    enabled: editMode,
-                    cancel: ".no-drag",
-                  }}
-                  resizeConfig={{
-                    enabled: editMode,
-                    handles: ["se"],
-                  }}
-                  compactor={verticalCompactor}
-                  onDragStop={(layout) => handleDragResizeStop(layout)}
-                  onResizeStop={(layout) => handleDragResizeStop(layout)}
-                  autoSize={true}
-                >
-                  {children}
-                </GridLayout>
-              </div>
-            ) : (
-              <div className="flex h-20 items-center justify-center text-gray-400">
-                <p className="text-sm">Measuring...</p>
-              </div>
-            )
-          ) : (
-            !editMode && (
-              <div className="flex h-20 flex-col items-center justify-center text-gray-400 dark:text-gray-500">
-                <p className="text-sm">No widgets yet</p>
-              </div>
-            )
-          )}
-        </div>
-
-        <ContainerGridStyles />
-      </div>
-    );
-  }
-  // ============================================================================
-  // Labeled Group Variant
-  // ============================================================================
-  return (
-    <div
-      className={`relative flex flex-col rounded-lg border ${borderColorClass} pt-1 h-full`}
-    >
-      {/* Label that cuts into border (fieldset-legend style) */}
-      <span
-        className={`absolute -top-3 left-3 z-10 px-2 text-sm font-medium text-gray-500 dark:text-gray-400 ${labelBgClass}`}
-      >
-        {config.label || "Group"}
-      </span>
-
-      {/* Children content with grid layout */}
-      <div
-        ref={containerRef}
-        className={`p-2.5 min-h-0 flex-1 overflow-hidden`}
-      >
-        {hasChildren ? (
-          containerWidth > 0 && containerHeight > 0 ? (
+          <GridContent
+            hasChildren={hasChildren}
+            isReady={containerWidth > 0}
+            editMode={editMode}
+            emptyMessage="No widgets yet"
+          >
             <div className="nested-grid-wrapper">
               <GridLayout
                 className="container-grid"
@@ -404,18 +380,67 @@ export function Dashlet({
                 {children}
               </GridLayout>
             </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center text-gray-400">
-              <p className="text-sm">Measuring...</p>
-            </div>
-          )
-        ) : (
-          !editMode && (
-            <div className="flex flex-1 items-center justify-center text-gray-400 dark:text-gray-500">
-              <p className="text-sm">Empty group</p>
-            </div>
-          )
-        )}
+          </GridContent>
+        </div>
+
+        <ContainerGridStyles />
+      </div>
+    );
+  }
+  // ============================================================================
+  // Labeled Group Variant
+  // ============================================================================
+  return (
+    <div
+      className={`relative flex flex-col rounded-lg border ${borderColorClass} pt-1 h-full`}
+    >
+      {/* Label that cuts into border (fieldset-legend style) */}
+      <span
+        className={`absolute -top-3 left-3 z-10 px-2 text-sm font-medium text-gray-500 dark:text-gray-400 ${labelBgClass}`}
+      >
+        {config.label || "Group"}
+      </span>
+
+      {/* Children content with grid layout */}
+      <div
+        ref={containerRef}
+        className={`p-2.5 min-h-0 flex-1 overflow-hidden`}
+      >
+        <GridContent
+          hasChildren={hasChildren}
+          isReady={containerWidth > 0 && containerHeight > 0}
+          editMode={editMode}
+          emptyMessage="Empty group"
+        >
+          <div className="nested-grid-wrapper">
+            <GridLayout
+              className="container-grid"
+              layout={layout}
+              width={containerWidth}
+              gridConfig={{
+                cols,
+                rowHeight: dynamicRowHeight,
+                margin: [16, marginY] as const,
+                containerPadding: [0, 0] as const,
+                maxRows: Infinity,
+              }}
+              dragConfig={{
+                enabled: editMode,
+                cancel: ".no-drag",
+              }}
+              resizeConfig={{
+                enabled: editMode,
+                handles: ["se"],
+              }}
+              compactor={verticalCompactor}
+              onDragStop={(layout) => handleDragResizeStop(layout)}
+              onResizeStop={(layout) => handleDragResizeStop(layout)}
+              autoSize={true}
+            >
+              {children}
+            </GridLayout>
+          </div>
+        </GridContent>
       </div>
 
       <ContainerGridStyles />

@@ -22,7 +22,7 @@ interface WidgetRendererProps {
 export function WidgetRenderer({
   widget,
   isRoot = false,
-}: WidgetRendererProps) {
+}: Readonly<WidgetRendererProps>) {
   const { editMode, createWidget, updateWidgetConfig, deleteWidget } =
     useDashboard();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -43,11 +43,6 @@ export function WidgetRenderer({
 
   const handleOpenAddChild = () => {
     setIsAddChildModalOpen(true);
-  };
-
-  const handleAddChild = (componentId: string) => {
-    createWidget(componentId, widget.id);
-    setIsAddChildModalOpen(false);
   };
 
   const handleOpenSettings = () => {
@@ -76,6 +71,7 @@ export function WidgetRenderer({
   const childrenElements = widget.children?.map((child) => (
     <div
       key={child.id}
+      role="presentation"
       className="h-full"
       onMouseDown={stopParentDrag}
       onTouchStart={stopParentDrag}

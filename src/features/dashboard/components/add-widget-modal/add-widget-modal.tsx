@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Modal, ModalHeader, TextInput } from "flowbite-react";
+import { TextInput } from "flowbite-react";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/dashboard-context";
 import {
   getValidDashletsForParent,
-  getDashletsByCategory,
   getCategories,
   getCategoryLabel,
   type DashletMeta,
@@ -32,7 +31,7 @@ export function AddWidgetModal({
   onClose,
   parentId,
   parentComponentId,
-}: AddWidgetModalProps) {
+}: Readonly<AddWidgetModalProps>) {
   const { createWidget } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -76,11 +75,7 @@ export function AddWidgetModal({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  if (typeof window === "undefined" || !isOpen) return null;
+  if (typeof globalThis.window === "undefined" || !isOpen) return null;
 
   const modalContent = (
     <AbsoluteModal

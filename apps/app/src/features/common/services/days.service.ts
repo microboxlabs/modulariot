@@ -70,7 +70,7 @@ export function fromString(date: string): dayjs.Dayjs {
   if (date === null || date === undefined || date.trim() === "") {
     return dayjs("-");
   }
-  const bracketTimezoneMatch = date.match(/^(.+)\[(.+)\]$/);
+  const bracketTimezoneMatch = /^(.+)\[(.+)\]$/.exec(date);
   if (bracketTimezoneMatch) {
     const [, dateTimePart, timezone] = bracketTimezoneMatch;
     if (!isValidDate(dateTimePart)) {

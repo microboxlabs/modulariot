@@ -4,7 +4,9 @@ import { Dropdown, DropdownItem, Button } from "flowbite-react";
 import { ChevronDown } from "flowbite-react-icons/outline";
 import { useState } from "react";
 
-export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
+export default function PlanningTitle({
+  dict,
+}: Readonly<{ dict: I18nRecord }>) {
   const [type, setType] = useState<"dispatch" | "reception">("dispatch");
 
   return (
@@ -20,7 +22,7 @@ export default function PlanningTitle({ dict }: { dict: I18nRecord }) {
         renderTrigger={() => (
           <Button
             color="alternative"
-            className="text-lg font-normal text-gray-500 dark:text-white bg-white px-2 py-1 rounded-lg flex items-center"
+            className="text-lg font-normal text-gray-500 dark:text-white bg-white px-2 py-1 h-8 rounded-lg flex items-center"
           >
             {type === "dispatch"
               ? tr("layout.planning.dispatch", dict)

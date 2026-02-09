@@ -23,7 +23,7 @@ export function getCurrentVersion(): string {
 
     // Find the most recent version file (assuming format vX.Y.md)
     const versionFile = files
-      .filter((file) => file.match(/^v\d+\.\d+\.md$/))
+      .filter((file) => /^v\d+\.\d+\.md$/.test(file))
       .sort((a, b) => compareVersions(a, b))
       .pop();
 

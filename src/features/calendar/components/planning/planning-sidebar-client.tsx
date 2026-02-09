@@ -29,6 +29,15 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
+type PlanningSearchMatchType =
+  | "id"
+  | "cliente"
+  | "origen"
+  | "destino"
+  | "lugarCarguio"
+  | "permanencia"
+  | "tipoViaje";
+
 /**
  * Calculate occupation percentage based on load constraint type.
  * Uses the appropriate utilization value depending on the constraint:
@@ -59,7 +68,9 @@ function calculateOccupation(task: KanbanBoardTask): number {
 /**
  * Determine trip type from serviceKind or executionType
  */
-function determineTripType(task: KanbanBoardTask): "Sider" | "Doble Sider" | "Rampla" {
+function determineTripType(
+  task: KanbanBoardTask
+): "Sider" | "Doble Sider" | "Rampla" {
   if (task.serviceKind === "Sider") return "Sider";
   if (task.serviceKind === "Doble Sider") return "Doble Sider";
   if (task.executionType === "Rampla") return "Rampla";
@@ -107,7 +118,10 @@ function calculateLeadTimeCompliance(icuCondition: number): {
 /**
  * Extract incidencias from task fields
  */
-function extractIncidencias(task: KanbanBoardTask, compliancePercentage: number): string[] {
+function extractIncidencias(
+  task: KanbanBoardTask,
+  compliancePercentage: number
+): string[] {
   const incidencias: string[] = [];
 
   if (task.mintral_priorityCode) {
@@ -199,28 +213,11 @@ export function PlanningSidebarClient({
     null
   );
   const [filterMatchType, setFilterMatchType] = useState<{
-    matchType:
-      | "id"
-      | "cliente"
-      | "origen"
-      | "destino"
-      | "lugarCarguio"
-      | "permanencia"
-      | "tipoViaje";
+    matchType: PlanningSearchMatchType;
     query: string;
   } | null>(null);
   const [searchTags, setSearchTags] = useState<
-    Array<{
-      matchType:
-        | "id"
-        | "cliente"
-        | "origen"
-        | "destino"
-        | "lugarCarguio"
-        | "permanencia"
-        | "tipoViaje";
-      value: string;
-    }>
+    Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
 
   // Handle cancel reassignment
@@ -238,14 +235,15 @@ export function PlanningSidebarClient({
 
     for (const tag of searchTags) {
       switch (tag.matchType) {
-        case "id":
+        case "id": {
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
-          const serviceCodeMatch = tag.value.match(/^(\d+)/);
+          const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
             ? serviceCodeMatch[1]
             : tag.value;
           params.push(`service=${numericServiceCode}`);
           break;
+        }
         case "cliente":
           params.push(`customer=${tag.value}`);
           break;
@@ -264,11 +262,7 @@ export function PlanningSidebarClient({
   }, [searchTags]);
 
   // Fetch tasks from API
-  const {
-    data: myTasksData,
-    error: myTasksError,
-    isLoading: isLoadingTasks,
-  } = useMyTasks(
+  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
     ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
@@ -307,13 +301,13 @@ export function PlanningSidebarClient({
   const windowBaseSlots = useMemo(() => {
     if (!selectedTimeWindow?.weeklyPattern) return 1;
     // Parse the window pattern to get start and end times
-    const match = selectedTimeWindow.weeklyPattern.match(/(\d{4})-(\d{4})$/);
+    const match = /(\d{4})-(\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
     if (!match) return 1;
     const [, startTime, endTime] = match;
-    const startHour = parseInt(startTime.slice(0, 2), 10);
-    const startMinutes = parseInt(startTime.slice(2, 4), 10);
-    const endHour = parseInt(endTime.slice(0, 2), 10);
-    const endMinutes = parseInt(endTime.slice(2, 4), 10);
+    const startHour = Number.parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = Number.parseInt(startTime.slice(2, 4), 10);
+    const endHour = Number.parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = Number.parseInt(endTime.slice(2, 4), 10);
 
     const totalMinutes =
       endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
@@ -393,7 +387,6 @@ export function PlanningSidebarClient({
     };
 
     let services = [...allServices];
-
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
     if (searchTags.length > 0) {
@@ -562,15 +555,15 @@ export function PlanningSidebarClient({
             <button
               type="button"
               onClick={
-                reassigningService !== null
-                  ? handleCancelReassignment
-                  : handleBack
+                reassigningService === null
+                  ? handleBack
+                  : handleCancelReassignment
               }
               className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
               aria-label={
-                reassigningService !== null
-                  ? tr("pages.planning.sidebar.form.cancelReassignment", dict)
-                  : tr("pages.planning.sidebar.form.back", dict)
+                reassigningService === null
+                  ? tr("pages.planning.sidebar.form.back", dict)
+                  : tr("pages.planning.sidebar.form.cancelReassignment", dict)
               }
             >
               <HiArrowLeft className="w-5 h-5" />

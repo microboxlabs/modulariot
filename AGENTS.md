@@ -49,6 +49,7 @@
 Cognitive Complexity measures how hard it is to understand the control flow of code. High cognitive complexity makes code hard to read, understand, test, and modify.
 
 **What increases cognitive complexity:**
+
 - Loop structures (for, while, do-while)
 - Conditionals (if, else, ternary operators)
 - Nested conditions and loops (each nesting level compounds complexity)
@@ -64,11 +65,17 @@ Cognitive Complexity measures how hard it is to understand the control flow of c
 - **Avoid nested ternaries** - Extract to variables or helper functions
 
 **Example - Before (high complexity):**
+
 ```typescript
-return error ? (error instanceof Error ? error : new Error(String(error))) : null;
+return error
+  ? error instanceof Error
+    ? error
+    : new Error(String(error))
+  : null;
 ```
 
 **Example - After (lower complexity):**
+
 ```typescript
 const normalizeError = (error: unknown): Error | null => {
   if (!error) return null;
@@ -78,6 +85,34 @@ return normalizeError(error);
 ```
 
 Note: Method calls are free (don't add complexity), but recursive calls do increment the score.
+
+## React Component Rules
+
+- Never define components inside other components (nested components)
+- Inline render functions that return JSX should delegate to extracted components
+- Extract reusable render logic to separate named components and pass data as props
+- This prevents state loss on parent re-renders and avoids unnecessary component recreation
+
+**Example - Avoid (nested component):**
+
+```tsx
+function Parent() {
+  const ChildComponent = () => <div>...</div>; // Bad: recreated on every render
+  return <ChildComponent />;
+}
+```
+
+**Example - Correct (extracted component):**
+
+```tsx
+function ChildComponent({ data }: Props) {
+  return <div>...</div>;
+}
+
+function Parent() {
+  return <ChildComponent data={data} />;
+}
+```
 
 ## Styling
 
@@ -136,6 +171,7 @@ Note: Method calls are free (don't add complexity), but recursive calls do incre
 ## Before Committing
 
 Run all checks:
+
 ```bash
 npm run lint
 npm run format:check

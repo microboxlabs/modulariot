@@ -137,7 +137,6 @@ export function PlanningSidebarForm({
     selectedSlot,
     canAddToSlot,
     reassigningService,
-    cancelReassignment,
     getOccupiedAndenes,
   } = usePlanningSelection();
 
@@ -331,8 +330,8 @@ export function PlanningSidebarForm({
   const codeToLabelMap = new Map<string, string>();
   const incidentCodes = selectedService.mintral_incidents
     ? selectedService.mintral_incidents.map((incident) => {
-        const rawCode = incident[0] as string;
-        const label = incident[1] as string;
+        const rawCode = incident[0];
+        const label = incident[1];
         // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
         const code = rawCode.replace(/^mintral_incident_/i, "");
         codeToLabelMap.set(code, label);
@@ -474,7 +473,9 @@ export function PlanningSidebarForm({
 
       {/* Load Utilization Section */}
       {selectedService.loadConstraint && (
-        <FormSection title={tr("pages.planning.sidebar.form.loadUtilization", dict)}>
+        <FormSection
+          title={tr("pages.planning.sidebar.form.loadUtilization", dict)}
+        >
           <InfoRow
             label={tr("pages.planning.sidebar.form.constraint", dict)}
             value={selectedService.loadConstraint}
@@ -482,18 +483,18 @@ export function PlanningSidebarForm({
           <InfoRow
             label={tr("pages.planning.sidebar.form.maxUtilization", dict)}
             value={
-              selectedService.loadMaxUtilization != null
-                ? `${selectedService.loadMaxUtilization.toFixed(1)}`
-                : "—"
+              selectedService.loadMaxUtilization == null
+                ? "—"
+                : `${selectedService.loadMaxUtilization.toFixed(1)}`
             }
           />
           {selectedService.loadConstraint === "Carga" && (
             <InfoRow
               label={tr("pages.planning.sidebar.form.weightUtilization", dict)}
               value={
-                selectedService.loadWeightUtilization != null
-                  ? `${selectedService.loadWeightUtilization.toFixed(1)}%`
-                  : "—"
+                selectedService.loadWeightUtilization == null
+                  ? "—"
+                  : `${selectedService.loadWeightUtilization.toFixed(1)}%`
               }
             />
           )}
@@ -501,9 +502,9 @@ export function PlanningSidebarForm({
             <InfoRow
               label={tr("pages.planning.sidebar.form.palletUtilization", dict)}
               value={
-                selectedService.loadPalletUtilization != null
-                  ? `${selectedService.loadPalletUtilization.toFixed(1)}%`
-                  : "—"
+                selectedService.loadPalletUtilization == null
+                  ? "—"
+                  : `${selectedService.loadPalletUtilization.toFixed(1)}%`
               }
             />
           )}
@@ -511,9 +512,9 @@ export function PlanningSidebarForm({
             <InfoRow
               label={tr("pages.planning.sidebar.form.volumeUtilization", dict)}
               value={
-                selectedService.loadVolumeUtilization != null
-                  ? `${selectedService.loadVolumeUtilization.toFixed(1)}%`
-                  : "—"
+                selectedService.loadVolumeUtilization == null
+                  ? "—"
+                  : `${selectedService.loadVolumeUtilization.toFixed(1)}%`
               }
             />
           )}

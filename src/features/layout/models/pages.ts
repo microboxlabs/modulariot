@@ -92,6 +92,11 @@ export const pages: SidebarItem[] = [
         label: "completed_tasks",
         totals: {},
       },
+      {
+        href: "/mytasks?status=pending",
+        label: "pending_tasks",
+        totals: {},
+      },
     ],
     totals: {},
     requiredGroups: [],

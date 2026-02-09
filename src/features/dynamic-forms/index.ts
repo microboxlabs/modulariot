@@ -53,12 +53,6 @@ export type {
   FieldDependency,
   LiveFieldFetcher,
   LiveFieldFetcherProps,
-  // Legacy aliases
-  FormFieldType,
-  FormFieldOption,
-  FormFieldConfig,
-  CustomFormConfig,
-  CustomFormValues,
 } from "./dynamic-form.types";
 
 // Hooks

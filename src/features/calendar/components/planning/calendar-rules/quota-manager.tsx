@@ -9,7 +9,6 @@ import dayjs from "dayjs";
 import {
   type TimeWindow,
   type TimeWindowColor,
-  type ParsedWeeklyPattern,
   TIME_WINDOW_COLORS,
   TimeWindowUtils,
   usePlanningSelection,
@@ -18,6 +17,20 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
+import {
+  DAYS_OF_WEEK,
+  WEEKS_OF_MONTH,
+  generateTimeOptions,
+  parseTime,
+  formatTime,
+  adjustTimeRange,
+  getSlotPattern,
+  buildWeeklySlot,
+  buildDailyOverrideSlot,
+  calculateCollisions,
+} from "./time-slot-utils";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 /**
  * Time window configuration
@@ -31,78 +44,78 @@ import {
  * - "daily-override": Applies to a specific date, overrides weekly windows
  */
 
-const MIN_HOUR = 0;
-const MAX_HOUR = 23;
+function getDayButtonClassName(
+  isSelected: boolean,
+  isWeekend: boolean
+): string {
+  if (isSelected) {
+    return "bg-primary-500 text-white shadow-sm hover:bg-primary-600";
+  }
+  if (isWeekend) {
+    return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+}
 
-// Days using format standard: 1=Monday, 7=Sunday
-const DAYS_OF_WEEK = [
-  { value: 1, label: "L", fullLabel: "Lunes" },
-  { value: 2, label: "M", fullLabel: "Martes" },
-  { value: 3, label: "X", fullLabel: "Miércoles" },
-  { value: 4, label: "J", fullLabel: "Jueves" },
-  { value: 5, label: "V", fullLabel: "Viernes" },
-  { value: 6, label: "S", fullLabel: "Sábado" },
-  { value: 7, label: "D", fullLabel: "Domingo" },
-];
-
-const WEEKS_OF_MONTH = [
-  { value: 1, label: "S1", fullLabel: "Semana 1" },
-  { value: 2, label: "S2", fullLabel: "Semana 2" },
-  { value: 3, label: "S3", fullLabel: "Semana 3" },
-  { value: 4, label: "S4", fullLabel: "Semana 4" },
-  { value: 5, label: "S5", fullLabel: "Semana 5" },
-];
+function getWeekButtonClassName(
+  isSelected: boolean,
+  isAllWeeks: boolean
+): string {
+  if (isSelected) {
+    return "bg-cyan-500 text-white shadow-sm hover:bg-cyan-600";
+  }
+  if (isAllWeeks) {
+    return "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+}
 
 /** Color options for time windows using the common ColorPickerDropdown */
-const COLOR_OPTIONS: ColorOption<TimeWindowColor>[] = [
-  {
-    value: "emerald",
-    label: "Verde",
-    dotClass: TIME_WINDOW_COLORS.emerald.dot,
-  },
-  { value: "blue", label: "Azul", dotClass: TIME_WINDOW_COLORS.blue.dot },
-  {
-    value: "violet",
-    label: "Violeta",
-    dotClass: TIME_WINDOW_COLORS.violet.dot,
-  },
-  { value: "rose", label: "Rosa", dotClass: TIME_WINDOW_COLORS.rose.dot },
-  { value: "amber", label: "Ámbar", dotClass: TIME_WINDOW_COLORS.amber.dot },
-  { value: "cyan", label: "Cian", dotClass: TIME_WINDOW_COLORS.cyan.dot },
-  { value: "lime", label: "Lima", dotClass: TIME_WINDOW_COLORS.lime.dot },
-  {
-    value: "orange",
-    label: "Naranja",
-    dotClass: TIME_WINDOW_COLORS.orange.dot,
-  },
-];
-
-function generateTimeOptions(
-  minHour = MIN_HOUR,
-  maxHour = MAX_HOUR
-): { value: string; label: string }[] {
-  const options: { value: string; label: string }[] = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    for (const minutes of [0, 30]) {
-      if (hour === maxHour && minutes > 0) continue;
-      const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      options.push({ value, label: value });
-    }
-  }
-  return options;
-}
-
-function parseTime(timeStr: string): { hour: number; minutes: number } {
-  const [hour, minutes] = timeStr.split(":").map(Number);
-  return { hour, minutes };
-}
-
-function formatTime(hour: number, minutes: number): string {
-  return `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-}
-
-function timeToMinutes(hour: number, minutes: number): number {
-  return hour * 60 + minutes;
+function getColorOptions(
+  messages: QuotaManagerMessages
+): ColorOption<TimeWindowColor>[] {
+  return [
+    {
+      value: "emerald",
+      label: messages.colors.emerald,
+      dotClass: TIME_WINDOW_COLORS.emerald.dot,
+    },
+    {
+      value: "blue",
+      label: messages.colors.blue,
+      dotClass: TIME_WINDOW_COLORS.blue.dot,
+    },
+    {
+      value: "violet",
+      label: messages.colors.violet,
+      dotClass: TIME_WINDOW_COLORS.violet.dot,
+    },
+    {
+      value: "rose",
+      label: messages.colors.rose,
+      dotClass: TIME_WINDOW_COLORS.rose.dot,
+    },
+    {
+      value: "amber",
+      label: messages.colors.amber,
+      dotClass: TIME_WINDOW_COLORS.amber.dot,
+    },
+    {
+      value: "cyan",
+      label: messages.colors.cyan,
+      dotClass: TIME_WINDOW_COLORS.cyan.dot,
+    },
+    {
+      value: "lime",
+      label: messages.colors.lime,
+      dotClass: TIME_WINDOW_COLORS.lime.dot,
+    },
+    {
+      value: "orange",
+      label: messages.colors.orange,
+      dotClass: TIME_WINDOW_COLORS.orange.dot,
+    },
+  ];
 }
 
 /**
@@ -114,109 +127,17 @@ function formatTimeWindowCode(window: TimeWindow): string {
 }
 
 /**
- * Get parsed weekly pattern or default values
- */
-function getWindowPattern(window: TimeWindow): ParsedWeeklyPattern {
-  if (window.type === "weekly" && window.weeklyPattern) {
-    const parsed = TimeWindowUtils.parseWeeklyPattern(window.weeklyPattern);
-    if (parsed) return parsed;
-  }
-  if (window.type === "daily-override") {
-    const timeRange = TimeWindowUtils.getTimeRange(window);
-    if (timeRange) {
-      return {
-        weeks: [],
-        days: [],
-        ...timeRange,
-      };
-    }
-  }
-  // Default values
-  return {
-    weeks: [],
-    days: [1, 2, 3, 4, 5],
-    startHour: 8,
-    startMinutes: 0,
-    endHour: 12,
-    endMinutes: 0,
-  };
-}
-
-/**
- * Check if two time windows have overlapping days
- */
-function hasOverlappingDays(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  return aPattern.days.some((day) => bPattern.days.includes(day));
-}
-
-/**
- * Check if two time windows have overlapping weeks
- * Empty weeks array means "all weeks"
- */
-function hasOverlappingWeeks(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  // If either has empty weeks (all weeks), they overlap
-  if (aPattern.weeks.length === 0 || bPattern.weeks.length === 0) return true;
-  return aPattern.weeks.some((week) => bPattern.weeks.includes(week));
-}
-
-/**
- * Check if two time ranges overlap
- */
-function hasOverlappingTime(a: TimeWindow, b: TimeWindow): boolean {
-  const aPattern = getWindowPattern(a);
-  const bPattern = getWindowPattern(b);
-  const aStart = timeToMinutes(aPattern.startHour, aPattern.startMinutes);
-  const aEnd = timeToMinutes(aPattern.endHour, aPattern.endMinutes);
-  const bStart = timeToMinutes(bPattern.startHour, bPattern.startMinutes);
-  const bEnd = timeToMinutes(bPattern.endHour, bPattern.endMinutes);
-
-  // Two ranges overlap if one starts before the other ends
-  return aStart < bEnd && bStart < aEnd;
-}
-
-/**
- * Check if two time windows collide (overlap in days, weeks, AND time)
- * Note: weekly windows can collide with each other
- * Daily-override windows don't collide - they override weekly windows instead
- */
-function windowsCollide(a: TimeWindow, b: TimeWindow): boolean {
-  // Daily-override windows don't collide with anything - they override
-  if (a.type === "daily-override" || b.type === "daily-override") {
-    return false;
-  }
-  return (
-    hasOverlappingDays(a, b) &&
-    hasOverlappingWeeks(a, b) &&
-    hasOverlappingTime(a, b)
-  );
-}
-
-/**
- * Get IDs of windows that collide with the given window
- */
-function getCollidingWindowIds(
-  window: TimeWindow,
-  allWindows: TimeWindow[]
-): string[] {
-  return allWindows
-    .filter((w) => w.id !== window.id && windowsCollide(window, w))
-    .map((w) => w.id);
-}
-
-/**
  * Portal-based Datepicker that renders outside overflow:hidden containers
  */
 function PortalDatepicker({
   value,
   onChange,
-}: {
+  messages,
+}: Readonly<{
   value: string | undefined;
   onChange: (date: string) => void;
-}) {
+  messages: { selectDate: string; today: string; clear: string };
+}>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -255,7 +176,7 @@ function PortalDatepicker({
 
   const displayDate = value
     ? dayjs(value).format("DD/MM/YYYY")
-    : "Seleccionar fecha";
+    : messages.selectDate;
   const dayName = value ? dayjs(value).format("dddd") : "";
   const minDate = dayjs().startOf("day").toDate();
 
@@ -293,8 +214,8 @@ function PortalDatepicker({
                 setIsOpen(false);
               }}
               language="es-ES"
-              labelTodayButton="Hoy"
-              labelClearButton="Limpiar"
+              labelTodayButton={messages.today}
+              labelClearButton={messages.clear}
               showClearButton={false}
             />
           </div>,
@@ -304,16 +225,84 @@ function PortalDatepicker({
   );
 }
 
+export interface QuotaManagerMessages {
+  noWindows: string;
+  windowPlaceholder: string;
+  availableQuotas: string;
+  deleteWindow: string;
+  weekly: string;
+  dailyException: string;
+  selectDate: string;
+  selectAll: string;
+  deselectAll: string;
+  selectWeeks: string;
+  allWeeks: string;
+  scheduleConflict: string;
+  addWindow: string;
+  apply: string;
+  today: string;
+  clear: string;
+  colors: {
+    emerald: string;
+    blue: string;
+    violet: string;
+    rose: string;
+    amber: string;
+    cyan: string;
+    lime: string;
+    orange: string;
+  };
+}
+
+const QUOTA_MANAGER_BASE =
+  "layout.planning.calendarRules.quotaManagement" as const;
+
+export function getQuotaManagerMessages(
+  dict: I18nDictionary
+): QuotaManagerMessages {
+  return {
+    noWindows: tr(`${QUOTA_MANAGER_BASE}.noWindows`, dict),
+    windowPlaceholder: tr(`${QUOTA_MANAGER_BASE}.windowPlaceholder`, dict),
+    availableQuotas: tr(`${QUOTA_MANAGER_BASE}.availableQuotas`, dict),
+    deleteWindow: tr(`${QUOTA_MANAGER_BASE}.deleteWindow`, dict),
+    weekly: tr(`${QUOTA_MANAGER_BASE}.weekly`, dict),
+    dailyException: tr(`${QUOTA_MANAGER_BASE}.dailyException`, dict),
+    selectDate: tr(`${QUOTA_MANAGER_BASE}.selectDate`, dict),
+    selectAll: tr(`${QUOTA_MANAGER_BASE}.selectAll`, dict),
+    deselectAll: tr(`${QUOTA_MANAGER_BASE}.deselectAll`, dict),
+    selectWeeks: tr(`${QUOTA_MANAGER_BASE}.selectWeeks`, dict),
+    allWeeks: tr(`${QUOTA_MANAGER_BASE}.allWeeks`, dict),
+    scheduleConflict: tr(`${QUOTA_MANAGER_BASE}.scheduleConflict`, dict),
+    addWindow: tr(`${QUOTA_MANAGER_BASE}.addWindow`, dict),
+    apply: tr(`${QUOTA_MANAGER_BASE}.apply`, dict),
+    today: tr(`${QUOTA_MANAGER_BASE}.today`, dict),
+    clear: tr(`${QUOTA_MANAGER_BASE}.clear`, dict),
+    colors: {
+      emerald: tr(`${QUOTA_MANAGER_BASE}.colors.emerald`, dict),
+      blue: tr(`${QUOTA_MANAGER_BASE}.colors.blue`, dict),
+      violet: tr(`${QUOTA_MANAGER_BASE}.colors.violet`, dict),
+      rose: tr(`${QUOTA_MANAGER_BASE}.colors.rose`, dict),
+      amber: tr(`${QUOTA_MANAGER_BASE}.colors.amber`, dict),
+      cyan: tr(`${QUOTA_MANAGER_BASE}.colors.cyan`, dict),
+      lime: tr(`${QUOTA_MANAGER_BASE}.colors.lime`, dict),
+      orange: tr(`${QUOTA_MANAGER_BASE}.colors.orange`, dict),
+    },
+  };
+}
+
 interface QuotaManagerProps {
+  messages: QuotaManagerMessages;
   onRulesChange?: (windows: TimeWindow[], formatString: string) => void;
 }
 
 export default function QuotaManager({
+  messages,
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
   const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } =
     usePlanningSelection();
   const timeOptions = useMemo(() => generateTimeOptions(), []);
+  const colorOptions = useMemo(() => getColorOptions(messages), [messages]);
 
   // Auto-delete expired daily-override exceptions (date before today)
   useEffect(() => {
@@ -335,18 +324,10 @@ export default function QuotaManager({
   }, [timeWindows]);
 
   // Calculate which windows have collisions (only weekly vs weekly)
-  const windowsWithCollisions = useMemo(() => {
-    const collisions = new Set<string>();
-    const weeklyWindows = timeWindows.filter((w) => w.type === "weekly");
-    for (const window of weeklyWindows) {
-      const collidingIds = getCollidingWindowIds(window, weeklyWindows);
-      if (collidingIds.length > 0) {
-        collisions.add(window.id);
-        collidingIds.forEach((id) => collisions.add(id));
-      }
-    }
-    return collisions;
-  }, [timeWindows]);
+  const windowsWithCollisions = useMemo(
+    () => calculateCollisions(timeWindows),
+    [timeWindows]
+  );
 
   const hasAnyCollision = windowsWithCollisions.size > 0;
 
@@ -399,42 +380,23 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
-          const pattern = getWindowPattern(w);
-          const today = dayjs();
+          const pattern = getSlotPattern(w);
 
           if (type === "daily-override") {
-            // Convert to daily-override: use today + existing time
-            return {
-              ...w,
-              type,
-              weeklyPattern: undefined,
-              startTimestamp: today
-                .hour(pattern.startHour)
-                .minute(pattern.startMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-              endTimestamp: today
-                .hour(pattern.endHour)
-                .minute(pattern.endMinutes)
-                .second(0)
-                .format("YYYY-MM-DDTHH:mm:ss"),
-            };
-          }
-          // Convert to weekly: use existing time + default weekdays
-          return {
-            ...w,
-            type,
-            startTimestamp: undefined,
-            endTimestamp: undefined,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              [],
-              [1, 2, 3, 4, 5],
+            return buildDailyOverrideSlot(
+              w,
+              dayjs(),
               pattern.startHour,
               pattern.startMinutes,
               pattern.endHour,
               pattern.endMinutes
-            ),
-          };
+            );
+          }
+          return buildWeeklySlot(w, {
+            ...pattern,
+            weeks: [],
+            days: [1, 2, 3, 4, 5],
+          });
         })
       );
     },
@@ -446,21 +408,15 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "daily-override") return w;
-          const pattern = getWindowPattern(w);
-          const newDate = dayjs(date);
-          return {
-            ...w,
-            startTimestamp: newDate
-              .hour(pattern.startHour)
-              .minute(pattern.startMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: newDate
-              .hour(pattern.endHour)
-              .minute(pattern.endMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          const pattern = getSlotPattern(w);
+          return buildDailyOverrideSlot(
+            w,
+            dayjs(date),
+            pattern.startHour,
+            pattern.startMinutes,
+            pattern.endHour,
+            pattern.endMinutes
+          );
         })
       );
     },
@@ -497,21 +453,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const days = pattern.days.includes(day)
             ? pattern.days.filter((d) => d !== day)
             : [...pattern.days, day];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(w, { ...pattern, days });
         })
       );
     },
@@ -523,21 +469,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const allDays = DAYS_OF_WEEK.map((d) => d.value);
           const hasAllDays = allDays.every((d) => pattern.days.includes(d));
-          const newDays = hasAllDays ? [] : allDays;
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              pattern.weeks,
-              newDays,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const days = hasAllDays ? [] : [...allDays];
+          return buildWeeklySlot(w, { ...pattern, days });
         })
       );
     },
@@ -549,21 +485,11 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const weeks = pattern.weeks.includes(week)
             ? pattern.weeks.filter((wk) => wk !== week)
             : [...pattern.weeks, week];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              weeks,
-              pattern.days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          return buildWeeklySlot(w, { ...pattern, weeks });
         })
       );
     },
@@ -575,20 +501,10 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id || w.type !== "weekly") return w;
-          const pattern = getWindowPattern(w);
+          const pattern = getSlotPattern(w);
           const hasAllWeeks = pattern.weeks.length === 0;
-          const newWeeks = hasAllWeeks ? [1, 2, 3, 4] : [];
-          return {
-            ...w,
-            weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-              newWeeks,
-              pattern.days,
-              pattern.startHour,
-              pattern.startMinutes,
-              pattern.endHour,
-              pattern.endMinutes
-            ),
-          };
+          const weeks = hasAllWeeks ? [1, 2, 3, 4] : [];
+          return buildWeeklySlot(w, { ...pattern, weeks });
         })
       );
     },
@@ -612,71 +528,24 @@ export default function QuotaManager({
       setTimeWindows(
         timeWindows.map((w) => {
           if (w.id !== id) return w;
-          const pattern = getWindowPattern(w);
-
-          let newStartHour = pattern.startHour;
-          let newStartMinutes = pattern.startMinutes;
-          let newEndHour = pattern.endHour;
-          let newEndMinutes = pattern.endMinutes;
-
-          if (field === "start") {
-            const newStartMin = timeToMinutes(hour, minutes);
-            const endMin = timeToMinutes(pattern.endHour, pattern.endMinutes);
-            if (newStartMin >= endMin) {
-              // Adjust end time
-              const adjustedEnd = newStartMin + 30;
-              newEndHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
-              newEndMinutes = newEndHour === MAX_HOUR ? 0 : adjustedEnd % 60;
-            }
-            newStartHour = hour;
-            newStartMinutes = minutes;
-          } else {
-            const startMin = timeToMinutes(
-              pattern.startHour,
-              pattern.startMinutes
-            );
-            const newEndMin = timeToMinutes(hour, minutes);
-            if (newEndMin <= startMin) {
-              // Adjust start time
-              const adjustedStart = Math.max(newEndMin - 30, 0);
-              newStartHour = Math.floor(adjustedStart / 60);
-              newStartMinutes = adjustedStart % 60;
-            }
-            newEndHour = hour;
-            newEndMinutes = minutes;
-          }
+          const pattern = getSlotPattern(w);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
 
           if (w.type === "weekly") {
-            return {
-              ...w,
-              weeklyPattern: TimeWindowUtils.buildWeeklyPattern(
-                pattern.weeks,
-                pattern.days,
-                newStartHour,
-                newStartMinutes,
-                newEndHour,
-                newEndMinutes
-              ),
-            };
+            return buildWeeklySlot(w, { ...pattern, ...adjusted });
           }
 
-          // For daily-override, update timestamps
           const currentDate = w.startTimestamp
             ? dayjs(w.startTimestamp)
             : dayjs();
-          return {
-            ...w,
-            startTimestamp: currentDate
-              .hour(newStartHour)
-              .minute(newStartMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-            endTimestamp: currentDate
-              .hour(newEndHour)
-              .minute(newEndMinutes)
-              .second(0)
-              .format("YYYY-MM-DDTHH:mm:ss"),
-          };
+          return buildDailyOverrideSlot(
+            w,
+            currentDate,
+            adjusted.startHour,
+            adjusted.startMinutes,
+            adjusted.endHour,
+            adjusted.endMinutes
+          );
         })
       );
     },
@@ -705,12 +574,12 @@ export default function QuotaManager({
         {timeWindows.length === 0 && (
           <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
             <HiCalendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            No hay ventanas definidas
+            {messages.noWindows}
           </div>
         )}
         {timeWindows.map((window, index) => {
           const windowCode = formatTimeWindowCode(window);
-          const pattern = getWindowPattern(window);
+          const pattern = getSlotPattern(window);
           const isAllWeeks = pattern.weeks.length === 0;
           const hasCollision = windowsWithCollisions.has(window.id);
           const windowDate = TimeWindowUtils.getDate(window);
@@ -740,7 +609,7 @@ export default function QuotaManager({
                   {hasCollision && (
                     <span
                       className="text-red-500 text-xs"
-                      title="Conflicto de horarios"
+                      title={messages.scheduleConflict}
                     >
                       ⚠️
                     </span>
@@ -751,7 +620,10 @@ export default function QuotaManager({
                     onChange={(e) =>
                       updateTimeWindowName(window.id, e.target.value)
                     }
-                    placeholder={`Ventana ${index + 1}`}
+                    placeholder={messages.windowPlaceholder.replace(
+                      "{index}",
+                      String(index + 1)
+                    )}
                     className={twMerge(
                       "text-sm font-semibold bg-transparent border-0 focus:ring-0 p-0 flex-1 max-w-[140px] placeholder:text-gray-400",
                       hasCollision
@@ -764,7 +636,7 @@ export default function QuotaManager({
                   {/* Quota badge */}
                   <div
                     className="flex items-center bg-primary-100 dark:bg-primary-900/30 rounded-full"
-                    title="Cupos disponibles"
+                    title={messages.availableQuotas}
                   >
                     <button
                       type="button"
@@ -787,13 +659,15 @@ export default function QuotaManager({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           const value =
-                            parseInt((e.target as HTMLInputElement).value) || 0;
+                            Number.parseInt(
+                              (e.target as HTMLInputElement).value
+                            ) || 0;
                           updateQuota(window.id, value);
                           (e.target as HTMLInputElement).blur();
                         }
                       }}
                       onBlur={(e) => {
-                        const value = parseInt(e.target.value) || 0;
+                        const value = Number.parseInt(e.target.value) || 0;
                         updateQuota(window.id, value);
                       }}
                       className="w-8 text-center text-sm font-bold text-primary-700 dark:text-primary-300 bg-transparent border-0 focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -810,7 +684,7 @@ export default function QuotaManager({
                     type="button"
                     onClick={() => removeTimeWindow(window.id)}
                     className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                    title="Eliminar ventana"
+                    title={messages.deleteWindow}
                   >
                     <HiTrash className="h-3.5 w-3.5" />
                   </button>
@@ -832,7 +706,7 @@ export default function QuotaManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Semanal
+                      {messages.weekly}
                     </button>
                     <button
                       type="button"
@@ -846,14 +720,14 @@ export default function QuotaManager({
                           : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                       )}
                     >
-                      Excepción día
+                      {messages.dailyException}
                     </button>
                   </div>
                   {/* Color Picker Dropdown */}
                   <ColorPickerDropdown
                     value={window.color || "emerald"}
                     onChange={(color) => updateWindowColor(window.id, color)}
-                    options={COLOR_OPTIONS}
+                    options={colorOptions}
                   />
                 </div>
 
@@ -901,8 +775,8 @@ export default function QuotaManager({
                       onClick={() => toggleAllDays(window.id)}
                       title={
                         pattern.days.length === 7
-                          ? "Deseleccionar todos"
-                          : "Seleccionar todos"
+                          ? messages.deselectAll
+                          : messages.selectAll
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -927,11 +801,7 @@ export default function QuotaManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-primary-500 text-white shadow-sm hover:bg-primary-600"
-                                : isWeekend
-                                  ? "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getDayButtonClassName(isSelected, isWeekend)
                             )}
                           >
                             {day.label}
@@ -947,6 +817,11 @@ export default function QuotaManager({
                     onChange={(date) =>
                       updateDailyOverrideDate(window.id, date)
                     }
+                    messages={{
+                      selectDate: messages.selectDate,
+                      today: messages.today,
+                      clear: messages.clear,
+                    }}
                   />
                 )}
 
@@ -957,7 +832,7 @@ export default function QuotaManager({
                       type="button"
                       onClick={() => toggleAllWeeks(window.id)}
                       title={
-                        isAllWeeks ? "Seleccionar semanas" : "Todas las semanas"
+                        isAllWeeks ? messages.selectWeeks : messages.allWeeks
                       }
                       className={twMerge(
                         "shrink-0 w-7 h-7 text-[9px] font-bold rounded-md transition-all duration-200",
@@ -981,11 +856,7 @@ export default function QuotaManager({
                             className={twMerge(
                               "flex-1 h-7 text-[10px] font-semibold rounded-md transition-all duration-200",
                               "focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-1",
-                              isSelected
-                                ? "bg-cyan-500 text-white shadow-sm hover:bg-cyan-600"
-                                : isAllWeeks
-                                  ? "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-500 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
-                                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              getWeekButtonClassName(isSelected, isAllWeeks)
                             )}
                           >
                             {week.label}
@@ -1021,7 +892,7 @@ export default function QuotaManager({
       >
         <Button color="light" size="sm" onClick={() => addTimeWindow("weekly")}>
           <HiPlus className="h-4 w-4 mr-1.5" />
-          Ventana
+          {messages.addWindow}
         </Button>
 
         <Button
@@ -1032,11 +903,11 @@ export default function QuotaManager({
           className={hasAnyCollision ? "opacity-50 cursor-not-allowed" : ""}
         >
           <HiCheck className="h-4 w-4 mr-1.5" />
-          Aplicar
+          {messages.apply}
         </Button>
       </div>
     </div>
   );
 }
 
-export type { TimeWindow };
+export type { TimeWindow } from "../planning-selection-context";

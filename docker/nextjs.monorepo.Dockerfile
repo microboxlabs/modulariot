@@ -1,7 +1,7 @@
 # =============================================================================
-# Next.js Standalone Production Image - pnpm Monorepo
+# Next.js Standalone Production Image - npm Monorepo
 # =============================================================================
-# Multi-stage build that handles pnpm symlinks correctly by building inside Docker.
+# Multi-stage build that handles npm workspaces by building inside Docker.
 #
 # Build args:
 #   - APP_NAME: Name of the app directory (e.g., app, web-site, docs)
@@ -21,11 +21,8 @@ RUN apk add --no-cache libc6-compat
 FROM base AS deps
 WORKDIR /app
 
-# Install pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-
-# Copy all package.json and lockfiles first (for layer caching)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy all package.json and lockfile first (for layer caching)
+COPY package.json package-lock.json ./
 COPY .npmrc* ./
 COPY turbo.json ./
 
@@ -33,9 +30,9 @@ COPY turbo.json ./
 COPY apps/ ./apps/
 COPY packages/ ./packages/
 
-# Install dependencies with cache mount for pnpm store
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+# Install dependencies with cache mount for npm
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --legacy-peer-deps
 
 # -----------------------------------------------------------------------------
 # Stage 2: Build the application
@@ -45,15 +42,12 @@ WORKDIR /app
 
 ARG APP_NAME=app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-
 # Copy everything from deps (includes node_modules)
 COPY --from=deps /app ./
 
 # Build the specific app using turbo
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm turbo run build --filter=@modulariot/${APP_NAME}
+RUN npx turbo run build --filter=@modulariot/${APP_NAME}
 
 # -----------------------------------------------------------------------------
 # Stage 3: Production runner

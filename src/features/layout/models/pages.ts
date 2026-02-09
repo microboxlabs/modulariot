@@ -27,7 +27,7 @@ export const pages: SidebarItem[] = [
     items: [
       {
         href: "/calendar/planning",
-        label: "planning",
+        label: "calendarPlanning",
         totals: {},
       },
     ],
@@ -99,9 +99,15 @@ export const pages: SidebarItem[] = [
         label: "completed_tasks",
         totals: {},
       },
+      {
+        href: "/mytasks?status=pending",
+        label: "pending_tasks",
+        totals: {},
+      },
     ],
     totals: {},
     requiredGroups: [],
+    blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide "My Tasks" from revisors
   },
   {
     href: "/reports",
@@ -130,7 +136,7 @@ export const pages: SidebarItem[] = [
           totals: 10,
         },
         requiredGroups: [],
-        blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide from revisors
+        blockedGroups: [], // Allow access for MINTRAL_REVISOR
       },
     ],
     /* eslint-enable */

@@ -1,0 +1,29 @@
+# 🔔 Release Notes v1.25.4 — ModularIoT
+
+### Fecha: 28/01/2026
+
+**Objetivo**: Mejorar la experiencia de usuario y la claridad en el manejo de errores provenientes del servicio externo Alerce, mostrando mensajes específicos en lugar de errores genéricos que confunden al usuario.
+
+## 🐛 Correcciones
+
+- **📍 Gestión de errores del servicio Alerce**
+  - **Mensajes de error específicos**: Se reemplazó el mensaje genérico "A server error occurred. Please try again." por los mensajes reales devueltos por el servicio Alerce.
+  - **Extracción de información útil**: Se extrae y muestra el campo `message` o `respuesta` del objeto de error de Alerce, permitiendo al usuario entender la causa real del problema (ej: "VIAJE VACÍO, NO SE PUEDE CERRAR").
+  - **Claridad operativa**: Los usuarios ahora pueden distinguir entre errores del sistema Coordinador y validaciones de negocio de Alerce.
+  - **Logging preservado**: Se mantiene el registro completo de errores (`AlerceTripNotificationError`) para propósitos de debugging.
+  - **Operaciones afectadas**: Iniciar viaje, avanzar viaje y cerrar viaje en la Tabla de Cargas.
+  - Issue: #993 — https://github.com/microboxlabs/coordinador-webclient/issues/993
+
+## 📊 Beneficios
+
+- **🎯 Diagnóstico preciso**: Los usuarios reciben mensajes claros sobre el origen y causa del error.
+- **🛠️ Menos confusión operativa**: Elimina la percepción errónea de fallas en el sistema Coordinador cuando el problema proviene de Alerce.
+- **📞 Reducción de tickets de soporte**: Mensajes descriptivos permiten a los usuarios tomar acciones correctivas sin necesidad de escalar.
+- **🔍 Trazabilidad mejorada**: Los errores de Alerce quedan correctamente identificados en logs para análisis posterior.
+- **✅ Mejor experiencia de usuario**: Feedback inmediato y accionable durante las operaciones de viaje.
+
+## 📌 Conclusión
+
+La versión 1.25.4 se centra en mejorar significativamente la comunicación de errores provenientes del servicio externo Alerce. Al mostrar los mensajes de error reales en lugar de mensajes genéricos, los usuarios pueden comprender inmediatamente si el problema es una validación de negocio de Alerce (como "VIAJE VACÍO, NO SE PUEDE CERRAR") o un error técnico del sistema.
+
+Esta mejora reduce la fricción operativa en el flujo de gestión de viajes y disminuye la carga de soporte técnico al empoderar a los usuarios con información clara y accionable sobre el estado de sus operaciones.

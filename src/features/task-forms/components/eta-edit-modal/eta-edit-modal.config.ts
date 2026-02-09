@@ -1,4 +1,4 @@
-import { CustomFormConfig } from "@/features/task-forms/components/task-confirm-modal/task-confirm-modal.types";
+import { DynamicFormConfig } from "@/features/dynamic-forms";
 
 // ETA Mode options
 export const ETA_MODE_OPTIONS = [
@@ -18,7 +18,7 @@ export const MANUAL_ETA_REASON_OPTIONS = [
  * Form configuration for ETA editing.
  * Reuses the same structure as TaskConfirmModal custom forms.
  */
-export const ETA_EDIT_FORM_CONFIG: CustomFormConfig = {
+export const ETA_EDIT_FORM_CONFIG: DynamicFormConfig = {
   fields: [
     {
       name: "mintral_etaMode",

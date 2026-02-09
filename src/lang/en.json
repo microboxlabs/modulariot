@@ -21,7 +21,22 @@
       "buttons": {
         "submit": "Sign in to your account",
         "continueWithMicrosoft": "Continue with Mintral user",
-        "continueWithEmail": "Continue with external user"
+        "continueWithEmail": "Continue with external user",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithGitHub": "Continue with GitHub",
+        "continueWithSAML": "Continue with SAML SSO",
+        "google": "Continue with Google",
+        "github": "Continue with GitHub",
+        "microsoft": "Continue with Microsoft",
+        "microsoft-entra-id": "Continue with Microsoft",
+        "saml": "Continue with SSO",
+        "credentials": "Continue with external user"
+      },
+      "divider": "o",
+      "teamSlug": {
+        "label": "Team identifier",
+        "placeholder": "your-team-name",
+        "required": "Team identifier is required"
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
@@ -212,6 +227,90 @@
         "carrierName": "Carrier",
         "customerCode": "Customer Code",
         "customer": "Customer"
+      },
+      "sidebar": {
+        "title": "Plan Trip",
+        "servicesList": "Today's Services",
+        "noServiceSelected": "Select a service from the calendar to assign driver and vehicle",
+        "selectServiceHint": "Select a service to assign driver and vehicle",
+        "searchPlaceholder": "Search by client, id, origin, destination, loading place, permanence, trip type...",
+        "search": {
+          "loading": "Searching...",
+          "noResults": "No results found",
+          "noResultsFor": "No results found for",
+          "minCharacters": "Type at least 2 characters",
+          "clear": "Clear search",
+          "matchType": {
+            "id": "id",
+            "cliente": "client",
+            "origen": "origin",
+            "destino": "destination",
+            "lugarCarguio": "loading place",
+            "permanencia": "permanence",
+            "tipoViaje": "trip type"
+          },
+          "locationCodes": {
+            "SCL": "Santiago",
+            "VAP": "Valparaíso",
+            "ZOS": "Osorno",
+            "ANF": "Antofagasta",
+            "CCP": "Concepción",
+            "PMC": "Puerto Montt",
+            "IQQ": "Iquique"
+          }
+        },
+        "form": {
+          "serviceNumber": "Service Nº",
+          "slot": "Slot",
+          "selectService": "Select Service",
+          "selectServicePlaceholder": "Select a service...",
+          "sort": "Sort",
+          "flags": "Flags",
+          "urgent": "URGENT",
+          "shutdown": "SHUTDOWN",
+          "incidents": "Incidents",
+          "kpis": "KPIs",
+          "onTime": "On time",
+          "atRisk": "At risk",
+          "delayed": "Delayed",
+          "occupancy": "Occupancy",
+          "information": "Information",
+          "client": "Client",
+          "route": "Route",
+          "loadingPlace": "Loading Place",
+          "tripType": "Trip Type",
+          "permanence": "Permanence",
+          "notes": "Notes",
+          "cancel": "Cancel",
+          "assign": "Assign",
+          "back": "Back",
+          "confirm": "Confirm",
+          "cancelReassignment": "Cancel",
+          "confirmReassignment": "Reassign",
+          "loadUtilization": "Load Utilization",
+          "constraint": "Constraint",
+          "maxUtilization": "Total",
+          "weightUtilization": "Weight utilization",
+          "palletUtilization": "Pallet utilization",
+          "volumeUtilization": "Volume utilization"
+        },
+        "contextMenu": {
+          "reassign": "Reassign",
+          "delete": "Delete",
+          "deleteConfirmTitle": "Confirm deletion",
+          "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
+          "cancelReassignment": "Cancel reassignment"
+        },
+        "notifications": {
+          "reassigned": "Service reassigned successfully",
+          "deleted": "Assignment deleted",
+          "reassignmentCancelled": "Reassignment cancelled",
+          "selectNewSlot": "Select a new date and time to reassign the service"
+        },
+        "reassignment": {
+          "title": "Reassigning service",
+          "hint": "Select a date and time in the calendar to reassign"
+        }
       }
     },
     "shipping": {
@@ -958,6 +1057,7 @@
         "werehouse": "Werehouse",
         "logistics": "Logistics",
         "planning": "Planning",
+        "calendarPlanning": "Planning",
         "shipping": "Shipping",
         "shippingv1": "Shipping V1",
         "picking": "Picking",
@@ -984,6 +1084,93 @@
       "day": "Day",
       "week": "Week",
       "month": "Month"
+    },
+    "planning": {
+      "dispatch": "Dispatch",
+      "reception": "Reception",
+      "deleteModal": {
+        "title": "Confirm deletion",
+        "messagePrefix": "Delete assignment for service ",
+        "messageSuffix": "?",
+        "close": "Close",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "calendarRules": {
+        "configureTimeWindows": "Configure time windows",
+        "quotaManagement": {
+          "title": "Quota management",
+          "description": "Define available time windows and their maximum quotas.",
+          "noWindows": "No windows defined",
+          "windowPlaceholder": "Window {index}",
+          "availableQuotas": "Available quotas",
+          "deleteWindow": "Delete window",
+          "weekly": "Weekly",
+          "dailyException": "Day exception",
+          "selectDate": "Select date",
+          "selectAll": "Select all",
+          "deselectAll": "Deselect all",
+          "selectWeeks": "Select weeks",
+          "allWeeks": "All weeks",
+          "scheduleConflict": "Schedule conflict",
+          "addWindow": "Window",
+          "apply": "Apply",
+          "today": "Today",
+          "clear": "Clear",
+          "colors": {
+            "emerald": "Green",
+            "blue": "Blue",
+            "violet": "Violet",
+            "rose": "Rose",
+            "amber": "Amber",
+            "cyan": "Cyan",
+            "lime": "Lime",
+            "orange": "Orange"
+          }
+        },
+        "timeBlocks": {
+          "title": "Time blocks",
+          "description": "Define hourly or daily periods as \"blocked\".",
+          "noBlocks": "No blocks defined",
+          "blockPlaceholder": "Block {index}",
+          "deleteBlock": "Delete block",
+          "weekly": "Weekly",
+          "dailyOverride": "Specific day",
+          "selectDate": "Select date",
+          "selectAll": "Select all",
+          "deselectAll": "Deselect all",
+          "scheduleConflict": "Schedule conflict",
+          "addBlock": "Block",
+          "apply": "Apply",
+          "today": "Today",
+          "clear": "Clear"
+        },
+        "platformConfig": {
+          "title": "Platform configuration",
+          "description": "Define the number of platforms available per time slot.",
+          "availablePlatforms": "Available platforms in the terminal",
+          "infoSingular": "Users can schedule up to {count} service in the same time slot.",
+          "infoPlural": "Users can schedule up to {count} services in the same time slot.",
+          "save": "Save"
+        }
+      }
+    },
+    "timeBlocks": {
+      "title": "Time Blocks",
+      "description": "Define time periods or specific days as blocked",
+      "noBlocks": "No blocks defined",
+      "addBlock": "Block",
+      "apply": "Apply",
+      "deleteBlock": "Delete block",
+      "blockName": "Block name",
+      "blockPlaceholder": "Block {index}",
+      "weekly": "Weekly",
+      "dailyOverride": "Specific day",
+      "selectDate": "Select date",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "blocked": "Blocked",
+      "conflictWarning": "Schedule conflict"
     }
   },
   "footer": {

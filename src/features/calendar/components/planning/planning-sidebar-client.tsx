@@ -11,6 +11,9 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
+  getLeadTimeStatus,
+  DEBUG_SHOW_TEST_SERVICE,
+  TEST_SERVICES,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -18,7 +21,7 @@ import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
 import { PlanningSearchTags } from "./planning-search-tags";
 import { ShowNotification } from "@/features/notifications/notification";
 import { useMyTasks } from "@/features/common/providers/client-api.provider";
-import { SHIPPING_COORDINATOR_PROCESS_TASKS_V2 } from "@/features/task-forms/services/form.service";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { KanbanBoardTask } from "@/features/shipping/types/common.types";
 import { transformBoardsToTableData } from "@/features/shipping/utils/transform-data";
 
@@ -26,54 +29,138 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
-// Transform KanbanBoardTask to SelectedService
-function transformTaskToService(task: KanbanBoardTask): SelectedService {
-  // Extract service code from name (format: "1045782-V" or "1045782-v")
-  // Use name if available, otherwise use id
-  const serviceId = task.name || task.id;
+type PlanningSearchMatchType =
+  | "id"
+  | "cliente"
+  | "origen"
+  | "destino"
+  | "lugarCarguio"
+  | "permanencia"
+  | "tipoViaje";
 
-  // Determine trip type from serviceKind or executionType
-  const tipoViaje =
-    task.serviceKind === "Sider"
-      ? "Sider"
-      : task.serviceKind === "Doble Sider"
-        ? "Doble Sider"
-        : task.executionType === "Rampla"
-          ? "Rampla"
-          : "Sider"; // Default
+/**
+ * Calculate occupation percentage based on load constraint type.
+ * Uses the appropriate utilization value depending on the constraint:
+ * - "Volumen" → mintral_loadVolumeUtilization
+ * - "Weight" → mintral_loadWeightUtilization
+ * - "Pallet" → mintral_loadPalletUtilization
+ * - Default: 0
+ */
+function calculateOccupation(task: KanbanBoardTask): number {
+  const constraint = task.mintral_loadConstraint;
 
-  // Calculate permanencia from dates if available
-  let permanencia = "24h"; // Default
-  if (task.departureDate && task.estimatedArrivalDate) {
-    const dep = dayjs(task.departureDate);
-    const arr = dayjs(task.estimatedArrivalDate);
-    if (arr.isValid() && dep.isValid()) {
-      const hours = arr.diff(dep, "hour");
-      permanencia = `${hours}h`;
-    }
+  if (!constraint) {
+    return 0;
   }
 
-  // Determine lead time status from mintral_icuCondition
-  let leadTimeStatus: "on_time" | "warning" | "delayed" = "on_time";
-  if (task.mintral_icuCondition !== undefined) {
-    if (task.mintral_icuCondition < 0) {
-      leadTimeStatus = "delayed";
-    } else if (task.mintral_icuCondition < 3) {
-      leadTimeStatus = "warning";
-    }
+  switch (constraint) {
+    case "Volumen":
+      return task.mintral_loadVolumeUtilization ?? 0;
+    case "Weight":
+      return task.mintral_loadWeightUtilization ?? 0;
+    case "Pallet":
+      return task.mintral_loadPalletUtilization ?? 0;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Determine trip type from serviceKind or executionType
+ */
+function determineTripType(
+  task: KanbanBoardTask
+): "Sider" | "Doble Sider" | "Rampla" {
+  if (task.serviceKind === "Sider") return "Sider";
+  if (task.serviceKind === "Doble Sider") return "Doble Sider";
+  if (task.executionType === "Rampla") return "Rampla";
+  return "Sider"; // Default
+}
+
+/**
+ * Calculate permanencia (duration) from departure and arrival dates
+ */
+function calculatePermanencia(task: KanbanBoardTask): string {
+  if (!task.departureDate || !task.estimatedArrivalDate) {
+    return "24h"; // Default
   }
 
-  // Extract incidencias from priority code or other fields
+  const dep = dayjs(task.departureDate);
+  const arr = dayjs(task.estimatedArrivalDate);
+
+  if (!arr.isValid() || !dep.isValid()) {
+    return "24h"; // Default
+  }
+
+  const hours = arr.diff(dep, "hour");
+  return `${hours}h`;
+}
+
+/**
+ * Calculate lead time compliance metrics from ICU condition
+ */
+function calculateLeadTimeCompliance(icuCondition: number): {
+  compliantLines: number;
+  nonCompliantLines: number;
+  compliancePercentage: number;
+} {
+  const totalLines = 4; // Default total lines for calculation
+  const compliantLines =
+    icuCondition >= 0
+      ? Math.min(totalLines, Math.abs(icuCondition) + 2)
+      : Math.max(0, totalLines - Math.abs(icuCondition));
+  const nonCompliantLines = totalLines - compliantLines;
+  const compliancePercentage = Math.round((compliantLines / totalLines) * 100);
+
+  return { compliantLines, nonCompliantLines, compliancePercentage };
+}
+
+/**
+ * Extract incidencias from task fields
+ */
+function extractIncidencias(
+  task: KanbanBoardTask,
+  compliancePercentage: number
+): string[] {
   const incidencias: string[] = [];
+
   if (task.mintral_priorityCode) {
     incidencias.push(task.mintral_priorityCode.toLowerCase());
   }
-  if (
-    task.mintral_icuCondition !== undefined &&
-    task.mintral_icuCondition < 0
-  ) {
+  if (compliancePercentage === 0) {
     incidencias.push("urgencia");
   }
+
+  return incidencias;
+}
+
+/**
+ * Extract and validate mintral_incidents to proper tuple format
+ */
+function extractMintralIncidents(
+  incidents: KanbanBoardTask["mintral_incidents"]
+): Array<[string, string]> | undefined {
+  if (!incidents) return undefined;
+
+  return incidents
+    .filter(
+      (incident): incident is [string, string] =>
+        Array.isArray(incident) &&
+        incident.length === 2 &&
+        typeof incident[0] === "string" &&
+        typeof incident[1] === "string"
+    )
+    .map((incident) => [incident[0], incident[1]] as [string, string]);
+}
+
+// Transform KanbanBoardTask to SelectedService
+function transformTaskToService(task: KanbanBoardTask): SelectedService {
+  const serviceId = task.name || task.id;
+  const tipoViaje = determineTripType(task);
+  const permanencia = calculatePermanencia(task);
+  const icuCondition = task.mintral_icuCondition ?? 0;
+  const { compliantLines, nonCompliantLines, compliancePercentage } =
+    calculateLeadTimeCompliance(icuCondition);
 
   return {
     id: serviceId,
@@ -81,116 +168,27 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     origen: task.origin || "",
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
-    tipoViaje: tipoViaje as "Sider" | "Doble Sider" | "Rampla",
-    ocupacion: 0, // Not available in KanbanBoardTask
+    tipoViaje,
+    ocupacion: calculateOccupation(task),
     permanencia,
     leadTime: {
-      deadline: task.expectedDepartureDate || task.departureDate || "",
-      status: leadTimeStatus,
+      total_lineasoc_cumplen: compliantLines,
+      total_lineasoc_incumplen: nonCompliantLines,
+      lineasoc_pctn_cumplimiento: compliancePercentage,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias,
+    incidencias: extractIncidencias(task, compliancePercentage),
+    mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
-    prioridad:
-      task.mintral_icuCondition !== undefined ? task.mintral_icuCondition : 0,
+    prioridad: task.mintral_icuCondition ?? 0,
+    cm_created: task.cm_created,
+    loadConstraint: task.mintral_loadConstraint,
+    loadMaxUtilization: task.mintral_loadMaxUtilization,
+    loadWeightUtilization: task.mintral_loadWeightUtilization,
+    loadPalletUtilization: task.mintral_loadPalletUtilization,
+    loadVolumeUtilization: task.mintral_loadVolumeUtilization,
   };
 }
-
-// Mock services commented out - using only real API data
-// const MOCK_SERVICES: SelectedService[] = [
-//   {
-//     id: "1045782-v",
-//     cliente: "Acme Corp",
-//     origen: "VAP",
-//     lugarCarguio: "Andén 5",
-//     destino: "ZOS",
-//     tipoViaje: "Sider",
-//     ocupacion: 85,
-//     permanencia: "24h",
-//     leadTime: {
-//       deadline: "2026-02-15",
-//       status: "on_time",
-//     },
-//     eta: "2026-02-16T14:30:00",
-//     incidencias: ["urgencia", "c4", "c5"],
-//     observaciones:
-//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "1045782-v",
-//     cliente: "Acme Corp",
-//     origen: "SCL",
-//     lugarCarguio: "Andén 5",
-//     destino: "VAP",
-//     tipoViaje: "Sider",
-//     ocupacion: 85,
-//     permanencia: "24h",
-//     leadTime: {
-//       deadline: "2026-01-15",
-//       status: "on_time",
-//     },
-//     eta: "2026-01-16T14:30:00",
-//     incidencias: ["urgencia", "c4", "c5"],
-//     observaciones:
-//       "Presentar documentación antes de las 10:00. Contactar a Juan.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "2038491-v",
-//     cliente: "Minera Los Andes",
-//     origen: "SCL",
-//     lugarCarguio: "Dock 3",
-//     destino: "VAP",
-//     tipoViaje: "Doble Sider",
-//     ocupacion: 60,
-//     permanencia: "48h",
-//     leadTime: {
-//       deadline: "2026-01-14",
-//       status: "warning",
-//     },
-//     eta: "2026-01-15T09:00:00",
-//     incidencias: ["shutdown"],
-//     observaciones: "Carga frágil. Requiere supervisión especial.",
-//     prioridad: 2,
-//   },
-//   {
-//     id: "1049760-v",
-//     cliente: "Transportes del Norte",
-//     origen: "SCL",
-//     lugarCarguio: "Plataforma 1",
-//     destino: "VAP",
-//     tipoViaje: "Rampla",
-//     ocupacion: 100,
-//     permanencia: "12h",
-//     leadTime: {
-//       deadline: "2026-01-13",
-//       status: "delayed",
-//     },
-//     eta: "2026-01-14T18:00:00",
-//     incidencias: ["urgencia", "shutdown", "c4", "c5", "c7", "c8", "c9"],
-//     observaciones: "URGENTE: Cliente prioritario. Llamar antes de salir.",
-//     prioridad: 1,
-//   },
-//   {
-//     id: "4815263-v",
-//     cliente: "Agrícola Sur",
-//     origen: "SCL",
-//     lugarCarguio: "Andén 2",
-//     destino: "ZOS",
-//     tipoViaje: "Sider",
-//     ocupacion: 45,
-//     permanencia: "8h",
-//     leadTime: {
-//       deadline: "2026-01-18",
-//       status: "on_time",
-//     },
-//     eta: "2026-01-18T11:30:00",
-//     incidencias: ["c4"],
-//     observaciones: "Productos perecederos. Mantener cadena de frío.",
-//     prioridad: 3,
-//   },
-// ];
 
 /**
  * Client-side sidebar that shows:
@@ -208,33 +206,18 @@ export function PlanningSidebarClient({
     selectService,
     reassigningService,
     cancelReassignment,
+    andenesCount,
+    getTimeWindowForSlot,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
   );
   const [filterMatchType, setFilterMatchType] = useState<{
-    matchType:
-      | "id"
-      | "cliente"
-      | "origen"
-      | "destino"
-      | "lugarCarguio"
-      | "permanencia"
-      | "tipoViaje";
+    matchType: PlanningSearchMatchType;
     query: string;
   } | null>(null);
   const [searchTags, setSearchTags] = useState<
-    Array<{
-      matchType:
-        | "id"
-        | "cliente"
-        | "origen"
-        | "destino"
-        | "lugarCarguio"
-        | "permanencia"
-        | "tipoViaje";
-      value: string;
-    }>
+    Array<{ matchType: PlanningSearchMatchType; value: string }>
   >([]);
 
   // Handle cancel reassignment
@@ -252,14 +235,15 @@ export function PlanningSidebarClient({
 
     for (const tag of searchTags) {
       switch (tag.matchType) {
-        case "id":
+        case "id": {
           // Extract numeric part from service ID (e.g., "1045782-v" -> "1045782")
-          const serviceCodeMatch = tag.value.match(/^(\d+)/);
+          const serviceCodeMatch = /^(\d+)/.exec(tag.value);
           const numericServiceCode = serviceCodeMatch
             ? serviceCodeMatch[1]
             : tag.value;
           params.push(`service=${numericServiceCode}`);
           break;
+        }
         case "cliente":
           params.push(`customer=${tag.value}`);
           break;
@@ -278,11 +262,7 @@ export function PlanningSidebarClient({
   }, [searchTags]);
 
   // Fetch tasks from API
-  const {
-    data: myTasksData,
-    error: myTasksError,
-    isLoading: isLoadingTasks,
-  } = useMyTasks(
+  const { data: myTasksData, isLoading: isLoadingTasks } = useMyTasks(
     ["planService"], //...SHIPPING_COORDINATOR_PROCESS_TASKS_V2
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
@@ -299,15 +279,59 @@ export function PlanningSidebarClient({
   }, [myTasksData]);
 
   // Use only real API data - no fallback to mock
-  const allServices = apiServices;
+  // When DEBUG_SHOW_TEST_SERVICE is true, add test services for development
+  const allServices = DEBUG_SHOW_TEST_SERVICE
+    ? [...TEST_SERVICES, ...apiServices]
+    : apiServices;
 
-  // Format the selected slot for display
+  // Default slot duration in minutes (can be changed in the future)
+  const SLOT_DURATION_MINUTES = 30;
+
+  // Get the time window for the selected slot to get quota
+  const selectedTimeWindow = useMemo(() => {
+    if (!selectedSlot) return null;
+    return getTimeWindowForSlot(
+      selectedSlot.date,
+      selectedSlot.hour,
+      selectedSlot.minutes
+    );
+  }, [selectedSlot, getTimeWindowForSlot]);
+
+  // Calculate the number of base slots in the time window
+  const windowBaseSlots = useMemo(() => {
+    if (!selectedTimeWindow?.weeklyPattern) return 1;
+    // Parse the window pattern to get start and end times
+    const match = /(\d{4})-(\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
+    if (!match) return 1;
+    const [, startTime, endTime] = match;
+    const startHour = Number.parseInt(startTime.slice(0, 2), 10);
+    const startMinutes = Number.parseInt(startTime.slice(2, 4), 10);
+    const endHour = Number.parseInt(endTime.slice(0, 2), 10);
+    const endMinutes = Number.parseInt(endTime.slice(2, 4), 10);
+
+    const totalMinutes =
+      endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
+    return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
+  }, [selectedTimeWindow]);
+
+  // Format the selected slot for display with start and end times
   const formattedSlot = useMemo(() => {
     if (!selectedSlot) return undefined;
-    const date = dayjs(selectedSlot.date).locale("es");
-    const hour = selectedSlot.hour.toString().padStart(2, "0");
-    const minutes = selectedSlot.minutes.toString().padStart(2, "0");
-    return `${date.format("dddd D MMM")}, ${hour}:${minutes}`;
+    const startDate = dayjs(selectedSlot.date)
+      .hour(selectedSlot.hour)
+      .minute(selectedSlot.minutes);
+    const endDate = startDate.add(SLOT_DURATION_MINUTES, "minute");
+
+    const dateStr = formatDateString(startDate.toDate(), "date");
+    const startTime = formatDateString(startDate.toDate(), "time");
+    const endTime = formatDateString(endDate.toDate(), "time");
+
+    return {
+      date: dateStr,
+      startTime,
+      endTime,
+      full: `${dateStr}, ${startTime} - ${endTime}`,
+    };
   }, [selectedSlot]);
 
   type MatchType =
@@ -350,61 +374,19 @@ export function PlanningSidebarClient({
 
   // Sort services by urgency/status priority:
   // 1. Urgent (red-orange)
-  // 2. Delayed (red)
-  // 3. Warning (yellow)
-  // 4. On time (blue)
+  // 2. Error/Delayed (red) - 0% compliance
+  // 3. Warning (yellow) - partial compliance
+  // 4. Success/On time (green) - 100% compliance
   const sortedServices = useMemo(() => {
     const getStatusPriority = (service: SelectedService): number => {
       if (service.incidencias.includes("urgencia")) return 0; // Urgent first
-      if (service.leadTime.status === "delayed") return 1;
-      if (service.leadTime.status === "warning") return 2;
-      return 3; // on_time last
+      const status = getLeadTimeStatus(service.leadTime);
+      if (status === "error") return 1;
+      if (status === "warning") return 2;
+      return 3; // success last
     };
 
     let services = [...allServices];
-
-    // COMMENTED OUT: Advanced filtering logic (OR/AND) - will be re-enabled later
-    // Filter by tags if they exist (tags take priority)
-    // if (searchTags.length > 0) {
-    //   // Filter out invalid tags first
-    //   const validTags = searchTags.filter(
-    //     (tag): tag is { matchType: MatchType; value: string } =>
-    //       tag != null &&
-    //       typeof tag === "object" &&
-    //       "matchType" in tag &&
-    //       "value" in tag &&
-    //       typeof tag.matchType === "string" &&
-    //       typeof tag.value === "string" &&
-    //       tag.value.length > 0
-    //   );
-
-    //   if (validTags.length > 0) {
-    //     // Group tags by matchType (attribute)
-    //     // Example: { origen: ["SCL", "VAP"], destino: ["ZOS"] }
-    //     const tagsByType = new Map<MatchType, string[]>();
-    //     for (const tag of validTags) {
-    //       if (!tagsByType.has(tag.matchType)) {
-    //         tagsByType.set(tag.matchType, []);
-    //       }
-    //       tagsByType.get(tag.matchType)!.push(tag.value);
-    //     }
-
-    //     // Filter services with the logic:
-    //     // - OR within same attribute: (origen: SCL OR origen: VAP)
-    //     // - AND between different attributes: (origen group) AND (destino group)
-    //     // Example: (origen: SCL OR origen: VAP) AND (destino: ZOS)
-    //     services = services.filter((service) => {
-    //       // Service must match at least one value from EACH attribute type (AND between attribute types)
-    //       return Array.from(tagsByType.entries()).every(([matchType, values]) => {
-    //         // For each attribute type, service must match ANY of its values (OR within same attribute)
-    //         return values.some((value) => {
-    //           const lowerValue = value.toLowerCase();
-    //           return matchesService(service, matchType, lowerValue);
-    //         });
-    //       });
-    //     });
-    //   }
-    // }
 
     // Client-side filtering for attributes that don't have API params (lugarCarguio, permanencia, tipoViaje)
     if (searchTags.length > 0) {
@@ -457,38 +439,6 @@ export function PlanningSidebarClient({
         services = services.filter((s) => s.id === filteredServiceId);
       }
     }
-
-    // COMMENTED OUT: Sort by tag order - will be re-enabled later
-    // if (searchTags.length > 0) {
-    //   // Filter out invalid tags (safety check for malformed tag objects)
-    //   const validTags = searchTags.filter(
-    //     (tag): tag is { matchType: MatchType; value: string } =>
-    //       tag != null &&
-    //       typeof tag === "object" &&
-    //       "matchType" in tag &&
-    //       "value" in tag &&
-    //       typeof tag.matchType === "string" &&
-    //       typeof tag.value === "string" &&
-    //       tag.value.length > 0
-    //   );
-
-    //   if (validTags.length > 0) {
-    //     return services.sort((a, b) => {
-    //       // First sort by tag order priority
-    //       for (const tag of validTags) {
-    //         const lowerValue = tag.value.toLowerCase();
-    //         const aMatches = matchesService(a, tag.matchType, lowerValue);
-    //         const bMatches = matchesService(b, tag.matchType, lowerValue);
-
-    //         if (aMatches && !bMatches) return -1;
-    //         if (!aMatches && bMatches) return 1;
-    //       }
-
-    //       // Then by status priority
-    //       return getStatusPriority(a) - getStatusPriority(b);
-    //     });
-    //   }
-    // }
 
     return services.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
   }, [
@@ -585,7 +535,14 @@ export function PlanningSidebarClient({
               {tr("pages.planning.sidebar.form.slot", dict)}:
             </span>
             <span className="font-medium text-gray-900 dark:text-white capitalize">
-              {formattedSlot}
+              {formattedSlot.date}
+            </span>
+            <span className="font-mono font-medium text-gray-900 dark:text-white">
+              {formattedSlot.startTime}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">→</span>
+            <span className="font-mono font-medium text-gray-900 dark:text-white">
+              {formattedSlot.endTime}
             </span>
           </div>
         </div>
@@ -597,15 +554,17 @@ export function PlanningSidebarClient({
           {isFormActive ? (
             <button
               type="button"
-              onClick={handleBack}
-              disabled={reassigningService !== null}
-              className={twMerge(
-                "p-1 -ml-1 rounded-md transition-colors",
-                reassigningService !== null
-                  ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
-              )}
-              aria-label={tr("pages.planning.sidebar.form.back", dict)}
+              onClick={
+                reassigningService === null
+                  ? handleBack
+                  : handleCancelReassignment
+              }
+              className="p-1 -ml-1 rounded-md transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+              aria-label={
+                reassigningService === null
+                  ? tr("pages.planning.sidebar.form.back", dict)
+                  : tr("pages.planning.sidebar.form.cancelReassignment", dict)
+              }
             >
               <HiArrowLeft className="w-5 h-5" />
             </button>
@@ -642,11 +601,16 @@ export function PlanningSidebarClient({
               selectedService
                 ? {
                     ...selectedService,
-                    slot: formattedSlot,
+                    slot: formattedSlot?.full,
                   }
                 : undefined
             }
             onSubmit={handleSubmit}
+            andenesCount={andenesCount}
+            slotStartTime={formattedSlot?.startTime}
+            slotEndTime={formattedSlot?.endTime}
+            windowQuota={selectedTimeWindow?.quota}
+            windowBaseSlots={windowBaseSlots}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -662,19 +626,6 @@ export function PlanningSidebarClient({
                     {reassigningService.service.service.id}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCancelReassignment}
-                  className={twMerge(
-                    "shrink-0 px-2 py-1 text-xs font-medium rounded",
-                    "text-amber-700 dark:text-amber-300",
-                    "bg-amber-100 dark:bg-amber-800/50",
-                    "hover:bg-amber-200 dark:hover:bg-amber-700/50",
-                    "transition-colors duration-150"
-                  )}
-                >
-                  Cancelar
-                </button>
               </div>
             )}
 

@@ -1,21 +1,107 @@
 "use client";
 
-import { Badge, Spinner } from "flowbite-react";
+/**
+ * LiveFormField for Task Confirm Modal (ETA-specific)
+ *
+ * This is a task-specific wrapper that uses the generic LiveFormField
+ * from dynamic-forms but wires up the ETA hook for live calculations.
+ *
+ * For a completely generic LiveFormField, import from @/features/dynamic-forms
+ */
+
+import { useCallback } from "react";
+import {
+  LiveFormField as GenericLiveFormField,
+  type DynamicFieldConfig,
+  type LiveDataHookResult,
+} from "@/features/dynamic-forms";
 import {
   useLiveETA,
   formatETA,
   formatArrivalTime,
   formatDuration,
 } from "@/features/common/providers/client-api.provider";
-import { FormFieldConfig } from "./task-confirm-modal.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
+interface ETADetailsRendererProps {
+  data: ReturnType<typeof useLiveETA>["eta"];
+  dict: I18nRecord;
+}
+
+function ETADetailsRenderer({
+  data: eta,
+  dict,
+}: Readonly<ETADetailsRendererProps>) {
+  if (!eta) return null;
+  return (
+    <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
+      {eta.duration && (
+        <div>
+          {tr("duration", dict)}: {formatDuration(eta)}
+        </div>
+      )}
+      {eta.distance && (
+        <div>
+          {tr("distance", dict)}: {eta.distance.toFixed(2)} km
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ETADetailsRendererWrapperProps {
+  data: ReturnType<typeof useLiveETA>["eta"];
+  dict: I18nRecord;
+}
+
+function ETADetailsRendererWrapper({
+  data,
+  dict,
+}: Readonly<ETADetailsRendererWrapperProps>) {
+  return <ETADetailsRenderer data={data} dict={dict} />;
+}
+
 interface LiveFormFieldProps {
-  field: FormFieldConfig;
+  field: DynamicFieldConfig;
   allValues: Record<string, unknown>;
   isVisible: boolean;
   dict: I18nRecord;
+}
+
+/**
+ * Hook wrapper that adapts useLiveETA to the generic LiveDataHookResult interface
+ */
+function useETAData(
+  isActive: boolean,
+  allValues: Record<string, unknown>
+): LiveDataHookResult<ReturnType<typeof useLiveETA>["eta"]> {
+  const result = useLiveETA(
+    isActive,
+    allValues.mintral_originDelegateCode as string,
+    allValues.mintral_destinationDelegateCode as string,
+    allValues.mintral_etaMode as string
+  );
+
+  const normalizeError = (error: unknown): Error | null => {
+    if (!error) return null;
+    if (error instanceof Error) return error;
+    if (typeof error === "string") return new Error(error);
+    if (typeof error === "object") {
+      const message =
+        "message" in error && typeof error.message === "string"
+          ? error.message
+          : JSON.stringify(error);
+      return new Error(message);
+    }
+    return new Error(JSON.stringify(error));
+  };
+
+  return {
+    data: result.eta ?? null,
+    isLoading: result.isLoading,
+    error: normalizeError(result.error),
+  };
 }
 
 export function LiveFormField({
@@ -24,100 +110,41 @@ export function LiveFormField({
   isVisible,
   dict,
 }: LiveFormFieldProps) {
-  // For ETA field specifically
   const isETAField = field.liveField?.dataKey === "eta";
+  const hookResult = useETAData(isETAField && isVisible, allValues);
 
-  const { eta, isLoading, error } = useLiveETA(
-    isETAField && isVisible,
-    allValues.mintral_originDelegateCode as string,
-    allValues.mintral_destinationDelegateCode as string,
-    allValues.mintral_etaMode as string
+  const etaCustomRenderer = useCallback(
+    (data: unknown) => (
+      <ETADetailsRendererWrapper
+        data={data as ReturnType<typeof useLiveETA>["eta"]}
+        dict={dict}
+      />
+    ),
+    [dict]
   );
 
   if (!isVisible) return null;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 p-2">
-        <Spinner size="sm" color="info" />
-        <span className="text-gray-500 dark:text-gray-400 text-sm">
-          {tr("calculatingEta", dict)}
-        </span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-red-600 dark:text-red-400 text-sm p-2">
-        {tr("etaCalculationError", dict)}
-      </div>
-    );
-  }
-
-  if (!eta && !isLoading) {
-    return (
-      <div className="text-gray-500 dark:text-gray-400 text-sm p-2">
-        {tr("etaNotAvailable", dict)}
-      </div>
-    );
-  }
-
-  // Format the display based on configuration
-  const formattedValue =
-    field.liveField?.displayFormat === "datetime"
-      ? formatArrivalTime(eta)
-      : formatETA(eta);
-
-  switch (field.liveField?.displayFormat || "text") {
-    case "badge":
-      return (
-        <Badge color="info" size="sm" className="inline-flex">
-          {formattedValue}
-        </Badge>
-      );
-
-    case "datetime":
-      return (
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2">
-            <svg
-              className="w-4 h-4 text-blue-600 dark:text-blue-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              {formattedValue}
-            </span>
-          </div>
-          <div className="text-xs text-blue-700 dark:text-blue-300 mt-1 ml-6 space-y-0.5">
-            {eta?.duration && (
-              <div>
-                {tr("duration", dict)}: {formatDuration(eta)}
-              </div>
-            )}
-            {eta?.distance && (
-              <div>
-                {tr("distance", dict)}: {eta.distance.toFixed(2)} km
-              </div>
-            )}
-          </div>
-        </div>
-      );
-
-    default:
-      return (
-        <span className="text-gray-900 dark:text-white font-medium">
-          {formattedValue}
-        </span>
-      );
-  }
+  // Use generic component with ETA-specific value formatter and renderer
+  return (
+    <GenericLiveFormField
+      field={field}
+      isVisible={isVisible}
+      liveDataResult={hookResult}
+      formatData={(data) => {
+        const eta = data as ReturnType<typeof useLiveETA>["eta"];
+        return field.liveField?.displayFormat === "datetime"
+          ? formatArrivalTime(eta)
+          : formatETA(eta);
+      }}
+      loadingMessage={tr("calculatingEta", dict)}
+      errorMessage={tr("etaCalculationError", dict)}
+      notAvailableMessage={tr("etaNotAvailable", dict)}
+      customRenderer={
+        field.liveField?.displayFormat === "datetime"
+          ? etaCustomRenderer
+          : undefined
+      }
+    />
+  );
 }

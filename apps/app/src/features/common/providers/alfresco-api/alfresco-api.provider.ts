@@ -120,10 +120,6 @@ export async function getBase64UserAvatar(
   session: Session,
   userId = "-me-"
 ): Promise<Blob> {
-  // curl -X 'GET' \
-  // 'https://coordinador-dev.mintral.cl/alfresco/api/-default-/public/alfresco/versions/1/people/-me-/avatar?attachment=true&placeholder=true' \
-  // -H 'accept: application/octet-stream' \
-  // -H 'authorization: Basic YWRtaW46MzNMY3BtZS4kVHdwUk5FRk0='
   const queryParams = new URLSearchParams({
     attachment: "true",
     placeholder: "true",
@@ -739,7 +735,12 @@ async function findFirstAvailableLogo(
   formats: readonly LogoFormat[]
 ): Promise<{ nodeId: string; mimeType: string } | null> {
   for (const format of formats) {
-    const result = await tryGetLogoNode(session, siteName, format.filename, format.mimeType);
+    const result = await tryGetLogoNode(
+      session,
+      siteName,
+      format.filename,
+      format.mimeType
+    );
     if (result) {
       return result;
     }
@@ -818,31 +819,31 @@ export async function getSiteLogoContent(
  * This is a public endpoint that returns the organization's logo without requiring authentication
  * @returns The logo as a base64 data URL, or null if not available
  */
-export async function getPublicOrgLogo(): Promise<string | null> {  
-    const ecmApiUrl = process.env.ECM_API_URL;
-    if (!ecmApiUrl) {      
-      return null;
-    }
+export async function getPublicOrgLogo(): Promise<string | null> {
+  const ecmApiUrl = process.env.ECM_API_URL;
+  if (!ecmApiUrl) {
+    return null;
+  }
 
-    const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
-    
-    const response = await fetch(logoUrl, {
-      method: "GET",      
-      cache: "no-store",
-    });
-    
-    if (!response.ok) {
-      return null;
-    }
+  const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
 
-    // Get the content type from the response
-    const contentType = response.headers.get("content-type") ?? "image/png";
-    
-    // Convert to base64 data URL
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
-    
-    return base64Logo;  
+  const response = await fetch(logoUrl, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  // Get the content type from the response
+  const contentType = response.headers.get("content-type") ?? "image/png";
+
+  // Convert to base64 data URL
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+  return base64Logo;
 }
 
 export async function getInfoEntity(

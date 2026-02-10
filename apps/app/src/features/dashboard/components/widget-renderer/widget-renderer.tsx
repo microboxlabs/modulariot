@@ -33,8 +33,23 @@ export function WidgetRenderer({
 
   if (!dashlet) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-red-300 bg-red-50 p-4 text-red-600">
-        Unknown widget type: {widget.componentId}
+      <div className="relative flex h-full items-center justify-center rounded-lg border border-red-300 bg-red-50 p-4 text-red-600 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+        {editMode && (
+          <button
+            type="button"
+            onClick={() => deleteWidget(widget.id)}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="no-drag absolute right-2 top-2 rounded bg-red-100 p-1.5 text-red-500 hover:bg-red-200 hover:text-red-700 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300"
+            title="Delete"
+          >
+            <HiTrash className="h-4 w-4" />
+          </button>
+        )}
+        <span className="text-center text-sm">
+          Widget not found
+          <br />
+          <span className="text-xs opacity-70">({widget.componentId})</span>
+        </span>
       </div>
     );
   }

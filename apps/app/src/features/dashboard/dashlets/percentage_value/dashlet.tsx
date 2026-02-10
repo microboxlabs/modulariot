@@ -25,7 +25,7 @@ export const defaultConfig: DashletConfig = {
 // ============================================================================
 
 export const layoutDefaults: DashletLayoutDefaults = {
-  minW: 2,
+  minW: 3,
   minH: 1,
 };
 

@@ -20,8 +20,15 @@ import { dashletDefinition as containerDefinition } from "./container";
 import { dashletDefinition as cardDefinition } from "./card";
 import { dashletDefinition as labeledDataDefinition } from "./labeled_data";
 import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
-import { dashletDefinition as exampleDefinition } from "./example";
-import { dashletDefinition as indicatorCardDefinition } from "./indicator_card";
+import { dashletDefinition as statDetailedDefinition } from "./stat_detailed";
+import { dashletDefinition as statGradientDefinition } from "./stat_gradient";
+import { dashletDefinition as statIconDefinition } from "./stat_icon";
+import { dashletDefinition as statCircularDefinition } from "./stat_circular";
+import { dashletDefinition as statExpandableDefinition } from "./stat_expandable";
+import { dashletDefinition as statProgressDefinition } from "./stat_progress";
+import { dashletDefinition as statStackedDefinition } from "./stat_stacked";
+import { dashletDefinition as statSparklineDefinition } from "./stat_sparkline";
+import { dashletDefinition as statSensitiveDefinition } from "./stat_sensitive";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -31,8 +38,15 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   cardDefinition,
   labeledDataDefinition,
   percentageValueDefinition,
-  exampleDefinition,
-  indicatorCardDefinition,
+  statDetailedDefinition,
+  statGradientDefinition,
+  statIconDefinition,
+  statCircularDefinition,
+  statExpandableDefinition,
+  statProgressDefinition,
+  statStackedDefinition,
+  statSparklineDefinition,
+  statSensitiveDefinition,
 ];
 
 /** Registry of all available dashlets */

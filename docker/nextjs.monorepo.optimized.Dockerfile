@@ -70,6 +70,9 @@ COPY --from=installer /app ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx turbo run build --filter=@modulariot/${APP_NAME}
 
+# Ensure public directory exists (some apps may not have one)
+RUN mkdir -p /app/apps/${APP_NAME}/public
+
 # -----------------------------------------------------------------------------
 # Stage 4: Production runner
 # -----------------------------------------------------------------------------
@@ -85,17 +88,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy public assets (may not exist for all apps)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./public 2>/dev/null || true
-
 # Copy standalone build output
 COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/standalone ./
 
 # Copy static files to correct location
 COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
 
-# Copy public to app location as well (for basePath routing)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public 2>/dev/null || true
+# Copy public assets (directory always exists now)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
 
 USER nextjs
 

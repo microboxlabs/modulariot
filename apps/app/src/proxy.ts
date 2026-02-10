@@ -35,7 +35,8 @@ function hasRequiredGroups(
 
 const logger = createManagedLogger("middleware", "Middleware", "error");
 
-export default auth(async function middleware(request: NextRequest) {
+// Type annotation to avoid npm phantom dependency type inference issues
+const middleware = auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
   logger.debug(`middleware - pathname: ${pathname}`);
@@ -107,6 +108,8 @@ export default auth(async function middleware(request: NextRequest) {
 
   return response;
 });
+
+export default middleware as any;
 
 export const config = {
   matcher: [

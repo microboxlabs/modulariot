@@ -29,22 +29,19 @@ a[href^="."]::before {
 :root {
   scrollbar-color: transparent transparent;
   --scrollbar-track: transparent;
-  --scrollbar-thumb: rgb(107 114 128);
+  --scrollbar-thumb: rgb(168, 178, 195);
   --scrollbar-thumb-hover: rgb(31 41 55);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    scrollbar-color: transparent transparent;
-    --scrollbar-track: transparent;
-    --scrollbar-thumb: rgb(107 114 128);
-    --scrollbar-thumb-hover: #444;
-  }
+.dark {
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgb(107 114 128);
+  --scrollbar-thumb-hover: #444;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {

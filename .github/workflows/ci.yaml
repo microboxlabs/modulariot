@@ -200,7 +200,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/nextjs.monorepo.Dockerfile
+          file: docker/nextjs.monorepo.optimized.Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

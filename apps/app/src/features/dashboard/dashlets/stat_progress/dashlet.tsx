@@ -1,0 +1,98 @@
+"use client";
+
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+
+// ============================================================================
+// Configuration Types
+// ============================================================================
+
+export interface DashletConfig {
+  title: string;
+  value: number;
+  target: number;
+  unit: string;
+}
+
+export const defaultConfig: DashletConfig = {
+  title: "Quarterly Goal",
+  value: 78,
+  target: 100,
+  unit: "%",
+};
+
+export const layoutDefaults: DashletLayoutDefaults = {
+  minW: 3,
+  minH: 2,
+};
+
+export function getLayoutDefaults(): DashletLayoutDefaults {
+  return layoutDefaults;
+}
+
+// ============================================================================
+// Component - Style 7: Progress Bar
+// ============================================================================
+
+/**
+ * Progress Bar Card - Horizontal progress with milestones
+ */
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const config = widget.config as unknown as DashletConfig;
+  const { title, value, target, unit } = config;
+
+  const percentage = Math.min(100, (value / target) * 100);
+
+  // Determine color based on progress
+  const barColor =
+    percentage >= 75
+      ? "bg-green-500"
+      : percentage >= 50
+        ? "bg-blue-500"
+        : percentage >= 25
+          ? "bg-yellow-500"
+          : "bg-red-500";
+
+  return (
+    <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      {/* Header */}
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          {title}
+        </p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          {value}
+          <span className="ml-1 text-sm font-normal text-gray-500">{unit}</span>
+        </p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mt-3">
+        <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+          <div
+            className={`h-full rounded-full ${barColor} transition-all duration-500`}
+            style={{ width: `${percentage}%` }}
+          />
+          {/* Milestone markers */}
+          <div className="absolute inset-0 flex justify-between px-0.5">
+            {[25, 50, 75].map((mark) => (
+              <div
+                key={mark}
+                className="h-full w-0.5 bg-white/50"
+                style={{ marginLeft: `${mark}%` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Labels */}
+        <div className="mt-1 flex justify-between text-xs text-gray-400">
+          <span>0</span>
+          <span>25</span>
+          <span>50</span>
+          <span>75</span>
+          <span>{target}</span>
+        </div>
+      </div>
+    </div>
+  );
+}

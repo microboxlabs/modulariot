@@ -22,10 +22,10 @@
     "react-icons": "^5.5.0",
     "server-only": "^0.0.1",
     "styled-jsx": "5.1.6",
-    "@modulariot/ui": "workspace:*"
+    "@modulariot/ui": "*"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
+    "@repo/eslint-config": "*",
     "@tailwindcss/postcss": "^4.1.4",
     "@types/node": "^22.15.3",
     "@types/react": "19.2.10",

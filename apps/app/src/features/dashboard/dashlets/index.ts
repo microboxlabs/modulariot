@@ -21,6 +21,7 @@ import { dashletDefinition as cardDefinition } from "./card";
 import { dashletDefinition as labeledDataDefinition } from "./labeled_data";
 import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
 import { dashletDefinition as exampleDefinition } from "./example";
+import { dashletDefinition as indicatorCardDefinition } from "./indicator_card";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -31,6 +32,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   labeledDataDefinition,
   percentageValueDefinition,
   exampleDefinition,
+  indicatorCardDefinition,
 ];
 
 /** Registry of all available dashlets */

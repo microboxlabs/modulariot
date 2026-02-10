@@ -12,6 +12,13 @@ export const pages: SidebarItem[] = [
     icon: HomeIcon,
     label: "home",
     totals: {},
+    items: [
+      {
+        href: "/home/dashboard",
+        label: "dashboard",
+        totals: {},
+      },
+    ],
     requiredGroups: [], // Public route
   },
   {

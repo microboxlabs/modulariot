@@ -68,28 +68,6 @@ function WidgetControls({
 }
 
 // ============================================================================
-// ChildWidgetWrapper - Stops drag propagation
-// ============================================================================
-
-/**
- * Wrapper for child widgets that stops drag propagation to parent grid
- */
-function ChildWidgetWrapper({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <div
-      role="presentation"
-      className="h-full"
-      onMouseDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ============================================================================
 // WidgetRenderer - Main component
 // ============================================================================
 
@@ -154,11 +132,22 @@ export function WidgetRenderer({
     setIsDeleteModalOpen(false);
   };
 
-  // Render children recursively
+  // Handler to stop propagation - prevents parent grid from receiving drag events
+  const stopParentDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  // Render children recursively - each child stops event propagation to prevent parent drag
   const childrenElements = widget.children?.map((child) => (
-    <ChildWidgetWrapper key={child.id}>
+    <div
+      key={child.id}
+      role="presentation"
+      className="h-full"
+      onMouseDown={stopParentDrag}
+      onTouchStart={stopParentDrag}
+    >
       <WidgetRenderer widget={child} />
-    </ChildWidgetWrapper>
+    </div>
   ));
 
   return (

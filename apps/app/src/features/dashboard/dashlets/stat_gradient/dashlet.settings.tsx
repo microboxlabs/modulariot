@@ -30,7 +30,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: DashletSettingsProps) {
+}: Readonly<DashletSettingsProps>) {
   const typedConfig = config as unknown as DashletConfig;
   const [title, setTitle] = useState(typedConfig.title || "Active Users");
   const [value, setValue] = useState(typedConfig.value || 2847);

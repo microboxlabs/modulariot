@@ -155,6 +155,65 @@ RUN npm install -g turbo
 
 **Solution**: Check that `.dockerignore` is properly excluding development files.
 
+## 🔒 Security Best Practices
+
+### Build Arguments vs Secrets
+
+**Important**: ARG and ENV instructions should NEVER be used for actual secrets.
+
+#### Safe to use as ARG/ENV:
+- ✅ Public configuration (NEXT_PUBLIC_* variables)
+- ✅ Public API keys intended for client-side use (e.g., Mapbox public token)
+- ✅ Public URLs and endpoints
+- ✅ Build configuration flags
+
+#### NEVER use as ARG/ENV:
+- ❌ Database passwords
+- ❌ Private API keys
+- ❌ Session secrets
+- ❌ Authentication tokens
+- ❌ Encryption keys
+- ❌ SSH keys or certificates
+
+#### Why?
+Build arguments and environment variables leave traces in:
+1. **Image layers** - Visible in `docker history`
+2. **Image metadata** - Accessible via `docker inspect`
+3. **Build logs** - Often stored in CI/CD systems
+4. **Container environment** - Visible to all processes
+
+#### Proper Secret Handling:
+```dockerfile
+# ❌ WRONG - Secret in build arg
+ARG DATABASE_PASSWORD=mysecret
+
+# ✅ RIGHT - Provide secrets at runtime
+# Use Docker secrets, K8s secrets, or environment variables
+# mounted when container starts
+```
+
+**Runtime Secret Injection:**
+```bash
+# Docker run with env file
+docker run --env-file .env.production myapp
+
+# Kubernetes secrets
+kubectl create secret generic app-secrets --from-literal=DB_PASSWORD=xxx
+
+# Docker Compose with secrets
+secrets:
+  db_password:
+    external: true
+```
+
+### NEXT_PUBLIC_* Variables
+
+Next.js NEXT_PUBLIC_* variables are **intentionally public**:
+- Embedded in client-side JavaScript bundle
+- Accessible in browser DevTools
+- Safe to use as build arguments
+- Examples: Public Mapbox tokens, public API endpoints
+
 ## 📚 References
 
 - [Turbo Prune Documentation](https://turbo.build/repo/docs/reference/command-line-reference/prune)

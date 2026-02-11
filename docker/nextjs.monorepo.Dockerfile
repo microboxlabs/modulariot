@@ -31,36 +31,42 @@ RUN find . -not -name "package.json" -not -type d -delete && \
 FROM base AS deps
 WORKDIR /app
 
-# Copy all package.json and lockfile first (for layer caching)
+# Copy root package.json, lockfile, and configs (for layer caching)
 COPY package.json package-lock.json ./
 COPY .npmrc* ./
 COPY turbo.json ./
 
-# Copy all workspace package.json files
-COPY apps/ ./apps/
-COPY packages/ ./packages/
+# Copy only workspace package.json files (no source code)
+COPY --from=manifests /app/apps ./apps
+COPY --from=manifests /app/packages ./packages
 
 # Install dependencies with cache mount for npm
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --legacy-peer-deps
 
 # -----------------------------------------------------------------------------
-# Stage 2: Build the application
+# Stage 3: Build the application
 # -----------------------------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
 
 ARG APP_NAME=app
+ARG NEXT_PUBLIC_INGEST_URL
+ARG NEXT_PUBLIC_MAPBOX_API_KEY
 
-# Copy everything from deps (includes node_modules)
+# Copy installed dependencies and manifests from deps stage
 COPY --from=deps /app ./
+
+# Copy full source code (only this layer invalidates on code changes)
+COPY apps/ ./apps/
+COPY packages/ ./packages/
 
 # Build the specific app using turbo
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx turbo run build --filter=@modulariot/${APP_NAME}
 
 # -----------------------------------------------------------------------------
-# Stage 3: Production runner
+# Stage 4: Production runner
 # -----------------------------------------------------------------------------
 FROM node:22-alpine AS runner
 WORKDIR /app

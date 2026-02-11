@@ -62,6 +62,8 @@ COPY turbo.json ./
 FROM base AS builder
 
 ARG APP_NAME=app
+ARG NEXT_PUBLIC_INGEST_URL
+ARG NEXT_PUBLIC_MAPBOX_API_KEY
 
 # Copy installed dependencies and source
 COPY --from=installer /app ./

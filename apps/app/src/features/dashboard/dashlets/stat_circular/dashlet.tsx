@@ -34,6 +34,15 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // ============================================================================
 
 /**
+ * Get stroke color based on percentage
+ */
+function getStrokeColor(percentage: number): string {
+  if (percentage < 50) return "stroke-green-500";
+  if (percentage < 80) return "stroke-yellow-500";
+  return "stroke-red-500";
+}
+
+/**
  * Circular Progress Card - Donut chart style
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
@@ -46,14 +55,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
-
-  // Color based on percentage
-  const color =
-    percentage < 50
-      ? "stroke-green-500"
-      : percentage < 80
-        ? "stroke-yellow-500"
-        : "stroke-red-500";
+  const color = getStrokeColor(percentage);
 
   return (
     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

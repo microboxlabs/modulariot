@@ -85,6 +85,7 @@ export function WidgetRenderer({
   const childrenElements = widget.children?.map((child) => (
     <div
       key={child.id}
+      role="presentation"
       className="h-full"
       onMouseDown={stopParentDrag}
       onTouchStart={stopParentDrag}

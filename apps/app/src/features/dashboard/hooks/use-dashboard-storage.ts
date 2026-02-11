@@ -32,6 +32,48 @@ function ensureWidgetDefaults(widget: Widget, index: number): Widget {
   };
 }
 
+type LayoutItem = { i: string; x: number; y: number; w: number; h: number };
+
+/**
+ * Apply layout update to a single widget if matching layout found
+ */
+function applyLayoutToWidget(widget: Widget, layouts: LayoutItem[]): Widget {
+  const layout = layouts.find((l) => l.i === widget.id);
+  if (layout) {
+    return { ...widget, layout, updatedAt: new Date().toISOString() };
+  }
+  return widget;
+}
+
+/**
+ * Update children layouts for a specific parent widget
+ */
+function updateChildrenLayouts(
+  widget: Widget,
+  parentId: string,
+  layouts: LayoutItem[]
+): Widget {
+  if (widget.id === parentId && widget.children) {
+    const updatedChildren = widget.children.map((child) =>
+      applyLayoutToWidget(child, layouts)
+    );
+    return {
+      ...widget,
+      children: updatedChildren,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  if (widget.children) {
+    return {
+      ...widget,
+      children: widget.children.map((w) =>
+        updateChildrenLayouts(w, parentId, layouts)
+      ),
+    };
+  }
+  return widget;
+}
+
 /**
  * Hook for persisting dashboard data to localStorage
  */
@@ -187,17 +229,9 @@ export function useDashboardStorage() {
     ) => {
       // If parentId is null, update root-level widgets
       if (parentId === null) {
-        const updatedWidgets = data.widgets.map((widget) => {
-          const layout = layouts.find((l) => l.i === widget.id);
-          if (layout) {
-            return {
-              ...widget,
-              layout,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-          return widget;
-        });
+        const updatedWidgets = data.widgets.map((widget) =>
+          applyLayoutToWidget(widget, layouts)
+        );
 
         const newData: DashboardStorageSchema = {
           ...data,
@@ -208,35 +242,13 @@ export function useDashboardStorage() {
       }
 
       // Otherwise update children of a specific parent
-      const updateInTree = (widgets: Widget[]): Widget[] =>
-        widgets.map((w) => {
-          if (w.id === parentId && w.children) {
-            const updatedChildren = w.children.map((child) => {
-              const layout = layouts.find((l) => l.i === child.id);
-              if (layout) {
-                return {
-                  ...child,
-                  layout,
-                  updatedAt: new Date().toISOString(),
-                };
-              }
-              return child;
-            });
-            return {
-              ...w,
-              children: updatedChildren,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-          if (w.children) {
-            return { ...w, children: updateInTree(w.children) };
-          }
-          return w;
-        });
+      const updatedWidgets = data.widgets.map((w) =>
+        updateChildrenLayouts(w, parentId, layouts)
+      );
 
       const newData: DashboardStorageSchema = {
         ...data,
-        widgets: updateInTree(data.widgets),
+        widgets: updatedWidgets,
       };
       saveData(newData);
     },

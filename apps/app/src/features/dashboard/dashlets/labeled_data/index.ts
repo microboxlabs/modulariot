@@ -11,12 +11,7 @@
  */
 
 import type { DashletDefinition } from "../types";
-import {
-  Dashlet,
-  defaultConfig,
-  getLayoutDefaults,
-  layoutDefaults,
-} from "./dashlet";
+import { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";
 import { DashletSettings } from "./dashlet.settings";
 import { dashletMeta } from "./dashlet.meta";
 

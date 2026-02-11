@@ -93,18 +93,17 @@ export function getDashletsByCategory(
 
 /**
  * Get dashlets that can be nested inside a specific parent
- * @param parentComponentId - The parent's componentId, or null for root level
+ * @param _parentComponentId - The parent's componentId, or null for root level (reserved for future use)
  * @param _parentConfig - The parent's config for variant-based nesting rules (reserved for future use)
  */
 export function getValidDashletsForParent(
-  parentComponentId: string | null,
+  _parentComponentId: string | null,
   _parentConfig?: Record<string, unknown>
 ): DashletDefinition[] {
   // Currently all dashlets are allowed at all levels.
   // Variant-based restrictions (e.g., bento-box cannot nest bento-box)
   // are enforced at creation time via canNestIn().
   // Filter here if category or type-based restrictions are needed in the future.
-  void parentComponentId; // Acknowledge unused parameter
   return Object.values(DASHLET_REGISTRY);
 }
 

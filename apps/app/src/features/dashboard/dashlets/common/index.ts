@@ -10,4 +10,5 @@ export {
   SettingsFieldGrid,
   SettingsPickerRow,
   SettingsPickerItem,
+  SettingsTitleValueUnit,
 } from "./settings-fields";

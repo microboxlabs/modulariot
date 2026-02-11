@@ -209,3 +209,65 @@ export function SettingsPickerItem({
     </div>
   );
 }
+
+// ============================================================================
+// SettingsTitleValueUnit - Common composite for stat dashlets
+// ============================================================================
+
+interface SettingsTitleValueUnitProps {
+  /** Title field state */
+  title: string;
+  onTitleChange: (value: string) => void;
+  /** Value field state */
+  value: number;
+  onValueChange: (value: number) => void;
+  /** Unit field state */
+  unit: string;
+  onUnitChange: (value: string) => void;
+  /** Optional ID prefix for fields */
+  idPrefix?: string;
+  /** Optional step for value input */
+  valueStep?: string;
+}
+
+/**
+ * Composite component for the common Title + Value/Unit pattern.
+ * Used by many stat dashlets (stat_icon, stat_gradient, stat_sparkline, etc.)
+ */
+export function SettingsTitleValueUnit({
+  title,
+  onTitleChange,
+  value,
+  onValueChange,
+  unit,
+  onUnitChange,
+  idPrefix = "",
+  valueStep,
+}: Readonly<SettingsTitleValueUnitProps>) {
+  const prefix = idPrefix ? `${idPrefix}-` : "";
+  return (
+    <>
+      <SettingsTextField
+        id={`${prefix}title`}
+        label="Title"
+        value={title}
+        onChange={onTitleChange}
+      />
+      <SettingsFieldGrid cols={2}>
+        <SettingsNumberField
+          id={`${prefix}value`}
+          label="Value"
+          value={value}
+          onChange={onValueChange}
+          step={valueStep}
+        />
+        <SettingsTextField
+          id={`${prefix}unit`}
+          label="Unit"
+          value={unit}
+          onChange={onUnitChange}
+        />
+      </SettingsFieldGrid>
+    </>
+  );
+}

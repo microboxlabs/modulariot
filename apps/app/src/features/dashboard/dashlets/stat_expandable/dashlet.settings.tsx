@@ -5,12 +5,7 @@ import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import {
-  DashletSettingsWrapper,
-  SettingsTextField,
-  SettingsNumberField,
-  SettingsFieldGrid,
-} from "../common";
+import { DashletSettingsWrapper, SettingsTitleValueUnit } from "../common";
 
 interface DetailWithId {
   id: string;
@@ -72,27 +67,15 @@ export function DashletSettings({
       width="w-80"
       scrollable
     >
-      <SettingsTextField
-        id="title"
-        label="Title"
-        value={title}
-        onChange={setTitle}
+      <SettingsTitleValueUnit
+        title={title}
+        onTitleChange={setTitle}
+        value={value}
+        onValueChange={setValue}
+        unit={unit}
+        onUnitChange={setUnit}
+        valueStep="0.01"
       />
-      <SettingsFieldGrid cols={2}>
-        <SettingsNumberField
-          id="value"
-          label="Value"
-          value={value}
-          onChange={setValue}
-          step="0.01"
-        />
-        <SettingsTextField
-          id="unit"
-          label="Unit"
-          value={unit}
-          onChange={setUnit}
-        />
-      </SettingsFieldGrid>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">

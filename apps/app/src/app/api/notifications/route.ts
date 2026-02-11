@@ -11,6 +11,11 @@ export async function GET(_req: NextRequest) {
       throw new Error("Unauthorized");
     }
 
+    const notificationsEnabled = process.env.NOTIFICATIONS_ENABLED !== "false";
+    if (!notificationsEnabled) {
+      return NextResponse.json([]);
+    }
+
     const response = await getNotifications(session);
     return NextResponse.json(response);
   } catch (error) {

@@ -85,7 +85,7 @@ function buildAuthProviders(): NextAuthConfig["providers"] {
 const authLogger = createManagedLogger("auth", "Authentication System");
 const authJwtLogger = createManagedLogger("auth.jwt", "JWT Processing", undefined, "auth");
 const authSessionLogger = createManagedLogger("auth.session", "Session Management", undefined, "auth");
-const authProviderLogger = createManagedLogger("auth.providers", "Auth Providers", undefined, "auth");
+// const authProviderLogger = createManagedLogger("auth.providers", "Auth Providers", undefined, "auth");
 const authMicrosoftLogger = createManagedLogger("auth.providers.microsoft", "Microsoft Entra ID", undefined, "auth.providers");
 const authCredentialsLogger = createManagedLogger("auth.providers.credentials", "Credentials Auth", undefined, "auth.providers");
 const authAuth0Logger = createManagedLogger("auth.providers.auth0", "Auth0 OIDC", undefined, "auth.providers");

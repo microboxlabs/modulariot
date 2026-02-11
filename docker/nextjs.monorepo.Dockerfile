@@ -33,8 +33,11 @@ WORKDIR /app
 
 # Copy root package.json, lockfile, and configs (for layer caching)
 COPY package.json package-lock.json ./
-COPY .npmrc* ./
 COPY turbo.json ./
+
+# Note: .npmrc not needed - empty config file
+# If custom npm config is needed in future, create it inline:
+# RUN echo "registry=https://registry.npmjs.org/" > .npmrc
 
 # Copy only workspace package.json files (no source code)
 COPY --from=manifests /app/apps ./apps

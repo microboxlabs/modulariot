@@ -46,7 +46,10 @@ FROM base AS installer
 # Copy pruned lockfile and package.json files
 COPY --from=pruner /app/out/json/ ./
 COPY --from=pruner /app/out/package-lock.json ./package-lock.json
-COPY .npmrc* ./
+
+# Note: .npmrc not needed - empty config file
+# If custom npm config is needed in future, create it inline:
+# RUN echo "registry=https://registry.npmjs.org/" > .npmrc
 
 # Install dependencies (only for the pruned subset)
 RUN --mount=type=cache,target=/root/.npm \

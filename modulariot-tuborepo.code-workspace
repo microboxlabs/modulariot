@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../../mintral/flowbite/coordinador-webclient"
+		},
+		{
+			"path": "../../../mintral/helm-charts"
 		}
 	],
 	"settings": {}

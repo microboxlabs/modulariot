@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "miot-metrics-api-v1",
     "name": "ModularIoT Metrics API",
-    "description": "API collection for sending telemetry data with metrics to ModularIoT using the miot.metrics@1.0 schema.\n\n## Setup\n\n1. Import this collection into Postman\n2. Create an environment with the following variables:\n   - `base_url`: https://iot.streamhub.cl\n   - `auth_url`: https://api.microboxlabs.com/api/v1/login\n   - `client_id`: Your client ID\n   - `client_secret`: Your client secret\n   - `audience`: https://iot.streamhub.cl/v1/asset/track\n3. Run the \"Login\" request first to get an access token\n4. The token will be automatically saved and used in subsequent requests\n\n## Documentation\n\nSee https://docs.modulariot.io/integration/api-reference/asset-track for full API documentation.",
+    "description": "API collection for sending telemetry data with metrics to ModularIoT using the miot.metrics@1.0 schema.\n\n## Setup\n\n1. Import this collection into Postman\n2. Create an environment with the following variables:\n   - `base_url`: https://iot.streamhub.cl\n   - `auth_url`: https://api.microboxlabs.com/api/v1/login\n   - `client_id`: Your client ID\n   - `client_secret`: Your client secret\n   - `audience`: https://iot.streamhub.cl/v1/asset/track\n3. Run the \"Login\" request first to get an access token\n4. The token will be automatically saved and used in subsequent requests\n\n## Engine Status Detection\n\nThere are two ways to report engine state:\n\n**1. Via `sensors.engine_status` (GPS devices without OBD-II)**\n- Use when the GPS device detects engine state directly via hardware input (e.g., ignition wire)\n- Values: `true` = engine on, `false` = engine off\n\n**2. Via `engine.rpm` metric (OBD-II devices - Recommended)**\n- When sending OBD-II metrics, engine state is implicitly detected from `engine.rpm`\n- `engine.rpm > 0` = engine on\n- `engine.rpm = 0` or absent = engine off\n- The platform also derives `idle.state` when `engine.rpm > 0 AND vehicle.speed ≈ 0`\n\n**Note:** When using OBD-II metrics with `engine.rpm`, you do NOT need to also send `sensors.engine_status`. The `engine.rpm` metric is more reliable for engine state detection.\n\n## Documentation\n\nSee https://docs.modulariot.com/integration/api-reference/asset-track for full API documentation.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -92,6 +92,41 @@
       "name": "Asset Tracking",
       "item": [
         {
+          "name": "Track",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"TTBJ72\",\n  \"type\": \"\",\n  \"owner\": \"Transportes Pilar Diaz\",\n  \"timestamp\": \"2025-02-13T13:48:57Z\",\n  \"gps\": {\n    \"latitude\": -29.810218,\n    \"longitude\": -71.282617,\n    \"speed\": 78,\n    \"heading\": 315,\n    \"satellites\": 15\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Basic tracking with GPS location and engine status sensor. Use this format for GPS devices without OBD-II that detect engine state via hardware input."
+          },
+          "response": []
+        },
+        {
           "name": "Track with GPS and Metrics",
           "request": {
             "method": "POST",
@@ -115,14 +150,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T15:30:00Z\",\n  \"gps\": {\n    \"latitude\": -33.437913,\n    \"longitude\": -70.650456,\n    \"altitude\": 520,\n    \"speed\": 65,\n    \"heading\": 180,\n    \"satellites\": 12\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2150, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 91, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.9, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 65, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 72, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100001\n  }\n}"
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T15:30:00Z\",\n  \"gps\": {\n    \"latitude\": -33.437913,\n    \"longitude\": -70.650456,\n    \"altitude\": 520,\n    \"speed\": 65,\n    \"heading\": 180,\n    \"satellites\": 12\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2150, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 91, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.9, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 65, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 72, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100001\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/v1/asset/track",
               "host": ["{{base_url}}"],
               "path": ["v1", "asset", "track"]
             },
-            "description": "Basic example sending GPS location with common OBD2 metrics including engine RPM, coolant temperature, battery voltage, vehicle speed, fuel level, and MIL status."
+            "description": "GPS location with common OBD-II metrics including engine RPM, coolant temperature, battery voltage, vehicle speed, fuel level, and MIL status."
           },
           "response": []
         },
@@ -157,7 +192,7 @@
               "host": ["{{base_url}}"],
               "path": ["v1", "asset", "track"]
             },
-            "description": "Example showing multiple timestamped metrics in a single request. Useful for devices that buffer data and send in batches. Each metric item can have its own timestamp (ts) override."
+            "description": "Multiple timestamped metrics in a single request. Useful for devices that buffer data and send in batches. Each metric item can have its own timestamp (ts) override."
           },
           "response": []
         },
@@ -185,14 +220,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T16:00:00Z\",\n  \"gps\": {\n    \"latitude\": -33.452178,\n    \"longitude\": -70.639845,\n    \"altitude\": 498,\n    \"speed\": 0,\n    \"heading\": 90,\n    \"satellites\": 16\n  },\n  \"telecom\": {\n    \"iccid\": \"8956012345678901234\",\n    \"imei\": \"123456789012345\",\n    \"signal_strength\": -67\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true,\n    \"door_open\": false\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 850, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 88, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.intake_air_temp\", \"v\": 32, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 18, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.runtime\", \"v\": 7245, \"u\": \"s\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 0, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"throttle.position\", \"v\": 12, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 14.2, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 68, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.rate\", \"v\": 1.8, \"u\": \"L/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 142587, \"u\": \"km\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"idle.state\", \"v\": true, \"src\": \"derived\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.count\", \"v\": 0, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100003,\n    \"device_ts\": \"2026-02-02T16:00:00Z\",\n    \"capabilities\": {\n      \"obd2\": true,\n      \"can\": false,\n      \"supported_pids\": [\"04\", \"05\", \"0C\", \"0D\", \"0F\", \"11\", \"1F\", \"2F\", \"42\"]\n    }\n  }\n}"
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T16:00:00Z\",\n  \"gps\": {\n    \"latitude\": -33.452178,\n    \"longitude\": -70.639845,\n    \"altitude\": 498,\n    \"speed\": 0,\n    \"heading\": 90,\n    \"satellites\": 16\n  },\n  \"telecom\": {\n    \"iccid\": \"8956012345678901234\",\n    \"imei\": \"123456789012345\",\n    \"signal_strength\": -67\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 850, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 88, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.intake_air_temp\", \"v\": 32, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 18, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.runtime\", \"v\": 7245, \"u\": \"s\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 0, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"throttle.position\", \"v\": 12, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 14.2, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 68, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.rate\", \"v\": 1.8, \"u\": \"L/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 142587, \"u\": \"km\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100003,\n    \"device_ts\": \"2026-02-02T16:00:00Z\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/v1/asset/track",
               "host": ["{{base_url}}"],
               "path": ["v1", "asset", "track"]
             },
-            "description": "Comprehensive example with GPS, telecom, sensors, and extensive metrics including engine data, fuel consumption, odometer, idling detection, and device capabilities. This represents a full-featured OBD2 integration."
+            "description": "Comprehensive example with GPS, telecom, sensors, and extensive metrics including engine data, fuel consumption, odometer, idling detection, and device capabilities. This represents a full-featured OBD-II integration."
           },
           "response": []
         },
@@ -220,14 +255,84 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T17:15:00Z\",\n  \"gps\": {\n    \"latitude\": -33.448912,\n    \"longitude\": -70.655234,\n    \"altitude\": 510,\n    \"speed\": 45,\n    \"heading\": 270,\n    \"satellites\": 11\n  },\n  \"sensors\": {\n    \"engine_status\": true,\n    \"ignition\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2400, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 105, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 45, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.1, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": true, \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.count\", \"v\": 2, \"src\": \"obd2\", \"q\": \"ok\" },\n      {\n        \"k\": \"dtc.codes\",\n        \"v\": [\"P0217\", \"P0128\"],\n        \"src\": \"obd2\",\n        \"q\": \"ok\",\n        \"meta\": {\n          \"descriptions\": {\n            \"P0217\": \"Engine Coolant Over Temperature Condition\",\n            \"P0128\": \"Coolant Thermostat Below Regulating Temperature\"\n          }\n        }\n      }\n    ],\n    \"seq\": 100004,\n    \"device_ts\": \"2026-02-02T17:15:00Z\"\n  }\n}"
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-02T17:15:00Z\",\n  \"gps\": {\n    \"latitude\": -33.448912,\n    \"longitude\": -70.655234,\n    \"altitude\": 510,\n    \"speed\": 45,\n    \"heading\": 270,\n    \"satellites\": 11\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2400, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 105, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 45, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.1, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": true, \"src\": \"obd2\", \"q\": \"ok\" },\n      {\n        \"k\": \"dtc.codes\",\n        \"v\": [\"P0217\", \"P0128\"],\n        \"src\": \"obd2\",\n        \"q\": \"ok\",\n        \"meta\": {\n          \"descriptions\": {\n            \"P0217\": \"Engine Coolant Over Temperature Condition\",\n            \"P0128\": \"Coolant Thermostat Below Regulating Temperature\"\n          }\n        }\n      }\n    ],\n    \"seq\": 100004,\n    \"device_ts\": \"2026-02-02T17:15:00Z\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/v1/asset/track",
               "host": ["{{base_url}}"],
               "path": ["v1", "asset", "track"]
             },
-            "description": "Example showing diagnostic trouble codes (DTCs) with check engine light on. Includes the MIL status, DTC count, and array of fault codes with optional metadata for descriptions."
+            "description": "Diagnostic trouble codes (DTCs) with check engine light on. Includes the MIL status, DTC count, and array of fault codes with optional metadata for descriptions."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with OBD-II Vehicle Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-05T10:30:00Z\",\n  \"gps\": {\n    \"latitude\": -33.445123,\n    \"longitude\": -70.660789,\n    \"altitude\": 515,\n    \"speed\": 72,\n    \"heading\": 145,\n    \"satellites\": 14\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"engine.rpm\", \"v\": 2850, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 72, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 54, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 92, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 14.1, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 87432, \"u\": \"km\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.rate\", \"v\": 8.5, \"u\": \"L/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 42, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"throttle.position\", \"v\": 35, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"catalyst.temp\", \"v\": 485, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": false, \"src\": \"obd2\", \"q\": \"ok\" }\n    ],\n    \"seq\": 100005,\n    \"device_ts\": \"2026-02-05T10:30:00Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Comprehensive OBD-II vehicle data while driving. Includes engine metrics (RPM, load, coolant temp), fuel metrics (level, rate), vehicle metrics (speed, odometer), emissions (catalyst temp), and diagnostics."
+          },
+          "response": []
+        },
+        {
+          "name": "Track with Vehicle Identity and DTCs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Request-Timestamp",
+                "value": "{{$timestamp}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_id\": \"SVSX88\",\n  \"type\": \"Truck\",\n  \"owner\": \"MicroboxLabs\",\n  \"timestamp\": \"2026-02-05T11:45:00Z\",\n  \"gps\": {\n    \"latitude\": -33.451234,\n    \"longitude\": -70.648567,\n    \"altitude\": 502,\n    \"speed\": 0,\n    \"heading\": 90,\n    \"satellites\": 12\n  },\n  \"sensors\": {\n    \"engine_status\": true\n  },\n  \"metrics\": {\n    \"schema\": \"miot.metrics@1.0\",\n    \"items\": [\n      { \"k\": \"vehicle.vin\", \"v\": \"1HGCM82633A004352\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.protocol\", \"v\": \"ISO 15765-4 CAN (11 bit ID, 500 kbaud)\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.rpm\", \"v\": 780, \"u\": \"rpm\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.speed\", \"v\": 0, \"u\": \"km/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.level\", \"v\": 32, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.coolant_temp\", \"v\": 98, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"battery.voltage\", \"v\": 13.8, \"u\": \"V\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"vehicle.odometer\", \"v\": 156789, \"u\": \"km\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"fuel.rate\", \"v\": 1.2, \"u\": \"L/h\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"engine.load\", \"v\": 15, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"throttle.position\", \"v\": 10, \"u\": \"%\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"catalyst.temp\", \"v\": 320, \"u\": \"C\", \"src\": \"obd2\", \"q\": \"ok\" },\n      { \"k\": \"dtc.mil_on\", \"v\": true, \"src\": \"obd2\", \"q\": \"ok\" },\n      {\n        \"k\": \"dtc.codes\",\n        \"v\": [\"P0420\", \"P0171\"],\n        \"src\": \"obd2\",\n        \"q\": \"ok\",\n        \"meta\": {\n          \"descriptions\": {\n            \"P0420\": \"Catalyst System Efficiency Below Threshold (Bank 1)\",\n            \"P0171\": \"System Too Lean (Bank 1)\"\n          }\n        }\n      }\n    ],\n    \"seq\": 100006,\n    \"device_ts\": \"2026-02-05T11:45:00Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/asset/track",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "asset", "track"]
+            },
+            "description": "Vehicle identity information (VIN, protocol) with active diagnostic trouble codes. Shows an idling vehicle with check engine light on and comprehensive OBD-II metrics."
           },
           "response": []
         }

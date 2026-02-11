@@ -177,6 +177,22 @@ export function Dashlet({
   const variant = config.variant ?? "bento-box";
   const widgetChildren = widget.children ?? [];
   const hasChildren = widgetChildren.length > 0;
+  const nestedGridRef = useRef<HTMLDivElement>(null);
+
+  // Stop propagation on nested grid to prevent parent grid from capturing drag events
+  useEffect(() => {
+    const el = nestedGridRef.current;
+    if (!el) return;
+
+    const stopPropagation = (e: Event) => e.stopPropagation();
+    el.addEventListener("mousedown", stopPropagation);
+    el.addEventListener("touchstart", stopPropagation);
+
+    return () => {
+      el.removeEventListener("mousedown", stopPropagation);
+      el.removeEventListener("touchstart", stopPropagation);
+    };
+  }, []);
 
   // Calculate responsive columns based on container width
   // Use ceil so column width is always <= 100px (items never grow larger than intended)
@@ -352,7 +368,7 @@ export function Dashlet({
             editMode={editMode}
             emptyMessage="No widgets yet"
           >
-            <div className="nested-grid-wrapper">
+            <div ref={nestedGridRef} className="nested-grid-wrapper">
               <GridLayout
                 className="container-grid"
                 layout={layout}
@@ -412,7 +428,7 @@ export function Dashlet({
           editMode={editMode}
           emptyMessage="Empty group"
         >
-          <div className="nested-grid-wrapper">
+          <div ref={nestedGridRef} className="nested-grid-wrapper">
             <GridLayout
               className="container-grid"
               layout={layout}

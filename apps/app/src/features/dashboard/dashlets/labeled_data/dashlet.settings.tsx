@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
+import { Button } from "flowbite-react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -22,6 +22,11 @@ import {
   type IconOption,
 } from "@/features/common/components/icon-picker-dropdown";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  SettingsTextField,
+  SettingsPickerRow,
+  SettingsPickerItem,
+} from "../common";
 
 /** Color options for ColorPickerDropdown */
 const COLOR_OPTIONS: ColorOption<ColorTheme>[] = [
@@ -81,55 +86,38 @@ export function DashletSettings({
       className="no-drag w-72 gap-4 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex w-full flex-col gap-3">
-        {/* Name */}
-        <div>
-          <Label htmlFor="dashlet-name" className="mb-1 block text-sm">
-            Label
-          </Label>
-          <TextInput
-            id="dashlet-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter label..."
-            sizing="sm"
-          />
-        </div>
-
-        {/* Value */}
-        <div>
-          <Label htmlFor="dashlet-value" className="mb-1 block text-sm">
-            Value
-          </Label>
-          <TextInput
-            id="dashlet-value"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Enter value..."
-            sizing="sm"
-          />
-        </div>
-
-        {/* Icon & Color side by side */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <Label className="text-sm">Icon</Label>
+        <SettingsTextField
+          id="dashlet-name"
+          label="Label"
+          value={name}
+          onChange={setName}
+          placeholder="Enter label..."
+        />
+        <SettingsTextField
+          id="dashlet-value"
+          label="Value"
+          value={value}
+          onChange={setValue}
+          placeholder="Enter value..."
+        />
+        <SettingsPickerRow>
+          <SettingsPickerItem label="Icon">
             <IconPickerDropdown
               options={ICON_OPTIONS}
               value={icon}
               onChange={setIcon}
               title="Select icon"
             />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Label className="text-sm">Color</Label>
+          </SettingsPickerItem>
+          <SettingsPickerItem label="Color">
             <ColorPickerDropdown
               options={COLOR_OPTIONS}
               value={color}
               onChange={setColor}
               title="Select color"
             />
-          </div>
-        </div>
+          </SettingsPickerItem>
+        </SettingsPickerRow>
 
         {/* Save Button */}
         <Button onClick={handleSave} size="sm" className="w-full">

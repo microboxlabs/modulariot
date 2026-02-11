@@ -132,20 +132,9 @@ export function WidgetRenderer({
     setIsDeleteModalOpen(false);
   };
 
-  // Handler to stop propagation - prevents parent grid from receiving drag events
-  const stopParentDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-  };
-
-  // Render children recursively - each child stops event propagation to prevent parent drag
+  // Render children recursively
   const childrenElements = widget.children?.map((child) => (
-    <div
-      key={child.id}
-      role="presentation"
-      className="h-full"
-      onMouseDown={stopParentDrag}
-      onTouchStart={stopParentDrag}
-    >
+    <div key={child.id} className="h-full">
       <WidgetRenderer widget={child} />
     </div>
   ));

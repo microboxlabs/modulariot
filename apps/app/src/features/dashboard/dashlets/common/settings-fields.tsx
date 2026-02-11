@@ -165,3 +165,47 @@ export function SettingsFieldGrid({
   const colsClass = cols === 2 ? "grid-cols-2" : "grid-cols-3";
   return <div className={`grid ${colsClass} gap-2`}>{children}</div>;
 }
+
+// ============================================================================
+// SettingsPickerRow
+// ============================================================================
+
+interface SettingsPickerRowProps {
+  /** Children picker components with labels */
+  children: React.ReactNode;
+}
+
+/**
+ * Horizontal row layout for icon/color picker pairs.
+ */
+export function SettingsPickerRow({
+  children,
+}: Readonly<SettingsPickerRowProps>) {
+  return <div className="flex items-center gap-4">{children}</div>;
+}
+
+// ============================================================================
+// SettingsPickerItem
+// ============================================================================
+
+interface SettingsPickerItemProps {
+  /** Label text */
+  label: string;
+  /** Picker component (e.g., ColorPickerDropdown, IconPickerDropdown) */
+  children: React.ReactNode;
+}
+
+/**
+ * Single picker item with label for use in SettingsPickerRow.
+ */
+export function SettingsPickerItem({
+  label,
+  children,
+}: Readonly<SettingsPickerItemProps>) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Label className="text-sm">{label}</Label>
+      {children}
+    </div>
+  );
+}

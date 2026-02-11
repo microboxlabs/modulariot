@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Textarea, Label } from "flowbite-react";
+import { Button, Label } from "flowbite-react";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import {
@@ -15,6 +15,11 @@ import {
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  SettingsTextField,
+  SettingsTextareaField,
+  SettingsPickerItem,
+} from "../common";
 
 /** Color options for labeled-group border using ColorPickerDropdown */
 const BORDER_COLOR_OPTIONS: ColorOption<LabelBorderColor>[] = [
@@ -121,71 +126,46 @@ export function DashletSettings({
         {/* Conditional Fields based on variant */}
         {variant === "bento-box" ? (
           <>
-            <div>
-              <Label htmlFor="name" className="mb-1 block text-sm">
-                Name
-              </Label>
-              <TextInput
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter name..."
-                sizing="sm"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="description" className="mb-1 block text-sm">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter description..."
-                rows={2}
-                className="text-sm"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="verMasUrl" className="mb-1 block text-sm">
-                "Ver más" Link URL
-              </Label>
-              <TextInput
-                id="verMasUrl"
-                value={verMasUrl}
-                onChange={(e) => setVerMasUrl(e.target.value)}
-                placeholder="https://example.com"
-                type="url"
-                sizing="sm"
-              />
-            </div>
+            <SettingsTextField
+              id="name"
+              label="Name"
+              value={name ?? ""}
+              onChange={setName}
+              placeholder="Enter name..."
+            />
+            <SettingsTextareaField
+              id="description"
+              label="Description"
+              value={description ?? ""}
+              onChange={setDescription}
+              placeholder="Enter description..."
+              rows={2}
+            />
+            <SettingsTextField
+              id="verMasUrl"
+              label='"Ver más" Link URL'
+              value={verMasUrl ?? ""}
+              onChange={setVerMasUrl}
+              placeholder="https://example.com"
+            />
           </>
         ) : (
           <>
-            <div>
-              <Label htmlFor="label" className="mb-1 block text-sm">
-                Label
-              </Label>
-              <TextInput
-                id="label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Enter label..."
-                sizing="sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Label className="text-sm">Border Color</Label>
+            <SettingsTextField
+              id="label"
+              label="Label"
+              value={label ?? ""}
+              onChange={setLabel}
+              placeholder="Enter label..."
+            />
+            <SettingsPickerItem label="Border Color">
               <ColorPickerDropdown
                 value={borderColor}
                 onChange={setBorderColor}
                 options={BORDER_COLOR_OPTIONS}
                 title="Select border color"
               />
-            </div>
+            </SettingsPickerItem>
           </>
         )}
 

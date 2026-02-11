@@ -29,5 +29,7 @@ export const dashletDefinition: DashletDefinition = {
 // ============================================================================
 // RE-EXPORTS for direct imports
 // ============================================================================
-export { Dashlet, DashletSettings, dashletMeta };
+export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";
+export { DashletSettings } from "./dashlet.settings";
+export { dashletMeta } from "./dashlet.meta";
 export type { DashletConfig } from "./dashlet";

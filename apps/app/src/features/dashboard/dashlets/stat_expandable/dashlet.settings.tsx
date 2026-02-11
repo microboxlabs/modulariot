@@ -18,27 +18,39 @@ export function DashletSettings({
   const [title, setTitle] = useState(typedConfig.title || "Conversion Rate");
   const [value, setValue] = useState(typedConfig.value || 3.24);
   const [unit, setUnit] = useState(typedConfig.unit || "%");
-  const [details, setDetails] = useState(
-    typedConfig.details || [
+
+  // Add unique IDs to details for stable keys
+  const initializeDetails = () => {
+    const defaultDetails = [
       { label: "Visitors", value: "12,847" },
       { label: "Conversions", value: "416" },
-    ]
-  );
+    ];
+    return (typedConfig.details || defaultDetails).map((detail, index) => ({
+      ...detail,
+      id: `detail-${Date.now()}-${index}`,
+    }));
+  };
+
+  const [details, setDetails] = useState(initializeDetails);
 
   const handleSave = () => {
-    onSave({ title, value, unit, details });
+    // Remove internal IDs before saving
+    const detailsToSave = details.map(({ label, value }) => ({ label, value }));
+    onSave({ title, value, unit, details: detailsToSave });
     onClose();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
-  const addDetail = () => setDetails([...details, { label: "", value: "" }]);
-  const removeDetail = (i: number) =>
-    setDetails(details.filter((_, idx) => idx !== i));
-  const updateDetail = (i: number, field: "label" | "value", val: string) => {
-    setDetails(
-      details.map((d, idx) => (idx === i ? { ...d, [field]: val } : d))
-    );
+  const addDetail = () =>
+    setDetails([
+      ...details,
+      { id: `detail-${Date.now()}`, label: "", value: "" },
+    ]);
+  const removeDetail = (id: string) =>
+    setDetails(details.filter((d) => d.id !== id));
+  const updateDetail = (id: string, field: "label" | "value", val: string) => {
+    setDetails(details.map((d) => (d.id === id ? { ...d, [field]: val } : d)));
   };
 
   if (globalThis.window === undefined) return null;
@@ -102,18 +114,18 @@ export function DashletSettings({
               Add
             </Button>
           </div>
-          {details.map((d, i) => (
-            <div key={i} className="flex items-center gap-2">
+          {details.map((d) => (
+            <div key={d.id} className="flex items-center gap-2">
               <TextInput
                 value={d.label}
-                onChange={(e) => updateDetail(i, "label", e.target.value)}
+                onChange={(e) => updateDetail(d.id, "label", e.target.value)}
                 placeholder="Label"
                 sizing="sm"
                 className="flex-1"
               />
               <TextInput
                 value={d.value}
-                onChange={(e) => updateDetail(i, "value", e.target.value)}
+                onChange={(e) => updateDetail(d.id, "value", e.target.value)}
                 placeholder="Value"
                 sizing="sm"
                 className="flex-1"
@@ -121,7 +133,7 @@ export function DashletSettings({
               <Button
                 size="xs"
                 color="failure"
-                onClick={() => removeDetail(i)}
+                onClick={() => removeDetail(d.id)}
                 onMouseDown={handleMouseDown}
                 className="no-drag"
               >

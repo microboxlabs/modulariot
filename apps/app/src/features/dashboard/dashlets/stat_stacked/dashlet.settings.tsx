@@ -75,9 +75,7 @@ export function DashletSettings({
     setItems(items.filter((item) => item.id !== id));
   const updateItem = (id: string, field: string, val: string | number) => {
     setItems(
-      items.map((item) =>
-        item.id === id ? { ...item, [field]: val } : item
-      )
+      items.map((item) => (item.id === id ? { ...item, [field]: val } : item))
     );
   };
 
@@ -144,7 +142,9 @@ export function DashletSettings({
               <TextInput
                 type="number"
                 value={item.value}
-                onChange={(e) => updateItem(item.id, "value", Number(e.target.value))}
+                onChange={(e) =>
+                  updateItem(item.id, "value", Number(e.target.value))
+                }
                 sizing="sm"
                 className="w-16"
               />

@@ -63,7 +63,7 @@ export function prepareAlfrescoAuth(
   const headers: Record<string, string> = {
     // "Content-Type": contentType,
   };
-  var user = session?.user;
+  const user = session?.user;
   if (session?.user?.rawJWT) {
     headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
   } else if (session?.user?.ticket) {

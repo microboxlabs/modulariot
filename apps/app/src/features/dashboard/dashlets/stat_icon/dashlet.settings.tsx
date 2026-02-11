@@ -6,8 +6,7 @@ import type { DashletConfig } from "./dashlet";
 import {
   DashletSettingsWrapper,
   SettingsTextField,
-  SettingsNumberField,
-  SettingsFieldGrid,
+  SettingsTitleValueUnit,
 } from "../common";
 
 export function DashletSettings({
@@ -35,26 +34,14 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
     >
-      <SettingsTextField
-        id="title"
-        label="Title"
-        value={title}
-        onChange={setTitle}
+      <SettingsTitleValueUnit
+        title={title}
+        onTitleChange={setTitle}
+        value={value}
+        onValueChange={setValue}
+        unit={unit}
+        onUnitChange={setUnit}
       />
-      <SettingsFieldGrid cols={2}>
-        <SettingsNumberField
-          id="value"
-          label="Value"
-          value={value}
-          onChange={setValue}
-        />
-        <SettingsTextField
-          id="unit"
-          label="Unit"
-          value={unit}
-          onChange={setUnit}
-        />
-      </SettingsFieldGrid>
       <SettingsTextField
         id="subtitle"
         label="Subtitle"

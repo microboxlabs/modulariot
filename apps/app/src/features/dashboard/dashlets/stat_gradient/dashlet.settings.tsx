@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Label } from "flowbite-react";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
 import {
   DashletSettingsWrapper,
-  SettingsTextField,
-  SettingsNumberField,
-  SettingsFieldGrid,
+  SettingsTitleValueUnit,
+  SettingsPickerItem,
 } from "../common";
 import {
   ColorPickerDropdown,
@@ -50,35 +48,22 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
     >
-      <SettingsTextField
-        id="title"
-        label="Title"
-        value={title}
-        onChange={setTitle}
+      <SettingsTitleValueUnit
+        title={title}
+        onTitleChange={setTitle}
+        value={value}
+        onValueChange={setValue}
+        unit={unit}
+        onUnitChange={setUnit}
       />
-      <SettingsFieldGrid cols={2}>
-        <SettingsNumberField
-          id="value"
-          label="Value"
-          value={value}
-          onChange={setValue}
-        />
-        <SettingsTextField
-          id="unit"
-          label="Unit"
-          value={unit}
-          onChange={setUnit}
-        />
-      </SettingsFieldGrid>
-      <div className="flex items-center gap-2">
-        <Label className="text-sm">Color</Label>
+      <SettingsPickerItem label="Color">
         <ColorPickerDropdown
           options={COLOR_OPTIONS}
           value={color}
           onChange={setColor}
           title="Select color"
         />
-      </div>
+      </SettingsPickerItem>
     </DashletSettingsWrapper>
   );
 }

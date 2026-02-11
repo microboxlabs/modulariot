@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  DashletSettingsWrapper,
+  SettingsTextField,
+  SettingsFieldGrid,
+} from "../common";
 import {
   ColorPickerDropdown,
   type ColorOption,
@@ -29,6 +32,13 @@ const COLOR_OPTIONS: ColorOption<BarColor>[] = [
   { value: "bg-cyan-500", label: "Cyan", dotClass: "bg-cyan-500" },
 ];
 
+interface StackItem {
+  id: string;
+  label: string;
+  value: number;
+  color: string;
+}
+
 export function DashletSettings({
   isOpen,
   onClose,
@@ -39,22 +49,21 @@ export function DashletSettings({
   const [title, setTitle] = useState(typedConfig.title || "Traffic Sources");
   const [unit, setUnit] = useState(typedConfig.unit || "%");
 
-  // Add unique IDs to items for stable keys
-  const initializeItems = () => {
+  // Initialize items with unique IDs
+  const initializeItems = (): StackItem[] => {
     const defaultItems = [
       { label: "Direct", value: 45, color: "bg-blue-500" },
       { label: "Organic", value: 30, color: "bg-green-500" },
     ];
-    return (typedConfig.items || defaultItems).map((item, index) => ({
+    return (typedConfig.items || defaultItems).map((item, i) => ({
       ...item,
-      id: `item-${Date.now()}-${index}`,
+      id: `item-${Date.now()}-${i}`,
     }));
   };
 
   const [items, setItems] = useState(initializeItems);
 
   const handleSave = () => {
-    // Remove internal IDs before saving
     const itemsToSave = items.map(({ label, value, color }) => ({
       label,
       value,
@@ -71,124 +80,92 @@ export function DashletSettings({
       ...items,
       { id: `item-${Date.now()}`, label: "", value: 0, color: "bg-blue-500" },
     ]);
+
   const removeItem = (id: string) =>
     setItems(items.filter((item) => item.id !== id));
+
   const updateItem = (id: string, field: string, val: string | number) => {
     setItems(
       items.map((item) => (item.id === id ? { ...item, [field]: val } : item))
     );
   };
 
-  if (globalThis.window === undefined) return null;
-
-  return createPortal(
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(s) => !s && onClose()}
-      className="no-drag w-80 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+  return (
+    <DashletSettingsWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      width="w-80"
+      scrollable
     >
-      <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="title" className="mb-1 block text-sm">
-              Title
-            </Label>
-            <TextInput
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              sizing="sm"
-            />
-          </div>
-          <div>
-            <Label htmlFor="unit" className="mb-1 block text-sm">
-              Unit
-            </Label>
-            <TextInput
-              id="unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              sizing="sm"
-            />
-          </div>
-        </div>
+      <SettingsFieldGrid cols={2}>
+        <SettingsTextField
+          id="title"
+          label="Title"
+          value={title}
+          onChange={setTitle}
+        />
+        <SettingsTextField
+          id="unit"
+          label="Unit"
+          value={unit}
+          onChange={setUnit}
+        />
+      </SettingsFieldGrid>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Categories</Label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Categories</Label>
+          <Button
+            size="xs"
+            color="light"
+            onClick={addItem}
+            onMouseDown={handleMouseDown}
+            className="no-drag"
+          >
+            <HiPlus className="mr-1 h-3 w-3" />
+            Add
+          </Button>
+        </div>
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
+          >
+            <TextInput
+              value={item.label}
+              onChange={(e) => updateItem(item.id, "label", e.target.value)}
+              placeholder="Label"
+              sizing="sm"
+              className="flex-1"
+            />
+            <TextInput
+              type="number"
+              value={item.value}
+              onChange={(e) =>
+                updateItem(item.id, "value", Number(e.target.value))
+              }
+              sizing="sm"
+              className="w-16"
+            />
+            <ColorPickerDropdown
+              options={COLOR_OPTIONS}
+              value={item.color as BarColor}
+              onChange={(c) => updateItem(item.id, "color", c)}
+              title="Color"
+            />
             <Button
               size="xs"
-              color="light"
-              onClick={addItem}
+              color="failure"
+              onClick={() => removeItem(item.id)}
               onMouseDown={handleMouseDown}
               className="no-drag"
             >
-              <HiPlus className="mr-1 h-3 w-3" />
-              Add
+              <HiTrash className="h-3 w-3" />
             </Button>
           </div>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
-            >
-              <TextInput
-                value={item.label}
-                onChange={(e) => updateItem(item.id, "label", e.target.value)}
-                placeholder="Label"
-                sizing="sm"
-                className="flex-1"
-              />
-              <TextInput
-                type="number"
-                value={item.value}
-                onChange={(e) =>
-                  updateItem(item.id, "value", Number(e.target.value))
-                }
-                sizing="sm"
-                className="w-16"
-              />
-              <ColorPickerDropdown
-                options={COLOR_OPTIONS}
-                value={item.color as BarColor}
-                onChange={(c) => updateItem(item.id, "color", c)}
-                title="Color"
-              />
-              <Button
-                size="xs"
-                color="failure"
-                onClick={() => removeItem(item.id)}
-                onMouseDown={handleMouseDown}
-                className="no-drag"
-              >
-                <HiTrash className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Save
-          </Button>
-        </div>
+        ))}
       </div>
-    </AbsoluteModal>,
-    document.body
+    </DashletSettingsWrapper>
   );
 }

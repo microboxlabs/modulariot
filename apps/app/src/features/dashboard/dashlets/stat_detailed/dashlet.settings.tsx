@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label, Textarea } from "flowbite-react";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  DashletSettingsWrapper,
+  SettingsTextField,
+  SettingsNumberField,
+  SettingsTextareaField,
+  SettingsFieldGrid,
+} from "../common";
 
 export function DashletSettings({
   isOpen,
@@ -28,113 +32,54 @@ export function DashletSettings({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
-  if (globalThis.window === undefined) return null;
-
-  return createPortal(
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(s) => !s && onClose()}
-      className="no-drag w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+  return (
+    <DashletSettingsWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      scrollable
     >
-      <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-        <div>
-          <Label htmlFor="title" className="mb-1 block text-sm">
-            Title
-          </Label>
-          <TextInput
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="value" className="mb-1 block text-sm">
-              Current Value
-            </Label>
-            <TextInput
-              id="value"
-              type="number"
-              value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
-              sizing="sm"
-            />
-          </div>
-          <div>
-            <Label htmlFor="prev" className="mb-1 block text-sm">
-              Previous
-            </Label>
-            <TextInput
-              id="prev"
-              type="number"
-              value={previousValue}
-              onChange={(e) => setPreviousValue(Number(e.target.value))}
-              sizing="sm"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="unit" className="mb-1 block text-sm">
-              Unit
-            </Label>
-            <TextInput
-              id="unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              sizing="sm"
-            />
-          </div>
-          <div>
-            <Label htmlFor="target" className="mb-1 block text-sm">
-              Target
-            </Label>
-            <TextInput
-              id="target"
-              type="number"
-              value={target}
-              onChange={(e) => setTarget(Number(e.target.value))}
-              sizing="sm"
-            />
-          </div>
-        </div>
-        <div>
-          <Label htmlFor="description" className="mb-1 block text-sm">
-            Description
-          </Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="text-sm"
-          />
-        </div>
-        <div className="flex gap-2 pt-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-    </AbsoluteModal>,
-    document.body
+      <SettingsTextField
+        id="title"
+        label="Title"
+        value={title}
+        onChange={setTitle}
+      />
+      <SettingsFieldGrid cols={2}>
+        <SettingsNumberField
+          id="value"
+          label="Current Value"
+          value={value}
+          onChange={setValue}
+        />
+        <SettingsNumberField
+          id="prev"
+          label="Previous"
+          value={previousValue}
+          onChange={setPreviousValue}
+        />
+      </SettingsFieldGrid>
+      <SettingsFieldGrid cols={2}>
+        <SettingsTextField
+          id="unit"
+          label="Unit"
+          value={unit}
+          onChange={setUnit}
+        />
+        <SettingsNumberField
+          id="target"
+          label="Target"
+          value={target}
+          onChange={setTarget}
+        />
+      </SettingsFieldGrid>
+      <SettingsTextareaField
+        id="description"
+        label="Description"
+        value={description}
+        onChange={setDescription}
+        rows={2}
+      />
+    </DashletSettingsWrapper>
   );
 }

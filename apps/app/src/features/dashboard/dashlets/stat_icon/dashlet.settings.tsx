@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  DashletSettingsWrapper,
+  SettingsTextField,
+  SettingsNumberField,
+  SettingsFieldGrid,
+} from "../common";
 
 export function DashletSettings({
   isOpen,
@@ -26,86 +29,38 @@ export function DashletSettings({
     onClose();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
-  if (globalThis.window === undefined) return null;
-
-  return createPortal(
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(s) => !s && onClose()}
-      className="no-drag w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+  return (
+    <DashletSettingsWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
     >
-      <div className="flex flex-col gap-3">
-        <div>
-          <Label htmlFor="title" className="mb-1 block text-sm">
-            Title
-          </Label>
-          <TextInput
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="value" className="mb-1 block text-sm">
-              Value
-            </Label>
-            <TextInput
-              id="value"
-              type="number"
-              value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
-              sizing="sm"
-            />
-          </div>
-          <div>
-            <Label htmlFor="unit" className="mb-1 block text-sm">
-              Unit
-            </Label>
-            <TextInput
-              id="unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              sizing="sm"
-            />
-          </div>
-        </div>
-        <div>
-          <Label htmlFor="subtitle" className="mb-1 block text-sm">
-            Subtitle
-          </Label>
-          <TextInput
-            id="subtitle"
-            value={subtitle}
-            onChange={(e) => setSubtitle(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-        <div className="flex gap-2 pt-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-    </AbsoluteModal>,
-    document.body
+      <SettingsTextField
+        id="title"
+        label="Title"
+        value={title}
+        onChange={setTitle}
+      />
+      <SettingsFieldGrid cols={2}>
+        <SettingsNumberField
+          id="value"
+          label="Value"
+          value={value}
+          onChange={setValue}
+        />
+        <SettingsTextField
+          id="unit"
+          label="Unit"
+          value={unit}
+          onChange={setUnit}
+        />
+      </SettingsFieldGrid>
+      <SettingsTextField
+        id="subtitle"
+        label="Subtitle"
+        value={subtitle}
+        onChange={setSubtitle}
+      />
+    </DashletSettingsWrapper>
   );
 }

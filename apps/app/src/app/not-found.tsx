@@ -50,7 +50,7 @@ export default async function NotFound(params: ParamsWithLang) {
           <h1 className="text-4xl leading-normal dark:text-white lg:hidden">
             {dict("pages.notFound.supportingText")}
           </h1>
-          <Link href={`/${lang}/shipping`}>
+          <Link href={`/${lang}/geographic-view`}>
             <Card className="w-96">
               <div className="flex justify-center items-center flex-row gap-3">
                 <div className="w-12 h-12 text-blue-600 bg-blue-100 rounded-lg flex justify-center items-center">

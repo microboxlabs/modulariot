@@ -13,6 +13,12 @@ const ADMIN_ROLES = [
   "GROUP_MINTRAL_SYSTEM_ADMIN",
 ];
 
+// Kanban access roles
+export const KANBAN_ACCESS_ROLES = [
+  "GROUP_MINTRAL_KANBAN_ACCESS",
+  "GROUP_GAMA_KANBAN_ACCESS"
+];
+
 // Define groups that should be blocked from certain routes
 const BLOCKED_GROUPS = {
   GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
@@ -21,7 +27,7 @@ const BLOCKED_GROUPS = {
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
-  "/shipping": FULL_ACCESS_ROLES,
+  "/shipping": KANBAN_ACCESS_ROLES,
   "/finished": FULL_ACCESS_ROLES,
   "/reports": FULL_ACCESS_ROLES,
   "/geographic-view": FULL_ACCESS_ROLES,

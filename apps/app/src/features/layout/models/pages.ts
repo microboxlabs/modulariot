@@ -50,6 +50,10 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
+        requiredGroups: [
+          "GROUP_MINTRAL_KANBAN_ACCESS",
+          "GROUP_GAMA_KANBAN_ACCESS"
+        ],
       },
       /* {
         href: "/shippingv1",

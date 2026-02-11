@@ -103,7 +103,7 @@ export const pages: SidebarItem[] = [
       },
     ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
     blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide "My Tasks" from revisors
   },
   {

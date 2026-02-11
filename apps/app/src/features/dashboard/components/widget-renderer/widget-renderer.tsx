@@ -8,6 +8,91 @@ import { getDashlet } from "../../dashlets";
 import { DeleteWidgetModal } from "../delete-widget-modal";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 
+// ============================================================================
+// WidgetControls - Extracted component for edit mode buttons
+// ============================================================================
+
+interface WidgetControlsProps {
+  hasChildren: boolean;
+  hasSettings: boolean;
+  onAddChild: () => void;
+  onOpenSettings: () => void;
+  onDelete: () => void;
+}
+
+/**
+ * Edit mode control buttons for widgets (Add, Settings, Delete)
+ */
+function WidgetControls({
+  hasChildren,
+  hasSettings,
+  onAddChild,
+  onOpenSettings,
+  onDelete,
+}: Readonly<WidgetControlsProps>) {
+  return (
+    <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
+      {hasChildren && (
+        <button
+          type="button"
+          onClick={onAddChild}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
+          title="Add widget"
+        >
+          <HiPlus className="h-4 w-4" />
+        </button>
+      )}
+      {hasSettings && (
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+          title="Settings"
+        >
+          <HiCog6Tooth className="h-4 w-4" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onDelete}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+        title="Delete"
+      >
+        <HiTrash className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================================
+// ChildWidgetWrapper - Stops drag propagation
+// ============================================================================
+
+/**
+ * Wrapper for child widgets that stops drag propagation to parent grid
+ */
+function ChildWidgetWrapper({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <div
+      role="presentation"
+      className="h-full"
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ============================================================================
+// WidgetRenderer - Main component
+// ============================================================================
+
 interface WidgetRendererProps {
   widget: Widget;
   /** Whether this widget is at root level (not inside another widget) */
@@ -30,6 +115,7 @@ export function WidgetRenderer({
 
   const dashlet = getDashlet(widget.componentId);
 
+  // Handle unknown widget type
   if (!dashlet) {
     return (
       <div className="relative flex h-full items-center justify-center rounded-lg border border-red-300 bg-red-50 p-4 text-red-600 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
@@ -55,20 +141,12 @@ export function WidgetRenderer({
 
   const { Component, SettingsModal, meta } = dashlet;
 
-  const handleOpenAddChild = () => {
-    setIsAddChildModalOpen(true);
-  };
-
-  const handleOpenSettings = () => {
-    setIsSettingsOpen(true);
-  };
+  const handleOpenAddChild = () => setIsAddChildModalOpen(true);
+  const handleOpenSettings = () => setIsSettingsOpen(true);
+  const handleDelete = () => setIsDeleteModalOpen(true);
 
   const handleSaveSettings = (config: Record<string, unknown>) => {
     updateWidgetConfig(widget.id, config);
-  };
-
-  const handleDelete = () => {
-    setIsDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = () => {
@@ -76,152 +154,31 @@ export function WidgetRenderer({
     setIsDeleteModalOpen(false);
   };
 
-  // Handler to stop propagation - prevents parent grid from receiving drag events
-  const stopParentDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-  };
-
-  // Render children recursively - each child stops event propagation to prevent parent drag
+  // Render children recursively
   const childrenElements = widget.children?.map((child) => (
-    <div
-      key={child.id}
-      role="presentation"
-      className="h-full"
-      onMouseDown={stopParentDrag}
-      onTouchStart={stopParentDrag}
-    >
+    <ChildWidgetWrapper key={child.id}>
       <WidgetRenderer widget={child} />
-    </div>
+    </ChildWidgetWrapper>
   ));
 
-  // For root-level widgets, render with full height wrapper
-  if (isRoot) {
-    return (
-      <div className="widget-wrapper relative h-full">
-        {/* Edit mode controls - visibility controlled by CSS */}
-        {editMode && (
-          <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
-            {meta.hasChildren && (
-              <button
-                type="button"
-                onClick={handleOpenAddChild}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
-                title="Add widget"
-              >
-                <HiPlus className="h-4 w-4" />
-              </button>
-            )}
-            {meta.hasSettings && SettingsModal && (
-              <button
-                type="button"
-                onClick={handleOpenSettings}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-                title="Settings"
-              >
-                <HiCog6Tooth className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleDelete}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-              title="Delete"
-            >
-              <HiTrash className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        <Component
-          widget={widget}
-          editMode={editMode}
-          isRoot={true}
-          onAddChild={meta.hasChildren ? handleOpenAddChild : undefined}
-          onOpenSettings={meta.hasSettings ? handleOpenSettings : undefined}
-          onDelete={handleDelete}
-        >
-          {childrenElements}
-        </Component>
-
-        {/* Add child widget modal (for container types) */}
-        {meta.hasChildren && (
-          <AddWidgetModal
-            isOpen={isAddChildModalOpen}
-            onClose={() => setIsAddChildModalOpen(false)}
-            parentId={widget.id}
-            parentComponentId={widget.componentId}
-          />
-        )}
-
-        {/* Settings modal */}
-        {SettingsModal && (
-          <SettingsModal
-            isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
-            config={widget.config}
-            onSave={handleSaveSettings}
-          />
-        )}
-
-        {/* Delete modal */}
-        <DeleteWidgetModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleConfirmDelete}
-          widgetName={(widget.config as { name?: string }).name || meta.name}
-        />
-      </div>
-    );
-  }
-
-  // For non-root widgets (inside a grid), render with controls
   return (
     <div className="widget-wrapper relative h-full">
-      {/* Edit mode controls - visibility controlled by CSS */}
+      {/* Edit mode controls */}
       {editMode && (
-        <div className="widget-controls absolute right-2 top-2 z-10 flex gap-1">
-          {meta.hasChildren && (
-            <button
-              type="button"
-              onClick={handleOpenAddChild}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="no-drag rounded bg-blue-500 p-1.5 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
-              title="Add widget"
-            >
-              <HiPlus className="h-4 w-4" />
-            </button>
-          )}
-          {meta.hasSettings && SettingsModal && (
-            <button
-              type="button"
-              onClick={handleOpenSettings}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-              title="Settings"
-            >
-              <HiCog6Tooth className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleDelete}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="no-drag rounded bg-gray-100 p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-            title="Delete"
-          >
-            <HiTrash className="h-4 w-4" />
-          </button>
-        </div>
+        <WidgetControls
+          hasChildren={meta.hasChildren}
+          hasSettings={meta.hasSettings && !!SettingsModal}
+          onAddChild={handleOpenAddChild}
+          onOpenSettings={handleOpenSettings}
+          onDelete={handleDelete}
+        />
       )}
 
       {/* Dashlet component */}
       <Component
         widget={widget}
         editMode={editMode}
-        isRoot={false}
+        isRoot={isRoot}
         onAddChild={meta.hasChildren ? handleOpenAddChild : undefined}
         onOpenSettings={meta.hasSettings ? handleOpenSettings : undefined}
         onDelete={handleDelete}

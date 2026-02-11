@@ -3,10 +3,20 @@
 import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig } from "./dashlet";
-import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import {
+  DashletSettingsWrapper,
+  SettingsTextField,
+  SettingsNumberField,
+  SettingsFieldGrid,
+} from "../common";
+
+interface DetailWithId {
+  id: string;
+  label: string;
+  value: string;
+}
 
 export function DashletSettings({
   isOpen,
@@ -19,22 +29,21 @@ export function DashletSettings({
   const [value, setValue] = useState(typedConfig.value || 3.24);
   const [unit, setUnit] = useState(typedConfig.unit || "%");
 
-  // Add unique IDs to details for stable keys
-  const initializeDetails = () => {
+  // Initialize details with unique IDs
+  const initializeDetails = (): DetailWithId[] => {
     const defaultDetails = [
       { label: "Visitors", value: "12,847" },
       { label: "Conversions", value: "416" },
     ];
-    return (typedConfig.details || defaultDetails).map((detail, index) => ({
-      ...detail,
-      id: `detail-${Date.now()}-${index}`,
+    return (typedConfig.details || defaultDetails).map((d, i) => ({
+      ...d,
+      id: `detail-${Date.now()}-${i}`,
     }));
   };
 
   const [details, setDetails] = useState(initializeDetails);
 
   const handleSave = () => {
-    // Remove internal IDs before saving
     const detailsToSave = details.map(({ label, value }) => ({ label, value }));
     onSave({ title, value, unit, details: detailsToSave });
     onClose();
@@ -47,124 +56,86 @@ export function DashletSettings({
       ...details,
       { id: `detail-${Date.now()}`, label: "", value: "" },
     ]);
+
   const removeDetail = (id: string) =>
     setDetails(details.filter((d) => d.id !== id));
+
   const updateDetail = (id: string, field: "label" | "value", val: string) => {
     setDetails(details.map((d) => (d.id === id ? { ...d, [field]: val } : d)));
   };
 
-  if (globalThis.window === undefined) return null;
-
-  return createPortal(
-    <AbsoluteModal
-      selected={isOpen}
-      setSelected={(s) => !s && onClose()}
-      className="no-drag w-80 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+  return (
+    <DashletSettingsWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={handleSave}
+      width="w-80"
+      scrollable
     >
-      <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-        <div>
-          <Label htmlFor="title" className="mb-1 block text-sm">
-            Title
-          </Label>
-          <TextInput
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sizing="sm"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="value" className="mb-1 block text-sm">
-              Value
-            </Label>
-            <TextInput
-              id="value"
-              type="number"
-              step="0.01"
-              value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
-              sizing="sm"
-            />
-          </div>
-          <div>
-            <Label htmlFor="unit" className="mb-1 block text-sm">
-              Unit
-            </Label>
-            <TextInput
-              id="unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              sizing="sm"
-            />
-          </div>
-        </div>
+      <SettingsTextField
+        id="title"
+        label="Title"
+        value={title}
+        onChange={setTitle}
+      />
+      <SettingsFieldGrid cols={2}>
+        <SettingsNumberField
+          id="value"
+          label="Value"
+          value={value}
+          onChange={setValue}
+          step="0.01"
+        />
+        <SettingsTextField
+          id="unit"
+          label="Unit"
+          value={unit}
+          onChange={setUnit}
+        />
+      </SettingsFieldGrid>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Expandable Details</Label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Expandable Details</Label>
+          <Button
+            size="xs"
+            color="light"
+            onClick={addDetail}
+            onMouseDown={handleMouseDown}
+            className="no-drag"
+          >
+            <HiPlus className="mr-1 h-3 w-3" />
+            Add
+          </Button>
+        </div>
+        {details.map((d) => (
+          <div key={d.id} className="flex items-center gap-2">
+            <TextInput
+              value={d.label}
+              onChange={(e) => updateDetail(d.id, "label", e.target.value)}
+              placeholder="Label"
+              sizing="sm"
+              className="flex-1"
+            />
+            <TextInput
+              value={d.value}
+              onChange={(e) => updateDetail(d.id, "value", e.target.value)}
+              placeholder="Value"
+              sizing="sm"
+              className="flex-1"
+            />
             <Button
               size="xs"
-              color="light"
-              onClick={addDetail}
+              color="failure"
+              onClick={() => removeDetail(d.id)}
               onMouseDown={handleMouseDown}
               className="no-drag"
             >
-              <HiPlus className="mr-1 h-3 w-3" />
-              Add
+              <HiTrash className="h-3 w-3" />
             </Button>
           </div>
-          {details.map((d) => (
-            <div key={d.id} className="flex items-center gap-2">
-              <TextInput
-                value={d.label}
-                onChange={(e) => updateDetail(d.id, "label", e.target.value)}
-                placeholder="Label"
-                sizing="sm"
-                className="flex-1"
-              />
-              <TextInput
-                value={d.value}
-                onChange={(e) => updateDetail(d.id, "value", e.target.value)}
-                placeholder="Value"
-                sizing="sm"
-                className="flex-1"
-              />
-              <Button
-                size="xs"
-                color="failure"
-                onClick={() => removeDetail(d.id)}
-                onMouseDown={handleMouseDown}
-                className="no-drag"
-              >
-                <HiTrash className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Button
-            color="gray"
-            onClick={onClose}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSave}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full"
-          >
-            Save
-          </Button>
-        </div>
+        ))}
       </div>
-    </AbsoluteModal>,
-    document.body
+    </DashletSettingsWrapper>
   );
 }

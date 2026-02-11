@@ -53,7 +53,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: DashletSettingsProps) {
+}: Readonly<DashletSettingsProps>) {
   const typedConfig = config as unknown as DashletConfig;
   const [name, setName] = useState(typedConfig.name || "Metric");
   const [value, setValue] = useState(typedConfig.value || "0");

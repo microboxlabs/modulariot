@@ -44,7 +44,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: DashletSettingsProps) {
+}: Readonly<DashletSettingsProps>) {
   const typedConfig = config as unknown as DashletConfig;
   const [title, setTitle] = useState(typedConfig.title || "Traffic Sources");
   const [unit, setUnit] = useState(typedConfig.unit || "%");

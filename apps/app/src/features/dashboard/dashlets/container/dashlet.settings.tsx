@@ -39,7 +39,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: DashletSettingsProps) {
+}: Readonly<DashletSettingsProps>) {
   const typedConfig = config as unknown as DashletConfig;
 
   // Initialize state with current config or defaults

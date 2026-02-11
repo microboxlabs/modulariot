@@ -4,6 +4,7 @@ import { MdOutlineFileDownload, MdOutlineRemoveRedEye } from "react-icons/md";
 import Image from "next/image";
 import ImageViewer from "./image-viewer";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { downloadImage } from "../../utils/download-image";
 
 export default function ImageSelector({
   images,
@@ -97,6 +98,7 @@ export function ImageComponent({
   stepped = true,
   loading = false,
   tag = null,
+  downloadUrl,
 }: {
   image: string | null;
   index: number;
@@ -105,6 +107,7 @@ export function ImageComponent({
   stepped?: boolean;
   loading?: boolean;
   tag?: string | null;
+  downloadUrl?: string;
 }) {
   if (loading) {
     return (
@@ -145,13 +148,22 @@ export function ImageComponent({
           >
             <MdOutlineRemoveRedEye className="w-6 h-6" />
           </div>
-          <a
-            href={image ?? undefined}
-            download={image ?? undefined}
-            className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
-          >
-            <MdOutlineFileDownload className="w-6 h-6" />
-          </a>
+          {image && (
+            <div
+              className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
+              onClick={async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                try {
+                  await downloadImage(image);
+                } catch (error) {
+                  console.error("Download error:", error);
+                }
+              }}
+            >
+              <MdOutlineFileDownload className="w-6 h-6" />
+            </div>
+          )}
         </div>
       </div>
     </div>

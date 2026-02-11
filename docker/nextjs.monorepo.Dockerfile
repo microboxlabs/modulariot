@@ -51,6 +51,13 @@ FROM base AS builder
 WORKDIR /app
 
 ARG APP_NAME=app
+
+# SECURITY NOTE: NEXT_PUBLIC_* variables are PUBLIC by design (Next.js convention)
+# They are embedded in the client-side JavaScript bundle and are NOT secrets.
+# These are Mapbox public API keys and public URLs intended for browser use.
+#
+# ⚠️  NEVER use ARG for actual secrets (DB passwords, private API keys, etc.)
+# Secrets should be provided at RUNTIME via environment variables, not build-time.
 ARG NEXT_PUBLIC_INGEST_URL
 ARG NEXT_PUBLIC_MAPBOX_API_KEY
 

@@ -16,7 +16,17 @@ FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # -----------------------------------------------------------------------------
-# Stage 1: Install dependencies
+# Stage 1: Extract workspace package.json files only
+# -----------------------------------------------------------------------------
+FROM base AS manifests
+WORKDIR /app
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+RUN find . -not -name "package.json" -not -type d -delete && \
+    find . -empty -type d -delete
+
+# -----------------------------------------------------------------------------
+# Stage 2: Install dependencies
 # -----------------------------------------------------------------------------
 FROM base AS deps
 WORKDIR /app

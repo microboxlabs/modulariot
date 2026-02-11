@@ -28,8 +28,10 @@ WORKDIR /app
 FROM base AS pruner
 RUN npm install -g turbo
 
-# Copy entire monorepo
-COPY . .
+# Copy only necessary files for turbo prune (explicit to avoid sensitive data)
+COPY package.json package-lock.json turbo.json ./
+COPY apps/ ./apps/
+COPY packages/ ./packages/
 
 ARG APP_NAME=app
 

@@ -26,6 +26,14 @@ node_modules
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*password*
+*credentials*
+.secrets
 
 # Documentation and non-essential
 *.md

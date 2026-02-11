@@ -94,30 +94,18 @@ export function getDashletsByCategory(
 /**
  * Get dashlets that can be nested inside a specific parent
  * @param parentComponentId - The parent's componentId, or null for root level
- * @param parentConfig - The parent's config for variant-based nesting rules
+ * @param _parentConfig - The parent's config for variant-based nesting rules (reserved for future use)
  */
 export function getValidDashletsForParent(
   parentComponentId: string | null,
-  parentConfig?: Record<string, unknown>
+  _parentConfig?: Record<string, unknown>
 ): DashletDefinition[] {
-  return Object.values(DASHLET_REGISTRY).filter((d) => {
-    // If placing at root level, all widgets are valid
-    if (parentComponentId === null) {
-      return true;
-    }
-    // If parent is a container with bento-box variant, only allow non-bento-box containers
-    // (labeled-group can be nested inside bento-box)
-    if (parentComponentId === "container") {
-      const parentVariant = (parentConfig as ContainerConfig | undefined)
-        ?.variant;
-      if (parentVariant === "bento-box" && d.meta.id === "container") {
-        // Container can only be added if it will be a labeled-group (context-aware default)
-        // We allow it because the default variant when nested will be labeled-group
-        return true;
-      }
-    }
-    return true;
-  });
+  // Currently all dashlets are allowed at all levels.
+  // Variant-based restrictions (e.g., bento-box cannot nest bento-box)
+  // are enforced at creation time via canNestIn().
+  // Filter here if category or type-based restrictions are needed in the future.
+  void parentComponentId; // Acknowledge unused parameter
+  return Object.values(DASHLET_REGISTRY);
 }
 
 /**

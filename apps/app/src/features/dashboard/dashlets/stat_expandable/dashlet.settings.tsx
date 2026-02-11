@@ -41,7 +41,7 @@ export function DashletSettings({
     );
   };
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   return createPortal(
     <AbsoluteModal

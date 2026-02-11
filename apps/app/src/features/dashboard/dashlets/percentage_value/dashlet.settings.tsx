@@ -30,7 +30,7 @@ export function DashletSettings({
     onClose();
   };
 
-  if (typeof window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   const modalContent = (
     <AbsoluteModal

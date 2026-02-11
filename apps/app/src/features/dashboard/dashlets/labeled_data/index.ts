@@ -39,9 +39,9 @@ export {
   defaultConfig as labeledDataDefaultConfig,
   getLayoutDefaults as getLabeledDataLayoutDefaults,
   layoutDefaults as labeledDataLayoutDefaults,
-  DashletSettings as LabeledDataSettings,
-  dashletMeta as labeledDataMeta,
-};
+} from "./dashlet";
+export { DashletSettings as LabeledDataSettings } from "./dashlet.settings";
+export { dashletMeta as labeledDataMeta } from "./dashlet.meta";
 
 /** @deprecated Use dashletDefinition instead */
 export const labeledDataDefinition = dashletDefinition;

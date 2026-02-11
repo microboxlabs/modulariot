@@ -1,6 +1,5 @@
 "use client";
 
-import { HiExclamation } from "react-icons/hi";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Badge, Button, Label } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -17,7 +16,7 @@ import {
   type SelectedService,
   type SelectedSlot,
 } from "./planning-selection-context";
-import { HiCheck, HiChevronDown } from "react-icons/hi";
+import { HiCheck, HiChevronDown, HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";

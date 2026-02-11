@@ -30,7 +30,7 @@ export function DashletSettings({
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   return createPortal(
     <AbsoluteModal

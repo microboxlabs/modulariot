@@ -38,31 +38,50 @@ export function DashletSettings({
   const typedConfig = config as unknown as DashletConfig;
   const [title, setTitle] = useState(typedConfig.title || "Traffic Sources");
   const [unit, setUnit] = useState(typedConfig.unit || "%");
-  const [items, setItems] = useState(
-    typedConfig.items || [
+
+  // Add unique IDs to items for stable keys
+  const initializeItems = () => {
+    const defaultItems = [
       { label: "Direct", value: 45, color: "bg-blue-500" },
       { label: "Organic", value: 30, color: "bg-green-500" },
-    ]
-  );
+    ];
+    return (typedConfig.items || defaultItems).map((item, index) => ({
+      ...item,
+      id: `item-${Date.now()}-${index}`,
+    }));
+  };
+
+  const [items, setItems] = useState(initializeItems);
 
   const handleSave = () => {
-    onSave({ title, items, unit });
+    // Remove internal IDs before saving
+    const itemsToSave = items.map(({ label, value, color }) => ({
+      label,
+      value,
+      color,
+    }));
+    onSave({ title, items: itemsToSave, unit });
     onClose();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   const addItem = () =>
-    setItems([...items, { label: "", value: 0, color: "bg-blue-500" }]);
-  const removeItem = (i: number) =>
-    setItems(items.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, field: string, val: string | number) => {
+    setItems([
+      ...items,
+      { id: `item-${Date.now()}`, label: "", value: 0, color: "bg-blue-500" },
+    ]);
+  const removeItem = (id: string) =>
+    setItems(items.filter((item) => item.id !== id));
+  const updateItem = (id: string, field: string, val: string | number) => {
     setItems(
-      items.map((item, idx) => (idx === i ? { ...item, [field]: val } : item))
+      items.map((item) =>
+        item.id === id ? { ...item, [field]: val } : item
+      )
     );
   };
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   return createPortal(
     <AbsoluteModal
@@ -110,14 +129,14 @@ export function DashletSettings({
               Add
             </Button>
           </div>
-          {items.map((item, i) => (
+          {items.map((item) => (
             <div
-              key={i}
+              key={item.id}
               className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
             >
               <TextInput
                 value={item.label}
-                onChange={(e) => updateItem(i, "label", e.target.value)}
+                onChange={(e) => updateItem(item.id, "label", e.target.value)}
                 placeholder="Label"
                 sizing="sm"
                 className="flex-1"
@@ -125,20 +144,20 @@ export function DashletSettings({
               <TextInput
                 type="number"
                 value={item.value}
-                onChange={(e) => updateItem(i, "value", Number(e.target.value))}
+                onChange={(e) => updateItem(item.id, "value", Number(e.target.value))}
                 sizing="sm"
                 className="w-16"
               />
               <ColorPickerDropdown
                 options={COLOR_OPTIONS}
                 value={item.color as BarColor}
-                onChange={(c) => updateItem(i, "color", c)}
+                onChange={(c) => updateItem(item.id, "color", c)}
                 title="Color"
               />
               <Button
                 size="xs"
                 color="failure"
-                onClick={() => removeItem(i)}
+                onClick={() => removeItem(item.id)}
                 onMouseDown={handleMouseDown}
                 className="no-drag"
               >

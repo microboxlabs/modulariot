@@ -76,7 +76,7 @@ export function DashletSettings({
     e.stopPropagation();
   };
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   const modalContent = (
     <AbsoluteModal

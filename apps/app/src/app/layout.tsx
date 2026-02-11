@@ -7,7 +7,7 @@ import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
 
 export const metadata: Metadata = {
-  title: "Modularitot",
+  title: "ModularIoT",
   description: "Sistema de coordinación de viajes.",
 };
 

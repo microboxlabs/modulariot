@@ -37,10 +37,8 @@
     "tailwindcss": "^4.1.4",
     "typescript": "5.8.2"
   },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "19.2.10",
-      "@types/react-dom": "19.2.3"
-    }
+  "overrides": {
+    "@types/react": "19.2.10",
+    "@types/react-dom": "19.2.3"
   }
 }

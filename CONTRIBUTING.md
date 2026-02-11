@@ -21,7 +21,7 @@ Thank you for your interest in contributing to ModularIoT! This document provide
 
 2. **Install dependencies**:
    ```bash
-   pnpm install
+   npm install
    ```
 
 3. **Set up environment variables**:
@@ -33,7 +33,7 @@ Thank you for your interest in contributing to ModularIoT! This document provide
 4. **Start the development environment**:
    ```bash
    # Start all JavaScript/TypeScript services
-   pnpm dev
+   npm dev
    
    # In a separate terminal, start the Quarkus service
    cd apps/ingest-quarkus
@@ -62,8 +62,8 @@ The project follows a monorepo structure with clear separation of concerns:
 2. Make your changes following the coding standards
 3. Test your changes:
    ```bash
-   pnpm test
-   pnpm lint
+   npm test
+   npm lint
    ```
 
 4. Commit your changes with conventional commits:
@@ -83,21 +83,21 @@ The project follows a monorepo structure with clear separation of concerns:
 
 ```bash
 # Development
-pnpm dev              # Start all services
-pnpm build            # Build all packages
-pnpm test             # Run all tests
-pnpm lint             # Lint all code
-pnpm fmt              # Format all code
+npm dev              # Start all services
+npm build            # Build all packages
+npm test             # Run all tests
+npm lint             # Lint all code
+npm fmt              # Format all code
 
 # Database operations
-pnpm db:migrate       # Run database migrations
-pnpm db:seed          # Seed database
-pnpm db:studio        # Open Prisma Studio
+npm db:migrate       # Run database migrations
+npm db:seed          # Seed database
+npm db:studio        # Open Prisma Studio
 
 # Service-specific commands
-pnpm --filter web-admin dev
-pnpm --filter bff-node test
-pnpm --filter ui build
+npm --filter web-admin dev
+npm --filter bff-node test
+npm --filter ui build
 ```
 
 ## Pull Request Process

@@ -27,7 +27,7 @@ export function DashletSettings({
     const sparkline = sparklineText
       .split(",")
       .map((s) => Number(s.trim()))
-      .filter((n) => !isNaN(n));
+      .filter((n) => !Number.isNaN(n));
     onSave({
       title,
       value,
@@ -39,7 +39,7 @@ export function DashletSettings({
 
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   return createPortal(
     <AbsoluteModal

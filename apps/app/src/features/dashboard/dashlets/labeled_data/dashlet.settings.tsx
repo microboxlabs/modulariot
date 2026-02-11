@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  TextInput,
-  Label,
-} from "flowbite-react";
+import { Button, TextInput, Label } from "flowbite-react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -74,7 +70,7 @@ export function DashletSettings({
     onClose();
   };
 
-  if (typeof window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
 
   const modalContent = (
     <AbsoluteModal
@@ -116,9 +112,7 @@ export function DashletSettings({
         {/* Icon & Color side by side */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <Label className="text-sm">
-              Icon
-            </Label>
+            <Label className="text-sm">Icon</Label>
             <IconPickerDropdown
               options={ICON_OPTIONS}
               value={icon}
@@ -127,9 +121,7 @@ export function DashletSettings({
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Label className="text-sm">
-              Color
-            </Label>
+            <Label className="text-sm">Color</Label>
             <ColorPickerDropdown
               options={COLOR_OPTIONS}
               value={color}

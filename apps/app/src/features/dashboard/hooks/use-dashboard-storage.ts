@@ -4,67 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   type Widget,
   type DashboardStorageSchema,
-  type LegacyStorageSchema,
   DEFAULT_STORAGE,
   STORAGE_KEY,
-  OLD_STORAGE_KEY,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
-
-/**
- * Migrate from v1 (chartset) to v2 (dashboard) schema
- */
-function migrateFromV1(oldData: LegacyStorageSchema): DashboardStorageSchema {
-  const now = new Date().toISOString();
-
-  const widgets: Widget[] = oldData.chartsets.map((chartset) => {
-    // Convert each old chartset to a container widget
-    const children: Widget[] = chartset.widgets.map((oldWidget, index) => ({
-      id: oldWidget.id,
-      componentId: "card", // Map all old widget types to card for now
-      layout: {
-        i: oldWidget.id,
-        x: oldWidget.layout?.x ?? index % 3,
-        y: oldWidget.layout?.y ?? Math.floor(index / 3),
-        w: oldWidget.layout?.w ?? oldWidget.size ?? 1,
-        h: oldWidget.layout?.h ?? 1,
-      },
-      config: {
-        name: oldWidget.title || "Metric",
-        value: "0",
-        backgroundColor: "white",
-        icon: "chart",
-      },
-      createdAt: now,
-      updatedAt: now,
-    }));
-
-    return {
-      id: chartset.id,
-      componentId: "container",
-      layout: {
-        i: chartset.id,
-        x: 0,
-        y: 0,
-        w: 3,
-        h: 2,
-      },
-      config: {
-        name: chartset.name || "Untitled Dashboard",
-        description: chartset.description || "",
-      },
-      children,
-      createdAt: chartset.createdAt || now,
-      updatedAt: chartset.updatedAt || now,
-    };
-  });
-
-  return {
-    version: 2,
-    widgets,
-    preferences: oldData.preferences || { editMode: false },
-  };
-}
 
 /**
  * Ensure widget has all required fields with defaults
@@ -91,7 +34,6 @@ function ensureWidgetDefaults(widget: Widget, index: number): Widget {
 
 /**
  * Hook for persisting dashboard data to localStorage
- * Supports migration from v1 (chartset) to v2 (dashboard) schema
  */
 export function useDashboardStorage() {
   const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
@@ -100,7 +42,6 @@ export function useDashboardStorage() {
   // Load data from localStorage on mount
   useEffect(() => {
     try {
-      // First check for new storage key
       const stored = localStorage.getItem(STORAGE_KEY);
 
       if (stored) {
@@ -112,24 +53,8 @@ export function useDashboardStorage() {
           );
           setData({ ...parsed, widgets: migratedWidgets });
         } else {
-          // Unknown version - reset
+          // Unknown version - reset to defaults
           setData(DEFAULT_STORAGE);
-        }
-      } else {
-        // Check for old chartset storage key
-        const oldStored = localStorage.getItem(OLD_STORAGE_KEY);
-        if (oldStored) {
-          const oldParsed = JSON.parse(oldStored) as LegacyStorageSchema;
-          if (oldParsed.version === 1) {
-            // Migrate from v1
-            const migrated = migrateFromV1(oldParsed);
-            setData(migrated);
-            // Save to new key
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-            // Remove old key
-            localStorage.removeItem(OLD_STORAGE_KEY);
-            console.log("Migrated dashboard data from v1 to v2");
-          }
         }
       }
     } catch (error) {

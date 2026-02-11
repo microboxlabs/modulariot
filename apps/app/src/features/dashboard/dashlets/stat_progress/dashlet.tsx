@@ -34,6 +34,16 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // ============================================================================
 
 /**
+ * Get progress bar color based on percentage
+ */
+function getBarColor(percentage: number): string {
+  if (percentage >= 75) return "bg-green-500";
+  if (percentage >= 50) return "bg-blue-500";
+  if (percentage >= 25) return "bg-yellow-500";
+  return "bg-red-500";
+}
+
+/**
  * Progress Bar Card - Horizontal progress with milestones
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
@@ -41,16 +51,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const { title, value, target, unit } = config;
 
   const percentage = Math.min(100, (value / target) * 100);
-
-  // Determine color based on progress
-  const barColor =
-    percentage >= 75
-      ? "bg-green-500"
-      : percentage >= 50
-        ? "bg-blue-500"
-        : percentage >= 25
-          ? "bg-yellow-500"
-          : "bg-red-500";
+  const barColor = getBarColor(percentage);
 
   return (
     <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

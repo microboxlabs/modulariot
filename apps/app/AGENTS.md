@@ -43,6 +43,19 @@
 - All strict compiler options are enabled - respect them
 - Use Zod for runtime validation of external data
 - Create separate `.types.ts` files for complex type definitions
+- Compare with `undefined` directly instead of using `typeof`
+
+**Example - Avoid:**
+
+```typescript
+if (typeof globalThis.window === "undefined") return null;
+```
+
+**Example - Correct:**
+
+```typescript
+if (globalThis.window === undefined) return null;
+```
 
 ## Cognitive Complexity
 

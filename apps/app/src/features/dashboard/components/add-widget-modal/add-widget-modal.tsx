@@ -75,7 +75,7 @@ export function AddWidgetModal({
     onClose();
   };
 
-  if (typeof globalThis.window === "undefined" || !isOpen) return null;
+  if (globalThis.window === undefined || !isOpen) return null;
 
   const modalContent = (
     <AbsoluteModal
@@ -139,7 +139,7 @@ interface DashletOptionProps {
 /**
  * Single dashlet option in the selector grid
  */
-function DashletOption({ meta, onSelect }: DashletOptionProps) {
+function DashletOption({ meta, onSelect }: Readonly<DashletOptionProps>) {
   const Icon = meta.icon;
 
   return (

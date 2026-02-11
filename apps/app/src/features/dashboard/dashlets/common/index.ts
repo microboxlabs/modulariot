@@ -8,4 +8,6 @@ export {
   SettingsNumberField,
   SettingsTextareaField,
   SettingsFieldGrid,
+  SettingsPickerRow,
+  SettingsPickerItem,
 } from "./settings-fields";

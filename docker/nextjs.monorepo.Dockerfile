@@ -80,18 +80,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy public assets (may not exist for all apps)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./public
+# Copy files as root first (for security)
+COPY --from=builder /app/apps/${APP_NAME}/public ./public
+COPY --from=builder /app/apps/${APP_NAME}/.next/standalone ./
+COPY --from=builder /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
+COPY --from=builder /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
 
-# Copy standalone build output
-# With outputFileTracingRoot pointing to monorepo root, standalone includes full structure
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/standalone ./
-
-# Copy static files to correct location
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
-
-# Copy public to app location as well (for basePath routing)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
+# Set ownership and remove write permissions to prevent tampering
+# Files are read-only (555 = r-xr-xr-x) - nextjs user can read/execute but not modify
+RUN chown -R nextjs:nodejs /app && \
+    chmod -R 555 /app
 
 USER nextjs
 

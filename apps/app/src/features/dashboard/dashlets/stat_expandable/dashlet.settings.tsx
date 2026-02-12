@@ -30,9 +30,9 @@ export function DashletSettings({
       { label: "Visitors", value: "12,847" },
       { label: "Conversions", value: "416" },
     ];
-    return (config.details || defaultDetails).map((d, i) => ({
+    return (config.details || defaultDetails).map((d) => ({
       ...d,
-      id: `detail-${Date.now()}-${i}`,
+      id: crypto.randomUUID(),
     }));
   };
 
@@ -47,10 +47,7 @@ export function DashletSettings({
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   const addDetail = () =>
-    setDetails([
-      ...details,
-      { id: `detail-${Date.now()}`, label: "", value: "" },
-    ]);
+    setDetails([...details, { id: crypto.randomUUID(), label: "", value: "" }]);
 
   const removeDetail = (id: string) =>
     setDetails(details.filter((d) => d.id !== id));

@@ -90,7 +90,8 @@ export interface DashletDefinition {
   /** The dashlet component to render */
   Component: ComponentType<DashletComponentProps>;
   /** Optional settings modal component */
-  SettingsModal?: ComponentType<DashletSettingsProps>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  SettingsModal?: ComponentType<DashletSettingsProps<any>>;
   /** Default configuration values */
   defaultConfig: Record<string, unknown>;
   /** Resolver for default layout constraints */

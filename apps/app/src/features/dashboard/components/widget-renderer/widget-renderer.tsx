@@ -86,7 +86,8 @@ export function WidgetRenderer({
   widget,
   isRoot = false,
 }: Readonly<WidgetRendererProps>) {
-  const { editMode, updateWidgetConfig, deleteWidget } = useDashboard();
+  const { editMode, updateWidgetConfig, deleteWidget, dictionary } =
+    useDashboard();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
@@ -181,6 +182,7 @@ export function WidgetRenderer({
           onClose={() => setIsSettingsOpen(false)}
           config={widget.config}
           onSave={handleSaveSettings}
+          dictionary={dictionary}
         />
       )}
 

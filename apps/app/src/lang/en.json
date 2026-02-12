@@ -1187,6 +1187,48 @@
     "editableField": {
       "saveError": "Failed to save changes",
       "saveSuccess": "Changes saved successfully"
+    },
+    "title": "Title",
+    "value": "Value",
+    "unit": "Unit"
+  },
+  "dashboard": {
+    "settings": {
+      "sparklineData": "Sparkline Data (comma-separated)",
+      "subtitle": "Subtitle",
+      "maxValue": "Max Value",
+      "target": "Target",
+      "color": "Color",
+      "icon": "Icon",
+      "sensitive": "Sensitive Value",
+      "description": "Description",
+      "previousValue": "Previous Value",
+      "name": "Name",
+      "backgroundColor": "Background",
+      "variant": "Variant",
+      "label": "Label",
+      "borderColor": "Border Color",
+      "seeMoreUrl": "See More URL",
+      "items": "Items",
+      "details": "Details",
+      "addItem": "Add Item",
+      "removeItem": "Remove"
+    },
+    "defaults": {
+      "pageViews": "Page Views",
+      "storageUsed": "Storage Used",
+      "orders": "Orders",
+      "last24Hours": "Last 24 hours",
+      "quarterlyGoal": "Quarterly Goal",
+      "activeUsers": "Active Users",
+      "accountBalance": "Account Balance",
+      "trafficSources": "Traffic Sources",
+      "monthlyRevenue": "Monthly Revenue",
+      "conversionRate": "Conversion Rate",
+      "progress": "Progress",
+      "metric": "Metric",
+      "untitled": "Untitled",
+      "group": "Group"
     }
   },
   "liveStreams": {

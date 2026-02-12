@@ -44,10 +44,10 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Traffic Sources");
-  const [unit, setUnit] = useState(typedConfig.unit || "%");
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Traffic Sources");
+  const [unit, setUnit] = useState(config.unit || "%");
 
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
@@ -55,7 +55,7 @@ export function DashletSettings({
       { label: "Direct", value: 45, color: "bg-blue-500" },
       { label: "Organic", value: 30, color: "bg-green-500" },
     ];
-    return (typedConfig.items || defaultItems).map((item, i) => ({
+    return (config.items || defaultItems).map((item, i) => ({
       ...item,
       id: `item-${Date.now()}-${i}`,
     }));
@@ -97,6 +97,7 @@ export function DashletSettings({
       onSave={handleSave}
       width="w-80"
       scrollable
+      dictionary={dictionary}
     >
       <SettingsFieldGrid cols={2}>
         <SettingsTextField

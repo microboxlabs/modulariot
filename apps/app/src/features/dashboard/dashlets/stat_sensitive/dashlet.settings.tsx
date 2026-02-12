@@ -11,14 +11,12 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Account Balance");
-  const [value, setValue] = useState(typedConfig.value || 125847.32);
-  const [unit, setUnit] = useState(typedConfig.unit || "$");
-  const [isSensitive, setIsSensitive] = useState(
-    typedConfig.isSensitive ?? true
-  );
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Account Balance");
+  const [value, setValue] = useState(config.value || 125847.32);
+  const [unit, setUnit] = useState(config.unit || "$");
+  const [isSensitive, setIsSensitive] = useState(config.isSensitive ?? true);
 
   const handleSave = () => {
     onSave({ title, value, unit, isSensitive });
@@ -30,6 +28,7 @@ export function DashletSettings({
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
+      dictionary={dictionary}
     >
       <SettingsTitleValueUnit
         title={title}
@@ -39,6 +38,7 @@ export function DashletSettings({
         unit={unit}
         onUnitChange={setUnit}
         valueStep="0.01"
+        dictionary={dictionary}
       />
       <div className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700">
         <div>

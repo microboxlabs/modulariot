@@ -16,7 +16,7 @@ import {
   type SelectedService,
   type SelectedSlot,
 } from "./planning-selection-context";
-import { HiExclamation, HiCheck, HiChevronDown } from "react-icons/hi";
+import { HiCheck, HiChevronDown, HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";

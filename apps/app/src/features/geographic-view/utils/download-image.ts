@@ -11,7 +11,7 @@ export async function downloadImage(imageUrl: string): Promise<void> {
     link.href = blobUrl;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(blobUrl);
     return;
   }
@@ -23,7 +23,7 @@ export async function downloadImage(imageUrl: string): Promise<void> {
     link.href = imageUrl;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     return;
   }
 
@@ -38,7 +38,7 @@ export async function downloadImage(imageUrl: string): Promise<void> {
     link.href = blobUrl;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(blobUrl);
   } catch {
     // Fallback: open in new tab for user to save manually

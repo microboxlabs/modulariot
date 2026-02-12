@@ -8,7 +8,11 @@ import {
   type PropsWithChildren,
 } from "react";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
-import { GRID_COLS, type Widget, type GridLayoutItem } from "../types/dashboard.types";
+import {
+  GRID_COLS,
+  type Widget,
+  type GridLayoutItem,
+} from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 

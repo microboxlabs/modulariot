@@ -8,7 +8,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
-import type { Widget, GridLayoutItem } from "../types/dashboard.types";
+import { GRID_COLS, type Widget, type GridLayoutItem } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -99,7 +99,7 @@ function getNextPosition(
     usedColumns = Math.max(usedColumns, w.layout.x + w.layout.w);
   }
 
-  if (usedColumns + width <= 3) {
+  if (usedColumns + width <= GRID_COLS) {
     return { x: usedColumns, y: lastRowY };
   }
 

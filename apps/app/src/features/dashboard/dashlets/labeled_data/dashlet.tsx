@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -137,7 +138,7 @@ export const COLOR_THEMES: Record<ColorTheme, ThemeColors> = {
 };
 
 /** Icon components map */
-const ICONS: Record<IconType, React.ComponentType<{ className?: string }>> = {
+const ICONS: Record<IconType, ComponentType<{ className?: string }>> = {
   chart: HiChartBar,
   currency: HiCurrencyDollar,
   users: HiUsers,

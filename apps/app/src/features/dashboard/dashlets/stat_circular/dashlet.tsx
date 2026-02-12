@@ -49,7 +49,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { title, value, maxValue, unit } = config;
 
-  const percentage = (value / maxValue) * 100;
+  const rawPercentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+  const percentage = Math.min(100, Math.max(0, rawPercentage));
   const size = 100;
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;

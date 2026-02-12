@@ -63,15 +63,16 @@ export function DashletSettings({
     config.borderColor ?? defaultConfig.borderColor ?? "gray"
   );
 
-  // Sync state when config changes (component may stay mounted across open/close cycles)
+  // Sync state when config changes or modal opens (reset unsaved changes)
   useEffect(() => {
+    if (!isOpen) return;
     setVariant(config.variant ?? defaultConfig.variant);
     setName(config.name ?? defaultConfig.name);
     setDescription(config.description ?? defaultConfig.description);
     setVerMasUrl(config.verMasUrl ?? defaultConfig.verMasUrl);
     setLabel(config.label ?? defaultConfig.label);
     setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "gray");
-  }, [config]);
+  }, [config, isOpen]);
 
   const handleSave = () => {
     // Save ALL fields regardless of current variant (silent preservation)
@@ -154,7 +155,10 @@ export function DashletSettings({
               label={tr("dashboard.settings.description", dictionary)}
               value={description ?? ""}
               onChange={setDescription}
-              placeholder={tr("dashboard.settings.enterDescription", dictionary)}
+              placeholder={tr(
+                "dashboard.settings.enterDescription",
+                dictionary
+              )}
               rows={2}
             />
             <SettingsTextField
@@ -174,7 +178,9 @@ export function DashletSettings({
               onChange={setLabel}
               placeholder={tr("dashboard.settings.enterLabel", dictionary)}
             />
-            <SettingsPickerItem label={tr("dashboard.settings.borderColor", dictionary)}>
+            <SettingsPickerItem
+              label={tr("dashboard.settings.borderColor", dictionary)}
+            >
               <ColorPickerDropdown
                 value={borderColor}
                 onChange={setBorderColor}

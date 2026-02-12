@@ -135,12 +135,13 @@ export function useDashboardStorage() {
   );
 
   // Find parent widget (recursive)
+  // Returns undefined if widget not found, null if widget is at root level
   const findParent = useCallback(
     (
       widgetId: string,
       widgets: Widget[] = data.widgets,
       parent: Widget | null = null
-    ): Widget | null => {
+    ): Widget | null | undefined => {
       for (const widget of widgets) {
         if (widget.id === widgetId) return parent;
         if (widget.children) {
@@ -148,7 +149,7 @@ export function useDashboardStorage() {
           if (found !== undefined) return found;
         }
       }
-      return null;
+      return undefined;
     },
     [data.widgets]
   );

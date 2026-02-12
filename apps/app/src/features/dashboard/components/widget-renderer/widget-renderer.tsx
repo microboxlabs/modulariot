@@ -94,6 +94,12 @@ export function WidgetRenderer({
 
   const dashlet = getDashlet(widget.componentId);
 
+  const handleDelete = () => setIsDeleteModalOpen(true);
+  const handleConfirmDelete = () => {
+    deleteWidget(widget.id);
+    setIsDeleteModalOpen(false);
+  };
+
   // Handle unknown widget type
   if (!dashlet) {
     return (
@@ -101,7 +107,7 @@ export function WidgetRenderer({
         {editMode && (
           <button
             type="button"
-            onClick={() => deleteWidget(widget.id)}
+            onClick={handleDelete}
             onMouseDown={(e) => e.stopPropagation()}
             className="no-drag absolute right-2 top-2 rounded bg-red-100 p-1.5 text-red-500 hover:bg-red-200 hover:text-red-700 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300"
             title="Delete"
@@ -114,6 +120,12 @@ export function WidgetRenderer({
           <br />
           <span className="text-xs opacity-70">({widget.componentId})</span>
         </span>
+        <DeleteWidgetModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleConfirmDelete}
+          widgetName={widget.componentId}
+        />
       </div>
     );
   }
@@ -122,15 +134,9 @@ export function WidgetRenderer({
 
   const handleOpenAddChild = () => setIsAddChildModalOpen(true);
   const handleOpenSettings = () => setIsSettingsOpen(true);
-  const handleDelete = () => setIsDeleteModalOpen(true);
 
   const handleSaveSettings = (config: Record<string, unknown>) => {
     updateWidgetConfig(widget.id, config);
-  };
-
-  const handleConfirmDelete = () => {
-    deleteWidget(widget.id);
-    setIsDeleteModalOpen(false);
   };
 
   // Render children recursively

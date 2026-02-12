@@ -6,9 +6,17 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 // Configuration Types
 // ============================================================================
 
+export type BarColor =
+  | "bg-blue-500"
+  | "bg-green-500"
+  | "bg-yellow-500"
+  | "bg-purple-500"
+  | "bg-red-500"
+  | "bg-cyan-500";
+
 export interface DashletConfig {
   title: string;
-  items: { label: string; value: number; color: string }[];
+  items: { label: string; value: number; color: BarColor }[];
   unit: string;
 }
 

@@ -6,11 +6,13 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 // Configuration Types
 // ============================================================================
 
+export type GradientColor = "blue" | "green" | "red" | "yellow" | "purple";
+
 export interface DashletConfig {
   title: string;
   value: number;
   unit: string;
-  color: "blue" | "green" | "red" | "yellow" | "purple";
+  color: GradientColor;
 }
 
 export const defaultConfig: DashletConfig = {

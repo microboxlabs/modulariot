@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Label } from "flowbite-react";
 import { createPortal } from "react-dom";
 import type { DashletSettingsProps } from "../types";
@@ -20,6 +20,7 @@ import {
   SettingsTextareaField,
   SettingsPickerItem,
 } from "../common";
+import { tr } from "@/features/i18n/tr.service";
 
 /** Color options for labeled-group border using ColorPickerDropdown */
 const BORDER_COLOR_OPTIONS: ColorOption<LabelBorderColor>[] = [
@@ -44,6 +45,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   // Initialize state with current config or defaults
   const [variant, setVariant] = useState<ContainerVariant>(
@@ -61,14 +63,24 @@ export function DashletSettings({
     config.borderColor ?? defaultConfig.borderColor ?? "gray"
   );
 
+  // Sync state when config changes (component may stay mounted across open/close cycles)
+  useEffect(() => {
+    setVariant(config.variant ?? defaultConfig.variant);
+    setName(config.name ?? defaultConfig.name);
+    setDescription(config.description ?? defaultConfig.description);
+    setVerMasUrl(config.verMasUrl ?? defaultConfig.verMasUrl);
+    setLabel(config.label ?? defaultConfig.label);
+    setBorderColor(config.borderColor ?? defaultConfig.borderColor ?? "gray");
+  }, [config]);
+
   const handleSave = () => {
     // Save ALL fields regardless of current variant (silent preservation)
     const newConfig: DashletConfig = {
       variant,
-      name: name?.trim() || "Untitled",
+      name: name?.trim() || tr("dashboard.defaults.untitled", dictionary),
       description: description?.trim() || "",
       verMasUrl: verMasUrl?.trim() || "",
-      label: label?.trim() || "Group",
+      label: label?.trim() || tr("dashboard.defaults.group", dictionary),
       borderColor,
     };
     onSave(newConfig as unknown as Record<string, unknown>);
@@ -92,7 +104,9 @@ export function DashletSettings({
       <div className="flex w-full flex-col gap-3">
         {/* Variant Toggle */}
         <div>
-          <Label className="mb-1 block text-sm">Container Type</Label>
+          <Label className="mb-1 block text-sm">
+            {tr("dashboard.settings.containerType", dictionary)}
+          </Label>
           <div className="flex gap-2">
             <button
               type="button"
@@ -104,7 +118,9 @@ export function DashletSettings({
                   : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
               }`}
             >
-              <div className="font-medium">Bento Box</div>
+              <div className="font-medium">
+                {tr("dashboard.settings.bentoBox", dictionary)}
+              </div>
             </button>
             <button
               type="button"
@@ -116,7 +132,9 @@ export function DashletSettings({
                   : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
               }`}
             >
-              <div className="font-medium">Labeled Group</div>
+              <div className="font-medium">
+                {tr("dashboard.settings.labeledGroup", dictionary)}
+              </div>
             </button>
           </div>
         </div>
@@ -126,22 +144,22 @@ export function DashletSettings({
           <>
             <SettingsTextField
               id="name"
-              label="Name"
+              label={tr("dashboard.settings.name", dictionary)}
               value={name ?? ""}
               onChange={setName}
-              placeholder="Enter name..."
+              placeholder={tr("dashboard.settings.enterName", dictionary)}
             />
             <SettingsTextareaField
               id="description"
-              label="Description"
+              label={tr("dashboard.settings.description", dictionary)}
               value={description ?? ""}
               onChange={setDescription}
-              placeholder="Enter description..."
+              placeholder={tr("dashboard.settings.enterDescription", dictionary)}
               rows={2}
             />
             <SettingsTextField
               id="verMasUrl"
-              label='"Ver más" Link URL'
+              label={tr("dashboard.settings.seeMoreUrl", dictionary)}
               value={verMasUrl ?? ""}
               onChange={setVerMasUrl}
               placeholder="https://example.com"
@@ -151,17 +169,17 @@ export function DashletSettings({
           <>
             <SettingsTextField
               id="label"
-              label="Label"
+              label={tr("dashboard.settings.label", dictionary)}
               value={label ?? ""}
               onChange={setLabel}
-              placeholder="Enter label..."
+              placeholder={tr("dashboard.settings.enterLabel", dictionary)}
             />
-            <SettingsPickerItem label="Border Color">
+            <SettingsPickerItem label={tr("dashboard.settings.borderColor", dictionary)}>
               <ColorPickerDropdown
                 value={borderColor}
                 onChange={setBorderColor}
                 options={BORDER_COLOR_OPTIONS}
-                title="Select border color"
+                title={tr("dashboard.settings.selectBorderColor", dictionary)}
               />
             </SettingsPickerItem>
           </>
@@ -169,7 +187,7 @@ export function DashletSettings({
 
         {/* Save Button */}
         <Button onClick={handleSave} size="sm" className="w-full">
-          Save
+          {tr("common.save", dictionary)}
         </Button>
       </div>
     </AbsoluteModal>

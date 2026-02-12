@@ -114,7 +114,7 @@ interface DashboardProviderProps extends PropsWithChildren {
 export function DashboardProvider({
   children,
   dictionary,
-}: DashboardProviderProps) {
+}: Readonly<DashboardProviderProps>) {
   const {
     widgets,
     preferences,

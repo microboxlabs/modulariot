@@ -16,16 +16,16 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Monthly Revenue");
-  const [value, setValue] = useState(typedConfig.value || 84500);
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Monthly Revenue");
+  const [value, setValue] = useState(config.value || 84500);
   const [previousValue, setPreviousValue] = useState(
-    typedConfig.previousValue || 72000
+    config.previousValue || 72000
   );
-  const [unit, setUnit] = useState(typedConfig.unit || "$");
-  const [description, setDescription] = useState(typedConfig.description || "");
-  const [target, setTarget] = useState(typedConfig.target || 100000);
+  const [unit, setUnit] = useState(config.unit || "$");
+  const [description, setDescription] = useState(config.description || "");
+  const [target, setTarget] = useState(config.target || 100000);
 
   const handleSave = () => {
     onSave({ title, value, previousValue, unit, description, target });
@@ -38,6 +38,7 @@ export function DashletSettings({
       onClose={onClose}
       onSave={handleSave}
       scrollable
+      dictionary={dictionary}
     >
       <SettingsTextField
         id="title"

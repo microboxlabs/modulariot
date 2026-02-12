@@ -14,14 +14,12 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Orders");
-  const [value, setValue] = useState(typedConfig.value || 156);
-  const [unit, setUnit] = useState(typedConfig.unit || "");
-  const [subtitle, setSubtitle] = useState(
-    typedConfig.subtitle || "Last 24 hours"
-  );
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Orders");
+  const [value, setValue] = useState(config.value || 156);
+  const [unit, setUnit] = useState(config.unit || "");
+  const [subtitle, setSubtitle] = useState(config.subtitle || "Last 24 hours");
 
   const handleSave = () => {
     onSave({ title, value, unit, subtitle });
@@ -33,6 +31,7 @@ export function DashletSettings({
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
+      dictionary={dictionary}
     >
       <SettingsTitleValueUnit
         title={title}
@@ -41,6 +40,7 @@ export function DashletSettings({
         onValueChange={setValue}
         unit={unit}
         onUnitChange={setUnit}
+        dictionary={dictionary}
       />
       <SettingsTextField
         id="subtitle"

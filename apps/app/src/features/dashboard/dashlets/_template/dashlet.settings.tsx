@@ -15,11 +15,9 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
   // Add state for each config field
-  const [title, setTitle] = useState(typedConfig.title || "");
+  const [title, setTitle] = useState(config.title || "");
 
   const handleSave = () => {
     onSave({

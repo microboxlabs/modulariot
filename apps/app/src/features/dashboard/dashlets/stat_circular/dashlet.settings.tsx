@@ -15,12 +15,12 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Storage Used");
-  const [value, setValue] = useState(typedConfig.value || 67);
-  const [maxValue, setMaxValue] = useState(typedConfig.maxValue || 100);
-  const [unit, setUnit] = useState(typedConfig.unit || "GB");
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Storage Used");
+  const [value, setValue] = useState(config.value || 67);
+  const [maxValue, setMaxValue] = useState(config.maxValue || 100);
+  const [unit, setUnit] = useState(config.unit || "GB");
 
   const handleSave = () => {
     onSave({ title, value, maxValue, unit });
@@ -32,6 +32,7 @@ export function DashletSettings({
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
+      dictionary={dictionary}
     >
       <SettingsTextField
         id="title"

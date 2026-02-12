@@ -15,11 +15,10 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Progress");
-  const [value, setValue] = useState(typedConfig.value ?? 6);
-  const [max, setMax] = useState(typedConfig.max ?? 10);
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Progress");
+  const [value, setValue] = useState(config.value ?? 6);
+  const [max, setMax] = useState(config.max ?? 10);
 
   const handleSave = () => {
     onSave({

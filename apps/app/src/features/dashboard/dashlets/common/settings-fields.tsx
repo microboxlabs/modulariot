@@ -1,6 +1,8 @@
 "use client";
 
 import { Label, TextInput, Textarea } from "flowbite-react";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // SettingsTextField
@@ -78,6 +80,13 @@ export function SettingsNumberField({
   min,
   max,
 }: Readonly<SettingsNumberFieldProps>) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = Number(e.target.value);
+    if (!Number.isNaN(parsed)) {
+      onChange(parsed);
+    }
+  };
+
   return (
     <div>
       <Label htmlFor={id} className="mb-1 block text-sm">
@@ -87,7 +96,7 @@ export function SettingsNumberField({
         id={id}
         type="number"
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={handleChange}
         step={step}
         min={min}
         max={max}
@@ -228,6 +237,8 @@ interface SettingsTitleValueUnitProps {
   idPrefix?: string;
   /** Optional step for value input */
   valueStep?: string;
+  /** Dictionary for i18n */
+  dictionary: I18nRecord;
 }
 
 /**
@@ -243,27 +254,28 @@ export function SettingsTitleValueUnit({
   onUnitChange,
   idPrefix = "",
   valueStep,
+  dictionary,
 }: Readonly<SettingsTitleValueUnitProps>) {
   const prefix = idPrefix ? `${idPrefix}-` : "";
   return (
     <>
       <SettingsTextField
         id={`${prefix}title`}
-        label="Title"
+        label={tr("common.title", dictionary)}
         value={title}
         onChange={onTitleChange}
       />
       <SettingsFieldGrid cols={2}>
         <SettingsNumberField
           id={`${prefix}value`}
-          label="Value"
+          label={tr("common.value", dictionary)}
           value={value}
           onChange={onValueChange}
           step={valueStep}
         />
         <SettingsTextField
           id={`${prefix}unit`}
-          label="Unit"
+          label={tr("common.unit", dictionary)}
           value={unit}
           onChange={onUnitChange}
         />

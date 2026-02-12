@@ -18,11 +18,11 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Conversion Rate");
-  const [value, setValue] = useState(typedConfig.value || 3.24);
-  const [unit, setUnit] = useState(typedConfig.unit || "%");
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Conversion Rate");
+  const [value, setValue] = useState(config.value || 3.24);
+  const [unit, setUnit] = useState(config.unit || "%");
 
   // Initialize details with unique IDs
   const initializeDetails = (): DetailWithId[] => {
@@ -30,7 +30,7 @@ export function DashletSettings({
       { label: "Visitors", value: "12,847" },
       { label: "Conversions", value: "416" },
     ];
-    return (typedConfig.details || defaultDetails).map((d, i) => ({
+    return (config.details || defaultDetails).map((d, i) => ({
       ...d,
       id: `detail-${Date.now()}-${i}`,
     }));
@@ -66,6 +66,7 @@ export function DashletSettings({
       onSave={handleSave}
       width="w-80"
       scrollable
+      dictionary={dictionary}
     >
       <SettingsTitleValueUnit
         title={title}
@@ -75,6 +76,7 @@ export function DashletSettings({
         unit={unit}
         onUnitChange={setUnit}
         valueStep="0.01"
+        dictionary={dictionary}
       />
 
       <div className="space-y-2">

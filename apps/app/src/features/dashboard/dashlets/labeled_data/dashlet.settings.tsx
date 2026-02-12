@@ -58,12 +58,11 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [name, setName] = useState(typedConfig.name || "Metric");
-  const [value, setValue] = useState(typedConfig.value || "0");
-  const [color, setColor] = useState<ColorTheme>(typedConfig.color || "gray");
-  const [icon, setIcon] = useState<IconType>(typedConfig.icon || "chart");
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [name, setName] = useState(config.name || "Metric");
+  const [value, setValue] = useState(config.value || "0");
+  const [color, setColor] = useState<ColorTheme>(config.color || "gray");
+  const [icon, setIcon] = useState<IconType>(config.icon || "chart");
 
   const handleSave = () => {
     onSave({

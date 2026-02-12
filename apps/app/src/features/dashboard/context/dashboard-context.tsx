@@ -10,6 +10,7 @@ import {
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
 import type { Widget, GridLayoutItem } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 /** Context value type */
 interface DashboardContextValue {
@@ -19,6 +20,8 @@ interface DashboardContextValue {
   editMode: boolean;
   /** Whether data has loaded from storage */
   isLoaded: boolean;
+  /** Dictionary for internationalization */
+  dictionary: I18nRecord;
 
   // Widget actions
   createWidget: (
@@ -104,7 +107,14 @@ function getNextPosition(
   return { x: 0, y: maxBottom };
 }
 
-export function DashboardProvider({ children }: PropsWithChildren) {
+interface DashboardProviderProps extends PropsWithChildren {
+  dictionary: I18nRecord;
+}
+
+export function DashboardProvider({
+  children,
+  dictionary,
+}: DashboardProviderProps) {
   const {
     widgets,
     preferences,
@@ -295,6 +305,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       widgets,
       editMode: preferences.editMode,
       isLoaded,
+      dictionary,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,
@@ -310,6 +321,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       widgets,
       preferences.editMode,
       isLoaded,
+      dictionary,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,

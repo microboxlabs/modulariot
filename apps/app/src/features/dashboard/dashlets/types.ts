@@ -7,6 +7,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 import type { Widget, DashletCategory } from "../types/dashboard.types";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export interface DashletLayoutDefaults {
   minW: number;
@@ -65,15 +66,19 @@ export interface DashletComponentProps {
 /**
  * Props passed to dashlet settings modals
  */
-export interface DashletSettingsProps {
+export interface DashletSettingsProps<
+  TConfig extends object = Record<string, unknown>,
+> {
   /** Whether the modal is open */
   isOpen: boolean;
   /** Callback to close the modal */
   onClose: () => void;
   /** Current configuration values */
-  config: Record<string, unknown>;
+  config: TConfig;
   /** Callback to save updated configuration */
-  onSave: (config: Record<string, unknown>) => void;
+  onSave: (config: Partial<TConfig>) => void;
+  /** Dictionary for internationalization */
+  dictionary: I18nRecord;
 }
 
 /**

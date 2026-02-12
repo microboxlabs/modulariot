@@ -28,14 +28,12 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-  const [title, setTitle] = useState(typedConfig.title || "Active Users");
-  const [value, setValue] = useState(typedConfig.value || 2847);
-  const [unit, setUnit] = useState(typedConfig.unit || "");
-  const [color, setColor] = useState<GradientColor>(
-    typedConfig.color || "blue"
-  );
+  dictionary,
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
+  const [title, setTitle] = useState(config.title || "Active Users");
+  const [value, setValue] = useState(config.value || 2847);
+  const [unit, setUnit] = useState(config.unit || "");
+  const [color, setColor] = useState<GradientColor>(config.color || "blue");
 
   const handleSave = () => {
     onSave({ title, value, unit, color });
@@ -47,6 +45,7 @@ export function DashletSettings({
       isOpen={isOpen}
       onClose={onClose}
       onSave={handleSave}
+      dictionary={dictionary}
     >
       <SettingsTitleValueUnit
         title={title}
@@ -55,6 +54,7 @@ export function DashletSettings({
         onValueChange={setValue}
         unit={unit}
         onUnitChange={setUnit}
+        dictionary={dictionary}
       />
       <SettingsPickerItem label="Color">
         <ColorPickerDropdown

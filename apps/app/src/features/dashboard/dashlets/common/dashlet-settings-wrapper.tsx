@@ -3,6 +3,8 @@
 import { Button } from "flowbite-react";
 import { createPortal } from "react-dom";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 type ModalWidth = "w-72" | "w-80" | "w-96";
 
@@ -21,6 +23,8 @@ interface DashletSettingsWrapperProps {
   showCancelButton?: boolean;
   /** Child form content */
   children: React.ReactNode;
+  /** Dictionary for internationalization */
+  dictionary: I18nRecord;
 }
 
 /**
@@ -35,6 +39,7 @@ export function DashletSettingsWrapper({
   scrollable = false,
   showCancelButton = true,
   children,
+  dictionary,
 }: Readonly<DashletSettingsWrapperProps>) {
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -43,6 +48,9 @@ export function DashletSettingsWrapper({
   const contentClass = scrollable
     ? "flex max-h-[70vh] flex-col gap-3 overflow-y-auto"
     : "flex flex-col gap-3";
+
+  const cancelLabel = tr("common.cancel", dictionary);
+  const saveLabel = tr("common.save", dictionary);
 
   return createPortal(
     <AbsoluteModal
@@ -61,7 +69,7 @@ export function DashletSettingsWrapper({
               size="sm"
               className="no-drag w-full"
             >
-              Cancel
+              {cancelLabel}
             </Button>
           )}
           <Button
@@ -71,7 +79,7 @@ export function DashletSettingsWrapper({
             size="sm"
             className="no-drag w-full"
           >
-            Save
+            {saveLabel}
           </Button>
         </div>
       </div>

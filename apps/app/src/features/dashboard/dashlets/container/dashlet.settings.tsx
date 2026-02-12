@@ -44,23 +44,21 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
-}: Readonly<DashletSettingsProps>) {
-  const typedConfig = config as unknown as DashletConfig;
-
+}: Readonly<DashletSettingsProps<DashletConfig>>) {
   // Initialize state with current config or defaults
   const [variant, setVariant] = useState<ContainerVariant>(
-    typedConfig.variant ?? defaultConfig.variant
+    config.variant ?? defaultConfig.variant
   );
-  const [name, setName] = useState(typedConfig.name ?? defaultConfig.name);
+  const [name, setName] = useState(config.name ?? defaultConfig.name);
   const [description, setDescription] = useState(
-    typedConfig.description ?? defaultConfig.description
+    config.description ?? defaultConfig.description
   );
   const [verMasUrl, setVerMasUrl] = useState(
-    typedConfig.verMasUrl ?? defaultConfig.verMasUrl
+    config.verMasUrl ?? defaultConfig.verMasUrl
   );
-  const [label, setLabel] = useState(typedConfig.label ?? defaultConfig.label);
+  const [label, setLabel] = useState(config.label ?? defaultConfig.label);
   const [borderColor, setBorderColor] = useState<LabelBorderColor>(
-    typedConfig.borderColor ?? defaultConfig.borderColor ?? "gray"
+    config.borderColor ?? defaultConfig.borderColor ?? "gray"
   );
 
   const handleSave = () => {

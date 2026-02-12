@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 
 export default function AbsoluteModal({
   children,
@@ -17,19 +17,28 @@ export default function AbsoluteModal({
   height?: string;
   className?: string;
 }) {
+  // Track if mousedown started on backdrop to prevent closing when selecting text
+  const mouseDownOnBackdrop = useRef(false);
+
   return (
     <div
-      className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-50 w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
+      className={`no-drag fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-50 w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
       role="button"
       tabIndex={0}
+      onMouseDown={(e) => {
+        // Track if mousedown started on the backdrop itself
+        mouseDownOnBackdrop.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        // Only close if clicking the background, not the content
-        if (e.target === e.currentTarget) {
+        // Only close if both mousedown AND click happened on the backdrop
+        // This prevents closing when selecting text and dragging outside
+        if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
           setSelected(null);
         }
+        mouseDownOnBackdrop.current = false;
       }}
       onKeyDown={(e) => {
-        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+        if (e.key === "Escape") {
           e.preventDefault();
           setSelected(null);
         }

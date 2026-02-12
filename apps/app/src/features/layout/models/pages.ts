@@ -12,6 +12,17 @@ export const pages: SidebarItem[] = [
     icon: HomeIcon,
     label: "home",
     totals: {},
+    items: [
+      {
+        href: "/home/dashboard",
+        label: "dashboard",
+        totals: {
+          totals: 10,
+        },
+        requiredGroups: [],
+        blockedGroups: [], // Allow access for MINTRAL_REVISOR
+      },
+    ],
     requiredGroups: [], // Public route
   },
   {
@@ -106,7 +117,7 @@ export const pages: SidebarItem[] = [
     href: "/reports",
     icon: ChartMixedIcon,
     label: "controlTower",
-    /* eslint-disable */
+
     items: [
       {
         href: "/geographic-view",
@@ -132,7 +143,6 @@ export const pages: SidebarItem[] = [
         blockedGroups: [], // Allow access for MINTRAL_REVISOR
       },
     ],
-    /* eslint-enable */
 
     totals: {},
     requiredGroups: [],

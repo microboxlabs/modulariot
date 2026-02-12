@@ -23,7 +23,7 @@ import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
-import type { GridLayoutItem } from "../../types/dashboard.types";
+import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
 
 import "react-grid-layout/css/styles.css";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
@@ -273,7 +273,7 @@ export function DashboardView() {
                 layout={layout}
                 width={containerWidth}
                 gridConfig={{
-                  cols: 24,
+                  cols: GRID_COLS,
                   rowHeight: 55,
                   margin: [16, 16] as const,
                   containerPadding: [0, 16] as const,

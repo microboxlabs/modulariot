@@ -5,6 +5,9 @@
  * nested dashboard structures with containers and dashlets.
  */
 
+/** Number of columns in the dashboard grid */
+export const GRID_COLS = 24;
+
 /** Grid layout item compatible with react-grid-layout */
 export interface GridLayoutItem {
   i: string;

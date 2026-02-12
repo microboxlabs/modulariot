@@ -5,6 +5,7 @@ import Image from "next/image";
 import ImageViewer from "./image-viewer";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { downloadImage } from "../../utils/download-image";
+import { Button } from "flowbite-react";
 
 export default function ImageSelector({
   images,
@@ -140,16 +141,16 @@ export function ImageComponent({
           </div>
         )}
         <div className="absolute top-0 right-0 left-0 bottom-0 opacity-0 flex justify-center items-center text-white transition-all duration-300 hover:opacity-100 visible backdrop-blur-[10px] bg-black/30 gap-2">
-          <div
+          <Button
             className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
             onClick={() => {
               setSelected(index);
             }}
           >
             <MdOutlineRemoveRedEye className="w-6 h-6" />
-          </div>
+          </Button>
           {image && (
-            <div
+            <Button
               className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
               onClick={async (e) => {
                 e.stopPropagation();
@@ -162,7 +163,7 @@ export function ImageComponent({
               }}
             >
               <MdOutlineFileDownload className="w-6 h-6" />
-            </div>
+            </Button>
           )}
         </div>
       </div>

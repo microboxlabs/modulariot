@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig } from "./dashlet";
+import type { DashletConfig, GradientColor } from "./dashlet";
 import {
   DashletSettingsWrapper,
   SettingsTitleValueUnit,
@@ -12,8 +12,6 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-
-type GradientColor = "blue" | "green" | "red" | "yellow" | "purple";
 
 const COLOR_OPTIONS: ColorOption<GradientColor>[] = [
   { value: "blue", label: "Blue", dotClass: "bg-blue-500" },

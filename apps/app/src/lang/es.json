@@ -1222,11 +1222,19 @@
       "variant": "Variante",
       "label": "Etiqueta",
       "borderColor": "Color del Borde",
-      "seeMoreUrl": "URL Ver Más",
+      "seeMoreUrl": "URL \"Ver más\"",
       "items": "Elementos",
       "details": "Detalles",
       "addItem": "Agregar",
-      "removeItem": "Eliminar"
+      "removeItem": "Eliminar",
+      "containerType": "Tipo de Contenedor",
+      "bentoBox": "Caja Bento",
+      "labeledGroup": "Grupo Etiquetado",
+      "enterName": "Ingrese nombre...",
+      "enterDescription": "Ingrese descripción...",
+      "enterLabel": "Ingrese etiqueta...",
+      "selectBorderColor": "Seleccionar color del borde",
+      "selectColor": "Seleccionar color"
     },
     "defaults": {
       "pageViews": "Vistas de Página",

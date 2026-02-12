@@ -1208,11 +1208,19 @@
       "variant": "Variant",
       "label": "Label",
       "borderColor": "Border Color",
-      "seeMoreUrl": "See More URL",
+      "seeMoreUrl": "\"See more\" Link URL",
       "items": "Items",
       "details": "Details",
       "addItem": "Add Item",
-      "removeItem": "Remove"
+      "removeItem": "Remove",
+      "containerType": "Container Type",
+      "bentoBox": "Bento Box",
+      "labeledGroup": "Labeled Group",
+      "enterName": "Enter name...",
+      "enterDescription": "Enter description...",
+      "enterLabel": "Enter label...",
+      "selectBorderColor": "Select border color",
+      "selectColor": "Select color"
     },
     "defaults": {
       "pageViews": "Page Views",

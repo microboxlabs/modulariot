@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, TextInput, Label } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig } from "./dashlet";
+import type { DashletConfig, BarColor } from "./dashlet";
 import {
   DashletSettingsWrapper,
   SettingsTextField,
@@ -14,14 +14,6 @@ import {
   ColorPickerDropdown,
   type ColorOption,
 } from "@/features/common/components/color-picker-dropdown";
-
-type BarColor =
-  | "bg-blue-500"
-  | "bg-green-500"
-  | "bg-yellow-500"
-  | "bg-purple-500"
-  | "bg-red-500"
-  | "bg-cyan-500";
 
 const COLOR_OPTIONS: ColorOption<BarColor>[] = [
   { value: "bg-blue-500", label: "Blue", dotClass: "bg-blue-500" },
@@ -36,7 +28,7 @@ interface StackItem {
   id: string;
   label: string;
   value: number;
-  color: string;
+  color: BarColor;
 }
 
 export function DashletSettings({
@@ -51,7 +43,7 @@ export function DashletSettings({
 
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
-    const defaultItems = [
+    const defaultItems: Omit<StackItem, "id">[] = [
       { label: "Direct", value: 45, color: "bg-blue-500" },
       { label: "Organic", value: 30, color: "bg-green-500" },
     ];
@@ -84,7 +76,11 @@ export function DashletSettings({
   const removeItem = (id: string) =>
     setItems(items.filter((item) => item.id !== id));
 
-  const updateItem = (id: string, field: string, val: string | number) => {
+  const updateItem = <K extends keyof StackItem>(
+    id: string,
+    field: K,
+    val: StackItem[K]
+  ) => {
     setItems(
       items.map((item) => (item.id === id ? { ...item, [field]: val } : item))
     );
@@ -151,7 +147,7 @@ export function DashletSettings({
             />
             <ColorPickerDropdown
               options={COLOR_OPTIONS}
-              value={item.color as BarColor}
+              value={item.color}
               onChange={(c) => updateItem(item.id, "color", c)}
               title="Color"
             />

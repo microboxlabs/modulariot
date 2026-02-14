@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
@@ -13,7 +13,14 @@ export default function Carousel({
 }) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [zoomActive, setZoomActive] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [imageRect, setImageRect] = useState<DOMRect | null>(null);
+  const activeImageRef = useRef<HTMLImageElement | null>(null);
   const loadedImagesCount = useRef(0);
+
+  const zoomLevel = 2.5;
+  const lensSize = 250;
 
   useEffect(() => {
     if (imagesLoaded) {
@@ -45,8 +52,44 @@ export default function Carousel({
     }
   };
 
+  const handleImageClick = useCallback(
+    (e: React.MouseEvent<HTMLImageElement>) => {
+      if (zoomActive) {
+        setZoomActive(false);
+        setImageRect(null);
+        activeImageRef.current = null;
+      } else {
+        const img = e.currentTarget;
+        activeImageRef.current = img;
+        setImageRect(img.getBoundingClientRect());
+        setZoomPosition({ x: e.clientX, y: e.clientY });
+        setZoomActive(true);
+      }
+    },
+    [zoomActive]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (zoomActive && imageRect) {
+        setZoomPosition({ x: e.clientX, y: e.clientY });
+      }
+    },
+    [zoomActive, imageRect]
+  );
+
+  // Disable zoom when changing slides
+  useEffect(() => {
+    setZoomActive(false);
+    setImageRect(null);
+    activeImageRef.current = null;
+  }, [selected]);
+
   return (
-    <div className="flex flex-row gap-2 w-full h-full">
+    <div
+      className="flex flex-row gap-2 w-full h-full"
+      onMouseMove={handleMouseMove}
+    >
       <div
         ref={carouselRef}
         className="flex flex-row overflow-x-hidden h-full w-full scrollbar-hide"
@@ -82,15 +125,16 @@ export default function Carousel({
         {images.map((image, index) => (
           <div
             key={index}
-            className="flex-shrink-0 w-full h-full flex items-center justify-center relative"
+            className="shrink-0 w-full h-full flex items-center justify-center relative"
           >
             <Image
               src={image}
               alt="Image"
               width={1200}
               height={1200}
-              className="h-full w-auto object-contain select-none pointer-events-none"
+              className={`h-full w-auto object-contain select-none ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
               onLoad={handleImageLoad}
+              onClick={handleImageClick}
             />
           </div>
         ))}
@@ -114,6 +158,31 @@ export default function Carousel({
           )}
         </div>
       </div>
+
+      {/* Magnifier Lens */}
+      {zoomActive && imageRect && (
+        <div
+          className="pointer-events-none fixed z-50 overflow-hidden rounded-lg border-2 border-white/50 shadow-xl"
+          style={{
+            width: lensSize,
+            height: lensSize,
+            left: zoomPosition.x - lensSize / 2,
+            top: zoomPosition.y - lensSize / 2,
+          }}
+        >
+          <div
+            style={{
+              width: imageRect.width * zoomLevel,
+              height: imageRect.height * zoomLevel,
+              backgroundImage: `url(${images[selected]})`,
+              backgroundSize: `${imageRect.width * zoomLevel}px ${imageRect.height * zoomLevel}px`,
+              backgroundPosition: `-${(zoomPosition.x - imageRect.left) * zoomLevel - lensSize / 2}px -${(zoomPosition.y - imageRect.top) * zoomLevel - lensSize / 2}px`,
+              backgroundRepeat: "no-repeat",
+            }}
+            className="h-full w-full"
+          />
+        </div>
+      )}
     </div>
   );
 }

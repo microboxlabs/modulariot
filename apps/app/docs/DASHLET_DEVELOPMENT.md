@@ -23,6 +23,7 @@ This document explains how to create custom dashlets for the dashboard system. D
 ### What is a Dashlet?
 
 A dashlet is a reusable UI component that:
+
 - Displays data or content on a dashboard
 - Can be configured via a settings modal
 - Supports drag-and-drop positioning
@@ -87,12 +88,12 @@ import { HiChartBar } from "react-icons/hi2";
 import type { DashletMeta } from "../types";
 
 export const dashletMeta: DashletMeta = {
-  id: "my_dashlet",           // ⚠️ MUST match folder name
+  id: "my_dashlet", // ⚠️ MUST match folder name
   name: "My Dashlet",
   description: "A custom dashlet that displays data",
-  icon: HiChartBar,           // Choose from react-icons/hi2
-  category: "data-display",   // "containers" | "data-display"
-  canNestIn: [],              // Leave empty (deprecated)
+  icon: HiChartBar, // Choose from react-icons/hi2
+  category: "data-display", // "containers" | "data-display"
+  canNestIn: [], // Leave empty (deprecated)
   hasSettings: true,
   hasChildren: false,
 };
@@ -151,7 +152,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   containerDefinition,
   cardDefinition,
   // ... other dashlets
-  myDashletDefinition,  // ← Add here
+  myDashletDefinition, // ← Add here
 ];
 ```
 
@@ -208,7 +209,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  
+
   return (
     <div className="...">
       {/* Your component JSX */}
@@ -228,28 +229,28 @@ import type { DashletMeta } from "../types";
 export const dashletMeta: DashletMeta = {
   // Unique identifier - MUST match folder name
   id: "my_dashlet",
-  
+
   // Display name in the "Add Widget" modal
   name: "My Dashlet",
-  
+
   // Description shown below the name
   description: "Displays a metric with customizable styling",
-  
+
   // Icon from react-icons/hi2
   icon: HiChartBar,
-  
+
   // Category: "containers" or "data-display"
   category: "data-display",
-  
+
   // Deprecated - leave as empty array
   canNestIn: [],
-  
+
   // Set true if this dashlet can only be placed at root (not inside containers)
   isRootOnly: false,
-  
+
   // Whether the dashlet has a settings modal
   hasSettings: true,
-  
+
   // Whether the dashlet can contain child widgets
   hasChildren: false,
 };
@@ -308,7 +309,7 @@ export function DashletSettings({
             sizing="sm"
           />
         </div>
-        
+
         <div>
           <Label htmlFor="value">Value</Label>
           <TextInput
@@ -365,13 +366,13 @@ Props passed to every dashlet component:
 
 ```typescript
 interface DashletComponentProps {
-  widget: Widget;              // Widget data including config
-  editMode: boolean;           // True when dashboard is in edit mode
-  isRoot?: boolean;            // True if at root level (affects styling)
-  onAddChild?: (componentId: string) => void;  // Add child widget
+  widget: Widget; // Widget data including config
+  editMode: boolean; // True when dashboard is in edit mode
+  isRoot?: boolean; // True if at root level (affects styling)
+  onAddChild?: (componentId: string) => void; // Add child widget
   onOpenSettings?: () => void; // Open settings modal
-  onDelete?: () => void;       // Delete this widget
-  children?: ReactNode;        // Child widgets (for containers)
+  onDelete?: () => void; // Delete this widget
+  children?: ReactNode; // Child widgets (for containers)
 }
 ```
 
@@ -381,11 +382,11 @@ Props passed to settings modals:
 
 ```typescript
 interface DashletSettingsProps<TConfig> {
-  isOpen: boolean;             // Modal open state
-  onClose: () => void;         // Close callback
-  config: TConfig;             // Current configuration
-  onSave: (config: Partial<TConfig>) => void;  // Save callback
-  dictionary: I18nRecord;      // Internationalization strings
+  isOpen: boolean; // Modal open state
+  onClose: () => void; // Close callback
+  config: TConfig; // Current configuration
+  onSave: (config: Partial<TConfig>) => void; // Save callback
+  dictionary: I18nRecord; // Internationalization strings
 }
 ```
 
@@ -395,8 +396,8 @@ Grid layout constraints:
 
 ```typescript
 interface DashletLayoutDefaults {
-  minW: number;  // Minimum width in grid columns (1-12)
-  minH: number;  // Minimum height in grid rows
+  minW: number; // Minimum width in grid columns (1-12)
+  minH: number; // Minimum height in grid rows
 }
 ```
 
@@ -410,12 +411,12 @@ Use these pre-built components from `../common`:
 
 ```typescript
 import {
-  DashletSettingsWrapper,  // Modal wrapper with save/cancel
-  SettingsTextField,       // Text input field
-  SettingsTextareaField,   // Multi-line text field
-  SettingsPickerRow,       // Row container for pickers
-  SettingsPickerItem,      // Individual picker wrapper
-  SettingsFieldGrid,       // Grid layout for fields
+  DashletSettingsWrapper, // Modal wrapper with save/cancel
+  SettingsTextField, // Text input field
+  SettingsTextareaField, // Multi-line text field
+  SettingsPickerRow, // Row container for pickers
+  SettingsPickerItem, // Individual picker wrapper
+  SettingsFieldGrid, // Grid layout for fields
 } from "../common";
 ```
 
@@ -470,7 +471,7 @@ interface DataProviderEntry {
 }
 
 export interface DashletConfig {
-  title: string;              // Can contain {{data_provider.key}}
+  title: string; // Can contain {{data_provider.key}}
   value: string;
   dataProvider?: DataProviderEntry[];
 }
@@ -536,6 +537,7 @@ function getHandlebarsStatus(text: string): HandlebarsStatus {
 ```
 
 Use Flowbite's `color` prop for visual feedback:
+
 - `"success"` - Green border for valid syntax
 - `"failure"` - Red border for invalid syntax
 - `"gray"` - Default for no Handlebars expressions
@@ -565,7 +567,7 @@ export function Dashlet({
     <div className="...">
       {/* Render children */}
       {hasChildren && <div className="flex flex-col gap-2">{children}</div>}
-      
+
       {/* Add button in edit mode */}
       {editMode && !hasChildren && (
         <button onClick={handleAddChild}>
@@ -592,7 +594,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   containerDefinition,
   cardDefinition,
   // ... existing dashlets
-  myDashletDefinition,  // ← Add here
+  myDashletDefinition, // ← Add here
 ];
 ```
 
@@ -647,7 +649,7 @@ export interface DashletConfig {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const { label, value, trend } = widget.config as unknown as DashletConfig;
-  
+
   const trendColors = {
     up: "text-green-500",
     down: "text-red-500",
@@ -678,7 +680,7 @@ export function Dashlet({
   return (
     <div className="h-full rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
       <h3 className="mb-4 text-lg font-semibold">{config.title}</h3>
-      
+
       {hasChildren ? (
         <div className="grid grid-cols-2 gap-4">{children}</div>
       ) : editMode ? (
@@ -730,4 +732,3 @@ export function Dashlet({
 - `src/features/dashboard/dashlets/common/` - Shared settings components
 - `src/features/dashboard/context/` - Dashboard context providers
 - `src/features/dashboard/hooks/` - Dashboard hooks
-

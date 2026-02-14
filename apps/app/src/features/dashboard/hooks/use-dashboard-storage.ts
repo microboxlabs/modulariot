@@ -93,7 +93,9 @@ export function useDashboardStorage() {
           const migratedWidgets = parsed.widgets.map((w: Widget, i: number) =>
             ensureWidgetDefaults(w, i)
           );
-          setData({ ...parsed, widgets: migratedWidgets });
+          // Ensure name exists (migration for existing dashboards without name)
+          const name = parsed.name || DEFAULT_STORAGE.name;
+          setData({ ...parsed, name, widgets: migratedWidgets });
         } else {
           // Unknown version - reset to defaults
           setData(DEFAULT_STORAGE);
@@ -290,6 +292,32 @@ export function useDashboardStorage() {
     [data, saveData]
   );
 
+  // Set dashboard name
+  const setDashboardName = useCallback(
+    (name: string) => {
+      const newData: DashboardStorageSchema = {
+        ...data,
+        name,
+      };
+      saveData(newData);
+    },
+    [data, saveData]
+  );
+
+  // Download dashboard as JSON file
+  const downloadDashboard = useCallback(() => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${data.name.replace(/\s+/g, "_").toLowerCase()}_dashboard.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [data]);
+
   // Export dashboard as JSON string
   const exportDashboard = useCallback((): string => {
     return JSON.stringify(data, null, 2);
@@ -328,6 +356,7 @@ export function useDashboardStorage() {
 
         const newData: DashboardStorageSchema = {
           version: 2,
+          name: imported.name || DEFAULT_STORAGE.name,
           widgets: normalizedWidgets,
           preferences: imported.preferences ?? { editMode: false },
         };
@@ -347,6 +376,7 @@ export function useDashboardStorage() {
   return {
     widgets: data.widgets,
     preferences: data.preferences,
+    dashboardName: data.name,
     isLoaded,
     addWidget,
     addChildWidget,
@@ -354,9 +384,11 @@ export function useDashboardStorage() {
     updateWidgetLayouts,
     deleteWidget,
     setEditMode,
+    setDashboardName,
     findWidget,
     findParent,
     exportDashboard,
     importDashboard,
+    downloadDashboard,
   };
 }

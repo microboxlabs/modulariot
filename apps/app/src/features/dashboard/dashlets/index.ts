@@ -29,6 +29,7 @@ import { dashletDefinition as statProgressDefinition } from "./stat_progress";
 import { dashletDefinition as statStackedDefinition } from "./stat_stacked";
 import { dashletDefinition as statSparklineDefinition } from "./stat_sparkline";
 import { dashletDefinition as statSensitiveDefinition } from "./stat_sensitive";
+import { dashletDefinition as infoCardDefinition } from "./info_card";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -47,6 +48,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statStackedDefinition,
   statSparklineDefinition,
   statSensitiveDefinition,
+  infoCardDefinition,
 ];
 
 /** Registry of all available dashlets */

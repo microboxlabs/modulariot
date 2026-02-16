@@ -1,7 +1,9 @@
 "use client";
-import { Button, ButtonGroup } from "flowbite-react";
+import { Alert, Button, ButtonGroup } from "flowbite-react";
+import { HiExclamation } from "react-icons/hi";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
+import { useDocumentValidation } from "./use-document-validation";
 import {
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_CONFIRM_DELIVERY,
@@ -81,11 +83,19 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
+  const {
+    isValid: documentsValid,
+    isLoading: documentsLoading,
+    requiredDocuments,
+  } = useDocumentValidation(taskType, extraData?.bpm_package as string | undefined);
   const [state, _formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
   );
   const router = useRouter();
+  const multimediaValidationDict = (dict.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
+  const validationDict = multimediaValidationDict?.validation as I18nRecord | undefined;
+  const categoriesDict = multimediaValidationDict?.categories as I18nRecord | undefined;
   dict = dict["outcome"]
     ? dict
     : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);
@@ -174,30 +184,47 @@ export default function TaskActions({
     dict
   );
   return (
-    <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
+    <div className="flex flex-col w-full gap-2">
       <GroupAllowed
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        <ButtonGroup className="w-full">
-          <GroupButtonOptions
-            dict={dict}
-            handleSelection={handleSelection}
-            otherOptions={otherOptions}
-          />
-          <TaskActionButton
-            fluid={fluid}
-            label={(dict.outcome as I18nRecord).continue as string}
-            taskId={taskId}
-            transitionId={transitionId}
-            onClick={() =>
-              handleSelection(
-                transitionId,
-                (dict.outcome as I18nRecord)[transitionId] as string
-              )
-            }
-          />
-        </ButtonGroup>
+        <div className="flex flex-col gap-2">
+          <ButtonGroup className="w-full">
+            <GroupButtonOptions
+              dict={dict}
+              handleSelection={handleSelection}
+              otherOptions={otherOptions}
+            />
+            <TaskActionButton
+              fluid={fluid}
+              disabled={!documentsValid && !documentsLoading}
+              label={(dict.outcome as I18nRecord).continue as string}
+              taskId={taskId}
+              transitionId={transitionId}
+              onClick={() =>
+                handleSelection(
+                  transitionId,
+                  (dict.outcome as I18nRecord)[transitionId] as string
+                )
+              }
+            />
+          </ButtonGroup>
+
+          {!documentsValid && !documentsLoading && (
+            <Alert color="warning" icon={HiExclamation} className="w-full text-xs p-2">
+              <span className="font-medium">
+                {validationDict?.missingDocuments as string}
+              </span>
+              <p>
+                {validationDict?.uploadRequired as string}{" "}
+                {requiredDocuments
+                  .map((doc) => (categoriesDict?.[doc] as string) || doc)
+                  .join(", ")}
+              </p>
+            </Alert>
+          )}
+        </div>
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

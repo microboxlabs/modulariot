@@ -1755,7 +1755,13 @@
       "viewMore": "Ver más",
       "noImages": "No hay imágenes",
       "documents": "Documentos",
-      "noDocuments": "No hay documentos"
+      "noDocuments": "No hay documentos",
+      "validation": {
+        "missingDocuments": "Se requieren documentos para continuar",
+        "requiresPOD": "Prueba de Entrega (POD)",
+        "requiresPOLF": "Prueba Carga Piso (POLF)",
+        "uploadRequired": "Por favor suba al menos uno de los siguientes:"
+      }
     },
     "forum_reasons": {
       "FINGERPRINT_DEVICES_TECH_ISSUES": "Problemas técnicos con el huellero.",

@@ -14,5 +14,6 @@ export type TaskActionButtonProps = {
     | TaskOutcomeDelivery
     | TaskOutcomePlanning;
   fluid?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 };

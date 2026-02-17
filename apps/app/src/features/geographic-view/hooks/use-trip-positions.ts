@@ -10,6 +10,8 @@ export function useTripPositions(tripId: string, assetId: string) {
   useEffect(() => {
     // Skip API call if tripId or assetId are invalid
     if (!tripId || !assetId) {
+      setPositions([]);
+      setError(null);
       setIsLoading(false);
       return;
     }
@@ -38,16 +40,15 @@ export function useTripPositions(tripId: string, assetId: string) {
 
     eventSource.onerror = () => {
       setPositions([...positionBuffer.slice()]);
-      if (eventSource.readyState === 2) {
-        setError(new Error("EventSource closed"));
-        eventSource.close();
-        setIsLoading(false);
-      }
+
       if (eventSource.readyState === 0) {
         setError(new Error("EventSource connection failed"));
-        eventSource.close();
-        setIsLoading(false);
+      } else if (eventSource.readyState === 2 && size === 0) {
+        setError(new Error("EventSource closed"));
       }
+
+      eventSource.close();
+      setIsLoading(false);
     };
     // Cleanup function
     return () => {

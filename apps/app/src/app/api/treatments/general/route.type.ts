@@ -11,7 +11,7 @@ export type TreatmentsGeneralResponse = {
 
 export type TreatmentsGeneralResponseItem = {
   conditions_agg: ConditionsAgg[];
-  timeline: TimelineElement[];
+  timeline?: TimelineElement[];
   trip_info: TreatmentsTripInfoResponse;
   symptom_info: TreatmentsSymptomInfoResponse;
 };

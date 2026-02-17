@@ -8,7 +8,12 @@
     "LOG_LEVEL",
     "LOG_HANDLERS_CONFIG",
     "APP_TITLE",
-    "APP_DESCRIPTION"
+    "APP_DESCRIPTION",
+    "STREAMHUB_CLIENT_ID",
+    "STREAMHUB_CLIENT_SECRET",
+    "STREAMHUB_AUDIENCE",
+    "STREAMHUB_URL",
+    "STREAMHUB_IOT_URL"
   ],
   "tasks": {
     "build": {

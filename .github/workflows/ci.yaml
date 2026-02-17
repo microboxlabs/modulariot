@@ -198,6 +198,7 @@ jobs:
         with:
           name: build-docs
           path: /tmp/build-docs/
+          include-hidden-files: true
           retention-days: 1
 
       - name: Upload app artifact
@@ -205,6 +206,7 @@ jobs:
         with:
           name: build-app
           path: /tmp/build-app/
+          include-hidden-files: true
           retention-days: 1
 
       - name: Upload web-site artifact
@@ -212,6 +214,7 @@ jobs:
         with:
           name: build-web-site
           path: /tmp/build-web-site/
+          include-hidden-files: true
           retention-days: 1
 
   # ===========================================================================

@@ -22,7 +22,7 @@ export default function AbsoluteModal({
 
   return (
     <div
-      className={`no-drag fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-50 w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
+      className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-[800] w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
       role="button"
       tabIndex={0}
       onMouseDown={(e) => {

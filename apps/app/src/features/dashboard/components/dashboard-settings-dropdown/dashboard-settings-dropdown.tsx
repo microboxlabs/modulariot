@@ -192,6 +192,10 @@ function RenameForm({
 }: Readonly<RenameFormProps>) {
   const [name, setName] = useState(currentName);
 
+  useEffect(() => {
+    setName(currentName);
+  }, [currentName]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
@@ -296,10 +300,9 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === "string") {
+    file
+      .text()
+      .then((content) => {
         const result = onImport(content);
         if (result.success) {
           ShowNotification({
@@ -310,12 +313,10 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
         } else {
           setImportError(result.error || "Failed to import dashboard");
         }
-      }
-    };
-    reader.onerror = () => {
-      setImportError("Failed to read file");
-    };
-    reader.readAsText(file);
+      })
+      .catch(() => {
+        setImportError("Failed to read file");
+      });
   };
 
   return (
@@ -469,6 +470,12 @@ export default function DashboardSettingsDropdown() {
       ShowNotification({
         type: "success",
         message: "Dashboard copied to clipboard",
+      });
+    }).catch((error) => {
+      console.error("Failed to copy to clipboard:", error);
+      ShowNotification({
+        type: "error",
+        message: "Failed to copy dashboard to clipboard",
       });
     });
   }, [exportDashboard]);

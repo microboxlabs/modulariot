@@ -62,6 +62,7 @@ export default function ImageSelector({
             image={image}
             index={index}
             setSelected={setSelected}
+            dictionary={dictionary}
           />
         ))}
         {/* Scroll down indicator */}
@@ -100,6 +101,7 @@ export function ImageComponent({
   loading = false,
   tag = null,
   downloadUrl,
+  dictionary,
 }: {
   image: string | null;
   index: number;
@@ -109,6 +111,7 @@ export function ImageComponent({
   loading?: boolean;
   tag?: string | null;
   downloadUrl?: string;
+  dictionary?: I18nRecord;
 }) {
   if (loading) {
     return (
@@ -156,7 +159,7 @@ export function ImageComponent({
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                  await downloadImage(downloadUrl ?? image);
+                  await downloadImage(downloadUrl ?? image, dictionary);
                 } catch (error) {
                   console.error("Download error:", error);
                 }

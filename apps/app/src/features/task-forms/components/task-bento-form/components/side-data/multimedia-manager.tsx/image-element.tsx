@@ -50,6 +50,7 @@ export default function ImageElement({
         ]?.label
       }
       downloadUrl={`/api/document/download?documentId=${file.entry.id}`}
+      dictionary={dictionary}
     />
   );
 }

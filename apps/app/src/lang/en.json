@@ -1541,7 +1541,8 @@
     "median_report_interval": "Median report interval",
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
-    "hide_stops": "Hide stops"
+    "hide_stops": "Hide stops",
+    "image_prefix": "image"
   },
   "release": {
     "other_versions": "Other Versions",

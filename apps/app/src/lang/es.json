@@ -1555,7 +1555,8 @@
     "median_report_interval": "Frecuencia de reportabilidad",
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
-    "hide_stops": "Ocultar paradas"
+    "hide_stops": "Ocultar paradas",
+    "image_prefix": "imagen"
   },
   "release": {
     "other_versions": "Otras versiones",

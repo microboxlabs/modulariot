@@ -3,11 +3,19 @@ import { MapPosition } from "../types/map";
 
 export function useTripPositions(tripId: string, assetId: string) {
   const [positions, setPositions] = useState<MapPosition[]>([]);
-  const [error, _setError] = useState<Error | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // Skip API call if tripId or assetId are invalid
+    if (!tripId || !assetId) {
+      setPositions([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     const positionBuffer: MapPosition[] = [];
     let size = 0;
 
@@ -25,27 +33,22 @@ export function useTripPositions(tripId: string, assetId: string) {
       try {
         const position = JSON.parse(event.data as string) as MapPosition;
         positionBuffer[size++] = position;
-
-        // Update positions immediately
-        /* setTimeout(() => {
-          setPositions([...positionBuffer.slice()]);
-        }, 500); */
-      } catch (err) {
-        // TODO: Check
-        console.error(err);
+      } catch {
+        // Invalid JSON, skip
       }
     };
 
-    eventSource.onerror = (_error) => {
+    eventSource.onerror = () => {
       setPositions([...positionBuffer.slice()]);
-      if (eventSource.readyState === 2) {
-        eventSource.close();
-        setIsLoading(false);
-      }
+
       if (eventSource.readyState === 0) {
-        eventSource.close();
-        setIsLoading(false);
+        setError(new Error("EventSource connection failed"));
+      } else if (eventSource.readyState === 2 && size === 0) {
+        setError(new Error("EventSource closed"));
       }
+
+      eventSource.close();
+      setIsLoading(false);
     };
     // Cleanup function
     return () => {

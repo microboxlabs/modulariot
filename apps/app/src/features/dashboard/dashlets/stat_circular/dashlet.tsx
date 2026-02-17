@@ -1,0 +1,104 @@
+"use client";
+
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+
+// ============================================================================
+// Configuration Types
+// ============================================================================
+
+export interface DashletConfig {
+  title: string;
+  value: number;
+  maxValue: number;
+  unit: string;
+}
+
+export const defaultConfig: DashletConfig = {
+  title: "Storage Used",
+  value: 67,
+  maxValue: 100,
+  unit: "GB",
+};
+
+export const layoutDefaults: DashletLayoutDefaults = {
+  minW: 3,
+  minH: 3,
+};
+
+export function getLayoutDefaults(): DashletLayoutDefaults {
+  return layoutDefaults;
+}
+
+// ============================================================================
+// Component - Style 5: Circular Progress
+// ============================================================================
+
+/**
+ * Get stroke color based on percentage
+ */
+function getStrokeColor(percentage: number): string {
+  if (percentage < 50) return "stroke-green-500";
+  if (percentage < 80) return "stroke-yellow-500";
+  return "stroke-red-500";
+}
+
+/**
+ * Circular Progress Card - Donut chart style
+ */
+export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const config = widget.config as unknown as DashletConfig;
+  const { title, value, maxValue, unit } = config;
+
+  const rawPercentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+  const percentage = Math.min(100, Math.max(0, rawPercentage));
+  const size = 100;
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+  const color = getStrokeColor(percentage);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+        {title}
+      </p>
+
+      {/* Circular gauge */}
+      <div className="relative">
+        <svg width={size} height={size} className="-rotate-90 transform">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-gray-200 dark:text-gray-700"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className={`${color} transition-all duration-500`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-bold text-gray-900 dark:text-white">
+            {value}
+          </span>
+          <span className="text-xs text-gray-500">{unit}</span>
+        </div>
+      </div>
+
+      <p className="mt-2 text-xs text-gray-400">
+        of {maxValue} {unit}
+      </p>
+    </div>
+  );
+}

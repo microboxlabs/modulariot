@@ -1201,6 +1201,56 @@
     "editableField": {
       "saveError": "Error al guardar los cambios",
       "saveSuccess": "Cambios guardados correctamente"
+    },
+    "title": "Título",
+    "value": "Valor",
+    "unit": "Unidad"
+  },
+  "dashboard": {
+    "settings": {
+      "sparklineData": "Datos del gráfico (separados por coma)",
+      "subtitle": "Subtítulo",
+      "maxValue": "Valor Máximo",
+      "target": "Objetivo",
+      "color": "Color",
+      "icon": "Ícono",
+      "sensitive": "Valor Sensible",
+      "description": "Descripción",
+      "previousValue": "Valor Anterior",
+      "name": "Nombre",
+      "backgroundColor": "Fondo",
+      "variant": "Variante",
+      "label": "Etiqueta",
+      "borderColor": "Color del Borde",
+      "seeMoreUrl": "URL \"Ver más\"",
+      "items": "Elementos",
+      "details": "Detalles",
+      "addItem": "Agregar",
+      "removeItem": "Eliminar",
+      "containerType": "Tipo de Contenedor",
+      "bentoBox": "Caja Bento",
+      "labeledGroup": "Grupo Etiquetado",
+      "enterName": "Ingrese nombre...",
+      "enterDescription": "Ingrese descripción...",
+      "enterLabel": "Ingrese etiqueta...",
+      "selectBorderColor": "Seleccionar color del borde",
+      "selectColor": "Seleccionar color"
+    },
+    "defaults": {
+      "pageViews": "Vistas de Página",
+      "storageUsed": "Almacenamiento Usado",
+      "orders": "Pedidos",
+      "last24Hours": "Últimas 24 horas",
+      "quarterlyGoal": "Meta Trimestral",
+      "activeUsers": "Usuarios Activos",
+      "accountBalance": "Saldo de Cuenta",
+      "trafficSources": "Fuentes de Tráfico",
+      "monthlyRevenue": "Ingresos Mensuales",
+      "conversionRate": "Tasa de Conversión",
+      "progress": "Progreso",
+      "metric": "Métrica",
+      "untitled": "Sin título",
+      "group": "Grupo"
     }
   },
   "liveStreams": {

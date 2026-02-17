@@ -1220,7 +1220,21 @@
       "enterDescription": "Enter description...",
       "enterLabel": "Enter label...",
       "selectBorderColor": "Select border color",
-      "selectColor": "Select color"
+      "selectColor": "Select color",
+      "visualization": "Visualization",
+      "dataProvider": "Data Provider",
+      "descriptor": "Descriptor",
+      "aiPlaceholder": "AI Placeholder",
+      "viewMoreUrl": "View More URL (optional)",
+      "key": "Key",
+      "addEntry": "+ Add Entry",
+      "dynamicValuesHint": "Use {code} syntax for dynamic values",
+      "defineVariablesHint": "Define variables accessible via {code}",
+      "selectIcon": "Select icon",
+      "titlePlaceholder": "Card title or {{data_provider.title}}",
+      "valuePlaceholder": "e.g., {{data_provider.value}}%",
+      "descriptorPlaceholder": "Description or {{data_provider.descriptor}}",
+      "aiPlaceholderPlaceholder": "Placeholder text for AI summary"
     },
     "defaults": {
       "pageViews": "Page Views",

@@ -37,7 +37,7 @@ usage() {
   echo "  -o FORMAT      list (default) | context (LLM-friendly: file, line, rule key, message)"
   echo "  --with-docs    With -o context: fetch and append rule documentation for each rule (extra API calls)"
   echo "  -h             This help"
-  exit 0
+  return 0
 }
 
 # Detect current PR number (GitHub, GitLab, Azure DevOps, Bitbucket)
@@ -86,8 +86,8 @@ while [[ $# -gt 0 ]]; do
     -s) SEVERITIES="$2"; shift 2 ;;
     -o) OUTPUT_FORMAT="$2"; shift 2 ;;
     --with-docs) WITH_DOCS=1; shift ;;
-    -h) usage ;;
-    *) usage ;;
+    -h) usage; exit 0 ;;
+    *) usage; exit 0 ;;
   esac
 done
 

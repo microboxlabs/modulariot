@@ -46,6 +46,8 @@ export default function GeneralMap({
   const [selectedTreatmentIndex, setSelectedTreatmentIndex] =
     useState<ConditionsAgg | null>(null);
 
+  console.log(treatmentData);
+
   useEffect(() => {
     if (treatmentData?.timeline) {
       treatmentData.timeline.forEach((item) => {

@@ -1,16 +1,22 @@
-const FULL_ACCESS_ROLES = [
-  "GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL",
-  "GROUP_MINTRAL_OPERADORES",
-  "GROUP_MINTRAL_OVERLORD_VIAJES",
-  "GROUP_MINTRAL_RECEPTOR_VIAJES",
-  "GROUP_MINTRAL_REGULARIZADORES_VIAJES",
-  "GROUP_MINTRAL_VALIDADOR_TRANSPORTE",
+const FULL_ACCESS_ROLES: string[] = [
+  // "GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL",
+  // "GROUP_MINTRAL_OPERADORES",
+  // "GROUP_MINTRAL_OVERLORD_VIAJES",
+  // "GROUP_MINTRAL_RECEPTOR_VIAJES",
+  // "GROUP_MINTRAL_REGULARIZADORES_VIAJES",
+  // "GROUP_MINTRAL_VALIDADOR_TRANSPORTE",
 ];
 
 // Admin roles for system management
 const ADMIN_ROLES = [
   "GROUP_ALFRESCO_ADMINISTRATORS",
   "GROUP_MINTRAL_SYSTEM_ADMIN",
+];
+
+// Kanban access roles
+export const KANBAN_ACCESS_ROLES = [
+  "GROUP_MINTRAL_KANBAN_ACCESS",
+  "GROUP_GAMA_KANBAN_ACCESS"
 ];
 
 // Define groups that should be blocked from certain routes
@@ -21,12 +27,13 @@ const BLOCKED_GROUPS = {
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
-  "/shipping": FULL_ACCESS_ROLES,
+  "/shipping": KANBAN_ACCESS_ROLES,
   "/finished": FULL_ACCESS_ROLES,
   "/reports": FULL_ACCESS_ROLES,
   "/geographic-view": FULL_ACCESS_ROLES,
   "/symptoms": FULL_ACCESS_ROLES,
   "/where-is-my-load": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
+  "/mytasks": KANBAN_ACCESS_ROLES,
 
   // Task routes
   "/task/edit": FULL_ACCESS_ROLES,

@@ -2,7 +2,7 @@ import type { SonarIssue } from "../types.js";
 
 function fileFromComponent(component: string): string {
   const parts = component.split(":");
-  return parts[parts.length - 1]!;
+  return parts.at(-1) ?? component;
 }
 
 export function formatIssuesList(issues: SonarIssue[]): string {

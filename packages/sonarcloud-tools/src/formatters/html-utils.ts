@@ -10,7 +10,18 @@ const ENTITY_MAP: Record<string, string> = {
 };
 
 export function stripHtml(html: string): string {
-  return html.replaceAll(/<[^>]*>/g, "");
+  let result = "";
+  let inTag = false;
+  for (const ch of html) {
+    if (ch === "<") {
+      inTag = true;
+    } else if (ch === ">") {
+      inTag = false;
+    } else if (!inTag) {
+      result += ch;
+    }
+  }
+  return result;
 }
 
 export function decodeEntities(text: string): string {

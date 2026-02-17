@@ -152,16 +152,23 @@ export function ImageComponent({
           >
             <MdOutlineRemoveRedEye className="w-6 h-6" />
           </Button>
-          {image && (
+          {(downloadUrl || image) && (
             <Button
               className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
               onClick={async (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                  await downloadImage(downloadUrl ?? image, dictionary);
+                  if (downloadUrl) {
+                    await downloadImage(downloadUrl, dictionary);
+                  } else if (image) {
+                    await downloadImage(image, dictionary);
+                  }
                 } catch (error) {
                   console.error("Download error:", error);
+                  if (image) {
+                    await downloadImage(image, dictionary);
+                  }
                 }
               }}
             >

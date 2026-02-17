@@ -10,11 +10,11 @@ const ENTITY_MAP: Record<string, string> = {
 };
 
 export function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "");
+  return html.replaceAll(/<[^>]*>/g, "");
 }
 
 export function decodeEntities(text: string): string {
-  return text.replace(
+  return text.replaceAll(
     /&(?:nbsp|lt|gt|amp|quot|#39|#x27|#x2F);/g,
     (match) => ENTITY_MAP[match] ?? match,
   );

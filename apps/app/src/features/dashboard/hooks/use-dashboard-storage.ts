@@ -311,10 +311,10 @@ export function useDashboardStorage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${data.name.replace(/\s+/g, "_").toLowerCase()}_dashboard.json`;
+    link.download = `${data.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   }, [data]);
 

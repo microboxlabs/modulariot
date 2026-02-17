@@ -38,9 +38,8 @@ export async function GET(req: NextRequest) {
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();
   // Start streaming process
-  streamPositions(tripId, assetId, writable).catch((_error) => {
-    // TODO: Check if this is the correct way to handle the error Ignore some common errors
-    //console.error("Error streaming positions:", _error);
+  streamPositions(tripId, assetId, writable).catch(() => {
+    // Error handled in streamPositions
   });
 
   // Return streaming response
@@ -78,6 +77,7 @@ async function streamPositions(
 
     // Read the entire response as text first, then create a readable stream
     const responseText = await response.text();
+
     const csvStream = Readable.from([responseText]);
     const parser = parse({
       columns: (headers: string[]) =>
@@ -101,13 +101,17 @@ async function streamPositions(
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
     await writer.close();
-  } catch (error) {
+  } catch {
     // Send error event
     //console.error("Error streaming positions:", error);
     /* await writer.write(
       `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`,
     ); */
   } finally {
-    await writer.close();
+    try {
+      await writer.close();
+    } catch {
+      // Writer may already be closed
+    }
   }
 }

@@ -57,10 +57,10 @@ env:
 
 jobs:
   # ===========================================================================
-  # Lint and Type Check - Fast feedback on code quality
+  # Install - Shared dependency installation with node_modules cache
   # ===========================================================================
-  lint:
-    name: Lint and Type Check
+  install:
+    name: Install Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -74,8 +74,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -98,8 +96,45 @@ jobs:
             echo "📦 Development version: $VERSION"
           fi
 
+      - name: Cache node_modules
+        id: cache-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
+        if: steps.cache-modules.outputs.cache-hit != 'true'
         run: npm ci --legacy-peer-deps
+
+  # ===========================================================================
+  # Lint and Type Check - Fast feedback on code quality
+  # ===========================================================================
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: Run linting
         run: npx turbo run lint --filter='!@modulariot/web-admin'
@@ -108,13 +143,88 @@ jobs:
         run: npx turbo run check-types --filter='!@modulariot/web-admin'
 
   # ===========================================================================
-  # Publish Docker Images - Multi-stage build inside Docker
+  # Build - Turbo build all Next.js apps and upload standalone artifacts
+  # ===========================================================================
+  build:
+    name: Build Apps
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Build apps with Turbo
+        run: npx turbo run build --filter=@modulariot/docs --filter=@modulariot/app --filter=@modulariot/web-site
+
+      - name: Stage docs artifacts
+        run: |
+          mkdir -p /tmp/build-docs/.next
+          cp -r apps/docs/.next/standalone /tmp/build-docs/.next/standalone
+          cp -r apps/docs/.next/static /tmp/build-docs/.next/static
+          cp -r apps/docs/public /tmp/build-docs/public
+
+      - name: Stage app artifacts
+        run: |
+          mkdir -p /tmp/build-app/.next
+          cp -r apps/app/.next/standalone /tmp/build-app/.next/standalone
+          cp -r apps/app/.next/static /tmp/build-app/.next/static
+          cp -r apps/app/public /tmp/build-app/public
+
+      - name: Stage web-site artifacts
+        run: |
+          mkdir -p /tmp/build-web-site/.next
+          cp -r apps/web-site/.next/standalone /tmp/build-web-site/.next/standalone
+          cp -r apps/web-site/.next/static /tmp/build-web-site/.next/static
+          cp -r apps/web-site/public /tmp/build-web-site/public
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-docs
+          path: /tmp/build-docs/
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-app
+          path: /tmp/build-app/
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Upload web-site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-web-site
+          path: /tmp/build-web-site/
+          include-hidden-files: true
+          retention-days: 1
+
+  # ===========================================================================
+  # Publish Docker Images - Package pre-built standalone output
   # ===========================================================================
   publish-docker:
     name: Publish ${{ matrix.app }} Image
     runs-on: ubuntu-latest
-    needs: lint
-    timeout-minutes: 30
+    needs: [lint, build]
+    timeout-minutes: 15
 
     strategy:
       fail-fast: false
@@ -141,6 +251,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: docker
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.app }}
+          path: build-context/
+
+      - name: Copy Dockerfile into build context
+        run: cp docker/nextjs.standalone.Dockerfile build-context/
 
       # =========================================================================
       # Docker Build Setup
@@ -194,24 +315,20 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
       # =========================================================================
-      # Build and Push - Multi-stage build handles npm workspaces
+      # Build and Push - Package pre-built standalone output
       # =========================================================================
       - name: Build and push Docker image
         id: build-push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: docker/nextjs.monorepo.optimized.Dockerfile
+          context: build-context/
+          file: build-context/nextjs.standalone.Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_NAME=${{ matrix.app }}
-            NEXT_PUBLIC_INGEST_URL=${{ env.NEXT_PUBLIC_INGEST_URL }}
-            NEXT_PUBLIC_MAPBOX_API_KEY=${{ secrets.NEXT_PUBLIC_MAPBOX_API_KEY }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=min,scope=${{ matrix.app }}
           provenance: true
           sbom: true
 
@@ -248,7 +365,7 @@ jobs:
       # =========================================================================
       - name: Run Trivy vulnerability scanner
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
         with:
           image-ref: "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image-name }}@${{ steps.build-push.outputs.digest }}"
           format: "sarif"
@@ -269,7 +386,7 @@ jobs:
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [lint, publish-docker]
+    needs: [install, lint, build, publish-docker]
     if: always()
 
     steps:
@@ -279,10 +396,12 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Install | ${{ needs.install.result == 'success' && '✅ Cached' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Lint & Types | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Apps | ${{ needs.build.result == 'success' && '✅ Built' || needs.build.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Publish | ${{ needs.publish-docker.result == 'success' && '✅ Published' || needs.publish-docker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ needs.lint.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release:** ${{ needs.lint.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.install.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ needs.install.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY

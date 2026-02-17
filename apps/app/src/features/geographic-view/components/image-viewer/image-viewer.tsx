@@ -129,7 +129,7 @@ export default function ImageViewer({
                   e.stopPropagation();
                   if (selected === null) return;
                   try {
-                    await downloadImage(images[selected]);
+                    await downloadImage(images[selected], dictionary);
                     toast.success("Imagen descargada");
                   } catch (error) {
                     console.error("Download error:", error);

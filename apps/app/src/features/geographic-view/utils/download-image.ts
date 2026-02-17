@@ -1,5 +1,14 @@
-export async function downloadImage(imageUrl: string): Promise<void> {
-  const filename = `imagen-${new Date().toISOString().slice(0, 10)}.png`;
+import { tr } from "@/features/i18n/tr.service";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+
+export async function downloadImage(
+  imageUrl: string,
+  dictionary?: I18nRecord,
+): Promise<void> {
+  const prefix = dictionary
+    ? tr("geographic_view.image_prefix", dictionary)
+    : "image";
+  const filename = `${prefix}-${new Date().toISOString().slice(0, 10)}.png`;
 
   // For data URLs (base64), convert directly to blob
   if (imageUrl.startsWith("data:")) {

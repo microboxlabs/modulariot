@@ -471,6 +471,12 @@ export default function DashboardSettingsDropdown() {
         type: "success",
         message: "Dashboard copied to clipboard",
       });
+    }).catch((error) => {
+      console.error("Failed to copy to clipboard:", error);
+      ShowNotification({
+        type: "error",
+        message: "Failed to copy dashboard to clipboard",
+      });
     });
   }, [exportDashboard]);
 

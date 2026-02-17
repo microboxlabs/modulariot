@@ -156,7 +156,7 @@ export function ImageComponent({
                 e.stopPropagation();
                 e.preventDefault();
                 try {
-                  await downloadImage(image);
+                  await downloadImage(downloadUrl ?? image);
                 } catch (error) {
                   console.error("Download error:", error);
                 }

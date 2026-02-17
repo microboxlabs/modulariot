@@ -70,6 +70,7 @@ const ICONS: Record<
 export interface DataProviderEntry {
   key: string;
   value: string;
+  _id?: number;
 }
 
 /** Configuration for this dashlet */

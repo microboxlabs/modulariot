@@ -43,21 +43,21 @@ usage() {
 # Detect current PR number (GitHub, GitLab, Azure DevOps, Bitbucket)
 detect_pr() {
   if command -v gh &>/dev/null; then
-    gh pr view --json number -q .number 2>/dev/null && return
+    gh pr view --json number -q .number 2>/dev/null && return 0
   fi
-  if [ -n "${GITHUB_REF}" ]; then
+  if [[ -n "${GITHUB_REF}" ]]; then
     # e.g. refs/pull/123/merge -> 123
     local n="${GITHUB_REF#refs/pull/}"
-    [ "$n" != "$GITHUB_REF" ] && echo "${n%/merge}" && return
+    [[ "$n" != "$GITHUB_REF" ]] && echo "${n%/merge}" && return 0
   fi
-  if [ -n "${CI_MERGE_REQUEST_IID}" ]; then
-    echo "${CI_MERGE_REQUEST_IID}" && return
+  if [[ -n "${CI_MERGE_REQUEST_IID}" ]]; then
+    echo "${CI_MERGE_REQUEST_IID}" && return 0
   fi
-  if [ -n "${SYSTEM_PULLREQUEST_PULLREQUESTID}" ]; then
-    echo "${SYSTEM_PULLREQUEST_PULLREQUESTID}" && return
+  if [[ -n "${SYSTEM_PULLREQUEST_PULLREQUESTID}" ]]; then
+    echo "${SYSTEM_PULLREQUEST_PULLREQUESTID}" && return 0
   fi
-  if [ -n "${BITBUCKET_PR_ID}" ]; then
-    echo "${BITBUCKET_PR_ID}" && return
+  if [[ -n "${BITBUCKET_PR_ID}" ]]; then
+    echo "${BITBUCKET_PR_ID}" && return 0
   fi
   return 1
 }
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
     -b) BRANCH="$2"; shift 2 ;;
     --branch)
       BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null)
-      if [ -z "$BRANCH" ]; then
+      if [[ -z "$BRANCH" ]]; then
         echo "Error: Could not detect git branch (not a repo or detached HEAD)" >&2
         exit 1
       fi
@@ -91,7 +91,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [ -z "${SONAR_TOKEN}" ]; then
+if [[ -z "${SONAR_TOKEN}" ]]; then
   echo "Error: Set SONAR_TOKEN or pass -t TOKEN" >&2
   exit 1
 fi
@@ -102,9 +102,9 @@ PARAMS=(
   --data-urlencode "resolved=${RESOLVED}"
   --data-urlencode "ps=${PAGESIZE}"
 )
-[ -n "${SEVERITIES}" ]   && PARAMS+=(--data-urlencode "severities=${SEVERITIES}")
-[ -n "${BRANCH}" ]       && PARAMS+=(--data-urlencode "branch=${BRANCH}")
-[ -n "${PULL_REQUEST}" ] && PARAMS+=(--data-urlencode "pullRequest=${PULL_REQUEST}")
+[[ -n "${SEVERITIES}" ]]   && PARAMS+=(--data-urlencode "severities=${SEVERITIES}")
+[[ -n "${BRANCH}" ]]       && PARAMS+=(--data-urlencode "branch=${BRANCH}")
+[[ -n "${PULL_REQUEST}" ]] && PARAMS+=(--data-urlencode "pullRequest=${PULL_REQUEST}")
 
 # Fetch and pretty-print issues
 RESP=$(curl -sS -u "${SONAR_TOKEN}:" -G "${PARAMS[@]}" "${BASE_URL}")
@@ -115,12 +115,12 @@ fi
 
 TOTAL=$(echo "$RESP" | jq -r '.total')
 SCOPE_LABEL=""
-[ -n "${PULL_REQUEST}" ] && SCOPE_LABEL=" pullRequest: ${PULL_REQUEST}"
-[ -n "${BRANCH}" ]       && SCOPE_LABEL="${SCOPE_LABEL} branch: ${BRANCH}"
+[[ -n "${PULL_REQUEST}" ]] && SCOPE_LABEL=" pullRequest: ${PULL_REQUEST}"
+[[ -n "${BRANCH}" ]]       && SCOPE_LABEL="${SCOPE_LABEL} branch: ${BRANCH}"
 echo "=== SonarCloud issues (open): ${TOTAL} === project: ${PROJECT_KEY}${SCOPE_LABEL}"
 echo ""
 
-if [ "${TOTAL}" -eq 0 ]; then
+if [[ "${TOTAL}" -eq 0 ]]; then
   echo "(no open issues)"
   exit 0
 fi
@@ -132,19 +132,19 @@ case "$OUTPUT_FORMAT" in
       .issues[] |
       "---\nFile: \(.component | split(":")[-1])\nLine: \(.line // "?")\nRule: \(.rule)\nSeverity: \(.severity)\nMessage: \(.message)\n"
     '
-    if [ -n "$WITH_DOCS" ]; then
+    if [[ -n "$WITH_DOCS" ]]; then
       SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
       RULES=$(echo "$RESP" | jq -r '.issues[].rule' | sort -u)
       echo ""
       echo "=== Rule documentation ==="
       while IFS= read -r r; do
-        [ -z "$r" ] && continue
+        [[ -z "$r" ]] && continue
         echo ""
         echo "--- Rule: $r ---"
         "$SCRIPT_DIR/sonarcloud-rule-doc.sh" -t "${SONAR_TOKEN}" -o text "$r" 2>/dev/null || true
       done <<< "$RULES"
     else
-      echo "Tip: fetch rule docs with ./tools/scripts/sonarcloud-rule-doc.sh <Rule> or use --with-docs"
+      echo "Tip: fetch rule docs with ./generative_ai/tools/sh/sonarcloud-rule-doc.sh <Rule> or use --with-docs"
     fi
     ;;
   list|*)

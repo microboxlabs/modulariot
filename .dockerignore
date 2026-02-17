@@ -1,11 +1,15 @@
 # Dependencies - will be installed fresh in Docker
 node_modules
 **/node_modules
+.pnpm-store
+**/.pnpm-store
 
 # Build outputs - will be built fresh in Docker
 **/.next
 **/dist
 **/.turbo
+**/build
+**/out
 
 # Version control
 .git
@@ -22,6 +26,16 @@ node_modules
 .env
 .env.*
 !.env.example
+.npmrc
+.npmrc.*
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*password*
+*credentials*
+.secrets
 
 # Documentation and non-essential
 *.md
@@ -38,6 +52,11 @@ CONTRIBUTING.md
 **/*.spec.tsx
 **/coverage
 **/__tests__
+**/__mocks__
+**/test
+**/tests
+*.test.js
+*.spec.js
 
 # Development files
 .husky
@@ -47,6 +66,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# CI/CD files (not needed in Docker)
+.github
+.gitlab-ci.yml
+.circleci
 
 # OS files
 .DS_Store

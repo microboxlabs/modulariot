@@ -4,6 +4,12 @@ import { getNotifications } from "@/features/common/providers/alfresco-api/alfre
 import { getDictionary } from "@/features/i18n/i18n.service";
 
 export default async function Notifications({ lang }: { lang: string }) {
+  const notificationsEnabled = process.env.NOTIFICATIONS_ENABLED !== "false";
+
+  if (!notificationsEnabled) {
+    return null;
+  }
+
   const session = await auth();
   const data = await getNotifications(session!);
 

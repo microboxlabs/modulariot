@@ -6,6 +6,8 @@ import MyTasks from "@/features/common/components/my-tasks/my-tasks";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { auth } from "@/auth";
 import { SearchParams } from "next/dist/server/request/search-params";
+import { RouteGuard } from "@/features/auth/components/route-guard";
+import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
 
 export default async function MyTasksPage(params: {
   params: Promise<{ lang: string }>;
@@ -19,31 +21,36 @@ export default async function MyTasksPage(params: {
   const userGroups = await getGroupsForPerson(session!);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
-        <Breadcrumb
-          path={[
-            "tasks",
-            status === "finished"
-              ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
-              : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string),
-          ]}
+    <RouteGuard
+      requiredGroups={KANBAN_ACCESS_ROLES}
+      fallbackPath={`/${lang}/geographic-view`}
+    >
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
+          <Breadcrumb
+            path={[
+              "tasks",
+              status === "finished"
+                ? ((dict["myTasks"] as I18nRecord)["completed_tasks"] as string)
+                : ((dict["myTasks"] as I18nRecord)["pending_tasks"] as string),
+            ]}
+            lang={lang}
+            rootIcon={<FaBook className="mr-2 h-4 w-4" />}
+            dict={
+              ((dict["layout"] as I18nRecord)["secured"] as I18nRecord)[
+                "sidebar"
+              ] as I18nRecord
+            }
+          />
+        </div>
+        <MyTasks
+          dict={dict}
+          status={status}
+          userGroups={userGroups}
           lang={lang}
-          rootIcon={<FaBook className="mr-2 h-4 w-4" />}
-          dict={
-            ((dict["layout"] as I18nRecord)["secured"] as I18nRecord)[
-              "sidebar"
-            ] as I18nRecord
-          }
         />
       </div>
-      <MyTasks
-        dict={dict}
-        status={status}
-        userGroups={userGroups}
-        lang={lang}
-      />
-    </div>
+    </RouteGuard>
   );
 }
 

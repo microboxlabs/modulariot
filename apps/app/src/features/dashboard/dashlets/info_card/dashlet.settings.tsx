@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button, Label, TextInput, Textarea } from "flowbite-react";
 import { createPortal } from "react-dom";
 import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, InfoCardIcon } from "./dashlet";
+import type { DashletConfig, InfoCardIcon, DataProviderEntry } from "./dashlet";
 import { ICON_OPTIONS } from "./dashlet";
+import { tr } from "@/features/i18n/tr.service";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
   IconPickerDropdown,
@@ -20,11 +21,6 @@ import { SettingsPickerRow, SettingsPickerItem } from "../common";
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-interface DataProviderEntry {
-  key: string;
-  value: string;
-}
 
 // ============================================================================
 // Handlebars Validation
@@ -173,6 +169,7 @@ export function DashletSettings({
   onClose,
   config,
   onSave,
+  dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
 
@@ -189,12 +186,19 @@ export function DashletSettings({
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
 
   // Data provider entries
-  const [dataProvider, setDataProvider] = useState<DataProviderEntry[]>(
-    (config as DashletConfig & { dataProvider?: DataProviderEntry[] })
-      .dataProvider || [
-      { key: "title", value: "Example Title" },
-      { key: "value", value: "100" },
-    ]
+  const idCounter = useRef(0);
+  const assignId = (entry: DataProviderEntry): DataProviderEntry => ({
+    ...entry,
+    _id: entry._id ?? idCounter.current++,
+  });
+  const [dataProvider, setDataProvider] = useState<DataProviderEntry[]>(() =>
+    (
+      (config as DashletConfig & { dataProvider?: DataProviderEntry[] })
+        .dataProvider || [
+        { key: "title", value: "Example Title" },
+        { key: "value", value: "100" },
+      ]
+    ).map(assignId)
   );
 
   const handleSave = () => {
@@ -205,13 +209,13 @@ export function DashletSettings({
       descriptor,
       aiPlaceholder,
       viewMoreUrl,
-      dataProvider,
+      dataProvider: dataProvider.map(({ _id, ...rest }) => rest),
     } as DashletConfig);
     onClose();
   };
 
   const addDataEntry = () => {
-    setDataProvider([...dataProvider, { key: "", value: "" }]);
+    setDataProvider([...dataProvider, assignId({ key: "", value: "" })]);
   };
 
   const removeDataEntry = (index: number) => {
@@ -255,7 +259,7 @@ export function DashletSettings({
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
             )}
           >
-            Visualization
+            {tr("dashboard.settings.visualization", dictionary)}
           </button>
           <button
             type="button"
@@ -267,7 +271,7 @@ export function DashletSettings({
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
             )}
           >
-            Data Provider
+            {tr("dashboard.settings.dataProvider", dictionary)}
           </button>
         </div>
 
@@ -276,61 +280,59 @@ export function DashletSettings({
           {activeTab === "visualization" ? (
             <>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Use{" "}
-                <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                  {"{{data_provider.key}}"}
-                </code>{" "}
-                syntax for dynamic values
+                {tr("dashboard.settings.dynamicValuesHint", dictionary, {
+                  code: "{{data_provider.key}}",
+                })}
               </p>
 
               <HandlebarsTextField
                 id="title"
-                label="Title"
+                label={tr("common.title", dictionary)}
                 value={title}
                 onChange={setTitle}
-                placeholder="Card title or {{data_provider.title}}"
+                placeholder={tr("dashboard.settings.titlePlaceholder", dictionary)}
               />
 
               <SettingsPickerRow>
-                <SettingsPickerItem label="Icon">
+                <SettingsPickerItem label={tr("dashboard.settings.icon", dictionary)}>
                   <IconPickerDropdown
                     options={ICON_PICKER_OPTIONS}
                     value={icon}
                     onChange={setIcon}
-                    title="Select icon"
+                    title={tr("dashboard.settings.selectIcon", dictionary)}
                   />
                 </SettingsPickerItem>
               </SettingsPickerRow>
 
               <HandlebarsTextField
                 id="value"
-                label="Value"
+                label={tr("common.value", dictionary)}
                 value={value}
                 onChange={setValue}
-                placeholder="e.g., {{data_provider.value}}%"
+                placeholder={tr("dashboard.settings.valuePlaceholder", dictionary)}
               />
 
               <HandlebarsTextareaField
                 id="descriptor"
-                label="Descriptor"
+                label={tr("dashboard.settings.descriptor", dictionary)}
                 value={descriptor}
                 onChange={setDescriptor}
-                placeholder="Description or {{data_provider.descriptor}}"
+                placeholder={tr("dashboard.settings.descriptorPlaceholder", dictionary)}
                 rows={2}
               />
 
               <HandlebarsTextareaField
                 id="aiPlaceholder"
-                label="AI Placeholder"
+                label={tr("dashboard.settings.aiPlaceholder", dictionary)}
                 value={aiPlaceholder}
                 onChange={setAiPlaceholder}
-                placeholder="Placeholder text for AI summary"
+                placeholder={tr("dashboard.settings.aiPlaceholderPlaceholder", dictionary)}
                 rows={2}
               />
 
               <HandlebarsTextField
                 id="viewMoreUrl"
-                label="View More URL (optional)"
+                label={tr("dashboard.settings.viewMoreUrl", dictionary)}
                 value={viewMoreUrl}
                 onChange={setViewMoreUrl}
                 placeholder="https://example.com/details"
@@ -339,16 +341,15 @@ export function DashletSettings({
           ) : (
             <>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Define variables accessible via{" "}
-                <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                  {"{{data_provider.key}}"}
-                </code>
+                {tr("dashboard.settings.defineVariablesHint", dictionary, {
+                  code: "{{data_provider.key}}",
+                })}
               </p>
 
               <div className="space-y-2">
                 {dataProvider.map((entry, index) => (
                   <div
-                    key={index}
+                    key={entry._id}
                     className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
                   >
                     <TextInput
@@ -356,7 +357,7 @@ export function DashletSettings({
                       onChange={(e) =>
                         updateDataEntry(index, "key", e.target.value)
                       }
-                      placeholder="Key"
+                      placeholder={tr("dashboard.settings.key", dictionary)}
                       sizing="sm"
                       className="flex-1"
                     />
@@ -365,7 +366,7 @@ export function DashletSettings({
                       onChange={(e) =>
                         updateDataEntry(index, "value", e.target.value)
                       }
-                      placeholder="Value"
+                      placeholder={tr("common.value", dictionary)}
                       sizing="sm"
                       className="flex-1"
                     />
@@ -389,7 +390,7 @@ export function DashletSettings({
                 onMouseDown={handleMouseDown}
                 className="no-drag w-full"
               >
-                + Add Entry
+                {tr("dashboard.settings.addEntry", dictionary)}
               </Button>
             </>
           )}
@@ -402,7 +403,7 @@ export function DashletSettings({
           size="sm"
           className="w-full"
         >
-          Save
+          {tr("common.save", dictionary)}
         </Button>
       </div>
     </AbsoluteModal>

@@ -30,18 +30,21 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy public assets if they exist
-COPY --chown=nextjs:nodejs public ./public
+COPY public ./public
 
 # Copy standalone build output
-COPY --chown=nextjs:nodejs .next/standalone ./
+COPY .next/standalone ./
 
 # Copy static files to the correct location relative to server.js
 # Since standalone output places server.js in apps/<app>/server.js,
 # static files should be at apps/<app>/.next/static
-COPY --chown=nextjs:nodejs .next/static ./apps/${APP_NAME}/.next/static
+COPY .next/static ./apps/${APP_NAME}/.next/static
 
 # Copy public to the app-specific location as well (for basePath routing)
-COPY --chown=nextjs:nodejs public ./apps/${APP_NAME}/public
+COPY public ./apps/${APP_NAME}/public
+
+# Security hardening: set ownership and read-only permissions
+RUN chown -R nextjs:nodejs /app && chmod -R 555 /app
 
 # Switch to non-root user
 USER nextjs

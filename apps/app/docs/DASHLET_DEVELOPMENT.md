@@ -32,7 +32,7 @@ A dashlet is a reusable UI component that:
 
 ### Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     Dashboard View                          │
 │  ┌─────────────────────────────────────────────────────┐   │
@@ -54,7 +54,7 @@ A dashlet is a reusable UI component that:
 
 Each dashlet lives in its own folder under `src/features/dashboard/dashlets/`:
 
-```
+```text
 src/features/dashboard/dashlets/
 ├── _template/              # ← Copy this folder to create new dashlets
 │   ├── dashlet.tsx         # Main component

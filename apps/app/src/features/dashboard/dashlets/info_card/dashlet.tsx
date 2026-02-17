@@ -70,6 +70,7 @@ const ICONS: Record<
 export interface DataProviderEntry {
   key: string;
   value: string;
+  _id?: number;
 }
 
 /** Configuration for this dashlet */
@@ -202,7 +203,14 @@ export function Dashlet({
 
   const handleViewMore = () => {
     if (compiledViewMoreUrl) {
-      window.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+      try {
+        const url = new URL(compiledViewMoreUrl, window.location.href);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          window.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+        }
+      } catch {
+        // Invalid URL, do nothing
+      }
     }
   };
 

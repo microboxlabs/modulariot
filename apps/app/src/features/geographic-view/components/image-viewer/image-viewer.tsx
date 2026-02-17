@@ -5,6 +5,7 @@ import Carousel from "../carousel";
 import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { downloadImage } from "../../utils/download-image";
 
 // This component is the general image displayer
 export default function ImageViewer({
@@ -87,7 +88,7 @@ export default function ImageViewer({
 
   return (
     <div
-      className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-50 backdrop-blur-[10px] gap-2 ${selected !== null ? "opacity-100 visible" : "opacity-0 invisible"}`}
+      className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-[800] backdrop-blur-[10px] gap-2 ${selected === null ? "opacity-0 invisible" : "opacity-100 visible"}`}
       onClick={(e) => {
         // Only close if clicking the background, not the content
         if (e.target === e.currentTarget) {
@@ -124,13 +125,16 @@ export default function ImageViewer({
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 color="blue"
-                onClick={(e: any) => {
+                onClick={async (e: React.MouseEvent) => {
                   e.stopPropagation();
-                  if (!selected) return;
-                  const link = document.createElement("a");
-                  link.download = `imagen-${new Date().toISOString().slice(0, 10)}.png`;
-                  link.href = images[selected];
-                  link.click();
+                  if (selected === null) return;
+                  try {
+                    await downloadImage(images[selected], dictionary);
+                    toast.success("Imagen descargada");
+                  } catch (error) {
+                    console.error("Download error:", error);
+                    toast.error("Error al descargar imagen");
+                  }
                 }}
                 pill
                 size="sm"

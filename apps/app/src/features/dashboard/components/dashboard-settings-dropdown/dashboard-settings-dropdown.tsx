@@ -192,6 +192,10 @@ function RenameForm({
 }: Readonly<RenameFormProps>) {
   const [name, setName] = useState(currentName);
 
+  useEffect(() => {
+    setName(currentName);
+  }, [currentName]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {

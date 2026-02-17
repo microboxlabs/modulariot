@@ -57,7 +57,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   return (
     <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${!showHeader ? "justify-center" : ""}`}
+      className={`flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${showHeader ? "" : "justify-center"}`}
     >
       {/* Header */}
       {showHeader && (

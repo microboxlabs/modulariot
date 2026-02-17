@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button, Label, TextInput, Textarea } from "flowbite-react";
 import { createPortal } from "react-dom";
 import Handlebars from "handlebars";
@@ -24,6 +24,7 @@ type SettingsTab = "visualization" | "data";
 interface DataProviderEntry {
   key: string;
   value: string;
+  _id?: number;
 }
 
 // ============================================================================
@@ -189,12 +190,19 @@ export function DashletSettings({
   const [viewMoreUrl, setViewMoreUrl] = useState(config.viewMoreUrl || "");
 
   // Data provider entries
-  const [dataProvider, setDataProvider] = useState<DataProviderEntry[]>(
-    (config as DashletConfig & { dataProvider?: DataProviderEntry[] })
-      .dataProvider || [
-      { key: "title", value: "Example Title" },
-      { key: "value", value: "100" },
-    ]
+  const idCounter = useRef(0);
+  const assignId = (entry: DataProviderEntry): DataProviderEntry => ({
+    ...entry,
+    _id: entry._id ?? idCounter.current++,
+  });
+  const [dataProvider, setDataProvider] = useState<DataProviderEntry[]>(() =>
+    (
+      (config as DashletConfig & { dataProvider?: DataProviderEntry[] })
+        .dataProvider || [
+        { key: "title", value: "Example Title" },
+        { key: "value", value: "100" },
+      ]
+    ).map(assignId)
   );
 
   const handleSave = () => {
@@ -205,13 +213,13 @@ export function DashletSettings({
       descriptor,
       aiPlaceholder,
       viewMoreUrl,
-      dataProvider,
+      dataProvider: dataProvider.map(({ _id, ...rest }) => rest),
     } as DashletConfig);
     onClose();
   };
 
   const addDataEntry = () => {
-    setDataProvider([...dataProvider, { key: "", value: "" }]);
+    setDataProvider([...dataProvider, assignId({ key: "", value: "" })]);
   };
 
   const removeDataEntry = (index: number) => {
@@ -348,7 +356,7 @@ export function DashletSettings({
               <div className="space-y-2">
                 {dataProvider.map((entry, index) => (
                   <div
-                    key={index}
+                    key={entry._id}
                     className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-600 dark:bg-gray-700"
                   >
                     <TextInput

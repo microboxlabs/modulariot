@@ -296,10 +296,9 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === "string") {
+    file
+      .text()
+      .then((content) => {
         const result = onImport(content);
         if (result.success) {
           ShowNotification({
@@ -310,12 +309,10 @@ function ImportForm({ onImport, onClose }: Readonly<ImportFormProps>) {
         } else {
           setImportError(result.error || "Failed to import dashboard");
         }
-      }
-    };
-    reader.onerror = () => {
-      setImportError("Failed to read file");
-    };
-    reader.readAsText(file);
+      })
+      .catch(() => {
+        setImportError("Failed to read file");
+      });
   };
 
   return (

@@ -49,7 +49,7 @@ export default function GeneralMap({
   console.log(treatmentData);
 
   useEffect(() => {
-    if (treatmentData) {
+    if (treatmentData?.timeline) {
       treatmentData.timeline.forEach((item) => {
         item.conditions_agg?.forEach((condition) => {
           if (condition.symptom_id == treatmentData.symptom_info?.id) {
@@ -77,19 +77,13 @@ export default function GeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  if (error) {
-    return <div>Error: {error.message}</div>;
-  }
+  useEffect(() => {
+    if (errorTreatments) {
+      router.push("/not-found");
+    }
+  }, [errorTreatments, router]);
 
-  if (
-    !isLoading &&
-    !loading &&
-    !treatmentData?.timeline &&
-    positions?.length == 0
-  ) {
-    router.push("/not-found");
-    return null;
-  }
+  if (errorTreatments) return null;
   return (
     <>
       <div
@@ -114,18 +108,23 @@ export default function GeneralMap({
             {loading ? (
               <div className="w-8 h-8 bg-gray-400 dark:bg-gray-600 animate-pulse rounded-full" />
             ) : (
-              <Image
-                className="w-8 h-8"
-                src={
-                  titles[
-                    treatmentData?.symptom_info
-                      ?.icu_code as unknown as keyof typeof titles
-                  ]?.icon
-                }
-                alt="Síntomas"
-                width={50}
-                height={50}
-              />
+              titles[
+                treatmentData?.symptom_info
+                  ?.icu_code as unknown as keyof typeof titles
+              ]?.icon && (
+                <Image
+                  className="w-8 h-8"
+                  src={
+                    titles[
+                      treatmentData?.symptom_info
+                        ?.icu_code as unknown as keyof typeof titles
+                    ]?.icon
+                  }
+                  alt="Síntomas"
+                  width={50}
+                  height={50}
+                />
+              )
             )}
             <h1
               className={`flex flex-row gap-1 text-lg font-bold tracking-tight whitespace-nowrap ${"text-gray-900 dark:text-white"}`}

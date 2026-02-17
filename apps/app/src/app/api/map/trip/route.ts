@@ -11,6 +11,7 @@ import {
 } from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
 import { MapPosition } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
+import { mapLogger } from "@/lib/logger";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -38,8 +39,8 @@ export async function GET(req: NextRequest) {
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();
   // Start streaming process
-  streamPositions(tripId, assetId, writable).catch(() => {
-    // Error handled in streamPositions
+  streamPositions(tripId, assetId, writable).catch((error) => {
+    mapLogger.error({ err: error, tripId, assetId }, "Failed to stream trip positions");
   });
 
   // Return streaming response
@@ -101,12 +102,15 @@ async function streamPositions(
       await writer.write(`data: ${JSON.stringify(newRecord)}\n\n`);
     }
     await writer.close();
-  } catch {
-    // Send error event
-    //console.error("Error streaming positions:", error);
-    /* await writer.write(
-      `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`,
-    ); */
+  } catch (error) {
+    mapLogger.error({ err: error, tripId, assetId }, "Error streaming trip positions");
+    try {
+      await writer.write(
+        `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`
+      );
+    } catch {
+      // Writer may already be closed
+    }
   } finally {
     try {
       await writer.close();

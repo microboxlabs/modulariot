@@ -30,7 +30,7 @@ ModularIoT is an IoT platform built as a TypeScript monorepo using [Turborepo](h
 ### Key Technologies
 
 - **Runtime:** Node.js 22+
-- **Package manager:** pnpm 9.15.0 (do not use npm, yarn, or bun at the monorepo root)
+- **Package manager:** npm 10.2.4 (monorepo managed with npm workspaces)
 - **Build orchestrator:** Turborepo 2.5.4
 - **Language:** TypeScript 5.8.2 (strict mode)
 - **Frontend:** React 19, Next.js 15/16, Tailwind CSS 4, Flowbite React
@@ -60,30 +60,30 @@ modulariot-tuborepo/
 ├── .github/workflows/# CI/CD pipeline (ci.yaml)
 ├── .husky/           # Git hooks (pre-commit, pre-push)
 ├── turbo.json        # Turborepo task configuration
-├── pnpm-workspace.yaml # Workspace: apps/* and packages/*
+├── npm workspaces in package.json # Workspace: apps/* and packages/*
 └── .env              # Root environment variables (git-ignored)
 ```
 
 ### Navigating Packages
 
-- Use `pnpm --filter <package-name> <command>` to target a specific package
+- Use `npm run --workspace= <package-name> <command>` to target a specific package
 - Package names are defined in each `package.json` `name` field (e.g., `@modulariot/app`, `@modulariot/bff`)
 - Each app under `apps/` may have its own `AGENTS.md` with app-specific instructions — the closest file takes precedence
 
 ## Setup Commands
 
 ```bash
-# Install all dependencies (always use pnpm at the root)
-pnpm install
+# Install all dependencies (use npm at the root)
+npm install
 
 # Copy environment template and configure
 cp .env.example .env
 
 # Generate Prisma client
-pnpm turbo run db:generate
+npm turbo run db:generate
 
 # Run database migrations (requires DATABASE_URL in packages/db/.env)
-pnpm turbo run db:migrate
+npm turbo run db:migrate
 ```
 
 ### Environment Variables
@@ -97,14 +97,14 @@ pnpm turbo run db:migrate
 
 ```bash
 # Start all apps in parallel (watch mode, no caching)
-pnpm dev
+npm dev
 
 # Start a specific app
-pnpm --filter @modulariot/app dev        # Main app on :3050
-pnpm --filter @modulariot/web-admin dev  # Admin on :3000
-pnpm --filter @modulariot/bff dev        # BFF API on :3030
-pnpm --filter @modulariot/docs dev       # Docs on :3001
-pnpm --filter @modulariot/web-site dev   # Website on :3040
+npm run --workspace= @modulariot/app dev        # Main app on :3050
+npm run --workspace= @modulariot/web-admin dev  # Admin on :3000
+npm run --workspace= @modulariot/bff dev        # BFF API on :3030
+npm run --workspace= @modulariot/docs dev       # Docs on :3001
+npm run --workspace= @modulariot/web-site dev   # Website on :3040
 ```
 
 - Next.js apps use Turbopack for fast dev builds (`--turbopack` flag in web-admin, docs, web-site)
@@ -117,23 +117,23 @@ pnpm --filter @modulariot/web-site dev   # Website on :3040
 
 ```bash
 # Run all tests across the monorepo
-pnpm test
+npm test
 
 # Run tests for a specific package
-pnpm --filter @modulariot/app test
-pnpm --filter @modulariot/bff test
+npm run --workspace= @modulariot/app test
+npm run --workspace= @modulariot/bff test
 
 # Run a specific test by name
-pnpm --filter @modulariot/app test -- -t "<test name>"
+npm run --workspace= @modulariot/app test -- -t "<test name>"
 
 # Single run (non-watch mode)
-pnpm --filter @modulariot/app test:run
+npm run --workspace= @modulariot/app test:run
 
 # Coverage report (v8 provider)
-pnpm --filter @modulariot/app test:coverage
+npm run --workspace= @modulariot/app test:coverage
 
 # Visual test UI
-pnpm --filter @modulariot/app test:ui
+npm run --workspace= @modulariot/app test:ui
 ```
 
 - Tests use `@testing-library/react` and `jsdom` for component testing
@@ -144,7 +144,7 @@ pnpm --filter @modulariot/app test:ui
 
 ```bash
 # Run E2E tests for web-admin
-pnpm --filter @modulariot/web-admin test:e2e
+npm run --workspace= @modulariot/web-admin test:e2e
 ```
 
 ## Code Style
@@ -161,16 +161,16 @@ pnpm --filter @modulariot/web-admin test:e2e
 
 ```bash
 # Lint all packages
-pnpm lint
+npm lint
 
 # Format all TypeScript and Markdown files
-pnpm format
+npm format
 
 # Check formatting without writing
-pnpm --filter @modulariot/app format:check
+npm run --workspace= @modulariot/app format:check
 
 # Check for dead/unused code
-pnpm --filter @modulariot/app knip:check
+npm run --workspace= @modulariot/app knip:check
 ```
 
 - ESLint 9 with flat config (ESM); configs in `@repo/eslint-config`
@@ -191,13 +191,13 @@ pnpm --filter @modulariot/app knip:check
 
 ```bash
 # Generate Prisma client after schema changes
-pnpm --filter @modulariot/db db:generate
+npm run --workspace= @modulariot/db db:generate
 
 # Create and apply a new migration
-pnpm --filter @modulariot/db db:migrate
+npm run --workspace= @modulariot/db db:migrate
 
 # Deploy migrations to production
-pnpm --filter @modulariot/db db:deploy
+npm run --workspace= @modulariot/db db:deploy
 ```
 
 - Schema: `packages/db/prisma/schema.prisma`
@@ -212,10 +212,10 @@ pnpm --filter @modulariot/db db:deploy
 
 ```bash
 # Build all packages (respects dependency graph via ^build)
-pnpm build
+npm build
 
 # Build a specific app
-pnpm --filter @modulariot/app build
+npm run --workspace= @modulariot/app build
 ```
 
 - Next.js apps output to `.next/` (standalone mode for Docker)
@@ -253,16 +253,16 @@ Tagging: `pr-<number>` for PRs, `latest` for trunk, semantic versions for tags, 
 The `.husky/pre-commit` hook blocks commits to protected branches. Knip dead-code checking is available but currently disabled in the hook for performance — run it manually:
 
 ```bash
-pnpm --filter @modulariot/app knip:check
+npm run --workspace= @modulariot/app knip:check
 ```
 
 ### Before Committing
 
 ```bash
-pnpm lint
-pnpm --filter @modulariot/app format:check
-pnpm --filter @modulariot/app test:run
-pnpm turbo run check-types
+npm lint
+npm run --workspace= @modulariot/app format:check
+npm run --workspace= @modulariot/app test:run
+npm turbo run check-types
 ```
 
 ### Commit Convention
@@ -282,7 +282,7 @@ docs: update API endpoint documentation
 - Keep PRs small and focused on a single concern
 - All CI checks must pass: lint, type-check, Docker build
 - Explain what changed, why, and how it was verified
-- Run `pnpm lint` and `pnpm test` before pushing
+- Run `npm run lint` and `npm test` before pushing
 
 ## BFF (Backend for Frontend) Notes
 
@@ -297,11 +297,11 @@ The BFF (`apps/bff/`) uses a modular architecture:
 
 ## Troubleshooting
 
-- **Turbo cache issues:** Run `pnpm turbo run <task> --force` to bypass cache
-- **Prisma client out of date:** Run `pnpm --filter @modulariot/db db:generate` after pulling schema changes
+- **Turbo cache issues:** Run `npm turbo run <task> --force` to bypass cache
+- **Prisma client out of date:** Run `npm run --workspace= @modulariot/db db:generate` after pulling schema changes
 - **Port conflicts:** Apps use ports 3000, 3001, 3030, 3040, 3050 — check for conflicts
-- **Type errors after dependency updates:** Delete `node_modules` and run `pnpm install` again
-- **pnpm overrides:** React types and luma.gl versions are pinned in root `package.json` under `pnpm.overrides`
+- **Type errors after dependency updates:** Delete `node_modules` and run `npm install` again
+- **npm overrides:** React types and luma.gl versions are pinned in root `package.json` under `overrides`
 
 ## Agent Behavior
 

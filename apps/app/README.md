@@ -2,10 +2,10 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Running the project
 
-Recently the project had a migration to `pnpm`, so, to have the best experience running the app use the commands:
+Recently the project had a migration to `npm`, so, to have the best experience running the app use the commands:
 
-1. `pnpm i` to install the dependencies in your local machine.
-2. `pnpm dev` to run the code on a development server.
+1. `npm install` to install the dependencies in your local machine.
+2. `npm run dev` to run the code on a development server.
 
 With this done you can access to it with the URL given on the CLI, by default it might be `128.0.0.1:3000` but if that direction is in use, it might give you another one.
 

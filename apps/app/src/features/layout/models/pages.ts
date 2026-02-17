@@ -12,6 +12,17 @@ export const pages: SidebarItem[] = [
     icon: HomeIcon,
     label: "home",
     totals: {},
+    items: [
+      {
+        href: "/home/dashboard",
+        label: "dashboard",
+        totals: {
+          totals: 10,
+        },
+        requiredGroups: [],
+        blockedGroups: [], // Allow access for MINTRAL_REVISOR
+      },
+    ],
     requiredGroups: [], // Public route
   },
   {
@@ -50,6 +61,10 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
+        requiredGroups: [
+          "GROUP_MINTRAL_KANBAN_ACCESS",
+          "GROUP_GAMA_KANBAN_ACCESS"
+        ],
       },
       /* {
         href: "/shippingv1",
@@ -76,7 +91,7 @@ export const pages: SidebarItem[] = [
       // },
     ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
   },
   {
     icon: FaBookIcon,
@@ -99,14 +114,14 @@ export const pages: SidebarItem[] = [
       },
     ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
     blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide "My Tasks" from revisors
   },
   {
     href: "/reports",
     icon: ChartMixedIcon,
     label: "controlTower",
-    /* eslint-disable */
+
     items: [
       {
         href: "/geographic-view",
@@ -132,7 +147,6 @@ export const pages: SidebarItem[] = [
         blockedGroups: [], // Allow access for MINTRAL_REVISOR
       },
     ],
-    /* eslint-enable */
 
     totals: {},
     requiredGroups: [],

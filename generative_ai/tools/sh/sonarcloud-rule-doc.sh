@@ -24,7 +24,7 @@ usage() {
   echo "             md: raw description (HTML or MD)"
   echo "             json: full API response"
   echo "             url: print rule URL only"
-  exit 0
+  return 0
 }
 
 RULE_KEY=""
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
     -g) ORG="$2"; shift 2 ;;
     -r) RULE_KEY="$2"; shift 2 ;;
     -o) OUTPUT="$2"; shift 2 ;;
-    -h) usage ;;
+    -h) usage; exit 0 ;;
     -*) shift ;;
     *)  [[ -z "$RULE_KEY" ]] && RULE_KEY="$1"; shift ;;
   esac
@@ -43,6 +43,7 @@ done
 if [[ -z "${RULE_KEY}" ]]; then
   echo "Error: RULE_KEY required (e.g. java:S1144)" >&2
   usage
+  exit 1
 fi
 
 if [[ -z "${SONAR_TOKEN}" ]]; then

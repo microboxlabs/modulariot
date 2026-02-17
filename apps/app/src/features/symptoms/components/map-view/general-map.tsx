@@ -77,10 +77,13 @@ export default function GeneralMap({
     selectedTreatmentIndex?.symptom_id?.toString() ?? ""
   );
 
-  if (errorTreatments) {
-    router.push("/not-found");
-    return null;
-  }
+  useEffect(() => {
+    if (errorTreatments) {
+      router.push("/not-found");
+    }
+  }, [errorTreatments, router]);
+
+  if (errorTreatments) return null;
   return (
     <>
       <div

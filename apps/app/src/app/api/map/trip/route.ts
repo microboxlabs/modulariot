@@ -24,8 +24,6 @@ const authToken = new AuthToken(config);
 export async function GET(req: NextRequest) {
   const session = await auth();
 
-  console.log("Is this SHIT NOT WORKING?");
-
   if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -36,9 +34,6 @@ export async function GET(req: NextRequest) {
   const assetId = req.nextUrl.searchParams.get("assetId") || "";
   if (!assetId)
     return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
-
-  console.log("------------------------");
-  console.log(tripId, assetId);
 
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();

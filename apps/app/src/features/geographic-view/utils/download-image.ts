@@ -1,5 +1,7 @@
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 export async function downloadImage(
   imageUrl: string,
@@ -49,7 +51,9 @@ export async function downloadImage(
     link.click();
     link.remove();
     URL.revokeObjectURL(blobUrl);
-  } catch {
+  } catch (error) {
+    logger.error({ err: error, imageUrl }, "Automatic image download failed");
+    toast.error("Download failed — opening in a new tab");
     // Fallback: open in new tab for user to save manually
     window.open(imageUrl, "_blank");
   }

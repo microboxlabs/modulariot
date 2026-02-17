@@ -36,16 +36,16 @@ while [[ $# -gt 0 ]]; do
     -o) OUTPUT="$2"; shift 2 ;;
     -h) usage ;;
     -*) shift ;;
-    *)  [ -z "$RULE_KEY" ] && RULE_KEY="$1"; shift ;;
+    *)  [[ -z "$RULE_KEY" ]] && RULE_KEY="$1"; shift ;;
   esac
 done
 
-if [ -z "${RULE_KEY}" ]; then
+if [[ -z "${RULE_KEY}" ]]; then
   echo "Error: RULE_KEY required (e.g. java:S1144)" >&2
   usage
 fi
 
-if [ -z "${SONAR_TOKEN}" ]; then
+if [[ -z "${SONAR_TOKEN}" ]]; then
   echo "Error: Set SONAR_TOKEN or pass -t TOKEN" >&2
   exit 1
 fi
@@ -73,6 +73,9 @@ case "$OUTPUT" in
     echo "$RESP"
     exit 0
     ;;
+  *)
+    # fall through to text/md handling below
+    ;;
 esac
 
 # Extract rule fields
@@ -82,7 +85,7 @@ TYPE=$(echo "$RESP" | jq -r '.rule.type // "N/A"')
 # Prefer mdDesc if present, else htmlDesc
 DESC=$(echo "$RESP" | jq -r 'if .rule.mdDesc then .rule.mdDesc else .rule.htmlDesc // .rule.description // "" end')
 
-if [ "$OUTPUT" = "md" ]; then
+if [[ "$OUTPUT" = "md" ]]; then
   echo "# ${RULE_KEY}: ${NAME}"
   echo "Severity: ${SEV} | Type: ${TYPE}"
   echo "URL: ${RULE_URL}"

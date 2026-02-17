@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
-import type { DashletConfig, InfoCardIcon } from "./dashlet";
+import type { DashletConfig, InfoCardIcon, DataProviderEntry } from "./dashlet";
 import { ICON_OPTIONS } from "./dashlet";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
@@ -20,12 +20,6 @@ import { SettingsPickerRow, SettingsPickerItem } from "../common";
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-interface DataProviderEntry {
-  key: string;
-  value: string;
-  _id?: number;
-}
 
 // ============================================================================
 // Handlebars Validation

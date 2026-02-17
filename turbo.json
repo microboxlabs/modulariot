@@ -6,7 +6,9 @@
     "NEXT_PUBLIC_INGEST_URL",
     "NODE_ENV",
     "LOG_LEVEL",
-    "LOG_HANDLERS_CONFIG"
+    "LOG_HANDLERS_CONFIG",
+    "APP_TITLE",
+    "APP_DESCRIPTION"
   ],
   "tasks": {
     "build": {

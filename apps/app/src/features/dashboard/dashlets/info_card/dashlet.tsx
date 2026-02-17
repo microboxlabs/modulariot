@@ -204,9 +204,9 @@ export function Dashlet({
   const handleViewMore = () => {
     if (compiledViewMoreUrl) {
       try {
-        const url = new URL(compiledViewMoreUrl, window.location.href);
+        const url = new URL(compiledViewMoreUrl, globalThis.location.href);
         if (url.protocol === "http:" || url.protocol === "https:") {
-          window.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+          globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
         }
       } catch {
         // Invalid URL, do nothing

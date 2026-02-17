@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEPRECATED: Use @microboxlabs/sonarcloud-tools instead:
+#   node packages/sonarcloud-tools/dist/cli.js rule-doc <rule-key> [options]
+#
 # Fetch SonarCloud rule documentation by rule key (e.g. java:S1144).
 # Requires: curl, jq. Set SONAR_TOKEN (or pass -t TOKEN).
 #

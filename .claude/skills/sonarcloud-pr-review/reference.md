@@ -1,19 +1,19 @@
 # SonarCloud PR Review – Reference
 
-## Scripts (from repo root)
+## CLI tool
 
-| Script | Purpose |
-|--------|--------|
-| `generative_ai/tools/sh/sonarcloud-issues.sh` | Fetch open issues for project, optionally by branch or PR, in list or context format. |
-| `generative_ai/tools/sh/sonarcloud-rule-doc.sh` | Fetch rule documentation by rule key (e.g. `typescript:S1192`). |
+| Command | Purpose |
+|---------|---------|
+| `node packages/sonarcloud-tools/dist/cli.js issues` | Fetch open issues for project, optionally by branch or PR, in list or context format. |
+| `node packages/sonarcloud-tools/dist/cli.js rule-doc <rule-key>` | Fetch rule documentation by rule key (e.g. `typescript:S1192`). |
 
-## sonarcloud-issues.sh
+## issues subcommand
 
 **Auth:** Set `SONAR_TOKEN` or pass `-t TOKEN`.
 
 **Scope:**
 - `--pr` – current PR (uses `gh` or CI env).
-- `--branch` – current git branch.
+- `--branch-current` – current git branch.
 - `-b BRANCH` – specific branch.
 - `-p PR_NUMBER` – specific PR.
 
@@ -24,16 +24,16 @@
 
 **Example (used by the skill):**
 ```bash
-./generative_ai/tools/sh/sonarcloud-issues.sh --pr -o context --with-docs
+source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
 ```
 
-## sonarcloud-rule-doc.sh
+## rule-doc subcommand
 
 **When to use:** To get documentation for a single rule key (e.g. from the "Rule" line in context output).
 
 ```bash
-./generative_ai/tools/sh/sonarcloud-rule-doc.sh typescript:S1192
-./generative_ai/tools/sh/sonarcloud-rule-doc.sh -o url typescript:S1192   # print rule URL only
+source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js rule-doc typescript:S1192
+source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js rule-doc -o url typescript:S1192   # print rule URL only
 ```
 
 ## Context output shape
@@ -66,5 +66,5 @@ Use the **Rule** value (e.g. `typescript:S1192`) to match each issue to its bloc
 
 ## Project config
 
-- SonarCloud project key: `microboxlabs_modulariot` (overridable with `-k` or `SONAR_PROJECT_KEY`).
+- SonarCloud project key: `microboxlabs_modulariot` (passed via `-k`; required).
 - Token: [SonarCloud → Account → Security](https://sonarcloud.io/account/security). Do not commit; set in env or pass via `-t`.

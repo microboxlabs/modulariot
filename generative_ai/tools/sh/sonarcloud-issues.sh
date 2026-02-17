@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEPRECATED: Use @microboxlabs/sonarcloud-tools instead:
+#   node packages/sonarcloud-tools/dist/cli.js issues [options]
+#
 # Fetch open SonarCloud issues for this project and print them in the CLI.
 # Requires: curl, jq. Set SONAR_TOKEN (or pass -t TOKEN).
 #

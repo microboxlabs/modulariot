@@ -10,10 +10,10 @@ Review the current branch's PR against SonarCloud and fix all reported issues us
 ## Prerequisites
 
 - **SONAR_TOKEN** must be set (SonarCloud → Account → Security). The agent cannot fix issues without fetching them.
-- Scripts used: `generative_ai/tools/sh/sonarcloud-issues.sh`, `generative_ai/tools/sh/sonarcloud-rule-doc.sh` (from repo root).
-- Requires `curl`, `jq`, and (for `--pr` auto-detect) `gh` or a CI env (e.g. `GITHUB_REF`).
+- CLI tool: `@microboxlabs/sonarcloud-tools` (built from `packages/sonarcloud-tools/`). Run from repo root via `node packages/sonarcloud-tools/dist/cli.js`.
+- For `--pr` auto-detect: `gh` CLI or a CI env (e.g. `GITHUB_REF`).
 
-**Loading token from shell config:** The shell used to run commands is often non-login and does not load `~/.zshrc` or `~/.bashrc`. If the user says the token is in their shell rc, source it before running the script, e.g. `source ~/.zshrc 2>/dev/null; ./generative_ai/tools/sh/sonarcloud-issues.sh ...`.
+**Loading token from shell config:** The shell used to run commands is often non-login and does not load `~/.zshrc` or `~/.bashrc`. If the user says the token is in their shell rc, source it before running the command, e.g. `source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js ...`.
 
 ## Workflow
 
@@ -22,13 +22,13 @@ Review the current branch's PR against SonarCloud and fix all reported issues us
 From the repository root, run (source shell rc if SONAR_TOKEN is set there, e.g. in `.zshrc`):
 
 ```bash
-source ~/.zshrc 2>/dev/null; ./generative_ai/tools/sh/sonarcloud-issues.sh --pr -o context --with-docs
+source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context --with-docs
 ```
 
-- Use `--branch` instead of `--pr` if PR detection fails (e.g. no `gh` or CI env).
+- Use `--branch-current` instead of `--pr` if PR detection fails (e.g. no `gh` or CI env).
 - Capture the full output: it contains one block per issue (File, Line, Rule, Severity, Message) plus a **Rule documentation** section for each unique rule. This is the context the LLM must use to fix correctly.
 
-If the command fails (e.g. missing token or no PR), stop and ask the user to set `SONAR_TOKEN` or pass the token, and to confirm they are on a PR branch or to use `--branch` or `-b <branch>`.
+If the command fails (e.g. missing token or no PR), stop and ask the user to set `SONAR_TOKEN` or pass the token, and to confirm they are on a PR branch or to use `--branch-current` or `-b <branch>`.
 
 ### 2. Plan fixes by file
 
@@ -45,10 +45,10 @@ If the command fails (e.g. missing token or no PR), stop and ask the user to set
 
 ### 4. Verify
 
-- Run the issues script again and confirm the fixed issues no longer appear:
+- Run the issues command again and confirm the fixed issues no longer appear:
 
 ```bash
-./generative_ai/tools/sh/sonarcloud-issues.sh --pr -o context
+source ~/.zshrc 2>/dev/null; node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot --pr -o context
 ```
 
 - If the build is available, run tests (e.g. `npm test` or `npx vitest` for changed modules).
@@ -75,6 +75,6 @@ After applying fixes, report briefly:
 
 - Number of issues addressed and in which files.
 - Any issue that could not be fixed (e.g. needs product decision, or rule doc unclear) with a one-line reason.
-- Reminder to run the script again and the test suite to confirm.
+- Reminder to run the command again and the test suite to confirm.
 
-For script options and output format details, see [reference.md](reference.md).
+For CLI options and output format details, see [reference.md](reference.md).

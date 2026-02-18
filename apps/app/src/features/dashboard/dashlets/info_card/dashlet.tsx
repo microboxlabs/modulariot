@@ -16,7 +16,7 @@ import {
   HiTruck,
   HiBolt,
 } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 
 // ============================================================================
 // Configuration Types
@@ -65,13 +65,6 @@ const ICONS: Record<
 > = Object.fromEntries(
   ICON_OPTIONS.map((opt) => [opt.id, opt.component])
 ) as Record<InfoCardIcon, React.ComponentType<{ className?: string }>>;
-
-/** Data provider entry for dynamic values */
-export interface DataProviderEntry {
-  key: string;
-  value: string;
-  _id?: number;
-}
 
 /** Configuration for this dashlet */
 export interface DashletConfig {

@@ -1,6 +1,8 @@
 "use client";
 
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useMemo } from "react";
+import Handlebars from "handlebars";
+import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 
 // ============================================================================
 // Configuration Types
@@ -12,12 +14,14 @@ export interface DashletConfig {
   text: string;
   italic: boolean;
   align: TextAlign;
+  dataProvider?: DataProviderEntry[];
 }
 
 export const defaultConfig: DashletConfig = {
   text: "Add your text or quote here...",
   italic: true,
   align: "left",
+  dataProvider: [],
 };
 
 // ============================================================================
@@ -37,6 +41,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Component
 // ============================================================================
 
+const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+
 const ALIGN_CLASS: Record<TextAlign, string> = {
   left: "text-left",
   center: "text-center",
@@ -49,16 +55,33 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     text = defaultConfig.text,
     italic = defaultConfig.italic,
     align = defaultConfig.align,
+    dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
+
+  const templateContext = useMemo(() => {
+    const data_provider: Record<string, string> = {};
+    for (const entry of dataProvider) {
+      if (entry.key) data_provider[entry.key] = entry.value;
+    }
+    return { data_provider };
+  }, [dataProvider]);
+
+  const compiledText = useMemo(() => {
+    try {
+      return Handlebars.compile(text)(templateContext);
+    } catch {
+      return text;
+    }
+  }, [text, templateContext]);
 
   const alignClass = ALIGN_CLASS[align] ?? ALIGN_CLASS.left;
 
   return (
-    <div className="flex h-full items-center rounded-lg border border-gray-200 bg-white px-5 py-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-full items-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p
-        className={`w-full text-sm text-gray-600 dark:text-gray-300 ${alignClass}${italic ? " italic" : ""}`}
+        className={`w-full text-sm text-gray-500 dark:text-gray-400 ${alignClass}${italic ? " italic" : ""}`}
       >
-        {text}
+        {compiledText}
       </p>
     </div>
   );

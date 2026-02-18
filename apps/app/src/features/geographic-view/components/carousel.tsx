@@ -87,7 +87,8 @@ export default function Carousel({
   }, [selected]);
 
   return (
-    <div
+    <section
+      aria-label="Image carousel"
       className="flex flex-row gap-2 w-full h-full"
       onMouseMove={handleMouseMove}
     >
@@ -129,7 +130,7 @@ export default function Carousel({
         {/* images */}
         {images.map((image, index) => (
           <div
-            key={index}
+            key={image}
             className="shrink-0 w-full h-full flex items-center justify-center relative"
           >
             <button
@@ -155,10 +156,10 @@ export default function Carousel({
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-row gap-2 backdrop-blur-[10px] bg-white/50 p-2 rounded-full">
           {images.length < 8 ? (
             <div className="w-full h-full flex flex-row gap-2">
-              {images.map((_image, index) => (
+              {images.map((image, index) => (
                 <button
                   type="button"
-                  key={index}
+                  key={image}
                   aria-label={`Go to image ${index + 1}`}
                   className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none border-0 p-0 ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
                   onClick={() => setSelected(index)}
@@ -197,6 +198,6 @@ export default function Carousel({
           />
         </div>
       )}
-    </div>
+    </section>
   );
 }

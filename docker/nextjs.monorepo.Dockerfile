@@ -1,7 +1,7 @@
 # =============================================================================
-# Next.js Standalone Production Image - pnpm Monorepo
+# Next.js Standalone Production Image - npm Monorepo
 # =============================================================================
-# Multi-stage build that handles pnpm symlinks correctly by building inside Docker.
+# Multi-stage build that handles npm workspaces by building inside Docker.
 #
 # Build args:
 #   - APP_NAME: Name of the app directory (e.g., app, web-site, docs)
@@ -16,47 +16,67 @@ FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # -----------------------------------------------------------------------------
-# Stage 1: Install dependencies
+# Stage 1: Extract workspace package.json files only
+# -----------------------------------------------------------------------------
+FROM base AS manifests
+WORKDIR /app
+COPY apps/ ./apps/
+COPY packages/ ./packages/
+RUN find . -not -name "package.json" -not -type d -delete && \
+    find . -empty -type d -delete
+
+# -----------------------------------------------------------------------------
+# Stage 2: Install dependencies
 # -----------------------------------------------------------------------------
 FROM base AS deps
 WORKDIR /app
 
-# Install pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
-
-# Copy all package.json and lockfiles first (for layer caching)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY .npmrc* ./
+# Copy root package.json, lockfile, and configs (for layer caching)
+COPY package.json package-lock.json ./
 COPY turbo.json ./
 
-# Copy all workspace package.json files
-COPY apps/ ./apps/
-COPY packages/ ./packages/
+# Note: .npmrc not needed - empty config file
+# If custom npm config is needed in future, create it inline:
+# RUN echo "registry=https://registry.npmjs.org/" > .npmrc
 
-# Install dependencies with cache mount for pnpm store
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+# Copy only workspace package.json files (no source code)
+COPY --from=manifests /app/apps ./apps
+COPY --from=manifests /app/packages ./packages
+
+# Install dependencies with cache mount for npm
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --legacy-peer-deps
 
 # -----------------------------------------------------------------------------
-# Stage 2: Build the application
+# Stage 3: Build the application
 # -----------------------------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
 
 ARG APP_NAME=app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+# SECURITY NOTE: NEXT_PUBLIC_* variables are PUBLIC by design (Next.js convention)
+# They are embedded in the client-side JavaScript bundle and are NOT secrets.
+# These are Mapbox public API keys and public URLs intended for browser use.
+#
+# ⚠️  NEVER use ARG for actual secrets (DB passwords, private API keys, etc.)
+# Secrets should be provided at RUNTIME via environment variables, not build-time.
+ARG NEXT_PUBLIC_INGEST_URL
+ARG NEXT_PUBLIC_MAPBOX_API_KEY
 
-# Copy everything from deps (includes node_modules)
+# Copy installed dependencies and manifests from deps stage
 COPY --from=deps /app ./
+
+# Copy full source code (only this layer invalidates on code changes)
+COPY apps/ ./apps/
+COPY packages/ ./packages/
 
 # Build the specific app using turbo
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm turbo run build --filter=@modulariot/${APP_NAME}
+RUN npx turbo run build --filter=@modulariot/${APP_NAME}
 
 # -----------------------------------------------------------------------------
-# Stage 3: Production runner
+# Stage 4: Production runner
 # -----------------------------------------------------------------------------
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -70,18 +90,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy public assets (may not exist for all apps)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./public
+# Copy files as root first (for security)
+COPY --from=builder /app/apps/${APP_NAME}/public ./public
+COPY --from=builder /app/apps/${APP_NAME}/.next/standalone ./
+COPY --from=builder /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
+COPY --from=builder /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
 
-# Copy standalone build output
-# With outputFileTracingRoot pointing to monorepo root, standalone includes full structure
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/standalone ./
-
-# Copy static files to correct location
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
-
-# Copy public to app location as well (for basePath routing)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
+# Set ownership and remove write permissions to prevent tampering
+# Files are read-only (555 = r-xr-xr-x) - nextjs user can read/execute but not modify
+RUN chown -R nextjs:nodejs /app && \
+    chmod -R 555 /app
 
 USER nextjs
 

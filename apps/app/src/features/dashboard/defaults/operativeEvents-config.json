@@ -1,0 +1,63 @@
+{
+  "version": 2,
+  "name": "Eventos Operativos",
+  "widgets": [
+    {
+      "id": "oe-stat-1",
+      "componentId": "stat_status",
+      "layout": { "i": "oe-stat-1", "x": 0, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Eventos críticos activos",
+        "value": "64",
+        "subtitle": "últimas 24-48 horas",
+        "color": "red",
+        "icon": "warning"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "oe-stat-2",
+      "componentId": "stat_status",
+      "layout": { "i": "oe-stat-2", "x": 8, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Vehículos con alta exposición",
+        "value": "4",
+        "subtitle": "requieren intervención prioritaria",
+        "color": "orange",
+        "icon": "users"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "oe-stat-3",
+      "componentId": "stat_status",
+      "layout": { "i": "oe-stat-3", "x": 16, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Tipo predominante",
+        "value": "Velocidad",
+        "subtitle": "60% del total",
+        "color": "blue",
+        "icon": "trending"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "oe-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "oe-text-1", "x": 0, "y": 5, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"La mayoría de los eventos críticos se concentran en 3 vehículos y ocurren fuera de horario.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

@@ -5,7 +5,6 @@ import {
   type Widget,
   type DashboardStorageSchema,
   DEFAULT_STORAGE,
-  STORAGE_KEY,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
 
@@ -75,46 +74,63 @@ function updateChildrenLayouts(
 }
 
 /**
- * Hook for persisting dashboard data to localStorage
+ * Hook for persisting dashboard data to localStorage.
+ * @param storageKey    - The localStorage key to use (e.g. "dashboard-config")
+ * @param defaultConfig - Optional server-loaded default config. Used only when
+ *                        localStorage has no saved data for this key yet.
  */
-export function useDashboardStorage() {
+export function useDashboardStorage(
+  storageKey: string,
+  defaultConfig?: DashboardStorageSchema | null
+) {
   const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount (or when key changes)
   useEffect(() => {
+    setIsLoaded(false);
+    setData(DEFAULT_STORAGE);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
 
       if (stored) {
+        // User already has a saved config — always prefer it over the default
         const parsed = JSON.parse(stored);
         if (parsed.version === 2) {
-          // Current version - ensure defaults
           const migratedWidgets = parsed.widgets.map((w: Widget, i: number) =>
             ensureWidgetDefaults(w, i)
           );
-          setData({ ...parsed, widgets: migratedWidgets });
+          const name = parsed.name || DEFAULT_STORAGE.name;
+          setData({ ...parsed, name, widgets: migratedWidgets });
         } else {
-          // Unknown version - reset to defaults
-          setData(DEFAULT_STORAGE);
+          setData(defaultConfig ?? DEFAULT_STORAGE);
         }
+      } else if (defaultConfig) {
+        // No saved config yet — seed with the server-provided default
+        const migratedWidgets = defaultConfig.widgets.map(
+          (w: Widget, i: number) => ensureWidgetDefaults(w, i)
+        );
+        setData({ ...defaultConfig, widgets: migratedWidgets });
       }
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      setData(DEFAULT_STORAGE);
+      setData(defaultConfig ?? DEFAULT_STORAGE);
     }
     setIsLoaded(true);
-  }, []);
+  }, [storageKey]); // defaultConfig is intentionally omitted — it's stable per page load
 
   // Save data to localStorage
-  const saveData = useCallback((newData: DashboardStorageSchema) => {
-    setData(newData);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-    } catch (error) {
-      console.error("Failed to save dashboard data:", error);
-    }
-  }, []);
+  const saveData = useCallback(
+    (newData: DashboardStorageSchema) => {
+      setData(newData);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newData));
+      } catch (error) {
+        console.error("Failed to save dashboard data:", error);
+      }
+    },
+    [storageKey]
+  );
 
   // Find widget by ID (recursive search)
   const findWidget = useCallback(
@@ -290,6 +306,32 @@ export function useDashboardStorage() {
     [data, saveData]
   );
 
+  // Set dashboard name
+  const setDashboardName = useCallback(
+    (name: string) => {
+      const newData: DashboardStorageSchema = {
+        ...data,
+        name,
+      };
+      saveData(newData);
+    },
+    [data, saveData]
+  );
+
+  // Download dashboard as JSON file
+  const downloadDashboard = useCallback(() => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${data.name.replaceAll(/\s+/g, "_").toLowerCase()}_dashboard.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
   // Export dashboard as JSON string
   const exportDashboard = useCallback((): string => {
     return JSON.stringify(data, null, 2);
@@ -328,6 +370,7 @@ export function useDashboardStorage() {
 
         const newData: DashboardStorageSchema = {
           version: 2,
+          name: imported.name || DEFAULT_STORAGE.name,
           widgets: normalizedWidgets,
           preferences: imported.preferences ?? { editMode: false },
         };
@@ -347,6 +390,7 @@ export function useDashboardStorage() {
   return {
     widgets: data.widgets,
     preferences: data.preferences,
+    dashboardName: data.name,
     isLoaded,
     addWidget,
     addChildWidget,
@@ -354,9 +398,11 @@ export function useDashboardStorage() {
     updateWidgetLayouts,
     deleteWidget,
     setEditMode,
+    setDashboardName,
     findWidget,
     findParent,
     exportDashboard,
     importDashboard,
+    downloadDashboard,
   };
 }

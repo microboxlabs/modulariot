@@ -22,7 +22,7 @@ export default function DownloadSignedDocument({
       ? documentId?.replace(":/", "")
       : documentId;
 
-  const href = `/api/document/download?documentId=${documentPath}`;
+  const href = `/app/api/document/download?documentId=${documentPath}`;
 
   if (asLink) {
     return (

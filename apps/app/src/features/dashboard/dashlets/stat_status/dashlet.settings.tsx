@@ -24,11 +24,12 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [title, setTitle] = useState(config.title ?? "Status");
   const [value, setValue] = useState(config.value ?? "0");
+  const [subtitle, setSubtitle] = useState(config.subtitle ?? "");
   const [color, setColor] = useState<StatusColor>(config.color ?? "gray");
   const [icon, setIcon] = useState<StatusIcon>(config.icon ?? "check");
 
   const handleSave = () => {
-    onSave({ title, value, color, icon } as DashletConfig);
+    onSave({ title, value, subtitle, color, icon } as DashletConfig);
     onClose();
   };
 
@@ -52,6 +53,13 @@ export function DashletSettings({
         value={value}
         onChange={setValue}
         placeholder="0"
+      />
+      <SettingsTextField
+        id="stat-status-subtitle"
+        label="Subtitle"
+        value={subtitle}
+        onChange={setSubtitle}
+        placeholder="e.g. 204 de 230 dispositivos"
       />
       <SettingsSelectField
         id="stat-status-color"

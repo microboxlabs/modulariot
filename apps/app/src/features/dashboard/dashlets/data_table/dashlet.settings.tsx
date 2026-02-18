@@ -280,6 +280,7 @@ export function DashletSettings({
                           <option value="badge">badge</option>
                           <option value="highlight">highlight</option>
                           <option value="signed">signed</option>
+                          <option value="progress">progress</option>
                         </Select>
                       </div>
                       <button

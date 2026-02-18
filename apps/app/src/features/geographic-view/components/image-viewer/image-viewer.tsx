@@ -14,13 +14,13 @@ export default function ImageViewer({
   setSelected,
   data = [],
   dictionary,
-}: {
+}: Readonly<{
   images: string[];
   selected: number | null;
   setSelected: (index: number | null) => void;
   data?: { tag: string; name: string }[];
   dictionary: I18nRecord;
-}) {
+}>) {
   const handleShare = async () => {
     if (!navigator.share || selected === null) {
       console.error("Sharing is not supported on this device/browser");

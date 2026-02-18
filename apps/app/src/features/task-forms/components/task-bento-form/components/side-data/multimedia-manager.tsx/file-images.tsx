@@ -22,10 +22,10 @@ import ImageViewerConnector from "./image-viewer-connector";
 export default function FileImages({
   task,
   dictionary,
-}: {
+}: Readonly<{
   task: TaskResponse | null;
   dictionary: I18nRecord;
-}) {
+}>) {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);

@@ -6,7 +6,7 @@ import path from "path";
 const nextConfig = {
   pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
   output: "standalone",
-  // Required for pnpm monorepo: trace dependencies from monorepo root
+  // Required for npm workspace monorepo: trace dependencies from monorepo root
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   basePath: "/app",
   // Enable source maps for production/staging debugging

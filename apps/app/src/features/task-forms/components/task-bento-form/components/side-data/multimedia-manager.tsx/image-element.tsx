@@ -49,6 +49,8 @@ export default function ImageElement({
           ] as keyof typeof categories
         ]?.label
       }
+      downloadUrl={`/app/api/document/download?documentId=${file.entry.id}`}
+      dictionary={dictionary}
     />
   );
 }

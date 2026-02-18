@@ -5,14 +5,16 @@ import { Footer, FooterCopyright } from "flowbite-react";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import TotemNavbar from "./totem-navbar";
 import ReleaseView from "@/features/layout/components/release-view/release-view";
+import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function TotemPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
+  const orgLogo = await getPublicOrgLogo();
 
   return (
     <div className="flex flex-col items-center justify-center w-screen h-screen">
-      <TotemNavbar />
+      <TotemNavbar orgLogoUrl={orgLogo} />
       <div className="flex flex-grow w-full justify-center items-center overflow-y-auto">
         <Totem dict={dictionary} />
       </div>

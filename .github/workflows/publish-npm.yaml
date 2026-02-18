@@ -45,16 +45,16 @@ jobs:
         run: npm ci
 
       - name: Build package
-        run: npx turbo run build --filter=@modulariot/miot-calendar-client
+        run: npx turbo run build --filter=@microboxlabs/miot-calendar-client
 
       - name: Run lint
-        run: npx turbo run lint --filter=@modulariot/miot-calendar-client
+        run: npx turbo run lint --filter=@microboxlabs/miot-calendar-client
 
       - name: Run type check
-        run: npx turbo run check-types --filter=@modulariot/miot-calendar-client
+        run: npx turbo run check-types --filter=@microboxlabs/miot-calendar-client
 
       - name: Run tests
-        run: npx turbo run test --filter=@modulariot/miot-calendar-client
+        run: npx turbo run test --filter=@microboxlabs/miot-calendar-client
 
       - name: Publish to npm
         run: npm publish --workspace=packages/miot-calendar-client --provenance --access public

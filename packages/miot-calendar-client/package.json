@@ -1,5 +1,5 @@
 {
-  "name": "@modulariot/miot-calendar-client",
+  "name": "@microboxlabs/miot-calendar-client",
   "version": "0.1.1",
   "type": "module",
   "exports": {

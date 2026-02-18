@@ -8,7 +8,7 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 // Configuration Types
 // ============================================================================
 
-export type ColumnType = "text" | "badge" | "highlight" | "signed";
+export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 
 export interface TableColumn {
   key: string;
@@ -146,7 +146,8 @@ function getBadgeClasses(value: string): string {
   if (
     lower.includes("medio") ||
     lower.includes("medium") ||
-    lower.includes("warning")
+    lower.includes("warning") ||
+    lower.includes("advertencia")
   ) {
     return "bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800";
   }
@@ -162,6 +163,31 @@ function getBadgeClasses(value: string): string {
     return "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
   }
   return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
+}
+
+function getProgressColor(pct: number): string {
+  if (pct >= 90) return "bg-green-500";
+  if (pct >= 80) return "bg-orange-400";
+  return "bg-red-500";
+}
+
+function renderProgress(value: string) {
+  const pct = parseFloat(value.replace(/[^\d.]/g, ""));
+  const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
+  const barColor = getProgressColor(safePct);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
+        <div
+          className={`h-full rounded-full ${barColor}`}
+          style={{ width: `${safePct}%` }}
+        />
+      </div>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        {value}
+      </span>
+    </div>
+  );
 }
 
 function getSignedClasses(value: string): string {
@@ -198,6 +224,9 @@ function renderCell(value: string, type: ColumnType) {
   }
   if (type === "signed") {
     return <span className={getSignedClasses(value)}>{value}</span>;
+  }
+  if (type === "progress") {
+    return renderProgress(value);
   }
   // text — multiline: first line bold, rest as muted subtitle
   const lines = value.split("\n");

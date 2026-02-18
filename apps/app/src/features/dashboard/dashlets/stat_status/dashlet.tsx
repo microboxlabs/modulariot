@@ -12,6 +12,8 @@ import {
   HiUsers,
   HiBolt,
   HiClock,
+  HiWifi,
+  HiCircleStack,
 } from "react-icons/hi2";
 
 // ============================================================================
@@ -30,7 +32,9 @@ export type StatusIcon =
   | "chart"
   | "users"
   | "bolt"
-  | "clock";
+  | "clock"
+  | "wifi"
+  | "database";
 
 export interface IconOption {
   id: StatusIcon;
@@ -49,6 +53,8 @@ export const ICON_OPTIONS: IconOption[] = [
   { id: "users", label: "Users", component: HiUsers },
   { id: "bolt", label: "Bolt", component: HiBolt },
   { id: "clock", label: "Clock", component: HiClock },
+  { id: "wifi", label: "Wifi", component: HiWifi },
+  { id: "database", label: "Database", component: HiCircleStack },
 ];
 
 const ICONS: Record<StatusIcon, React.ComponentType<{ className?: string }>> =
@@ -72,6 +78,7 @@ export const COLOR_OPTIONS: ColorOption[] = [
 export interface DashletConfig {
   title: string;
   value: string;
+  subtitle?: string;
   color: StatusColor;
   icon: StatusIcon;
 }
@@ -79,6 +86,7 @@ export interface DashletConfig {
 export const defaultConfig: DashletConfig = {
   title: "Status",
   value: "0",
+  subtitle: "",
   color: "gray",
   icon: "check",
 };
@@ -145,6 +153,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const {
     title = defaultConfig.title,
     value = defaultConfig.value,
+    subtitle = "",
     color = defaultConfig.color,
     icon = defaultConfig.icon,
   } = config;
@@ -161,12 +170,19 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           {title}
         </p>
         <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full ${colors.iconBg}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${colors.iconBg}`}
         >
           <IconComponent className={`h-5 w-5 ${colors.iconText}`} />
         </div>
       </div>
-      <p className={`text-4xl font-bold ${colors.valueText}`}>{value}</p>
+      <div>
+        <p className={`text-4xl font-bold ${colors.valueText}`}>{value}</p>
+        {subtitle && (
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {subtitle}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

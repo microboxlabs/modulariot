@@ -1,0 +1,275 @@
+"use client";
+
+import { useMemo } from "react";
+import { Button } from "flowbite-react";
+import Handlebars from "handlebars";
+import {
+  HiChartBar,
+  HiCurrencyDollar,
+  HiUsers,
+  HiShoppingCart,
+  HiClock,
+  HiCheckCircle,
+  HiInformationCircle,
+  HiExclamationTriangle,
+  HiCube,
+  HiTruck,
+  HiBolt,
+} from "react-icons/hi2";
+import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+
+// ============================================================================
+// Configuration Types
+// ============================================================================
+
+/** Available icons for the info card */
+export type InfoCardIcon =
+  | "chart"
+  | "currency"
+  | "users"
+  | "cart"
+  | "clock"
+  | "check"
+  | "info"
+  | "warning"
+  | "cube"
+  | "truck"
+  | "bolt";
+
+/** Icon configuration with metadata */
+export interface IconOption {
+  id: InfoCardIcon;
+  label: string;
+  component: React.ComponentType<{ className?: string }>;
+}
+
+/** All available icon options for settings */
+export const ICON_OPTIONS: IconOption[] = [
+  { id: "chart", label: "Chart", component: HiChartBar },
+  { id: "currency", label: "Currency", component: HiCurrencyDollar },
+  { id: "users", label: "Users", component: HiUsers },
+  { id: "cart", label: "Cart", component: HiShoppingCart },
+  { id: "clock", label: "Clock", component: HiClock },
+  { id: "check", label: "Check", component: HiCheckCircle },
+  { id: "info", label: "Info", component: HiInformationCircle },
+  { id: "warning", label: "Warning", component: HiExclamationTriangle },
+  { id: "cube", label: "Cube", component: HiCube },
+  { id: "truck", label: "Truck", component: HiTruck },
+  { id: "bolt", label: "Bolt", component: HiBolt },
+];
+
+/** Icon components map */
+const ICONS: Record<
+  InfoCardIcon,
+  React.ComponentType<{ className?: string }>
+> = Object.fromEntries(
+  ICON_OPTIONS.map((opt) => [opt.id, opt.component])
+) as Record<InfoCardIcon, React.ComponentType<{ className?: string }>>;
+
+/** Data provider entry for dynamic values */
+export interface DataProviderEntry {
+  key: string;
+  value: string;
+  _id?: number;
+}
+
+/** Configuration for this dashlet */
+export interface DashletConfig {
+  /** Title displayed in header (top-left) */
+  title: string;
+  /** Icon displayed in header (top-right) */
+  icon: InfoCardIcon;
+  /** Main value display (e.g., "100%", "42", "$1,234") */
+  value: string;
+  /** Description text below the value */
+  descriptor: string;
+  /** AI-generated summary placeholder text */
+  aiPlaceholder: string;
+  /** Optional URL for "View more" button */
+  viewMoreUrl: string;
+  /** Data provider entries for dynamic values */
+  dataProvider?: DataProviderEntry[];
+}
+
+/** Default configuration */
+export const defaultConfig: DashletConfig = {
+  title: "Metric",
+  icon: "chart",
+  value: "100%",
+  descriptor: "Percentage of tasks completed",
+  aiPlaceholder: "AI summary will appear here",
+  viewMoreUrl: "",
+  dataProvider: [],
+};
+
+// ============================================================================
+// Layout Defaults
+// ============================================================================
+
+export const layoutDefaults: DashletLayoutDefaults = {
+  minW: 4,
+  minH: 4,
+};
+
+export function getLayoutDefaults(): DashletLayoutDefaults {
+  return layoutDefaults;
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Info Card Dashlet
+ *
+ * A comprehensive card displaying:
+ * - Header: Title (left) + Icon (right)
+ * - Body: Large value + Descriptor text
+ * - Children Section: Optional nested dashlets for additional info
+ * - AI Section: Placeholder for AI-generated summary
+ * - Footer: Optional "View more" button (right-aligned)
+ */
+export function Dashlet({
+  widget,
+  editMode,
+  onAddChild,
+  children,
+}: Readonly<DashletComponentProps>) {
+  const config = widget.config as unknown as DashletConfig;
+  const {
+    title = defaultConfig.title,
+    icon = defaultConfig.icon,
+    value = defaultConfig.value,
+    descriptor = defaultConfig.descriptor,
+    aiPlaceholder = defaultConfig.aiPlaceholder,
+    viewMoreUrl = defaultConfig.viewMoreUrl,
+    dataProvider = [],
+  } = config;
+
+  // Build data_provider context from entries
+  const templateContext = useMemo(() => {
+    const data_provider: Record<string, string> = {};
+    for (const entry of dataProvider) {
+      if (entry.key) {
+        data_provider[entry.key] = entry.value;
+      }
+    }
+    return { data_provider };
+  }, [dataProvider]);
+
+  // Compile handlebars templates
+  const compiledTitle = useMemo(() => {
+    try {
+      return Handlebars.compile(title)(templateContext);
+    } catch {
+      return title;
+    }
+  }, [title, templateContext]);
+
+  const compiledValue = useMemo(() => {
+    try {
+      return Handlebars.compile(value)(templateContext);
+    } catch {
+      return value;
+    }
+  }, [value, templateContext]);
+
+  const compiledDescriptor = useMemo(() => {
+    try {
+      return Handlebars.compile(descriptor)(templateContext);
+    } catch {
+      return descriptor;
+    }
+  }, [descriptor, templateContext]);
+
+  const compiledAiPlaceholder = useMemo(() => {
+    try {
+      return Handlebars.compile(aiPlaceholder)(templateContext);
+    } catch {
+      return aiPlaceholder;
+    }
+  }, [aiPlaceholder, templateContext]);
+
+  const compiledViewMoreUrl = useMemo(() => {
+    try {
+      return Handlebars.compile(viewMoreUrl)(templateContext);
+    } catch {
+      return viewMoreUrl;
+    }
+  }, [viewMoreUrl, templateContext]);
+
+  const IconComponent = ICONS[icon] || ICONS.chart;
+  const hasChildren = widget.children && widget.children.length > 0;
+
+  const handleViewMore = () => {
+    if (compiledViewMoreUrl) {
+      try {
+        const url = new URL(compiledViewMoreUrl, globalThis.location.href);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          globalThis.open(compiledViewMoreUrl, "_blank", "noopener,noreferrer");
+        }
+      } catch {
+        // Invalid URL, do nothing
+      }
+    }
+  };
+
+  const handleAddChild = () => {
+    onAddChild?.("info_card");
+  };
+
+  return (
+    <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      {/* Header: Title + Icon */}
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+          {compiledTitle}
+        </h3>
+        <IconComponent className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+      </div>
+
+      {/* Body: Value + Descriptor + Children */}
+      <div className="flex flex-1 flex-col justify-center px-4 py-4">
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          {compiledValue}
+        </p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {compiledDescriptor}
+        </p>
+
+        {/* Children: Inline nested dashlets */}
+        {hasChildren && (
+          <div className="mt-3 flex flex-col gap-2">{children}</div>
+        )}
+
+        {/* Add child button in edit mode */}
+        {editMode && !hasChildren && (
+          <button
+            type="button"
+            onClick={handleAddChild}
+            className="no-drag mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-2 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-600 dark:border-gray-600 dark:hover:border-gray-500"
+          >
+            <span>+ Add detail</span>
+          </button>
+        )}
+      </div>
+
+      {/* Footer: AI placeholder + View more button */}
+      <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+        <p className="text-xs italic text-gray-400 dark:text-gray-500">
+          {compiledAiPlaceholder}
+        </p>
+        {compiledViewMoreUrl && (
+          <Button
+            color="alternative"
+            size="xs"
+            onClick={handleViewMore}
+            className="no-drag shrink-0"
+          >
+            View more
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}

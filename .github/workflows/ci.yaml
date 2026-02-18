@@ -105,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache-modules.outputs.cache-hit != 'true'
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
   # ===========================================================================
   # Lint and Type Check - Fast feedback on code quality

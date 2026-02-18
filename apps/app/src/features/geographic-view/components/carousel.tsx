@@ -53,13 +53,14 @@ export default function Carousel({
   };
 
   const handleImageClick = useCallback(
-    (e: React.MouseEvent<HTMLImageElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       if (zoomActive) {
         setZoomActive(false);
         setImageRect(null);
         activeImageRef.current = null;
       } else {
-        const img = e.currentTarget;
+        const img = e.currentTarget.querySelector("img");
+        if (!img) return;
         activeImageRef.current = img;
         setImageRect(img.getBoundingClientRect());
         setZoomPosition({ x: e.clientX, y: e.clientY });
@@ -128,15 +129,22 @@ export default function Carousel({
             key={index}
             className="shrink-0 w-full h-full flex items-center justify-center relative"
           >
-            <Image
-              src={image}
-              alt="Image"
-              width={1200}
-              height={1200}
-              className={`h-full w-auto object-contain select-none ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
-              onLoad={handleImageLoad}
+            <button
+              type="button"
               onClick={handleImageClick}
-            />
+              aria-pressed={zoomActive}
+              aria-label={zoomActive ? "Disable zoom" : "Enable zoom"}
+              className={`bg-transparent border-0 p-0 m-0 outline-none ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+            >
+              <Image
+                src={image}
+                alt="Image"
+                width={1200}
+                height={1200}
+                className="h-full w-auto object-contain select-none pointer-events-none"
+                onLoad={handleImageLoad}
+              />
+            </button>
           </div>
         ))}
         {/* indicators */}

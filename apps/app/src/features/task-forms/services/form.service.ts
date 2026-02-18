@@ -554,11 +554,6 @@ export const TASK_CONFIRM_DELIVERY_V2: DeliveryProcessTask = "confirmDelivery";
 
 export const TASK_RECEIVE_DELIVERY: DeliveryProcessTask = "receiveDelivery";
 
-export const TASK_NOTIFY_TMS_ARRIVAL: DeliveryProcessTask = "notifyTMSArrival";
-
-export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
-  "notifyTMSDelivery";
-
 export const OUTCOME_TO_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
   "Recibir Entrega";
 
@@ -583,8 +578,6 @@ export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =
 export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_CONFIRM_DELIVERY_V2,
   TASK_RECEIVE_DELIVERY,
-  //TASK_NOTIFY_TMS_ARRIVAL,
-  //TASK_NOTIFY_TMS_DELIVERY,
 ];
 
 /* ------------------------------------------------------------- */

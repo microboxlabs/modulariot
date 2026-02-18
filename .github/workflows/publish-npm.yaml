@@ -5,6 +5,10 @@ on:
     tags:
       - "miot-calendar-client@v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-calendar-client@v0.2.0)"
+        required: true
 
 env:
   NODE_VERSION: "22"
@@ -20,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:

@@ -78,7 +78,7 @@ export default function SidebarItem({
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              {...(isHomeSection
+              {...((isHomeSection || typeof totals[item.label] === "string")
                 ? {}
                 : (() => {
                     const count = getTotalCountBagaes(
@@ -87,10 +87,7 @@ export default function SidebarItem({
                     const labelColor =
                       getLabelColor(count);
                     return {
-                      label:
-                        typeof totals[item.label] === "string"
-                          ? undefined
-                          : `${count}`,
+                      label: `${count}`,
                       labelColor,
                     };
                   })())}

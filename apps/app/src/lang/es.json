@@ -1059,6 +1059,13 @@
       "search": "Buscar",
       "sidebar": {
         "home": "Home",
+        "dashboard": "Dashboard",
+        "maintenanceStatus": "Estado de Mantención",
+        "vehicleTechnicalHealth": "Salud Técnica del Vehículo",
+        "devicesAndTelemetry": "Dispositivos y Telemetría",
+        "operativeEvents": "Eventos Operativos",
+        "fleetUsage": "Uso de Flota",
+        "generalInfo": "Información General",
         "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",
@@ -1234,7 +1241,21 @@
       "enterDescription": "Ingrese descripción...",
       "enterLabel": "Ingrese etiqueta...",
       "selectBorderColor": "Seleccionar color del borde",
-      "selectColor": "Seleccionar color"
+      "selectColor": "Seleccionar color",
+      "visualization": "Visualización",
+      "dataProvider": "Proveedor de Datos",
+      "descriptor": "Descriptor",
+      "aiPlaceholder": "Texto IA",
+      "viewMoreUrl": "URL Ver Más (opcional)",
+      "key": "Clave",
+      "addEntry": "+ Agregar Entrada",
+      "dynamicValuesHint": "Usa la sintaxis {code} para valores dinámicos",
+      "defineVariablesHint": "Define variables accesibles mediante {code}",
+      "selectIcon": "Seleccionar ícono",
+      "titlePlaceholder": "Título de tarjeta o {{data_provider.title}}",
+      "valuePlaceholder": "ej., {{data_provider.value}}%",
+      "descriptorPlaceholder": "Descripción o {{data_provider.descriptor}}",
+      "aiPlaceholderPlaceholder": "Texto provisional para resumen IA"
     },
     "defaults": {
       "pageViews": "Vistas de Página",
@@ -1555,7 +1576,8 @@
     "median_report_interval": "Frecuencia de reportabilidad",
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
-    "hide_stops": "Ocultar paradas"
+    "hide_stops": "Ocultar paradas",
+    "image_prefix": "imagen"
   },
   "release": {
     "other_versions": "Otras versiones",

@@ -6,6 +6,7 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 
+// cpd-off — sidebar configuration data, structural repetition is intentional
 export const pages: SidebarItem[] = [
   {
     href: "/home",
@@ -21,6 +22,48 @@ export const pages: SidebarItem[] = [
         },
         requiredGroups: [],
         blockedGroups: [], // Allow access for MINTRAL_REVISOR
+      },
+      {
+        href: "/home/maintenanceStatus",
+        label: "maintenanceStatus", // Estado de Mantención
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
+      },
+      {
+        href: "/home/vehicleTechnicalHealth",
+        label: "vehicleTechnicalHealth", // Salud Técnica del Vehículo
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
+      },
+      {
+        href: "/home/devicesAndTelemetry",
+        label: "devicesAndTelemetry", // Dispositivos y Telemetría
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
+      },
+      {
+        href: "/home/operativeEvents",
+        label: "operativeEvents", // Eventos Operativos
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
+      },
+      {
+        href: "/home/fleetUsage",
+        label: "fleetUsage", // Uso de Flota
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
+      },
+      {
+        href: "/home/generalInfo",
+        label: "generalInfo", // Información General
+        totals: {},
+        requiredGroups: [],
+        blockedGroups: [],
       },
     ],
     requiredGroups: [], // Public route
@@ -61,6 +104,10 @@ export const pages: SidebarItem[] = [
         href: "/shipping",
         label: "shipping",
         totals: {},
+        requiredGroups: [
+          "GROUP_MINTRAL_KANBAN_ACCESS",
+          "GROUP_GAMA_KANBAN_ACCESS"
+        ],
       },
       /* {
         href: "/shippingv1",
@@ -87,7 +134,7 @@ export const pages: SidebarItem[] = [
       // },
     ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
   },
   {
     icon: FaBookIcon,
@@ -110,7 +157,7 @@ export const pages: SidebarItem[] = [
       },
     ],
     totals: {},
-    requiredGroups: [],
+    requiredGroups: ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
     blockedGroups: ["GROUP_MINTRAL_REVISOR"], // Hide "My Tasks" from revisors
   },
   {
@@ -180,3 +227,4 @@ export const pages: SidebarItem[] = [
     requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
   },
 ];
+// cpd-on

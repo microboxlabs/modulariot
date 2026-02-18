@@ -59,6 +59,8 @@ export interface DashboardPreferences {
 export interface DashboardStorageSchema {
   /** Schema version for migrations */
   version: 2;
+  /** Dashboard display name */
+  name: string;
   /** Root-level widgets (recursive tree structure) */
   widgets: Widget[];
   /** User preferences */
@@ -68,6 +70,7 @@ export interface DashboardStorageSchema {
 /** Default storage state */
 export const DEFAULT_STORAGE: DashboardStorageSchema = {
   version: 2,
+  name: "My Dashboard",
   widgets: [],
   preferences: {
     editMode: false,

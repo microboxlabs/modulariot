@@ -7,6 +7,7 @@ export {
   SettingsTextField,
   SettingsNumberField,
   SettingsTextareaField,
+  SettingsSelectField,
   SettingsFieldGrid,
   SettingsPickerRow,
   SettingsPickerItem,

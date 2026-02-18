@@ -1049,6 +1049,13 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "dashboard": "Dashboard",
+        "maintenanceStatus": "Maintenance Status",
+        "vehicleTechnicalHealth": "Vehicle Technical Health",
+        "devicesAndTelemetry": "Devices and Telemetry",
+        "operativeEvents": "Operative Events",
+        "fleetUsage": "Fleet Usage",
+        "generalInfo": "General Information",
         "calendar": "Calendar",
         "kanban": "Kanban",
         "completed_tasks": "Completed tasks",
@@ -1220,7 +1227,21 @@
       "enterDescription": "Enter description...",
       "enterLabel": "Enter label...",
       "selectBorderColor": "Select border color",
-      "selectColor": "Select color"
+      "selectColor": "Select color",
+      "visualization": "Visualization",
+      "dataProvider": "Data Provider",
+      "descriptor": "Descriptor",
+      "aiPlaceholder": "AI Placeholder",
+      "viewMoreUrl": "View More URL (optional)",
+      "key": "Key",
+      "addEntry": "+ Add Entry",
+      "dynamicValuesHint": "Use {code} syntax for dynamic values",
+      "defineVariablesHint": "Define variables accessible via {code}",
+      "selectIcon": "Select icon",
+      "titlePlaceholder": "Card title or {{data_provider.title}}",
+      "valuePlaceholder": "e.g., {{data_provider.value}}%",
+      "descriptorPlaceholder": "Description or {{data_provider.descriptor}}",
+      "aiPlaceholderPlaceholder": "Placeholder text for AI summary"
     },
     "defaults": {
       "pageViews": "Page Views",
@@ -1541,7 +1562,8 @@
     "median_report_interval": "Median report interval",
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
-    "hide_stops": "Hide stops"
+    "hide_stops": "Hide stops",
+    "image_prefix": "image"
   },
   "release": {
     "other_versions": "Other Versions",

@@ -9,8 +9,8 @@ const nextAuth: NextAuthResult = NextAuth({
   ...authConfig,
 });
 
-export const auth = nextAuth.auth;
-// Type annotation to avoid pnpm phantom dependency type inference issues
+// Type annotations to avoid npm phantom dependency type inference issues
+export const auth: NextAuthResult["auth"] = nextAuth.auth;
 export const signIn: NextAuthResult["signIn"] = nextAuth.signIn;
-export const signOut = nextAuth.signOut;
+export const signOut: NextAuthResult["signOut"] = nextAuth.signOut;
 export const { GET, POST } = nextAuth.handlers;

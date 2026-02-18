@@ -1,0 +1,259 @@
+{
+  "version": 2,
+  "name": "Dispositivos y Telemetría",
+  "widgets": [
+    {
+      "id": "dat-stat-1",
+      "componentId": "stat_status",
+      "layout": { "i": "dat-stat-1", "x": 0, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Dispositivos operativos",
+        "value": "89%",
+        "subtitle": "204 de 230 dispositivos",
+        "color": "green",
+        "icon": "wifi"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "dat-stat-2",
+      "componentId": "stat_status",
+      "layout": { "i": "dat-stat-2", "x": 8, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Calidad de señal",
+        "value": "3%",
+        "subtitle": "con pérdida o latencia alta",
+        "color": "orange",
+        "icon": "signal"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "dat-stat-3",
+      "componentId": "stat_status",
+      "layout": { "i": "dat-stat-3", "x": 16, "y": 0, "w": 8, "h": 5 },
+      "config": {
+        "title": "Completitud de datos",
+        "value": "92%",
+        "subtitle": "transmiten todos los campos",
+        "color": "blue",
+        "icon": "database"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "dat-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "dat-text-1", "x": 0, "y": 5, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"La mayoría de los problemas de señal se concentra en 2 proveedores y zonas rurales.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "dat-table-1",
+      "componentId": "data_table",
+      "layout": { "i": "dat-table-1", "x": 0, "y": 8, "w": 24, "h": 9 },
+      "config": {
+        "title": "Desempeño por Proveedor GPS",
+        "showRowCount": false,
+        "dataMode": "static",
+        "columns": [
+          { "key": "provider", "label": "Proveedor", "type": "text" },
+          { "key": "vehicles", "label": "Vehículos", "type": "text" },
+          { "key": "pctOperative", "label": "% Operativos", "type": "progress" },
+          { "key": "pctSignal", "label": "% Señal estable", "type": "progress" },
+          { "key": "pctData", "label": "% Datos completos", "type": "progress" },
+          { "key": "pctFuel", "label": "% Datos de combustible", "type": "progress" }
+        ],
+        "rows": [
+          {
+            "provider": "Black Gps",
+            "vehicles": "60",
+            "pctOperative": "83%",
+            "pctSignal": "75%",
+            "pctData": "89%",
+            "pctFuel": "85%"
+          },
+          {
+            "provider": "Redd",
+            "vehicles": "40",
+            "pctOperative": "88%",
+            "pctSignal": "82%",
+            "pctData": "91%",
+            "pctFuel": "88%"
+          },
+          {
+            "provider": "Samtech",
+            "vehicles": "50",
+            "pctOperative": "90%",
+            "pctSignal": "85%",
+            "pctData": "93%",
+            "pctFuel": "92%"
+          },
+          {
+            "provider": "OnWay",
+            "vehicles": "80",
+            "pctOperative": "92%",
+            "pctSignal": "88%",
+            "pctData": "95%",
+            "pctFuel": "90%"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": false,
+          "column": "",
+          "label": ""
+        },
+        "sort": {
+          "enabled": false,
+          "columns": []
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "dat-table-2",
+      "componentId": "data_table",
+      "layout": { "i": "dat-table-2", "x": 0, "y": 17, "w": 24, "h": 12 },
+      "config": {
+        "title": "Dispositivos con Problemas",
+        "showRowCount": true,
+        "dataMode": "static",
+        "columns": [
+          { "key": "vehicle", "label": "Vehículo", "type": "text" },
+          { "key": "client", "label": "Cliente", "type": "text" },
+          { "key": "kmTotal", "label": "KM Totales", "type": "highlight" },
+          { "key": "provider", "label": "Proveedor", "type": "text" },
+          { "key": "severity", "label": "Severidad", "type": "badge" },
+          { "key": "lastSignal", "label": "Última señal", "type": "text" },
+          { "key": "problemType", "label": "Tipo de problema", "type": "text" }
+        ],
+        "rows": [
+          {
+            "vehicle": "FL-2341\nPeugeot Partner",
+            "client": "Traza Logistics",
+            "kmTotal": "1,500 km",
+            "provider": "Black Gps",
+            "severity": "Crítico",
+            "lastSignal": "10 Feb 2026 14:32",
+            "problemType": "Pérdida prolongada (>2h)"
+          },
+          {
+            "vehicle": "FL-1892\nMercedes Vito",
+            "client": "Distribuciones FastGo",
+            "kmTotal": "1,200 km",
+            "provider": "Black Gps",
+            "severity": "Crítico",
+            "lastSignal": "10 Feb 2026 18:15",
+            "problemType": "Pérdida prolongada (>2h)"
+          },
+          {
+            "vehicle": "FL-3210\nVolkswagen Amarok",
+            "client": "Traza Logistics",
+            "kmTotal": "1,100 km",
+            "provider": "Black Gps",
+            "severity": "Crítico",
+            "lastSignal": "10 Feb 2026 20:30",
+            "problemType": "Pérdida prolongada (>2h)"
+          },
+          {
+            "vehicle": "FL-3456\nMitsubishi L200",
+            "client": "Constructora Andina S.A.",
+            "kmTotal": "1,800 km",
+            "provider": "OnWay",
+            "severity": "Advertencia",
+            "lastSignal": "11 Feb 2026 09:20",
+            "problemType": "Latencia alta (>15 min)"
+          },
+          {
+            "vehicle": "FL-4521\nVolkswagen Amarok",
+            "client": "Distribuciones FastGo",
+            "kmTotal": "2,000 km",
+            "provider": "Redd",
+            "severity": "Advertencia",
+            "lastSignal": "11 Feb 2026 10:45",
+            "problemType": "Datos incompletos"
+          },
+          {
+            "vehicle": "FL-5678\nFord Transit",
+            "client": "Logística Express",
+            "kmTotal": "3,200 km",
+            "provider": "Black Gps",
+            "severity": "Advertencia",
+            "lastSignal": "11 Feb 2026 11:05",
+            "problemType": "Señal intermitente"
+          },
+          {
+            "vehicle": "FL-6789\nPeugeot Partner",
+            "client": "Transportes Andes",
+            "kmTotal": "950 km",
+            "provider": "Redd",
+            "severity": "Advertencia",
+            "lastSignal": "11 Feb 2026 12:30",
+            "problemType": "Latencia alta (>15 min)"
+          },
+          {
+            "vehicle": "FL-7891\nNissan NP300",
+            "client": "Minera Norte S.A.",
+            "kmTotal": "4,100 km",
+            "provider": "Samtech",
+            "severity": "Leve",
+            "lastSignal": "11 Feb 2026 13:00",
+            "problemType": "Datos combustible ausentes"
+          },
+          {
+            "vehicle": "FL-8012\nToyota Hilux",
+            "client": "Agro Pacífico Ltda.",
+            "kmTotal": "2,700 km",
+            "provider": "OnWay",
+            "severity": "Leve",
+            "lastSignal": "11 Feb 2026 13:45",
+            "problemType": "Datos incompletos"
+          },
+          {
+            "vehicle": "FL-9123\nRenault Master",
+            "client": "Traza Logistics",
+            "kmTotal": "1,650 km",
+            "provider": "Samtech",
+            "severity": "Leve",
+            "lastSignal": "11 Feb 2026 14:10",
+            "problemType": "Señal intermitente"
+          },
+          {
+            "vehicle": "FL-0234\nIveco Daily",
+            "client": "Constructora Andina S.A.",
+            "kmTotal": "3,800 km",
+            "provider": "Redd",
+            "severity": "Leve",
+            "lastSignal": "11 Feb 2026 14:55",
+            "problemType": "Datos combustible ausentes"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": true,
+          "column": "provider",
+          "label": "Tipo de dato:"
+        },
+        "sort": {
+          "enabled": true,
+          "columns": ["severity", "provider", "lastSignal"]
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

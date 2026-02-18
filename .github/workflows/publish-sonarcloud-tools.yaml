@@ -1,0 +1,57 @@
+name: Publish @microboxlabs/sonarcloud-tools
+
+on:
+  push:
+    tags:
+      - "sonarcloud-tools/v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 0.1.0)"
+        required: true
+      dry-run:
+        description: "Dry run (skip actual publish)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Set version from tag or input
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#sonarcloud-tools/v}"
+          fi
+          cd packages/sonarcloud-tools
+          npm version "$VERSION" --no-git-tag-version
+
+      - name: Build
+        run: npx turbo run build --filter=@microboxlabs/sonarcloud-tools
+
+      - name: Publish
+        if: ${{ github.event.inputs.dry-run != 'true' }}
+        run: npm publish --provenance --access public
+        working-directory: packages/sonarcloud-tools
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish (dry run)
+        if: ${{ github.event.inputs.dry-run == 'true' }}
+        run: npm publish --dry-run --access public
+        working-directory: packages/sonarcloud-tools

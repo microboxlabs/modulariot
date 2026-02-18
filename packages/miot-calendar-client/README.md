@@ -89,4 +89,4 @@ try {
 
 ## License
 
-Private — Microbox Labs.
+[Apache-2.0](./LICENSE)

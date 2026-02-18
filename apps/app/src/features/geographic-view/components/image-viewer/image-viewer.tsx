@@ -1,4 +1,4 @@
-import { Button } from "flowbite-react";
+import { Button, Modal, ModalBody } from "flowbite-react";
 import { MdOutlineFileDownload } from "react-icons/md";
 import { FaShare } from "react-icons/fa";
 import Carousel from "../carousel";
@@ -6,6 +6,23 @@ import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { downloadImage } from "../../utils/download-image";
+
+const modalTheme = {
+  root: {
+    base: "fixed inset-0 z-50 h-full w-full overflow-hidden",
+    sizes: {
+      "7xl": "max-w-none",
+    },
+  },
+  content: {
+    base: "relative w-[80%] h-[80%] md:h-[80%] p-0",
+    inner:
+      "relative flex flex-col h-full max-h-none bg-white dark:bg-gray-700 rounded-lg border border-gray-800 overflow-hidden",
+  },
+  body: {
+    base: "flex flex-col flex-1 overflow-hidden p-0",
+  },
+};
 
 // This component is the general image displayer
 export default function ImageViewer({
@@ -87,22 +104,16 @@ export default function ImageViewer({
   const categories = getCategories(dictionary);
 
   return (
-    <div
-      className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-[800] backdrop-blur-[10px] gap-2 ${selected === null ? "opacity-0 invisible" : "opacity-100 visible"}`}
-      onClick={(e) => {
-        // Only close if clicking the background, not the content
-        if (e.target === e.currentTarget) {
-          setSelected(null);
-        }
-      }}
+    <Modal
+      dismissible
+      show={selected !== null}
+      onClose={() => setSelected(null)}
+      size="7xl"
+      theme={modalTheme}
+      className="z-[800] backdrop-blur-[10px]"
     >
-      <div
-        className="w-[80%] h-[80%] flex flex-col items-center justify-center bg-white dark:bg-gray-700 rounded-lg border border-gray-800 overflow-hidden"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <div className="relative flex flex-col items-center justify-center gap-2 bg-gray-300 dark:bg-gray-600 rounded-t-lg shadow-lg w-full h-full flex-1 overflow-hidden">
+      <ModalBody>
+        <div className="relative flex flex-col items-center justify-center gap-2 bg-gray-300 dark:bg-gray-600 rounded-t-lg shadow-lg w-full h-full flex-1 min-h-0 overflow-hidden">
           {selected !== null && (
             <Carousel
               images={images}
@@ -125,8 +136,7 @@ export default function ImageViewer({
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 color="blue"
-                onClick={async (e: React.MouseEvent) => {
-                  e.stopPropagation();
+                onClick={async () => {
                   if (selected === null) return;
                   try {
                     await downloadImage(images[selected], dictionary);
@@ -143,10 +153,7 @@ export default function ImageViewer({
               </Button>
               <Button
                 color="blue"
-                onClick={(e: any) => {
-                  e.stopPropagation();
-                  handleShare();
-                }}
+                onClick={() => handleShare()}
                 pill
                 size="sm"
               >
@@ -155,7 +162,7 @@ export default function ImageViewer({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </ModalBody>
+    </Modal>
   );
 }

@@ -134,14 +134,14 @@ export default function Carousel({
               onClick={handleImageClick}
               aria-pressed={zoomActive}
               aria-label={zoomActive ? "Disable zoom" : "Enable zoom"}
-              className={`bg-transparent border-0 p-0 m-0 outline-none ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+              className={`bg-transparent border-0 p-0 m-0 outline-none max-h-full ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
             >
               <Image
                 src={image}
                 alt="Image"
                 width={1200}
                 height={1200}
-                className="h-full w-auto object-contain select-none pointer-events-none"
+                className="max-h-full w-auto object-contain select-none pointer-events-none"
                 onLoad={handleImageLoad}
               />
             </button>

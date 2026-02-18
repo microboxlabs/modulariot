@@ -22,7 +22,7 @@ const nextConfig = withNextra({
     }
   },
   output: 'standalone',
-  // Required for pnpm monorepo: trace dependencies from monorepo root
+  // Required for npm workspace monorepo: trace dependencies from monorepo root
   outputFileTracingRoot: path.join(import.meta.dirname, '../../'),
 })
 

@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import { Command } from "commander";
 import { fetchIssues } from "../api/issues-api.js";
 import { fetchRule } from "../api/rules-api.js";
 import type { SonarIssue } from "../types.js";
@@ -47,7 +47,7 @@ async function printRuleDocs(
   }
 }
 
-export function registerIssuesCommand(program: Command): void {
+export function registerIssuesCommand(program: InstanceType<typeof Command>): void {
   program
     .command("issues")
     .description("Fetch open SonarCloud issues for a project")

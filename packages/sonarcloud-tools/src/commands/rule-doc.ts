@@ -1,13 +1,19 @@
-import type { Command } from "commander";
+import { Command } from "commander";
 import { fetchRule } from "../api/rules-api.js";
 import { formatRuleMd } from "../formatters/rule-md.js";
 import { formatRuleText, ruleUrl } from "../formatters/rule-text.js";
 
-export function registerRuleDocCommand(program: Command): void {
+interface RuleDocOpts {
+  token?: string;
+  organization: string;
+  output: string;
+}
+
+export function registerRuleDocCommand(program: InstanceType<typeof Command>): void {
   program
     .command("rule-doc")
     .description("Fetch SonarCloud rule documentation by rule key")
-    .argument("<rule-key>", "Rule key (e.g. typescript:S1192)")
+    .arguments("<rule-key>")
     .option(
       "-t, --token <token>",
       "SonarCloud token (default: SONAR_TOKEN env)",
@@ -18,7 +24,7 @@ export function registerRuleDocCommand(program: Command): void {
       "microboxlabs",
     )
     .option("-o, --output <format>", "text | md | json | url", "text")
-    .action(async (ruleKey: string, opts) => {
+    .action(async (ruleKey: string, opts: RuleDocOpts) => {
       const token = opts.token ?? process.env.SONAR_TOKEN;
       if (!token) {
         console.error("Error: Set SONAR_TOKEN or pass -t TOKEN");

@@ -5,8 +5,7 @@ import { Button, Label, TextInput, Textarea, ToggleSwitch } from "flowbite-react
 import { createPortal } from "react-dom";
 import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
-import type { DashletSettingsProps } from "../types";
-import type { DataProviderEntry } from "../types";
+import type { DashletSettingsProps,DataProviderEntry } from "../types";
 import type { DashletConfig, TextAlign } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";

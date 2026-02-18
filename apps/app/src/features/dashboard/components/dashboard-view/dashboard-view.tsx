@@ -1,16 +1,8 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import {
-  Button,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Textarea,
-  ToggleSwitch,
-} from "flowbite-react";
-import { HiPlus, HiArrowDownTray, HiArrowUpTray } from "react-icons/hi2";
+import { Button, ToggleSwitch } from "flowbite-react";
+import { HiPlus } from "react-icons/hi2";
 import {
   GridLayout,
   verticalCompactor,
@@ -18,16 +10,14 @@ import {
   type LayoutItem,
 } from "react-grid-layout";
 import { useDashboard } from "../../context/dashboard-context";
-import { ShowNotification } from "@/features/notifications/notification";
 import { EmptyState } from "../empty-state";
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { getDashlet } from "../../dashlets";
 import { GRID_COLS, type GridLayoutItem } from "../../types/dashboard.types";
+import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 
 import "react-grid-layout/css/styles.css";
-import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
-import { HiClipboardList } from "react-icons/hi";
 
 /**
  * Main dashboard view component
@@ -38,38 +28,11 @@ export function DashboardView() {
     widgets,
     editMode,
     isLoaded,
+    dashboardName,
     toggleEditMode,
     updateWidgetLayouts,
-    exportDashboard,
-    importDashboard,
   } = useDashboard();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importText, setImportText] = useState("");
-  const [importError, setImportError] = useState<string | null>(null);
-
-  // Handle export - copy JSON to clipboard
-  const handleExport = useCallback(() => {
-    const json = exportDashboard();
-    navigator.clipboard.writeText(json).then(() => {
-      ShowNotification({
-        type: "success",
-        message: "Dashboard exported to clipboard",
-      });
-    });
-  }, [exportDashboard]);
-
-  // Handle import - parse JSON and restore dashboard
-  const handleImport = useCallback(() => {
-    setImportError(null);
-    const result = importDashboard(importText);
-    if (result.success) {
-      setIsImportModalOpen(false);
-      setImportText("");
-    } else {
-      setImportError(result.error ?? "Unknown error");
-    }
-  }, [importDashboard, importText]);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -182,29 +145,10 @@ export function DashboardView() {
     <div className="w-full">
       {/* Header */}
       <div className="-mx-4 -mt-4 flex flex-col items-start justify-between border-b border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center">
-        <ClientBreadcrumb
-          path={["Home", "Dashboard"]}
-          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          dict={{}}
-        />
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {dashboardName}
+        </h1>
         <div className="flex items-center gap-4">
-          <Button
-            color="light"
-            size="sm"
-            onClick={handleExport}
-            disabled={!hasWidgets}
-          >
-            <HiArrowUpTray className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button
-            color="light"
-            size="sm"
-            onClick={() => setIsImportModalOpen(true)}
-          >
-            <HiArrowDownTray className="mr-2 h-4 w-4" />
-            Import
-          </Button>
           {hasWidgets && (
             <ToggleSwitch
               checked={editMode}
@@ -212,55 +156,9 @@ export function DashboardView() {
               label="Edit Mode"
             />
           )}
+          <DashboardSettingsDropdown />
         </div>
       </div>
-
-      {/* Import Modal */}
-      <Modal
-        show={isImportModalOpen}
-        onClose={() => {
-          setIsImportModalOpen(false);
-          setImportText("");
-          setImportError(null);
-        }}
-        size="lg"
-      >
-        <ModalHeader>Import Dashboard</ModalHeader>
-        <ModalBody>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Paste the JSON configuration to restore your dashboard layout.
-            </p>
-            <Textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Paste your dashboard JSON here..."
-              rows={12}
-              className="font-mono text-sm"
-            />
-            {importError && (
-              <p className="text-sm text-red-600 dark:text-red-400">
-                Error: {importError}
-              </p>
-            )}
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button onClick={handleImport} disabled={!importText.trim()}>
-            Import
-          </Button>
-          <Button
-            color="gray"
-            onClick={() => {
-              setIsImportModalOpen(false);
-              setImportText("");
-              setImportError(null);
-            }}
-          >
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
 
       {/* Content */}
       <div ref={containerRef} className="w-full min-h-[200px]">

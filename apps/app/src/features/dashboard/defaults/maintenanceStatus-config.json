@@ -1,0 +1,183 @@
+{
+  "version": 2,
+  "name": "Maintenance Status",
+  "widgets": [
+    {
+      "id": "stat-status-1",
+      "componentId": "stat_status",
+      "layout": { "i": "stat-status-1", "x": 0, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Mantenimiento Atrasado",
+        "value": "3",
+        "color": "red",
+        "icon": "wrench"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "stat-status-2",
+      "componentId": "stat_status",
+      "layout": { "i": "stat-status-2", "x": 8, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Próximo a Vencer",
+        "value": "2",
+        "color": "orange",
+        "icon": "calendar"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "stat-status-3",
+      "componentId": "stat_status",
+      "layout": { "i": "stat-status-3", "x": 16, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Al Día",
+        "value": "5",
+        "color": "green",
+        "icon": "check"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "text-card-1",
+      "componentId": "text_card",
+      "layout": { "i": "text-card-1", "x": 0, "y": 4, "w": 24, "h": 3 },
+      "config": {
+        "text": "Los vehículos con mantenimiento atrasado presentan mayor riesgo de falla operacional. Se recomienda priorizar las intervenciones según el nivel de urgencia y la disponibilidad del taller.",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "data-table-1",
+      "componentId": "data_table",
+      "layout": { "i": "data-table-1", "x": 0, "y": 7, "w": 24, "h": 10 },
+      "config": {
+        "title": "Vehículos Priorizados",
+        "showRowCount": true,
+        "dataMode": "static",
+        "columns": [
+          { "key": "vehicle", "label": "Vehículo", "type": "text" },
+          { "key": "client", "label": "Cliente", "type": "text" },
+          { "key": "status", "label": "Estado", "type": "badge" },
+          { "key": "kmTotal", "label": "KM Totales", "type": "highlight" },
+          { "key": "lastMaint", "label": "Último Mantenimiento", "type": "text" },
+          { "key": "nextMaint", "label": "Próximo Mantenimiento", "type": "text" },
+          { "key": "kmLeft", "label": "KM Restantes", "type": "signed" }
+        ],
+        "rows": [
+          {
+            "vehicle": "FL-2341\nPeugeot Partner",
+            "client": "Traza Logistics",
+            "status": "Crítico",
+            "kmTotal": "47,400 km",
+            "lastMaint": "15/08/2024",
+            "nextMaint": "15/11/2024",
+            "kmLeft": "-2,400"
+          },
+          {
+            "vehicle": "FL-1892\nMercedes Vito",
+            "client": "Logística Express",
+            "status": "Crítico",
+            "kmTotal": "38,900 km",
+            "lastMaint": "20/09/2024",
+            "nextMaint": "20/12/2024",
+            "kmLeft": "-900"
+          },
+          {
+            "vehicle": "FL-3456\nMitsubishi L200",
+            "client": "Constructora Andina S.A.",
+            "status": "Crítico",
+            "kmTotal": "61,200 km",
+            "lastMaint": "01/10/2024",
+            "nextMaint": "01/01/2025",
+            "kmLeft": "-200"
+          },
+          {
+            "vehicle": "FL-4521\nVolkswagen Amarok",
+            "client": "Distribuciones FastGo",
+            "status": "Medio",
+            "kmTotal": "23,400 km",
+            "lastMaint": "10/11/2024",
+            "nextMaint": "10/02/2025",
+            "kmLeft": "450"
+          },
+          {
+            "vehicle": "FL-0987\nFord Transit",
+            "client": "Minera Norte S.A.",
+            "status": "Medio",
+            "kmTotal": "55,800 km",
+            "lastMaint": "05/11/2024",
+            "nextMaint": "05/02/2025",
+            "kmLeft": "780"
+          },
+          {
+            "vehicle": "FL-5102\nRenault Master",
+            "client": "Traza Logistics",
+            "status": "Bajo",
+            "kmTotal": "18,300 km",
+            "lastMaint": "22/11/2024",
+            "nextMaint": "22/02/2025",
+            "kmLeft": "2,200"
+          },
+          {
+            "vehicle": "FL-7731\nNissan NP300",
+            "client": "Agro Pacífico Ltda.",
+            "status": "Bajo",
+            "kmTotal": "34,100 km",
+            "lastMaint": "18/11/2024",
+            "nextMaint": "18/02/2025",
+            "kmLeft": "3,100"
+          },
+          {
+            "vehicle": "FL-6620\nToyota Hilux",
+            "client": "Minera Norte S.A.",
+            "status": "OK",
+            "kmTotal": "28,700 km",
+            "lastMaint": "01/12/2024",
+            "nextMaint": "01/03/2025",
+            "kmLeft": "5,800"
+          },
+          {
+            "vehicle": "FL-3310\nIveco Daily",
+            "client": "Constructora Andina S.A.",
+            "status": "OK",
+            "kmTotal": "42,500 km",
+            "lastMaint": "28/11/2024",
+            "nextMaint": "28/02/2025",
+            "kmLeft": "7,200"
+          },
+          {
+            "vehicle": "FL-8844\nHyundai H350",
+            "client": "Logística Express",
+            "status": "OK",
+            "kmTotal": "15,600 km",
+            "lastMaint": "10/12/2024",
+            "nextMaint": "10/03/2025",
+            "kmLeft": "12,400"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": true,
+          "column": "status",
+          "label": "Estado:"
+        },
+        "sort": {
+          "enabled": true,
+          "columns": ["status", "kmLeft", "nextMaint"]
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

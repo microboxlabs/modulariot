@@ -14,7 +14,9 @@
     "test": "turbo run test",
     "knip": "turbo run knip",
     "knip:check": "turbo run knip:check",
-    "prepare": "husky"
+    "prepare": "husky",
+    "sonarcloud:issues": "node packages/sonarcloud-tools/dist/cli.js issues -k microboxlabs_modulariot",
+    "sonarcloud:rule-doc": "node packages/sonarcloud-tools/dist/cli.js rule-doc"
   },
   "devDependencies": {
     "husky": "^9.1.7",

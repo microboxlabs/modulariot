@@ -1,0 +1,165 @@
+{
+  "version": 2,
+  "name": "Salud Técnica del Vehículo",
+  "widgets": [
+    {
+      "id": "vth-stat-1",
+      "componentId": "stat_status",
+      "layout": { "i": "vth-stat-1", "x": 0, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Fallas técnicas activas",
+        "value": "8",
+        "color": "red",
+        "icon": "warning"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "vth-stat-2",
+      "componentId": "stat_status",
+      "layout": { "i": "vth-stat-2", "x": 8, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Alertas DPF",
+        "value": "2",
+        "color": "orange",
+        "icon": "signal"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "vth-stat-3",
+      "componentId": "stat_status",
+      "layout": { "i": "vth-stat-3", "x": 16, "y": 0, "w": 8, "h": 4 },
+      "config": {
+        "title": "Otros sistemas críticos",
+        "value": "6",
+        "color": "blue",
+        "icon": "bolt"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "vth-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "vth-text-1", "x": 0, "y": 4, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"Las fallas DPF críticas se concentran en vehículos con recorridos urbanos frecuentes. Recomendamos revisión preventiva y regeneración forzada.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "vth-table-1",
+      "componentId": "data_table",
+      "layout": { "i": "vth-table-1", "x": 0, "y": 7, "w": 24, "h": 12 },
+      "config": {
+        "title": "Vehículos con síntomas técnicos",
+        "showRowCount": true,
+        "dataMode": "static",
+        "columns": [
+          { "key": "vehicle", "label": "Vehículo", "type": "text" },
+          { "key": "client", "label": "Cliente", "type": "text" },
+          { "key": "kmTotal", "label": "KM Totales", "type": "highlight" },
+          { "key": "system", "label": "Sistema afectado", "type": "text" },
+          { "key": "status", "label": "Estado", "type": "badge" },
+          { "key": "alertType", "label": "Tipo de alerta", "type": "text" },
+          { "key": "duration", "label": "Duración", "type": "text" }
+        ],
+        "rows": [
+          {
+            "vehicle": "FL-2341\nPeugeot Partner",
+            "client": "Traza Logistics",
+            "kmTotal": "47,400 km",
+            "system": "DPF",
+            "status": "Crítico",
+            "alertType": "Saturación DPF crítica",
+            "duration": "12 días"
+          },
+          {
+            "vehicle": "FL-1892\nMercedes Vito",
+            "client": "Logística Express",
+            "kmTotal": "38,900 km",
+            "system": "Motor",
+            "status": "Crítico",
+            "alertType": "Temperatura elevada",
+            "duration": "8 días"
+          },
+          {
+            "vehicle": "FL-3456\nMitsubishi L200",
+            "client": "Constructora Andina S.A.",
+            "kmTotal": "61,200 km",
+            "system": "DPF",
+            "status": "Crítico",
+            "alertType": "Presión diferencial alta",
+            "duration": "5 días"
+          },
+          {
+            "vehicle": "FL-4521\nVolkswagen Amarok",
+            "client": "Distribuciones FastGo",
+            "kmTotal": "23,400 km",
+            "system": "Alimentación",
+            "status": "Medio",
+            "alertType": "Presión de combustible baja",
+            "duration": "3 días"
+          },
+          {
+            "vehicle": "FL-6789\nPeugeot Partner",
+            "client": "Transportes Andes",
+            "kmTotal": "25,600 km",
+            "system": "Motor",
+            "status": "Medio",
+            "alertType": "RPM irregulares",
+            "duration": "2 días"
+          },
+          {
+            "vehicle": "FL-8921\nVolkswagen Amarok",
+            "client": "Distribuciones FastGo",
+            "kmTotal": "52,300 km",
+            "system": "Sensores",
+            "status": "Leve",
+            "alertType": "Sensor O2 intermitente",
+            "duration": "1 día"
+          },
+          {
+            "vehicle": "FL-5432\nMercedes Vito",
+            "client": "Logística Express",
+            "kmTotal": "21,500 km",
+            "system": "Transmisión",
+            "status": "Leve",
+            "alertType": "Vibración leve detectada",
+            "duration": "1 día"
+          },
+          {
+            "vehicle": "FL-9012\nMitsubishi L200",
+            "client": "Constructora Andina S.A.",
+            "kmTotal": "18,700 km",
+            "system": "Sensores",
+            "status": "Leve",
+            "alertType": "Sensor presión neumáticos",
+            "duration": "4 horas"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": false,
+          "column": "status",
+          "label": "Estado:"
+        },
+        "sort": {
+          "enabled": true,
+          "columns": ["status", "system", "duration"]
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

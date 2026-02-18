@@ -14,6 +14,7 @@ import {
   HiClock,
   HiWifi,
   HiCircleStack,
+  HiArrowTrendingUp,
 } from "react-icons/hi2";
 
 // ============================================================================
@@ -34,7 +35,8 @@ export type StatusIcon =
   | "bolt"
   | "clock"
   | "wifi"
-  | "database";
+  | "database"
+  | "trending";
 
 export interface IconOption {
   id: StatusIcon;
@@ -55,6 +57,7 @@ export const ICON_OPTIONS: IconOption[] = [
   { id: "clock", label: "Clock", component: HiClock },
   { id: "wifi", label: "Wifi", component: HiWifi },
   { id: "database", label: "Database", component: HiCircleStack },
+  { id: "trending", label: "Trending Up", component: HiArrowTrendingUp },
 ];
 
 const ICONS: Record<StatusIcon, React.ComponentType<{ className?: string }>> =

@@ -166,7 +166,7 @@ function getBadgeClasses(value: string): string {
 
 function getSignedClasses(value: string): string {
   // Strip everything except digits, minus sign, and decimal separator
-  const numeric = parseFloat(value.replace(/[^\d.-]/g, ""));
+  const numeric = Number.parseFloat(value.replaceAll(/[^\d.-]/g, ""));
   if (Number.isNaN(numeric)) {
     return "text-gray-700 dark:text-gray-300";
   }

@@ -123,9 +123,7 @@ function getTotalCountBagaes(totals: number) {
 }
 
 function getLabelColor(totals: number) {
-  return totals <= 0
-    ? "success"
-    : totals >= 100
-      ? "warning"
-      : "info";
+  if (totals <= 0) return "success";
+  if (totals >= 100) return "warning";
+  return "info";
 }

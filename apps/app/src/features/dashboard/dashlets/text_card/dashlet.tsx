@@ -47,6 +47,8 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Component
 // ============================================================================
 
+const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+
 const ALIGN_CLASS: Record<TextAlign, string> = {
   left: "text-left",
   center: "text-center",
@@ -59,7 +61,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     text = defaultConfig.text,
     italic = defaultConfig.italic,
     align = defaultConfig.align,
-    dataProvider = [],
+    dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
   const templateContext = useMemo(() => {

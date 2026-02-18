@@ -157,6 +157,8 @@ const COLOR_MAP: Record<
   },
 };
 
+const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -169,7 +171,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     subtitle = "",
     color = defaultConfig.color,
     icon = defaultConfig.icon,
-    dataProvider = [],
+    dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
   const templateContext = useMemo(() => {

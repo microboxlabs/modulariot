@@ -87,8 +87,17 @@ export default function Carousel({
 
   return (
     <div
+      role="application"
+      tabIndex={0}
       className="flex flex-row gap-2 w-full h-full"
       onMouseMove={handleMouseMove}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && zoomActive) {
+          setZoomActive(false);
+          setImageRect(null);
+          activeImageRef.current = null;
+        }
+      }}
     >
       <div
         ref={carouselRef}

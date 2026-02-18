@@ -7,7 +7,7 @@ interface SlugPageParams extends ParamsWithLang {
   params: Promise<{ lang: string; slug: string }>;
 }
 
-export default async function SlugDashboardPage({ params }: SlugPageParams) {
+export default async function SlugDashboardPage({ params }: Readonly<SlugPageParams>) {
   const { lang, slug } = await params;
   const [, dictionary] = await getDictionary(lang);
 

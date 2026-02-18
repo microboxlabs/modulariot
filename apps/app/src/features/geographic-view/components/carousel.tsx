@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
@@ -6,14 +6,22 @@ export default function Carousel({
   images,
   selected,
   setSelected,
-}: {
+}: Readonly<{
   images: string[];
   selected: number;
   setSelected: (index: number) => void;
-}) {
+}>) {
+  const sectionRef = useRef<HTMLElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [zoomActive, setZoomActive] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [imageRect, setImageRect] = useState<DOMRect | null>(null);
+  const activeImageRef = useRef<HTMLImageElement | null>(null);
   const loadedImagesCount = useRef(0);
+
+  const zoomLevel = 2.5;
+  const lensSize = 250;
 
   useEffect(() => {
     if (imagesLoaded) {
@@ -45,16 +53,63 @@ export default function Carousel({
     }
   };
 
+  const handleImageClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (zoomActive) {
+        setZoomActive(false);
+        setImageRect(null);
+        activeImageRef.current = null;
+      } else {
+        const img = e.currentTarget.querySelector("img");
+        if (!img) return;
+        activeImageRef.current = img;
+        setImageRect(img.getBoundingClientRect());
+        setZoomPosition({ x: e.clientX, y: e.clientY });
+        setZoomActive(true);
+      }
+    },
+    [zoomActive]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (zoomActive && imageRect) {
+        setZoomPosition({ x: e.clientX, y: e.clientY });
+      }
+    },
+    [zoomActive, imageRect]
+  );
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMouseMove);
+    return () => el.removeEventListener("mousemove", handleMouseMove);
+  }, [handleMouseMove]);
+
+  // Disable zoom when changing slides
+  useEffect(() => {
+    setZoomActive(false);
+    setImageRect(null);
+    activeImageRef.current = null;
+  }, [selected]);
+
   return (
-    <div className="flex flex-row gap-2 w-full h-full">
+    <section
+      ref={sectionRef}
+      aria-label="Image carousel"
+      className="flex flex-row gap-2 w-full h-full"
+    >
       <div
         ref={carouselRef}
         className="flex flex-row overflow-x-hidden h-full w-full scrollbar-hide"
         id="carousel"
       >
         {/* left arrow */}
-        <div
-          className="absolute z-10 left-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none"
+        <button
+          type="button"
+          aria-label="Previous image"
+          className="absolute z-10 left-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none border-0"
           onClick={() => {
             if (selected > 0) {
               setSelected(selected - 1);
@@ -64,10 +119,12 @@ export default function Carousel({
           }}
         >
           <FaChevronLeft />
-        </div>
+        </button>
         {/* right arrow */}
-        <div
-          className="absolute z-10 right-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none"
+        <button
+          type="button"
+          aria-label="Next image"
+          className="absolute z-10 right-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none border-0"
           onClick={() => {
             if (selected < images.length - 1) {
               setSelected(selected + 1);
@@ -77,21 +134,29 @@ export default function Carousel({
           }}
         >
           <FaChevronRight />
-        </div>
+        </button>
         {/* images */}
         {images.map((image, index) => (
           <div
-            key={index}
-            className="flex-shrink-0 w-full h-full flex items-center justify-center relative"
+            key={image}
+            className="shrink-0 w-full h-full flex items-center justify-center relative"
           >
-            <Image
-              src={image}
-              alt="Image"
-              width={1200}
-              height={1200}
-              className="h-full w-auto object-contain select-none pointer-events-none"
-              onLoad={handleImageLoad}
-            />
+            <button
+              type="button"
+              onClick={handleImageClick}
+              aria-pressed={zoomActive}
+              aria-label={zoomActive ? "Disable zoom" : "Enable zoom"}
+              className={`bg-transparent border-0 p-0 m-0 outline-none max-h-full ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+            >
+              <Image
+                src={image}
+                alt="Image"
+                width={1200}
+                height={1200}
+                className="max-h-full w-auto object-contain select-none pointer-events-none"
+                onLoad={handleImageLoad}
+              />
+            </button>
           </div>
         ))}
         {/* indicators */}
@@ -100,9 +165,11 @@ export default function Carousel({
           {images.length < 8 ? (
             <div className="w-full h-full flex flex-row gap-2">
               {images.map((image, index) => (
-                <div
-                  key={index}
-                  className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
+                <button
+                  type="button"
+                  key={image}
+                  aria-label={`Go to image ${index + 1}`}
+                  className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none border-0 p-0 ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
                   onClick={() => setSelected(index)}
                 />
               ))}
@@ -114,6 +181,31 @@ export default function Carousel({
           )}
         </div>
       </div>
-    </div>
+
+      {/* Magnifier Lens */}
+      {zoomActive && imageRect && (
+        <div
+          className="pointer-events-none fixed z-50 overflow-hidden rounded-lg border-2 border-white/50 shadow-xl"
+          style={{
+            width: lensSize,
+            height: lensSize,
+            left: zoomPosition.x - lensSize / 2,
+            top: zoomPosition.y - lensSize / 2,
+          }}
+        >
+          <div
+            style={{
+              width: imageRect.width * zoomLevel,
+              height: imageRect.height * zoomLevel,
+              backgroundImage: `url(${images[selected]})`,
+              backgroundSize: `${imageRect.width * zoomLevel}px ${imageRect.height * zoomLevel}px`,
+              backgroundPosition: `-${(zoomPosition.x - imageRect.left) * zoomLevel - lensSize / 2}px -${(zoomPosition.y - imageRect.top) * zoomLevel - lensSize / 2}px`,
+              backgroundRepeat: "no-repeat",
+            }}
+            className="h-full w-full"
+          />
+        </div>
+      )}
+    </section>
   );
 }

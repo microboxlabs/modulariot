@@ -4,7 +4,7 @@ export default function CustomCard({
   subtitle = null,
   style,
   className
-}: {
+}: Readonly<{
   children: React.ReactNode;
   title?: string | null;
   subtitle?: string | null;
@@ -13,7 +13,7 @@ export default function CustomCard({
     subtitle: string;
   };
   className?: string;
-}) {
+}>) {
   return (
     <div
       className={`text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-3 rounded-lg flex flex-col ${

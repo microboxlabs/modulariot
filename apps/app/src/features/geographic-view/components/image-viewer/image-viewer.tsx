@@ -35,7 +35,7 @@ export default function ImageViewer({
   images: string[];
   selected: number | null;
   setSelected: (index: number | null) => void;
-  data?: { tag: string; name: string }[];
+  data?: { tag?: string; name: string }[];
   dictionary: I18nRecord;
 }>) {
   const handleShare = async () => {

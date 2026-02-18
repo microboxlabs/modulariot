@@ -11,6 +11,7 @@ export default function Carousel({
   selected: number;
   setSelected: (index: number) => void;
 }>) {
+  const sectionRef = useRef<HTMLElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [zoomActive, setZoomActive] = useState(false);
@@ -71,13 +72,20 @@ export default function Carousel({
   );
 
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: MouseEvent) => {
       if (zoomActive && imageRect) {
         setZoomPosition({ x: e.clientX, y: e.clientY });
       }
     },
     [zoomActive, imageRect]
   );
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMouseMove);
+    return () => el.removeEventListener("mousemove", handleMouseMove);
+  }, [handleMouseMove]);
 
   // Disable zoom when changing slides
   useEffect(() => {
@@ -88,9 +96,9 @@ export default function Carousel({
 
   return (
     <section
+      ref={sectionRef}
       aria-label="Image carousel"
       className="flex flex-row gap-2 w-full h-full"
-      onMouseMove={handleMouseMove}
     >
       <div
         ref={carouselRef}

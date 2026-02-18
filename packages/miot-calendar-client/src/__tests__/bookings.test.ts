@@ -5,26 +5,7 @@ import type {
   BookingResponse,
   BookingListResponse,
 } from "../types.js";
-
-function createMockFetch(response: unknown, status = 200) {
-  const call = { url: "", init: {} as RequestInit };
-  const fn = async (url: string | URL | Request, init: RequestInit = {}) => {
-    if (typeof url === "string") {
-      call.url = url;
-    } else if (url instanceof URL) {
-      call.url = url.href;
-    } else {
-      call.url = url.url;
-    }
-    call.init = init;
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => response,
-    } as Response;
-  };
-  return { fn, call };
-}
+import { createMockFetch } from "./test-utils.js";
 
 const BASE_URL = "https://api.example.com";
 const BOOKINGS_PATH = "/api/v1/miot-calendar/bookings";

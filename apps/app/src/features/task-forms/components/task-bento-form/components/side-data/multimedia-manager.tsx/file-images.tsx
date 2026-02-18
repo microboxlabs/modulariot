@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { FaUpload } from "react-icons/fa";
 import {
@@ -64,7 +64,7 @@ export default function FileImages({
     uploadFile,
   } = useOptimisticFileUpload(packageId);
 
-  const files = data?.data?.list?.entries || [];
+  const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
   const {
     data: documentsData,

@@ -12,6 +12,7 @@ import {
   GRID_COLS,
   type Widget,
   type GridLayoutItem,
+  type DashboardStorageSchema,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -118,11 +119,17 @@ function getNextPosition(
 
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
+  /** localStorage key used to persist this dashboard's config (e.g. "dashboard-config") */
+  storageKey: string;
+  /** Optional server-loaded default config. Used only when localStorage has no data yet. */
+  defaultConfig?: DashboardStorageSchema | null;
 }
 
 export function DashboardProvider({
   children,
   dictionary,
+  storageKey,
+  defaultConfig,
 }: Readonly<DashboardProviderProps>) {
   const {
     widgets,
@@ -140,7 +147,7 @@ export function DashboardProvider({
     exportDashboard,
     importDashboard,
     downloadDashboard,
-  } = useDashboardStorage();
+  } = useDashboardStorage(storageKey, defaultConfig);
 
   const createWidget = useCallback(
     (

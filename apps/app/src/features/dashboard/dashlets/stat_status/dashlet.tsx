@@ -198,20 +198,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   return (
     <div
-      className={`flex h-full flex-col justify-between rounded-lg border border-gray-200 border-l-4 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 ${colors.border}`}
+      className={`flex h-full flex-col justify-between rounded-lg border border-gray-200 border-l-4 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${colors.border}`}
     >
       <div className="flex items-start justify-between">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           {compiledTitle}
         </p>
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${colors.iconBg}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colors.iconBg}`}
         >
-          <IconComponent className={`h-5 w-5 ${colors.iconText}`} />
+          <IconComponent className={`h-4 w-4 ${colors.iconText}`} />
         </div>
       </div>
       <div>
-        <p className={`text-4xl font-bold ${colors.valueText}`}>{compiledValue}</p>
+        <p className={`text-3xl font-bold ${colors.valueText}`}>{compiledValue}</p>
         {compiledSubtitle && (
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {compiledSubtitle}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Label, TextInput, Textarea } from "flowbite-react";
+import { Label, TextInput, Textarea, Select } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -155,6 +155,59 @@ export function SettingsTextareaField({
 
 // ============================================================================
 // SettingsFieldGrid
+// ============================================================================
+
+interface SettingsSelectOption {
+  value: string;
+  label: string;
+}
+
+interface SettingsSelectFieldProps {
+  /** Unique ID for the field */
+  id: string;
+  /** Label text */
+  label: string;
+  /** Current value */
+  value: string;
+  /** Change callback */
+  onChange: (value: string) => void;
+  /** Available options */
+  options: SettingsSelectOption[];
+}
+
+/**
+ * Reusable select field for dashlet settings.
+ */
+export function SettingsSelectField({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: Readonly<SettingsSelectFieldProps>) {
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-sm">
+        {label}
+      </Label>
+      <Select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        sizing="sm"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
+// ============================================================================
+// SettingsFieldGrid (renamed section header)
 // ============================================================================
 
 interface SettingsFieldGridProps {

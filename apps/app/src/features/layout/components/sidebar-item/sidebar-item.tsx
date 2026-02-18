@@ -64,6 +64,17 @@ export default function SidebarItem({
             return null;
           }
 
+          const badgeProps =
+            isHomeSection || typeof totals[item.label] === "string"
+              ? {}
+              : (() => {
+                  const count = getTotalCountBagaes(
+                    totals[item.label] as number
+                  );
+                  const labelColor = getLabelColor(count);
+                  return { label: `${count}`, labelColor };
+                })();
+
           return (
             <FlowbiteSidebarItem
               key={index}
@@ -78,19 +89,7 @@ export default function SidebarItem({
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              {...((isHomeSection || typeof totals[item.label] === "string")
-                ? {}
-                : (() => {
-                    const count = getTotalCountBagaes(
-                      totals[item.label] as number
-                    );
-                    const labelColor =
-                      getLabelColor(count);
-                    return {
-                      label: `${count}`,
-                      labelColor,
-                    };
-                  })())}
+              {...badgeProps}
             >
               {tr(item.label, dict)}
             </FlowbiteSidebarItem>

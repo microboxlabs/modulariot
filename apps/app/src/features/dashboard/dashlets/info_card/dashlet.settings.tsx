@@ -30,7 +30,7 @@ type HandlebarsStatus = "valid" | "invalid" | "none";
 
 function getHandlebarsStatus(text: string): HandlebarsStatus {
   // Check if text contains handlebars expressions
-  const handlebarsMatches = text.match(/\{\{(.*?)\}\}/g);
+  const handlebarsMatches = text.match(/\{\{([^}]*)\}\}/g);
   if (!handlebarsMatches || handlebarsMatches.length === 0) return "none";
 
   // Validate each handlebars expression

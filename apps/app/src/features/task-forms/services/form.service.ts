@@ -583,8 +583,8 @@ export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =
 export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_CONFIRM_DELIVERY_V2,
   TASK_RECEIVE_DELIVERY,
-  TASK_NOTIFY_TMS_ARRIVAL,
-  TASK_NOTIFY_TMS_DELIVERY,
+  //TASK_NOTIFY_TMS_ARRIVAL,
+  //TASK_NOTIFY_TMS_DELIVERY,
 ];
 
 /* ------------------------------------------------------------- */

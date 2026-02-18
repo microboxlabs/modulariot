@@ -16,8 +16,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const nodeRef = `workspace://SpacesStore/${documentId}`;
+    const path = nodeRef.replace(/:\//, "");
+
     const { url, headers } = prepareAlfrescoAuth(
-      `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${documentId}?a=true`,
+      `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${path}?a=true`,
       session
     );
 

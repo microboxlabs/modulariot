@@ -39,14 +39,8 @@ export function useTripPositions(tripId: string, assetId: string) {
     };
 
     eventSource.onerror = () => {
-      setPositions([...positionBuffer.slice()]);
-
-      if (eventSource.readyState === 0) {
-        setError(new Error("EventSource connection failed"));
-      } else if (eventSource.readyState === 2 && size === 0) {
-        setError(new Error("EventSource closed"));
-      }
-
+      setPositions([...positionBuffer]);
+      console.error("EventSource connection failed", eventSource.readyState, size);
       eventSource.close();
       setIsLoading(false);
     };
@@ -56,7 +50,7 @@ export function useTripPositions(tripId: string, assetId: string) {
         eventSourceRef.current.close();
         setIsLoading(false);
       }
-      setPositions([...positionBuffer.slice()]);
+      setPositions([...positionBuffer]);
     };
   }, [tripId, assetId]);
 

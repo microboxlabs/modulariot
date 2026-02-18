@@ -6,6 +6,7 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 
+// cpd-off — sidebar configuration data, structural repetition is intentional
 export const pages: SidebarItem[] = [
   {
     href: "/home",
@@ -226,3 +227,4 @@ export const pages: SidebarItem[] = [
     requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
   },
 ];
+// cpd-on

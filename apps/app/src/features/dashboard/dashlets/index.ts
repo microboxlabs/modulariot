@@ -31,6 +31,8 @@ import { dashletDefinition as statSparklineDefinition } from "./stat_sparkline";
 import { dashletDefinition as statSensitiveDefinition } from "./stat_sensitive";
 import { dashletDefinition as infoCardDefinition } from "./info_card";
 import { dashletDefinition as dataTableDefinition } from "./data_table";
+import { dashletDefinition as statStatusDefinition } from "./stat_status";
+import { dashletDefinition as textCardDefinition } from "./text_card";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -51,6 +53,8 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statSensitiveDefinition,
   infoCardDefinition,
   dataTableDefinition,
+  statStatusDefinition,
+  textCardDefinition,
 ];
 
 /** Registry of all available dashlets */

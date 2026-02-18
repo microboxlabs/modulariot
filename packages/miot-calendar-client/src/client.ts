@@ -4,16 +4,16 @@ import { createBookingsApi } from "./resources/bookings.js";
 import { createCalendarsApi } from "./resources/calendars.js";
 import { createSlotsApi } from "./resources/slots.js";
 
-export interface FetchOptions {
-  body?: unknown;
+export interface FetchOptions<TBody = unknown> {
+  body?: TBody;
   query?: Record<string, string | boolean | undefined>;
   headers?: Record<string, string>;
 }
 
-export type Fetcher = <T>(
+export type Fetcher = <T, TBody = unknown>(
   method: string,
   path: string,
-  options?: FetchOptions,
+  options?: FetchOptions<TBody>,
 ) => Promise<T>;
 
 function buildUrl(
@@ -58,7 +58,12 @@ export function createMiotCalendarClient(config: ClientConfig) {
     });
 
     if (!response.ok) {
-      const body = await response.json();
+      let body: import("./types.js").ErrorResponse | string;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text();
+      }
       throw new MiotCalendarApiError(response.status, body);
     }
 

@@ -19,6 +19,24 @@ import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
 
+const ALLOWED_FILE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "application/pdf",
+]);
+
+function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
+  const validFiles = files.filter((file) =>
+    ALLOWED_FILE_TYPES.has(file.type)
+  );
+  if (validFiles.length !== files.length) {
+    alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
+    return null;
+  }
+  return validFiles;
+}
+
 export default function FileImages({
   task,
   dictionary,
@@ -43,8 +61,6 @@ export default function FileImages({
   // Use the optimistic upload hook instead of the basic one
   const {
     data,
-    error: _childrenError,
-    isLoading: _childrenIsLoading,
     uploadFile,
   } = useOptimisticFileUpload(packageId);
 
@@ -127,23 +143,11 @@ export default function FileImages({
         }
 
         setIsDragOver(false);
-        const files = Array.from(e.dataTransfer.files);
-        const allowedTypes = [
-          "image/jpeg",
-          "image/jpg",
-          "image/png",
-          "application/pdf",
-        ];
-        const validFiles = files.filter((file) =>
-          allowedTypes.includes(file.type)
+        const validFiles = filterValidFiles(
+          Array.from(e.dataTransfer.files),
+          dictionary
         );
-
-        if (validFiles.length !== files.length) {
-          alert(
-            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
-          );
-          return;
-        }
+        if (!validFiles) return;
 
         setUploadableFiles(validFiles);
         setIsClasificationFormOpen(true);
@@ -184,26 +188,11 @@ export default function FileImages({
               accept=".jpg,.jpeg,.png,.pdf"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
-                  const files = Array.from(e.target.files);
-                  const allowedTypes = [
-                    "image/jpeg",
-                    "image/jpg",
-                    "image/png",
-                    "application/pdf",
-                  ];
-                  const validFiles = files.filter((file) =>
-                    allowedTypes.includes(file.type)
+                  const validFiles = filterValidFiles(
+                    Array.from(e.target.files),
+                    dictionary
                   );
-
-                  if (validFiles.length !== files.length) {
-                    alert(
-                      tr(
-                        "bento.multimedia.only_jpg_jpeg_png_pdf_allowed",
-                        dictionary
-                      )
-                    );
-                    return;
-                  }
+                  if (!validFiles) return;
 
                   setIsClasificationFormOpen(true);
                   setUploadableFiles(validFiles);

@@ -54,7 +54,7 @@ export function createMiotCalendarClient(config: ClientConfig) {
     const response = await fetchFn(url, {
       method,
       headers,
-      body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options?.body === undefined ? undefined : JSON.stringify(options.body),
     });
 
     if (!response.ok) {

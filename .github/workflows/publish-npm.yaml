@@ -1,0 +1,62 @@
+name: Publish NPM Package
+
+on:
+  push:
+    tags:
+      - "miot-calendar-client@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-calendar-client@v0.2.0)"
+        required: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write          # npm provenance
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Cache node_modules
+        id: cache-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Build package
+        run: npx turbo run build --filter=@modulariot/miot-calendar-client
+
+      - name: Run lint
+        run: npx turbo run lint --filter=@modulariot/miot-calendar-client
+
+      - name: Run type check
+        run: npx turbo run check-types --filter=@modulariot/miot-calendar-client
+
+      - name: Run tests
+        run: npx turbo run test --filter=@modulariot/miot-calendar-client
+
+      - name: Publish to npm
+        run: npm publish --workspace=packages/miot-calendar-client --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

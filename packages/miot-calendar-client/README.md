@@ -1,17 +1,17 @@
-# @modulariot/miot-calendar-client
+# @microboxlabs/miot-calendar-client
 
 TypeScript client for the ModularIoT Calendar API. Zero dependencies — uses the native `fetch` API.
 
 ## Installation
 
 ```bash
-npm install @modulariot/miot-calendar-client
+npm install @microboxlabs/miot-calendar-client
 ```
 
 ## Quick Start
 
 ```ts
-import { createMiotCalendarClient } from "@modulariot/miot-calendar-client";
+import { createMiotCalendarClient } from "@microboxlabs/miot-calendar-client";
 
 const client = createMiotCalendarClient({
   baseUrl: "https://your-api-host.com",
@@ -75,7 +75,7 @@ createMiotCalendarClient({
 ## Error Handling
 
 ```ts
-import { MiotCalendarApiError } from "@modulariot/miot-calendar-client";
+import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
 
 try {
   await client.bookings.get("non-existent");

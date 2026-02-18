@@ -85,11 +85,7 @@ export default function SidebarItem({
                       totals[item.label] as number
                     );
                     const labelColor =
-                      count <= 0
-                        ? "success"
-                        : count >= 100
-                          ? "warning"
-                          : "info";
+                      getLabelColor(count);
                     return {
                       label:
                         typeof totals[item.label] === "string"
@@ -127,4 +123,12 @@ export default function SidebarItem({
 
 function getTotalCountBagaes(totals: number) {
   return totals ? totals : 0;
+}
+
+function getLabelColor(totals: number) {
+  return totals <= 0
+    ? "success"
+    : totals >= 100
+      ? "warning"
+      : "info";
 }

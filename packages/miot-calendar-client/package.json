@@ -1,0 +1,25 @@
+{
+  "name": "@modulariot/miot-calendar-client",
+  "version": "0.1.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2"
+  }
+}

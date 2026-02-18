@@ -172,7 +172,7 @@ function getProgressColor(pct: number): string {
 }
 
 function renderProgress(value: string) {
-  const pct = parseFloat(value.replace(/[^\d.]/g, ""));
+  const pct = Number.parseFloat(value.replaceAll(/[^\d.]/g, ""));
   const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
   const barColor = getProgressColor(safePct);
   return (

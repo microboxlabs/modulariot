@@ -28,14 +28,37 @@ type SettingsTab = "visualization" | "data";
 
 type HandlebarsStatus = "valid" | "invalid" | "none";
 
-function getHandlebarsStatus(text: string): HandlebarsStatus {
-  // Check if text contains handlebars expressions
-  const handlebarsMatches = text.match(/\{\{([^}]*)\}\}/g);
-  if (!handlebarsMatches || handlebarsMatches.length === 0) return "none";
+/** Allowed characters inside a Handlebars expression (no regex needed). */
+const ALLOWED_INNER_CHARS = new Set(
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ \t.#/^>@!-"
+);
 
-  // Validate each handlebars expression
-  for (const match of handlebarsMatches) {
-    const inner = match.slice(2, -2).trim();
+/** Extract `{{…}}` expressions from text without regex. */
+function findHandlebarsExpressions(text: string): string[] {
+  const results: string[] = [];
+  let start = 0;
+  while ((start = text.indexOf("{{", start)) !== -1) {
+    const end = text.indexOf("}}", start + 2);
+    if (end === -1) break;
+    results.push(text.substring(start + 2, end));
+    start = end + 2;
+  }
+  return results;
+}
+
+function isValidInner(inner: string): boolean {
+  for (const ch of inner) {
+    if (!ALLOWED_INNER_CHARS.has(ch)) return false;
+  }
+  return true;
+}
+
+function getHandlebarsStatus(text: string): HandlebarsStatus {
+  const expressions = findHandlebarsExpressions(text);
+  if (expressions.length === 0) return "none";
+
+  for (const raw of expressions) {
+    const inner = raw.trim();
 
     // Check for invalid patterns:
     // - Empty: {{}}
@@ -43,12 +66,13 @@ function getHandlebarsStatus(text: string): HandlebarsStatus {
     // - Leading dot: {{.something}}
     // - Double dots: {{data..provider}}
     // - Only spaces: {{   }}
+    // - Disallowed characters
     if (
       !inner ||
       inner.endsWith(".") ||
       inner.startsWith(".") ||
-      /\.\./.test(inner) ||
-      !/^[\w\s.#/^>@!-]+$/.test(inner)
+      inner.includes("..") ||
+      !isValidInner(inner)
     ) {
       return "invalid";
     }

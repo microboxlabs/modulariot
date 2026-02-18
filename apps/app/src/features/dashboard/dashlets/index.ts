@@ -30,6 +30,7 @@ import { dashletDefinition as statStackedDefinition } from "./stat_stacked";
 import { dashletDefinition as statSparklineDefinition } from "./stat_sparkline";
 import { dashletDefinition as statSensitiveDefinition } from "./stat_sensitive";
 import { dashletDefinition as infoCardDefinition } from "./info_card";
+import { dashletDefinition as dataTableDefinition } from "./data_table";
 
 // ============================================================================
 // DASHLET REGISTRY - Add new dashlets here
@@ -49,6 +50,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statSparklineDefinition,
   statSensitiveDefinition,
   infoCardDefinition,
+  dataTableDefinition,
 ];
 
 /** Registry of all available dashlets */

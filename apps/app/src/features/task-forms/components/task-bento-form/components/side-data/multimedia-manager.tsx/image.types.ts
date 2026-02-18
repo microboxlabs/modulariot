@@ -22,7 +22,7 @@ export interface AlfrescoFileEntry {
     };
     nodeType: string;
     parentId: string;
-    properties: Record<string, string>;
+    properties: Record<string, string | undefined>;
   };
 }
 

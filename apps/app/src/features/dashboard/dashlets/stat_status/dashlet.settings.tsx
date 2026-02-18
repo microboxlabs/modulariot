@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Button, Label, TextInput } from "flowbite-react";
+import { Button, TextInput } from "flowbite-react";
 import { createPortal } from "react-dom";
-import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type {
@@ -16,6 +15,7 @@ import { tr } from "@/features/i18n/tr.service";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import {
   SettingsSelectField,
+  HbTextField,
 } from "../common";
 
 // ============================================================================
@@ -23,70 +23,6 @@ import {
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-// ============================================================================
-// Handlebars validation helpers
-// ============================================================================
-
-type HandlebarsStatus = "valid" | "invalid" | "none";
-
-function findHandlebarsExpressions(text: string): string[] {
-  const results: string[] = [];
-  let start = text.indexOf("{{");
-  while (start !== -1) {
-    const end = text.indexOf("}}", start + 2);
-    if (end === -1) break;
-    results.push(text.substring(start, end + 2));
-    start = text.indexOf("{{", end + 2);
-  }
-  return results;
-}
-
-function getHandlebarsStatus(text: string): HandlebarsStatus {
-  const matches = findHandlebarsExpressions(text);
-  if (matches.length === 0) return "none";
-  for (const match of matches) {
-    const inner = match.slice(2, -2).trim();
-    if (
-      !inner ||
-      inner.endsWith(".") ||
-      inner.startsWith(".") ||
-      /\.\./.test(inner) ||
-      !/^[\w\s.#/^>@!-]+$/.test(inner)
-    ) return "invalid";
-  }
-  try {
-    Handlebars.compile(text);
-    return "valid";
-  } catch {
-    return "invalid";
-  }
-}
-
-function getFlowbiteColor(s: HandlebarsStatus): "gray" | "success" | "failure" {
-  if (s === "valid") return "success";
-  if (s === "invalid") return "failure";
-  return "gray";
-}
-
-function HbTextField({
-  id, label, value, onChange, placeholder,
-}: Readonly<{ id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string }>) {
-  const status = getHandlebarsStatus(value);
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">{label}</Label>
-      <TextInput
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        sizing="sm"
-        color={getFlowbiteColor(status)}
-      />
-    </div>
-  );
-}
 
 // ============================================================================
 // Settings Component

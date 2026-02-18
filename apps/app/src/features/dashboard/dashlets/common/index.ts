@@ -12,4 +12,12 @@ export {
   SettingsPickerRow,
   SettingsPickerItem,
   SettingsTitleValueUnit,
+  HbTextField,
+  HbTextareaField,
 } from "./settings-fields";
+export {
+  type HandlebarsStatus,
+  findHandlebarsExpressions,
+  getHandlebarsStatus,
+  getFlowbiteColor,
+} from "./handlebars-helpers";

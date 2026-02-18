@@ -240,18 +240,15 @@ export default function FileImages({
               {tr("bento.multimedia.gallery", dictionary)} ({images.length}{" "}
               {tr("bento.multimedia.elements", dictionary)})
             </p>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setSelectedImage(0);
-              }}
+            <Button
+              color="link"
+              onClick={() => setSelectedImage(0)}
               className={`${
                 images.length == 0 ? "hidden" : "block"
-              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
+              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed [&>span]:p-0`}
             >
               {tr("bento.multimedia.viewMore", dictionary)}
-            </a>
+            </Button>
           </div>
           {images.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative h-80">
@@ -286,18 +283,15 @@ export default function FileImages({
               {tr("bento.multimedia.documents", dictionary)} ({documents.length}{" "}
               {tr("bento.multimedia.elements", dictionary)})
             </p>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsDocumentListOpen(true);
-              }}
+            <Button
+              color="link"
+              onClick={() => setIsDocumentListOpen(true)}
               className={`${
                 documents.length == 0 ? "hidden" : "block"
-              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
+              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed [&>span]:p-0`}
             >
               {tr("bento.multimedia.viewMore", dictionary)}
-            </a>
+            </Button>
           </div>
           {documents.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative h-40">

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Handlebars from "handlebars";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 import {
   HiWrench,
   HiCalendarDays,
@@ -79,12 +79,6 @@ export const COLOR_OPTIONS: ColorOption[] = [
   { id: "blue", label: "Blue" },
   { id: "gray", label: "Gray" },
 ];
-
-export interface DataProviderEntry {
-  key: string;
-  value: string;
-  _id?: number;
-}
 
 export interface DashletConfig {
   title: string;

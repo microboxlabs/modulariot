@@ -2,19 +2,13 @@
 
 import { useMemo } from "react";
 import Handlebars from "handlebars";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
 export type TextAlign = "left" | "center" | "right";
-
-export interface DataProviderEntry {
-  key: string;
-  value: string;
-  _id?: number;
-}
 
 export interface DashletConfig {
   text: string;

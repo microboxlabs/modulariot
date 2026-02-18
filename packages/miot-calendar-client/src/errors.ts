@@ -5,8 +5,8 @@ export class MiotCalendarApiError extends Error {
 
   constructor(
     public readonly status: number,
-    public readonly body: ErrorResponse,
+    public readonly body: ErrorResponse | string,
   ) {
-    super(body.message);
+    super(typeof body === "string" ? body : body.message);
   }
 }

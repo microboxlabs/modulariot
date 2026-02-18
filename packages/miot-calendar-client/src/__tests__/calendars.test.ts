@@ -8,16 +8,23 @@ import type {
 } from "../types.js";
 
 function createMockFetch(response: unknown, status = 200) {
-  const calls: { url: string; init: RequestInit }[] = [];
-  const fn = async (url: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: url as string, init: init! });
+  const call = { url: "", init: {} as RequestInit };
+  const fn = async (url: string | URL | Request, init: RequestInit = {}) => {
+    if (typeof url === "string") {
+      call.url = url;
+    } else if (url instanceof URL) {
+      call.url = url.href;
+    } else {
+      call.url = url.url;
+    }
+    call.init = init;
     return {
       ok: status >= 200 && status < 300,
       status,
       json: async () => response,
     } as Response;
   };
-  return { fn, calls };
+  return { fn, call };
 }
 
 const BASE_URL = "https://api.example.com";
@@ -51,22 +58,22 @@ const sampleTimeWindow: TimeWindowResponse = {
 describe("calendars", () => {
   describe("list", () => {
     it("sends GET to calendars endpoint", async () => {
-      const { fn, calls } = createMockFetch([sampleCalendar]);
+      const { fn, call } = createMockFetch([sampleCalendar]);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.list();
 
-      expect(calls[0]!.init.method).toBe("GET");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${CALENDARS_PATH}`);
+      expect(call.init.method).toBe("GET");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}`);
     });
 
     it("passes active filter as query param", async () => {
-      const { fn, calls } = createMockFetch([sampleCalendar]);
+      const { fn, call } = createMockFetch([sampleCalendar]);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.list({ active: true });
 
-      const url = new URL(calls[0]!.url);
+      const url = new URL(call.url);
       expect(url.searchParams.get("active")).toBe("true");
     });
 
@@ -82,13 +89,13 @@ describe("calendars", () => {
 
   describe("get", () => {
     it("sends GET to calendars/:id", async () => {
-      const { fn, calls } = createMockFetch(sampleCalendar);
+      const { fn, call } = createMockFetch(sampleCalendar);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.get("cal-1");
 
-      expect(calls[0]!.init.method).toBe("GET");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
+      expect(call.init.method).toBe("GET");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
     });
   });
 
@@ -99,14 +106,14 @@ describe("calendars", () => {
     };
 
     it("sends POST with body", async () => {
-      const { fn, calls } = createMockFetch(sampleCalendar);
+      const { fn, call } = createMockFetch(sampleCalendar);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.create(calendarRequest);
 
-      expect(calls[0]!.init.method).toBe("POST");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${CALENDARS_PATH}`);
-      expect(calls[0]!.init.body).toBe(JSON.stringify(calendarRequest));
+      expect(call.init.method).toBe("POST");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}`);
+      expect(call.init.body).toBe(JSON.stringify(calendarRequest));
     });
   });
 
@@ -117,26 +124,26 @@ describe("calendars", () => {
     };
 
     it("sends PUT to calendars/:id with body", async () => {
-      const { fn, calls } = createMockFetch(sampleCalendar);
+      const { fn, call } = createMockFetch(sampleCalendar);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.update("cal-1", calendarRequest);
 
-      expect(calls[0]!.init.method).toBe("PUT");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
-      expect(calls[0]!.init.body).toBe(JSON.stringify(calendarRequest));
+      expect(call.init.method).toBe("PUT");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
+      expect(call.init.body).toBe(JSON.stringify(calendarRequest));
     });
   });
 
   describe("deactivate", () => {
     it("sends DELETE to calendars/:id", async () => {
-      const { fn, calls } = createMockFetch(undefined, 204);
+      const { fn, call } = createMockFetch(undefined, 204);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.deactivate("cal-1");
 
-      expect(calls[0]!.init.method).toBe("DELETE");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
+      expect(call.init.method).toBe("DELETE");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1`);
     });
 
     it("returns undefined", async () => {
@@ -151,13 +158,13 @@ describe("calendars", () => {
 
   describe("listTimeWindows", () => {
     it("sends GET to calendars/:id/time-windows", async () => {
-      const { fn, calls } = createMockFetch([sampleTimeWindow]);
+      const { fn, call } = createMockFetch([sampleTimeWindow]);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.listTimeWindows("cal-1");
 
-      expect(calls[0]!.init.method).toBe("GET");
-      expect(calls[0]!.url).toBe(
+      expect(call.init.method).toBe("GET");
+      expect(call.url).toBe(
         `${BASE_URL}${CALENDARS_PATH}/cal-1/time-windows`,
       );
     });
@@ -175,16 +182,16 @@ describe("calendars", () => {
     };
 
     it("sends POST to calendars/:id/time-windows with body", async () => {
-      const { fn, calls } = createMockFetch(sampleTimeWindow);
+      const { fn, call } = createMockFetch(sampleTimeWindow);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.createTimeWindow("cal-1", twRequest);
 
-      expect(calls[0]!.init.method).toBe("POST");
-      expect(calls[0]!.url).toBe(
+      expect(call.init.method).toBe("POST");
+      expect(call.url).toBe(
         `${BASE_URL}${CALENDARS_PATH}/cal-1/time-windows`,
       );
-      expect(calls[0]!.init.body).toBe(JSON.stringify(twRequest));
+      expect(call.init.body).toBe(JSON.stringify(twRequest));
     });
   });
 
@@ -197,16 +204,16 @@ describe("calendars", () => {
     };
 
     it("sends PUT to calendars/:calendarId/time-windows/:timeWindowId", async () => {
-      const { fn, calls } = createMockFetch(sampleTimeWindow);
+      const { fn, call } = createMockFetch(sampleTimeWindow);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.calendars.updateTimeWindow("cal-1", "tw-1", twRequest);
 
-      expect(calls[0]!.init.method).toBe("PUT");
-      expect(calls[0]!.url).toBe(
+      expect(call.init.method).toBe("PUT");
+      expect(call.url).toBe(
         `${BASE_URL}${CALENDARS_PATH}/cal-1/time-windows/tw-1`,
       );
-      expect(calls[0]!.init.body).toBe(JSON.stringify(twRequest));
+      expect(call.init.body).toBe(JSON.stringify(twRequest));
     });
   });
 });

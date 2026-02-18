@@ -9,16 +9,23 @@ import type {
 } from "../types.js";
 
 function createMockFetch(response: unknown, status = 200) {
-  const calls: { url: string; init: RequestInit }[] = [];
-  const fn = async (url: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: url as string, init: init! });
+  const call = { url: "", init: {} as RequestInit };
+  const fn = async (url: string | URL | Request, init: RequestInit = {}) => {
+    if (typeof url === "string") {
+      call.url = url;
+    } else if (url instanceof URL) {
+      call.url = url.href;
+    } else {
+      call.url = url.url;
+    }
+    call.init = init;
     return {
       ok: status >= 200 && status < 300,
       status,
       json: async () => response,
     } as Response;
   };
-  return { fn, calls };
+  return { fn, call };
 }
 
 const BASE_URL = "https://api.example.com";
@@ -47,19 +54,19 @@ describe("slots", () => {
     };
 
     it("sends GET with required calendarId", async () => {
-      const { fn, calls } = createMockFetch(listResponse);
+      const { fn, call } = createMockFetch(listResponse);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.slots.list({ calendarId: "cal-1" });
 
-      expect(calls[0]!.init.method).toBe("GET");
-      const url = new URL(calls[0]!.url);
+      expect(call.init.method).toBe("GET");
+      const url = new URL(call.url);
       expect(url.pathname).toBe(SLOTS_PATH);
       expect(url.searchParams.get("calendarId")).toBe("cal-1");
     });
 
     it("passes optional filter params", async () => {
-      const { fn, calls } = createMockFetch(listResponse);
+      const { fn, call } = createMockFetch(listResponse);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.slots.list({
@@ -69,7 +76,7 @@ describe("slots", () => {
         endDate: "2025-12-31",
       });
 
-      const url = new URL(calls[0]!.url);
+      const url = new URL(call.url);
       expect(url.searchParams.get("available")).toBe("true");
       expect(url.searchParams.get("startDate")).toBe("2025-01-01");
       expect(url.searchParams.get("endDate")).toBe("2025-12-31");
@@ -87,13 +94,13 @@ describe("slots", () => {
 
   describe("get", () => {
     it("sends GET to slots/:id", async () => {
-      const { fn, calls } = createMockFetch(sampleSlot);
+      const { fn, call } = createMockFetch(sampleSlot);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.slots.get("s-1");
 
-      expect(calls[0]!.init.method).toBe("GET");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${SLOTS_PATH}/s-1`);
+      expect(call.init.method).toBe("GET");
+      expect(call.url).toBe(`${BASE_URL}${SLOTS_PATH}/s-1`);
     });
 
     it("returns the slot", async () => {
@@ -120,14 +127,14 @@ describe("slots", () => {
     };
 
     it("sends POST to slots/generate with body", async () => {
-      const { fn, calls } = createMockFetch(generateResponse);
+      const { fn, call } = createMockFetch(generateResponse);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.slots.generate(generateRequest);
 
-      expect(calls[0]!.init.method).toBe("POST");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${SLOTS_PATH}/generate`);
-      expect(calls[0]!.init.body).toBe(JSON.stringify(generateRequest));
+      expect(call.init.method).toBe("POST");
+      expect(call.url).toBe(`${BASE_URL}${SLOTS_PATH}/generate`);
+      expect(call.init.body).toBe(JSON.stringify(generateRequest));
     });
 
     it("returns the generation result", async () => {
@@ -144,14 +151,14 @@ describe("slots", () => {
     const statusRequest: UpdateSlotStatusRequest = { status: "CLOSED" };
 
     it("sends PATCH to slots/:id/status with body", async () => {
-      const { fn, calls } = createMockFetch(sampleSlot);
+      const { fn, call } = createMockFetch(sampleSlot);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
 
       await client.slots.updateStatus("s-1", statusRequest);
 
-      expect(calls[0]!.init.method).toBe("PATCH");
-      expect(calls[0]!.url).toBe(`${BASE_URL}${SLOTS_PATH}/s-1/status`);
-      expect(calls[0]!.init.body).toBe(JSON.stringify(statusRequest));
+      expect(call.init.method).toBe("PATCH");
+      expect(call.url).toBe(`${BASE_URL}${SLOTS_PATH}/s-1/status`);
+      expect(call.init.body).toBe(JSON.stringify(statusRequest));
     });
 
     it("returns the updated slot", async () => {

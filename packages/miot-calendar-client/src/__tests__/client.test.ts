@@ -3,16 +3,23 @@ import { createMiotCalendarClient, MiotCalendarApiError } from "../index.js";
 import type { ErrorResponse } from "../types.js";
 
 function createMockFetch(response: unknown, status = 200) {
-  const calls: { url: string; init: RequestInit }[] = [];
-  const fn = async (url: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: url as string, init: init! });
+  const call = { url: "", init: {} as RequestInit };
+  const fn = async (url: string | URL | Request, init: RequestInit = {}) => {
+    if (typeof url === "string") {
+      call.url = url;
+    } else if (url instanceof URL) {
+      call.url = url.href;
+    } else {
+      call.url = url.url;
+    }
+    call.init = init;
     return {
       ok: status >= 200 && status < 300,
       status,
       json: async () => response,
     } as Response;
   };
-  return { fn, calls };
+  return { fn, call };
 }
 
 describe("createMiotCalendarClient", () => {
@@ -20,18 +27,18 @@ describe("createMiotCalendarClient", () => {
 
   describe("URL building", () => {
     it("builds a full URL from baseUrl and path", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.bookings.list();
 
-      expect(calls[0]!.url).toBe(
+      expect(call.url).toBe(
         "https://api.example.com/api/v1/miot-calendar/bookings",
       );
     });
 
     it("appends query parameters", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.bookings.list({
@@ -39,18 +46,18 @@ describe("createMiotCalendarClient", () => {
         startDate: "2025-01-01",
       });
 
-      const url = new URL(calls[0]!.url);
+      const url = new URL(call.url);
       expect(url.searchParams.get("calendarId")).toBe("cal-1");
       expect(url.searchParams.get("startDate")).toBe("2025-01-01");
     });
 
     it("omits undefined query values", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.bookings.list({ calendarId: "cal-1", endDate: undefined });
 
-      const url = new URL(calls[0]!.url);
+      const url = new URL(call.url);
       expect(url.searchParams.get("calendarId")).toBe("cal-1");
       expect(url.searchParams.has("endDate")).toBe(false);
     });
@@ -58,7 +65,7 @@ describe("createMiotCalendarClient", () => {
 
   describe("request headers", () => {
     it("sends config-level headers on every request", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({
         baseUrl,
         fetch: fn,
@@ -67,30 +74,30 @@ describe("createMiotCalendarClient", () => {
 
       await client.bookings.list();
 
-      expect(calls[0]!.init.headers).toEqual(
+      expect(call.init.headers).toEqual(
         expect.objectContaining({ Authorization: "Bearer token-123" }),
       );
     });
 
     it("sets Content-Type when body is present", async () => {
       const mockResponse = { id: "cal-1", code: "CAL", name: "Test" };
-      const { fn, calls } = createMockFetch(mockResponse);
+      const { fn, call } = createMockFetch(mockResponse);
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.calendars.create({ code: "CAL", name: "Test" });
 
-      expect(calls[0]!.init.headers).toEqual(
+      expect(call.init.headers).toEqual(
         expect.objectContaining({ "Content-Type": "application/json" }),
       );
     });
 
     it("does not set Content-Type for GET requests", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.bookings.list();
 
-      const headers = calls[0]!.init.headers as Record<string, string>;
+      const headers = call.init.headers as Record<string, string>;
       expect(headers["Content-Type"]).toBeUndefined();
     });
   });
@@ -156,22 +163,22 @@ describe("createMiotCalendarClient", () => {
   describe("request body serialization", () => {
     it("serializes body as JSON string", async () => {
       const mockResponse = { id: "cal-1", code: "CAL", name: "Test" };
-      const { fn, calls } = createMockFetch(mockResponse);
+      const { fn, call } = createMockFetch(mockResponse);
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       const body = { code: "CAL", name: "Test" };
       await client.calendars.create(body);
 
-      expect(calls[0]!.init.body).toBe(JSON.stringify(body));
+      expect(call.init.body).toBe(JSON.stringify(body));
     });
 
     it("does not send body for GET requests", async () => {
-      const { fn, calls } = createMockFetch({ data: [], total: 0 });
+      const { fn, call } = createMockFetch({ data: [], total: 0 });
       const client = createMiotCalendarClient({ baseUrl, fetch: fn });
 
       await client.bookings.list();
 
-      expect(calls[0]!.init.body).toBeUndefined();
+      expect(call.init.body).toBeUndefined();
     });
   });
 });

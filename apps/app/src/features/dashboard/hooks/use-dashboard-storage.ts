@@ -5,7 +5,6 @@ import {
   type Widget,
   type DashboardStorageSchema,
   DEFAULT_STORAGE,
-  STORAGE_KEY,
 } from "../types/dashboard.types";
 import { getDashlet } from "../dashlets";
 
@@ -75,48 +74,63 @@ function updateChildrenLayouts(
 }
 
 /**
- * Hook for persisting dashboard data to localStorage
+ * Hook for persisting dashboard data to localStorage.
+ * @param storageKey    - The localStorage key to use (e.g. "dashboard-config")
+ * @param defaultConfig - Optional server-loaded default config. Used only when
+ *                        localStorage has no saved data for this key yet.
  */
-export function useDashboardStorage() {
+export function useDashboardStorage(
+  storageKey: string,
+  defaultConfig?: DashboardStorageSchema | null
+) {
   const [data, setData] = useState<DashboardStorageSchema>(DEFAULT_STORAGE);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load data from localStorage on mount
+  // Load data from localStorage on mount (or when key changes)
   useEffect(() => {
+    setIsLoaded(false);
+    setData(DEFAULT_STORAGE);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
 
       if (stored) {
+        // User already has a saved config — always prefer it over the default
         const parsed = JSON.parse(stored);
         if (parsed.version === 2) {
-          // Current version - ensure defaults
           const migratedWidgets = parsed.widgets.map((w: Widget, i: number) =>
             ensureWidgetDefaults(w, i)
           );
-          // Ensure name exists (migration for existing dashboards without name)
           const name = parsed.name || DEFAULT_STORAGE.name;
           setData({ ...parsed, name, widgets: migratedWidgets });
         } else {
-          // Unknown version - reset to defaults
-          setData(DEFAULT_STORAGE);
+          setData(defaultConfig ?? DEFAULT_STORAGE);
         }
+      } else if (defaultConfig) {
+        // No saved config yet — seed with the server-provided default
+        const migratedWidgets = defaultConfig.widgets.map(
+          (w: Widget, i: number) => ensureWidgetDefaults(w, i)
+        );
+        setData({ ...defaultConfig, widgets: migratedWidgets });
       }
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      setData(DEFAULT_STORAGE);
+      setData(defaultConfig ?? DEFAULT_STORAGE);
     }
     setIsLoaded(true);
-  }, []);
+  }, [storageKey]); // defaultConfig is intentionally omitted — it's stable per page load
 
   // Save data to localStorage
-  const saveData = useCallback((newData: DashboardStorageSchema) => {
-    setData(newData);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-    } catch (error) {
-      console.error("Failed to save dashboard data:", error);
-    }
-  }, []);
+  const saveData = useCallback(
+    (newData: DashboardStorageSchema) => {
+      setData(newData);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newData));
+      } catch (error) {
+        console.error("Failed to save dashboard data:", error);
+      }
+    },
+    [storageKey]
+  );
 
   // Find widget by ID (recursive search)
   const findWidget = useCallback(

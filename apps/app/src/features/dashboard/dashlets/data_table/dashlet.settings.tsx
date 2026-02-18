@@ -103,6 +103,12 @@ export function DashletSettings({
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
   const [apiUrl, setApiUrl] = useState(config.apiUrl ?? "");
 
+  const handleSortColumnToggle = (checked: boolean, key: string) => {
+    setSortColumns((prev) =>
+      checked ? [...prev, key] : prev.filter((k) => k !== key)
+    );
+  };
+
   // ── Column helpers ──────────────────────────────────────────────────────────
 
   const addColumn = () => {
@@ -375,13 +381,9 @@ export function DashletSettings({
                             <input
                               type="checkbox"
                               checked={sortColumns.includes(c.key)}
-                              onChange={(e) => {
-                                setSortColumns((prev) =>
-                                  e.target.checked
-                                    ? [...prev, c.key]
-                                    : prev.filter((k) => k !== c.key)
-                                );
-                              }}
+                              onChange={(e) =>
+                                handleSortColumnToggle(e.target.checked, c.key)
+                              }
                               className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
                             />
                             <span className="text-sm text-gray-700 dark:text-gray-300">

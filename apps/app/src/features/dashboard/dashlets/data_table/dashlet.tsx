@@ -347,6 +347,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return result;
   }, [allRows, filter, filterValue, sort, sortKey, sortDir]);
 
+  const getSortIcon = (dir: "asc" | "desc") =>
+    dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
+
   const handleSortClick = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -407,13 +410,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               active={sortKey === key}
               onClick={() => handleSortClick(key)}
               icon={
-                sortKey === key ? (
-                  sortDir === "asc" ? (
-                    <HiArrowUp className="h-3 w-3" />
-                  ) : (
-                    <HiArrowDown className="h-3 w-3" />
-                  )
-                ) : undefined
+                sortKey === key
+                  ? getSortIcon(sortDir)
+                  : undefined
               }
             />
           ))}
@@ -457,9 +456,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row, i) => (
+                displayRows.map((row) => (
                   <tr
-                    key={i}
+                    key={columns.map((col) => row[col.key] ?? "").join("|")}
                     className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
                   >
                     {columns.map((col) => (

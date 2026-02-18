@@ -20,7 +20,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^13.1.0"
+    "commander": "^7.2.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

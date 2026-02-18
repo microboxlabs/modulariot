@@ -1,11 +1,17 @@
 import { execSync } from "node:child_process";
 
+const SAFE_ENV = {
+  ...process.env,
+  PATH: "/usr/local/bin:/usr/bin:/bin",
+};
+
 export function detectPullRequest(): string {
   // Try gh CLI first
   try {
     const pr = execSync("gh pr view --json number -q .number", {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
+      env: SAFE_ENV,
     }).trim();
     if (pr) return pr;
   } catch {

@@ -404,13 +404,13 @@ export const getSecondaryTransitionIdV2 = (
         ] as string,
         icon: HiOutlineArrowLeft,
       },
-      {
+      /* {
         id: OUTCOME_TO_CLOSE_MONITORING_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_CLOSE_MONITORING_V2
         ] as string,
         icon: HiOutlineArrowRight,
-      },
+      }, */
       {
         id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
         label: (dict.outcome as I18nRecord)[

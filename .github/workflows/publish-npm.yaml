@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write          # npm provenance
+      id-token: write          # OIDC for npm trusted publishers
 
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +57,4 @@ jobs:
         run: npx turbo run test --filter=@microboxlabs/miot-calendar-client
 
       - name: Publish to npm
-        run: npm publish --workspace=packages/miot-calendar-client --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace=packages/miot-calendar-client --access public

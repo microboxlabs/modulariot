@@ -3,7 +3,7 @@ import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import AppLogo from "@/features/common/components/app-logo/app-logo";
 
 interface TotemNavbarProps {
-  orgLogoUrl?: string | null;
+  readonly orgLogoUrl?: string | null;
 }
 
 export default function TotemNavbar({ orgLogoUrl }: TotemNavbarProps) {

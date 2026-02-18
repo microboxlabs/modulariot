@@ -169,7 +169,29 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     subtitle = "",
     color = defaultConfig.color,
     icon = defaultConfig.icon,
+    dataProvider = [],
   } = config;
+
+  const templateContext = useMemo(() => {
+    const data_provider: Record<string, string> = {};
+    for (const entry of dataProvider) {
+      if (entry.key) data_provider[entry.key] = entry.value;
+    }
+    return { data_provider };
+  }, [dataProvider]);
+
+  const compiledTitle = useMemo(() => {
+    try { return Handlebars.compile(title)(templateContext); } catch { return title; }
+  }, [title, templateContext]);
+
+  const compiledValue = useMemo(() => {
+    try { return Handlebars.compile(value)(templateContext); } catch { return value; }
+  }, [value, templateContext]);
+
+  const compiledSubtitle = useMemo(() => {
+    if (!subtitle) return "";
+    try { return Handlebars.compile(subtitle)(templateContext); } catch { return subtitle; }
+  }, [subtitle, templateContext]);
 
   const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;
   const IconComponent = ICONS[icon] ?? ICONS.check;

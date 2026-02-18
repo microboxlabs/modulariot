@@ -8,12 +8,12 @@ export default function ImageViewerConnector({
   selected,
   setSelected,
   dictionary,
-}: {
+}: Readonly<{
   images: any[];
   selected: number | null;
   setSelected: (index: number | null) => void;
   dictionary: I18nRecord;
-}) {
+}>) {
   const data = useMemo(() => {
     return images.map((image: any) => {
       return {

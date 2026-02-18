@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import Handlebars from "handlebars";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 
 // ============================================================================
@@ -8,16 +10,24 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 
 export type TextAlign = "left" | "center" | "right";
 
+export interface DataProviderEntry {
+  key: string;
+  value: string;
+  _id?: number;
+}
+
 export interface DashletConfig {
   text: string;
   italic: boolean;
   align: TextAlign;
+  dataProvider?: DataProviderEntry[];
 }
 
 export const defaultConfig: DashletConfig = {
   text: "Add your text or quote here...",
   italic: true,
   align: "left",
+  dataProvider: [],
 };
 
 // ============================================================================
@@ -49,7 +59,24 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     text = defaultConfig.text,
     italic = defaultConfig.italic,
     align = defaultConfig.align,
+    dataProvider = [],
   } = config;
+
+  const templateContext = useMemo(() => {
+    const data_provider: Record<string, string> = {};
+    for (const entry of dataProvider) {
+      if (entry.key) data_provider[entry.key] = entry.value;
+    }
+    return { data_provider };
+  }, [dataProvider]);
+
+  const compiledText = useMemo(() => {
+    try {
+      return Handlebars.compile(text)(templateContext);
+    } catch {
+      return text;
+    }
+  }, [text, templateContext]);
 
   const alignClass = ALIGN_CLASS[align] ?? ALIGN_CLASS.left;
 
@@ -58,7 +85,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <p
         className={`w-full text-sm text-gray-600 dark:text-gray-300 ${alignClass}${italic ? " italic" : ""}`}
       >
-        {text}
+        {compiledText}
       </p>
     </div>
   );

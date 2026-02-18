@@ -1049,6 +1049,8 @@
       "search": "Search",
       "sidebar": {
         "home": "Home",
+        "dashboard": "Dashboard",
+        "maintenanceStatus": "Maintenance Status",
         "calendar": "Calendar",
         "kanban": "Kanban",
         "completed_tasks": "Completed tasks",

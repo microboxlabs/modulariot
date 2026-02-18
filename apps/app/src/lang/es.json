@@ -1059,6 +1059,8 @@
       "search": "Buscar",
       "sidebar": {
         "home": "Home",
+        "dashboard": "Dashboard",
+        "maintenanceStatus": "Estado de Mantención",
         "calendar": "Calendario",
         "kanban": "Kanban",
         "tasks": "Mis tareas",

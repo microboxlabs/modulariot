@@ -31,9 +31,21 @@ type SettingsTab = "visualization" | "data";
 
 type HandlebarsStatus = "valid" | "invalid" | "none";
 
+function findHandlebarsExpressions(text: string): string[] {
+  const results: string[] = [];
+  let start = text.indexOf("{{");
+  while (start !== -1) {
+    const end = text.indexOf("}}", start + 2);
+    if (end === -1) break;
+    results.push(text.substring(start, end + 2));
+    start = text.indexOf("{{", end + 2);
+  }
+  return results;
+}
+
 function getHandlebarsStatus(text: string): HandlebarsStatus {
-  const matches = text.match(/\{\{([^}]*(?:\}(?!\})[^}]*)*)\}\}/g);
-  if (!matches || matches.length === 0) return "none";
+  const matches = findHandlebarsExpressions(text);
+  if (matches.length === 0) return "none";
   for (const match of matches) {
     const inner = match.slice(2, -2).trim();
     if (

@@ -78,18 +78,26 @@ export default function SidebarItem({
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              {...(!isHomeSection && {
-                label:
-                  typeof totals[item.label] == "string"
-                    ? undefined
-                    : `${getTotalCountBagaes(totals[item.label] as number)}`,
-                labelColor:
-                  getTotalCountBagaes(totals[item.label] as number) <= 0
-                    ? "success"
-                    : getTotalCountBagaes(totals[item.label] as number) >= 100
-                      ? "warning"
-                      : "info",
-              })}
+              {...(isHomeSection
+                ? {}
+                : (() => {
+                    const count = getTotalCountBagaes(
+                      totals[item.label] as number
+                    );
+                    const labelColor =
+                      count <= 0
+                        ? "success"
+                        : count >= 100
+                          ? "warning"
+                          : "info";
+                    return {
+                      label:
+                        typeof totals[item.label] === "string"
+                          ? undefined
+                          : `${count}`,
+                      labelColor,
+                    };
+                  })())}
             >
               {tr(item.label, dict)}
             </FlowbiteSidebarItem>

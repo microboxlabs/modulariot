@@ -120,8 +120,6 @@ export default function TaskActions({
       | PlanningProcessForms
   ) => {
     if (taskType) {
-      console.log("taskType", taskType);
-      console.log("outcome", outcome);
       /* V2 Tasks */
       switch (outcome) {
         case OUTCOME_PRESENT_DRIVER_V2:

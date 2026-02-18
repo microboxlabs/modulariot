@@ -10,7 +10,7 @@ import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfre
 export default async function TotemPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [_dict, dictionary] = await getDictionary(lang ?? defaultLocale);
-  const orgLogo = await getPublicOrgLogo();
+  const orgLogo = await getPublicOrgLogo().catch(() => null);
 
   return (
     <div className="flex flex-col items-center justify-center w-screen h-screen">

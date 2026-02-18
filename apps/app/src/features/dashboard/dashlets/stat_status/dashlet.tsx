@@ -202,7 +202,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     >
       <div className="flex items-start justify-between">
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {title}
+          {compiledTitle}
         </p>
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${colors.iconBg}`}
@@ -211,10 +211,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </div>
       </div>
       <div>
-        <p className={`text-4xl font-bold ${colors.valueText}`}>{value}</p>
-        {subtitle && (
+        <p className={`text-4xl font-bold ${colors.valueText}`}>{compiledValue}</p>
+        {compiledSubtitle && (
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {subtitle}
+            {compiledSubtitle}
           </p>
         )}
       </div>

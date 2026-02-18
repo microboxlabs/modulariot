@@ -2,6 +2,7 @@ import ImageViewer from "@/features/geographic-view/components/image-viewer/imag
 import { displayBase64Content } from "./file-images";
 import { useMemo } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ImageItem } from "./image.types";
 
 export default function ImageViewerConnector({
   images,
@@ -9,13 +10,13 @@ export default function ImageViewerConnector({
   setSelected,
   dictionary,
 }: Readonly<{
-  images: any[];
+  images: ImageItem[];
   selected: number | null;
   setSelected: (index: number | null) => void;
   dictionary: I18nRecord;
 }>) {
   const data = useMemo(() => {
-    return images.map((image: any) => {
+    return images.map((image) => {
       return {
         tag: image.file.entry.properties["mintral:contentType"],
         name: image.file.entry.name,
@@ -25,7 +26,7 @@ export default function ImageViewerConnector({
 
   const imagesUrls = useMemo(() => {
     return images
-      .map((image: any) => {
+      .map((image) => {
         if (image.data) {
           return displayBase64Content(
             image.data,

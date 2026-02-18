@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { Label, TextInput, Textarea, Select } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 
 // ============================================================================
 // SettingsTextField
@@ -334,5 +336,90 @@ export function SettingsTitleValueUnit({
         />
       </SettingsFieldGrid>
     </>
+  );
+}
+
+// ============================================================================
+// HbTextField — Handlebars-aware TextInput
+// ============================================================================
+
+interface HbTextFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+/**
+ * Text input that shows Handlebars validation status via Flowbite color.
+ */
+export function HbTextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: Readonly<HbTextFieldProps>) {
+  const status = useMemo(() => getHandlebarsStatus(value), [value]);
+
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
+        {label}
+      </Label>
+      <TextInput
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        sizing="sm"
+        color={getFlowbiteColor(status)}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// HbTextareaField — Handlebars-aware Textarea
+// ============================================================================
+
+interface HbTextareaFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}
+
+/**
+ * Textarea that shows Handlebars validation status via Flowbite color.
+ */
+export function HbTextareaField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 2,
+}: Readonly<HbTextareaFieldProps>) {
+  const status = useMemo(() => getHandlebarsStatus(value), [value]);
+
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
+        {label}
+      </Label>
+      <Textarea
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="text-sm"
+        color={getFlowbiteColor(status)}
+      />
+    </div>
   );
 }

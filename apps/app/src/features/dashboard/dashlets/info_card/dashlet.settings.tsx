@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
-import { Button, Label, TextInput, Textarea } from "flowbite-react";
+import { useState, useRef } from "react";
+import { Button, TextInput } from "flowbite-react";
 import { createPortal } from "react-dom";
-import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type { DashletConfig, InfoCardIcon } from "./dashlet";
@@ -14,166 +13,18 @@ import {
   IconPickerDropdown,
   type IconOption,
 } from "@/features/common/components/icon-picker-dropdown";
-import { SettingsPickerRow, SettingsPickerItem } from "../common";
+import {
+  SettingsPickerRow,
+  SettingsPickerItem,
+  HbTextField,
+  HbTextareaField,
+} from "../common";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-// ============================================================================
-// Handlebars Validation
-// ============================================================================
-
-type HandlebarsStatus = "valid" | "invalid" | "none";
-
-/** Allowed characters inside a Handlebars expression (no regex needed). */
-const ALLOWED_INNER_CHARS = new Set(
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_ \t.#/^>@!-"
-);
-
-/** Extract `{{…}}` expressions from text without regex. */
-function findHandlebarsExpressions(text: string): string[] {
-  const results: string[] = [];
-  let start = 0;
-  while ((start = text.indexOf("{{", start)) !== -1) {
-    const end = text.indexOf("}}", start + 2);
-    if (end === -1) break;
-    results.push(text.substring(start + 2, end));
-    start = end + 2;
-  }
-  return results;
-}
-
-function isValidInner(inner: string): boolean {
-  for (const ch of inner) {
-    if (!ALLOWED_INNER_CHARS.has(ch)) return false;
-  }
-  return true;
-}
-
-function getHandlebarsStatus(text: string): HandlebarsStatus {
-  const expressions = findHandlebarsExpressions(text);
-  if (expressions.length === 0) return "none";
-
-  for (const raw of expressions) {
-    const inner = raw.trim();
-
-    // Check for invalid patterns:
-    // - Empty: {{}}
-    // - Trailing dot: {{data_provider.}}
-    // - Leading dot: {{.something}}
-    // - Double dots: {{data..provider}}
-    // - Only spaces: {{   }}
-    // - Disallowed characters
-    if (
-      !inner ||
-      inner.endsWith(".") ||
-      inner.startsWith(".") ||
-      inner.includes("..") ||
-      !isValidInner(inner)
-    ) {
-      return "invalid";
-    }
-  }
-
-  // Try to compile to catch any other syntax errors
-  try {
-    Handlebars.compile(text);
-    return "valid";
-  } catch {
-    return "invalid";
-  }
-}
-
-function getFlowbiteColor(
-  status: HandlebarsStatus
-): "gray" | "success" | "failure" {
-  switch (status) {
-    case "valid":
-      return "success";
-    case "invalid":
-      return "failure";
-    default:
-      return "gray";
-  }
-}
-
-// ============================================================================
-// Handlebars-aware Input Components
-// ============================================================================
-
-interface HandlebarsTextFieldProps {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
-
-function HandlebarsTextField({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-}: Readonly<HandlebarsTextFieldProps>) {
-  const status = useMemo(() => getHandlebarsStatus(value), [value]);
-
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {label}
-      </Label>
-      <TextInput
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        sizing="sm"
-        color={getFlowbiteColor(status)}
-      />
-    </div>
-  );
-}
-
-interface HandlebarsTextareaFieldProps {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  rows?: number;
-}
-
-function HandlebarsTextareaField({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 2,
-}: Readonly<HandlebarsTextareaFieldProps>) {
-  const status = useMemo(() => getHandlebarsStatus(value), [value]);
-
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1 block text-sm font-medium">
-        {label}
-      </Label>
-      <Textarea
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="text-sm"
-        color={getFlowbiteColor(status)}
-      />
-    </div>
-  );
-}
 
 /** Convert ICON_OPTIONS to IconPickerDropdown format */
 const ICON_PICKER_OPTIONS: IconOption<InfoCardIcon>[] = ICON_OPTIONS.map(

@@ -81,9 +81,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const alignClass = ALIGN_CLASS[align] ?? ALIGN_CLASS.left;
 
   return (
-    <div className="flex h-full items-center rounded-lg border border-gray-200 bg-white px-5 py-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-full items-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p
-        className={`w-full text-sm text-gray-600 dark:text-gray-300 ${alignClass}${italic ? " italic" : ""}`}
+        className={`w-full text-sm text-gray-500 dark:text-gray-400 ${alignClass}${italic ? " italic" : ""}`}
       >
         {compiledText}
       </p>

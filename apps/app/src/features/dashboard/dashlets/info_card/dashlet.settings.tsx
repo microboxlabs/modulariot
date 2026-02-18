@@ -160,7 +160,7 @@ export function DashletSettings({
                 })}
               </p>
 
-              <HandlebarsTextField
+              <HbTextField
                 id="title"
                 label={tr("common.title", dictionary)}
                 value={title}
@@ -179,7 +179,7 @@ export function DashletSettings({
                 </SettingsPickerItem>
               </SettingsPickerRow>
 
-              <HandlebarsTextField
+              <HbTextField
                 id="value"
                 label={tr("common.value", dictionary)}
                 value={value}
@@ -187,7 +187,7 @@ export function DashletSettings({
                 placeholder={tr("dashboard.settings.valuePlaceholder", dictionary)}
               />
 
-              <HandlebarsTextareaField
+              <HbTextareaField
                 id="descriptor"
                 label={tr("dashboard.settings.descriptor", dictionary)}
                 value={descriptor}
@@ -196,7 +196,7 @@ export function DashletSettings({
                 rows={2}
               />
 
-              <HandlebarsTextareaField
+              <HbTextareaField
                 id="aiPlaceholder"
                 label={tr("dashboard.settings.aiPlaceholder", dictionary)}
                 value={aiPlaceholder}
@@ -205,7 +205,7 @@ export function DashletSettings({
                 rows={2}
               />
 
-              <HandlebarsTextField
+              <HbTextField
                 id="viewMoreUrl"
                 label={tr("dashboard.settings.viewMoreUrl", dictionary)}
                 value={viewMoreUrl}

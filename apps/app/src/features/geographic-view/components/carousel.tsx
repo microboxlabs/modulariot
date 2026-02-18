@@ -97,8 +97,10 @@ export default function Carousel({
         id="carousel"
       >
         {/* left arrow */}
-        <div
-          className="absolute z-10 left-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none"
+        <button
+          type="button"
+          aria-label="Previous image"
+          className="absolute z-10 left-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none border-0"
           onClick={() => {
             if (selected > 0) {
               setSelected(selected - 1);
@@ -108,10 +110,12 @@ export default function Carousel({
           }}
         >
           <FaChevronLeft />
-        </div>
+        </button>
         {/* right arrow */}
-        <div
-          className="absolute z-10 right-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none"
+        <button
+          type="button"
+          aria-label="Next image"
+          className="absolute z-10 right-5 top-1/2 -translate-y-1/2 h-10 w-10 bg-white/30 hover:bg-white/50 backdrop-blur-[10px] rounded-full flex flex-row gap-2 cursor-pointer text-gray-700 justify-center items-center select-none border-0"
           onClick={() => {
             if (selected < images.length - 1) {
               setSelected(selected + 1);
@@ -121,7 +125,7 @@ export default function Carousel({
           }}
         >
           <FaChevronRight />
-        </div>
+        </button>
         {/* images */}
         {images.map((image, index) => (
           <div
@@ -152,9 +156,11 @@ export default function Carousel({
           {images.length < 8 ? (
             <div className="w-full h-full flex flex-row gap-2">
               {images.map((_image, index) => (
-                <div
+                <button
+                  type="button"
                   key={index}
-                  className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
+                  aria-label={`Go to image ${index + 1}`}
+                  className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 select-none border-0 p-0 ${selected === index ? "bg-gray-500" : "bg-gray-200 hover:bg-gray-100"}`}
                   onClick={() => setSelected(index)}
                 />
               ))}

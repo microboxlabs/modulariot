@@ -23,7 +23,7 @@ export function useDataProvider(
   );
 
   const [dataProvider, setDataProvider] = useState<DataProviderEntry[]>(() =>
-    initialEntries.map(assignId)
+    initialEntries.map((entry) => assignId(entry))
   );
 
   const addEntry = useCallback(

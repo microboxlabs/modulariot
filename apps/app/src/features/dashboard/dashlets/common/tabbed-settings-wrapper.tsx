@@ -33,11 +33,11 @@ function TabButton({
   active,
   onClick,
   children,
-}: {
+}: Readonly<{
   active: boolean;
   onClick: () => void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -57,10 +57,10 @@ function TabButton({
 function DataProviderTab({
   dataProvider,
   dictionary,
-}: {
+}: Readonly<{
   dataProvider: UseDataProviderReturn;
   dictionary: I18nRecord;
-}) {
+}>) {
   const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   return (

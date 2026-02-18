@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import Handlebars from "handlebars";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import {
   HiWrench,
@@ -78,12 +80,19 @@ export const COLOR_OPTIONS: ColorOption[] = [
   { id: "gray", label: "Gray" },
 ];
 
+export interface DataProviderEntry {
+  key: string;
+  value: string;
+  _id?: number;
+}
+
 export interface DashletConfig {
   title: string;
   value: string;
   subtitle?: string;
   color: StatusColor;
   icon: StatusIcon;
+  dataProvider?: DataProviderEntry[];
 }
 
 export const defaultConfig: DashletConfig = {
@@ -92,6 +101,7 @@ export const defaultConfig: DashletConfig = {
   subtitle: "",
   color: "gray",
   icon: "check",
+  dataProvider: [],
 };
 
 // ============================================================================

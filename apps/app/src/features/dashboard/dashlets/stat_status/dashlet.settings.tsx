@@ -32,7 +32,7 @@ type SettingsTab = "visualization" | "data";
 type HandlebarsStatus = "valid" | "invalid" | "none";
 
 function getHandlebarsStatus(text: string): HandlebarsStatus {
-  const matches = text.match(/\{\{(.*?)\}\}/g);
+  const matches = text.match(/\{\{([^}]*(?:\}(?!\})[^}]*)*)\}\}/g);
   if (!matches || matches.length === 0) return "none";
   for (const match of matches) {
     const inner = match.slice(2, -2).trim();

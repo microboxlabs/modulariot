@@ -189,6 +189,26 @@ function GenericComponent<T extends string>({
 </div>
 ```
 
+## Regular Expressions
+
+- **Never use patterns with super-linear backtracking risk.** Avoid `.*`, `.*?`, `.+`, or nested quantifiers inside regex when the input is unbounded or user-controlled.
+- Prefer negated character classes (e.g., `[^}]*`) over dot-star (`.*?`) to guarantee linear-time matching.
+- SonarCloud enforces: "Make sure the regex used here, which is vulnerable to super-linear runtime due to backtracking, cannot lead to denial of service."
+
+**Example - Avoid (potential backtracking):**
+
+```typescript
+const matches = text.match(/\{\{(.*?)\}\}/g);
+```
+
+**Example - Correct (linear-time, no backtracking):**
+
+```typescript
+const matches = text.match(/\{\{([^}]*(?:\}(?!\})[^}]*)*)\}\}/g);
+```
+
+The corrected pattern uses `[^}]*` to consume non-`}` characters without backtracking, and `\}(?!\})` to allow a single `}` that isn't part of the `}}` closing delimiter.
+
 ## Styling
 
 - Use Tailwind CSS utility classes

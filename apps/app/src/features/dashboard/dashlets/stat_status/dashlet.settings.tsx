@@ -5,12 +5,11 @@ import { Button, Label, TextInput } from "flowbite-react";
 import { createPortal } from "react-dom";
 import Handlebars from "handlebars";
 import { twMerge } from "tailwind-merge";
-import type { DashletSettingsProps } from "../types";
+import type { DashletSettingsProps, DataProviderEntry } from "../types";
 import type {
   DashletConfig,
   StatusColor,
   StatusIcon,
-  DataProviderEntry,
 } from "./dashlet";
 import { ICON_OPTIONS, COLOR_OPTIONS } from "./dashlet";
 import { tr } from "@/features/i18n/tr.service";

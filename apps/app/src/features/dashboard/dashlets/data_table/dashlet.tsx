@@ -8,7 +8,7 @@ import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 // Configuration Types
 // ============================================================================
 
-export type ColumnType = "text" | "badge" | "highlight";
+export type ColumnType = "text" | "badge" | "highlight" | "signed";
 
 export interface TableColumn {
   key: string;
@@ -164,6 +164,21 @@ function getBadgeClasses(value: string): string {
   return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
 }
 
+function getSignedClasses(value: string): string {
+  // Strip everything except digits, minus sign, and decimal separator
+  const numeric = parseFloat(value.replace(/[^\d.-]/g, ""));
+  if (Number.isNaN(numeric)) {
+    return "text-gray-700 dark:text-gray-300";
+  }
+  if (numeric < 0) {
+    return "font-semibold text-red-600 dark:text-red-400";
+  }
+  if (numeric < 1000) {
+    return "font-semibold text-orange-500 dark:text-orange-400";
+  }
+  return "font-semibold text-green-600 dark:text-green-400";
+}
+
 function renderCell(value: string, type: ColumnType) {
   if (type === "badge") {
     return (
@@ -180,6 +195,9 @@ function renderCell(value: string, type: ColumnType) {
         {value}
       </span>
     );
+  }
+  if (type === "signed") {
+    return <span className={getSignedClasses(value)}>{value}</span>;
   }
   // text — multiline: first line bold, rest as muted subtitle
   const lines = value.split("\n");

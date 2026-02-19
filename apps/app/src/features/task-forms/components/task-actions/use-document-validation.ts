@@ -25,7 +25,7 @@ type DocumentValidationResult = {
 function extractPackageId(bpmPackage: string | undefined): string | undefined {
   if (!bpmPackage) return undefined;
   const parts = bpmPackage.split("/");
-  return parts[parts.length - 1];
+  return parts.at(-1);
 }
 
 const TASK_TYPES_REQUIRING_VALIDATION = [

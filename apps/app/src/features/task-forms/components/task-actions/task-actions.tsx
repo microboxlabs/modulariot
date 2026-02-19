@@ -200,7 +200,6 @@ export default function TaskActions({
                 {validationDict?.missingDocuments as string}
               </p>
               <p className="mt-1">
-                {validationDict?.uploadRequired as string}{" "}
                 {requiredDocuments
                   .map((doc) => (categoriesDict?.[doc] as string) || doc)
                   .join(", ")}

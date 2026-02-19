@@ -2011,6 +2011,26 @@
       "multi_calendar_title": "Multiple Calendars",
       "multi_calendar_description": "Manage independent calendars for different operations, locations, or teams.",
       "cta": "Get Started"
+    },
+    "create": {
+      "title": "New Calendar",
+      "subtitle": "Create a calendar to manage scheduling and time windows.",
+      "nameLabel": "Name",
+      "codeLabel": "Code",
+      "descriptionLabel": "Description",
+      "timezoneLabel": "Timezone",
+      "groupLabel": "Group",
+      "activeLabel": "Active",
+      "submit": "Create Calendar",
+      "group": {
+        "searchPlaceholder": "Search or create a group...",
+        "noResults": "No groups found",
+        "create": "Create group \"{name}\"",
+        "successNotification": "Group created successfully",
+        "errorNotification": "Failed to create group"
+      },
+      "successNotification": "Calendar created successfully",
+      "errorNotification": "Failed to create calendar"
     }
   }
 }

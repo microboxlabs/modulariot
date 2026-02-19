@@ -7,8 +7,8 @@ import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
 
 export const metadata: Metadata = {
-  title: "Coordinador Viajes Mintral",
-  description: "Sistema de coordinación de viajes para Mintral.",
+  title: process.env.APP_TITLE ?? "ModularIoT",
+  description: process.env.APP_DESCRIPTION ?? "Open-source real-time fleet monitoring platform.",
 };
 
 export default function RootLayout({

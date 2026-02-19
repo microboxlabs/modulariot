@@ -10,6 +10,8 @@ import {
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
+import { RouteGuard } from "@/features/auth/components/route-guard";
+import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
 export default async function ShippingPage(params: ParamsWithLang) {
   try {
     const { lang } = await params.params;
@@ -31,7 +33,10 @@ export default async function ShippingPage(params: ParamsWithLang) {
     // });
 
     return (
-      <>
+      <RouteGuard
+        requiredGroups={KANBAN_ACCESS_ROLES}
+        fallbackPath={`/${lang}/geographic-view`}
+      >
         <PageContent
           showFinishedTasks={false}
           showWorkflowTasks="shipping"
@@ -43,7 +48,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
           }}
           userGroups={userGroups}
         />
-      </>
+      </RouteGuard>
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {

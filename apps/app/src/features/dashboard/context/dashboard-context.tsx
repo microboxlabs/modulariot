@@ -12,6 +12,7 @@ import {
   GRID_COLS,
   type Widget,
   type GridLayoutItem,
+  type DashboardStorageSchema,
 } from "../types/dashboard.types";
 import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -54,9 +55,14 @@ interface DashboardContextValue {
   toggleEditMode: () => void;
   setEditMode: (value: boolean) => void;
 
+  // Dashboard name
+  dashboardName: string;
+  setDashboardName: (name: string) => void;
+
   // Import/Export
   exportDashboard: () => string;
   importDashboard: (jsonString: string) => { success: boolean; error?: string };
+  downloadDashboard: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -113,15 +119,22 @@ function getNextPosition(
 
 interface DashboardProviderProps extends PropsWithChildren {
   dictionary: I18nRecord;
+  /** localStorage key used to persist this dashboard's config (e.g. "dashboard-config") */
+  storageKey: string;
+  /** Optional server-loaded default config. Used only when localStorage has no data yet. */
+  defaultConfig?: DashboardStorageSchema | null;
 }
 
 export function DashboardProvider({
   children,
   dictionary,
+  storageKey,
+  defaultConfig,
 }: Readonly<DashboardProviderProps>) {
   const {
     widgets,
     preferences,
+    dashboardName,
     isLoaded,
     addWidget: addWidgetStorage,
     addChildWidget,
@@ -129,10 +142,12 @@ export function DashboardProvider({
     updateWidgetLayouts: updateLayoutsStorage,
     deleteWidget: deleteWidgetStorage,
     setEditMode: setEditModeStorage,
+    setDashboardName: setDashboardNameStorage,
     findWidget,
     exportDashboard,
     importDashboard,
-  } = useDashboardStorage();
+    downloadDashboard,
+  } = useDashboardStorage(storageKey, defaultConfig);
 
   const createWidget = useCallback(
     (
@@ -304,12 +319,20 @@ export function DashboardProvider({
     [setEditModeStorage]
   );
 
+  const setDashboardName = useCallback(
+    (name: string) => {
+      setDashboardNameStorage(name);
+    },
+    [setDashboardNameStorage]
+  );
+
   const value: DashboardContextValue = useMemo(
     () => ({
       widgets,
       editMode: preferences.editMode,
       isLoaded,
       dictionary,
+      dashboardName,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,
@@ -318,14 +341,17 @@ export function DashboardProvider({
       findWidget,
       toggleEditMode,
       setEditMode,
+      setDashboardName,
       exportDashboard,
       importDashboard,
+      downloadDashboard,
     }),
     [
       widgets,
       preferences.editMode,
       isLoaded,
       dictionary,
+      dashboardName,
       createWidget,
       updateWidgetConfig,
       updateWidgetLayouts,
@@ -334,8 +360,10 @@ export function DashboardProvider({
       findWidget,
       toggleEditMode,
       setEditMode,
+      setDashboardName,
       exportDashboard,
       importDashboard,
+      downloadDashboard,
     ]
   );
 

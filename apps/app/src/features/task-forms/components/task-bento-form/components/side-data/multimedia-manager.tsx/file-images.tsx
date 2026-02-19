@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, FileInput } from "flowbite-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
 import { FaUpload } from "react-icons/fa";
 import {
@@ -19,13 +19,31 @@ import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
 
+const ALLOWED_FILE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "application/pdf",
+]);
+
+function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
+  const validFiles = files.filter((file) =>
+    ALLOWED_FILE_TYPES.has(file.type)
+  );
+  if (validFiles.length !== files.length) {
+    alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
+    return null;
+  }
+  return validFiles;
+}
+
 export default function FileImages({
   task,
   dictionary,
-}: {
+}: Readonly<{
   task: TaskResponse | null;
   dictionary: I18nRecord;
-}) {
+}>) {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -43,12 +61,10 @@ export default function FileImages({
   // Use the optimistic upload hook instead of the basic one
   const {
     data,
-    error: _childrenError,
-    isLoading: _childrenIsLoading,
     uploadFile,
   } = useOptimisticFileUpload(packageId);
 
-  const files = data?.data?.list?.entries || [];
+  const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
   const {
     data: documentsData,
@@ -127,23 +143,11 @@ export default function FileImages({
         }
 
         setIsDragOver(false);
-        const files = Array.from(e.dataTransfer.files);
-        const allowedTypes = [
-          "image/jpeg",
-          "image/jpg",
-          "image/png",
-          "application/pdf",
-        ];
-        const validFiles = files.filter((file) =>
-          allowedTypes.includes(file.type)
+        const validFiles = filterValidFiles(
+          Array.from(e.dataTransfer.files),
+          dictionary
         );
-
-        if (validFiles.length !== files.length) {
-          alert(
-            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
-          );
-          return;
-        }
+        if (!validFiles) return;
 
         setUploadableFiles(validFiles);
         setIsClasificationFormOpen(true);
@@ -184,26 +188,11 @@ export default function FileImages({
               accept=".jpg,.jpeg,.png,.pdf"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
-                  const files = Array.from(e.target.files);
-                  const allowedTypes = [
-                    "image/jpeg",
-                    "image/jpg",
-                    "image/png",
-                    "application/pdf",
-                  ];
-                  const validFiles = files.filter((file) =>
-                    allowedTypes.includes(file.type)
+                  const validFiles = filterValidFiles(
+                    Array.from(e.target.files),
+                    dictionary
                   );
-
-                  if (validFiles.length !== files.length) {
-                    alert(
-                      tr(
-                        "bento.multimedia.only_jpg_jpeg_png_pdf_allowed",
-                        dictionary
-                      )
-                    );
-                    return;
-                  }
+                  if (!validFiles) return;
 
                   setIsClasificationFormOpen(true);
                   setUploadableFiles(validFiles);
@@ -240,18 +229,14 @@ export default function FileImages({
               {tr("bento.multimedia.gallery", dictionary)} ({images.length}{" "}
               {tr("bento.multimedia.elements", dictionary)})
             </p>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setSelectedImage(0);
-              }}
+            <Button
+              onClick={() => setSelectedImage(0)}
               className={`${
                 images.length == 0 ? "hidden" : "block"
-              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
+              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed [&>span]:p-0`}
             >
               {tr("bento.multimedia.viewMore", dictionary)}
-            </a>
+            </Button>
           </div>
           {images.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative h-80">
@@ -286,18 +271,15 @@ export default function FileImages({
               {tr("bento.multimedia.documents", dictionary)} ({documents.length}{" "}
               {tr("bento.multimedia.elements", dictionary)})
             </p>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsDocumentListOpen(true);
-              }}
+            <Button
+              color="link"
+              onClick={() => setIsDocumentListOpen(true)}
               className={`${
                 documents.length == 0 ? "hidden" : "block"
-              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed`}
+              } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed [&>span]:p-0`}
             >
               {tr("bento.multimedia.viewMore", dictionary)}
-            </a>
+            </Button>
           </div>
           {documents.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 transition-all duration-300 rounded-lg overflow-hidden relative h-40">

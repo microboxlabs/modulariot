@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextRequest, NextFetchEvent } from "next/server";
 import { auth } from "./auth";
+
+// Type for Next.js middleware to avoid phantom dependency type inference issues
+type NextMiddlewareFunction = (
+  request: NextRequest,
+  event: NextFetchEvent,
+) => NextResponse | Response | Promise<NextResponse | Response> | null | undefined;
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
 import { createManagedLogger } from "./lib/logger";
@@ -35,7 +41,8 @@ function hasRequiredGroups(
 
 const logger = createManagedLogger("middleware", "Middleware", "error");
 
-export default auth(async function middleware(request: NextRequest) {
+// Type annotation to avoid npm phantom dependency type inference issues
+const middleware = auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
   let { pathname } = request.nextUrl;
   logger.debug(`middleware - pathname: ${pathname}`);
@@ -106,7 +113,9 @@ export default auth(async function middleware(request: NextRequest) {
   // }
 
   return response;
-});
+}) as unknown as NextMiddlewareFunction;
+
+export default middleware;
 
 export const config = {
   matcher: [

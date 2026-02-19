@@ -64,6 +64,37 @@ export default function SidebarItem({
             return null;
           }
 
+          // Render nested group as second-level SidebarCollapse
+          if (item.items) {
+            const isGroupOpen = item.items.some(
+              (child) => child.href && pathname === child.href.split("?")[0]
+            );
+            return (
+              <SidebarCollapse
+                key={index}
+                label={tr(item.label, dict)}
+                open={isGroupOpen}
+                theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
+              >
+                {item.items.map((child, childIndex) => (
+                  <FlowbiteSidebarItem
+                    key={childIndex}
+                    href={child.href}
+                    as={Link}
+                    className={twMerge(
+                      "justify-center [&>*]:font-normal",
+                      (pathname === child.href?.split("?")[0] ||
+                        child.href === pathname + "?" + searchParams.toString()) &&
+                        "bg-gray-100 dark:bg-gray-700"
+                    )}
+                  >
+                    {tr(child.label, dict)}
+                  </FlowbiteSidebarItem>
+                ))}
+              </SidebarCollapse>
+            );
+          }
+
           const itemTotal = totals?.[item.label];
           const badgeProps =
             isHomeSection || itemTotal === undefined || typeof itemTotal === "string"

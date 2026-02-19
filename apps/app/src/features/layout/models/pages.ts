@@ -74,6 +74,7 @@ export const pages: SidebarItem[] = [
   {
     icon: CalendarIcon,
     label: "calendar",
+    dynamicItemsSource: "calendars",
     items: [
       {
         href: "/calendar",

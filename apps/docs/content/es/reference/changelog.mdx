@@ -19,9 +19,28 @@ Features and improvements in development:
 - Enhanced notification channels
 - Historical analytics dashboard
 
-## Recent Releases
+## Lanzamientos Recientes
 
-### v1.0.0 (Coming Soon)
+### Arquitectura: Navegación Lateral Centralizada (2026-02-19)
+
+**`apps/app` — cambio interno, sin impacto en la API**
+
+La navegación de la barra lateral fue refactorizada para usar un único contexto compartido `SidebarNavigationProvider` por encima de los componentes de barra lateral de escritorio y móvil.
+
+**Qué cambió para los operadores:**
+- Los contadores de la barra lateral de escritorio y móvil ahora están garantizados para ser idénticos — anteriormente podían divergir porque cada barra lateral obtenía datos independientemente
+- Los elementos de filtros de usuario bajo la sección de Tareas ya no se duplican después de navegar entre páginas
+
+**Qué cambió para los desarrolladores:**
+- Todos los datos de navegación (contadores, elementos de filtros de tareas dinámicos) se obtienen una vez por carga de página en lugar de dos veces
+- La constante del módulo `pages.ts` ya no es mutada en tiempo de ejecución
+- Las nuevas secciones con sub-elementos dinámicos pueden agregarse mediante `dynamicItemsSource` + un hook dedicado — ver [Extender la Navegación](/reference/frontend-architecture/extending-navigation)
+
+Ver [ADR-001](/reference/architecture-decisions/adr-001-sidebar-navigation-context) para el registro completo de la decisión.
+
+---
+
+### v1.0.0 (Próximamente)
 
 Initial public release.
 

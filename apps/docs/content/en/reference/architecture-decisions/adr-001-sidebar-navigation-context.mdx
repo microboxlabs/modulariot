@@ -1,0 +1,69 @@
+# ADR-001: Sidebar Navigation Context
+
+| | |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-02-19 |
+| **Deciders** | Product engineering team |
+| **Relates to** | `SidebarNavigationProvider`, `pages.ts`, `DesktopSidebar`, `MobileSidebar` |
+
+## Context
+
+The ModularIoT web application has a sidebar navigation that appears in both a desktop layout and a mobile drawer. The sidebar renders the same navigation tree with the same badge counts in both views.
+
+Before this decision, the implementation had three structural problems:
+
+**1. Duplicate API calls.** `DesktopSidebar` and `MobileSidebar` each independently called the same set of data-fetching hooks (`useMyTasksCount`, `useHistoricInstancesCount`, `useMapPositions`, `useSymptoms`, `useUserFilters`). On every page load, each backend endpoint was hit twice — once per component — with no user-visible benefit.
+
+**2. Module-level mutation.** The `pages` export from `models/pages.ts` is a module-level constant. Dynamic sub-items (user filter shortcuts under the Tasks section) were added by calling `pages[i].items.splice(...)` directly on that constant. This caused two distinct bugs:
+   - On component remount, the splice ran again on an already-modified array, duplicating items
+   - The module constant accumulated state across renders, making the system unpredictable
+
+**3. No extensibility path.** Adding dynamic sub-items for other sections (calendar instances, dashboard views) would have required duplicating the splice pattern in each sidebar component, with no clean contract between the data-loading and the configuration.
+
+## Decision
+
+Introduce a `SidebarNavigationProvider` React context that acts as the single source of truth for all sidebar navigation data, placed above both sidebar components in the tree.
+
+The provider:
+- Fetches all navigation data once (shared between desktop and mobile)
+- Merges static `pages.ts` configuration with dynamically loaded sub-items immutably, using spread into a new array rather than mutating the original
+- Computes badge count totals from raw API responses
+- Exposes `{ items, totals }` through `useSidebarNavigation()`
+- Wraps its context value in `useMemo` to avoid unnecessary re-renders when unrelated state changes
+
+Dynamic sub-items per section are handled by dedicated hooks (e.g. `useTaskDynamicItems()`). The `SidebarItem` type gains an optional `dynamicItemsSource` field, which a page entry uses to declare that its sub-items are loaded at runtime. The provider maps source keys to hooks via a `dynamicMap` object.
+
+`DesktopSidebar` and `MobileSidebar` are reduced to pure presentational components that read from the context and handle layout only.
+
+## Alternatives considered
+
+### Per-component fetching (status quo)
+Keep data fetching in each sidebar component. Simple, co-located, but doubles all API calls and requires every new dynamic section to be wired into both components independently.
+
+### Props drilling from SecuredLayout
+Fetch once in `SecuredSidebar` and pass data as props to both sidebars. Avoids duplication but creates a prop interface that grows every time a new data source is added, and `SecuredLayout` is a server component — it cannot call client-side SWR hooks.
+
+### Global state (Zustand / Redux)
+Use a client-side store instead of React context. More powerful, supports derived state and subscriptions, but introduces a new dependency and a different mental model. For a single feature tree shared between two components, a context is the right scope — the additional complexity of a store is not justified.
+
+### useContext with no provider (module singleton)
+Share the data via module-level variables instead of a React context. Avoids the provider in the tree but is incompatible with React's rendering model, cannot trigger re-renders, and is difficult to test.
+
+## Consequences
+
+### Positive
+- Each API endpoint is called exactly once per page load, regardless of how many sidebar instances are mounted
+- The `pages` constant is never mutated; the exported module remains as defined at import time
+- Adding a new dynamic section requires only: one new hook + one line in `dynamicMap` + `dynamicItemsSource` in `pages.ts` — no changes to presentation components
+- Desktop and mobile sidebars are guaranteed to show identical data (single source)
+- The provider is straightforward to unit test via `renderHook`
+
+### Constraints introduced
+- Any component that needs navigation data must be a descendant of `SidebarNavigationProvider` in the React tree
+- Dynamic item hooks must return `SidebarItem[]` (not `undefined`) — they return an empty array while loading
+- The `dynamicMap` key in the provider and the `dynamicItemsSource` value in `pages.ts` must match exactly; a mismatch silently produces no dynamic items (no error)
+
+### Still open
+- The `dynamicItemsSource` mismatch is silent. A future improvement could validate at startup that every `dynamicItemsSource` value in `pages.ts` has a corresponding key in `dynamicMap`.
+- Badge counts for dynamic items (user filters) are stored in `SidebarItem.totals` per-item rather than in the shared `totals` map. This works today but may need to be unified if the badge rendering logic changes.

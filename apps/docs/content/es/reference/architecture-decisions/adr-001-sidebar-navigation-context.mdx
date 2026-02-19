@@ -1,0 +1,69 @@
+# ADR-001: Contexto de Navegación Lateral
+
+| | |
+|---|---|
+| **Estado** | Aceptado |
+| **Fecha** | 2026-02-19 |
+| **Decisores** | Equipo de ingeniería de producto |
+| **Relacionado con** | `SidebarNavigationProvider`, `pages.ts`, `DesktopSidebar`, `MobileSidebar` |
+
+## Contexto
+
+La aplicación web ModularIoT tiene una barra lateral de navegación que aparece tanto en el diseño de escritorio como en un cajón móvil. La barra lateral renderiza el mismo árbol de navegación con los mismos contadores de insignias en ambas vistas.
+
+Antes de esta decisión, la implementación tenía tres problemas estructurales:
+
+**1. Llamadas API duplicadas.** `DesktopSidebar` y `MobileSidebar` cada uno llamaba independientemente al mismo conjunto de hooks de obtención de datos (`useMyTasksCount`, `useHistoricInstancesCount`, `useMapPositions`, `useSymptoms`, `useUserFilters`). En cada carga de página, cada endpoint del backend era llamado dos veces — una por componente — sin ningún beneficio visible para el usuario.
+
+**2. Mutación a nivel de módulo.** El export `pages` de `models/pages.ts` es una constante a nivel de módulo. Los sub-elementos dinámicos (accesos directos de filtros de usuario bajo la sección de Tareas) se agregaban llamando `pages[i].items.splice(...)` directamente sobre esa constante. Esto causaba dos errores distintos:
+   - Al re-montar el componente, el splice se ejecutaba nuevamente sobre un array ya modificado, duplicando elementos
+   - La constante del módulo acumulaba estado entre renderizados, haciendo el sistema impredecible
+
+**3. Sin camino de extensibilidad.** Agregar sub-elementos dinámicos para otras secciones (instancias de calendario, vistas de panel) habría requerido duplicar el patrón splice en cada componente de barra lateral, sin un contrato limpio entre la carga de datos y la configuración.
+
+## Decisión
+
+Introducir un contexto React `SidebarNavigationProvider` que actúe como única fuente de verdad para todos los datos de navegación de la barra lateral, colocado por encima de ambos componentes de barra lateral en el árbol.
+
+El proveedor:
+- Obtiene todos los datos de navegación una vez (compartido entre escritorio y móvil)
+- Combina la configuración estática de `pages.ts` con sub-elementos cargados dinámicamente de forma inmutable, usando spread en un nuevo array en lugar de mutar el original
+- Calcula los totales de contadores de insignias a partir de las respuestas crudas de la API
+- Expone `{ items, totals }` a través de `useSidebarNavigation()`
+- Envuelve su valor de contexto en `useMemo` para evitar re-renderizados innecesarios cuando cambia un estado no relacionado
+
+Los sub-elementos dinámicos por sección son manejados por hooks dedicados (ej. `useTaskDynamicItems()`). El tipo `SidebarItem` gana un campo opcional `dynamicItemsSource`, que una entrada de página usa para declarar que sus sub-elementos se cargan en tiempo de ejecución. El proveedor mapea claves de fuente a hooks mediante un objeto `dynamicMap`.
+
+`DesktopSidebar` y `MobileSidebar` se reducen a componentes puramente de presentación que leen del contexto y manejan solo el layout.
+
+## Alternativas consideradas
+
+### Obtención por componente (estado previo)
+Mantener la obtención de datos en cada componente de barra lateral. Simple y co-localizado, pero duplica todas las llamadas API y requiere que cada nueva sección dinámica sea conectada independientemente en ambos componentes.
+
+### Props drilling desde SecuredLayout
+Obtener una vez en `SecuredSidebar` y pasar los datos como props a ambas barras laterales. Evita la duplicación pero crea una interfaz de props que crece cada vez que se agrega una nueva fuente de datos, y `SecuredLayout` es un componente servidor — no puede llamar hooks SWR del lado cliente.
+
+### Estado global (Zustand / Redux)
+Usar una tienda del lado cliente en lugar de contexto React. Más potente, soporta estado derivado y suscripciones, pero introduce una nueva dependencia y un modelo mental diferente. Para un árbol de una sola característica compartido entre dos componentes, un contexto es el alcance correcto — la complejidad adicional de una tienda no está justificada.
+
+### useContext sin proveedor (singleton de módulo)
+Compartir los datos mediante variables a nivel de módulo en lugar de un contexto React. Evita el proveedor en el árbol pero es incompatible con el modelo de renderizado de React, no puede activar re-renderizados y es difícil de probar.
+
+## Consecuencias
+
+### Positivas
+- Cada endpoint API se llama exactamente una vez por carga de página, independientemente de cuántas instancias de barra lateral estén montadas
+- La constante `pages` nunca es mutada; el módulo exportado permanece como fue definido al importarse
+- Agregar una nueva sección dinámica requiere solo: un nuevo hook + una línea en `dynamicMap` + `dynamicItemsSource` en `pages.ts` — sin cambios en los componentes de presentación
+- Las barras laterales de escritorio y móvil garantizan mostrar datos idénticos (fuente única)
+- El proveedor es sencillo de probar unitariamente mediante `renderHook`
+
+### Restricciones introducidas
+- Cualquier componente que necesite datos de navegación debe ser descendiente de `SidebarNavigationProvider` en el árbol React
+- Los hooks de elementos dinámicos deben retornar `SidebarItem[]` (no `undefined`) — retornan un array vacío mientras cargan
+- La clave `dynamicMap` en el proveedor y el valor `dynamicItemsSource` en `pages.ts` deben coincidir exactamente; una discrepancia produce silenciosamente cero elementos dinámicos (sin error)
+
+### Aún abierto
+- La discrepancia de `dynamicItemsSource` es silenciosa. Una mejora futura podría validar al inicio que cada valor de `dynamicItemsSource` en `pages.ts` tiene una clave correspondiente en `dynamicMap`.
+- Los contadores de insignias para elementos dinámicos (filtros de usuario) se almacenan en `SidebarItem.totals` por elemento en lugar de en el mapa compartido `totals`. Esto funciona hoy pero puede necesitar unificarse si cambia la lógica de renderizado de insignias.

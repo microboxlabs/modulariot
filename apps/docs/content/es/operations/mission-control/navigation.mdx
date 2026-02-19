@@ -1,0 +1,93 @@
+# Navegación de la Aplicación
+
+La barra lateral es la estructura de navegación principal de la aplicación ModularIoT. Proporciona acceso a todas las áreas operativas y muestra contadores en vivo para que los operadores puedan evaluar el estado actual de la flota de un vistazo, sin necesidad de abrir cada sección.
+
+## Secciones de la Barra Lateral
+
+### Inicio
+
+El punto de entrada a la aplicación. Cuando los paneles de inicio están habilitados para su despliegue, esta sección se expande para incluir sub-vistas que cubren el uso de la flota, eventos operativos, salud técnica del vehículo, estado de mantenimiento y telemetría de dispositivos.
+
+### Calendario
+
+Acceso a las vistas de planificación y programación. Requiere membresía en el grupo `GROUP_ALFRESCO_ADMINISTRATORS`.
+
+**Sub-secciones:**
+- **Planificación de Calendario** — Ver y gestionar entradas de programación de servicios. El contador muestra el número de tareas activas de `planService`.
+
+### Kanban
+
+El tablero de flujo de trabajo principal para coordinadores. Requiere `GROUP_MINTRAL_KANBAN_ACCESS` o `GROUP_GAMA_KANBAN_ACCESS`.
+
+**Sub-secciones:**
+| Sección | Contador |
+|---|---|
+| Planificación | Tareas de planificación activas |
+| Envío | Tareas activas del coordinador de envíos |
+| Entrega | Tareas activas del coordinador de entregas |
+| Finalizado | Instancias completadas (total histórico) |
+
+### Tareas
+
+Gestión de tareas personales. Oculto para usuarios en `GROUP_MINTRAL_REVISOR`. Requiere grupos de acceso Kanban.
+
+**Sub-secciones estáticas:**
+- **Tareas Completadas** — Tareas con `status=finished`. El contador muestra el total histórico de instancias.
+- **Tareas Pendientes** — Tareas con `status=pending`. El contador muestra el total combinado de tareas activas de entrega y envío.
+
+**Sub-secciones dinámicas (Filtros de Usuario):** Los filtros guardados personales aparecen debajo de los elementos estáticos. Ver [Filtros de Usuario](#filtros-de-usuario) más abajo.
+
+### Torre de Control
+
+Monitoreo y gestión operativa. Abierto a todos los grupos.
+
+**Sub-secciones:**
+| Sección | Contador | Acceso |
+|---|---|---|
+| Vista Geográfica | Número de posiciones de activos actualmente rastreadas en el mapa | Todos los grupos |
+| Síntomas | Total de síntomas activos detectados | Oculto para `GROUP_MINTRAL_REVISOR` |
+| Historial de Señales | Siempre muestra `—` (histórico, sin conteo en vivo) | Todos los grupos |
+
+### ¿Dónde Está Mi Carga?
+
+Interfaz de búsqueda para localizar carga específica por código o número de expedición. Requiere `GROUP_MINTRAL_BUSCADOR_CARGAS`.
+
+### Transmisiones en Vivo
+
+Transmisiones de video en vivo desde cámaras de instalaciones y dispositivos de vehículos. Requiere `GROUP_ALFRESCO_ADMINISTRATORS`.
+
+**Sub-secciones:**
+- Instalación SCL
+- Plataformas de Camiones
+- Todos los Dispositivos
+
+---
+
+## Contadores de Insignias
+
+Los contadores se actualizan automáticamente a medida que la aplicación obtiene datos. Cada contador proviene de una API específica y es compartido entre la barra lateral de escritorio y móvil — ambas siempre muestran los mismos números.
+
+| Clave | Origen | Notas |
+|---|---|---|
+| `shipping` | API de conteo de tareas, filtrado por claves de proceso de envío | Se actualiza al refrescar datos |
+| `delivery` | API de conteo de tareas, filtrado por claves de proceso de entrega | Se actualiza al refrescar datos |
+| `planning` | API de conteo de tareas, filtrado por claves de proceso de planificación | Se actualiza al refrescar datos |
+| `calendarPlanning` | API de conteo de tareas, clave `planService` | Se actualiza al refrescar datos |
+| `geographicView` | API de posiciones en el mapa | Cantidad de activos con ubicación conocida |
+| `symptoms` | API del panel de síntomas | Total de síntomas activos |
+| `finished` | API de estadísticas de instancias históricas | Total acumulado |
+| `pending_tasks` | Derivado: entrega + envío | Sin llamada API separada |
+| `completed_tasks` | Igual que `finished` | Alias para la sección de Tareas |
+| `signalHistory` | Estático | Siempre `—` |
+
+---
+
+## Filtros de Usuario
+
+Los Filtros de Usuario son consultas guardadas personales que aparecen como sub-elementos dinámicos bajo la sección **Tareas**. Cada filtro que crea agrega una entrada a su barra lateral con su propio contador que muestra cuántas tareas coinciden actualmente con ese filtro.
+
+Los filtros se almacenan por usuario y se cargan al iniciar la aplicación. La posición de cada elemento de filtro en la barra lateral está determinada por el parámetro `position` guardado con el filtro. Los elementos se ordenan de menor a mayor valor de posición.
+
+Al hacer clic en un elemento de filtro, se abre la vista de Tareas pre-filtrada con los parámetros de consulta guardados, limitada a tareas editables.
+
+> **Nota:** Los Filtros de Usuario son personales. Otros usuarios no ven sus filtros en su barra lateral.

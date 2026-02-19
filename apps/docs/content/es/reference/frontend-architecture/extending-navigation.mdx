@@ -1,0 +1,134 @@
+# Extender la Navegación
+
+La navegación de la barra lateral está diseñada para extenderse sin tocar la capa de presentación. Agregar una nueva sección con sub-elementos dinámicos — cargados desde el backend en tiempo de ejecución — requiere tres pasos: un hook, un registro y una declaración en `pages.ts`.
+
+## Cuándo usar elementos dinámicos
+
+Use `dynamicItemsSource` cuando los sub-elementos no pueden conocerse en tiempo de compilación y deben obtenerse por usuario o por sesión. Ejemplos:
+
+- Filtros definidos por el usuario (sección de Tareas actualmente)
+- Instancias de calendario a las que un usuario tiene acceso
+- Vistas de panel configuradas por tenant
+- Reportes guardados o listas de trabajo personalizadas
+
+Para sub-elementos que son siempre los mismos para todos los usuarios, agréguelos directamente en `pages.ts` como entradas estáticas — sin necesidad de cambiar el proveedor.
+
+## Paso a paso: agregar una sección dinámica
+
+### 1. Escribir el hook cargador
+
+Cree un hook que obtenga los datos y retorne `SidebarItem[]`. Por convención, nómbrelo `use<Sección>DynamicItems`.
+
+```typescript
+// Ejemplo: sub-elementos dinámicos de instancias de calendario
+function useCalendarDynamicItems(): SidebarItem[] {
+  const { data } = useCalendarInstances(); // su hook SWR
+
+  if (!data) return [];
+
+  return data.instances.map((instance) => ({
+    href: `/calendar/${instance.id}`,
+    label: instance.name,
+    totals: { [instance.name]: instance.taskCount },
+  }));
+}
+```
+
+El hook debe:
+- Retornar `SidebarItem[]` (array vacío mientras carga, no `undefined`)
+- Ser un hook React estándar — puede llamar otros hooks, usar `useState`, `useEffect`, etc.
+- Derivar su valor de retorno de hooks SWR para que se re-renderice cuando los datos cambien
+
+### 2. Registrar el hook en el proveedor
+
+Abra `src/features/layout/context/sidebar-navigation-context.tsx` y agregue la llamada al hook y el registro en `dynamicMap`:
+
+```typescript
+export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {
+  // ... hooks existentes ...
+  const calendarDynamicItems = useCalendarDynamicItems(); // agregar esto
+
+  const contextValue = useMemo(() => {
+    // ... cálculo de totales existente ...
+
+    const dynamicMap: Record<string, SidebarItem[]> = {
+      tasks: taskDynamicItems,
+      calendar: calendarDynamicItems, // agregar esto
+    };
+
+    // ... el resto sin cambios ...
+  }, [taskDynamicItems, calendarDynamicItems, /* agregar a deps */ ...]);
+```
+
+> **Importante:** Agregue el nuevo array de elementos a la lista de dependencias del `useMemo`. Si el valor de retorno del hook es una nueva referencia de array en cada renderizado (común con `.map()`), envuelva su salida en `useMemo` dentro del hook mismo para evitar re-renderizados innecesarios del contexto.
+
+### 3. Declarar `dynamicItemsSource` en `pages.ts`
+
+Abra `src/features/layout/models/pages.ts` y agregue la clave a la entrada de página correspondiente:
+
+```typescript
+{
+  icon: CalendarIcon,
+  label: "calendar",
+  dynamicItemsSource: "calendar",  // debe coincidir con la clave en dynamicMap
+  items: [
+    // los elementos estáticos permanecen aquí, los dinámicos se agregarán después
+    { href: "/calendar/planning", label: "calendarPlanning", totals: {} },
+  ],
+  totals: {},
+  requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
+}
+```
+
+El valor de `dynamicItemsSource` es la clave en `dynamicMap`. Los elementos dinámicos siempre se agregan **después** de los elementos estáticos definidos en el array `items`.
+
+## Cómo funciona la combinación
+
+En tiempo de renderizado, el proveedor resuelve el árbol de navegación final:
+
+```
+page.items (estáticos)  +  dynamicMap[page.dynamicItemsSource] (dinámicos)
+          ↓                                    ↓
+    [...elementosEstaticos,        ...elementosDinamicos (ordenados por posición)]
+```
+
+El export `pages` original **nunca se modifica**. Cada ciclo de renderizado produce un nuevo array combinado, por lo que no hay riesgo de acumulación entre re-montajes.
+
+## Probar la nueva sección
+
+Agregue pruebas siguiendo los patrones en `sidebar-navigation-context.test.tsx`:
+
+```typescript
+it("agrega elementos dinámicos de calendario después de los estáticos", async () => {
+  // mockear useCalendarInstances para retornar datos de prueba
+  vi.mocked(useCalendarInstances).mockReturnValue({
+    data: { instances: [{ id: "cal-1", name: "Flota Programada", taskCount: 3 }] },
+  });
+
+  const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+
+  await waitFor(() => {
+    const calendarItem = result.current.items.find((i) => i.label === "calendar");
+    // 1 estático (calendarPlanning) + 1 dinámico
+    expect(calendarItem?.items?.length).toBe(2);
+    expect(calendarItem?.items?.[1]?.label).toBe("Flota Programada");
+  });
+});
+
+it("no muta la constante pages cuando se cargan los elementos de calendario", async () => {
+  const calendarPage = pages.find((p) => p.label === "calendar");
+  const staticCount = calendarPage?.items?.length ?? 0;
+
+  renderHook(() => useSidebarNavigation(), { wrapper });
+
+  expect(calendarPage?.items?.length).toBe(staticCount);
+});
+```
+
+## Lista de verificación
+
+- [ ] El hook retorna `SidebarItem[]`, nunca `undefined`
+- [ ] El hook está registrado en `SidebarNavigationProvider` y agregado a las dependencias de `useMemo`
+- [ ] La clave `dynamicItemsSource` en `pages.ts` coincide exactamente con la clave en `dynamicMap`
+- [ ] Prueba de inmutabilidad: la constante `pages` no cambia después del montaje con elementos dinámicos
+- [ ] Prueba de elementos: los elementos dinámicos aparecen después de los estáticos en el árbol resuelto

@@ -21,6 +21,25 @@ Features and improvements in development:
 
 ## Recent Releases
 
+### Architecture: Centralized Sidebar Navigation (2026-02-19)
+
+**`apps/app` — internal change, no API impact**
+
+The sidebar navigation was refactored to use a single shared `SidebarNavigationProvider` context above both the desktop and mobile sidebar components.
+
+**What changed for operators:**
+- Badge counts on the desktop and mobile sidebar are now guaranteed to be identical — previously they could diverge because each sidebar fetched data independently
+- User filter items under the Tasks section no longer duplicate after navigating between pages
+
+**What changed for developers:**
+- All navigation data (badge counts, dynamic task filter items) is fetched once per page load instead of twice
+- The `pages.ts` module constant is no longer mutated at runtime
+- New sections with dynamic sub-items can be added via `dynamicItemsSource` + a dedicated hook — see [Extending Navigation](/reference/frontend-architecture/extending-navigation)
+
+See [ADR-001](/reference/architecture-decisions/adr-001-sidebar-navigation-context) for the full decision record.
+
+---
+
 ### v1.0.0 (Coming Soon)
 
 Initial public release.

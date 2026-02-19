@@ -1,5 +1,6 @@
 export default {
   index: 'Overview',
+  navigation: 'Application Navigation',
   'control-tower': 'Control Tower',
   'symptom-worklists': 'Symptom Worklists',
   prioritization: 'Prioritization',

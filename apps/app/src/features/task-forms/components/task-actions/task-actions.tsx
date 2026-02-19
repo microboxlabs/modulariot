@@ -3,7 +3,6 @@ import { ButtonGroup } from "flowbite-react";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
 import { useDocumentValidation } from "./use-document-validation";
-import DismissibleTooltip from "@/features/common/components/custom-tooltip/dismissible-tooltip";
 import {
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_CONFIRM_DELIVERY,
@@ -72,7 +71,6 @@ export default function TaskActions({
   dict,
   fluid = false,
   extraData,
-  rootDict,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
@@ -87,16 +85,12 @@ export default function TaskActions({
   const {
     isValid: documentsValid,
     isLoading: documentsLoading,
-    requiredDocuments,
   } = useDocumentValidation(taskType, extraData?.bpm_package as string | undefined);
   const [state, _formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
   );
   const router = useRouter();
-  const multimediaDict = (rootDict?.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
-  const validationDict = multimediaDict?.validation as I18nRecord | undefined;
-  const categoriesDict = multimediaDict?.categories as I18nRecord | undefined;
   dict = dict["outcome"]
     ? dict
     : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);
@@ -192,42 +186,27 @@ export default function TaskActions({
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        <DismissibleTooltip
-          visible={showDocumentWarning}
-          content={
-            <>
-              <p className="font-medium">
-                {validationDict?.missingDocuments as string}
-              </p>
-              <p className="mt-1">
-                {requiredDocuments
-                  .map((doc) => (categoriesDict?.[doc] as string) || doc)
-                  .join(", ")}
-              </p>
-            </>
-          }
-        >
-          <ButtonGroup className="w-full">
+        <ButtonGroup className="w-full">
             <GroupButtonOptions
               dict={dict}
               handleSelection={handleSelection}
               otherOptions={otherOptions}
             />
-            <TaskActionButton
-              fluid={fluid}
-              disabled={showDocumentWarning}
-              label={(dict.outcome as I18nRecord).continue as string}
-              taskId={taskId}
-              transitionId={transitionId}
-              onClick={() =>
-                handleSelection(
-                  transitionId,
-                  (dict.outcome as I18nRecord)[transitionId] as string
-                )
-              }
-            />
+            {!showDocumentWarning && (
+              <TaskActionButton
+                fluid={fluid}
+                label={(dict.outcome as I18nRecord).continue as string}
+                taskId={taskId}
+                transitionId={transitionId}
+                onClick={() =>
+                  handleSelection(
+                    transitionId,
+                    (dict.outcome as I18nRecord)[transitionId] as string
+                  )
+                }
+              />
+            )}
           </ButtonGroup>
-        </DismissibleTooltip>
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

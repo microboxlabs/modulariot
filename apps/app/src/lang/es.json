@@ -1074,6 +1074,7 @@
         "werehouse": "Bodega",
         "logistics": "Logística",
         "planning": "Planificación",
+        "calendarOverview": "Inicio",
         "calendarPlanning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
@@ -2016,6 +2017,19 @@
       "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
       "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
       "learn_more": "Aprende más sobre lo que se cambió en esta última actualización."
+    }
+  },
+  "calendar": {
+    "landing": {
+      "title": "Calendarios",
+      "subtitle": "Organiza tus operaciones, agenda servicios y administra ventanas de tiempo en múltiples calendarios.",
+      "planning_title": "Planificación",
+      "planning_description": "Agenda y asigna servicios a ventanas de tiempo específicas con vistas de día, semana y mes.",
+      "rules_title": "Reglas y Cupos",
+      "rules_description": "Define bloques de tiempo, configura cupos y controla la carga de trabajo de cada calendario.",
+      "multi_calendar_title": "Múltiples Calendarios",
+      "multi_calendar_description": "Administra calendarios independientes para distintas operaciones, ubicaciones o equipos.",
+      "cta": "Comenzar"
     }
   }
 }

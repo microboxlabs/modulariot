@@ -14,6 +14,13 @@ export interface DashletLayoutDefaults {
   minH: number;
 }
 
+/** Shared data provider entry used by dashlets that support Handlebars templates */
+export interface DataProviderEntry {
+  key: string;
+  value: string;
+  _id?: number;
+}
+
 /**
  * Dashlet metadata for registry and selector
  */

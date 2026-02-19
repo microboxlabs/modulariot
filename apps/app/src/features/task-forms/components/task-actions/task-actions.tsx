@@ -135,7 +135,7 @@ export default function TaskActions({
         case OUTCOME_CLOSE_MONITORING_V2:
           return taskType !== TYPE_WFSHIP2_CONFIRM_ARRIVAL_TASK;
         case OUTCOME_TO_CLOSE_MONITORING_V2:
-          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK;
+          return taskType !== TYPE_WFSHIP2_CLOSE_MONITORING_TASK && taskType !== TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK;
         case OUTCOME_RECEIVE_DELIVERY_V2:
           return taskType !== TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK;
         case OUTCOME_NOTIFY_TMS_ARRIVAL_V2:

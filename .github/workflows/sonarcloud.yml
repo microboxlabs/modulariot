@@ -54,7 +54,7 @@ jobs:
         run: npm ci
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarqube-scan-action@v7.0.0
         with:
           projectBaseDir: apps/app
         env:

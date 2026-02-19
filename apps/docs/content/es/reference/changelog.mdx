@@ -21,6 +21,28 @@ Features and improvements in development:
 
 ## Lanzamientos Recientes
 
+### `miot-calendar-client` v0.2.0 — Grupos de Calendarios (2026-02-19)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Agrega un nuevo recurso de Grupos de Calendarios que permite organizar calendarios en colecciones con nombre y filtrarlos o consultarlos por grupo.
+
+**Nuevo — namespace `client.groups`:**
+- `groups.list({ active? })` — listar todos los grupos
+- `groups.get(id)` — obtener un grupo por ID
+- `groups.create(body)` — crear un grupo
+- `groups.update(id, body)` — actualizar un grupo
+- `groups.deactivate(id)` — desactivar un grupo (eliminación lógica)
+
+**Actualizado — `client.calendars`:**
+- `calendars.list()` acepta el nuevo parámetro `groupCode` para filtrar calendarios por pertenencia a un grupo
+- `CalendarRequest.groups?: string[]` — asigna grupos al crear o actualizar (`null` = sin cambios, `[]` = eliminar todos, `["code"]` = reemplazar todos)
+- `CalendarResponse.groups?: CalendarGroupResponse[]` — los grupos a los que pertenece el calendario ahora se incluyen en la respuesta
+
+**Nuevos tipos exportados:** `CalendarGroupRequest`, `CalendarGroupResponse`
+
+---
+
 ### Arquitectura: Navegación Lateral Centralizada (2026-02-19)
 
 **`apps/app` — cambio interno, sin impacto en la API**

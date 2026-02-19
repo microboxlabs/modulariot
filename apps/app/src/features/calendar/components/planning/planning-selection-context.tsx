@@ -746,6 +746,53 @@ export function PlanningSelectionProvider({
     setSelectedService(service);
   }, []);
 
+  /** Deactivate API windows that were removed from local state; returns error strings. */
+  const deactivateRemovedWindows = useCallback(
+    async (
+      currentApiWindows: typeof apiTimeWindows,
+      newWindowIds: Set<string>
+    ): Promise<string[]> => {
+      const errors: string[] = [];
+      for (const apiWindow of currentApiWindows) {
+        if (!newWindowIds.has(apiWindow.id)) {
+          try {
+            await deactivateCalendarTimeWindow(calendarId!, apiWindow);
+          } catch (err) {
+            errors.push(
+              `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
+            );
+          }
+        }
+      }
+      return errors;
+    },
+    [calendarId]
+  );
+
+  /** Create or update local window slots against the API; returns error strings. */
+  const saveLocalWindows = useCallback(
+    async (slots: TimeSlot[], currentIds: Set<string>): Promise<string[]> => {
+      const errors: string[] = [];
+      for (const slot of slots) {
+        if (slot.kind !== "window") continue; // blocks are local-only
+        try {
+          const body = localToApiTimeWindow(slot);
+          if (currentIds.has(slot.id)) {
+            await updateCalendarTimeWindow(calendarId!, slot.id, body);
+          } else {
+            await createCalendarTimeWindow(calendarId!, body);
+          }
+        } catch (err) {
+          errors.push(
+            `Failed to save "${slot.name}": ${err instanceof Error ? err.message : "unknown error"}`
+          );
+        }
+      }
+      return errors;
+    },
+    [calendarId]
+  );
+
   // Primary setter: replaces entire unified array and syncs to API
   const setTimeSlotsAndSync = useCallback(
     async (slots: TimeSlot[]) => {
@@ -761,46 +808,20 @@ export function PlanningSelectionProvider({
         slots.filter((s) => s.kind === "window").map((s) => s.id)
       );
 
-      const errors: string[] = [];
-
-      // Deactivate windows removed from local state
-      for (const apiWindow of currentApiWindows) {
-        if (!newWindowIds.has(apiWindow.id)) {
-          try {
-            await deactivateCalendarTimeWindow(calendarId, apiWindow);
-          } catch (err) {
-            errors.push(
-              `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
-            );
-          }
-        }
-      }
-
-      // Create or update local windows
-      for (const slot of slots) {
-        if (slot.kind !== "window") continue; // blocks are local-only
-        try {
-          const body = localToApiTimeWindow(slot);
-          if (currentIds.has(slot.id)) {
-            await updateCalendarTimeWindow(calendarId, slot.id, body);
-          } else {
-            await createCalendarTimeWindow(calendarId, body);
-          }
-        } catch (err) {
-          errors.push(
-            `Failed to save "${slot.name}": ${err instanceof Error ? err.message : "unknown error"}`
-          );
-        }
-      }
+      const [deactivateErrors, saveErrors] = await Promise.all([
+        deactivateRemovedWindows(currentApiWindows, newWindowIds),
+        saveLocalWindows(slots, currentIds),
+      ]);
 
       // Reload from API to replace temp IDs with real server IDs
       await refreshTimeWindows();
 
+      const errors = [...deactivateErrors, ...saveErrors];
       if (errors.length > 0) {
         throw new Error(errors.join("; "));
       }
     },
-    [calendarId, apiTimeWindows, refreshTimeWindows]
+    [calendarId, apiTimeWindows, refreshTimeWindows, deactivateRemovedWindows, saveLocalWindows]
   );
 
   // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)

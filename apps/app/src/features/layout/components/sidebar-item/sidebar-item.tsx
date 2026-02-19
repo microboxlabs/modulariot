@@ -66,7 +66,7 @@ export default function SidebarItem({
           // Render nested group as second-level SidebarCollapse
           if (item.items) {
             const isGroupOpen = item.items.some(
-              (child) => child.href && pathname === child.href.split("?")[0]
+              (child) => pathname === child.href?.split("?")[0]
             );
             return (
               <SidebarCollapse

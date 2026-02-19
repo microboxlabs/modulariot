@@ -4,8 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSWRConfig } from "swr";
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import { DynamicFormField } from "@/features/dynamic-forms";
-import { useDynamicFormState } from "@/features/dynamic-forms";
+import { DynamicFormField, useDynamicFormState } from "@/features/dynamic-forms";
 import {
   useCalendarGroups,
   createCalendar,

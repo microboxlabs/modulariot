@@ -80,6 +80,75 @@
           }
         }
       },
+      "CalendarGroupRequest" : {
+        "type" : "object",
+        "required" : [ "code", "name" ],
+        "description" : "Request payload to create or update a calendar group",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "examples" : [ "warehouse-south" ],
+            "maxLength" : 50,
+            "description" : "Unique code identifying the group"
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Warehouse South" ],
+            "maxLength" : 255,
+            "description" : "Display name of the group"
+          },
+          "description" : {
+            "type" : "string",
+            "examples" : [ "Group for all calendars in Warehouse South" ],
+            "description" : "Detailed description of the group purpose"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the group is active",
+            "default" : true
+          }
+        }
+      },
+      "CalendarGroupResponse" : {
+        "type" : "object",
+        "required" : [ "id", "code", "name", "active", "createdAt", "updatedAt" ],
+        "description" : "Calendar group data returned by the API",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the group"
+          },
+          "code" : {
+            "type" : "string",
+            "examples" : [ "warehouse-south" ],
+            "description" : "Unique code identifying the group"
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Warehouse South" ],
+            "description" : "Display name of the group"
+          },
+          "description" : {
+            "type" : "string",
+            "description" : "Detailed description of the group purpose"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the group is active"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the group was created"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the group was last updated"
+          }
+        }
+      },
       "CalendarRequest" : {
         "type" : "object",
         "required" : [ "code", "name" ],
@@ -112,6 +181,13 @@
             "type" : "boolean",
             "description" : "Whether the calendar is active and accepting bookings",
             "default" : true
+          },
+          "groups" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "description" : "List of group codes to assign. null = no change; [] = remove all; [\"code1\"] = replace all"
           }
         }
       },
@@ -157,6 +233,13 @@
             "$ref" : "#/components/schemas/ZonedDateTime",
             "type" : "string",
             "description" : "Timestamp when the calendar was last updated"
+          },
+          "groups" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/CalendarGroupResponse"
+            },
+            "description" : "Groups this calendar belongs to"
           }
         }
       },
@@ -574,6 +657,9 @@
     "name" : "Bookings",
     "description" : "Booking creation, cancellation, and query operations"
   }, {
+    "name" : "Calendar Groups",
+    "description" : "Calendar group management operations"
+  }, {
     "name" : "Calendars",
     "description" : "Calendar and time window management operations"
   }, {
@@ -780,7 +866,7 @@
     "/api/v1/miot-calendar/calendars" : {
       "get" : {
         "summary" : "List calendars",
-        "description" : "Retrieve all calendars, optionally filtered by active status",
+        "description" : "Retrieve all calendars, optionally filtered by active status or group code",
         "operationId" : "listCalendars",
         "tags" : [ "Calendars" ],
         "parameters" : [ {
@@ -789,6 +875,13 @@
           "in" : "query",
           "schema" : {
             "type" : "boolean"
+          }
+        }, {
+          "description" : "Filter calendars belonging to this group code",
+          "name" : "groupCode",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {
@@ -1128,6 +1221,201 @@
         }
       }
     },
+    "/api/v1/miot-calendar/groups" : {
+      "get" : {
+        "summary" : "List calendar groups",
+        "description" : "Retrieve all calendar groups, optionally filtered by active status",
+        "operationId" : "listGroups",
+        "tags" : [ "Calendar Groups" ],
+        "parameters" : [ {
+          "description" : "When true, return only active groups",
+          "name" : "active",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of calendar groups",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/CalendarGroupResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "summary" : "Create calendar group",
+        "description" : "Create a new calendar group",
+        "operationId" : "createGroup",
+        "tags" : [ "Calendar Groups" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CalendarGroupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Group created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarGroupResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request or duplicate code",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/groups/{id}" : {
+      "put" : {
+        "summary" : "Update calendar group",
+        "description" : "Update an existing calendar group",
+        "operationId" : "updateGroup",
+        "tags" : [ "Calendar Groups" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the group to update",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CalendarGroupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Group updated",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarGroupResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Group not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get" : {
+        "summary" : "Get group by ID",
+        "description" : "Retrieve a specific calendar group by its unique identifier",
+        "operationId" : "getGroup",
+        "tags" : [ "Calendar Groups" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the group",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Group found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarGroupResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Group not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "summary" : "Deactivate calendar group",
+        "description" : "Soft-delete a calendar group by setting it as inactive",
+        "operationId" : "deactivateGroup",
+        "tags" : [ "Calendar Groups" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the group to deactivate",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Group deactivated"
+          },
+          "404" : {
+            "description" : "Group not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/miot-calendar/slots" : {
       "get" : {
         "summary" : "List slots",
@@ -1329,7 +1617,7 @@
   },
   "info" : {
     "title" : "MIOT Calendar API",
-    "version" : "0.1.1",
+    "version" : "0.2.0",
     "description" : "Calendar booking microservice for resource scheduling. Provides calendar management, time window configuration, slot generation, and booking operations.",
     "contact" : {
       "name" : "MicroBoxLabs",

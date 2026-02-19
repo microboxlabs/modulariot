@@ -10,7 +10,7 @@ const BASE = "/api/v1/miot-calendar/calendars";
 
 export function createCalendarsApi(fetcher: Fetcher) {
   return {
-    list(params?: { active?: boolean }): Promise<CalendarResponse[]> {
+    list(params?: { active?: boolean; groupCode?: string }): Promise<CalendarResponse[]> {
       return fetcher("GET", BASE, { query: params });
     },
 

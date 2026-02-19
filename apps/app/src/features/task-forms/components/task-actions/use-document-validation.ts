@@ -63,7 +63,6 @@ export function useDocumentValidation(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const entries: any[] = data?.data?.list?.entries || [];
 
-  console.log("entries", entries);
   const hasPOD = entries.some(
     (file) =>
       file.entry.properties?.["mintral:contentType"] === "PROOF_OF_DELIVERY"

@@ -131,6 +131,7 @@ export default function BentoHead({
             taskType={task.taskFormKey as ShippingCoordinatorProcessFormsV2}
             lang={lang}
             dict={msg}
+            rootDict={dict as unknown as Record<string, unknown>}
             fluid={true}
             enableActions={enableActions}
             extraData={task}

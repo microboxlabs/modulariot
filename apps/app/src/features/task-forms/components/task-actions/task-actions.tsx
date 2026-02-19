@@ -72,6 +72,7 @@ export default function TaskActions({
   dict,
   fluid = false,
   extraData,
+  rootDict,
 }: PropsWithI18nDict<TaskActionsProps>) {
   const [openModal, setOpenModal] = useState(false);
   const [outcome, setOutcome] = useState<
@@ -93,9 +94,9 @@ export default function TaskActions({
     {}
   );
   const router = useRouter();
-  const multimediaValidationDict = (dict.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
-  const validationDict = multimediaValidationDict?.validation as I18nRecord | undefined;
-  const categoriesDict = multimediaValidationDict?.categories as I18nRecord | undefined;
+  const multimediaDict = (rootDict?.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
+  const validationDict = multimediaDict?.validation as I18nRecord | undefined;
+  const categoriesDict = multimediaDict?.categories as I18nRecord | undefined;
   dict = dict["outcome"]
     ? dict
     : ((dict.pages as I18nRecord).transportValidationForm as I18nRecord);

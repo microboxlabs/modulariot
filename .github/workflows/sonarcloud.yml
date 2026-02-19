@@ -1,0 +1,61 @@
+# =============================================================================
+# SonarCloud Analysis - ModularIoT App
+# =============================================================================
+# Runs after npm install so workspace package symlinks (e.g. @repo/typescript-config)
+# are available and tsconfig.json "extends" chains can be resolved.
+#
+# Required Secrets:
+#   - SONAR_TOKEN: SonarCloud token (Settings > Security > Generate Tokens)
+#
+# NOTE: If SonarCloud automatic analysis is enabled for this repository,
+# disable it in SonarCloud > Administration > Analysis Method to avoid
+# duplicate analyses.
+# =============================================================================
+
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - trunk
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - trunk
+      - main
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Disable shallow clone — SonarCloud needs full history for blame data
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        # Installs workspace symlinks so @repo/typescript-config resolves
+        run: npm ci
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        with:
+          projectBaseDir: apps/app
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

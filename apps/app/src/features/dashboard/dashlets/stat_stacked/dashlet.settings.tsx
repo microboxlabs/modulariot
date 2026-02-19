@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, TextInput, Label } from "flowbite-react";
+import { Button, TextInput, Label, ToggleSwitch } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, BarColor } from "./dashlet";
@@ -16,12 +16,32 @@ import {
 } from "@/features/common/components/color-picker-dropdown";
 
 const COLOR_OPTIONS: ColorOption<BarColor>[] = [
-  { value: "bg-blue-500", label: "Blue", dotClass: "bg-blue-500" },
-  { value: "bg-green-500", label: "Green", dotClass: "bg-green-500" },
-  { value: "bg-yellow-500", label: "Yellow", dotClass: "bg-yellow-500" },
-  { value: "bg-purple-500", label: "Purple", dotClass: "bg-purple-500" },
-  { value: "bg-red-500", label: "Red", dotClass: "bg-red-500" },
-  { value: "bg-cyan-500", label: "Cyan", dotClass: "bg-cyan-500" },
+  {
+    value: "bg-blue-500 dark:bg-blue-400",
+    label: "Blue",
+    dotClass: "bg-blue-500",
+  },
+  {
+    value: "bg-green-500 dark:bg-green-400",
+    label: "Green",
+    dotClass: "bg-green-500",
+  },
+  {
+    value: "bg-yellow-500 dark:bg-yellow-400",
+    label: "Yellow",
+    dotClass: "bg-yellow-500",
+  },
+  {
+    value: "bg-purple-500 dark:bg-purple-400",
+    label: "Purple",
+    dotClass: "bg-purple-500",
+  },
+  { value: "bg-red-500 dark:bg-red-400", label: "Red", dotClass: "bg-red-500" },
+  {
+    value: "bg-cyan-500 dark:bg-cyan-400",
+    label: "Cyan",
+    dotClass: "bg-cyan-500",
+  },
 ];
 
 interface StackItem {
@@ -40,12 +60,13 @@ export function DashletSettings({
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [title, setTitle] = useState(config.title || "Traffic Sources");
   const [unit, setUnit] = useState(config.unit || "%");
+  const [showHeader, setShowHeader] = useState(config.showHeader ?? true);
 
   // Initialize items with unique IDs
   const initializeItems = (): StackItem[] => {
     const defaultItems: Omit<StackItem, "id">[] = [
-      { label: "Direct", value: 45, color: "bg-blue-500" },
-      { label: "Organic", value: 30, color: "bg-green-500" },
+      { label: "Direct", value: 45, color: "bg-blue-500 dark:bg-blue-400" },
+      { label: "Organic", value: 30, color: "bg-green-500 dark:bg-green-400" },
     ];
     return (config.items || defaultItems).map((item, i) => ({
       ...item,
@@ -61,7 +82,7 @@ export function DashletSettings({
       value,
       color,
     }));
-    onSave({ title, items: itemsToSave, unit });
+    onSave({ title, items: itemsToSave, unit, showHeader });
     onClose();
   };
 
@@ -70,7 +91,12 @@ export function DashletSettings({
   const addItem = () =>
     setItems([
       ...items,
-      { id: `item-${Date.now()}`, label: "", value: 0, color: "bg-blue-500" },
+      {
+        id: `item-${Date.now()}`,
+        label: "",
+        value: 0,
+        color: "bg-blue-500 dark:bg-blue-400",
+      },
     ]);
 
   const removeItem = (id: string) =>
@@ -95,20 +121,33 @@ export function DashletSettings({
       scrollable
       dictionary={dictionary}
     >
-      <SettingsFieldGrid cols={2}>
-        <SettingsTextField
-          id="title"
-          label="Title"
-          value={title}
-          onChange={setTitle}
-        />
-        <SettingsTextField
-          id="unit"
-          label="Unit"
-          value={unit}
-          onChange={setUnit}
-        />
-      </SettingsFieldGrid>
+      <div className="flex items-center justify-between py-1">
+        <Label className="text-sm font-medium">Show Header</Label>
+        <div className="shrink-0">
+          <ToggleSwitch
+            checked={showHeader}
+            onChange={setShowHeader}
+            sizing="sm"
+          />
+        </div>
+      </div>
+
+      {showHeader && (
+        <SettingsFieldGrid cols={2}>
+          <SettingsTextField
+            id="title"
+            label="Title"
+            value={title}
+            onChange={setTitle}
+          />
+          <SettingsTextField
+            id="unit"
+            label="Unit"
+            value={unit}
+            onChange={setUnit}
+          />
+        </SettingsFieldGrid>
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">

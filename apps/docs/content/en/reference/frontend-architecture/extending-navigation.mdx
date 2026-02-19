@@ -1,0 +1,134 @@
+# Extending Navigation
+
+The sidebar navigation is designed to be extended without touching the presentation layer. Adding a new section with dynamic sub-items — loaded from the backend at runtime — requires three steps: a hook, a registration, and a `pages.ts` declaration.
+
+## When to use dynamic items
+
+Use `dynamicItemsSource` when sub-items cannot be known at build time and must be fetched per-user or per-session. Examples:
+
+- User-defined filters (Tasks section today)
+- Calendar instances a user has access to
+- Dashboard views configured per tenant
+- Saved reports or custom worklists
+
+For sub-items that are always the same for all users, add them directly to `pages.ts` as static entries — no provider change needed.
+
+## Step-by-step: adding a dynamic section
+
+### 1. Write the loader hook
+
+Create a hook that fetches the data and returns `SidebarItem[]`. By convention, name it `use<Section>DynamicItems`.
+
+```typescript
+// Example: calendar instances dynamic sub-items
+function useCalendarDynamicItems(): SidebarItem[] {
+  const { data } = useCalendarInstances(); // your SWR hook
+
+  if (!data) return [];
+
+  return data.instances.map((instance) => ({
+    href: `/calendar/${instance.id}`,
+    label: instance.name,
+    totals: { [instance.name]: instance.taskCount },
+  }));
+}
+```
+
+The hook must:
+- Return `SidebarItem[]` (empty array while loading, not `undefined`)
+- Be a standard React hook — it can call other hooks, use `useState`, `useEffect`, etc.
+- Derive its return value from SWR hooks so it re-renders when data updates
+
+### 2. Register the hook in the provider
+
+Open `src/features/layout/context/sidebar-navigation-context.tsx` and add the hook call and registration in `dynamicMap`:
+
+```typescript
+export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {
+  // ... existing hooks ...
+  const calendarDynamicItems = useCalendarDynamicItems(); // add this
+
+  const contextValue = useMemo(() => {
+    // ... existing totals computation ...
+
+    const dynamicMap: Record<string, SidebarItem[]> = {
+      tasks: taskDynamicItems,
+      calendar: calendarDynamicItems, // add this
+    };
+
+    // ... rest unchanged ...
+  }, [taskDynamicItems, calendarDynamicItems, /* add to deps */ ...]);
+```
+
+> **Important:** Add the new items array to the `useMemo` dependency array. If the hook's return value is a new array reference on every render (common with `.map()`), wrap its output in `useMemo` inside the hook itself to prevent unnecessary context re-renders.
+
+### 3. Declare `dynamicItemsSource` in `pages.ts`
+
+Open `src/features/layout/models/pages.ts` and add the key to the relevant page entry:
+
+```typescript
+{
+  icon: CalendarIcon,
+  label: "calendar",
+  dynamicItemsSource: "calendar",  // must match the key in dynamicMap
+  items: [
+    // static items remain here, dynamic items will be appended after them
+    { href: "/calendar/planning", label: "calendarPlanning", totals: {} },
+  ],
+  totals: {},
+  requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],
+}
+```
+
+The `dynamicItemsSource` value is the key into `dynamicMap`. Dynamic items are always appended **after** static items defined in the `items` array.
+
+## How the merge works
+
+At render time, the provider resolves the final navigation tree:
+
+```
+page.items (static)  +  dynamicMap[page.dynamicItemsSource] (dynamic)
+         ↓                                   ↓
+   [...staticItems,            ...dynamicItems (sorted by position)]
+```
+
+The original `pages` export is **never modified**. Each render cycle produces a new merged array, so there is no risk of accumulation across re-mounts.
+
+## Testing the new section
+
+Add tests following the patterns in `sidebar-navigation-context.test.tsx`:
+
+```typescript
+it("appends calendar dynamic items after static items", async () => {
+  // mock useCalendarInstances to return test data
+  vi.mocked(useCalendarInstances).mockReturnValue({
+    data: { instances: [{ id: "cal-1", name: "Fleet Schedule", taskCount: 3 }] },
+  });
+
+  const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+
+  await waitFor(() => {
+    const calendarItem = result.current.items.find((i) => i.label === "calendar");
+    // 1 static (calendarPlanning) + 1 dynamic
+    expect(calendarItem?.items?.length).toBe(2);
+    expect(calendarItem?.items?.[1]?.label).toBe("Fleet Schedule");
+  });
+});
+
+it("does not mutate the pages constant when calendar items load", async () => {
+  const calendarPage = pages.find((p) => p.label === "calendar");
+  const staticCount = calendarPage?.items?.length ?? 0;
+
+  renderHook(() => useSidebarNavigation(), { wrapper });
+
+  expect(calendarPage?.items?.length).toBe(staticCount);
+});
+```
+
+## Checklist
+
+- [ ] Hook returns `SidebarItem[]`, never `undefined`
+- [ ] Hook is registered in `SidebarNavigationProvider` and added to `useMemo` deps
+- [ ] `dynamicItemsSource` key in `pages.ts` matches the `dynamicMap` key exactly
+- [ ] Immutability test: `pages` constant unchanged after mount with dynamic items
+- [ ] Items test: dynamic items appear after static items in the resolved tree

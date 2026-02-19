@@ -51,7 +51,7 @@ const middleware = auth(async function middleware(request: NextRequest) {
 
   pathname = pathname.replace(
     /^\/app(\/.*)?$/,
-    (match, captured: string | undefined) => captured || "/"
+    (_: string, captured: string | undefined) => captured || "/"
   );
 
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {

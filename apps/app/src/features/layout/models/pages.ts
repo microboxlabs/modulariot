@@ -142,6 +142,7 @@ export const pages: SidebarItem[] = [
   {
     icon: FaBookIcon,
     label: "tasks",
+    dynamicItemsSource: "tasks",
     items: [
       /* {
         href: "/mytasks?status=pending",

@@ -1,0 +1,143 @@
+# Frontend Architecture
+
+This section documents the architecture of the ModularIoT web application (`apps/app`) for developers contributing to or extending the product. It covers the layout system, the provider hierarchy, and the patterns used to manage shared UI state.
+
+## Technology Stack
+
+The application is built with:
+- **Next.js** (App Router) — server-side rendering and routing
+- **React** — component model and state management via context
+- **Flowbite React** — UI component library
+- **Tailwind CSS / tailwind-merge** — styling
+- **SWR** — data fetching and caching
+- **Vitest + React Testing Library** — unit testing
+
+## Layout Hierarchy
+
+Every secured page in the application is wrapped in the following provider tree:
+
+```
+SecuredLayout (server component)
+└── SidebarProvider          — collapse/open UI state (cookie-persisted)
+    └── SecuredSidebar (client component)
+        └── SidebarNavigationProvider  — navigation data: items + badge counts
+            ├── MobileSidebar          — mobile presentation
+            └── DesktopSidebar         — desktop presentation
+```
+
+### Layer responsibilities
+
+| Layer | Responsibility |
+|---|---|
+| `SecuredLayout` | Server-side auth, i18n dictionary, session |
+| `SidebarProvider` | Desktop collapse state, mobile open/close state, cookie persistence |
+| `SidebarNavigationProvider` | Fetch all navigation data once, merge static + dynamic items, compute badge counts |
+| `DesktopSidebar` / `MobileSidebar` | Pure presentation — layout, animation, rendering |
+
+This separation means **presentation components hold no data-fetching logic**. Adding a new sidebar section never requires touching `DesktopSidebar` or `MobileSidebar`.
+
+## SidebarNavigationProvider
+
+The `SidebarNavigationProvider` is the single source of truth for the application's navigation tree. It:
+
+1. Calls all navigation-related hooks **once**, shared between desktop and mobile
+2. Merges the static page configuration from `models/pages.ts` with dynamically loaded sub-items
+3. Computes badge count totals from the raw API responses
+4. Exposes the resolved state through `useSidebarNavigation()`
+
+### Context value
+
+```typescript
+interface SidebarNavigationContextValue {
+  items: SidebarItem[];               // full resolved navigation tree
+  totals: Record<string, number | string>; // badge counts keyed by section label
+  isLoading: boolean;
+}
+```
+
+Consumers read this via:
+
+```typescript
+const { items, totals } = useSidebarNavigation();
+```
+
+The hook throws if used outside the provider, which surfaces provider placement errors at development time.
+
+### Static + dynamic item merging
+
+Page configuration is defined in `models/pages.ts` as a static array. Sections that need runtime-loaded sub-items declare a `dynamicItemsSource` key:
+
+```typescript
+// models/pages.ts
+{
+  label: "tasks",
+  dynamicItemsSource: "tasks",   // tells the provider which loader to use
+  items: [
+    { label: "completed_tasks", href: "/mytasks?status=finished", totals: {} },
+    { label: "pending_tasks",   href: "/mytasks?status=pending",  totals: {} },
+  ],
+  ...
+}
+```
+
+The provider resolves this immutably — **the `pages` export is never mutated**:
+
+```typescript
+const resolvedItems = pages.map((page) => {
+  if (!page.dynamicItemsSource) return page;
+  const dynamic = dynamicMap[page.dynamicItemsSource] ?? [];
+  return { ...page, items: [...(page.items ?? []), ...dynamic] };
+});
+```
+
+Dynamic items from `dynamicMap["tasks"]` are appended after the static items for that section. On every render cycle, a new array is produced from the original static data.
+
+## Data Sources
+
+The provider fetches from these APIs on mount:
+
+| Hook | Endpoint | Used for |
+|---|---|---|
+| `useMyTasksCount` | `/app/api/task/mytasks/count` | shipping, delivery, planning, calendarPlanning badges |
+| `useHistoricInstancesCount` | `/app/api/task/statistics?mode=historic_instances` | finished, completed_tasks badges |
+| `useMapPositions` | `/app/api/map` | geographicView badge |
+| `useSymptoms` | `/app/api/symptoms/dashboard` | symptoms badge |
+| `useUserFilters` | `/app/api/user/filters` | dynamic task filter sub-items |
+
+Each endpoint is called exactly once regardless of how many sidebar components are mounted.
+
+## SidebarItem Type
+
+```typescript
+type SidebarItem = {
+  href?: string;
+  target?: HTMLAttributeAnchorTarget;
+  icon?: FC<ComponentProps<"svg">>;
+  label: string;
+  items?: SidebarItem[];
+  badge?: string;
+  totals: Record<string, number | string>;
+  requiredGroups?: string[];
+  blockedGroups?: string[];
+  dynamicItemsSource?: string;  // key into the provider's dynamicMap
+};
+```
+
+`requiredGroups` and `blockedGroups` are evaluated by `SidebarItem` at render time to show or hide sections based on the current user's group memberships.
+
+## Testing Approach
+
+The provider and its hooks are tested with Vitest + React Testing Library via `renderHook`. The key test invariants are:
+
+- `pages` is not mutated after the provider mounts, with or without dynamic items
+- Dynamic items are appended after static items and sorted by `position`
+- Badge totals are derived correctly from each data source
+- Shipping/delivery/planning totals are skipped when the task count API returns an error
+
+See `src/features/layout/context/sidebar-navigation-context.test.tsx` for the full test suite.
+
+## Related
+
+- [Extending Navigation](/reference/frontend-architecture/extending-navigation) — add a new dynamic sidebar section
+- [Application Navigation](/operations/mission-control/navigation) — operator view of the sidebar sections
+- [ADR-001: Sidebar Navigation Context](/reference/architecture-decisions/adr-001-sidebar-navigation-context) — the decision record for this architecture

@@ -7,6 +7,8 @@ export type {
   BookingRequest,
   BookingResponse,
   BookingListResponse,
+  CalendarGroupRequest,
+  CalendarGroupResponse,
   CalendarRequest,
   CalendarResponse,
   TimeWindowRequest,

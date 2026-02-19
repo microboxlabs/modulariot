@@ -42,6 +42,7 @@ export default function SidebarItem({
 
   if (items) {
     const isOpen = true;
+    const isHomeSection = href === "/home";
     return (
       <SidebarCollapse
         icon={icon}
@@ -63,6 +64,17 @@ export default function SidebarItem({
             return null;
           }
 
+          const badgeProps =
+            isHomeSection || typeof totals[item.label] === "string"
+              ? {}
+              : (() => {
+                  const count = getTotalCountBadges(
+                    totals[item.label] as number
+                  );
+                  const labelColor = getLabelColor(count);
+                  return { label: `${count}`, labelColor };
+                })();
+
           return (
             <FlowbiteSidebarItem
               key={index}
@@ -71,22 +83,13 @@ export default function SidebarItem({
               icon={item.icon}
               className={twMerge(
                 "justify-center [&>*]:font-normal",
+                isHomeSection &&
+                  "[&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
                 (pathname === item.href ||
                   item.href === pathname + "?" + searchParams.toString()) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              label={
-                typeof totals[item.label] == "string"
-                  ? undefined
-                  : `${getTotalCountBagaes(totals[item.label] as number)}`
-              }
-              labelColor={
-                getTotalCountBagaes(totals[item.label] as number) <= 0
-                  ? "success"
-                  : getTotalCountBagaes(totals[item.label] as number) >= 100
-                    ? "warning"
-                    : "info"
-              }
+              {...badgeProps}
             >
               {tr(item.label, dict)}
             </FlowbiteSidebarItem>
@@ -114,6 +117,12 @@ export default function SidebarItem({
   );
 }
 
-function getTotalCountBagaes(totals: number) {
-  return totals ? totals : 0;
+function getTotalCountBadges(totals: number) {
+  return totals || 0;
+}
+
+function getLabelColor(totals: number) {
+  if (totals <= 0) return "success";
+  if (totals >= 100) return "warning";
+  return "info";
 }

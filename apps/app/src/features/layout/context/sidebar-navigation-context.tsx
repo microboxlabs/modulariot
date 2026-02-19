@@ -78,13 +78,24 @@ function useTaskDynamicItems(): SidebarItem[] {
         }));
       });
 
-    Promise.all(pending).then((results) => {
-      setDynamicItems(results);
-    });
+    Promise.all(pending)
+      .then((results) => {
+        setDynamicItems(results);
+      })
+      .catch((err) => {
+        console.error("Failed to load dynamic sidebar items:", err);
+        setDynamicItems([]);
+      });
   }, [userFiltersData]);
 
-  const sorted = [...dynamicItems].sort((a, b) => a.position - b.position);
-  return sorted.map((entry) => entry.item);
+  return useMemo(
+    () =>
+      dynamicItems
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((entry) => entry.item),
+    [dynamicItems]
+  );
 }
 
 export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {

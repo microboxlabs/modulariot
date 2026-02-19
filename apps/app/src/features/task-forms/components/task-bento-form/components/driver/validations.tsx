@@ -12,6 +12,12 @@ import { useGetValidation } from "@/features/common/providers/client-api.provide
 import { ValidationIcon } from "./validation-icon";
 import GpsValidationItem from "../../../gps-validation-item/gps-validation-item";
 import { Tooltip } from "flowbite-react";
+import { useDocumentValidation } from "../../../task-actions/use-document-validation";
+import {
+  TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+  TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+} from "../../../../services/form.service";
+import { DeliveryProcessForms } from "../../../../services/form.service.types";
 
 // Validation item component
 export const ValidationItemComponent = ({
@@ -160,6 +166,40 @@ export default function ValidationsInfo({
   const validationData: ServiceValidationData =
     serviceValidation as ServiceValidationData;
 
+  const showDocumentValidation = [
+    TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK,
+    TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
+  ].includes(task.taskFormKey as DeliveryProcessForms);
+
+  const {
+    hasPOD,
+    hasPOLF,
+    isLoading: docLoading,
+  } = useDocumentValidation(
+    task.taskFormKey as DeliveryProcessForms,
+    task.bpm_package
+  );
+
+  const multimediaDict = (msg.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
+  const categoriesDict = multimediaDict?.categories as I18nRecord | undefined;
+  const documentsLabel = (multimediaDict?.documents as string) || "Documents";
+
+  const documentValidationItems: ValidationItem[] = [];
+  if (showDocumentValidation && !docLoading) {
+    documentValidationItems.push({
+      key: "PROOF_OF_DELIVERY",
+      status: hasPOD ? "ok" : "error",
+      label: "",
+    });
+    if (task.taskFormKey === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
+      documentValidationItems.push({
+        key: "PROOF_OF_LOAD_FLOOR",
+        status: hasPOLF ? "ok" : "error",
+        label: "",
+      });
+    }
+  }
+
   let content = null;
 
   if (isLoading) {
@@ -219,7 +259,26 @@ export default function ValidationsInfo({
         <h1 className="text-md font-normal text-gray-700 dark:text-gray-300 flex flex-row gap-2 whitespace-normal md:whitespace-nowrap items-center h-7">
           {(msg.bento as I18nRecord).validations as string}
         </h1>
-        <div className="space-y-6 h-full">{content}</div>
+        <div className="space-y-6 h-full">
+          {content}
+          {showDocumentValidation && documentValidationItems.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-normal text-gray-500 dark:text-gray-400 mb-2">
+                {documentsLabel}
+              </h2>
+              <div className="space-y-1 flex flex-col gap-2">
+                {documentValidationItems.map((item) => (
+                  <div key={item.key} className="flex gap-1 items-center">
+                    <ValidationIcon status={item.status} isLoading={false} />
+                    <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                      {(categoriesDict?.[item.key] as string) || item.key}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </CustomCard>
   );

@@ -14,5 +14,4 @@ export type TaskActionsProps = {
   fluid?: boolean;
   extraData?: Record<string, unknown>;
   enableActions?: boolean;
-  rootDict?: Record<string, unknown>;
 };

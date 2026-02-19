@@ -3,17 +3,23 @@ import { tr } from "@/features/i18n/tr.service";
 import { Dropdown, DropdownItem, Button } from "flowbite-react";
 import { ChevronDown } from "flowbite-react-icons/outline";
 import { useState } from "react";
+import { useCalendars } from "@/features/common/providers/client-api.provider";
 
 export default function PlanningTitle({
   dict,
-}: Readonly<{ dict: I18nRecord }>) {
+  calendarId,
+}: Readonly<{ dict: I18nRecord; calendarId?: string }>) {
   const [type, setType] = useState<"dispatch" | "reception">("dispatch");
+  const { calendars } = useCalendars();
+  const calendarName = calendarId
+    ? (calendars.find((c) => c.id === calendarId)?.name ?? tr("layout.secured.sidebar.planning", dict))
+    : tr("layout.secured.sidebar.planning", dict);
 
   return (
     <div className="flex flex-row gap-2 items-center">
       {/* Title */}
       <h1 className="text-xl font-semibold text-gray-700 dark:text-white">
-        {tr("layout.secured.sidebar.planning", dict)}
+        {calendarName}
       </h1>
       <Dropdown
         label=""

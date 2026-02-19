@@ -118,7 +118,7 @@ export default function SidebarItem({
 }
 
 function getTotalCountBadges(totals: number) {
-  return totals ? totals : 0;
+  return totals || 0;
 }
 
 function getLabelColor(totals: number) {

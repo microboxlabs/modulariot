@@ -19,6 +19,7 @@ export default function PlanningLayout({
   return (
     <PlanningLayoutClient
       dict={dict}
+      calendarId={calendarId}
       header={<PlanningHeader lang={lang} dict={dict} calendarId={calendarId} />}
       calendar={<PlanningCalendar lang={lang} dict={dict} />}
     />

@@ -56,6 +56,8 @@ import type {
   CalendarGroupResponse,
   CalendarRequest,
   CalendarGroupRequest,
+  TimeWindowResponse,
+  TimeWindowRequest,
 } from "@microboxlabs/miot-calendar-client";
 
 
@@ -1553,4 +1555,98 @@ export async function createCalendar(body: CalendarRequest): Promise<CalendarRes
     throw new Error(err.error ?? "Failed to create calendar");
   }
   return response.json();
+}
+
+// ============================================================================
+// Calendar Time Windows Hooks
+// ============================================================================
+
+const EMPTY_TIME_WINDOWS: TimeWindowResponse[] = [];
+
+/**
+ * Fetch time windows for a specific calendar from the miot-calendar-client backend.
+ * Returns null SWR key (no fetch) when calendarId is null/undefined.
+ */
+export function useCalendarTimeWindows(calendarId: string | null) {
+  const url = calendarId
+    ? `/app/api/calendar/${calendarId}/time-windows`
+    : null;
+
+  const { data, error, isLoading, mutate } = useSWR<
+    TimeWindowResponse[],
+    FetcherError
+  >(url, fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+
+  return {
+    timeWindows: data ?? EMPTY_TIME_WINDOWS,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Create a new time window for the given calendar.
+ */
+export async function createCalendarTimeWindow(
+  calendarId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(`/app/api/calendar/${calendarId}/time-windows`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to create time window");
+  }
+  return response.json();
+}
+
+/**
+ * Update an existing time window.
+ */
+export async function updateCalendarTimeWindow(
+  calendarId: string,
+  timeWindowId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(
+    `/app/api/calendar/${calendarId}/time-windows/${timeWindowId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to update time window");
+  }
+  return response.json();
+}
+
+/**
+ * Deactivate (soft-delete) a time window by setting active=false.
+ * Requires the existing window data to satisfy required API fields.
+ */
+export async function deactivateCalendarTimeWindow(
+  calendarId: string,
+  window: TimeWindowResponse
+): Promise<void> {
+  await updateCalendarTimeWindow(calendarId, window.id, {
+    name: window.name,
+    startHour: window.startHour,
+    endHour: window.endHour,
+    validFrom: window.validFrom,
+    validTo: window.validTo,
+    daysOfWeek: window.daysOfWeek,
+    capacityPerSlot: window.capacityPerSlot,
+    slotDurationMinutes: window.slotDurationMinutes,
+    active: false,
+  });
 }

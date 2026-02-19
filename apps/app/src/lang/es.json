@@ -1139,6 +1139,8 @@
           "apply": "Aplicar",
           "today": "Hoy",
           "clear": "Limpiar",
+          "applySuccess": "Ventanas de tiempo guardadas correctamente",
+          "applyError": "Error al guardar las ventanas de tiempo",
           "colors": {
             "emerald": "Verde",
             "blue": "Azul",

@@ -1125,6 +1125,8 @@
           "apply": "Apply",
           "today": "Today",
           "clear": "Clear",
+          "applySuccess": "Time windows saved successfully",
+          "applyError": "Failed to save time windows",
           "colors": {
             "emerald": "Green",
             "blue": "Blue",

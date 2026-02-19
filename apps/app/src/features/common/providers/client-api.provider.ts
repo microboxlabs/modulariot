@@ -51,7 +51,12 @@ import type {
   CreateTimeSlotRequest,
   UpdateTimeSlotRequest,
 } from "@/features/calendar/types/time-slot.types";
-import type { CalendarResponse } from "@microboxlabs/miot-calendar-client";
+import type {
+  CalendarResponse,
+  CalendarGroupResponse,
+  CalendarRequest,
+  CalendarGroupRequest,
+} from "@microboxlabs/miot-calendar-client";
 
 
 
@@ -1502,4 +1507,50 @@ export function useCalendarsInGroup(groupCode: string | null) {
     [calendars, groupCode]
   );
   return { calendars: filtered, isLoading };
+}
+
+const EMPTY_GROUPS: CalendarGroupResponse[] = [];
+
+/**
+ * Hook to fetch all active calendar groups
+ */
+export function useCalendarGroups() {
+  const { data, error, isLoading } = useSWR<CalendarGroupResponse[], FetcherError>(
+    "/app/api/calendar/groups",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { groups: data ?? EMPTY_GROUPS, error, isLoading };
+}
+
+/**
+ * Create a new calendar group
+ */
+export async function createCalendarGroup(body: CalendarGroupRequest): Promise<CalendarGroupResponse> {
+  const response = await fetch("/app/api/calendar/groups", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to create calendar group");
+  }
+  return response.json();
+}
+
+/**
+ * Create a new calendar
+ */
+export async function createCalendar(body: CalendarRequest): Promise<CalendarResponse> {
+  const response = await fetch("/app/api/calendar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to create calendar");
+  }
+  return response.json();
 }

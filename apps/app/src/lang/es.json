@@ -2030,6 +2030,26 @@
       "multi_calendar_title": "Múltiples Calendarios",
       "multi_calendar_description": "Administra calendarios independientes para distintas operaciones, ubicaciones o equipos.",
       "cta": "Comenzar"
+    },
+    "create": {
+      "title": "Nuevo Calendario",
+      "subtitle": "Crea un calendario para gestionar la programación y las ventanas de tiempo.",
+      "nameLabel": "Nombre",
+      "codeLabel": "Código",
+      "descriptionLabel": "Descripción",
+      "timezoneLabel": "Zona Horaria",
+      "groupLabel": "Grupo",
+      "activeLabel": "Activo",
+      "submit": "Crear Calendario",
+      "group": {
+        "searchPlaceholder": "Buscar o crear un grupo...",
+        "noResults": "No se encontraron grupos",
+        "create": "Crear grupo \"{name}\"",
+        "successNotification": "Grupo creado correctamente",
+        "errorNotification": "Error al crear el grupo"
+      },
+      "successNotification": "Calendario creado correctamente",
+      "errorNotification": "Error al crear el calendario"
     }
   }
 }

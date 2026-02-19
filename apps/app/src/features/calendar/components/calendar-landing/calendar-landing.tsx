@@ -1,18 +1,15 @@
-import Link from "next/link";
-import { HiCalendar, HiCog, HiCollection, HiPlus } from "react-icons/hi";
+import { HiCalendar, HiCog, HiCollection } from "react-icons/hi";
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { CalendarFeatureCard } from "./calendar-feature-card";
+import { CreateCalendarButton } from "./create-calendar-button";
 
 interface CalendarLandingProps {
   dict: I18nRecord;
   lang: string;
 }
 
-export function CalendarLanding({
-  dict,
-  lang,
-}: Readonly<CalendarLandingProps>) {
+export function CalendarLanding({ dict }: Readonly<CalendarLandingProps>) {
   const landing = dict.landing as I18nRecord;
 
   return (
@@ -47,13 +44,7 @@ export function CalendarLanding({
         />
       </div>
 
-      <Link
-        href={`/${lang}/calendar/planning`}
-        className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-      >
-        <HiPlus className="mr-2 h-4 w-4" />
-        {tr("cta", landing)}
-      </Link>
+      <CreateCalendarButton dict={dict} ctaLabel={tr("cta", landing)} />
     </div>
   );
 }

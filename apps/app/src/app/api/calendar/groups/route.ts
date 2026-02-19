@@ -1,6 +1,6 @@
 import { createMiotCalendarClient, MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
-import type { CalendarRequest } from "@microboxlabs/miot-calendar-client";
-import { requireAuth } from "../utils/alfresco-crud-client";
+import type { CalendarGroupRequest } from "@microboxlabs/miot-calendar-client";
+import { requireAuth } from "../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
@@ -18,12 +18,12 @@ export async function GET() {
   });
 
   try {
-    const calendars = await client.calendars.list({ active: true });
-    return NextResponse.json(calendars);
+    const groups = await client.groups.list({ active: true });
+    return NextResponse.json(groups);
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to fetch calendars");
-    return NextResponse.json({ error: "Failed to fetch calendars" }, { status });
+    logger.error({ err: error }, "Failed to fetch calendar groups");
+    return NextResponse.json({ error: "Failed to fetch calendar groups" }, { status });
   }
 }
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const body: CalendarRequest = await request.json();
+  const body: CalendarGroupRequest = await request.json();
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
@@ -40,11 +40,11 @@ export async function POST(request: Request) {
   });
 
   try {
-    const calendar = await client.calendars.create(body);
-    return NextResponse.json(calendar, { status: 201 });
+    const group = await client.groups.create(body);
+    return NextResponse.json(group, { status: 201 });
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to create calendar");
-    return NextResponse.json({ error: "Failed to create calendar" }, { status });
+    logger.error({ err: error }, "Failed to create calendar group");
+    return NextResponse.json({ error: "Failed to create calendar group" }, { status });
   }
 }

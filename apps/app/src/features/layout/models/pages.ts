@@ -76,6 +76,10 @@ export const pages: SidebarItem[] = [
     label: "calendar",
     items: [
       {
+        href: "/calendar",
+        label: "calendarOverview",
+      },
+      {
         href: "/calendar/planning",
         label: "calendarPlanning",
         totals: {},

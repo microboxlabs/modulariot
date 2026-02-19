@@ -64,13 +64,12 @@ export default function SidebarItem({
             return null;
           }
 
+          const itemTotal = totals?.[item.label];
           const badgeProps =
-            isHomeSection || typeof totals[item.label] === "string"
+            isHomeSection || itemTotal === undefined || typeof itemTotal === "string"
               ? {}
               : (() => {
-                  const count = getTotalCountBadges(
-                    totals[item.label] as number
-                  );
+                  const count = getTotalCountBadges(itemTotal);
                   const labelColor = getLabelColor(count);
                   return { label: `${count}`, labelColor };
                 })();

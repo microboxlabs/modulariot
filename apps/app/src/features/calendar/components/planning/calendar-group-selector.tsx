@@ -17,7 +17,7 @@ export function CalendarGroupSelector({
   const searchParams = useSearchParams();
   const { calendars, isLoading } = useCalendarsInGroup(groupCode);
 
-  if (isLoading || calendars.length === 0) return null;
+  if (isLoading || calendars.length <= 1) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;

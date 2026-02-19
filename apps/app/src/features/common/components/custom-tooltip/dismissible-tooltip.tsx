@@ -16,19 +16,20 @@ export default function DismissibleTooltip({
   visible,
   arrowAlign = "right",
   className = "",
-}: DismissibleTooltipProps) {
+}: Readonly<DismissibleTooltipProps>) {
   const [dismissed, setDismissed] = useState(false);
   const show = visible && !dismissed;
 
-  const arrowPositionClass =
-    arrowAlign === "left"
-      ? "left-8"
-      : arrowAlign === "center"
-        ? "left-1/2 -translate-x-1/2"
-        : "right-8";
+  const arrowPositionMap = {
+    left: "left-8",
+    center: "left-1/2 -translate-x-1/2",
+    right: "right-8",
+  };
+  const arrowPositionClass = arrowPositionMap[arrowAlign];
 
   return (
     <div
+      role="group"
       className="relative"
       onMouseEnter={() => {
         if (dismissed && visible) setDismissed(false);

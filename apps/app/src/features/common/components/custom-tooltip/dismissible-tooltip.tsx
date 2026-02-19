@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type DismissibleTooltipProps = {
   children: React.ReactNode;
@@ -18,7 +18,18 @@ export default function DismissibleTooltip({
   className = "",
 }: Readonly<DismissibleTooltipProps>) {
   const [dismissed, setDismissed] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const show = visible && !dismissed;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = () => {
+      if (dismissed && visible) setDismissed(false);
+    };
+    el.addEventListener("mouseenter", handler);
+    return () => el.removeEventListener("mouseenter", handler);
+  }, [dismissed, visible]);
 
   const arrowPositionMap = {
     left: "left-8",
@@ -28,13 +39,7 @@ export default function DismissibleTooltip({
   const arrowPositionClass = arrowPositionMap[arrowAlign];
 
   return (
-    <div
-      role="group"
-      className="relative"
-      onMouseEnter={() => {
-        if (dismissed && visible) setDismissed(false);
-      }}
-    >
+    <div ref={containerRef} className="relative">
       {children}
       <div className="absolute top-full right-0 mt-3 z-50 w-64">
         {show && (

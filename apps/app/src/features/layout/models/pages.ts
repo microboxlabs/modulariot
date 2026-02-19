@@ -80,11 +80,6 @@ export const pages: SidebarItem[] = [
         href: "/calendar",
         label: "calendarOverview",
       },
-      {
-        href: "/calendar/planning",
-        label: "calendarPlanning",
-        totals: {},
-      },
     ],
     totals: {},
     requiredGroups: ["GROUP_ALFRESCO_ADMINISTRATORS"],

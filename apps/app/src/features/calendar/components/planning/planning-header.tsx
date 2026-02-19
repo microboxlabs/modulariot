@@ -22,6 +22,7 @@ import CalendarRules, {
 } from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
+import { CalendarGroupSelector } from "./calendar-group-selector";
 
 dayjs.extend(weekOfYear);
 
@@ -66,6 +67,7 @@ function navigateDate(
 export default function PlanningHeader({
   lang,
   dict,
+  calendarId,
   initialDate = new Date(),
   initialViewMode = "week",
   onDateChange,
@@ -75,6 +77,7 @@ export default function PlanningHeader({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { setAndenesCount } = usePlanningSelection();
+  const groupCode = searchParams.get("groupCode");
 
   // Read state from URL, fallback to props/defaults
   const currentDate = useMemo(() => {
@@ -180,6 +183,12 @@ export default function PlanningHeader({
             setAndenesCount(config.count);
           }}
         />
+        {groupCode && calendarId && (
+          <CalendarGroupSelector
+            calendarId={calendarId}
+            groupCode={groupCode}
+          />
+        )}
       </div>
     </div>
   );

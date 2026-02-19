@@ -106,36 +106,19 @@ function useCalendarDynamicItems(): SidebarItem[] {
   return useMemo(() => {
     if (calendars.length === 0) return [];
 
-    const groupMap = new Map<string, { group: CalendarGroupResponse; items: CalendarResponse[] }>();
-    const ungrouped: CalendarResponse[] = [];
+    const groupMap = new Map<string, { group: CalendarGroupResponse; firstCalId: string }>();
 
     for (const cal of calendars) {
       const group = cal.groups?.[0];
-      if (group) {
-        if (!groupMap.has(group.code)) groupMap.set(group.code, { group, items: [] });
-        groupMap.get(group.code)!.items.push(cal);
-      } else {
-        ungrouped.push(cal);
+      if (group && !groupMap.has(group.code)) {
+        groupMap.set(group.code, { group, firstCalId: cal.id });
       }
     }
 
-    const result: SidebarItem[] = [];
-
-    for (const { group, items } of groupMap.values()) {
-      result.push({
-        label: group.name,
-        items: items.map((cal) => ({
-          href: `/calendar/${cal.id}/planning?groupCode=${group.code}`,
-          label: cal.name,
-        })),
-      });
-    }
-
-    for (const cal of ungrouped) {
-      result.push({ href: `/calendar/${cal.id}/planning`, label: cal.name });
-    }
-
-    return result;
+    return Array.from(groupMap.values()).map(({ group, firstCalId }) => ({
+      href: `/calendar/${firstCalId}/planning?groupCode=${group.code}`,
+      label: group.name,
+    }));
   }, [calendars]);
 }
 

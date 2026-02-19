@@ -22,7 +22,6 @@ import CalendarRules, {
 } from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
-import { CalendarGroupSelector } from "./calendar-group-selector";
 
 dayjs.extend(weekOfYear);
 
@@ -133,7 +132,7 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <PlanningTitle dict={dict} calendarId={calendarId} />
+      <PlanningTitle dict={dict} calendarId={calendarId} groupCode={groupCode} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
@@ -183,12 +182,6 @@ export default function PlanningHeader({
             setAndenesCount(config.count);
           }}
         />
-        {groupCode && calendarId && (
-          <CalendarGroupSelector
-            calendarId={calendarId}
-            groupCode={groupCode}
-          />
-        )}
       </div>
     </div>
   );

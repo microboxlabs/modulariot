@@ -1782,7 +1782,8 @@
         "missingDocuments": "Se requieren documentos para continuar",
         "requiresPOD": "Prueba de Entrega (POD)",
         "requiresPOLF": "Prueba Carga Piso (POLF)",
-        "uploadRequired": "Por favor suba al menos uno de los siguientes:"
+        "uploadRequired": "Por favor suba al menos uno de los siguientes:",
+        "requiredToContinue": "Este documento es requerido para poder continuar"
       }
     },
     "forum_reasons": {

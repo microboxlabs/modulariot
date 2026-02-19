@@ -68,7 +68,7 @@ export default function SidebarItem({
             isHomeSection || typeof totals[item.label] === "string"
               ? {}
               : (() => {
-                  const count = getTotalCountBagaes(
+                  const count = getTotalCountBadges(
                     totals[item.label] as number
                   );
                   const labelColor = getLabelColor(count);
@@ -117,7 +117,7 @@ export default function SidebarItem({
   );
 }
 
-function getTotalCountBagaes(totals: number) {
+function getTotalCountBadges(totals: number) {
   return totals ? totals : 0;
 }
 

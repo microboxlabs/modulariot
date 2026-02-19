@@ -6,7 +6,7 @@ interface TotemNavbarProps {
   readonly orgLogoUrl?: string | null;
 }
 
-export default function TotemNavbar({ orgLogoUrl }: TotemNavbarProps) {
+export default function TotemNavbar({ orgLogoUrl }: Readonly<TotemNavbarProps>) {
   return (
     <div className="w-full h-fit">
       <Navbar fluid className="dark:bg-transparent">

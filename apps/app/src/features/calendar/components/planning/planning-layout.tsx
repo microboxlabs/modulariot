@@ -8,16 +8,18 @@ import { PlanningLayoutClient } from "./planning-layout-client";
 interface PlanningLayoutProps {
   lang: string;
   dict: I18nDictionary;
+  calendarId?: string;
 }
 
 export default function PlanningLayout({
   lang,
   dict,
+  calendarId,
 }: Readonly<PlanningLayoutProps>) {
   return (
     <PlanningLayoutClient
       dict={dict}
-      header={<PlanningHeader lang={lang} dict={dict} />}
+      header={<PlanningHeader lang={lang} dict={dict} calendarId={calendarId} />}
       calendar={<PlanningCalendar lang={lang} dict={dict} />}
     />
   );

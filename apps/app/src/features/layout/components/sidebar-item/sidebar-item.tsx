@@ -13,7 +13,6 @@ import { useSearchParams } from "next/navigation";
 
 export default function SidebarItem({
   href,
-  target,
   icon,
   label,
   items,
@@ -50,7 +49,7 @@ export default function SidebarItem({
         open={isOpen}
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
-        {items.map((item, index) => {
+        {items.map((item) => {
           // Check if user has any blocked groups for this sub-item
           const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
             (group) => userGroups.includes(group)
@@ -71,14 +70,14 @@ export default function SidebarItem({
             );
             return (
               <SidebarCollapse
-                key={index}
+                key={item.label}
                 label={tr(item.label, dict)}
                 open={isGroupOpen}
                 theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
               >
-                {item.items.map((child, childIndex) => (
+                {item.items.map((child) => (
                   <FlowbiteSidebarItem
-                    key={childIndex}
+                    key={child.href ?? child.label}
                     href={child.href}
                     as={Link}
                     className={twMerge(
@@ -107,7 +106,7 @@ export default function SidebarItem({
 
           return (
             <FlowbiteSidebarItem
-              key={index}
+              key={item.href ?? item.label}
               href={item.href}
               as={Link}
               icon={item.icon}

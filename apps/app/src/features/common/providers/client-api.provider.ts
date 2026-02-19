@@ -1,6 +1,6 @@
 "use client";
 import useSWR from "swr";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import fetcher from "./fetcher";
 import { safeJsonParse } from "./safe-json";
@@ -51,15 +51,9 @@ import type {
   CreateTimeSlotRequest,
   UpdateTimeSlotRequest,
 } from "@/features/calendar/types/time-slot.types";
+import type { CalendarResponse } from "@microboxlabs/miot-calendar-client";
 
-// export function useI8n(lang: string) {
-//   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
-//   return {
-//     dict: data,
-//     error,
-//     isLoading,
-//   };
-// }
+
 
 export function useMyTasks(
   columns: string[],
@@ -1475,4 +1469,37 @@ export async function deleteTimeSlot(id: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.error || "Failed to delete time slot");
   }
+}
+
+// ============================================================================
+// Calendar Hooks
+// ============================================================================
+
+const EMPTY_CALENDARS: CalendarResponse[] = [];
+
+/**
+ * Hook to fetch all active calendars (with their groups)
+ */
+export function useCalendars() {
+  const { data, error, isLoading } = useSWR<CalendarResponse[], FetcherError>(
+    "/app/api/calendar",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading };
+}
+
+/**
+ * Filters cached calendar data by group code — no extra network request
+ */
+export function useCalendarsInGroup(groupCode: string | null) {
+  const { calendars, isLoading } = useCalendars();
+  const filtered = useMemo(
+    () =>
+      groupCode
+        ? calendars.filter((cal) => cal.groups?.some((g) => g.code === groupCode))
+        : EMPTY_CALENDARS,
+    [calendars, groupCode]
+  );
+  return { calendars: filtered, isLoading };
 }

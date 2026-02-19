@@ -39,6 +39,25 @@ export interface BookingListResponse {
   total: number;
 }
 
+// --- Calendar Groups ---
+
+export interface CalendarGroupRequest {
+  code: string;
+  name: string;
+  description?: string;
+  active?: boolean;
+}
+
+export interface CalendarGroupResponse {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // --- Calendars ---
 
 export interface CalendarRequest {
@@ -47,6 +66,7 @@ export interface CalendarRequest {
   description?: string;
   timezone?: string;
   active?: boolean;
+  groups?: string[];
 }
 
 export interface CalendarResponse {
@@ -58,6 +78,7 @@ export interface CalendarResponse {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  groups?: CalendarGroupResponse[];
 }
 
 // --- Time Windows ---

@@ -17,15 +17,19 @@ import {
   createPlannedService,
   updatePlannedService,
   deletePlannedService,
-  useTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
+  useCalendarTimeWindows,
+  createCalendarTimeWindow,
+  updateCalendarTimeWindow,
+  deactivateCalendarTimeWindow,
 } from "@/features/common/providers/client-api.provider";
 import {
   apiToLocalPlannedService,
   localToApiPlannedService,
 } from "@/features/calendar/services/planned-service.service";
+import {
+  apiToLocalTimeWindow,
+  localToApiTimeWindow,
+} from "@/features/calendar/services/time-window.service";
 import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
 
 dayjs.extend(isoWeek);
@@ -635,6 +639,7 @@ const PlanningSelectionContext =
 
 interface PlanningSelectionProviderProps {
   readonly children: ReactNode;
+  readonly calendarId?: string;
 }
 
 /**
@@ -659,6 +664,7 @@ function getWeekOfMonth(date: dayjs.Dayjs): number {
 
 export function PlanningSelectionProvider({
   children,
+  calendarId,
 }: PlanningSelectionProviderProps) {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
@@ -682,12 +688,12 @@ export function PlanningSelectionProvider({
     refresh: refreshPlannedServices,
   } = usePlannedServices();
 
-  // Load time slots (windows and blocks) from API
+  // Load time windows from the miot-calendar-client backend
   const {
-    timeSlots: apiTimeSlots,
+    timeWindows: apiTimeWindows,
     error: timeSlotsError,
-    refresh: refreshTimeSlots,
-  } = useTimeSlots();
+    refresh: refreshTimeWindows,
+  } = useCalendarTimeWindows(calendarId ?? null);
 
   // Sync API data to local state (only when there's no error and data has actually changed)
   useEffect(() => {
@@ -713,19 +719,16 @@ export function PlanningSelectionProvider({
     }
   }, [apiPlannedServices, plannedServicesError]);
 
-  // Sync time slots from API to local state (only when there's no error)
+  // Sync time windows from API to local state (only when there's no error)
   useEffect(() => {
-    // Skip if there's an error - don't update state based on error responses
     if (timeSlotsError) return;
 
-    if (apiTimeSlots?.length > 0) {
-      // API TimeSlotResponse matches our TimeSlot interface, so we can use directly
-      setTimeSlots(apiTimeSlots as TimeSlot[]);
-    } else if (apiTimeSlots?.length === 0) {
-      // Clear local state if API returns empty array
+    if (apiTimeWindows.length > 0) {
+      setTimeSlots(apiTimeWindows.map(apiToLocalTimeWindow));
+    } else if (apiTimeWindows.length === 0 && !timeSlotsError) {
       setTimeSlots([]);
     }
-  }, [apiTimeSlots, timeSlotsError]);
+  }, [apiTimeWindows, timeSlotsError]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -749,66 +752,55 @@ export function PlanningSelectionProvider({
       // Update local state immediately (optimistic update)
       setTimeSlots(slots);
 
-      // Sync to API - save all slots
-      try {
-        // Get current API slots to determine what to create/update/delete
-        const currentApiSlots = apiTimeSlots || [];
-        const currentIds = new Set(currentApiSlots.map((s) => s.id));
-        const newIds = new Set(slots.map((s) => s.id));
+      // Skip API sync when there is no calendarId (generic planning page)
+      if (!calendarId) return;
 
-        // Delete slots that are no longer in the new array
-        for (const currentSlot of currentApiSlots) {
-          if (!newIds.has(currentSlot.id)) {
-            try {
-              await deleteTimeSlot(currentSlot.id);
-            } catch (error) {
-              console.error("Error deleting time slot:", error);
-            }
-          }
-        }
+      const currentApiWindows = apiTimeWindows;
+      const currentIds = new Set(currentApiWindows.map((w) => w.id));
+      const newWindowIds = new Set(
+        slots.filter((s) => s.kind === "window").map((s) => s.id)
+      );
 
-        // Create or update slots
-        for (const slot of slots) {
+      const errors: string[] = [];
+
+      // Deactivate windows removed from local state
+      for (const apiWindow of currentApiWindows) {
+        if (!newWindowIds.has(apiWindow.id)) {
           try {
-            if (currentIds.has(slot.id)) {
-              // Update existing
-              await updateTimeSlot(slot.id, {
-                id: slot.id,
-                name: slot.name,
-                kind: slot.kind,
-                type: slot.type,
-                weeklyPattern: slot.weeklyPattern,
-                startTimestamp: slot.startTimestamp,
-                endTimestamp: slot.endTimestamp,
-                quota: slot.quota,
-                color: slot.color,
-              });
-            } else {
-              // Create new
-              await createTimeSlot({
-                name: slot.name,
-                kind: slot.kind,
-                type: slot.type,
-                weeklyPattern: slot.weeklyPattern,
-                startTimestamp: slot.startTimestamp,
-                endTimestamp: slot.endTimestamp,
-                quota: slot.quota,
-                color: slot.color,
-              });
-            }
-          } catch (error) {
-            console.error("Error saving time slot:", error);
+            await deactivateCalendarTimeWindow(calendarId, apiWindow);
+          } catch (err) {
+            errors.push(
+              `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
+            );
           }
         }
+      }
 
-        // Refresh from API to ensure consistency
-        await refreshTimeSlots();
-      } catch (error) {
-        console.error("Error syncing time slots to API:", error);
-        // State was already updated optimistically, so we continue
+      // Create or update local windows
+      for (const slot of slots) {
+        if (slot.kind !== "window") continue; // blocks are local-only
+        try {
+          const body = localToApiTimeWindow(slot);
+          if (currentIds.has(slot.id)) {
+            await updateCalendarTimeWindow(calendarId, slot.id, body);
+          } else {
+            await createCalendarTimeWindow(calendarId, body);
+          }
+        } catch (err) {
+          errors.push(
+            `Failed to save "${slot.name}": ${err instanceof Error ? err.message : "unknown error"}`
+          );
+        }
+      }
+
+      // Reload from API to replace temp IDs with real server IDs
+      await refreshTimeWindows();
+
+      if (errors.length > 0) {
+        throw new Error(errors.join("; "));
       }
     },
-    [apiTimeSlots, refreshTimeSlots]
+    [calendarId, apiTimeWindows, refreshTimeWindows]
   );
 
   // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)

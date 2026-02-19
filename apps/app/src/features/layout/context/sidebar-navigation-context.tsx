@@ -7,6 +7,7 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
+import { useRouter } from "next/navigation";
 import { pages } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
@@ -87,11 +88,18 @@ function useTaskDynamicItems(): SidebarItem[] {
 }
 
 export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {
+  const router = useRouter();
   const { data, error } = useMyTasksCount();
   const { data: historicInstances } = useHistoricInstancesCount();
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const taskDynamicItems = useTaskDynamicItems();
+
+  useEffect(() => {
+    if (error && (error.status === 401 || error.status === 403)) {
+      router.push("/sign-in");
+    }
+  }, [error, router]);
 
   const contextValue = useMemo(() => {
     const totals: Record<string, number | string> = {};

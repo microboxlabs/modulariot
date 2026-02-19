@@ -1,8 +1,7 @@
 "use client";
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Sidebar, SidebarItemGroup, SidebarItems } from "flowbite-react";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import SidebarItem from "../sidebar-item/sidebar-item";
 import BottomMenu from "../bottom-menu/bottom-menu";
@@ -10,20 +9,11 @@ import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
-import { useMyTasksCount } from "@/features/common/providers/client-api.provider";
 
 export default function DesktopSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isCollapsed } = useSidebarContext().desktop;
-  const router = useRouter();
   const { items, totals } = useSidebarNavigation();
-  const { error } = useMyTasksCount();
-
-  useEffect(() => {
-    if (error && (error.status === 403 || error.status === 401)) {
-      router.push("/sign-in");
-    }
-  }, [error, router]);
 
   return (
     <div

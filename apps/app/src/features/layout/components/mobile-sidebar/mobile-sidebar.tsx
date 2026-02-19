@@ -4,49 +4,16 @@ import { Sidebar, SidebarItemGroup, SidebarItems } from "flowbite-react";
 import SidebarItem from "../sidebar-item/sidebar-item";
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
-import { pages } from "../../models/pages";
 import BottomMenu from "../bottom-menu/bottom-menu";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { pathNameWithoutLanguage } from "../../utils/utils";
 import { tr } from "@/features/i18n/tr.service";
-import { useState, useEffect } from "react";
-import {
-  useSymptoms,
-  useMapPositions,
-  useMyTasksCount,
-  useHistoricInstancesCount,
-} from "@/features/common/providers/client-api.provider";
+import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
 
-export default function MobileSidebar({ dict }: PropsWithI18nDict) {
-  // remove first element of pathname which is the language
+export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
   const pathname = pathNameWithoutLanguage(usePathname());
   const { isOpen, close } = useSidebarContext().mobile;
-
-  const { data, error, isLoading: _ } = useMyTasksCount();
-  const { data: historicInstances } = useHistoricInstancesCount();
-  const { count: mapCount } = useMapPositions();
-  const { count: symptomsCount } = useSymptoms();
-  const [totals, setTotals] = useState<{ [key: string]: number | string }>({});
-
-  if (!error) {
-    totals["shipping"] = Object.entries(data?.totals ?? {})
-      .map(([_, value]) => value as number)
-      .reduce((a, b) => a + b, 0);
-  } /* else if (error.status === 403 || error.status === 401) {
-    router.push("/sign-in");
-  } */
-
-  useEffect(() => {
-    const newTotals = { ...totals };
-    newTotals["geographicView"] = mapCount;
-    newTotals["symptoms"] = symptomsCount;
-    const historicInstancesTotal = Object.values(
-      historicInstances?.totals ?? {}
-    ).reduce((sum, count) => sum + count, 0);
-    newTotals["finished"] = historicInstancesTotal;
-    newTotals["signalHistory"] = "-";
-    setTotals(newTotals);
-  }, [mapCount, symptomsCount, historicInstances]);
+  const { items, totals } = useSidebarNavigation();
 
   if (!isOpen) return null;
 
@@ -70,7 +37,7 @@ export default function MobileSidebar({ dict }: PropsWithI18nDict) {
           <div className="py-2">
             <SidebarItems>
               <SidebarItemGroup className="mt-0 border-t-0 pb-1 pt-0">
-                {pages.map((item) => (
+                {items.map((item) => (
                   <SidebarItem
                     key={item.label}
                     {...item}

@@ -10,4 +10,5 @@ export type SidebarItem = {
   totals: Record<string, number | string>;
   requiredGroups?: string[];
   blockedGroups?: string[];
+  dynamicItemsSource?: string;
 };

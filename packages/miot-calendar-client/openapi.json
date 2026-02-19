@@ -1,0 +1,1342 @@
+{
+  "openapi" : "3.1.0",
+  "components" : {
+    "schemas" : {
+      "BookingListResponse" : {
+        "type" : "object",
+        "required" : [ "data", "total" ],
+        "description" : "Paginated list of bookings",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BookingResponse"
+            },
+            "description" : "List of booking records"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Total number of bookings in the result",
+            "minimum" : 0
+          }
+        }
+      },
+      "BookingRequest" : {
+        "type" : "object",
+        "required" : [ "calendarId", "resource", "slot" ],
+        "description" : "Request payload to create a new booking",
+        "properties" : {
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the calendar to book in"
+          },
+          "resource" : {
+            "$ref" : "#/components/schemas/ResourceData",
+            "type" : "object",
+            "description" : "Resource being booked"
+          },
+          "slot" : {
+            "$ref" : "#/components/schemas/SlotData",
+            "type" : "object",
+            "description" : "Slot date and time to book"
+          }
+        }
+      },
+      "BookingResponse" : {
+        "type" : "object",
+        "required" : [ "id", "calendarId", "resource", "slot", "createdAt" ],
+        "description" : "Booking data returned by the API",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the booking"
+          },
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the calendar the booking belongs to"
+          },
+          "resource" : {
+            "$ref" : "#/components/schemas/ResourceData",
+            "type" : "object",
+            "description" : "Resource that was booked"
+          },
+          "slot" : {
+            "$ref" : "#/components/schemas/SlotData",
+            "type" : "object",
+            "description" : "Slot date and time of the booking"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the booking was created"
+          },
+          "createdBy" : {
+            "type" : "string",
+            "description" : "Identifier of the user who created the booking"
+          }
+        }
+      },
+      "CalendarRequest" : {
+        "type" : "object",
+        "required" : [ "code", "name" ],
+        "description" : "Request payload to create or update a calendar",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "examples" : [ "loading-dock-south" ],
+            "maxLength" : 100,
+            "description" : "Unique code identifying the calendar"
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Loading Dock South" ],
+            "maxLength" : 255,
+            "description" : "Display name of the calendar"
+          },
+          "description" : {
+            "type" : "string",
+            "examples" : [ "Scheduling calendar for Loading Dock South" ],
+            "description" : "Detailed description of the calendar purpose"
+          },
+          "timezone" : {
+            "type" : "string",
+            "examples" : [ "America/Santiago" ],
+            "description" : "IANA timezone identifier for the calendar",
+            "default" : "UTC"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the calendar is active and accepting bookings",
+            "default" : true
+          }
+        }
+      },
+      "CalendarResponse" : {
+        "type" : "object",
+        "required" : [ "id", "code", "name", "timezone", "active", "createdAt", "updatedAt" ],
+        "description" : "Calendar data returned by the API",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the calendar"
+          },
+          "code" : {
+            "type" : "string",
+            "examples" : [ "loading-dock-south" ],
+            "description" : "Unique code identifying the calendar"
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Loading Dock South" ],
+            "description" : "Display name of the calendar"
+          },
+          "description" : {
+            "type" : "string",
+            "description" : "Detailed description of the calendar purpose"
+          },
+          "timezone" : {
+            "type" : "string",
+            "examples" : [ "America/Santiago" ],
+            "description" : "IANA timezone identifier"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the calendar is active"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the calendar was created"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the calendar was last updated"
+          }
+        }
+      },
+      "ErrorResponse" : {
+        "type" : "object",
+        "required" : [ "error", "message", "status", "timestamp" ],
+        "description" : "Standard error response returned for all non-2xx status codes",
+        "properties" : {
+          "error" : {
+            "type" : "string",
+            "examples" : [ "Bad Request" ],
+            "description" : "Error category"
+          },
+          "message" : {
+            "type" : "string",
+            "examples" : [ "Calendar code is required" ],
+            "description" : "Human-readable error message"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 400 ],
+            "description" : "HTTP status code"
+          },
+          "timestamp" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the error occurred"
+          }
+        }
+      },
+      "GenerateSlotsRequest" : {
+        "type" : "object",
+        "required" : [ "calendarId", "startDate", "endDate" ],
+        "description" : "Request payload to generate slots for a calendar within a date range",
+        "properties" : {
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the calendar to generate slots for"
+          },
+          "startDate" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "examples" : [ "2025-06-01" ],
+            "description" : "Start date of the generation range (inclusive)"
+          },
+          "endDate" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "examples" : [ "2025-06-30" ],
+            "description" : "End date of the generation range (inclusive, max 90 days from start)"
+          }
+        }
+      },
+      "GenerateSlotsResponse" : {
+        "type" : "object",
+        "required" : [ "slotsCreated", "slotsSkipped", "message" ],
+        "description" : "Result of a slot generation operation",
+        "properties" : {
+          "slotsCreated" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 120 ],
+            "description" : "Number of new slots created",
+            "minimum" : 0
+          },
+          "slotsSkipped" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 10 ],
+            "description" : "Number of slots skipped because they already existed",
+            "minimum" : 0
+          },
+          "message" : {
+            "type" : "string",
+            "examples" : [ "Generated 120 new slots, 10 already existed" ],
+            "description" : "Human-readable summary of the generation result"
+          }
+        }
+      },
+      "LocalDate" : {
+        "type" : "string",
+        "format" : "date",
+        "examples" : [ "2022-03-10" ]
+      },
+      "ResourceData" : {
+        "type" : "object",
+        "required" : [ "id" ],
+        "description" : "Resource being booked (e.g., a truck, shipment, or cargo container)",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "examples" : [ "truck-4521" ],
+            "description" : "Unique identifier of the resource"
+          },
+          "type" : {
+            "type" : "string",
+            "examples" : [ "truck" ],
+            "description" : "Type of the resource"
+          },
+          "label" : {
+            "type" : "string",
+            "examples" : [ "Truck AB-1234" ],
+            "description" : "Human-readable label for the resource"
+          },
+          "data" : {
+            "type" : "object",
+            "additionalProperties" : { },
+            "description" : "Additional resource metadata as key-value pairs"
+          }
+        }
+      },
+      "SlotData" : {
+        "type" : "object",
+        "required" : [ "date", "hour", "minutes" ],
+        "description" : "Date and time identifying a specific slot",
+        "properties" : {
+          "date" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "examples" : [ "2025-06-15" ],
+            "description" : "Date of the slot"
+          },
+          "hour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 10 ],
+            "description" : "Hour of the slot (0-23)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "minutes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 30 ],
+            "description" : "Minutes of the slot (0 or 30)",
+            "maximum" : 59,
+            "minimum" : 0
+          }
+        }
+      },
+      "SlotListResponse" : {
+        "type" : "object",
+        "required" : [ "data", "total" ],
+        "description" : "Paginated list of slots",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SlotResponse"
+            },
+            "description" : "List of slot records"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Total number of slots in the result",
+            "minimum" : 0
+          }
+        }
+      },
+      "SlotResponse" : {
+        "type" : "object",
+        "required" : [ "id", "calendarId", "slotDate", "slotHour", "slotMinutes", "capacity", "currentOccupancy", "availableCapacity", "status", "createdAt", "updatedAt" ],
+        "description" : "Booking slot data returned by the API",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the slot"
+          },
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the calendar this slot belongs to"
+          },
+          "timeWindowId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the time window that generated this slot"
+          },
+          "slotDate" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Date of the slot"
+          },
+          "slotHour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Hour of the slot (0-23)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "slotMinutes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Minutes of the slot",
+            "maximum" : 59,
+            "minimum" : 0
+          },
+          "capacity" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Maximum booking capacity for this slot",
+            "minimum" : 1
+          },
+          "currentOccupancy" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Number of current bookings in this slot",
+            "minimum" : 0
+          },
+          "availableCapacity" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Remaining available capacity",
+            "minimum" : 0
+          },
+          "status" : {
+            "$ref" : "#/components/schemas/SlotStatus",
+            "type" : "string",
+            "description" : "Current status of the slot"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the slot was created"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the slot was last updated"
+          }
+        }
+      },
+      "SlotStatus" : {
+        "type" : "string",
+        "enum" : [ "OPEN", "FULL", "CLOSED" ],
+        "description" : "Status of a booking slot"
+      },
+      "TimeWindowRequest" : {
+        "type" : "object",
+        "required" : [ "name", "startHour", "endHour", "validFrom" ],
+        "description" : "Request payload to create or update a time window within a calendar",
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Morning Loading Window" ],
+            "maxLength" : 255,
+            "description" : "Name of the time window"
+          },
+          "startHour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 8 ],
+            "description" : "Start hour of the time window (inclusive)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "endHour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 12 ],
+            "description" : "End hour of the time window (exclusive)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "slotDurationMinutes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 30 ],
+            "description" : "Duration of each slot in minutes",
+            "default" : 30,
+            "minimum" : 1
+          },
+          "capacityPerSlot" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 5 ],
+            "description" : "Maximum number of bookings per slot",
+            "default" : 1,
+            "minimum" : 1
+          },
+          "daysOfWeek" : {
+            "type" : "string",
+            "examples" : [ "1,2,3,4,5" ],
+            "description" : "Comma-separated days of the week (1=Monday to 7=Sunday)"
+          },
+          "validFrom" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "examples" : [ "2025-01-01" ],
+            "description" : "Date from which this time window is valid"
+          },
+          "validTo" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "examples" : [ "2025-12-31" ],
+            "description" : "Date until which this time window is valid (null means no end date)"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the time window is active",
+            "default" : true
+          }
+        }
+      },
+      "TimeWindowResponse" : {
+        "type" : "object",
+        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacityPerSlot", "daysOfWeek", "validFrom", "active", "createdAt", "updatedAt" ],
+        "description" : "Time window data returned by the API",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the time window"
+          },
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Identifier of the calendar this time window belongs to"
+          },
+          "name" : {
+            "type" : "string",
+            "examples" : [ "Morning Loading Window" ],
+            "description" : "Name of the time window"
+          },
+          "startHour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 8 ],
+            "description" : "Start hour of the time window (inclusive)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "endHour" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 12 ],
+            "description" : "End hour of the time window (exclusive)",
+            "maximum" : 23,
+            "minimum" : 0
+          },
+          "slotDurationMinutes" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 30 ],
+            "description" : "Duration of each slot in minutes",
+            "minimum" : 1
+          },
+          "capacityPerSlot" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 5 ],
+            "description" : "Maximum number of bookings per slot",
+            "minimum" : 1
+          },
+          "daysOfWeek" : {
+            "type" : "string",
+            "examples" : [ "1,2,3,4,5" ],
+            "description" : "Comma-separated days of the week (1=Monday to 7=Sunday)"
+          },
+          "validFrom" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Date from which this time window is valid"
+          },
+          "validTo" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Date until which this time window is valid (null means no end date)"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether the time window is active"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the time window was created"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp when the time window was last updated"
+          }
+        }
+      },
+      "UUID" : {
+        "type" : "string",
+        "format" : "uuid",
+        "pattern" : "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"
+      },
+      "UpdateSlotStatusRequest" : {
+        "type" : "object",
+        "required" : [ "status" ],
+        "description" : "Request payload to update the status of a slot",
+        "properties" : {
+          "status" : {
+            "$ref" : "#/components/schemas/SlotStatus",
+            "type" : "string",
+            "description" : "New status for the slot (only OPEN or CLOSED allowed)"
+          }
+        }
+      },
+      "ZonedDateTime" : {
+        "type" : "string",
+        "format" : "date-time",
+        "examples" : [ "2022-03-10T12:15:50-04:00" ]
+      }
+    }
+  },
+  "tags" : [ {
+    "name" : "Bookings",
+    "description" : "Booking creation, cancellation, and query operations"
+  }, {
+    "name" : "Calendars",
+    "description" : "Calendar and time window management operations"
+  }, {
+    "name" : "Slots",
+    "description" : "Slot querying, generation, and status management operations"
+  } ],
+  "paths" : {
+    "/api/v1/miot-calendar/bookings" : {
+      "get" : {
+        "summary" : "List bookings",
+        "description" : "Retrieve bookings filtered by calendar and date range. Defaults to the next 30 days if no dates are provided.",
+        "operationId" : "listBookings",
+        "tags" : [ "Bookings" ],
+        "parameters" : [ {
+          "description" : "Filter bookings by calendar identifier",
+          "schema" : {
+            "format" : "uuid"
+          },
+          "name" : "calendarId",
+          "in" : "query"
+        }, {
+          "description" : "End date of the range (inclusive, defaults to start + 30 days)",
+          "schema" : {
+            "format" : "date"
+          },
+          "name" : "endDate",
+          "in" : "query"
+        }, {
+          "description" : "Start date of the range (inclusive, defaults to today)",
+          "schema" : {
+            "format" : "date"
+          },
+          "name" : "startDate",
+          "in" : "query"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of bookings",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "summary" : "Create booking",
+        "description" : "Create a new resource booking for a specific calendar and slot",
+        "operationId" : "createBooking",
+        "tags" : [ "Bookings" ],
+        "parameters" : [ {
+          "description" : "Identifier of the user creating the booking",
+          "name" : "X-User-Id",
+          "in" : "header",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BookingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Booking created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "Booking conflict (e.g., slot full or duplicate resource booking)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/bookings/resource/{resourceId}" : {
+      "get" : {
+        "summary" : "Get bookings by resource",
+        "description" : "Retrieve all bookings associated with a specific resource identifier",
+        "operationId" : "listBookingsByResource",
+        "tags" : [ "Bookings" ],
+        "parameters" : [ {
+          "description" : "Identifier of the resource to get bookings for",
+          "required" : true,
+          "name" : "resourceId",
+          "in" : "path",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of bookings for the resource",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/bookings/{id}" : {
+      "get" : {
+        "summary" : "Get booking by ID",
+        "description" : "Retrieve a specific booking by its unique identifier",
+        "operationId" : "getBooking",
+        "tags" : [ "Bookings" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the booking",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Booking found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Booking not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "summary" : "Cancel booking",
+        "description" : "Cancel an existing booking and release the slot capacity",
+        "operationId" : "cancelBooking",
+        "tags" : [ "Bookings" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the booking to cancel",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Booking cancelled"
+          },
+          "404" : {
+            "description" : "Booking not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/calendars" : {
+      "get" : {
+        "summary" : "List calendars",
+        "description" : "Retrieve all calendars, optionally filtered by active status",
+        "operationId" : "listCalendars",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "When true, return only active calendars",
+          "name" : "active",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of calendars",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/CalendarResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "summary" : "Create calendar",
+        "description" : "Create a new calendar with the provided configuration",
+        "operationId" : "createCalendar",
+        "tags" : [ "Calendars" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CalendarRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Calendar created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/calendars/{calendarId}/time-windows" : {
+      "get" : {
+        "summary" : "List time windows",
+        "description" : "Retrieve all time windows configured for a specific calendar",
+        "operationId" : "listTimeWindows",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar",
+          "required" : true,
+          "name" : "calendarId",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of time windows",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TimeWindowResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "summary" : "Create time window",
+        "description" : "Create a new time window within a calendar to define when slots can be generated",
+        "operationId" : "createTimeWindow",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar",
+          "required" : true,
+          "name" : "calendarId",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TimeWindowRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Time window created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeWindowResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Calendar not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/calendars/{calendarId}/time-windows/{timeWindowId}" : {
+      "put" : {
+        "summary" : "Update time window",
+        "description" : "Update an existing time window's configuration",
+        "operationId" : "updateTimeWindow",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar",
+          "required" : true,
+          "name" : "calendarId",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "Unique identifier of the time window to update",
+          "required" : true,
+          "name" : "timeWindowId",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TimeWindowRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Time window updated",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TimeWindowResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Time window not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/calendars/{id}" : {
+      "put" : {
+        "summary" : "Update calendar",
+        "description" : "Update an existing calendar's configuration",
+        "operationId" : "updateCalendar",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar to update",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CalendarRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Calendar updated",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Calendar not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get" : {
+        "summary" : "Get calendar by ID",
+        "description" : "Retrieve a specific calendar by its unique identifier",
+        "operationId" : "getCalendar",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Calendar found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CalendarResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Calendar not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "summary" : "Deactivate calendar",
+        "description" : "Soft-delete a calendar by setting it as inactive",
+        "operationId" : "deactivateCalendar",
+        "tags" : [ "Calendars" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the calendar to deactivate",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Calendar deactivated"
+          },
+          "404" : {
+            "description" : "Calendar not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slots" : {
+      "get" : {
+        "summary" : "List slots",
+        "description" : "Retrieve slots for a calendar, filtered by date range and availability. Defaults to the next 7 days if no dates are provided.",
+        "operationId" : "listSlots",
+        "tags" : [ "Slots" ],
+        "parameters" : [ {
+          "description" : "When true, return only slots with available capacity",
+          "name" : "available",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "description" : "Identifier of the calendar to list slots for",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid"
+          },
+          "name" : "calendarId",
+          "in" : "query"
+        }, {
+          "description" : "End date of the range (inclusive, defaults to start + 7 days)",
+          "schema" : {
+            "format" : "date"
+          },
+          "name" : "endDate",
+          "in" : "query"
+        }, {
+          "description" : "Start date of the range (inclusive, defaults to today)",
+          "schema" : {
+            "format" : "date"
+          },
+          "name" : "startDate",
+          "in" : "query"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of slots",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotListResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request (e.g., missing calendarId)",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slots/generate" : {
+      "post" : {
+        "summary" : "Generate slots",
+        "description" : "Generate booking slots for a calendar within a date range based on its time window configurations. Existing slots are skipped.",
+        "operationId" : "generateSlots",
+        "tags" : [ "Slots" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GenerateSlotsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Slots generated successfully",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenerateSlotsResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slots/{id}" : {
+      "get" : {
+        "summary" : "Get slot by ID",
+        "description" : "Retrieve a specific slot by its unique identifier",
+        "operationId" : "getSlot",
+        "tags" : [ "Slots" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the slot",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Slot found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Slot not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slots/{id}/status" : {
+      "patch" : {
+        "summary" : "Update slot status",
+        "description" : "Manually close or reopen a slot. Status can only be set to OPEN or CLOSED; FULL is managed automatically.",
+        "operationId" : "updateSlotStatus",
+        "tags" : [ "Slots" ],
+        "parameters" : [ {
+          "description" : "Unique identifier of the slot to update",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateSlotStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Slot status updated",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid status value",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Slot not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "info" : {
+    "title" : "MIOT Calendar API",
+    "version" : "0.1.1",
+    "description" : "Calendar booking microservice for resource scheduling. Provides calendar management, time window configuration, slot generation, and booking operations.",
+    "contact" : {
+      "name" : "MicroBoxLabs",
+      "url" : "https://microboxlabs.com"
+    }
+  },
+  "servers" : [ {
+    "url" : "/"
+  } ]
+}

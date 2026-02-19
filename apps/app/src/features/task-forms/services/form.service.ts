@@ -284,7 +284,7 @@ export const getTransitionIdV2 = (
     case TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK:
       return OUTCOME_TO_CONFIRM_DELIVERY_V2;
     case TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK:
-      return OUTCOME_TO_RECEIVE_DELIVERY_V2;
+      return OUTCOME_TO_CLOSE_MONITORING_V2;//OUTCOME_TO_RECEIVE_DELIVERY_V2;
     case TYPE_WFDELIVERY_NOTIFY_TMS_ARRIVAL_TASK:
       return OUTCOME_TO_NOTIFY_TMS_ARRIVAL_V2;
     case TYPE_WFDELIVERY_NOTIFY_TMS_DELIVERY_TASK:
@@ -404,13 +404,13 @@ export const getSecondaryTransitionIdV2 = (
         ] as string,
         icon: HiOutlineArrowLeft,
       },
-      {
+      /* {
         id: OUTCOME_TO_CLOSE_MONITORING_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_TO_CLOSE_MONITORING_V2
         ] as string,
         icon: HiOutlineArrowRight,
-      },
+      }, */
       {
         id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
         label: (dict.outcome as I18nRecord)[
@@ -554,11 +554,6 @@ export const TASK_CONFIRM_DELIVERY_V2: DeliveryProcessTask = "confirmDelivery";
 
 export const TASK_RECEIVE_DELIVERY: DeliveryProcessTask = "receiveDelivery";
 
-export const TASK_NOTIFY_TMS_ARRIVAL: DeliveryProcessTask = "notifyTMSArrival";
-
-export const TASK_NOTIFY_TMS_DELIVERY: DeliveryProcessTask =
-  "notifyTMSDelivery";
-
 export const OUTCOME_TO_CONFIRM_DELIVERY_V2: TaskOutcomeDelivery =
   "Recibir Entrega";
 
@@ -583,8 +578,6 @@ export const OUTCOME_NOTIFY_TMS_DELIVERY_V2: TaskOutcomeDelivery =
 export const DELIVERY_COORDINATOR_PROCESS_TASKS: DeliveryProcessTask[] = [
   TASK_CONFIRM_DELIVERY_V2,
   TASK_RECEIVE_DELIVERY,
-  TASK_NOTIFY_TMS_ARRIVAL,
-  TASK_NOTIFY_TMS_DELIVERY,
 ];
 
 /* ------------------------------------------------------------- */

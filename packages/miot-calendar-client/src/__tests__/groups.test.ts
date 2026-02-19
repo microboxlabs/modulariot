@@ -112,6 +112,15 @@ describe("groups", () => {
       expect(call.url).toBe(`${BASE_URL}${GROUPS_PATH}/grp-1`);
       expect(call.init.body).toBe(JSON.stringify(groupRequest));
     });
+
+    it("returns updated group", async () => {
+      const { fn } = createMockFetch(sampleGroup);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const result = await client.groups.update("grp-1", groupRequest);
+
+      expect(result).toEqual(sampleGroup);
+    });
   });
 
   describe("deactivate", () => {

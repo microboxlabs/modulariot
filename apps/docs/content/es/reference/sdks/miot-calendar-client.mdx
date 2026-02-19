@@ -1,0 +1,88 @@
+# Cliente de Calendario
+
+Cliente oficial en TypeScript para la API de Calendario de ModularIoT.
+
+**Estado:** Disponible — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+## Descripción general
+
+`@microboxlabs/miot-calendar-client` proporciona un cliente tipado y sin dependencias para gestionar calendarios, ventanas horarias, slots y reservas a través de la API de Calendario de ModularIoT. Utiliza la API nativa `fetch` y funciona en cualquier entorno JavaScript (navegadores, Node.js, Deno, Bun, edge runtimes).
+
+## Instalación
+
+```bash
+npm install @microboxlabs/miot-calendar-client
+```
+
+## Inicio rápido
+
+```ts
+import { createMiotCalendarClient } from "@microboxlabs/miot-calendar-client";
+
+const client = createMiotCalendarClient({
+  baseUrl: "https://tu-api-host.com",
+  headers: { Authorization: "Bearer tu-token" },
+});
+
+// Crear un calendario
+const calendar = await client.calendars.create({
+  code: "mantenimiento",
+  name: "Mantenimiento de Vehículos",
+});
+
+// Añadir una ventana horaria (Lun–Vie, 8:00 – 17:00)
+await client.calendars.createTimeWindow(calendar.id, {
+  name: "Horario Laboral",
+  startHour: 8,
+  endHour: 17,
+  validFrom: "2026-03-01",
+  daysOfWeek: "1,2,3,4,5",
+});
+
+// Generar slots y crear una reserva
+await client.slots.generate({
+  calendarId: calendar.id,
+  startDate: "2026-03-01",
+  endDate: "2026-03-14",
+});
+
+const { data: slots } = await client.slots.list({
+  calendarId: calendar.id,
+  available: true,
+});
+
+const booking = await client.bookings.create({
+  calendarId: calendar.id,
+  resource: { id: "camion-42", type: "vehiculo", label: "Camión 42" },
+  slot: { date: slots[0].slotDate, hour: slots[0].slotHour, minutes: slots[0].slotMinutes },
+});
+```
+
+## Funcionalidades
+
+### Calendarios
+Crea y gestiona calendarios con soporte de zona horaria. Cada calendario agrupa ventanas horarias, slots y reservas.
+
+### Ventanas horarias
+Define ventanas de disponibilidad recurrentes — especifica horas, días de la semana, duración del slot y capacidad por slot.
+
+### Slots
+Genera slots automáticamente a partir de ventanas horarias, o gestiónales individualmente. Filtra por disponibilidad, rango de fechas y calendario.
+
+### Reservas
+Crea reservas para slots específicos con seguimiento de recursos. Soporta atribución de usuario mediante el encabezado `X-User-Id`.
+
+### Manejo de errores
+Todos los errores de la API lanzan `MiotCalendarApiError` con cuerpos de error tipados, códigos de estado HTTP e información de error estructurada.
+
+## Configuración
+
+| Opción | Tipo | Requerido | Descripción |
+|--------|------|-----------|-------------|
+| `baseUrl` | `string` | Sí | URL base de la API de Calendario |
+| `headers` | `Record<string, string>` | No | Encabezados por defecto para cada solicitud |
+| `fetch` | `typeof fetch` | No | Implementación personalizada de fetch |
+
+## Referencia completa de la API
+
+Para documentación completa de métodos, tablas de parámetros, definiciones de tipos y referencia de códigos de error, consulta el [README del paquete en npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client).

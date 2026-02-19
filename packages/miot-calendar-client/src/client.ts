@@ -2,6 +2,7 @@ import type { ClientConfig } from "./types.js";
 import { MiotCalendarApiError } from "./errors.js";
 import { createBookingsApi } from "./resources/bookings.js";
 import { createCalendarsApi } from "./resources/calendars.js";
+import { createGroupsApi } from "./resources/groups.js";
 import { createSlotsApi } from "./resources/slots.js";
 
 export interface FetchOptions<TBody = unknown> {
@@ -77,6 +78,7 @@ export function createMiotCalendarClient(config: ClientConfig) {
   return {
     bookings: createBookingsApi(fetcher),
     calendars: createCalendarsApi(fetcher),
+    groups: createGroupsApi(fetcher),
     slots: createSlotsApi(fetcher),
   };
 }

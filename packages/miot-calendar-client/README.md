@@ -89,11 +89,12 @@ const client = createMiotCalendarClient({
 
 #### `calendars.list(params?)`
 
-List all calendars, optionally filtered by active status.
+List all calendars, optionally filtered by active status or group membership.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `active` | `boolean` | No | Filter by active status |
+| `groupCode` | `string` | No | Filter calendars belonging to this group code |
 
 **Returns:** `CalendarResponse[]`
 
@@ -120,6 +121,7 @@ Create a new calendar.
 | `description` | `string` | No | — | Optional description |
 | `timezone` | `string` | No | `"UTC"` | IANA timezone |
 | `active` | `boolean` | No | `true` | Whether the calendar is active |
+| `groups` | `string[]` | No | — | Group codes to assign. `null` = no change; `[]` = remove all; `["code"]` = replace all |
 
 **Returns:** `CalendarResponse`
 
@@ -130,7 +132,7 @@ Replace a calendar's fields. Takes the same body as `create`.
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Calendar ID |
-| `body` | `CalendarRequest` | Yes | Updated calendar data |
+| `body` | `CalendarRequest` | Yes | Updated calendar data (include `groups` to reassign group membership) |
 
 **Returns:** `CalendarResponse`
 
@@ -189,6 +191,70 @@ Update a time window. Takes the same body as `createTimeWindow`.
 | `body` | `TimeWindowRequest` | Yes | Updated time window data |
 
 **Returns:** `TimeWindowResponse`
+
+---
+
+### Groups
+
+Calendar groups let you organize calendars into named collections. Calendars can belong to multiple groups; use `CalendarRequest.groups` on create or update to manage membership.
+
+#### `groups.list(params?)`
+
+List all calendar groups, optionally filtered by active status.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `active` | `boolean` | No | Filter by active status |
+
+**Returns:** `CalendarGroupResponse[]`
+
+#### `groups.get(id)`
+
+Get a single calendar group by ID.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Group ID |
+
+**Returns:** `CalendarGroupResponse`
+
+**Throws:** `MiotCalendarApiError` with status `404` if not found.
+
+#### `groups.create(body)`
+
+Create a new calendar group.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `code` | `string` | Yes | — | Unique code identifier (max 50 chars) |
+| `name` | `string` | Yes | — | Display name (max 255 chars) |
+| `description` | `string` | No | — | Optional description |
+| `active` | `boolean` | No | `true` | Whether the group is active |
+
+**Returns:** `CalendarGroupResponse`
+
+**Throws:** `MiotCalendarApiError` with status `400` if the code is already taken.
+
+#### `groups.update(id, body)`
+
+Replace a calendar group's fields. Takes the same body as `create`.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Group ID |
+| `body` | `CalendarGroupRequest` | Yes | Updated group data |
+
+**Returns:** `CalendarGroupResponse`
+
+#### `groups.deactivate(id)`
+
+Deactivate a calendar group (soft delete). Calendars in the group are not affected.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Group ID |
+
+**Returns:** `void` (HTTP 204 — no content)
 
 ---
 
@@ -321,6 +387,31 @@ List all bookings for a specific resource.
 
 ## Types
 
+### `CalendarGroupRequest`
+
+```ts
+interface CalendarGroupRequest {
+  code: string;           // Unique code identifier (max 50 chars)
+  name: string;           // Display name (max 255 chars)
+  description?: string;   // Optional description
+  active?: boolean;       // Active status (default: true)
+}
+```
+
+### `CalendarGroupResponse`
+
+```ts
+interface CalendarGroupResponse {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  createdAt: string;      // ISO 8601
+  updatedAt: string;      // ISO 8601
+}
+```
+
 ### `CalendarRequest`
 
 ```ts
@@ -330,6 +421,7 @@ interface CalendarRequest {
   description?: string;   // Optional description
   timezone?: string;      // IANA timezone (default: "UTC")
   active?: boolean;       // Active status (default: true)
+  groups?: string[];      // Group codes to assign. null = no change; [] = remove all; ["code"] = replace all
 }
 ```
 
@@ -341,10 +433,11 @@ interface CalendarResponse {
   code: string;
   name: string;
   description?: string;
-  timezone: string;       // Always present (default: "UTC")
-  active: boolean;        // Always present (default: true)
-  createdAt: string;      // ISO 8601
-  updatedAt: string;      // ISO 8601
+  timezone: string;                    // Always present (default: "UTC")
+  active: boolean;                     // Always present (default: true)
+  createdAt: string;                   // ISO 8601
+  updatedAt: string;                   // ISO 8601
+  groups?: CalendarGroupResponse[];    // Groups this calendar belongs to
 }
 ```
 

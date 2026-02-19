@@ -67,6 +67,6 @@ export const CREATE_CALENDAR_FORM_CONFIG: DynamicFormConfig = {
 export function normalizeCode(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
+    .replaceAll(/[^a-z0-9]/g, "")
     .substring(0, 15);
 }

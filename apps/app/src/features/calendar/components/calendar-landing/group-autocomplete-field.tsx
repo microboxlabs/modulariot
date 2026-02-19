@@ -233,7 +233,7 @@ export function GroupAutocompleteField({
               "max-h-[220px] overflow-y-auto"
             )}
           >
-            <ul className="py-1" role="listbox">
+            <ul className="py-1">
               {filteredGroups.map((group, index) => (
                 <li key={group.code}>
                   <button

@@ -19,7 +19,7 @@ import {
   useSymptoms,
   useUserFilters,
 } from "@/features/common/providers/client-api.provider";
-import type { CalendarGroupResponse, CalendarResponse } from "@microboxlabs/miot-calendar-client";
+import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,

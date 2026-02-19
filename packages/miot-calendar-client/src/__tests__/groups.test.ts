@@ -38,6 +38,16 @@ describe("groups", () => {
       expect(url.searchParams.get("active")).toBe("true");
     });
 
+    it("passes active: false as query param", async () => {
+      const { fn, call } = createMockFetch([]);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      await client.groups.list({ active: false });
+
+      const url = new URL(call.url);
+      expect(url.searchParams.get("active")).toBe("false");
+    });
+
     it("returns group array", async () => {
       const { fn } = createMockFetch([sampleGroup]);
       const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });

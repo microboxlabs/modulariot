@@ -189,6 +189,37 @@ function GenericComponent<T extends string>({
 </div>
 ```
 
+## Regular Expressions
+
+- **Never use patterns with super-linear backtracking risk.** Avoid `.*`, `.*?`, `.+`, or nested quantifiers inside regex when the input is unbounded or user-controlled.
+- Prefer negated character classes (e.g., `[^}]*`) over dot-star (`.*?`) to guarantee linear-time matching.
+- **When regex complexity is hard to eliminate, replace the regex with a manual `indexOf`-based scan** — this guarantees O(n) and avoids SonarCloud flags entirely.
+- SonarCloud enforces: "Make sure the regex used here, which is vulnerable to super-linear runtime due to backtracking, cannot lead to denial of service."
+
+**Example - Avoid (backtracking risk):**
+
+```typescript
+const matches = text.match(/\{\{(.*?)\}\}/g);
+```
+
+**Example - Correct (linear-time `indexOf` scan, no regex):**
+
+```typescript
+function findHandlebarsExpressions(text: string): string[] {
+  const results: string[] = [];
+  let start = text.indexOf("{{");
+  while (start !== -1) {
+    const end = text.indexOf("}}", start + 2);
+    if (end === -1) break;
+    results.push(text.substring(start, end + 2));
+    start = text.indexOf("{{", end + 2);
+  }
+  return results;
+}
+```
+
+This avoids regex entirely, guarantees O(n) runtime, and won't trigger SonarCloud backtracking warnings.
+
 ## Styling
 
 - Use Tailwind CSS utility classes

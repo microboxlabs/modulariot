@@ -13,59 +13,62 @@ export const pages: SidebarItem[] = [
     icon: HomeIcon,
     label: "home",
     totals: {},
-    items: [
-      {
-        href: "/home/dashboard",
-        label: "dashboard",
-        totals: {
-          totals: 10,
-        },
-        requiredGroups: [],
-        blockedGroups: [], // Allow access for MINTRAL_REVISOR
-      },
-      {
-        href: "/home/maintenanceStatus",
-        label: "maintenanceStatus", // Estado de Mantención
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/vehicleTechnicalHealth",
-        label: "vehicleTechnicalHealth", // Salud Técnica del Vehículo
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/devicesAndTelemetry",
-        label: "devicesAndTelemetry", // Dispositivos y Telemetría
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/operativeEvents",
-        label: "operativeEvents", // Eventos Operativos
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/fleetUsage",
-        label: "fleetUsage", // Uso de Flota
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-      {
-        href: "/home/generalInfo",
-        label: "generalInfo", // Información General
-        totals: {},
-        requiredGroups: [],
-        blockedGroups: [],
-      },
-    ],
+    items:
+      process.env.NEXT_PUBLIC_ENABLE_HOME_DASHBOARDS === "true"
+        ? [
+            {
+              href: "/home/dashboard",
+              label: "dashboard",
+              totals: {
+                totals: 10,
+              },
+              requiredGroups: [],
+              blockedGroups: [], // Allow access for MINTRAL_REVISOR
+            },
+            {
+              href: "/home/maintenanceStatus",
+              label: "maintenanceStatus", // Estado de Mantención
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+            {
+              href: "/home/vehicleTechnicalHealth",
+              label: "vehicleTechnicalHealth", // Salud Técnica del Vehículo
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+            {
+              href: "/home/devicesAndTelemetry",
+              label: "devicesAndTelemetry", // Dispositivos y Telemetría
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+            {
+              href: "/home/operativeEvents",
+              label: "operativeEvents", // Eventos Operativos
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+            {
+              href: "/home/fleetUsage",
+              label: "fleetUsage", // Uso de Flota
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+            {
+              href: "/home/generalInfo",
+              label: "generalInfo", // Información General
+              totals: {},
+              requiredGroups: [],
+              blockedGroups: [],
+            },
+          ]
+        : undefined,
     requiredGroups: [], // Public route
   },
   {

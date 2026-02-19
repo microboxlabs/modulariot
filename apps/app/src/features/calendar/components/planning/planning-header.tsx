@@ -133,7 +133,7 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <PlanningTitle dict={dict} />
+      <PlanningTitle dict={dict} calendarId={calendarId} />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">

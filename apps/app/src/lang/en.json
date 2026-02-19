@@ -1764,7 +1764,8 @@
         "missingDocuments": "Required documents are missing to continue",
         "requiresPOD": "Proof of Delivery (POD)",
         "requiresPOLF": "Proof of Load Floor (POLF)",
-        "uploadRequired": "Please upload at least one of the following:"
+        "uploadRequired": "Please upload at least one of the following:",
+        "requiredToContinue": "This document is required in order to continue"
       }
     },
     "forum_reasons": {

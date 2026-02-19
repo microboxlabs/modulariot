@@ -182,7 +182,9 @@ export default function ValidationsInfo({
 
   const multimediaDict = (msg.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
   const categoriesDict = multimediaDict?.categories as I18nRecord | undefined;
+  const validationDict = multimediaDict?.validation as I18nRecord | undefined;
   const documentsLabel = (multimediaDict?.documents as string) || "Documents";
+  const requiredToContinueMsg = (validationDict?.requiredToContinue as string) || "";
 
   const documentValidationItems: ValidationItem[] = [];
   if (showDocumentValidation && !docLoading) {
@@ -268,12 +270,19 @@ export default function ValidationsInfo({
               </h2>
               <div className="space-y-1 flex flex-col gap-2">
                 {documentValidationItems.map((item) => (
-                  <div key={item.key} className="flex gap-1 items-center">
-                    <ValidationIcon status={item.status} isLoading={false} />
-                    <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                      {(categoriesDict?.[item.key] as string) || item.key}
-                    </span>
-                  </div>
+                  <Tooltip
+                    style="auto"
+                    key={item.key}
+                    content={requiredToContinueMsg}
+                    hidden={!requiredToContinueMsg}
+                  >
+                    <div className="flex gap-1 items-center">
+                      <ValidationIcon status={item.status} isLoading={false} />
+                      <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                        {(categoriesDict?.[item.key] as string) || item.key}
+                      </span>
+                    </div>
+                  </Tooltip>
                 ))}
               </div>
             </div>

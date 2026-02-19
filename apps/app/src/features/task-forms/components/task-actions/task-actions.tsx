@@ -1,9 +1,9 @@
 "use client";
-import { Alert, Button, ButtonGroup } from "flowbite-react";
-import { HiExclamation } from "react-icons/hi";
+import { ButtonGroup } from "flowbite-react";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
 import { useDocumentValidation } from "./use-document-validation";
+import DismissibleTooltip from "@/features/common/components/custom-tooltip/dismissible-tooltip";
 import {
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_CONFIRM_DELIVERY,
@@ -184,13 +184,30 @@ export default function TaskActions({
     taskType as ShippingCoordinatorProcessFormsV2,
     dict
   );
+  const showDocumentWarning = !documentsValid && !documentsLoading;
+
   return (
-    <div className="flex flex-col w-full gap-2">
+    <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
       <GroupAllowed
         notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
         userGroups={userGroups}
       >
-        <div className="flex flex-col gap-2">
+        <DismissibleTooltip
+          visible={showDocumentWarning}
+          content={
+            <>
+              <p className="font-medium">
+                {validationDict?.missingDocuments as string}
+              </p>
+              <p className="mt-1">
+                {validationDict?.uploadRequired as string}{" "}
+                {requiredDocuments
+                  .map((doc) => (categoriesDict?.[doc] as string) || doc)
+                  .join(", ")}
+              </p>
+            </>
+          }
+        >
           <ButtonGroup className="w-full">
             <GroupButtonOptions
               dict={dict}
@@ -199,7 +216,7 @@ export default function TaskActions({
             />
             <TaskActionButton
               fluid={fluid}
-              disabled={!documentsValid && !documentsLoading}
+              disabled={showDocumentWarning}
               label={(dict.outcome as I18nRecord).continue as string}
               taskId={taskId}
               transitionId={transitionId}
@@ -211,21 +228,7 @@ export default function TaskActions({
               }
             />
           </ButtonGroup>
-
-          {!documentsValid && !documentsLoading && (
-            <Alert color="warning" icon={HiExclamation} className="w-full text-xs p-2">
-              <span className="font-medium">
-                {validationDict?.missingDocuments as string}
-              </span>
-              <p>
-                {validationDict?.uploadRequired as string}{" "}
-                {requiredDocuments
-                  .map((doc) => (categoriesDict?.[doc] as string) || doc)
-                  .join(", ")}
-              </p>
-            </Alert>
-          )}
-        </div>
+        </DismissibleTooltip>
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

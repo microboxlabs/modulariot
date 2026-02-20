@@ -1,9 +1,11 @@
-import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import { createCalendarClient } from "../utils/miot-calendar-api-client";
 import { requireAuth } from "../utils/alfresco-crud-client";
+import {
+  handleMiotCalendarApiError,
+  parseJsonBody,
+} from "../utils/calendar-route-utils";
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
 
 const CalendarRequestSchema = z.object({
   code: z.string(),
@@ -24,9 +26,11 @@ export async function GET() {
     const calendars = await client.calendars.list({ active: true });
     return NextResponse.json(calendars);
   } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to fetch calendars");
-    return NextResponse.json({ error: "Failed to fetch calendars" }, { status });
+    return handleMiotCalendarApiError(
+      error,
+      "Failed to fetch calendars",
+      "Failed to fetch calendars"
+    );
   }
 }
 
@@ -34,13 +38,9 @@ export async function POST(request: Request) {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const parsed = CalendarRequestSchema.safeParse(rawBody);
+  const bodyResult = await parseJsonBody(request);
+  if ("error" in bodyResult) return bodyResult.error;
+  const parsed = CalendarRequestSchema.safeParse(bodyResult.data);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
@@ -51,8 +51,10 @@ export async function POST(request: Request) {
     const calendar = await client.calendars.create(parsed.data);
     return NextResponse.json(calendar, { status: 201 });
   } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to create calendar");
-    return NextResponse.json({ error: "Failed to create calendar" }, { status });
+    return handleMiotCalendarApiError(
+      error,
+      "Failed to create calendar",
+      "Failed to create calendar"
+    );
   }
 }

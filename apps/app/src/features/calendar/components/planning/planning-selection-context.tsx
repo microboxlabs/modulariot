@@ -29,6 +29,7 @@ import {
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
+  TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
 
@@ -724,7 +725,16 @@ export function PlanningSelectionProvider({
     if (timeSlotsError) return;
 
     if (apiTimeWindows.length > 0) {
-      setTimeSlots(apiTimeWindows.map(apiToLocalTimeWindow));
+      setTimeSlots(
+        apiTimeWindows.flatMap((tw) => {
+          const result = TimeWindowResponseSchema.safeParse(tw);
+          if (!result.success) {
+            console.warn("Skipping invalid time window response", tw, result.error.message);
+            return [];
+          }
+          return [apiToLocalTimeWindow(result.data)];
+        })
+      );
     } else if (apiTimeWindows.length === 0 && !timeSlotsError) {
       setTimeSlots([]);
     }

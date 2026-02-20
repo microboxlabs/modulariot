@@ -1,16 +1,17 @@
 import { HiCalendar, HiCog, HiCollection } from "react-icons/hi";
+import { getDictionary } from "@/features/i18n/i18n.service";
 import { tr } from "@/features/i18n/tr.service";
-import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { CalendarFeatureCard } from "./calendar-feature-card";
 import { CreateCalendarButton } from "./create-calendar-button";
 
 interface CalendarLandingProps {
-  dict: I18nRecord;
   lang: string;
 }
 
-export function CalendarLanding({ dict }: Readonly<CalendarLandingProps>) {
-  const landing = dict.landing as I18nRecord;
+export async function CalendarLanding({ lang }: Readonly<CalendarLandingProps>) {
+  const [, dict] = await getDictionary(lang);
+  const { calendar } = dict;
+  const { landing } = calendar;
 
   return (
     <div className="flex flex-col items-center justify-center px-4 py-16">
@@ -44,7 +45,7 @@ export function CalendarLanding({ dict }: Readonly<CalendarLandingProps>) {
         />
       </div>
 
-      <CreateCalendarButton dict={dict} ctaLabel={tr("cta", landing)} />
+      <CreateCalendarButton dict={calendar} ctaLabel={tr("cta", landing)} />
     </div>
   );
 }

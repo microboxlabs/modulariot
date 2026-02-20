@@ -10,7 +10,7 @@ import type { NextRequest } from "next/server";
 import { defaultLocale, locales, tr } from "./tr.service";
 
 const dictionaries: I18nDictionries<I18nDictionary> = {
-  en: () => import("@/lang/en.json").then((m) => m.default as I18nDictionary),
+  en: () => import("@/lang/en.json").then((m) => m.default),
   es: () => import("@/lang/es.json").then((m) => m.default as unknown as I18nDictionary),
 };
 

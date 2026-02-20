@@ -678,7 +678,17 @@
         "Consolidar Carga": "Consolidar Carga",
         "Separar Documentos": "Separar Documentos",
         "Planificar Servicio": "Planificar Servicio",
-        "Asignar Conductor": "Asignar Conductor"
+        "Asignar Conductor": "Asignar Conductor",
+        "redirectToMissionControl": "Devolver a Torre de Control",
+        "Asignar Conductor/Transporte": "Asignar Conductor/Transporte",
+        "Presentar Conductor": "Presentar Conductor",
+        "Preparar Servicio": "Controlar Servicio",
+        "Torre de Control: Iniciar Viaje": "Iniciar Viaje",
+        "Torre de Control: Iniciar Viaje sin firma": "Iniciar Viaje sin firma",
+        "Viaje Cancelado": "Viaje Cancelado",
+        "Viaje Anulado": "Viaje Anulado",
+        "Monitorear viaje en curso": "Monitorear viaje en curso",
+        "Confirmar Arribo": "Confirmar Arribo"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -798,7 +808,8 @@
         "Consolidar Carga": "Consolidar Carga",
         "Separar Documentos": "Separar Documentos",
         "Planificar Servicio": "Planificar Servicio",
-        "Asignar Conductor": "Asignar Conductor"
+        "Asignar Conductor": "Asignar Conductor",
+        "Confirmar Arribo a Destino": "Confirmar Arribo a Destino"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -1074,6 +1085,7 @@
         "werehouse": "Bodega",
         "logistics": "Logística",
         "planning": "Planificación",
+        "calendarOverview": "Inicio",
         "calendarPlanning": "Planificación",
         "shipping": "Despachos",
         "shippingv1": "Despachos V1",
@@ -1138,6 +1150,8 @@
           "apply": "Aplicar",
           "today": "Hoy",
           "clear": "Limpiar",
+          "applySuccess": "Ventanas de tiempo guardadas correctamente",
+          "applyError": "Error al guardar las ventanas de tiempo",
           "colors": {
             "emerald": "Verde",
             "blue": "Azul",
@@ -1492,6 +1506,7 @@
     "normal_speed": "Velocidad normal",
     "high_speed": "Velocidad grave",
     "very_high_speed": "Velocidad gravísima",
+    "speed_limit": "Exceso de límite de velocidad",
     "speed limit": "Exceso límite de velocidad",
     "Lost Signal": "Perdida de reportabilidad GPS",
     "Speed Limit": "Exceso límite de velocidad",
@@ -1974,6 +1989,7 @@
     "duration": "Duración",
     "selected_range": "Rango Seleccionado",
     "assetid": "ID del Activo",
+    "asset_id": "ID del Activo",
     "tripid": "ID del Viaje",
     "timestamp": "Marca de Tiempo",
     "speed": "Velocidad",
@@ -2016,6 +2032,39 @@
       "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
       "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
       "learn_more": "Aprende más sobre lo que se cambió en esta última actualización."
+    }
+  },
+  "calendar": {
+    "landing": {
+      "title": "Calendarios",
+      "subtitle": "Organiza tus operaciones, agenda servicios y administra ventanas de tiempo en múltiples calendarios.",
+      "planning_title": "Planificación",
+      "planning_description": "Agenda y asigna servicios a ventanas de tiempo específicas con vistas de día, semana y mes.",
+      "rules_title": "Reglas y Cupos",
+      "rules_description": "Define bloques de tiempo, configura cupos y controla la carga de trabajo de cada calendario.",
+      "multi_calendar_title": "Múltiples Calendarios",
+      "multi_calendar_description": "Administra calendarios independientes para distintas operaciones, ubicaciones o equipos.",
+      "cta": "Comenzar"
+    },
+    "create": {
+      "title": "Nuevo Calendario",
+      "subtitle": "Crea un calendario para gestionar la programación y las ventanas de tiempo.",
+      "nameLabel": "Nombre",
+      "codeLabel": "Código",
+      "descriptionLabel": "Descripción",
+      "timezoneLabel": "Zona Horaria",
+      "groupLabel": "Grupo",
+      "activeLabel": "Activo",
+      "submit": "Crear Calendario",
+      "group": {
+        "searchPlaceholder": "Buscar o crear un grupo...",
+        "noResults": "No se encontraron grupos",
+        "create": "Crear grupo \"{name}\"",
+        "successNotification": "Grupo creado correctamente",
+        "errorNotification": "Error al crear el grupo"
+      },
+      "successNotification": "Calendario creado correctamente",
+      "errorNotification": "Error al crear el calendario"
     }
   }
 }

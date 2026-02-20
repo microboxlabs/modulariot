@@ -2,6 +2,7 @@
 
 import { Button, Datepicker, Select } from "flowbite-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ShowNotification } from "@/features/notifications/notification";
 import { createPortal } from "react-dom";
 import { HiPlus, HiTrash, HiCheck, HiClock, HiCalendar } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
@@ -242,6 +243,8 @@ export interface QuotaManagerMessages {
   apply: string;
   today: string;
   clear: string;
+  applySuccess: string;
+  applyError: string;
   colors: {
     emerald: string;
     blue: string;
@@ -277,6 +280,8 @@ export function getQuotaManagerMessages(
     apply: tr(`${QUOTA_MANAGER_BASE}.apply`, dict),
     today: tr(`${QUOTA_MANAGER_BASE}.today`, dict),
     clear: tr(`${QUOTA_MANAGER_BASE}.clear`, dict),
+    applySuccess: tr(`${QUOTA_MANAGER_BASE}.applySuccess`, dict),
+    applyError: tr(`${QUOTA_MANAGER_BASE}.applyError`, dict),
     colors: {
       emerald: tr(`${QUOTA_MANAGER_BASE}.colors.emerald`, dict),
       blue: tr(`${QUOTA_MANAGER_BASE}.colors.blue`, dict),
@@ -554,16 +559,16 @@ export default function QuotaManager({
 
   const handleApply = useCallback(async () => {
     try {
-      // Sync current time windows to API
       await syncTimeSlotsToAPI();
-      // Call the parent callback (closes modal, etc.)
+      ShowNotification({ type: "success", message: messages.applySuccess });
       onRulesChange?.(timeWindows, formatString);
     } catch (error) {
-      console.error("Error syncing time windows to API:", error);
-      // Still call the callback to close modal even if API sync fails
-      onRulesChange?.(timeWindows, formatString);
+      ShowNotification({
+        type: "error",
+        message: error instanceof Error ? error.message : messages.applyError,
+      });
     }
-  }, [timeWindows, formatString, onRulesChange, syncTimeSlotsToAPI]);
+  }, [timeWindows, formatString, messages, onRulesChange, syncTimeSlotsToAPI]);
 
   return (
     <div className="z-50 min-w-[320px]">

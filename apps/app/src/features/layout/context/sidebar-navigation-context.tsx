@@ -12,12 +12,14 @@ import { pages } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
+  useCalendars,
   useHistoricInstancesCount,
   useMapPositions,
   useMyTasksCount,
   useSymptoms,
   useUserFilters,
 } from "@/features/common/providers/client-api.provider";
+import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
@@ -98,6 +100,28 @@ function useTaskDynamicItems(): SidebarItem[] {
   );
 }
 
+function useCalendarDynamicItems(): SidebarItem[] {
+  const { calendars } = useCalendars();
+
+  return useMemo(() => {
+    if (calendars.length === 0) return [];
+
+    const groupMap = new Map<string, { group: CalendarGroupResponse; firstCalId: string }>();
+
+    for (const cal of calendars.slice().sort((a, b) => a.id.localeCompare(b.id))) {
+      const group = cal.groups?.[0];
+      if (group && !groupMap.has(group.code)) {
+        groupMap.set(group.code, { group, firstCalId: cal.id });
+      }
+    }
+
+    return Array.from(groupMap.values()).map(({ group, firstCalId }) => ({
+      href: `/calendar/${firstCalId}/planning?groupCode=${encodeURIComponent(group.code)}`,
+      label: group.name,
+    }));
+  }, [calendars]);
+}
+
 export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {
   const router = useRouter();
   const { data, error } = useMyTasksCount();
@@ -105,6 +129,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
   const { count: mapCount } = useMapPositions();
   const { count: symptomsCount } = useSymptoms();
   const taskDynamicItems = useTaskDynamicItems();
+  const calendarDynamicItems = useCalendarDynamicItems();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -158,6 +183,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
 
     const dynamicMap: Record<string, SidebarItem[]> = {
       tasks: taskDynamicItems,
+      calendars: calendarDynamicItems,
     };
 
     const resolvedItems = pages.map((page) => {
@@ -167,7 +193,7 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
     });
 
     return { items: resolvedItems, totals, isLoading: false };
-  }, [taskDynamicItems, data, historicInstances, mapCount, symptomsCount, error]);
+  }, [taskDynamicItems, calendarDynamicItems, data, historicInstances, mapCount, symptomsCount, error]);
 
   return (
     <SidebarNavigationContext.Provider

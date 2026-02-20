@@ -402,6 +402,172 @@
           }
         }
       },
+      "SlotManagerRequest" : {
+        "type" : "object",
+        "required" : [ "calendarId" ],
+        "description" : "Request payload to create or update a slot manager",
+        "properties" : {
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Calendar ID to manage slot generation for"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Enable or disable automatic slot generation",
+            "default" : true
+          },
+          "daysInAdvance" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "How many days ahead to keep slots generated",
+            "default" : 30,
+            "minimum" : 1
+          },
+          "batchDays" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Maximum days to generate per scheduler run batch",
+            "default" : 7,
+            "minimum" : 1
+          },
+          "reprocessFrom" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Force slot regeneration from this date (one-shot, cleared after successful run)"
+          },
+          "reprocessTo" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Force slot regeneration through this date (required when reprocessFrom is set)"
+          }
+        }
+      },
+      "SlotManagerResponse" : {
+        "type" : "object",
+        "required" : [ "id", "calendarId", "calendarCode", "calendarName", "active", "daysInAdvance", "batchDays", "createdAt", "updatedAt" ],
+        "description" : "Slot manager configuration and last run state",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Unique identifier of the slot manager"
+          },
+          "calendarId" : {
+            "$ref" : "#/components/schemas/UUID",
+            "type" : "string",
+            "description" : "Calendar ID being managed"
+          },
+          "calendarCode" : {
+            "type" : "string",
+            "description" : "Calendar code"
+          },
+          "calendarName" : {
+            "type" : "string",
+            "description" : "Calendar name"
+          },
+          "active" : {
+            "type" : "boolean",
+            "description" : "Whether automatic generation is enabled"
+          },
+          "daysInAdvance" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Days ahead to keep slots generated"
+          },
+          "batchDays" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Max days generated per batch"
+          },
+          "reprocessFrom" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "One-shot reprocess start date (cleared after successful run)"
+          },
+          "reprocessTo" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "One-shot reprocess end date (cleared after successful run)"
+          },
+          "lastRunAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string",
+            "description" : "Timestamp of the last run attempt"
+          },
+          "lastRunStatus" : {
+            "type" : "string",
+            "description" : "Status of the last run: IDLE, RUNNING, SUCCESS, FAILED, SKIPPED"
+          },
+          "lastRunError" : {
+            "type" : "string",
+            "description" : "Error message from the last failed run"
+          },
+          "generatedThrough" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string",
+            "description" : "Latest date through which slots have been generated"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string"
+          }
+        }
+      },
+      "SlotManagerRunResponse" : {
+        "type" : "object",
+        "required" : [ "id", "managerId", "triggeredBy", "startedAt", "status", "slotsCreated", "slotsSkipped" ],
+        "description" : "Record of a single slot manager execution",
+        "properties" : {
+          "id" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "managerId" : {
+            "$ref" : "#/components/schemas/UUID"
+          },
+          "triggeredBy" : {
+            "type" : "string",
+            "description" : "What triggered this run: SCHEDULER, API, CLI"
+          },
+          "startedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string"
+          },
+          "finishedAt" : {
+            "$ref" : "#/components/schemas/ZonedDateTime",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "RUNNING, SUCCESS, FAILED, SKIPPED"
+          },
+          "slotsCreated" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "slotsSkipped" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 0
+          },
+          "generatedFrom" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string"
+          },
+          "generatedThrough" : {
+            "$ref" : "#/components/schemas/LocalDate",
+            "type" : "string"
+          },
+          "errorMessage" : {
+            "type" : "string"
+          }
+        }
+      },
       "SlotResponse" : {
         "type" : "object",
         "required" : [ "id", "calendarId", "slotDate", "slotHour", "slotMinutes", "capacity", "currentOccupancy", "availableCapacity", "status", "createdAt", "updatedAt" ],
@@ -662,6 +828,9 @@
   }, {
     "name" : "Calendars",
     "description" : "Calendar and time window management operations"
+  }, {
+    "name" : "Slot Managers",
+    "description" : "Automatic slot generation manager configuration and triggers"
   }, {
     "name" : "Slots",
     "description" : "Slot querying, generation, and status management operations"
@@ -1416,6 +1585,344 @@
         }
       }
     },
+    "/api/v1/miot-calendar/slot-managers" : {
+      "get" : {
+        "summary" : "List slot managers",
+        "description" : "Retrieve all slot managers, optionally filtered by active status",
+        "operationId" : "listSlotManagers",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "When true, return only active managers",
+          "name" : "active",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "List of slot managers",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SlotManagerResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "summary" : "Create slot manager",
+        "description" : "Create an automatic slot generation manager for a calendar",
+        "operationId" : "createSlotManager",
+        "tags" : [ "Slot Managers" ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SlotManagerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotManagerResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request or duplicate",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slot-managers/run" : {
+      "post" : {
+        "summary" : "Trigger all active managers",
+        "description" : "Synchronously runs all active slot managers. Suitable for K8s CronJob usage — returns when all managers have completed.",
+        "operationId" : "runAllSlotManagers",
+        "tags" : [ "Slot Managers" ],
+        "responses" : {
+          "200" : {
+            "description" : "Run results for each manager",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SlotManagerRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slot-managers/runs" : {
+      "get" : {
+        "summary" : "List recent runs across all managers",
+        "operationId" : "listAllRuns",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Maximum number of records to return",
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 50
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Run records",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SlotManagerRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slot-managers/{id}" : {
+      "put" : {
+        "summary" : "Update slot manager",
+        "description" : "Update configuration. Set reprocessFrom + reprocessTo to schedule one-shot slot regeneration.",
+        "operationId" : "updateSlotManager",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Slot manager ID",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SlotManagerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Updated",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotManagerResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get" : {
+        "summary" : "Get slot manager by ID",
+        "operationId" : "getSlotManager",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Slot manager ID",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Slot manager found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotManagerResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "summary" : "Deactivate slot manager",
+        "description" : "Soft-delete: disables automatic generation without removing history",
+        "operationId" : "deactivateSlotManager",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Slot manager ID",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Deactivated"
+          },
+          "404" : {
+            "description" : "Not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slot-managers/{id}/run" : {
+      "post" : {
+        "summary" : "Trigger one manager",
+        "description" : "Synchronously runs the specified slot manager and returns its run record.",
+        "operationId" : "runSlotManager",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Slot manager ID",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Run record",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SlotManagerRunResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/miot-calendar/slot-managers/{id}/runs" : {
+      "get" : {
+        "summary" : "List runs for a specific manager",
+        "operationId" : "listRunsByManager",
+        "tags" : [ "Slot Managers" ],
+        "parameters" : [ {
+          "description" : "Slot manager ID",
+          "required" : true,
+          "name" : "id",
+          "in" : "path",
+          "schema" : {
+            "$ref" : "#/components/schemas/UUID"
+          }
+        }, {
+          "description" : "Maximum number of records to return",
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Run records",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SlotManagerRunResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "Manager not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/miot-calendar/slots" : {
       "get" : {
         "summary" : "List slots",
@@ -1617,7 +2124,7 @@
   },
   "info" : {
     "title" : "MIOT Calendar API",
-    "version" : "0.2.0",
+    "version" : "0.2.1",
     "description" : "Calendar booking microservice for resource scheduling. Provides calendar management, time window configuration, slot generation, and booking operations.",
     "contact" : {
       "name" : "MicroBoxLabs",

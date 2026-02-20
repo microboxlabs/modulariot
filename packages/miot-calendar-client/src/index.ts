@@ -18,6 +18,9 @@ export type {
   SlotResponse,
   SlotListResponse,
   UpdateSlotStatusRequest,
+  SlotManagerRequest,
+  SlotManagerResponse,
+  SlotManagerRunResponse,
   ErrorResponse,
   ClientConfig,
 } from "./types.js";

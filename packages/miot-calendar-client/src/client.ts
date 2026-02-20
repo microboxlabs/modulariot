@@ -3,11 +3,12 @@ import { MiotCalendarApiError } from "./errors.js";
 import { createBookingsApi } from "./resources/bookings.js";
 import { createCalendarsApi } from "./resources/calendars.js";
 import { createGroupsApi } from "./resources/groups.js";
+import { createSlotManagersApi } from "./resources/slot-managers.js";
 import { createSlotsApi } from "./resources/slots.js";
 
 export interface FetchOptions<TBody = unknown> {
   body?: TBody;
-  query?: Record<string, string | boolean | undefined>;
+  query?: Record<string, string | number | boolean | undefined>;
   headers?: Record<string, string>;
 }
 
@@ -20,7 +21,7 @@ export type Fetcher = <T, TBody = unknown>(
 function buildUrl(
   baseUrl: string,
   path: string,
-  query?: Record<string, string | boolean | undefined>,
+  query?: Record<string, string | number | boolean | undefined>,
 ): string {
   const url = new URL(path, baseUrl);
   if (query) {
@@ -79,6 +80,7 @@ export function createMiotCalendarClient(config: ClientConfig) {
     bookings: createBookingsApi(fetcher),
     calendars: createCalendarsApi(fetcher),
     groups: createGroupsApi(fetcher),
+    slotManagers: createSlotManagersApi(fetcher),
     slots: createSlotsApi(fetcher),
   };
 }

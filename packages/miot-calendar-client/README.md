@@ -314,6 +314,113 @@ Manually change a slot's status.
 
 ---
 
+### Slot Managers
+
+Slot managers automate slot generation for calendars. Each manager keeps slots generated a configurable number of days in advance and can be triggered manually or by an external scheduler (e.g. K8s CronJob).
+
+#### `slotManagers.list(params?)`
+
+List all slot managers, optionally filtered by active status.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `active` | `boolean` | No | When `true`, return only active managers |
+
+**Returns:** `SlotManagerResponse[]`
+
+#### `slotManagers.create(body)`
+
+Create an automatic slot generation manager for a calendar.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `calendarId` | `string` | Yes | — | Calendar ID to manage |
+| `active` | `boolean` | No | `true` | Enable or disable automatic generation |
+| `daysInAdvance` | `number` | No | `30` | Days ahead to keep slots generated |
+| `batchDays` | `number` | No | `7` | Max days to generate per scheduler run |
+| `reprocessFrom` | `string` | No | — | Force regeneration from this date (`YYYY-MM-DD`) |
+| `reprocessTo` | `string` | No | — | Force regeneration through this date (required with `reprocessFrom`) |
+
+**Returns:** `SlotManagerResponse`
+
+**Throws:** `MiotCalendarApiError` with status `400` if invalid or duplicate.
+
+#### `slotManagers.get(id)`
+
+Get a slot manager by ID.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Slot manager ID |
+
+**Returns:** `SlotManagerResponse`
+
+**Throws:** `MiotCalendarApiError` with status `404` if not found.
+
+#### `slotManagers.update(id, body)`
+
+Update a slot manager's configuration. Takes the same body as `create`. Set `reprocessFrom` + `reprocessTo` to schedule one-shot slot regeneration.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Slot manager ID |
+| `body` | `SlotManagerRequest` | Yes | Updated configuration |
+
+**Returns:** `SlotManagerResponse`
+
+#### `slotManagers.deactivate(id)`
+
+Deactivate a slot manager (soft delete — disables automatic generation without removing history).
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Slot manager ID |
+
+**Returns:** `void` (HTTP 204 — no content)
+
+#### `slotManagers.runAll()`
+
+Synchronously run all active slot managers. Returns when all managers have completed.
+
+**Returns:** `SlotManagerRunResponse[]`
+
+#### `slotManagers.run(id)`
+
+Synchronously run a single slot manager and return its run record.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Slot manager ID |
+
+**Returns:** `SlotManagerRunResponse`
+
+**Throws:** `MiotCalendarApiError` with status `404` if not found.
+
+#### `slotManagers.listAllRuns(params?)`
+
+List recent runs across all managers.
+
+| Param | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `limit` | `number` | No | `50` | Maximum number of records to return |
+
+**Returns:** `SlotManagerRunResponse[]`
+
+#### `slotManagers.listRuns(id, params?)`
+
+List runs for a specific manager.
+
+| Param | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `id` | `string` | Yes | — | Slot manager ID |
+| `limit` | `number` | No | `20` | Maximum number of records to return |
+
+**Returns:** `SlotManagerRunResponse[]`
+
+**Throws:** `MiotCalendarApiError` with status `404` if manager not found.
+
+---
+
 ### Bookings
 
 #### `bookings.list(params?)`
@@ -530,6 +637,59 @@ interface GenerateSlotsResponse {
 ```ts
 interface UpdateSlotStatusRequest {
   status: SlotStatus;           // Only "OPEN" or "CLOSED" accepted
+}
+```
+
+### `SlotManagerRequest`
+
+```ts
+interface SlotManagerRequest {
+  calendarId: string;           // Calendar ID to manage
+  active?: boolean;             // Enable/disable (default: true)
+  daysInAdvance?: number;       // Days ahead to keep generated (default: 30)
+  batchDays?: number;           // Max days per scheduler run (default: 7)
+  reprocessFrom?: string;       // YYYY-MM-DD — one-shot regeneration start
+  reprocessTo?: string;         // YYYY-MM-DD — one-shot regeneration end
+}
+```
+
+### `SlotManagerResponse`
+
+```ts
+interface SlotManagerResponse {
+  id: string;
+  calendarId: string;
+  calendarCode: string;
+  calendarName: string;
+  active: boolean;
+  daysInAdvance: number;
+  batchDays: number;
+  reprocessFrom?: string;       // Cleared after successful run
+  reprocessTo?: string;         // Cleared after successful run
+  lastRunAt?: string;           // ISO 8601
+  lastRunStatus?: string;       // IDLE, RUNNING, SUCCESS, FAILED, SKIPPED
+  lastRunError?: string;        // Error message from last failed run
+  generatedThrough?: string;    // YYYY-MM-DD — latest date with generated slots
+  createdAt: string;            // ISO 8601
+  updatedAt: string;            // ISO 8601
+}
+```
+
+### `SlotManagerRunResponse`
+
+```ts
+interface SlotManagerRunResponse {
+  id: string;
+  managerId: string;
+  triggeredBy: string;          // SCHEDULER, API, CLI
+  startedAt: string;            // ISO 8601
+  finishedAt?: string;          // ISO 8601
+  status: string;               // RUNNING, SUCCESS, FAILED, SKIPPED
+  slotsCreated: number;
+  slotsSkipped: number;
+  generatedFrom?: string;       // YYYY-MM-DD
+  generatedThrough?: string;    // YYYY-MM-DD
+  errorMessage?: string;
 }
 ```
 

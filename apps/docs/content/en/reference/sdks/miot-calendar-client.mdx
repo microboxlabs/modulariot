@@ -6,7 +6,7 @@ Official TypeScript client for the ModularIoT Calendar API.
 
 ## Overview
 
-`@microboxlabs/miot-calendar-client` provides a typed, zero-dependency client for managing calendars, time windows, slots, and bookings through the ModularIoT Calendar API. It uses the native `fetch` API and works in any JavaScript runtime (browsers, Node.js, Deno, Bun, edge runtimes).
+`@microboxlabs/miot-calendar-client` provides a typed, zero-dependency client for managing calendars, time windows, slots, slot managers, and bookings through the ModularIoT Calendar API. It uses the native `fetch` API and works in any JavaScript runtime (browsers, Node.js, Deno, Bun, edge runtimes).
 
 ## Installation
 
@@ -71,6 +71,9 @@ Define recurring availability windows — specify hours, days of week, slot dura
 
 ### Slots
 Generate slots automatically from time windows, or manage them individually. Filter by availability, date range, and calendar.
+
+### Slot Managers
+Automate slot generation with `client.slotManagers`. Each manager keeps slots generated a configurable number of days in advance for a calendar. Trigger runs manually via the API or let an external scheduler (e.g. K8s CronJob) call `runAll()`. Inspect run history and status per manager.
 
 ### Bookings
 Create bookings for specific slots with resource tracking. Supports user attribution via `X-User-Id` header.

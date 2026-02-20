@@ -21,6 +21,27 @@ Features and improvements in development:
 
 ## Lanzamientos Recientes
 
+### `miot-calendar-client` v0.3.0 — Gestores de Slots (2026-02-20)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Agrega un nuevo recurso de Gestores de Slots para automatizar la generación de slots. Cada gestor mantiene los slots generados un número configurable de días por adelantado y puede activarse manualmente o mediante un planificador externo.
+
+**Nuevo — namespace `client.slotManagers`:**
+- `slotManagers.list({ active? })` — listar todos los gestores de slots
+- `slotManagers.create(body)` — crear un gestor para un calendario
+- `slotManagers.get(id)` — obtener un gestor por ID
+- `slotManagers.update(id, body)` — actualizar configuración (incluyendo reprocesamiento puntual)
+- `slotManagers.deactivate(id)` — desactivar un gestor (eliminación lógica)
+- `slotManagers.runAll()` — ejecutar todos los gestores activos sincrónicamente
+- `slotManagers.run(id)` — ejecutar un gestor individual
+- `slotManagers.listAllRuns({ limit? })` — listar ejecuciones recientes de todos los gestores
+- `slotManagers.listRuns(id, { limit? })` — listar ejecuciones de un gestor específico
+
+**Nuevos tipos exportados:** `SlotManagerRequest`, `SlotManagerResponse`, `SlotManagerRunResponse`
+
+---
+
 ### `miot-calendar-client` v0.2.0 — Grupos de Calendarios (2026-02-19)
 
 **`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)

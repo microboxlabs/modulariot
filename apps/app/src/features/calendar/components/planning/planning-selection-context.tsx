@@ -762,11 +762,12 @@ export function PlanningSelectionProvider({
       currentApiWindows: typeof apiTimeWindows,
       newWindowIds: Set<string>
     ): Promise<string[]> => {
+      if (!calendarId) return [];
       const errors: string[] = [];
       for (const apiWindow of currentApiWindows) {
         if (!newWindowIds.has(apiWindow.id)) {
           try {
-            await deactivateCalendarTimeWindow(calendarId!, apiWindow);
+            await deactivateCalendarTimeWindow(calendarId, apiWindow);
           } catch (err) {
             errors.push(
               `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
@@ -782,15 +783,16 @@ export function PlanningSelectionProvider({
   /** Create or update local window slots against the API; returns error strings. */
   const saveLocalWindows = useCallback(
     async (slots: TimeSlot[], currentIds: Set<string>): Promise<string[]> => {
+      if (!calendarId) return [];
       const errors: string[] = [];
       for (const slot of slots) {
         if (slot.kind !== "window") continue; // blocks are local-only
         try {
           const body = localToApiTimeWindow(slot);
           if (currentIds.has(slot.id)) {
-            await updateCalendarTimeWindow(calendarId!, slot.id, body);
+            await updateCalendarTimeWindow(calendarId, slot.id, body);
           } else {
-            await createCalendarTimeWindow(calendarId!, body);
+            await createCalendarTimeWindow(calendarId, body);
           }
         } catch (err) {
           errors.push(

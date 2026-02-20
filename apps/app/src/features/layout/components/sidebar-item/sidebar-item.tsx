@@ -83,7 +83,8 @@ export default function SidebarItem({
                     className={twMerge(
                       "justify-center [&>*]:font-normal",
                       (pathname === child.href?.split("?")[0] ||
-                        child.href === pathname + "?" + searchParams.toString()) &&
+                        (searchParams.toString() &&
+                          child.href === pathname + "?" + searchParams.toString())) &&
                         "bg-gray-100 dark:bg-gray-700"
                     )}
                   >
@@ -115,7 +116,8 @@ export default function SidebarItem({
                 isHomeSection &&
                   "[&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
                 (pathname === item.href ||
-                  item.href === pathname + "?" + searchParams.toString()) &&
+                  (searchParams.toString() &&
+                    item.href === pathname + "?" + searchParams.toString())) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
               {...badgeProps}
@@ -136,7 +138,8 @@ export default function SidebarItem({
       label={badge}
       className={twMerge(
         (pathname === href ||
-          href === pathname + "?" + searchParams.toString()) &&
+          (searchParams.toString() &&
+            href === pathname + "?" + searchParams.toString())) &&
           "bg-gray-100 dark:bg-gray-700",
         "[&_svg]:!w-6 [&_svg]:!h-6 [&_svg]:!min-w-6 [&_svg]:!min-h-6"
       )}

@@ -94,7 +94,7 @@ export default function SidebarItem({
             );
           }
 
-          const itemTotal = totals?.[item.label];
+          const itemTotal = item.totals?.[item.label] ?? totals?.[item.label];
           const badgeProps =
             isHomeSection || itemTotal === undefined || typeof itemTotal === "string"
               ? {}

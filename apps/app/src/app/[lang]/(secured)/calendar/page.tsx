@@ -1,4 +1,4 @@
-import { ParamsWithLang, I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -23,7 +23,7 @@ export default async function CalendarPage(props: ParamsWithLang) {
           path={["calendar"]}
           lang={lang}
           rootIcon={<HiCalendar className="mr-2 h-4 w-4" />}
-          dict={dict["layout"]["secured"]["sidebar"] as I18nRecord}
+          dict={dict.layout.secured.sidebar}
         />
       </div>
       <div className="flex-1 overflow-auto">

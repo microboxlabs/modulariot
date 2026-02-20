@@ -1500,7 +1500,7 @@ export function useCalendars() {
  * Filters cached calendar data by group code — no extra network request
  */
 export function useCalendarsInGroup(groupCode: string | null) {
-  const { calendars, isLoading } = useCalendars();
+  const { calendars, isLoading, refresh } = useCalendars();
   const filtered = useMemo(
     () =>
       groupCode
@@ -1508,7 +1508,7 @@ export function useCalendarsInGroup(groupCode: string | null) {
         : EMPTY_CALENDARS,
     [calendars, groupCode]
   );
-  return { calendars: filtered, isLoading };
+  return { calendars: filtered, isLoading, refresh };
 }
 
 const EMPTY_GROUPS: CalendarGroupResponse[] = [];

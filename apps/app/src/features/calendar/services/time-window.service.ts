@@ -12,8 +12,8 @@ export const TimeWindowResponseSchema = z.object({
   slotDurationMinutes: z.number(),
   capacityPerSlot: z.number(),
   daysOfWeek: z.string().min(1).nullish(),
-  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}/),
-  validTo: z.string().regex(/^\d{4}-\d{2}-\d{2}/).nullish(),
+  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  validTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   active: z.boolean(),
 });
 

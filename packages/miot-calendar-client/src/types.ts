@@ -149,6 +149,49 @@ export interface UpdateSlotStatusRequest {
   status: SlotStatus;
 }
 
+// --- Slot Managers ---
+
+export interface SlotManagerRequest {
+  calendarId: string;
+  active?: boolean;
+  daysInAdvance?: number;
+  batchDays?: number;
+  reprocessFrom?: string;
+  reprocessTo?: string;
+}
+
+export interface SlotManagerResponse {
+  id: string;
+  calendarId: string;
+  calendarCode: string;
+  calendarName: string;
+  active: boolean;
+  daysInAdvance: number;
+  batchDays: number;
+  reprocessFrom?: string;
+  reprocessTo?: string;
+  lastRunAt?: string;
+  lastRunStatus?: string;
+  lastRunError?: string;
+  generatedThrough?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SlotManagerRunResponse {
+  id: string;
+  managerId: string;
+  triggeredBy: string;
+  startedAt: string;
+  finishedAt?: string;
+  status: string;
+  slotsCreated: number;
+  slotsSkipped: number;
+  generatedFrom?: string;
+  generatedThrough?: string;
+  errorMessage?: string;
+}
+
 // --- Error ---
 
 export interface ErrorResponse {

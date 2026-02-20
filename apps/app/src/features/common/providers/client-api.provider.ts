@@ -1,6 +1,6 @@
 "use client";
 import useSWR from "swr";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import fetcher from "./fetcher";
 import { safeJsonParse } from "./safe-json";
@@ -51,15 +51,16 @@ import type {
   CreateTimeSlotRequest,
   UpdateTimeSlotRequest,
 } from "@/features/calendar/types/time-slot.types";
+import type {
+  CalendarResponse,
+  CalendarGroupResponse,
+  CalendarRequest,
+  CalendarGroupRequest,
+  TimeWindowResponse,
+  TimeWindowRequest,
+} from "@microboxlabs/miot-calendar-client";
 
-// export function useI8n(lang: string) {
-//   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
-//   return {
-//     dict: data,
-//     error,
-//     isLoading,
-//   };
-// }
+
 
 export function useMyTasks(
   columns: string[],
@@ -1475,4 +1476,183 @@ export async function deleteTimeSlot(id: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.error || "Failed to delete time slot");
   }
+}
+
+// ============================================================================
+// Calendar Hooks
+// ============================================================================
+
+const EMPTY_CALENDARS: CalendarResponse[] = [];
+
+/**
+ * Hook to fetch all active calendars (with their groups)
+ */
+export function useCalendars() {
+  const { data, error, isLoading, mutate } = useSWR<CalendarResponse[], FetcherError>(
+    "/app/api/calendar",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading, refresh: mutate };
+}
+
+/**
+ * Filters cached calendar data by group code — no extra network request
+ */
+export function useCalendarsInGroup(groupCode: string | null) {
+  const { calendars, isLoading, refresh, error } = useCalendars();
+  const filtered = useMemo(
+    () =>
+      groupCode
+        ? calendars.filter((cal) => cal.groups?.some((g) => g.code === groupCode))
+        : EMPTY_CALENDARS,
+    [calendars, groupCode]
+  );
+  return { calendars: filtered, isLoading, refresh, error };
+}
+
+const EMPTY_GROUPS: CalendarGroupResponse[] = [];
+
+/**
+ * Hook to fetch all active calendar groups
+ */
+export function useCalendarGroups() {
+  const { data, error, isLoading, mutate } = useSWR<CalendarGroupResponse[], FetcherError>(
+    "/app/api/calendar/groups",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { groups: data ?? EMPTY_GROUPS, error, isLoading, refresh: mutate };
+}
+
+async function parseErrorBody(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => "");
+  try {
+    const json = JSON.parse(text) as { error?: string };
+    return `[${response.status}] ${json.error ?? fallback}`;
+  } catch {
+    return `[${response.status}] ${text || fallback}`;
+  }
+}
+
+/**
+ * Create a new calendar group
+ */
+export async function createCalendarGroup(body: CalendarGroupRequest): Promise<CalendarGroupResponse> {
+  const response = await fetch("/app/api/calendar/groups", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create calendar group"));
+  }
+  return response.json();
+}
+
+/**
+ * Create a new calendar
+ */
+export async function createCalendar(body: CalendarRequest): Promise<CalendarResponse> {
+  const response = await fetch("/app/api/calendar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create calendar"));
+  }
+  return response.json();
+}
+
+// ============================================================================
+// Calendar Time Windows Hooks
+// ============================================================================
+
+const EMPTY_TIME_WINDOWS: TimeWindowResponse[] = [];
+
+/**
+ * Fetch time windows for a specific calendar from the miot-calendar-client backend.
+ * Returns null SWR key (no fetch) when calendarId is null/undefined.
+ */
+export function useCalendarTimeWindows(calendarId: string | null) {
+  const url = calendarId
+    ? `/app/api/calendar/${calendarId}/time-windows`
+    : null;
+
+  const { data, error, isLoading, mutate } = useSWR<
+    TimeWindowResponse[],
+    FetcherError
+  >(url, fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+
+  return {
+    timeWindows: data ?? EMPTY_TIME_WINDOWS,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Create a new time window for the given calendar.
+ */
+export async function createCalendarTimeWindow(
+  calendarId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(`/app/api/calendar/${calendarId}/time-windows`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create time window"));
+  }
+  return response.json();
+}
+
+/**
+ * Update an existing time window.
+ */
+export async function updateCalendarTimeWindow(
+  calendarId: string,
+  timeWindowId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(
+    `/app/api/calendar/${calendarId}/time-windows/${timeWindowId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to update time window"));
+  }
+  return response.json();
+}
+
+/**
+ * Deactivate (soft-delete) a time window by setting active=false.
+ * Requires the existing window data to satisfy required API fields.
+ */
+export async function deactivateCalendarTimeWindow(
+  calendarId: string,
+  window: TimeWindowResponse
+): Promise<void> {
+  await updateCalendarTimeWindow(calendarId, window.id, {
+    name: window.name,
+    startHour: window.startHour,
+    endHour: window.endHour,
+    validFrom: window.validFrom,
+    validTo: window.validTo,
+    daysOfWeek: window.daysOfWeek,
+    capacityPerSlot: window.capacityPerSlot,
+    slotDurationMinutes: window.slotDurationMinutes,
+    active: false,
+  });
 }

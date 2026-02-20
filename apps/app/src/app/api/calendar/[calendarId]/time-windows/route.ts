@@ -2,10 +2,22 @@ import {
   createMiotCalendarClient,
   MiotCalendarApiError,
 } from "@microboxlabs/miot-calendar-client";
-import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
+import { z } from "zod";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+
+const TimeWindowRequestSchema = z.object({
+  name: z.string(),
+  startHour: z.number(),
+  endHour: z.number(),
+  validFrom: z.string(),
+  slotDurationMinutes: z.number().optional(),
+  capacityPerSlot: z.number().optional(),
+  daysOfWeek: z.string().optional(),
+  validTo: z.string().optional(),
+  active: z.boolean().optional(),
+});
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -42,9 +54,6 @@ export async function POST(
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const { calendarId } = await params;
-  const body: TimeWindowRequest = await request.json();
-
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
@@ -53,7 +62,12 @@ export async function POST(
   });
 
   try {
-    const timeWindow = await client.calendars.createTimeWindow(calendarId, body);
+    const { calendarId } = await params;
+    const parsed = TimeWindowRequestSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+    const timeWindow = await client.calendars.createTimeWindow(calendarId, parsed.data);
     return NextResponse.json(timeWindow, { status: 201 });
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;

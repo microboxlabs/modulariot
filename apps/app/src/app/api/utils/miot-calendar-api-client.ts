@@ -1,3 +1,4 @@
+import "server-only";
 import { createMiotCalendarClient } from "@microboxlabs/miot-calendar-client";
 import type { Session } from "next-auth";
 

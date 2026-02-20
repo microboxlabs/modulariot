@@ -36,9 +36,12 @@ export default function PlanningTitle({
 
   const handleSelect = (id: string) => {
     if (!calendarId || id === calendarId) return;
-    const newPath = pathname.replace(calendarId, id);
-    const params = new URLSearchParams(searchParams.toString());
-    router.push(`${newPath}?${params.toString()}`);
+    const newPath = pathname
+      .split("/")
+      .map((seg) => (seg === calendarId ? id : seg))
+      .join("/");
+    const query = searchParams.toString();
+    router.push(query ? `${newPath}?${query}` : newPath);
   };
 
   const showPicker = groupCalendars.length > 1;

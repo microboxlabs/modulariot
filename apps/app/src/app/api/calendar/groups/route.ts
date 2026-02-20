@@ -1,5 +1,6 @@
-import { createMiotCalendarClient, MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
+import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
+import { createCalendarClient } from "../../utils/miot-calendar-api-client";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
@@ -11,18 +12,11 @@ const CalendarGroupSchema = z.object({
   active: z.boolean().optional(),
 }).strict();
 
-const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
-
 export async function GET() {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+  const client = createCalendarClient(authResult.session);
 
   try {
     const groups = await client.groups.list({ active: true });
@@ -49,12 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
 
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+  const client = createCalendarClient(authResult.session);
 
   try {
     const group = await client.groups.create(parsed.data);

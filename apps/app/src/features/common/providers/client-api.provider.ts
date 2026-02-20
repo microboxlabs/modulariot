@@ -1500,7 +1500,7 @@ export function useCalendars() {
  * Filters cached calendar data by group code — no extra network request
  */
 export function useCalendarsInGroup(groupCode: string | null) {
-  const { calendars, isLoading, refresh } = useCalendars();
+  const { calendars, isLoading, refresh, error } = useCalendars();
   const filtered = useMemo(
     () =>
       groupCode
@@ -1508,7 +1508,7 @@ export function useCalendarsInGroup(groupCode: string | null) {
         : EMPTY_CALENDARS,
     [calendars, groupCode]
   );
-  return { calendars: filtered, isLoading, refresh };
+  return { calendars: filtered, isLoading, refresh, error };
 }
 
 const EMPTY_GROUPS: CalendarGroupResponse[] = [];
@@ -1526,11 +1526,11 @@ export function useCalendarGroups() {
 }
 
 async function parseErrorBody(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => "");
   try {
-    const json = (await response.json()) as { error?: string };
+    const json = JSON.parse(text) as { error?: string };
     return `[${response.status}] ${json.error ?? fallback}`;
   } catch {
-    const text = await response.text().catch(() => "");
     return `[${response.status}] ${text || fallback}`;
   }
 }

@@ -10,10 +10,14 @@ if (!baseUrl) {
 }
 
 export function createCalendarClient(session: Session) {
+  const token = session.user?.rawJWT ?? session.user?.ticket;
+  if (!token) {
+    throw new Error("No authentication token found in session.");
+  }
   return createMiotCalendarClient({
     baseUrl: baseUrl!,
     headers: {
-      Authorization: `Bearer ${session.user?.rawJWT ?? session.user?.ticket ?? ""}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 }

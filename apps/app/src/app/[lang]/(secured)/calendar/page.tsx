@@ -27,10 +27,7 @@ export default async function CalendarPage(props: ParamsWithLang) {
         />
       </div>
       <div className="flex-1 overflow-auto">
-        <CalendarLanding
-          dict={dict["calendar"] as I18nRecord}
-          lang={lang}
-        />
+        <CalendarLanding lang={lang} />
       </div>
     </div>
   );

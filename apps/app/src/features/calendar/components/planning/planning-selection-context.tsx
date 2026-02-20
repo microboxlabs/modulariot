@@ -24,6 +24,7 @@ import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
+  TimeWindowResponseSchema,
 } from "@/features/calendar/services/time-window.service";
 
 dayjs.extend(isoWeek);
@@ -686,7 +687,16 @@ export function PlanningSelectionProvider({
     if (timeSlotsError) return;
 
     if (apiTimeWindows.length > 0) {
-      setTimeSlots(apiTimeWindows.map(apiToLocalTimeWindow));
+      setTimeSlots(
+        apiTimeWindows.flatMap((tw) => {
+          const result = TimeWindowResponseSchema.safeParse(tw);
+          if (!result.success) {
+            console.warn("Skipping invalid time window response", tw, result.error.message);
+            return [];
+          }
+          return [apiToLocalTimeWindow(result.data)];
+        })
+      );
     } else if (apiTimeWindows.length === 0 && !timeSlotsError) {
       setTimeSlots([]);
     }
@@ -714,11 +724,12 @@ export function PlanningSelectionProvider({
       currentApiWindows: typeof apiTimeWindows,
       newWindowIds: Set<string>
     ): Promise<string[]> => {
+      if (!calendarId) return [];
       const errors: string[] = [];
       for (const apiWindow of currentApiWindows) {
         if (!newWindowIds.has(apiWindow.id)) {
           try {
-            await deactivateCalendarTimeWindow(calendarId!, apiWindow);
+            await deactivateCalendarTimeWindow(calendarId, apiWindow);
           } catch (err) {
             errors.push(
               `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
@@ -734,15 +745,16 @@ export function PlanningSelectionProvider({
   /** Create or update local window slots against the API; returns error strings. */
   const saveLocalWindows = useCallback(
     async (slots: TimeSlot[], currentIds: Set<string>): Promise<string[]> => {
+      if (!calendarId) return [];
       const errors: string[] = [];
       for (const slot of slots) {
         if (slot.kind !== "window") continue; // blocks are local-only
         try {
           const body = localToApiTimeWindow(slot);
           if (currentIds.has(slot.id)) {
-            await updateCalendarTimeWindow(calendarId!, slot.id, body);
+            await updateCalendarTimeWindow(calendarId, slot.id, body);
           } else {
-            await createCalendarTimeWindow(calendarId!, body);
+            await createCalendarTimeWindow(calendarId, body);
           }
         } catch (err) {
           errors.push(

@@ -1,13 +1,9 @@
-import {
-  createMiotCalendarClient,
-  MiotCalendarApiError,
-} from "@microboxlabs/miot-calendar-client";
-import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
+import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
+import { createCalendarClient } from "../../../utils/miot-calendar-api-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
+import { TimeWindowRequestSchema } from "./time-window.schema";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-
-const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
 export async function GET(
   _request: Request,
@@ -17,13 +13,7 @@ export async function GET(
   if (!authResult.authenticated) return authResult.response;
 
   const { calendarId } = await params;
-
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+  const client = createCalendarClient(authResult.session);
 
   try {
     const timeWindows = await client.calendars.listTimeWindows(calendarId);
@@ -42,18 +32,22 @@ export async function POST(
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const { calendarId } = await params;
-  const body: TimeWindowRequest = await request.json();
-
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
-
   try {
-    const timeWindow = await client.calendars.createTimeWindow(calendarId, body);
+    const { calendarId } = await params;
+
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    const parsed = TimeWindowRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+
+    const client = createCalendarClient(authResult.session);
+    const timeWindow = await client.calendars.createTimeWindow(calendarId, parsed.data);
     return NextResponse.json(timeWindow, { status: 201 });
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;

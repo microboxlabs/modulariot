@@ -1,9 +1,23 @@
-import type {
-  TimeWindowRequest,
-  TimeWindowResponse,
-} from "@microboxlabs/miot-calendar-client";
+import type { TimeWindowRequest } from "@microboxlabs/miot-calendar-client";
+import { z } from "zod";
 import type { TimeSlot } from "../components/planning/planning-selection-context";
 import dayjs from "dayjs";
+
+export const TimeWindowResponseSchema = z.object({
+  id: z.string(),
+  calendarId: z.string(),
+  name: z.string(),
+  startHour: z.number().int().min(0).max(23),
+  endHour: z.number().int().min(0).max(23),
+  slotDurationMinutes: z.number(),
+  capacityPerSlot: z.number(),
+  daysOfWeek: z.string().regex(/^[\d,-]+$/).min(1).nullish(),
+  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  validTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  active: z.boolean(),
+});
+
+type ValidatedTimeWindowResponse = z.infer<typeof TimeWindowResponseSchema>;
 
 /**
  * Parse a comma-or-range string like "1,2,3,4,5" or "1-5" into a number array.
@@ -14,9 +28,12 @@ function parseDaysString(daysStr: string): number[] {
     const trimmed = part.trim();
     if (trimmed.includes("-")) {
       const [start, end] = trimmed.split("-").map(Number);
-      for (let i = start; i <= end; i++) result.push(i);
+      if (Number.isInteger(start) && Number.isInteger(end) && start <= end) {
+        for (let i = start; i <= end; i++) result.push(i);
+      }
     } else {
-      result.push(Number(trimmed));
+      const n = Number(trimmed);
+      if (Number.isInteger(n)) result.push(n);
     }
   }
   return result;
@@ -46,7 +63,7 @@ function hourToHHMM(hour: number): string {
  *  - If validFrom === validTo → "daily-override" (specific-date window)
  *  - Otherwise              → "weekly" (recurring weekly pattern)
  */
-export function apiToLocalTimeWindow(response: TimeWindowResponse): TimeSlot {
+export function apiToLocalTimeWindow(response: ValidatedTimeWindowResponse): TimeSlot {
   const isDailyOverride =
     Boolean(response.validTo) && response.validFrom === response.validTo;
 

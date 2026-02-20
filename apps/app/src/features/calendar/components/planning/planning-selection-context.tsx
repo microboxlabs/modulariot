@@ -13,24 +13,18 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import {
-  usePlannedServices,
-  createPlannedService,
-  updatePlannedService,
-  deletePlannedService,
   useCalendarTimeWindows,
   createCalendarTimeWindow,
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
+  createBooking,
+  cancelBooking,
 } from "@/features/common/providers/client-api.provider";
-import {
-  apiToLocalPlannedService,
-  localToApiPlannedService,
-} from "@/features/calendar/services/planned-service.service";
+import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
 } from "@/features/calendar/services/time-window.service";
-import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -676,17 +670,9 @@ export function PlanningSelectionProvider({
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
-  const [plannedServiceIds, setPlannedServiceIds] = useState<
-    Map<string, string>
-  >(new Map()); // Map of service.id -> API id
-
-  // Load planned services from API
-  // For now, load all services (can be optimized later with date range)
-  const {
-    plannedServices: apiPlannedServices,
-    error: plannedServicesError,
-    refresh: refreshPlannedServices,
-  } = usePlannedServices();
+  const [bookingIds, setBookingIds] = useState<Map<string, string>>(
+    new Map()
+  ); // Map of service.id -> booking.id from calendar backend
 
   // Load time windows from the miot-calendar-client backend
   const {
@@ -694,30 +680,6 @@ export function PlanningSelectionProvider({
     error: timeSlotsError,
     refresh: refreshTimeWindows,
   } = useCalendarTimeWindows(calendarId ?? null);
-
-  // Sync API data to local state (only when there's no error and data has actually changed)
-  useEffect(() => {
-    // Skip if there's an error - don't update state based on error responses
-    if (plannedServicesError) return;
-
-    if (apiPlannedServices && apiPlannedServices.length > 0) {
-      const localServices = apiPlannedServices.map(apiToLocalPlannedService);
-      const idMap = new Map<string, string>();
-
-      apiPlannedServices.forEach((apiService, index) => {
-        if (apiService.id) {
-          idMap.set(localServices[index].service.id, apiService.id);
-        }
-      });
-
-      setPlannedServices(localServices);
-      setPlannedServiceIds(idMap);
-    } else if (apiPlannedServices?.length === 0) {
-      // Clear local state if API returns empty array
-      setPlannedServices([]);
-      setPlannedServiceIds(new Map());
-    }
-  }, [apiPlannedServices, plannedServicesError]);
 
   // Sync time windows from API to local state (only when there's no error)
   useEffect(() => {
@@ -1076,84 +1038,58 @@ export function PlanningSelectionProvider({
           slot: slotToUse,
         };
 
-        try {
-          // Check if this service already has an API ID (update) or needs creation
-          const existingApiId = plannedServiceIds.get(selectedService.id);
+        // Update local state
+        setPlannedServices((prev) => {
+          const filtered = prev.filter(
+            (p) => p.service.id !== selectedService.id
+          );
+          return [...filtered, newPlannedService];
+        });
 
-          if (existingApiId) {
-            // Update existing planned service
-            const apiData = localToApiPlannedService(newPlannedService);
-            // Convert string date back to Date for UpdatePlannedServiceRequest
-            await updatePlannedService(existingApiId, {
-              id: existingApiId,
-              service: apiData.service,
-              slot: {
-                date: newPlannedService.slot.date, // Use the original Date object
-                hour: apiData.slot.hour,
-                minutes: apiData.slot.minutes,
+        // Create / reassign booking in the calendar backend
+        if (calendarId) {
+          try {
+            const bookingBody: BookingRequest = {
+              calendarId,
+              resource: {
+                id: selectedService.id,
+                type: "service",
+                label: selectedService.cliente,
               },
-            });
-          } else {
-            // Create new planned service
-            const apiData = localToApiPlannedService(newPlannedService);
-            // For create, we need to convert to the proper format
-            const createRequest: CreatePlannedServiceRequest = {
-              service: apiData.service,
               slot: {
-                date: newPlannedService.slot.date, // Use the original Date object
-                hour: apiData.slot.hour,
-                minutes: apiData.slot.minutes,
+                date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
+                hour: slotToUse.hour,
+                minutes: slotToUse.minutes,
               },
             };
-            const response = await createPlannedService(createRequest);
 
-            // Store the API ID for future updates
-            if (response.id) {
-              setPlannedServiceIds((prev) => {
-                const newMap = new Map(prev);
-                newMap.set(selectedService.id, response.id);
-                return newMap;
-              });
+            // Cancel old booking on reassignment
+            const oldBookingId = bookingIds.get(selectedService.id);
+            if (oldBookingId) {
+              await cancelBooking(oldBookingId).catch((err) =>
+                console.warn("Failed to cancel old booking:", err)
+              );
             }
+
+            const booking = await createBooking(bookingBody);
+            setBookingIds((prev) => {
+              const next = new Map(prev);
+              next.set(selectedService.id, booking.id);
+              return next;
+            });
+          } catch (err) {
+            console.warn("Failed to create booking:", err);
           }
-
-          // Update local state
-          setPlannedServices((prev) => {
-            // Remove if already planned (allow re-planning)
-            const filtered = prev.filter(
-              (p) => p.service.id !== selectedService.id
-            );
-            return [...filtered, newPlannedService];
-          });
-
-          // Refresh from API to ensure consistency
-          await refreshPlannedServices();
-
-          // Always clear reassigning state after confirmation (not just when wasReassigning)
-          setReassigningService(null);
-
-          // Clear selection after confirming
-          setSelectedSlot(null);
-          setSelectedService(null);
-
-          return wasReassigning;
-        } catch (error) {
-          console.error("Error saving planned service:", error);
-          // Still update local state for optimistic UI, but log the error
-          setPlannedServices((prev) => {
-            const filtered = prev.filter(
-              (p) => p.service.id !== selectedService.id
-            );
-            return [...filtered, newPlannedService];
-          });
-
-          // Also clear state on error to prevent stuck UI
-          setReassigningService(null);
-          setSelectedSlot(null);
-          setSelectedService(null);
-
-          return wasReassigning;
         }
+
+        // Always clear reassigning state after confirmation
+        setReassigningService(null);
+
+        // Clear selection after confirming
+        setSelectedSlot(null);
+        setSelectedService(null);
+
+        return wasReassigning;
       }
       return false;
     },
@@ -1162,8 +1098,8 @@ export function PlanningSelectionProvider({
       selectedService,
       getServicesForSlot,
       reassigningService,
-      plannedServiceIds,
-      refreshPlannedServices,
+      calendarId,
+      bookingIds,
     ]
   );
 
@@ -1189,73 +1125,25 @@ export function PlanningSelectionProvider({
    */
   const removeService = useCallback(
     async (serviceId: string) => {
-      console.log("removeService called with serviceId:", serviceId);
-      console.log(
-        "plannedServiceIds map:",
-        Array.from(plannedServiceIds.entries())
-      );
-
-      const apiId = plannedServiceIds.get(serviceId);
-      console.log("apiId found:", apiId);
-
-      let deleteError: Error | null = null;
-
-      // Try to delete from API if we have an apiId
-      if (apiId) {
-        try {
-          console.log("Calling deletePlannedService with apiId:", apiId);
-          await deletePlannedService(apiId);
-          console.log("deletePlannedService succeeded");
-
-          // Remove from ID map
-          setPlannedServiceIds((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(serviceId);
-            return newMap;
-          });
-          // Refresh from API
-          await refreshPlannedServices();
-        } catch (error) {
-          console.error("Error deleting planned service:", error);
-          deleteError =
-            error instanceof Error ? error : new Error("Unknown error");
-          // Still remove from local state for optimistic UI, but throw error for caller to handle
-        }
-      } else {
-        // If no apiId, try using serviceId directly as fallback
-        // This handles cases where the service was created locally or mapping is missing
-        console.warn(
-          "No apiId found for serviceId:",
-          serviceId,
-          "- trying serviceId as fallback"
+      // Cancel the booking in the calendar backend
+      const bookingId = bookingIds.get(serviceId);
+      if (bookingId) {
+        await cancelBooking(bookingId).catch((err) =>
+          console.warn("Failed to cancel booking:", err)
         );
-        try {
-          console.log(
-            "Calling deletePlannedService with serviceId as fallback:",
-            serviceId
-          );
-          await deletePlannedService(serviceId);
-          console.log("deletePlannedService with serviceId succeeded");
-          // Refresh from API
-          await refreshPlannedServices();
-        } catch (error) {
-          console.warn("Delete with serviceId also failed:", error);
-          // If both fail, we'll still remove from local state (optimistic update)
-          // Don't throw error in this case since the service might not exist in backend
-        }
+        setBookingIds((prev) => {
+          const next = new Map(prev);
+          next.delete(serviceId);
+          return next;
+        });
       }
 
-      // Update local state (optimistic UI update)
+      // Remove from local state
       setPlannedServices((prev) =>
         prev.filter((p) => p.service.id !== serviceId)
       );
-
-      // If there was an error from the apiId attempt, throw it so the caller can show a notification
-      if (deleteError) {
-        throw deleteError;
-      }
     },
-    [plannedServiceIds, refreshPlannedServices]
+    [bookingIds]
   );
 
   /**

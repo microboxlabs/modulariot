@@ -132,11 +132,15 @@ export function createAlfrescoCrudClient(config: AlfrescoCrudClientConfig) {
 
       const response = await fetch(authUrl, fetchOptions);
 
-      // Handle 404 with mock response if enabled
-      if (response.status === 404 && mockOn404 && mockResponse) {
+      // Handle 404 or 5xx with mock response if enabled (backend not yet implemented)
+      if (
+        (response.status === 404 || response.status >= 500) &&
+        mockOn404 &&
+        mockResponse
+      ) {
         logger.warn(
-          { endpoint: path, method },
-          `${resourceName} endpoint returned 404, using mock response`
+          { endpoint: path, method, status: response.status },
+          `${resourceName} endpoint returned ${response.status}, using mock response`
         );
         return { data: mockResponse(), status: method === "POST" ? 201 : 200 };
       }

@@ -1488,12 +1488,12 @@ const EMPTY_CALENDARS: CalendarResponse[] = [];
  * Hook to fetch all active calendars (with their groups)
  */
 export function useCalendars() {
-  const { data, error, isLoading } = useSWR<CalendarResponse[], FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<CalendarResponse[], FetcherError>(
     "/app/api/calendar",
     fetcher,
     { errorRetryCount: 3, errorRetryInterval: 5000 }
   );
-  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading };
+  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading, refresh: mutate };
 }
 
 /**
@@ -1517,12 +1517,22 @@ const EMPTY_GROUPS: CalendarGroupResponse[] = [];
  * Hook to fetch all active calendar groups
  */
 export function useCalendarGroups() {
-  const { data, error, isLoading } = useSWR<CalendarGroupResponse[], FetcherError>(
+  const { data, error, isLoading, mutate } = useSWR<CalendarGroupResponse[], FetcherError>(
     "/app/api/calendar/groups",
     fetcher,
     { errorRetryCount: 3, errorRetryInterval: 5000 }
   );
-  return { groups: data ?? EMPTY_GROUPS, error, isLoading };
+  return { groups: data ?? EMPTY_GROUPS, error, isLoading, refresh: mutate };
+}
+
+async function parseErrorBody(response: Response, fallback: string): Promise<string> {
+  try {
+    const json = (await response.json()) as { error?: string };
+    return `[${response.status}] ${json.error ?? fallback}`;
+  } catch {
+    const text = await response.text().catch(() => "");
+    return `[${response.status}] ${text || fallback}`;
+  }
 }
 
 /**
@@ -1535,8 +1545,7 @@ export async function createCalendarGroup(body: CalendarGroupRequest): Promise<C
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error ?? "Failed to create calendar group");
+    throw new Error(await parseErrorBody(response, "Failed to create calendar group"));
   }
   return response.json();
 }
@@ -1551,8 +1560,7 @@ export async function createCalendar(body: CalendarRequest): Promise<CalendarRes
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error ?? "Failed to create calendar");
+    throw new Error(await parseErrorBody(response, "Failed to create calendar"));
   }
   return response.json();
 }
@@ -1601,8 +1609,7 @@ export async function createCalendarTimeWindow(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error ?? "Failed to create time window");
+    throw new Error(await parseErrorBody(response, "Failed to create time window"));
   }
   return response.json();
 }
@@ -1624,8 +1631,7 @@ export async function updateCalendarTimeWindow(
     }
   );
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error ?? "Failed to update time window");
+    throw new Error(await parseErrorBody(response, "Failed to update time window"));
   }
   return response.json();
 }

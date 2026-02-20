@@ -108,7 +108,7 @@ function useCalendarDynamicItems(): SidebarItem[] {
 
     const groupMap = new Map<string, { group: CalendarGroupResponse; firstCalId: string }>();
 
-    for (const cal of calendars) {
+    for (const cal of calendars.slice().sort((a, b) => a.id.localeCompare(b.id))) {
       const group = cal.groups?.[0];
       if (group && !groupMap.has(group.code)) {
         groupMap.set(group.code, { group, firstCalId: cal.id });
@@ -116,7 +116,7 @@ function useCalendarDynamicItems(): SidebarItem[] {
     }
 
     return Array.from(groupMap.values()).map(({ group, firstCalId }) => ({
-      href: `/calendar/${firstCalId}/planning?groupCode=${group.code}`,
+      href: `/calendar/${firstCalId}/planning?groupCode=${encodeURIComponent(group.code)}`,
       label: group.name,
     }));
   }, [calendars]);

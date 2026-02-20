@@ -1,29 +1,34 @@
-import { createMiotCalendarClient, MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
-import type { CalendarGroupRequest } from "@microboxlabs/miot-calendar-client";
+import { z } from "zod";
+import { createCalendarClient } from "../../utils/miot-calendar-api-client";
 import { requireAuth } from "../../utils/alfresco-crud-client";
+import {
+  handleMiotCalendarApiError,
+  parseJsonBody,
+} from "../../utils/calendar-route-utils";
 import { NextResponse } from "next/server";
-import { logger } from "@/lib/logger";
 
-const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
+const CalendarGroupSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  active: z.boolean().optional(),
+}).strict();
 
 export async function GET() {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+  const client = createCalendarClient(authResult.session);
 
   try {
     const groups = await client.groups.list({ active: true });
     return NextResponse.json(groups);
   } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to fetch calendar groups");
-    return NextResponse.json({ error: "Failed to fetch calendar groups" }, { status });
+    return handleMiotCalendarApiError(
+      error,
+      "Failed to fetch calendar groups",
+      "Failed to fetch calendar groups"
+    );
   }
 }
 
@@ -31,20 +36,23 @@ export async function POST(request: Request) {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
-  const body: CalendarGroupRequest = await request.json();
-  const client = createMiotCalendarClient({
-    baseUrl: MIOT_CALENDAR_URL,
-    headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
-    },
-  });
+  const bodyResult = await parseJsonBody(request);
+  if ("error" in bodyResult) return bodyResult.error;
+  const parsed = CalendarGroupSchema.safeParse(bodyResult.data);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+  }
+
+  const client = createCalendarClient(authResult.session);
 
   try {
-    const group = await client.groups.create(body);
+    const group = await client.groups.create(parsed.data);
     return NextResponse.json(group, { status: 201 });
   } catch (error) {
-    const status = error instanceof MiotCalendarApiError ? error.status : 500;
-    logger.error({ err: error }, "Failed to create calendar group");
-    return NextResponse.json({ error: "Failed to create calendar group" }, { status });
+    return handleMiotCalendarApiError(
+      error,
+      "Failed to create calendar group",
+      "Failed to create calendar group"
+    );
   }
 }

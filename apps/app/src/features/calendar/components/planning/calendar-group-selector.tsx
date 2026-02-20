@@ -22,9 +22,12 @@ export function CalendarGroupSelector({
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
     if (selectedId === calendarId) return;
-    const newPath = pathname.replace(calendarId, selectedId);
-    const params = new URLSearchParams(searchParams.toString());
-    router.push(`${newPath}?${params.toString()}`);
+    const newPath = pathname
+      .split("/")
+      .map((seg) => (seg === calendarId ? selectedId : seg))
+      .join("/");
+    const query = searchParams.toString();
+    router.push(query ? `${newPath}?${query}` : newPath);
   };
 
   return (

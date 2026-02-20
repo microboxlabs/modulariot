@@ -2,7 +2,6 @@ import "server-only";
 import {
   I18nDictionries,
   I18nDictionary,
-  I18nRecord,
 } from "./i18n.service.types";
 import Negotiator from "negotiator";
 import { match } from "@formatjs/intl-localematcher";
@@ -10,16 +9,15 @@ import type { NextRequest } from "next/server";
 import { defaultLocale, locales, tr } from "./tr.service";
 
 const dictionaries: I18nDictionries<I18nDictionary> = {
-  en: () => import("@/lang/en.json").then((m) => m.default as I18nDictionary),
-  es: () => import("@/lang/es.json").then((m) => m.default as unknown as I18nDictionary),
+  en: () => import("@/lang/en.json").then((m) => m.default),
+  es: () => import("@/lang/es.json").then((m) => m.default),
 };
 
 export async function getDictionary(locale: string) {
-  const localeDictionary = dictionaries[locale];
-  if (!locale) {
+  if (!locale || !dictionaries[locale]) {
     throw new Error(`Locale ${locale} not found`);
   }
-  const dictionary = await localeDictionary();
+  const dictionary = await dictionaries[locale]();
   const memoized = new Map<string, string>();
   return [
     function _tr(path: string, params?: Record<string, string>): string {

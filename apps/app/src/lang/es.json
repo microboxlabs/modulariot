@@ -678,7 +678,17 @@
         "Consolidar Carga": "Consolidar Carga",
         "Separar Documentos": "Separar Documentos",
         "Planificar Servicio": "Planificar Servicio",
-        "Asignar Conductor": "Asignar Conductor"
+        "Asignar Conductor": "Asignar Conductor",
+        "redirectToMissionControl": "Devolver a Torre de Control",
+        "Asignar Conductor/Transporte": "Asignar Conductor/Transporte",
+        "Presentar Conductor": "Presentar Conductor",
+        "Preparar Servicio": "Controlar Servicio",
+        "Torre de Control: Iniciar Viaje": "Iniciar Viaje",
+        "Torre de Control: Iniciar Viaje sin firma": "Iniciar Viaje sin firma",
+        "Viaje Cancelado": "Viaje Cancelado",
+        "Viaje Anulado": "Viaje Anulado",
+        "Monitorear viaje en curso": "Monitorear viaje en curso",
+        "Confirmar Arribo": "Confirmar Arribo"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -798,7 +808,8 @@
         "Consolidar Carga": "Consolidar Carga",
         "Separar Documentos": "Separar Documentos",
         "Planificar Servicio": "Planificar Servicio",
-        "Asignar Conductor": "Asignar Conductor"
+        "Asignar Conductor": "Asignar Conductor",
+        "Confirmar Arribo a Destino": "Confirmar Arribo a Destino"
       },
       "modal": {
         "title": "Estás intentando mover la tarea a otro estado del proceso",
@@ -1495,6 +1506,7 @@
     "normal_speed": "Velocidad normal",
     "high_speed": "Velocidad grave",
     "very_high_speed": "Velocidad gravísima",
+    "speed_limit": "Exceso de límite de velocidad",
     "speed limit": "Exceso límite de velocidad",
     "Lost Signal": "Perdida de reportabilidad GPS",
     "Speed Limit": "Exceso límite de velocidad",
@@ -1977,6 +1989,7 @@
     "duration": "Duración",
     "selected_range": "Rango Seleccionado",
     "assetid": "ID del Activo",
+    "asset_id": "ID del Activo",
     "tripid": "ID del Viaje",
     "timestamp": "Marca de Tiempo",
     "speed": "Velocidad",

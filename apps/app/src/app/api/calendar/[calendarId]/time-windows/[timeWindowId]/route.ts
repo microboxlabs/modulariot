@@ -1,21 +1,9 @@
 import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
-import { z } from "zod";
 import { createCalendarClient } from "../../../../utils/miot-calendar-api-client";
 import { requireAuth } from "../../../../utils/alfresco-crud-client";
+import { TimeWindowRequestSchema } from "../time-window.schema";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-
-const TimeWindowRequestSchema = z.object({
-  name: z.string(),
-  startHour: z.number(),
-  endHour: z.number(),
-  validFrom: z.string(),
-  slotDurationMinutes: z.number().optional(),
-  capacityPerSlot: z.number().optional(),
-  daysOfWeek: z.string().optional(),
-  validTo: z.string().optional(),
-  active: z.boolean().optional(),
-});
 
 export async function PUT(
   request: Request,

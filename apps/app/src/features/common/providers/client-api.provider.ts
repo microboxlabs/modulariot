@@ -40,12 +40,6 @@ import type {
 } from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
 import type {
-  PlannedServiceResponse,
-  PlannedServiceListResponse,
-  CreatePlannedServiceRequest,
-  UpdatePlannedServiceRequest,
-} from "@/features/calendar/types/planned-service.types";
-import type {
   TimeSlotResponse,
   TimeSlotListResponse,
   CreateTimeSlotRequest,
@@ -58,6 +52,8 @@ import type {
   CalendarGroupRequest,
   TimeWindowResponse,
   TimeWindowRequest,
+  BookingRequest,
+  BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
 
 
@@ -1245,121 +1241,11 @@ export function formatDuration(eta: ETAResponse | undefined): string {
 }
 
 // ============================================================================
-// PlannedService Hooks
-// ============================================================================
-
-// Stable empty arrays for hooks to prevent infinite re-renders
-const EMPTY_PLANNED_SERVICES: PlannedServiceResponse[] = [];
-const EMPTY_TIME_SLOTS: TimeSlotResponse[] = [];
-
-/**
- * Hook to fetch all planned services
- * @param startDate - Optional start date filter (ISO date string)
- * @param endDate - Optional end date filter (ISO date string)
- */
-export function usePlannedServices(startDate?: string, endDate?: string) {
-  const queryParams = new URLSearchParams();
-  if (startDate) queryParams.set("startDate", startDate);
-  if (endDate) queryParams.set("endDate", endDate);
-
-  const url = queryParams.toString()
-    ? `/app/api/planned-service?${queryParams.toString()}`
-    : "/app/api/planned-service";
-
-  const { data, error, isLoading, mutate } = useSWR<
-    PlannedServiceListResponse,
-    FetcherError
-  >(url, fetcher, {
-    // Disable error retry to prevent infinite loops when API is unavailable
-    errorRetryCount: 3,
-    errorRetryInterval: 5000,
-  });
-
-  return {
-    // Use stable empty array reference to prevent infinite re-renders
-    plannedServices: data?.data ?? EMPTY_PLANNED_SERVICES,
-    total: data?.total ?? 0,
-    error,
-    isLoading,
-    refresh: mutate,
-  };
-}
-
-/**
- * Hook to fetch a single planned service by ID
- */
-export function usePlannedService(id: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<
-    PlannedServiceResponse,
-    FetcherError
-  >(id ? `/app/api/planned-service/${id}` : null, fetcher);
-
-  return {
-    plannedService: data,
-    error,
-    isLoading,
-    refresh: mutate,
-  };
-}
-
-/**
- * Create a new planned service
- */
-export async function createPlannedService(
-  request: CreatePlannedServiceRequest
-): Promise<PlannedServiceResponse> {
-  const response = await fetch("/app/api/planned-service", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to create planned service");
-  }
-
-  return response.json();
-}
-
-/**
- * Update an existing planned service
- */
-export async function updatePlannedService(
-  id: string,
-  request: UpdatePlannedServiceRequest
-): Promise<PlannedServiceResponse> {
-  const response = await fetch(`/app/api/planned-service/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to update planned service");
-  }
-
-  return response.json();
-}
-
-/**
- * Delete a planned service
- */
-export async function deletePlannedService(id: string): Promise<void> {
-  const response = await fetch(`/app/api/planned-service/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to delete planned service");
-  }
-}
-
-// ============================================================================
 // TimeSlot Hooks (Windows and Blocks)
 // ============================================================================
+
+// Stable empty array for hooks to prevent infinite re-renders
+const EMPTY_TIME_SLOTS: TimeSlotResponse[] = [];
 
 /**
  * Hook to fetch all time slots, optionally filtered by kind
@@ -1649,4 +1535,39 @@ export async function deactivateCalendarTimeWindow(
     slotDurationMinutes: window.slotDurationMinutes,
     active: false,
   });
+}
+
+// ============================================================================
+// Booking Helpers
+// ============================================================================
+
+/**
+ * Create a booking for a calendar slot resource.
+ */
+export async function createBooking(
+  body: BookingRequest
+): Promise<BookingResponse> {
+  const response = await fetch("/app/api/calendar/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to create booking");
+  }
+  return response.json();
+}
+
+/**
+ * Cancel an existing booking by ID.
+ */
+export async function cancelBooking(bookingId: string): Promise<void> {
+  const response = await fetch(`/app/api/calendar/bookings/${bookingId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to cancel booking");
+  }
 }

@@ -59,7 +59,7 @@ describe("printTable", () => {
       { header: "DATE", key: "slot.date" },
     ];
 
-    printTable(rows as unknown as Record<string, unknown>[], columns);
+    printTable(rows, columns);
 
     const calls = vi.mocked(console.log).mock.calls.map((c) => c[0]);
     expect(calls[2]).toContain("r1");

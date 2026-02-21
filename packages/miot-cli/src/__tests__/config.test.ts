@@ -20,16 +20,12 @@ const mockReadFileSync = vi.mocked(fs.readFileSync);
 
 describe("resolveConfig", () => {
   const originalEnv = process.env;
-  let mockExit: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     process.env = { ...originalEnv };
     delete process.env["MIOT_BASE_URL"];
     delete process.env["MIOT_TOKEN"];
     mockReadFileSync.mockReset();
-    mockExit = vi
-      .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -111,7 +107,7 @@ describe("resolveConfig", () => {
     });
 
     resolveConfig({});
-    expect(mockExit).toHaveBeenCalledWith(3);
+    expect(process.exit).toHaveBeenCalledWith(3);
   });
 
   it("should exit with code 3 when token is missing", () => {
@@ -121,7 +117,7 @@ describe("resolveConfig", () => {
     });
 
     resolveConfig({});
-    expect(mockExit).toHaveBeenCalledWith(3);
+    expect(process.exit).toHaveBeenCalledWith(3);
   });
 
   it("should handle missing dotfile gracefully", () => {

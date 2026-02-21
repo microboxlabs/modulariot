@@ -3,12 +3,8 @@ import { MiotCalendarApiError } from "@microboxlabs/miot-calendar-client";
 import { handleError } from "../utils/error.js";
 
 describe("handleError", () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    mockExit = vi
-      .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -30,7 +26,7 @@ describe("handleError", () => {
     expect(console.log).toHaveBeenCalledWith(
       expect.stringContaining('"status": 404'),
     );
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("should handle API 5xx error in json mode", () => {
@@ -43,7 +39,7 @@ describe("handleError", () => {
 
     handleError(err, "json");
 
-    expect(mockExit).toHaveBeenCalledWith(2);
+    expect(process.exit).toHaveBeenCalledWith(2);
   });
 
   it("should handle API error in table mode", () => {
@@ -57,7 +53,7 @@ describe("handleError", () => {
     handleError(err, "table");
 
     expect(console.error).toHaveBeenCalledWith("Error (400): Invalid input");
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("should handle API error with string body", () => {
@@ -68,7 +64,7 @@ describe("handleError", () => {
     expect(console.log).toHaveBeenCalledWith(
       expect.stringContaining("Bad Gateway"),
     );
-    expect(mockExit).toHaveBeenCalledWith(2);
+    expect(process.exit).toHaveBeenCalledWith(2);
   });
 
   it("should handle generic Error in json mode", () => {
@@ -79,7 +75,7 @@ describe("handleError", () => {
     expect(console.log).toHaveBeenCalledWith(
       expect.stringContaining("Network failure"),
     );
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("should handle generic Error in table mode", () => {
@@ -88,13 +84,13 @@ describe("handleError", () => {
     handleError(err, "table");
 
     expect(console.error).toHaveBeenCalledWith("Error: Network failure");
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("should handle non-Error values", () => {
     handleError("string error", "table");
 
     expect(console.error).toHaveBeenCalledWith("Error: string error");
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });

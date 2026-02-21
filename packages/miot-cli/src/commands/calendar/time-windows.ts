@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { getActionContext } from "../../action-context.js";
 import { printJson, printTable, printDetail } from "../../output.js";
 import { handleError } from "../../utils/error.js";
+import { parseIntOrThrow, parseOptionalInt } from "../../utils/parse.js";
 
 export function registerTimeWindowsCommand(parent: Command): void {
   const tw = parent
@@ -21,7 +22,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result as unknown as Record<string, unknown>[], [
+          printTable(result, [
             { header: "ID", key: "id" },
             { header: "NAME", key: "name" },
             { header: "START", key: "startHour" },
@@ -65,25 +66,21 @@ export function registerTimeWindowsCommand(parent: Command): void {
           daysOfWeek?: string;
         };
 
-        const tw = await client.calendars.createTimeWindow(opts.calendar, {
+        const result = await client.calendars.createTimeWindow(opts.calendar, {
           name: opts.name,
-          startHour: parseInt(opts.startHour, 10),
-          endHour: parseInt(opts.endHour, 10),
+          startHour: parseIntOrThrow(opts.startHour, "--start-hour"),
+          endHour: parseIntOrThrow(opts.endHour, "--end-hour"),
           validFrom: opts.validFrom,
           validTo: opts.validTo,
-          slotDurationMinutes: opts.slotDuration
-            ? parseInt(opts.slotDuration, 10)
-            : undefined,
-          capacityPerSlot: opts.capacity
-            ? parseInt(opts.capacity, 10)
-            : undefined,
+          slotDurationMinutes: parseOptionalInt(opts.slotDuration, "--slot-duration"),
+          capacityPerSlot: parseOptionalInt(opts.capacity, "--capacity"),
           daysOfWeek: opts.daysOfWeek,
         });
 
         if (outputMode === "json") {
-          printJson(tw);
+          printJson(result);
         } else {
-          printDetail(tw as unknown as Record<string, unknown>);
+          printDetail(result);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -115,29 +112,25 @@ export function registerTimeWindowsCommand(parent: Command): void {
             daysOfWeek?: string;
           };
 
-          const tw = await client.calendars.updateTimeWindow(
+          const result = await client.calendars.updateTimeWindow(
             calendarId,
             timeWindowId,
             {
               name: opts.name,
-              startHour: parseInt(opts.startHour, 10),
-              endHour: parseInt(opts.endHour, 10),
+              startHour: parseIntOrThrow(opts.startHour, "--start-hour"),
+              endHour: parseIntOrThrow(opts.endHour, "--end-hour"),
               validFrom: opts.validFrom,
               validTo: opts.validTo,
-              slotDurationMinutes: opts.slotDuration
-                ? parseInt(opts.slotDuration, 10)
-                : undefined,
-              capacityPerSlot: opts.capacity
-                ? parseInt(opts.capacity, 10)
-                : undefined,
+              slotDurationMinutes: parseOptionalInt(opts.slotDuration, "--slot-duration"),
+              capacityPerSlot: parseOptionalInt(opts.capacity, "--capacity"),
               daysOfWeek: opts.daysOfWeek,
             },
           );
 
           if (outputMode === "json") {
-            printJson(tw);
+            printJson(result);
           } else {
-            printDetail(tw as unknown as Record<string, unknown>);
+            printDetail(result);
           }
         } catch (err) {
           handleError(err, outputMode);

@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { getActionContext } from "../../action-context.js";
 import { printJson, printTable, printDetail, printSuccess } from "../../output.js";
 import { handleError } from "../../utils/error.js";
+import { parseOptionalInt } from "../../utils/parse.js";
 
 export function registerSlotManagersCommand(parent: Command): void {
   const sm = parent
@@ -23,7 +24,7 @@ export function registerSlotManagersCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result as unknown as Record<string, unknown>[], [
+          printTable(result, [
             { header: "ID", key: "id" },
             { header: "CALENDAR", key: "calendarCode" },
             { header: "ACTIVE", key: "active" },
@@ -48,7 +49,7 @@ export function registerSlotManagersCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(manager);
         } else {
-          printDetail(manager as unknown as Record<string, unknown>);
+          printDetail(manager);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -71,18 +72,14 @@ export function registerSlotManagersCommand(parent: Command): void {
 
         const manager = await client.slotManagers.create({
           calendarId: opts.calendar,
-          daysInAdvance: opts.daysInAdvance
-            ? parseInt(opts.daysInAdvance, 10)
-            : undefined,
-          batchDays: opts.batchDays
-            ? parseInt(opts.batchDays, 10)
-            : undefined,
+          daysInAdvance: parseOptionalInt(opts.daysInAdvance, "--days-in-advance"),
+          batchDays: parseOptionalInt(opts.batchDays, "--batch-days"),
         });
 
         if (outputMode === "json") {
           printJson(manager);
         } else {
-          printDetail(manager as unknown as Record<string, unknown>);
+          printDetail(manager);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -93,7 +90,8 @@ export function registerSlotManagersCommand(parent: Command): void {
     .description("Update a slot manager")
     .option("--days-in-advance <n>", "Days in advance")
     .option("--batch-days <n>", "Batch days")
-    .option("--active", "Set active")
+    .option("--active", "Activate the manager")
+    .option("--no-active", "Deactivate the manager")
     .action(async (id: string, _opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
       try {
@@ -105,19 +103,15 @@ export function registerSlotManagersCommand(parent: Command): void {
 
         const manager = await client.slotManagers.update(id, {
           calendarId: "", // required by SDK, server ignores on update
-          daysInAdvance: opts.daysInAdvance
-            ? parseInt(opts.daysInAdvance, 10)
-            : undefined,
-          batchDays: opts.batchDays
-            ? parseInt(opts.batchDays, 10)
-            : undefined,
+          daysInAdvance: parseOptionalInt(opts.daysInAdvance, "--days-in-advance"),
+          batchDays: parseOptionalInt(opts.batchDays, "--batch-days"),
           active: opts.active,
         });
 
         if (outputMode === "json") {
           printJson(manager);
         } else {
-          printDetail(manager as unknown as Record<string, unknown>);
+          printDetail(manager);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -151,14 +145,14 @@ export function registerSlotManagersCommand(parent: Command): void {
           if (outputMode === "json") {
             printJson(result);
           } else {
-            printDetail(result as unknown as Record<string, unknown>);
+            printDetail(result);
           }
         } else {
           const results = await client.slotManagers.runAll();
           if (outputMode === "json") {
             printJson(results);
           } else {
-            printTable(results as unknown as Record<string, unknown>[], [
+            printTable(results, [
               { header: "ID", key: "id" },
               { header: "MANAGER", key: "managerId" },
               { header: "STATUS", key: "status" },
@@ -179,7 +173,7 @@ export function registerSlotManagersCommand(parent: Command): void {
       const { client, outputMode } = getActionContext(cmd);
       try {
         const opts = cmd.opts() as { limit?: string };
-        const limit = opts.limit ? parseInt(opts.limit, 10) : undefined;
+        const limit = parseOptionalInt(opts.limit, "--limit");
 
         let results;
         if (managerId) {
@@ -191,7 +185,7 @@ export function registerSlotManagersCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(results);
         } else {
-          printTable(results as unknown as Record<string, unknown>[], [
+          printTable(results, [
             { header: "ID", key: "id" },
             { header: "MANAGER", key: "managerId" },
             { header: "STATUS", key: "status" },

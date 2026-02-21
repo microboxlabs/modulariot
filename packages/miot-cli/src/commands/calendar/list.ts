@@ -29,7 +29,7 @@ export function registerListCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(calendars);
         } else {
-          printTable(calendars as unknown as Record<string, unknown>[], [
+          printTable(calendars, [
             { header: "ID", key: "id" },
             { header: "CODE", key: "code" },
             { header: "NAME", key: "name" },

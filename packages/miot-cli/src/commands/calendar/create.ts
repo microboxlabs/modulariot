@@ -31,7 +31,7 @@ export function registerCreateCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(calendar);
         } else {
-          printDetail(calendar as unknown as Record<string, unknown>);
+          printDetail(calendar);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -57,17 +57,21 @@ export function registerUpdateCommand(parent: Command): void {
           description?: string;
         };
 
-        const calendar = await client.calendars.update(id, {
-          code: opts.code!,
-          name: opts.name!,
-          timezone: opts.timezone,
-          description: opts.description,
-        });
+        const body = {
+          ...(opts.code !== undefined && { code: opts.code }),
+          ...(opts.name !== undefined && { name: opts.name }),
+          ...(opts.timezone !== undefined && { timezone: opts.timezone }),
+          ...(opts.description !== undefined && {
+            description: opts.description,
+          }),
+        };
+
+        const calendar = await client.calendars.update(id, body as Parameters<typeof client.calendars.update>[1]);
 
         if (outputMode === "json") {
           printJson(calendar);
         } else {
-          printDetail(calendar as unknown as Record<string, unknown>);
+          printDetail(calendar);
         }
       } catch (err) {
         handleError(err, outputMode);

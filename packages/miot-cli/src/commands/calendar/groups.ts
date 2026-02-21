@@ -24,7 +24,7 @@ export function registerGroupsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result as unknown as Record<string, unknown>[], [
+          printTable(result, [
             { header: "ID", key: "id" },
             { header: "CODE", key: "code" },
             { header: "NAME", key: "name" },
@@ -47,7 +47,7 @@ export function registerGroupsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(group);
         } else {
-          printDetail(group as unknown as Record<string, unknown>);
+          printDetail(group);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -78,7 +78,7 @@ export function registerGroupsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(group);
         } else {
-          printDetail(group as unknown as Record<string, unknown>);
+          printDetail(group);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -100,16 +100,20 @@ export function registerGroupsCommand(parent: Command): void {
           description?: string;
         };
 
-        const group = await client.groups.update(id, {
-          code: opts.code!,
-          name: opts.name!,
-          description: opts.description,
-        });
+        const body = {
+          ...(opts.code !== undefined && { code: opts.code }),
+          ...(opts.name !== undefined && { name: opts.name }),
+          ...(opts.description !== undefined && {
+            description: opts.description,
+          }),
+        };
+
+        const group = await client.groups.update(id, body as Parameters<typeof client.groups.update>[1]);
 
         if (outputMode === "json") {
           printJson(group);
         } else {
-          printDetail(group as unknown as Record<string, unknown>);
+          printDetail(group);
         }
       } catch (err) {
         handleError(err, outputMode);

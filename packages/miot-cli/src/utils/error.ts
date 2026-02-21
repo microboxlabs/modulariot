@@ -4,7 +4,9 @@ import type { OutputMode } from "../config.js";
 export function handleError(err: unknown, outputMode: OutputMode): never {
   if (err instanceof MiotCalendarApiError) {
     const message =
-      typeof err.body === "string" ? err.body : err.body.message;
+      typeof err.body === "string"
+        ? err.body
+        : err.body.message ?? "Unknown error";
 
     if (outputMode === "json") {
       console.log(

@@ -15,7 +15,7 @@ export function registerGetCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(calendar);
         } else {
-          printDetail(calendar as unknown as Record<string, unknown>);
+          printDetail(calendar);
         }
       } catch (err) {
         handleError(err, outputMode);

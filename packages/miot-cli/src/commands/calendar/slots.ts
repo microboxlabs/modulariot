@@ -1,7 +1,10 @@
 import type { Command } from "commander";
+import type { SlotStatus } from "@microboxlabs/miot-calendar-client";
 import { getActionContext } from "../../action-context.js";
 import { printJson, printTable, printDetail } from "../../output.js";
 import { handleError } from "../../utils/error.js";
+
+const VALID_SLOT_STATUSES: SlotStatus[] = ["OPEN", "CLOSED"];
 
 export function registerSlotsCommand(parent: Command): void {
   const slots = parent
@@ -35,7 +38,7 @@ export function registerSlotsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result.data as unknown as Record<string, unknown>[], [
+          printTable(result.data, [
             { header: "ID", key: "id" },
             { header: "DATE", key: "slotDate" },
             { header: "HOUR", key: "slotHour" },
@@ -62,7 +65,7 @@ export function registerSlotsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(slot);
         } else {
-          printDetail(slot as unknown as Record<string, unknown>);
+          printDetail(slot);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -93,7 +96,7 @@ export function registerSlotsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printDetail(result as unknown as Record<string, unknown>);
+          printDetail(result);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -109,14 +112,20 @@ export function registerSlotsCommand(parent: Command): void {
       try {
         const opts = cmd.opts() as { status: string };
 
+        if (!VALID_SLOT_STATUSES.includes(opts.status as SlotStatus)) {
+          throw new Error(
+            `Invalid status "${opts.status}". Must be one of: ${VALID_SLOT_STATUSES.join(", ")}`,
+          );
+        }
+
         const slot = await client.slots.updateStatus(id, {
-          status: opts.status as "OPEN" | "CLOSED",
+          status: opts.status as SlotStatus,
         });
 
         if (outputMode === "json") {
           printJson(slot);
         } else {
-          printDetail(slot as unknown as Record<string, unknown>);
+          printDetail(slot);
         }
       } catch (err) {
         handleError(err, outputMode);

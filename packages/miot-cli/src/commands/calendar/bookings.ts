@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { getActionContext } from "../../action-context.js";
 import { printJson, printTable, printDetail, printSuccess } from "../../output.js";
 import { handleError } from "../../utils/error.js";
+import { parseIntOrThrow } from "../../utils/parse.js";
 
 export function registerBookingsCommand(parent: Command): void {
   const bookings = parent
@@ -32,7 +33,7 @@ export function registerBookingsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result.data as unknown as Record<string, unknown>[], [
+          printTable(result.data, [
             { header: "ID", key: "id" },
             { header: "CALENDAR", key: "calendarId" },
             { header: "RESOURCE", key: "resource.id" },
@@ -58,7 +59,7 @@ export function registerBookingsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(booking);
         } else {
-          printDetail(booking as unknown as Record<string, unknown>);
+          printDetail(booking);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -73,8 +74,8 @@ export function registerBookingsCommand(parent: Command): void {
     .option("--resource-type <type>", "Resource type")
     .option("--resource-label <label>", "Resource label")
     .requiredOption("--date <date>", "Slot date (YYYY-MM-DD)")
-    .requiredOption("--hour <hour>", "Slot hour")
-    .requiredOption("--minutes <minutes>", "Slot minutes")
+    .requiredOption("--hour <hour>", "Slot hour (0-23)")
+    .requiredOption("--minutes <minutes>", "Slot minutes (0-59)")
     .action(async (_opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
       try {
@@ -88,6 +89,16 @@ export function registerBookingsCommand(parent: Command): void {
           minutes: string;
         };
 
+        const hour = parseIntOrThrow(opts.hour, "--hour");
+        const minutes = parseIntOrThrow(opts.minutes, "--minutes");
+
+        if (hour < 0 || hour > 23) {
+          throw new Error(`Invalid --hour: ${hour}. Must be 0-23.`);
+        }
+        if (minutes < 0 || minutes > 59) {
+          throw new Error(`Invalid --minutes: ${minutes}. Must be 0-59.`);
+        }
+
         const booking = await client.bookings.create({
           calendarId: opts.calendar,
           resource: {
@@ -97,15 +108,15 @@ export function registerBookingsCommand(parent: Command): void {
           },
           slot: {
             date: opts.date,
-            hour: parseInt(opts.hour, 10),
-            minutes: parseInt(opts.minutes, 10),
+            hour,
+            minutes,
           },
         });
 
         if (outputMode === "json") {
           printJson(booking);
         } else {
-          printDetail(booking as unknown as Record<string, unknown>);
+          printDetail(booking);
         }
       } catch (err) {
         handleError(err, outputMode);
@@ -141,7 +152,7 @@ export function registerBookingsCommand(parent: Command): void {
         if (outputMode === "json") {
           printJson(result);
         } else {
-          printTable(result.data as unknown as Record<string, unknown>[], [
+          printTable(result.data, [
             { header: "ID", key: "id" },
             { header: "CALENDAR", key: "calendarId" },
             { header: "DATE", key: "slot.date" },

@@ -2,7 +2,7 @@ export function printJson(data: unknown): void {
   console.log(JSON.stringify(data, null, 2));
 }
 
-function getNestedValue(obj: Record<string, unknown>, dotPath: string): unknown {
+function getNestedValue(obj: object, dotPath: string): unknown {
   let current: unknown = obj;
   for (const key of dotPath.split(".")) {
     if (current === null || current === undefined) return undefined;
@@ -16,10 +16,7 @@ export interface Column {
   key: string;
 }
 
-export function printTable(
-  rows: Record<string, unknown>[],
-  columns: Column[],
-): void {
+export function printTable(rows: object[], columns: Column[]): void {
   if (rows.length === 0) {
     console.log("No results found.");
     return;
@@ -50,17 +47,23 @@ export function printTable(
   }
 }
 
-export function printDetail(obj: Record<string, unknown>): void {
+export function printDetail(obj: object): void {
   const entries = Object.entries(obj);
   if (entries.length === 0) return;
 
   const maxKeyLen = Math.max(...entries.map(([k]) => k.length));
 
   for (const [key, value] of entries) {
-    const displayValue =
-      typeof value === "object" && value !== null
-        ? JSON.stringify(value)
-        : String(value ?? "");
+    let displayValue: string;
+    if (typeof value === "object" && value !== null) {
+      try {
+        displayValue = JSON.stringify(value);
+      } catch {
+        displayValue = "[Circular]";
+      }
+    } else {
+      displayValue = String(value ?? "");
+    }
     console.log(`${key.padEnd(maxKeyLen)}  ${displayValue}`);
   }
 }

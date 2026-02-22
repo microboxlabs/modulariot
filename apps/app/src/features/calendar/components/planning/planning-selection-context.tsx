@@ -19,8 +19,11 @@ import {
   deactivateCalendarTimeWindow,
   createBooking,
   cancelBooking,
+  listBookings,
 } from "@/features/common/providers/client-api.provider";
+import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
+import { ShowNotification } from "@/features/notifications/notification";
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
@@ -625,9 +628,46 @@ interface PlanningSelectionContextType {
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
+  /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
+  bookingsLoadError: string | null;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
+
+/**
+ * Zod schema for data stored inside booking.resource.data.
+ * All SelectedService fields are optional (defaults are applied on merge).
+ * _anden is stored here because SlotData has no anden field.
+ */
+const StoredServiceSchema = z
+  .object({
+    origen: z.string().optional(),
+    lugarCarguio: z.string().optional(),
+    destino: z.string().optional(),
+    tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
+    ocupacion: z.number().optional(),
+    permanencia: z.string().optional(),
+    leadTime: z
+      .object({
+        total_lineasoc_cumplen: z.number(),
+        total_lineasoc_incumplen: z.number(),
+        lineasoc_pctn_cumplimiento: z.number(),
+      })
+      .optional(),
+    eta: z.string().optional(),
+    incidencias: z.array(z.string()).optional(),
+    mintral_incidents: z.array(z.tuple([z.string(), z.string()])).optional(),
+    observaciones: z.string().optional(),
+    prioridad: z.number().optional(),
+    cm_created: z.string().optional(),
+    loadConstraint: z.string().optional(),
+    loadMaxUtilization: z.number().optional(),
+    loadWeightUtilization: z.number().optional(),
+    loadPalletUtilization: z.number().optional(),
+    loadVolumeUtilization: z.number().optional(),
+    _anden: z.number().optional(),
+  })
+  .optional();
 
 const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
@@ -674,6 +714,7 @@ export function PlanningSelectionProvider({
   const [bookingIds, setBookingIds] = useState<Map<string, string>>(
     new Map()
   ); // Map of service.id -> booking.id from calendar backend
+  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
 
   // Load time windows from the miot-calendar-client backend
   const {
@@ -701,6 +742,80 @@ export function PlanningSelectionProvider({
       setTimeSlots([]);
     }
   }, [apiTimeWindows, timeSlotsError]);
+
+  // Load existing bookings from the backend when a calendar is selected.
+  // An AbortController cancels the in-flight request when calendarId changes
+  // or the component unmounts, preventing stale responses from overwriting state.
+  useEffect(() => {
+    if (!calendarId) return;
+
+    const controller = new AbortController();
+
+    listBookings({ calendarId }, controller.signal).then((result) => {
+      // Discard the response if the effect was cleaned up before it resolved.
+      if (controller.signal.aborted) return;
+
+      const loaded: PlannedService[] = [];
+      const ids = new Map<string, string>();
+
+      for (const booking of result.data) {
+        // Skip entries whose slot is missing — nothing to place on the grid.
+        if (!booking.slot) continue;
+
+        // Validate stored payload; malformed shapes are silently dropped.
+        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
+        const stored = storedParse.success ? storedParse.data : undefined;
+        // Keep _anden separate so it is not spread into SelectedService.
+        const { _anden, ...storedService } = stored ?? {};
+
+        const service: SelectedService = {
+          origen: "",
+          lugarCarguio: "",
+          destino: "",
+          tipoViaje: "Sider",
+          ocupacion: 0,
+          permanencia: "",
+          leadTime: {
+            total_lineasoc_cumplen: 0,
+            total_lineasoc_incumplen: 0,
+            lineasoc_pctn_cumplimiento: 0,
+          },
+          eta: "",
+          incidencias: [],
+          observaciones: "",
+          prioridad: 0,
+          ...storedService,
+          // Canonical booking fields always win over stored data
+          id: booking.resource.id,
+          cliente: booking.resource.label ?? booking.resource.id,
+        };
+
+        loaded.push({
+          service,
+          slot: {
+            date: new Date(booking.slot.date),
+            hour: booking.slot.hour,
+            minutes: booking.slot.minutes,
+            ...(_anden === undefined ? {} : { anden: _anden }),
+          },
+        });
+        ids.set(booking.resource.id, booking.id);
+      }
+
+      setPlannedServices(loaded);
+      setBookingIds(ids);
+      setBookingsLoadError(null);
+    }).catch((err) => {
+      if (controller.signal.aborted) return;
+      const message = "No se pudieron cargar las reservas existentes del calendario.";
+      setBookingsLoadError(message);
+      ShowNotification({ type: "error", message });
+    });
+
+    return () => {
+      controller.abort();
+    };
+  }, [calendarId]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -1029,81 +1144,84 @@ export function PlanningSelectionProvider({
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
-      if (slotToUse && selectedService) {
-        // Check if slot has room (unless re-planning same service)
-        const existingInSlot = getServicesForSlot(slotToUse);
-        const isReplanning = existingInSlot.some(
-          (ps) => ps.service.id === selectedService.id
-        );
+      if (!slotToUse || !selectedService) return false;
 
-        if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
-          // Slot is full, cannot add more
-          return false;
-        }
+      // Check if slot has room (unless re-planning same service)
+      const existingInSlot = getServicesForSlot(slotToUse);
+      const isReplanning = existingInSlot.some(
+        (ps) => ps.service.id === selectedService.id
+      );
 
-        // Check if this is a reassignment completion
-        const wasReassigning = reassigningService !== null;
-
-        // Create the new planned service with the final slot (including time and andén)
-        const newPlannedService: PlannedService = {
-          service: selectedService,
-          slot: slotToUse,
-        };
-
-        // Update local state
-        setPlannedServices((prev) => {
-          const filtered = prev.filter(
-            (p) => p.service.id !== selectedService.id
-          );
-          return [...filtered, newPlannedService];
-        });
-
-        // Create / reassign booking in the calendar backend
-        if (calendarId) {
-          try {
-            const bookingBody: BookingRequest = {
-              calendarId,
-              resource: {
-                id: selectedService.id,
-                type: "service",
-                label: selectedService.cliente,
-              },
-              slot: {
-                date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
-                hour: slotToUse.hour,
-                minutes: slotToUse.minutes,
-              },
-            };
-
-            // Cancel old booking on reassignment
-            const oldBookingId = bookingIds.get(selectedService.id);
-            if (oldBookingId) {
-              await cancelBooking(oldBookingId).catch((err) =>
-                console.warn("Failed to cancel old booking:", err)
-              );
-            }
-
-            const booking = await createBooking(bookingBody);
-            setBookingIds((prev) => {
-              const next = new Map(prev);
-              next.set(selectedService.id, booking.id);
-              return next;
-            });
-          } catch (err) {
-            console.warn("Failed to create booking:", err);
-          }
-        }
-
-        // Always clear reassigning state after confirmation
-        setReassigningService(null);
-
-        // Clear selection after confirming
-        setSelectedSlot(null);
-        setSelectedService(null);
-
-        return wasReassigning;
+      if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
+        // Slot is full, cannot add more
+        return false;
       }
-      return false;
+
+      // Check if this is a reassignment completion
+      const wasReassigning = reassigningService !== null;
+
+      // Create the new planned service with the final slot (including time and andén)
+      const newPlannedService: PlannedService = {
+        service: selectedService,
+        slot: slotToUse,
+      };
+
+      // Update local state
+      setPlannedServices((prev) => {
+        const filtered = prev.filter(
+          (p) => p.service.id !== selectedService.id
+        );
+        return [...filtered, newPlannedService];
+      });
+
+      // Create / reassign booking in the calendar backend
+      if (calendarId) {
+        try {
+          const bookingBody: BookingRequest = {
+            calendarId,
+            resource: {
+              id: selectedService.id,
+              type: "service",
+              label: selectedService.cliente,
+              data: {
+                ...selectedService,
+                ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
+              },
+            },
+            slot: {
+              date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
+              hour: slotToUse.hour,
+              minutes: slotToUse.minutes,
+            },
+          };
+
+          // Cancel old booking on reassignment
+          const oldBookingId = bookingIds.get(selectedService.id);
+          if (oldBookingId) {
+            await cancelBooking(oldBookingId).catch((err) =>
+              console.warn("Failed to cancel old booking:", err)
+            );
+          }
+
+          const booking = await createBooking(bookingBody);
+          setBookingIds((prev) => {
+            const next = new Map(prev);
+            next.set(selectedService.id, booking.id);
+            return next;
+          });
+        } catch (err) {
+          console.warn("Failed to create booking:", err);
+        }
+      }
+
+      // Always clear reassigning state after confirmation
+      setReassigningService(null);
+
+      // Clear selection after confirming
+      setSelectedSlot(null);
+      setSelectedService(null);
+
+      return wasReassigning;
     },
     [
       selectedSlot,
@@ -1224,6 +1342,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     }),
     [
       selectedSlot,
@@ -1257,6 +1376,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     ]
   );
 

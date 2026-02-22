@@ -8,6 +8,7 @@
 - [calendar create](#miot-calendar-create)
 - [calendar update](#miot-calendar-update)
 - [calendar deactivate](#miot-calendar-deactivate)
+- [calendar purge](#miot-calendar-purge)
 - [slots list](#miot-calendar-slots-list)
 - [slots get](#miot-calendar-slots-get)
 - [slots generate](#miot-calendar-slots-generate)
@@ -67,7 +68,8 @@ List all calendars.
     "code": "vehicle-inspection",
     "name": "Vehicle Inspection",
     "timezone": "America/New_York",
-    "active": true
+    "active": true,
+    "hasSlotManager": true
   }
 ]
 ```
@@ -88,7 +90,8 @@ Get a single calendar by ID.
   "code": "vehicle-inspection",
   "name": "Vehicle Inspection",
   "timezone": "America/New_York",
-  "active": true
+  "active": true,
+  "hasSlotManager": true
 }
 ```
 
@@ -104,8 +107,9 @@ Create a new calendar.
 | `--name <name>` | string | yes | Calendar name |
 | `--timezone <tz>` | string | no | Timezone |
 | `--description <desc>` | string | no | Description |
+| `--no-auto-slot-manager` | boolean | no | Skip auto-provisioning a default SlotManager on creation |
 
-**JSON output:** Same shape as `calendar get`.
+**JSON output:** Same shape as `calendar get`. When `--no-auto-slot-manager` is passed, `hasSlotManager` will be `false`.
 
 ---
 
@@ -131,6 +135,20 @@ Update an existing calendar.
 `miot calendar deactivate <id>`
 
 Deactivate a calendar.
+
+**JSON output:**
+
+```json
+{ "success": true }
+```
+
+---
+
+## miot calendar purge
+
+`miot calendar purge <id>`
+
+**Permanently and irreversibly** delete a calendar and all its associated data: slots, bookings, time windows, and slot manager. This action cannot be undone.
 
 **JSON output:**
 

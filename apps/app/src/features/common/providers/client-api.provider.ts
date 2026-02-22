@@ -1592,10 +1592,8 @@ export async function listBookings(params?: {
   if (params?.startDate) searchParams.set("startDate", params.startDate);
   if (params?.endDate) searchParams.set("endDate", params.endDate);
   const query = searchParams.toString();
-  const response = await fetch(
-    `/app/api/calendar/bookings${query ? `?${query}` : ""}`,
-    { method: "GET" }
-  );
+  const url = query ? `/app/api/calendar/bookings?${query}` : "/app/api/calendar/bookings";
+  const response = await fetch(url, { method: "GET" });
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error ?? "Failed to list bookings");

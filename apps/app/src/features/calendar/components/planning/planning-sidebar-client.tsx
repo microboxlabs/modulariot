@@ -38,29 +38,6 @@ type PlanningSearchMatchType =
   | "permanencia"
   | "tipoViaje";
 
-/**
- * Calculate occupation percentage based on load constraint type.
- * Uses the appropriate utilization value depending on the constraint
- * reported by the backend (descriptiva_utilizacion_maxima):
- * - "VOLUMEN" → mintral_loadVolumeUtilization
- * - "PESO"    → mintral_loadWeightUtilization
- * - "PALLETS" → mintral_loadPalletUtilization
- * - Default: mintral_loadMaxUtilization (overall max)
- */
-function calculateOccupation(task: KanbanBoardTask): number {
-  const constraint = task.mintral_loadConstraint;
-
-  switch (constraint) {
-    case "VOLUMEN":
-      return task.mintral_loadVolumeUtilization ?? 0;
-    case "PESO":
-      return task.mintral_loadWeightUtilization ?? 0;
-    case "PALLETS":
-      return task.mintral_loadPalletUtilization ?? 0;
-    default:
-      return task.mintral_loadMaxUtilization ?? 0;
-  }
-}
 
 /**
  * Determine trip type from serviceKind or executionType
@@ -145,7 +122,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
-    ocupacion: calculateOccupation(task),
+    ocupacion: task.mintral_loadMaxUtilization ?? 0,
     permanencia,
     leadTime: {
       total_lineasoc_cumplen: task.mintral_compliantOrderLines ?? 0,

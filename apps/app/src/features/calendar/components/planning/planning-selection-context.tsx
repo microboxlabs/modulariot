@@ -807,6 +807,7 @@ export function PlanningSelectionProvider({
       setBookingsLoadError(null);
     }).catch((err) => {
       if (controller.signal.aborted) return;
+      if (err instanceof Error && err.name === "AbortError") return;
       const message = "No se pudieron cargar las reservas existentes del calendario.";
       setBookingsLoadError(message);
       ShowNotification({ type: "error", message });

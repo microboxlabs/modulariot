@@ -1,4 +1,5 @@
 "use client";
+import { z } from "zod";
 import useSWR from "swr";
 import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
@@ -54,6 +55,7 @@ import type {
   TimeWindowRequest,
   BookingRequest,
   BookingResponse,
+  BookingListResponse,
 } from "@microboxlabs/miot-calendar-client";
 
 
@@ -1576,4 +1578,49 @@ export async function cancelBooking(bookingId: string): Promise<void> {
     const err = await response.json();
     throw new Error(err.error ?? "Failed to cancel booking");
   }
+}
+
+const BookingListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      calendarId: z.string(),
+      resource: z.object({
+        id: z.string(),
+        type: z.string().optional(),
+        label: z.string().optional(),
+        data: z.record(z.string(), z.unknown()).optional(),
+      }),
+      slot: z.object({
+        date: z.string(),
+        hour: z.number(),
+        minutes: z.number(),
+      }),
+      createdAt: z.string(),
+      createdBy: z.string().optional(),
+    }),
+  ),
+  total: z.number(),
+});
+
+/**
+ * List bookings for a calendar, optionally filtered by date range.
+ */
+export async function listBookings(
+  params?: { calendarId?: string; startDate?: string; endDate?: string },
+  signal?: AbortSignal,
+): Promise<BookingListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
+  if (params?.startDate) searchParams.set("startDate", params.startDate);
+  if (params?.endDate) searchParams.set("endDate", params.endDate);
+  const query = searchParams.toString();
+  const url = query ? `/app/api/calendar/bookings?${query}` : "/app/api/calendar/bookings";
+  const response = await fetch(url, { method: "GET", signal });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to list bookings");
+  }
+  const json = await response.json();
+  return BookingListResponseSchema.parse(json);
 }

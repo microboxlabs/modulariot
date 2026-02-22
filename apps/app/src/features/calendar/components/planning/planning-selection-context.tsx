@@ -1212,6 +1212,11 @@ export function PlanningSelectionProvider({
           });
         } catch (err) {
           console.warn("Failed to create booking:", err);
+          // Rollback local state — the booking was rejected by the backend
+          setPlannedServices((prev) =>
+            prev.filter((p) => p.service.id !== selectedService.id)
+          );
+          throw err;
         }
       }
 

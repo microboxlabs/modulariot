@@ -729,7 +729,7 @@ export function PlanningSelectionProvider({
           incidencias: [],
           observaciones: "",
           prioridad: 0,
-          ...(stored ?? {}),
+          ...stored,
           // Canonical booking fields always win over stored data
           id: booking.resource.id,
           cliente: booking.resource.label ?? booking.resource.id,

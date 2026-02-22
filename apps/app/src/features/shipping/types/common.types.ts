@@ -53,6 +53,9 @@ export type KanbanBoardTask = {
   mintral_loadWeightUtilization?: number;
   mintral_loadPalletUtilization?: number;
   mintral_loadMaxUtilization?: number;
+  mintral_deliveryComplianceRate?: number;
+  mintral_compliantOrderLines?: number;
+  mintral_nonCompliantOrderLines?: number;
 };
 
 export type KanbanBoardTaskMember = {

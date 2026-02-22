@@ -292,19 +292,25 @@ export function PlanningSidebarForm({
 
     const wasReassigning = reassigningService !== null;
     // Pass the final slot directly to confirmService
-    const result = await confirmService(finalSlot);
-    if (wasReassigning || result) {
-      ShowNotification({
-        type: "success",
-        message: "Servicio reasignado exitosamente",
-      });
-    } else {
-      ShowNotification({
-        type: "success",
-        message: "Servicio asignado exitosamente",
-      });
+    try {
+      const result = await confirmService(finalSlot);
+      if (wasReassigning || result) {
+        ShowNotification({
+          type: "success",
+          message: "Servicio reasignado exitosamente",
+        });
+      } else {
+        ShowNotification({
+          type: "success",
+          message: "Servicio asignado exitosamente",
+        });
+      }
+      onSubmit?.({});
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Error al asignar el servicio";
+      ShowNotification({ type: "error", message });
     }
-    onSubmit?.({});
   };
 
   // Check if the selected time has available andenes

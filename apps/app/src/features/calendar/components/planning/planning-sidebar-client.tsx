@@ -14,6 +14,7 @@ import {
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
+  TimeWindowUtils,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -267,13 +268,30 @@ export function PlanningSidebarClient({
     return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
   }, [selectedTimeWindow]);
 
-  // Format the selected slot for display with start and end times
+  // Format the selected slot for display with start and end times.
+  // When a matching time window is available, use its actual boundaries so
+  // that slotStartTime/slotEndTime reflect the window's configured time
+  // (e.g. 08:30) rather than the raw grid-cell click time (e.g. 08:00).
   const formattedSlot = useMemo(() => {
     if (!selectedSlot) return undefined;
-    const startDate = dayjs(selectedSlot.date)
-      .hour(selectedSlot.hour)
-      .minute(selectedSlot.minutes);
-    const endDate = startDate.add(SLOT_DURATION_MINUTES, "minute");
+
+    const windowRange = selectedTimeWindow
+      ? TimeWindowUtils.getTimeRange(selectedTimeWindow)
+      : null;
+
+    const startDate = windowRange
+      ? dayjs(selectedSlot.date)
+          .hour(windowRange.startHour)
+          .minute(windowRange.startMinutes)
+      : dayjs(selectedSlot.date)
+          .hour(selectedSlot.hour)
+          .minute(selectedSlot.minutes);
+
+    const endDate = windowRange
+      ? dayjs(selectedSlot.date)
+          .hour(windowRange.endHour)
+          .minute(windowRange.endMinutes)
+      : startDate.add(SLOT_DURATION_MINUTES, "minute");
 
     const dateStr = formatDateString(startDate.toDate(), "date");
     const startTime = formatDateString(startDate.toDate(), "time");
@@ -285,7 +303,7 @@ export function PlanningSidebarClient({
       endTime,
       full: `${dateStr}, ${startTime} - ${endTime}`,
     };
-  }, [selectedSlot]);
+  }, [selectedSlot, selectedTimeWindow]);
 
   type MatchType =
     | "id"

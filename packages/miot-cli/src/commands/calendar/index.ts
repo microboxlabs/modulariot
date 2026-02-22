@@ -5,6 +5,7 @@ import {
   registerCreateCommand,
   registerUpdateCommand,
   registerDeactivateCommand,
+  registerPurgeCommand,
 } from "./create.js";
 import { registerSlotsCommand } from "./slots.js";
 import { registerBookingsCommand } from "./bookings.js";
@@ -22,6 +23,7 @@ export function registerCalendarCommand(program: Command): void {
   registerCreateCommand(calendar);
   registerUpdateCommand(calendar);
   registerDeactivateCommand(calendar);
+  registerPurgeCommand(calendar);
   registerSlotsCommand(calendar);
   registerBookingsCommand(calendar);
   registerGroupsCommand(calendar);

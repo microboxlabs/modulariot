@@ -1,4 +1,5 @@
 "use client";
+import { z } from "zod";
 import useSWR from "swr";
 import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
@@ -1579,6 +1580,29 @@ export async function cancelBooking(bookingId: string): Promise<void> {
   }
 }
 
+const BookingListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      calendarId: z.string(),
+      resource: z.object({
+        id: z.string(),
+        type: z.string().optional(),
+        label: z.string().optional(),
+        data: z.record(z.string(), z.unknown()).optional(),
+      }),
+      slot: z.object({
+        date: z.string(),
+        hour: z.number(),
+        minutes: z.number(),
+      }),
+      createdAt: z.string(),
+      createdBy: z.string().optional(),
+    }),
+  ),
+  total: z.number(),
+});
+
 /**
  * List bookings for a calendar, optionally filtered by date range.
  */
@@ -1597,5 +1621,6 @@ export async function listBookings(
     const err = await response.json();
     throw new Error(err.error ?? "Failed to list bookings");
   }
-  return response.json();
+  const json = await response.json();
+  return BookingListResponseSchema.parse(json);
 }

@@ -109,7 +109,7 @@ describe("calendar list", () => {
 
   it("should print table output", async () => {
     const mockCalendars = [
-      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true },
+      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true, hasSlotManager: true },
     ];
     const mockClient = {
       calendars: { list: vi.fn().mockResolvedValue(mockCalendars) },
@@ -207,6 +207,87 @@ describe("calendar create", () => {
       timezone: "UTC",
       description: undefined,
     });
+  });
+
+  it("should pass autoSlotManager: false when --no-auto-slot-manager is set", async () => {
+    const mockCalendar = {
+      id: "1",
+      code: "new-cal",
+      name: "New Calendar",
+      timezone: "UTC",
+      active: true,
+    };
+    const mockClient = {
+      calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({
+      client: mockClient as any,
+      outputMode: "json",
+    });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "miot",
+      "calendar",
+      "create",
+      "--code",
+      "new-cal",
+      "--name",
+      "New Calendar",
+      "--no-auto-slot-manager",
+    ]);
+
+    expect(mockClient.calendars.create).toHaveBeenCalledWith({
+      code: "new-cal",
+      name: "New Calendar",
+      timezone: undefined,
+      description: undefined,
+      autoSlotManager: false,
+    });
+  });
+});
+
+describe("calendar purge", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should call calendars.purge and print JSON success", async () => {
+    const mockClient = {
+      calendars: { purge: vi.fn().mockResolvedValue(undefined) },
+    };
+    mockGetActionContext.mockReturnValue({
+      client: mockClient as any,
+      outputMode: "json",
+    });
+
+    const program = createProgram();
+    await program.parseAsync(["node", "miot", "calendar", "purge", "cal-1"]);
+
+    expect(mockClient.calendars.purge).toHaveBeenCalledWith("cal-1");
+    expect(console.log).toHaveBeenCalledWith(
+      JSON.stringify({ success: true }, null, 2),
+    );
+  });
+
+  it("should print success message in table mode", async () => {
+    const mockClient = {
+      calendars: { purge: vi.fn().mockResolvedValue(undefined) },
+    };
+    mockGetActionContext.mockReturnValue({
+      client: mockClient as any,
+      outputMode: "table",
+    });
+
+    const program = createProgram();
+    await program.parseAsync(["node", "miot", "calendar", "purge", "cal-1"]);
+
+    expect(console.log).toHaveBeenCalledWith("Calendar cal-1 permanently deleted.");
   });
 });
 

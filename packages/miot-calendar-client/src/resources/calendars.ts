@@ -30,6 +30,10 @@ export function createCalendarsApi(fetcher: Fetcher) {
       return fetcher("DELETE", `${BASE}/${id}`);
     },
 
+    purge(id: string): Promise<void> {
+      return fetcher("DELETE", `${BASE}/${id}/purge`);
+    },
+
     listTimeWindows(calendarId: string): Promise<TimeWindowResponse[]> {
       return fetcher("GET", `${BASE}/${calendarId}/time-windows`);
     },

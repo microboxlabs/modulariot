@@ -35,6 +35,7 @@ export function registerListCommand(parent: Command): void {
             { header: "NAME", key: "name" },
             { header: "TIMEZONE", key: "timezone" },
             { header: "ACTIVE", key: "active" },
+            { header: "HAS SM", key: "hasSlotManager" },
           ]);
         }
       } catch (err) {

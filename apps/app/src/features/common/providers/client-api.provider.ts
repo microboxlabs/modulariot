@@ -1595,7 +1595,7 @@ const BookingListResponseSchema = z.object({
         date: z.string(),
         hour: z.number(),
         minutes: z.number(),
-      }),
+      }).nullable(),
       createdAt: z.string(),
       createdBy: z.string().optional(),
     }),
@@ -1622,5 +1622,13 @@ export async function listBookings(
     throw new Error(err.error ?? "Failed to list bookings");
   }
   const json = await response.json();
-  return BookingListResponseSchema.parse(json);
+  const parsed = BookingListResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("BookingListResponse validation warning:", parsed.error.issues);
+    if (!Array.isArray((json as BookingListResponse).data)) {
+      throw new TypeError("Invalid booking list response format");
+    }
+    return json as BookingListResponse;
+  }
+  return parsed.data as BookingListResponse;
 }

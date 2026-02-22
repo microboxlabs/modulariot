@@ -116,6 +116,27 @@ describe("calendars", () => {
     });
   });
 
+  describe("purge", () => {
+    it("sends DELETE to calendars/:id/purge", async () => {
+      const { fn, call } = createMockFetch(undefined, 204);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      await client.calendars.purge("cal-1");
+
+      expect(call.init.method).toBe("DELETE");
+      expect(call.url).toBe(`${BASE_URL}${CALENDARS_PATH}/cal-1/purge`);
+    });
+
+    it("returns undefined", async () => {
+      const { fn } = createMockFetch(undefined, 204);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      const result = await client.calendars.purge("cal-1");
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe("deactivate", () => {
     it("sends DELETE to calendars/:id", async () => {
       const { fn, call } = createMockFetch(undefined, 204);

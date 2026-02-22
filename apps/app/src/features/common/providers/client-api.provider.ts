@@ -1582,18 +1582,17 @@ export async function cancelBooking(bookingId: string): Promise<void> {
 /**
  * List bookings for a calendar, optionally filtered by date range.
  */
-export async function listBookings(params?: {
-  calendarId?: string;
-  startDate?: string;
-  endDate?: string;
-}): Promise<BookingListResponse> {
+export async function listBookings(
+  params?: { calendarId?: string; startDate?: string; endDate?: string },
+  signal?: AbortSignal,
+): Promise<BookingListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
   if (params?.startDate) searchParams.set("startDate", params.startDate);
   if (params?.endDate) searchParams.set("endDate", params.endDate);
   const query = searchParams.toString();
   const url = query ? `/app/api/calendar/bookings?${query}` : "/app/api/calendar/bookings";
-  const response = await fetch(url, { method: "GET" });
+  const response = await fetch(url, { method: "GET", signal });
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error ?? "Failed to list bookings");

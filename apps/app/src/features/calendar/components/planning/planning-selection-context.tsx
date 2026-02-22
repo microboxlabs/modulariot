@@ -703,11 +703,18 @@ export function PlanningSelectionProvider({
     }
   }, [apiTimeWindows, timeSlotsError]);
 
-  // Load existing bookings from the backend when a calendar is selected
+  // Load existing bookings from the backend when a calendar is selected.
+  // An AbortController cancels the in-flight request when calendarId changes
+  // or the component unmounts, preventing stale responses from overwriting state.
   useEffect(() => {
     if (!calendarId) return;
 
-    listBookings({ calendarId }).then((result) => {
+    const controller = new AbortController();
+
+    listBookings({ calendarId }, controller.signal).then((result) => {
+      // Discard the response if the effect was cleaned up before it resolved.
+      if (controller.signal.aborted) return;
+
       const loaded: PlannedService[] = [];
       const ids = new Map<string, string>();
 
@@ -749,8 +756,13 @@ export function PlanningSelectionProvider({
       setPlannedServices(loaded);
       setBookingIds(ids);
     }).catch((err) => {
+      if (controller.signal.aborted) return;
       console.warn("Failed to load existing bookings:", err);
     });
+
+    return () => {
+      controller.abort();
+    };
   }, [calendarId]);
 
   // Derived arrays from unified state (memoized for performance)

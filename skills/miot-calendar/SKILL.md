@@ -89,6 +89,26 @@ miot calendar slot-managers run --output json
 
 Run a specific one: `miot calendar slot-managers run <managerId> --output json`
 
+### "Permanently delete calendar X"
+
+> ⚠️ This is irreversible. All slots, bookings, time windows, and the slot manager are deleted.
+
+1. Confirm the user's intent before proceeding.
+2. Purge the calendar:
+   ```
+   miot calendar purge <id> --output json
+   ```
+
+### "Create a calendar without a SlotManager"
+
+Pass `--no-auto-slot-manager` to skip automatic SlotManager provisioning:
+
+```
+miot calendar create --code <code> --name <name> --no-auto-slot-manager --output json
+```
+
+The response will have `hasSlotManager: false`. A SlotManager can be added later via `miot calendar slot-managers create`.
+
 ### "Show me the calendar setup"
 
 1. `miot calendar get <id> --output json`
@@ -115,6 +135,8 @@ Explain the error in plain language to the user.
 - Slot status: `OPEN` or `CLOSED`.
 - Booking requires an OPEN slot with `availableCapacity > 0`.
 - Hour: 0–23, Minutes: 0–59.
+- `calendar purge` is **irreversible** — deletes the calendar and all its slots, bookings, time windows, and slot manager. Always confirm with the user before running.
+- `hasSlotManager` on a calendar response indicates whether a SlotManager is provisioned. Use `--no-auto-slot-manager` on `calendar create` to suppress auto-provisioning.
 
 ## Full CLI Reference
 

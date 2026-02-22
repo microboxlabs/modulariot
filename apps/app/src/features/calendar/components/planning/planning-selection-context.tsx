@@ -796,7 +796,7 @@ export function PlanningSelectionProvider({
             date: new Date(booking.slot.date),
             hour: booking.slot.hour,
             minutes: booking.slot.minutes,
-            ...(_anden !== undefined ? { anden: _anden } : {}),
+            ...(_anden === undefined ? {} : { anden: _anden }),
           },
         });
         ids.set(booking.resource.id, booking.id);
@@ -1144,85 +1144,84 @@ export function PlanningSelectionProvider({
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
-      if (slotToUse && selectedService) {
-        // Check if slot has room (unless re-planning same service)
-        const existingInSlot = getServicesForSlot(slotToUse);
-        const isReplanning = existingInSlot.some(
-          (ps) => ps.service.id === selectedService.id
-        );
+      if (!slotToUse || !selectedService) return false;
 
-        if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
-          // Slot is full, cannot add more
-          return false;
-        }
+      // Check if slot has room (unless re-planning same service)
+      const existingInSlot = getServicesForSlot(slotToUse);
+      const isReplanning = existingInSlot.some(
+        (ps) => ps.service.id === selectedService.id
+      );
 
-        // Check if this is a reassignment completion
-        const wasReassigning = reassigningService !== null;
-
-        // Create the new planned service with the final slot (including time and andén)
-        const newPlannedService: PlannedService = {
-          service: selectedService,
-          slot: slotToUse,
-        };
-
-        // Update local state
-        setPlannedServices((prev) => {
-          const filtered = prev.filter(
-            (p) => p.service.id !== selectedService.id
-          );
-          return [...filtered, newPlannedService];
-        });
-
-        // Create / reassign booking in the calendar backend
-        if (calendarId) {
-          try {
-            const bookingBody: BookingRequest = {
-              calendarId,
-              resource: {
-                id: selectedService.id,
-                type: "service",
-                label: selectedService.cliente,
-                data: {
-                  ...selectedService,
-                  ...(slotToUse.anden !== undefined ? { _anden: slotToUse.anden } : {}),
-                },
-              },
-              slot: {
-                date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
-                hour: slotToUse.hour,
-                minutes: slotToUse.minutes,
-              },
-            };
-
-            // Cancel old booking on reassignment
-            const oldBookingId = bookingIds.get(selectedService.id);
-            if (oldBookingId) {
-              await cancelBooking(oldBookingId).catch((err) =>
-                console.warn("Failed to cancel old booking:", err)
-              );
-            }
-
-            const booking = await createBooking(bookingBody);
-            setBookingIds((prev) => {
-              const next = new Map(prev);
-              next.set(selectedService.id, booking.id);
-              return next;
-            });
-          } catch (err) {
-            console.warn("Failed to create booking:", err);
-          }
-        }
-
-        // Always clear reassigning state after confirmation
-        setReassigningService(null);
-
-        // Clear selection after confirming
-        setSelectedSlot(null);
-        setSelectedService(null);
-
-        return wasReassigning;
+      if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
+        // Slot is full, cannot add more
+        return false;
       }
-      return false;
+
+      // Check if this is a reassignment completion
+      const wasReassigning = reassigningService !== null;
+
+      // Create the new planned service with the final slot (including time and andén)
+      const newPlannedService: PlannedService = {
+        service: selectedService,
+        slot: slotToUse,
+      };
+
+      // Update local state
+      setPlannedServices((prev) => {
+        const filtered = prev.filter(
+          (p) => p.service.id !== selectedService.id
+        );
+        return [...filtered, newPlannedService];
+      });
+
+      // Create / reassign booking in the calendar backend
+      if (calendarId) {
+        try {
+          const bookingBody: BookingRequest = {
+            calendarId,
+            resource: {
+              id: selectedService.id,
+              type: "service",
+              label: selectedService.cliente,
+              data: {
+                ...selectedService,
+                ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
+              },
+            },
+            slot: {
+              date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
+              hour: slotToUse.hour,
+              minutes: slotToUse.minutes,
+            },
+          };
+
+          // Cancel old booking on reassignment
+          const oldBookingId = bookingIds.get(selectedService.id);
+          if (oldBookingId) {
+            await cancelBooking(oldBookingId).catch((err) =>
+              console.warn("Failed to cancel old booking:", err)
+            );
+          }
+
+          const booking = await createBooking(bookingBody);
+          setBookingIds((prev) => {
+            const next = new Map(prev);
+            next.set(selectedService.id, booking.id);
+            return next;
+          });
+        } catch (err) {
+          console.warn("Failed to create booking:", err);
+        }
+      }
+
+      // Always clear reassigning state after confirmation
+      setReassigningService(null);
+
+      // Clear selection after confirming
+      setSelectedSlot(null);
+      setSelectedService(null);
+
+      return wasReassigning;
     },
     [
       selectedSlot,

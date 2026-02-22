@@ -19,6 +19,7 @@ import {
   deactivateCalendarTimeWindow,
   createBooking,
   cancelBooking,
+  listBookings,
 } from "@/features/common/providers/client-api.provider";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import {
@@ -702,6 +703,56 @@ export function PlanningSelectionProvider({
     }
   }, [apiTimeWindows, timeSlotsError]);
 
+  // Load existing bookings from the backend when a calendar is selected
+  useEffect(() => {
+    if (!calendarId) return;
+
+    listBookings({ calendarId }).then((result) => {
+      const loaded: PlannedService[] = [];
+      const ids = new Map<string, string>();
+
+      for (const booking of result.data) {
+        const stored = booking.resource.data as Partial<SelectedService> | undefined;
+        const service: SelectedService = {
+          origen: "",
+          lugarCarguio: "",
+          destino: "",
+          tipoViaje: "Sider",
+          ocupacion: 0,
+          permanencia: "",
+          leadTime: {
+            total_lineasoc_cumplen: 0,
+            total_lineasoc_incumplen: 0,
+            lineasoc_pctn_cumplimiento: 0,
+          },
+          eta: "",
+          incidencias: [],
+          observaciones: "",
+          prioridad: 0,
+          ...(stored ?? {}),
+          // Canonical booking fields always win over stored data
+          id: booking.resource.id,
+          cliente: booking.resource.label ?? booking.resource.id,
+        };
+
+        loaded.push({
+          service,
+          slot: {
+            date: new Date(booking.slot.date),
+            hour: booking.slot.hour,
+            minutes: booking.slot.minutes,
+          },
+        });
+        ids.set(booking.resource.id, booking.id);
+      }
+
+      setPlannedServices(loaded);
+      setBookingIds(ids);
+    }).catch((err) => {
+      console.warn("Failed to load existing bookings:", err);
+    });
+  }, [calendarId]);
+
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
     () => timeSlots.filter(isTimeWindow),
@@ -1067,6 +1118,7 @@ export function PlanningSelectionProvider({
                 id: selectedService.id,
                 type: "service",
                 label: selectedService.cliente,
+                data: selectedService as unknown as Record<string, unknown>,
               },
               slot: {
                 date: dayjs(slotToUse.date).format("YYYY-MM-DD"),

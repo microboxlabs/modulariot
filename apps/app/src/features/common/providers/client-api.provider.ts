@@ -54,6 +54,7 @@ import type {
   TimeWindowRequest,
   BookingRequest,
   BookingResponse,
+  BookingListResponse,
 } from "@microboxlabs/miot-calendar-client";
 
 
@@ -1576,4 +1577,28 @@ export async function cancelBooking(bookingId: string): Promise<void> {
     const err = await response.json();
     throw new Error(err.error ?? "Failed to cancel booking");
   }
+}
+
+/**
+ * List bookings for a calendar, optionally filtered by date range.
+ */
+export async function listBookings(params?: {
+  calendarId?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<BookingListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
+  if (params?.startDate) searchParams.set("startDate", params.startDate);
+  if (params?.endDate) searchParams.set("endDate", params.endDate);
+  const query = searchParams.toString();
+  const response = await fetch(
+    `/app/api/calendar/bookings${query ? `?${query}` : ""}`,
+    { method: "GET" }
+  );
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to list bookings");
+  }
+  return response.json();
 }

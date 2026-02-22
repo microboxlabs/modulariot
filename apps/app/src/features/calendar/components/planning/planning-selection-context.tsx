@@ -23,6 +23,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
+import { ShowNotification } from "@/features/notifications/notification";
 import {
   apiToLocalTimeWindow,
   localToApiTimeWindow,
@@ -627,6 +628,8 @@ interface PlanningSelectionContextType {
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
+  /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
+  bookingsLoadError: string | null;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
@@ -711,6 +714,7 @@ export function PlanningSelectionProvider({
   const [bookingIds, setBookingIds] = useState<Map<string, string>>(
     new Map()
   ); // Map of service.id -> booking.id from calendar backend
+  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
 
   // Load time windows from the miot-calendar-client backend
   const {
@@ -800,9 +804,12 @@ export function PlanningSelectionProvider({
 
       setPlannedServices(loaded);
       setBookingIds(ids);
+      setBookingsLoadError(null);
     }).catch((err) => {
       if (controller.signal.aborted) return;
-      console.warn("Failed to load existing bookings:", err);
+      const message = "No se pudieron cargar las reservas existentes del calendario.";
+      setBookingsLoadError(message);
+      ShowNotification({ type: "error", message });
     });
 
     return () => {
@@ -1336,6 +1343,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     }),
     [
       selectedSlot,
@@ -1369,6 +1377,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     ]
   );
 

@@ -1,12 +1,14 @@
 ---
 name: api-client-sync
 description: >
-  Sync a hand-authored TypeScript API client package with a changed OpenAPI spec.
-  Use when the user says the openapi.json has changed and needs to be reflected in the
-  client SDK — updating types, adding resource methods, writing tests, bumping the
-  version, and committing. Triggers on phrases like "update the client from the new
-  openapi", "sync the client with the API spec", "implement the api changes in the
-  client", or "the openapi.json changed, update the client package".
+  Propagate OpenAPI spec changes through all three layers: (1) the hand-authored TypeScript
+  client package — types, resource methods, tests, version bump; (2) the CLI package —
+  commands, flags, table columns, tests, version bump; (3) the agent skill — SKILL.md
+  workflows, business rules, and reference.md sections. Use when the user says the
+  openapi.json has changed and needs to be reflected end-to-end. Triggers on phrases like
+  "update the client from the new openapi", "sync the client with the API spec", "implement
+  the api changes in the client", "the openapi.json changed, update the client package",
+  "propagate the API changes", or "update all layers from the spec".
 ---
 
 # API Client Sync
@@ -102,9 +104,30 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 | Only new optional fields on existing interfaces | patch |
 | Removed or renamed anything | major — confirm with user first |
 
+## Step 7: CLI support
+
+Check if a CLI package (e.g. `miot-cli`) consumes this client. Read `references/cli-conventions.md` for the exact file layout, handler pattern, and test structure, then:
+
+- For each new endpoint → add a new command in the appropriate `commands/<resource>/` file and register it in `index.ts`.
+- For each new optional request field → add a `--flag` (or `--no-flag` for booleans) to the relevant command.
+- For each new response field that should appear in list output → add a table column to the list command.
+- Run tests: `npm run test --workspace=packages/miot-cli`
+- Bump version: **minor** if a new command was added; **patch** if only a flag or column was added.
+
+## Step 8: Agent skill update
+
+Read `references/skill-update.md` for templates and commit conventions, then update the `miot-calendar` skill (or whichever skill wraps this API):
+
+- For each new endpoint → add a workflow to `SKILL.md` under `## Common Workflows`.
+- For each irreversible or constrained operation → add a business rule to `SKILL.md` under `## Business Rules`.
+- Update `references/reference.md`: add the new command to the TOC, add its full section (flag table + JSON output example).
+
+Skills are committed directly to `trunk` — no npm version bump required.
+
 ## Key rules
 
 - **Never auto-generate types.** This package is hand-authored — preserve the same style and conventions.
 - Optional fields (`?`) for anything not in the OpenAPI schema's `required` array.
 - `void` return type for 204 No Content responses.
 - A new endpoint always produces a new method. A new field never produces a new method.
+- **A new endpoint propagates through all three layers** (client → CLI → agent skill).

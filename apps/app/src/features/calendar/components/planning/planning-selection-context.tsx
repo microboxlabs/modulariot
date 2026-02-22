@@ -1183,7 +1183,7 @@ export function PlanningSelectionProvider({
                 type: "service",
                 label: selectedService.cliente,
                 data: {
-                  ...(selectedService as unknown as Record<string, unknown>),
+                  ...selectedService,
                   ...(slotToUse.anden !== undefined ? { _anden: slotToUse.anden } : {}),
                 },
               },

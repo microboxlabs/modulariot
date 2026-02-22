@@ -11,6 +11,7 @@ export function registerCreateCommand(parent: Command): void {
     .requiredOption("--name <name>", "Calendar name")
     .option("--timezone <tz>", "Timezone")
     .option("--description <desc>", "Description")
+    .option("--no-auto-slot-manager", "Skip auto-provisioning a default SlotManager on creation")
     .action(async (_opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
       try {
@@ -19,6 +20,7 @@ export function registerCreateCommand(parent: Command): void {
           name: string;
           timezone?: string;
           description?: string;
+          autoSlotManager: boolean;
         };
 
         const calendar = await client.calendars.create({
@@ -26,6 +28,7 @@ export function registerCreateCommand(parent: Command): void {
           name: opts.name,
           timezone: opts.timezone,
           description: opts.description,
+          ...(opts.autoSlotManager === false && { autoSlotManager: false }),
         });
 
         if (outputMode === "json") {
@@ -92,6 +95,26 @@ export function registerDeactivateCommand(parent: Command): void {
           printJson({ success: true });
         } else {
           printSuccess(`Calendar ${id} deactivated.`);
+        }
+      } catch (err) {
+        handleError(err, outputMode);
+      }
+    });
+}
+
+export function registerPurgeCommand(parent: Command): void {
+  parent
+    .command("purge <id>")
+    .description("Permanently delete a calendar and all its data (slots, bookings, time windows, slot manager)")
+    .action(async (id: string, _opts, cmd) => {
+      const { client, outputMode } = getActionContext(cmd);
+      try {
+        await client.calendars.purge(id);
+
+        if (outputMode === "json") {
+          printJson({ success: true });
+        } else {
+          printSuccess(`Calendar ${id} permanently deleted.`);
         }
       } catch (err) {
         handleError(err, outputMode);

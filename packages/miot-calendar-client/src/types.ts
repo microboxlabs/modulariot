@@ -67,6 +67,7 @@ export interface CalendarRequest {
   timezone?: string;
   active?: boolean;
   groups?: string[];
+  autoSlotManager?: boolean;
 }
 
 export interface CalendarResponse {
@@ -79,6 +80,7 @@ export interface CalendarResponse {
   createdAt: string;
   updatedAt: string;
   groups?: CalendarGroupResponse[];
+  hasSlotManager?: boolean;
 }
 
 // --- Time Windows ---

@@ -1626,7 +1626,7 @@ export async function listBookings(
   if (!parsed.success) {
     console.error("BookingListResponse validation warning:", parsed.error.issues);
     if (!Array.isArray((json as BookingListResponse).data)) {
-      throw new Error("Invalid booking list response format");
+      throw new TypeError("Invalid booking list response format");
     }
     return json as BookingListResponse;
   }

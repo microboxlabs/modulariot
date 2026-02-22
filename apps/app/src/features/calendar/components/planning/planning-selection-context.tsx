@@ -21,6 +21,7 @@ import {
   cancelBooking,
   listBookings,
 } from "@/features/common/providers/client-api.provider";
+import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import {
   apiToLocalTimeWindow,
@@ -630,6 +631,41 @@ interface PlanningSelectionContextType {
 
 const MAX_SERVICES_PER_SLOT = 99;
 
+/**
+ * Zod schema for data stored inside booking.resource.data.
+ * All SelectedService fields are optional (defaults are applied on merge).
+ * _anden is stored here because SlotData has no anden field.
+ */
+const StoredServiceSchema = z
+  .object({
+    origen: z.string().optional(),
+    lugarCarguio: z.string().optional(),
+    destino: z.string().optional(),
+    tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
+    ocupacion: z.number().optional(),
+    permanencia: z.string().optional(),
+    leadTime: z
+      .object({
+        total_lineasoc_cumplen: z.number(),
+        total_lineasoc_incumplen: z.number(),
+        lineasoc_pctn_cumplimiento: z.number(),
+      })
+      .optional(),
+    eta: z.string().optional(),
+    incidencias: z.array(z.string()).optional(),
+    mintral_incidents: z.array(z.tuple([z.string(), z.string()])).optional(),
+    observaciones: z.string().optional(),
+    prioridad: z.number().optional(),
+    cm_created: z.string().optional(),
+    loadConstraint: z.string().optional(),
+    loadMaxUtilization: z.number().optional(),
+    loadWeightUtilization: z.number().optional(),
+    loadPalletUtilization: z.number().optional(),
+    loadVolumeUtilization: z.number().optional(),
+    _anden: z.number().optional(),
+  })
+  .optional();
+
 const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
 
@@ -719,7 +755,15 @@ export function PlanningSelectionProvider({
       const ids = new Map<string, string>();
 
       for (const booking of result.data) {
-        const stored = booking.resource.data as Partial<SelectedService> | undefined;
+        // Skip entries whose slot is missing — nothing to place on the grid.
+        if (!booking.slot) continue;
+
+        // Validate stored payload; malformed shapes are silently dropped.
+        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
+        const stored = storedParse.success ? storedParse.data : undefined;
+        // Keep _anden separate so it is not spread into SelectedService.
+        const { _anden, ...storedService } = stored ?? {};
+
         const service: SelectedService = {
           origen: "",
           lugarCarguio: "",
@@ -736,7 +780,7 @@ export function PlanningSelectionProvider({
           incidencias: [],
           observaciones: "",
           prioridad: 0,
-          ...stored,
+          ...storedService,
           // Canonical booking fields always win over stored data
           id: booking.resource.id,
           cliente: booking.resource.label ?? booking.resource.id,
@@ -748,6 +792,7 @@ export function PlanningSelectionProvider({
             date: new Date(booking.slot.date),
             hour: booking.slot.hour,
             minutes: booking.slot.minutes,
+            ...(_anden !== undefined ? { anden: _anden } : {}),
           },
         });
         ids.set(booking.resource.id, booking.id);
@@ -1130,7 +1175,10 @@ export function PlanningSelectionProvider({
                 id: selectedService.id,
                 type: "service",
                 label: selectedService.cliente,
-                data: selectedService as unknown as Record<string, unknown>,
+                data: {
+                  ...(selectedService as unknown as Record<string, unknown>),
+                  ...(slotToUse.anden !== undefined ? { _anden: slotToUse.anden } : {}),
+                },
               },
               slot: {
                 date: dayjs(slotToUse.date).format("YYYY-MM-DD"),

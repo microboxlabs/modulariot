@@ -7,28 +7,13 @@ export interface ActionContext {
   outputMode: OutputMode;
 }
 
-function collectGlobalOpts(cmd: Command): Record<string, unknown> {
-  let current: Command | null = cmd;
-  const merged: Record<string, unknown> = {};
-  while (current) {
-    const localOpts = current.opts();
-    for (const [key, value] of Object.entries(localOpts)) {
-      if (!(key in merged)) {
-        merged[key] = value;
-      }
-    }
-    current = current.parent;
-  }
-  return merged;
-}
-
 export function getActionContext(cmd: Command): ActionContext {
-  const globals = collectGlobalOpts(cmd) as {
+  const globals = cmd.optsWithGlobals<{
     baseUrl?: string;
     token?: string;
     profile?: string;
     output?: string;
-  };
+  }>();
 
   const config = resolveConfig(globals);
   const client = createClient(config);

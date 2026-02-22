@@ -8,24 +8,21 @@ Build an open Agent Skill (agentskills.io specification) that teaches any AI age
 
 ```bash
 # Install on any of 40+ supported platforms
-npx skills add microboxlabs/miot-cli
+npx skills add microboxlabs/modulariot --skill miot-calendar
 
 # Works on: Claude Code, Cursor, GitHub Copilot, Windsurf, Gemini CLI, Cline, etc.
 ```
 
 ## Skill Location
 
-The skill lives inside the miot-cli package repository so it ships alongside the CLI:
+Skills live at the monorepo root so they are discoverable via the standard `npx skills add <owner>/<repo>` convention:
 
 ```
-packages/miot-cli/
-├── src/                          # CLI source (Phase 1)
-├── skills/
-│   └── miot-calendar/
-│       ├── SKILL.md              # Core skill definition
-│       └── reference.md          # Full API reference (loaded on demand)
-├── package.json
-└── ...
+skills/
+└── miot-calendar/
+    ├── SKILL.md                  # Core skill definition
+    └── references/
+        └── reference.md          # Full API reference (loaded on demand)
 ```
 
 ## SKILL.md Design
@@ -164,7 +161,7 @@ Agent parses JSON → presents formatted answer to user
 
 ### Step 3: Test with Claude Code
 
-- Install locally: `npx skills add ./packages/miot-cli`
+- Install locally: `npx skills add . --skill miot-calendar`
 - Verify skill triggers on relevant queries
 - Test each workflow recipe end-to-end
 - Verify progressive disclosure works (metadata → instructions → reference)
@@ -176,6 +173,6 @@ Agent parses JSON → presents formatted answer to user
 
 ### Step 5: Publish
 
-- Push to GitHub (skills/ directory in the miot-cli package)
+- Push to GitHub (skills/ directory at monorepo root)
 - Appears on skills.sh automatically
-- Users install: `npx skills add microboxlabs/miot-cli`
+- Users install: `npx skills add microboxlabs/modulariot --skill miot-calendar`

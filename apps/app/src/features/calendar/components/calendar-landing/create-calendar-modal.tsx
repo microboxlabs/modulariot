@@ -75,6 +75,7 @@ export function CreateCalendarModal({
         timezone: (formValues.timezone as string) || "UTC",
         active: (formValues.active as boolean) ?? true,
         groups: selectedGroupCode ? [selectedGroupCode] : [],
+        autoSlotManager: true,
       };
 
       const calendar = await createCalendar(body);

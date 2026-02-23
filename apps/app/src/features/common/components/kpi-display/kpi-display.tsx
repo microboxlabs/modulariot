@@ -149,7 +149,7 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             Lead Time
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            ({totalLines} OC)
+            ({totalLines} LOC)
           </span>
         </div>
         {/* Column 2: Progress bar + percentage + metadata */}
@@ -194,7 +194,7 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             Lead Time
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            ({totalLines} líneas OC)
+            ({totalLines} líneas LOC)
           </span>
         </div>
         <div className="flex items-center gap-1">

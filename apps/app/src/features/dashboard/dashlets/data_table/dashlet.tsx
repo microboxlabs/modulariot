@@ -16,12 +16,16 @@ export interface TableColumn {
   type: ColumnType;
 }
 
-export interface FilterConfig {
-  enabled: boolean;
+export interface FilterItemConfig {
   /** Column key whose distinct values are used as filter pills */
   column: string;
   /** Label shown before the filter pills, e.g. "Estado:" */
   label: string;
+}
+
+export interface FilterConfig {
+  enabled: boolean;
+  items: FilterItemConfig[];
 }
 
 export interface SortConfig {
@@ -96,9 +100,29 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  column: "status",
-  label: "Estado:",
+  items: [{ column: "status", label: "Estado:" }],
 };
+
+/**
+ * Normalize a persisted filter config into the current shape.
+ * Old configs stored `{ enabled, column, label }` — convert to `{ enabled, items }`.
+ */
+export function normalizeFilterConfig(raw: unknown): FilterConfig {
+  if (!raw || typeof raw !== "object") return defaultFilter;
+  const obj = raw as Record<string, unknown>;
+  const enabled = typeof obj.enabled === "boolean" ? obj.enabled : defaultFilter.enabled;
+  if (Array.isArray(obj.items)) {
+    return { enabled, items: obj.items as FilterItemConfig[] };
+  }
+  // Legacy shape: { enabled, column, label }
+  if (typeof obj.column === "string") {
+    return {
+      enabled,
+      items: [{ column: obj.column as string, label: (obj.label as string) ?? "" }],
+    };
+  }
+  return defaultFilter;
+}
 
 export const defaultSort: SortConfig = {
   enabled: true,
@@ -286,9 +310,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     columns = defaultColumns,
     rows: staticRows = defaultRows,
     apiUrl = "",
-    filter = defaultFilter,
     sort = defaultSort,
   } = config;
+  const filter = normalizeFilterConfig(config.filter);
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const [dynamicRows, setDynamicRows] = useState<Record<string, string>[]>([]);
@@ -337,33 +361,42 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   }, [dataMode, apiUrl]);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
-  const [filterValue, setFilterValue] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
 
-  // Distinct values for the filter pills (derived from full dataset)
-  const filterValues = useMemo(() => {
-    if (!filter.enabled || !filter.column) return [];
-    const seen = new Set<string>();
-    for (const row of allRows) {
-      const val = row[filter.column];
-      if (val) seen.add(val);
+  // Distinct values per filter item (derived from full dataset)
+  const filterOptionsByColumn = useMemo(() => {
+    if (!filter.enabled) return {};
+    const result: Record<string, string[]> = {};
+    for (const item of filter.items) {
+      const seen = new Set<string>();
+      for (const row of allRows) {
+        const val = row[item.column];
+        if (val) seen.add(val);
+      }
+      result[item.column] = Array.from(seen);
     }
-    return Array.from(seen);
-  }, [allRows, filter.enabled, filter.column]);
+    return result;
+  }, [allRows, filter.enabled, filter.items]);
 
   // Column label lookup for sort toolbar
   const getColumnLabel = (key: string) =>
     columns.find((c) => c.key === key)?.label ?? key;
 
-  // Apply filter then sort
+  // Apply all active filters (AND) then sort
   const displayRows = useMemo(() => {
     let result = allRows;
 
-    if (filter.enabled && filterValue) {
-      result = result.filter((row) => row[filter.column] === filterValue);
+    if (filter.enabled) {
+      for (const item of filter.items) {
+        const selected = filterValues[item.column];
+        if (selected) {
+          result = result.filter((row) => row[item.column] === selected);
+        }
+      }
     }
 
     if (sort.enabled && sortKey) {
@@ -374,7 +407,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     }
 
     return result;
-  }, [allRows, filter, filterValue, sort, sortKey, sortDir]);
+  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
@@ -404,27 +437,47 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
       </div>
 
-      {/* Filter card */}
-      {filter.enabled && filterValues.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {filter.label}
-          </span>
-          <Pill
-            label="All"
-            active={filterValue === ""}
-            onClick={() => setFilterValue("")}
-          />
-          {filterValues.map((val) => (
-            <Pill
-              key={val}
-              label={val}
-              active={filterValue === val}
-              onClick={() => setFilterValue(val)}
-            />
-          ))}
-        </div>
-      )}
+      {/* Filter cards */}
+      {filter.enabled &&
+        filter.items.map((item) => {
+          const options = filterOptionsByColumn[item.column];
+          if (!options || options.length === 0) return null;
+          const selected = filterValues[item.column] ?? "";
+          return (
+            <div
+              key={item.column}
+              className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
+            >
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {item.label}
+              </span>
+              <Pill
+                label="All"
+                active={selected === ""}
+                onClick={() =>
+                  setFilterValues((prev) => {
+                    const next = { ...prev };
+                    delete next[item.column];
+                    return next;
+                  })
+                }
+              />
+              {options.map((val) => (
+                <Pill
+                  key={val}
+                  label={val}
+                  active={selected === val}
+                  onClick={() =>
+                    setFilterValues((prev) => ({
+                      ...prev,
+                      [item.column]: val,
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          );
+        })}
 
       {/* Sort card */}
       {sort.enabled && sort.columns.length > 0 && (

@@ -793,7 +793,7 @@ export function PlanningSelectionProvider({
         loaded.push({
           service,
           slot: {
-            date: new Date(booking.slot.date),
+            date: dayjs(booking.slot.date).toDate(),
             hour: booking.slot.hour,
             minutes: booking.slot.minutes,
             ...(_anden === undefined ? {} : { anden: _anden }),
@@ -1161,13 +1161,17 @@ export function PlanningSelectionProvider({
       // Check if this is a reassignment completion
       const wasReassigning = reassigningService !== null;
 
+      // Capture the original PlannedService before the optimistic update so we
+      // can restore it if the backend call fails (reassignment case).
+      const originalPlannedService = reassigningService?.service ?? null;
+
       // Create the new planned service with the final slot (including time and andén)
       const newPlannedService: PlannedService = {
         service: selectedService,
         slot: slotToUse,
       };
 
-      // Update local state
+      // Optimistic update: replace the existing entry with the new slot
       setPlannedServices((prev) => {
         const filtered = prev.filter(
           (p) => p.service.id !== selectedService.id
@@ -1177,6 +1181,9 @@ export function PlanningSelectionProvider({
 
       // Create / reassign booking in the calendar backend
       if (calendarId) {
+        // Capture the old booking ID before any state updates.
+        const oldBookingId = bookingIds.get(selectedService.id);
+
         try {
           const bookingBody: BookingRequest = {
             calendarId,
@@ -1196,22 +1203,34 @@ export function PlanningSelectionProvider({
             },
           };
 
-          // Cancel old booking on reassignment
-          const oldBookingId = bookingIds.get(selectedService.id);
-          if (oldBookingId) {
-            await cancelBooking(oldBookingId).catch((err) =>
-              console.warn("Failed to cancel old booking:", err)
-            );
-          }
-
+          // Create the new booking BEFORE cancelling the old one so that a
+          // creation failure leaves the original backend booking intact.
           const booking = await createBooking(bookingBody);
           setBookingIds((prev) => {
             const next = new Map(prev);
             next.set(selectedService.id, booking.id);
             return next;
           });
+
+          // Cancel the previous booking only after the new one is confirmed.
+          if (oldBookingId) {
+            await cancelBooking(oldBookingId).catch((err) =>
+              console.warn("Failed to cancel old booking:", err)
+            );
+          }
         } catch (err) {
           console.warn("Failed to create booking:", err);
+          // Rollback local state: restore the original PlannedService on
+          // reassignment, or simply remove the new entry on a fresh assignment.
+          setPlannedServices((prev) => {
+            const withoutNew = prev.filter(
+              (p) => p.service.id !== selectedService.id
+            );
+            return originalPlannedService
+              ? [...withoutNew, originalPlannedService]
+              : withoutNew;
+          });
+          throw err;
         }
       }
 

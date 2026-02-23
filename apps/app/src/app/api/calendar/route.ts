@@ -14,6 +14,7 @@ const CalendarRequestSchema = z.object({
   timezone: z.string().optional(),
   active: z.boolean().optional(),
   groups: z.array(z.string()).optional(),
+  autoSlotManager: z.boolean().optional(),
 });
 
 export async function GET() {

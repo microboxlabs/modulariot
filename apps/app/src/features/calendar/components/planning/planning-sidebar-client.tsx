@@ -14,6 +14,7 @@ import {
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
+  TimeWindowUtils,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -38,32 +39,6 @@ type PlanningSearchMatchType =
   | "permanencia"
   | "tipoViaje";
 
-/**
- * Calculate occupation percentage based on load constraint type.
- * Uses the appropriate utilization value depending on the constraint:
- * - "Volumen" → mintral_loadVolumeUtilization
- * - "Weight" → mintral_loadWeightUtilization
- * - "Pallet" → mintral_loadPalletUtilization
- * - Default: 0
- */
-function calculateOccupation(task: KanbanBoardTask): number {
-  const constraint = task.mintral_loadConstraint;
-
-  if (!constraint) {
-    return 0;
-  }
-
-  switch (constraint) {
-    case "Volumen":
-      return task.mintral_loadVolumeUtilization ?? 0;
-    case "Weight":
-      return task.mintral_loadWeightUtilization ?? 0;
-    case "Pallet":
-      return task.mintral_loadPalletUtilization ?? 0;
-    default:
-      return 0;
-  }
-}
 
 /**
  * Determine trip type from serviceKind or executionType
@@ -96,24 +71,6 @@ function calculatePermanencia(task: KanbanBoardTask): string {
   return `${hours}h`;
 }
 
-/**
- * Calculate lead time compliance metrics from ICU condition
- */
-function calculateLeadTimeCompliance(icuCondition: number): {
-  compliantLines: number;
-  nonCompliantLines: number;
-  compliancePercentage: number;
-} {
-  const totalLines = 4; // Default total lines for calculation
-  const compliantLines =
-    icuCondition >= 0
-      ? Math.min(totalLines, Math.abs(icuCondition) + 2)
-      : Math.max(0, totalLines - Math.abs(icuCondition));
-  const nonCompliantLines = totalLines - compliantLines;
-  const compliancePercentage = Math.round((compliantLines / totalLines) * 100);
-
-  return { compliantLines, nonCompliantLines, compliancePercentage };
-}
 
 /**
  * Extract incidencias from task fields
@@ -158,9 +115,6 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
   const serviceId = task.name || task.id;
   const tipoViaje = determineTripType(task);
   const permanencia = calculatePermanencia(task);
-  const icuCondition = task.mintral_icuCondition ?? 0;
-  const { compliantLines, nonCompliantLines, compliancePercentage } =
-    calculateLeadTimeCompliance(icuCondition);
 
   return {
     id: serviceId,
@@ -169,15 +123,15 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     lugarCarguio: "", // Not available in KanbanBoardTask
     destino: task.destination || "",
     tipoViaje,
-    ocupacion: calculateOccupation(task),
+    ocupacion: task.mintral_loadMaxUtilization ?? 0,
     permanencia,
     leadTime: {
-      total_lineasoc_cumplen: compliantLines,
-      total_lineasoc_incumplen: nonCompliantLines,
-      lineasoc_pctn_cumplimiento: compliancePercentage,
+      total_lineasoc_cumplen: task.mintral_compliantOrderLines ?? 0,
+      total_lineasoc_incumplen: task.mintral_nonCompliantOrderLines ?? 0,
+      lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias: extractIncidencias(task, compliancePercentage),
+    incidencias: extractIncidencias(task, task.mintral_deliveryComplianceRate ?? 0),
     mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
     prioridad: task.mintral_icuCondition ?? 0,
@@ -314,13 +268,30 @@ export function PlanningSidebarClient({
     return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
   }, [selectedTimeWindow]);
 
-  // Format the selected slot for display with start and end times
+  // Format the selected slot for display with start and end times.
+  // When a matching time window is available, use its actual boundaries so
+  // that slotStartTime/slotEndTime reflect the window's configured time
+  // (e.g. 08:30) rather than the raw grid-cell click time (e.g. 08:00).
   const formattedSlot = useMemo(() => {
     if (!selectedSlot) return undefined;
-    const startDate = dayjs(selectedSlot.date)
-      .hour(selectedSlot.hour)
-      .minute(selectedSlot.minutes);
-    const endDate = startDate.add(SLOT_DURATION_MINUTES, "minute");
+
+    const windowRange = selectedTimeWindow
+      ? TimeWindowUtils.getTimeRange(selectedTimeWindow)
+      : null;
+
+    const startDate = windowRange
+      ? dayjs(selectedSlot.date)
+          .hour(windowRange.startHour)
+          .minute(windowRange.startMinutes)
+      : dayjs(selectedSlot.date)
+          .hour(selectedSlot.hour)
+          .minute(selectedSlot.minutes);
+
+    const endDate = windowRange
+      ? dayjs(selectedSlot.date)
+          .hour(windowRange.endHour)
+          .minute(windowRange.endMinutes)
+      : startDate.add(SLOT_DURATION_MINUTES, "minute");
 
     const dateStr = formatDateString(startDate.toDate(), "date");
     const startTime = formatDateString(startDate.toDate(), "time");
@@ -332,7 +303,7 @@ export function PlanningSidebarClient({
       endTime,
       full: `${dateStr}, ${startTime} - ${endTime}`,
     };
-  }, [selectedSlot]);
+  }, [selectedSlot, selectedTimeWindow]);
 
   type MatchType =
     | "id"

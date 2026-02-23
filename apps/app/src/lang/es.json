@@ -1211,7 +1211,8 @@
     },
     "title": "Título",
     "value": "Valor",
-    "unit": "Unidad"
+    "unit": "Unidad",
+    "all": "Todos"
   },
   "dashboard": {
     "settings": {

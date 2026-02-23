@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // Configuration Types
@@ -302,6 +304,7 @@ function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const { dictionary } = useDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,
@@ -452,7 +455,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                 {item.label}
               </span>
               <Pill
-                label="All"
+                label={tr("common.all", dictionary)}
                 active={selected === ""}
                 onClick={() =>
                   setFilterValues((prev) => {

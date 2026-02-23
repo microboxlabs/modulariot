@@ -82,10 +82,11 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
+  const bpmPackage = typeof extraData?.bpm_package === "string" ? extraData.bpm_package : undefined;
   const {
     isValid: documentsValid,
     isLoading: documentsLoading,
-  } = useDocumentValidation(taskType, extraData?.bpm_package as string | undefined);
+  } = useDocumentValidation(taskType, bpmPackage);
   const [state, _formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
@@ -178,6 +179,7 @@ export default function TaskActions({
     taskType as ShippingCoordinatorProcessFormsV2,
     dict
   );
+  const disableAction = !documentsValid || documentsLoading;
   const showDocumentWarning = !documentsValid && !documentsLoading;
 
   return (
@@ -194,6 +196,7 @@ export default function TaskActions({
             />
             {!showDocumentWarning && (
               <TaskActionButton
+                disabled={disableAction}
                 fluid={fluid}
                 label={(dict.outcome as I18nRecord).continue as string}
                 taskId={taskId}

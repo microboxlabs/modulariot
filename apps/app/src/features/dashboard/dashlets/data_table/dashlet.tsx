@@ -114,13 +114,24 @@ export function normalizeFilterConfig(raw: unknown): FilterConfig {
   const obj = raw as Record<string, unknown>;
   const enabled = typeof obj.enabled === "boolean" ? obj.enabled : defaultFilter.enabled;
   if (Array.isArray(obj.items)) {
-    return { enabled, items: obj.items as FilterItemConfig[] };
+    const validItems = obj.items.filter(
+      (item): item is FilterItemConfig =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as Record<string, unknown>).column === "string" &&
+        (item as Record<string, unknown>).column !== ""
+    ).map((item) => ({
+      column: item.column,
+      label: typeof item.label === "string" ? item.label : "",
+    }));
+    if (validItems.length === 0) return defaultFilter;
+    return { enabled, items: validItems };
   }
   // Legacy shape: { enabled, column, label }
-  if (typeof obj.column === "string") {
+  if (typeof obj.column === "string" && obj.column !== "") {
     return {
       enabled,
-      items: [{ column: obj.column , label: (obj.label as string) ?? "" }],
+      items: [{ column: obj.column, label: typeof obj.label === "string" ? obj.label : "" }],
     };
   }
   return defaultFilter;
@@ -282,6 +293,23 @@ interface PillProps {
   icon?: React.ReactNode;
 }
 
+function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`no-drag inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+        active
+          ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+      }`}
+    >
+      {label}
+      {icon}
+    </button>
+  );
+}
+
 // ============================================================================
 // Filter Pill Row
 // ============================================================================
@@ -325,23 +353,6 @@ function FilterPillRow({
   );
 }
 
-function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`no-drag inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-        active
-          ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-      }`}
-    >
-      {label}
-      {icon}
-    </button>
-  );
-}
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -358,7 +369,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     apiUrl = "",
     sort = defaultSort,
   } = config;
-  const filter = normalizeFilterConfig(config.filter);
+  const filter = useMemo(() => normalizeFilterConfig(config.filter), [config.filter]);
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const [dynamicRows, setDynamicRows] = useState<Record<string, string>[]>([]);
@@ -480,6 +491,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const allLabel = tr("common.all", dictionary);
+
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Title + row count — outside any card */}
@@ -497,16 +510,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
       {/* Filter cards */}
       {filter.enabled &&
-        filter.items.map((item) => {
+        filter.items.map((item, idx) => {
           const options = filterOptionsByColumn[item.column];
           if (!options || options.length === 0) return null;
           return (
             <FilterPillRow
-              key={item.column}
+              key={`${item.column}-${idx}`}
               item={item}
               options={options}
               selected={filterValues[item.column] ?? ""}
-              allLabel={tr("common.all", dictionary)}
+              allLabel={allLabel}
               onClear={handleFilterClear}
               onSelect={handleFilterSelect}
             />

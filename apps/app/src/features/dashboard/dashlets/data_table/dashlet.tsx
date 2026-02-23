@@ -282,6 +282,49 @@ interface PillProps {
   icon?: React.ReactNode;
 }
 
+// ============================================================================
+// Filter Pill Row
+// ============================================================================
+
+interface FilterPillRowProps {
+  item: FilterItemConfig;
+  options: string[];
+  selected: string;
+  allLabel: string;
+  onClear: (column: string) => void;
+  onSelect: (column: string, value: string) => void;
+}
+
+function FilterPillRow({
+  item,
+  options,
+  selected,
+  allLabel,
+  onClear,
+  onSelect,
+}: Readonly<FilterPillRowProps>) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {item.label}
+      </span>
+      <Pill
+        label={allLabel}
+        active={selected === ""}
+        onClick={() => onClear(item.column)}
+      />
+      {options.map((val) => (
+        <Pill
+          key={val}
+          label={val}
+          active={selected === val}
+          onClick={() => onSelect(item.column, val)}
+        />
+      ))}
+    </div>
+  );
+}
+
 function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
   return (
     <button
@@ -415,6 +458,18 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
 
+  const handleFilterClear = (column: string) => {
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next[column];
+      return next;
+    });
+  };
+
+  const handleFilterSelect = (column: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [column]: value }));
+  };
+
   const handleSortClick = (key: string) => {
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -445,40 +500,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         filter.items.map((item) => {
           const options = filterOptionsByColumn[item.column];
           if (!options || options.length === 0) return null;
-          const selected = filterValues[item.column] ?? "";
           return (
-            <div
+            <FilterPillRow
               key={item.column}
-              className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
-            >
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {item.label}
-              </span>
-              <Pill
-                label={tr("common.all", dictionary)}
-                active={selected === ""}
-                onClick={() =>
-                  setFilterValues((prev) => {
-                    const next = { ...prev };
-                    delete next[item.column];
-                    return next;
-                  })
-                }
-              />
-              {options.map((val) => (
-                <Pill
-                  key={val}
-                  label={val}
-                  active={selected === val}
-                  onClick={() =>
-                    setFilterValues((prev) => ({
-                      ...prev,
-                      [item.column]: val,
-                    }))
-                  }
-                />
-              ))}
-            </div>
+              item={item}
+              options={options}
+              selected={filterValues[item.column] ?? ""}
+              allLabel={tr("common.all", dictionary)}
+              onClear={handleFilterClear}
+              onSelect={handleFilterSelect}
+            />
           );
         })}
 

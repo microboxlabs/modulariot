@@ -177,6 +177,12 @@ npm run --workspace= @modulariot/app knip:check
 - Prettier with `tailwindcss` plugin for class sorting
 - Settings: semicolons on, double quotes, trailing commas (es5), 80 char width, 2-space indent
 
+### Function Nesting Depth
+
+- Do not nest functions more than 4 levels deep (SonarCloud rule)
+- When JSX callback props (e.g. `onClick`, `onChange`) contain inline functions that call state setters with updater callbacks, extract handler functions at the component level
+- Extract repeated JSX blocks with deep callbacks into small sub-components that receive stable handler props
+
 ### Conventions
 
 - Feature-based organization in `src/features/` (auth, geographic-view, shipping, etc.)

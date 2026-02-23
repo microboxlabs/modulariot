@@ -793,7 +793,7 @@ export function PlanningSelectionProvider({
         loaded.push({
           service,
           slot: {
-            date: new Date(booking.slot.date),
+            date: dayjs(booking.slot.date).toDate(),
             hour: booking.slot.hour,
             minutes: booking.slot.minutes,
             ...(_anden === undefined ? {} : { anden: _anden }),

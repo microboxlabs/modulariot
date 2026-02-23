@@ -24,7 +24,6 @@ import type {
 import {
   defaultColumns,
   defaultRows,
-  defaultFilter,
   defaultSort,
   normalizeFilterConfig,
 } from "./dashlet";
@@ -228,7 +227,7 @@ export function DashletSettings({
       }}
       className="no-drag w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
-      <div className="flex w-full flex-col gap-3 max-h-[70vh]">
+      <div className="flex w-full flex-col gap-3 max-h-[75vh]">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
@@ -517,7 +516,7 @@ export function DashletSettings({
           onClick={handleSave}
           onMouseDown={handleMouseDown}
           size="sm"
-          className="no-drag w-full"
+          className="no-drag w-full shrink-0"
         >
           {tr("common.save", dictionary)}
         </Button>

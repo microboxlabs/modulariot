@@ -120,7 +120,7 @@ export function normalizeFilterConfig(raw: unknown): FilterConfig {
   if (typeof obj.column === "string") {
     return {
       enabled,
-      items: [{ column: obj.column as string, label: (obj.label as string) ?? "" }],
+      items: [{ column: obj.column , label: (obj.label as string) ?? "" }],
     };
   }
   return defaultFilter;

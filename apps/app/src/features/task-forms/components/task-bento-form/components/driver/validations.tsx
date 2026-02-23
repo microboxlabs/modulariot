@@ -193,13 +193,13 @@ export default function ValidationsInfo({
       status: hasPOD ? "ok" : "error",
       label: "",
     });
-    if (task.taskFormKey === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
-      documentValidationItems.push({
-        key: "PROOF_OF_LOAD_FLOOR",
-        status: hasPOLF ? "ok" : "error",
-        label: "",
-      });
-    }
+    // if (task.taskFormKey === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
+    //   documentValidationItems.push({
+    //     key: "PROOF_OF_LOAD_FLOOR",
+    //     status: hasPOLF ? "ok" : "error",
+    //     label: "",
+    //   });
+    // }
   }
 
   let content = null;

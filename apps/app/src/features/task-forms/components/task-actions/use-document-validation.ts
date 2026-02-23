@@ -60,28 +60,32 @@ export function useDocumentValidation(
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const entries: any[] = data?.data?.list?.entries || [];
+  interface NodeEntry {
+    entry: {
+      properties?: Record<string, string>;
+    };
+  }
+
+  const entries: NodeEntry[] = data?.data?.list?.entries || [];
 
   const hasPOD = entries.some(
     (file) =>
       file.entry.properties?.["mintral:contentType"] === "PROOF_OF_DELIVERY"
   );
 
-  const hasPOLF = entries.some(
-    (file) =>
-      file.entry.properties?.["mintral:contentType"] === "PROOF_OF_LOAD_FLOOR"
-  );
+  // const hasPOLF = entries.some(
+  //   (file) =>
+  //     file.entry.properties?.["mintral:contentType"] === "PROOF_OF_LOAD_FLOOR"
+  // );
+  const hasPOLF = false;
 
   let isValid = false;
   const requiredDocuments: string[] = [];
 
-  if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
-    isValid = hasPOD || hasPOLF;
-    if (!isValid) {
-      requiredDocuments.push("PROOF_OF_DELIVERY", "PROOF_OF_LOAD_FLOOR");
-    }
-  } else if (taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK) {
+  if (
+    taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK ||
+    taskType === TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK
+  ) {
     isValid = hasPOD;
     if (!isValid) {
       requiredDocuments.push("PROOF_OF_DELIVERY");

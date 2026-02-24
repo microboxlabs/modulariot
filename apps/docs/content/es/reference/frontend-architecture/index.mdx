@@ -1,0 +1,143 @@
+# Arquitectura Frontend
+
+Esta sección documenta la arquitectura de la aplicación web ModularIoT (`apps/app`) para desarrolladores que contribuyen al producto o lo extienden. Cubre el sistema de diseño, la jerarquía de proveedores y los patrones utilizados para gestionar el estado compartido de la interfaz.
+
+## Stack Tecnológico
+
+La aplicación está construida con:
+- **Next.js** (App Router) — renderizado del lado del servidor y enrutamiento
+- **React** — modelo de componentes y gestión de estado mediante contextos
+- **Flowbite React** — biblioteca de componentes UI
+- **Tailwind CSS / tailwind-merge** — estilos
+- **SWR** — obtención y caché de datos
+- **Vitest + React Testing Library** — pruebas unitarias
+
+## Jerarquía de Layout
+
+Cada página protegida de la aplicación está envuelta en el siguiente árbol de proveedores:
+
+```
+SecuredLayout (componente servidor)
+└── SidebarProvider          — estado UI de colapso/apertura (persistido en cookie)
+    └── SecuredSidebar (componente cliente)
+        └── SidebarNavigationProvider  — datos de navegación: elementos + contadores
+            ├── MobileSidebar          — presentación móvil
+            └── DesktopSidebar         — presentación escritorio
+```
+
+### Responsabilidades de cada capa
+
+| Capa | Responsabilidad |
+|---|---|
+| `SecuredLayout` | Autenticación del servidor, diccionario i18n, sesión |
+| `SidebarProvider` | Estado de colapso en escritorio, estado de apertura/cierre en móvil, persistencia en cookie |
+| `SidebarNavigationProvider` | Obtener todos los datos de navegación una vez, combinar elementos estáticos y dinámicos, calcular contadores |
+| `DesktopSidebar` / `MobileSidebar` | Presentación pura — layout, animación, renderizado |
+
+Esta separación significa que **los componentes de presentación no contienen lógica de obtención de datos**. Agregar una nueva sección a la barra lateral nunca requiere modificar `DesktopSidebar` ni `MobileSidebar`.
+
+## SidebarNavigationProvider
+
+El `SidebarNavigationProvider` es la única fuente de verdad para el árbol de navegación de la aplicación. Este:
+
+1. Llama a todos los hooks relacionados con la navegación **una sola vez**, compartido entre escritorio y móvil
+2. Combina la configuración estática de páginas de `models/pages.ts` con sub-elementos cargados dinámicamente
+3. Calcula los contadores de insignias a partir de las respuestas crudas de la API
+4. Expone el estado resuelto a través de `useSidebarNavigation()`
+
+### Valor del contexto
+
+```typescript
+interface SidebarNavigationContextValue {
+  items: SidebarItem[];                       // árbol de navegación resuelto completo
+  totals: Record<string, number | string>;    // contadores con clave por etiqueta de sección
+  isLoading: boolean;
+}
+```
+
+Los consumidores acceden a esto mediante:
+
+```typescript
+const { items, totals } = useSidebarNavigation();
+```
+
+El hook lanza un error si se usa fuera del proveedor, lo que detecta errores de ubicación del proveedor en tiempo de desarrollo.
+
+### Combinación de elementos estáticos y dinámicos
+
+La configuración de páginas se define en `models/pages.ts` como un array estático. Las secciones que necesitan sub-elementos cargados en tiempo de ejecución declaran una clave `dynamicItemsSource`:
+
+```typescript
+// models/pages.ts
+{
+  label: "tasks",
+  dynamicItemsSource: "tasks",   // indica al proveedor qué cargador usar
+  items: [
+    { label: "completed_tasks", href: "/mytasks?status=finished", totals: {} },
+    { label: "pending_tasks",   href: "/mytasks?status=pending",  totals: {} },
+  ],
+  ...
+}
+```
+
+El proveedor resuelve esto de forma inmutable — **el export `pages` nunca es mutado**:
+
+```typescript
+const resolvedItems = pages.map((page) => {
+  if (!page.dynamicItemsSource) return page;
+  const dynamic = dynamicMap[page.dynamicItemsSource] ?? [];
+  return { ...page, items: [...(page.items ?? []), ...dynamic] };
+});
+```
+
+Los elementos dinámicos de `dynamicMap["tasks"]` se agregan después de los elementos estáticos de esa sección. En cada ciclo de renderizado se produce un nuevo array a partir de los datos estáticos originales.
+
+## Fuentes de Datos
+
+El proveedor obtiene datos de estas APIs al montarse:
+
+| Hook | Endpoint | Usado para |
+|---|---|---|
+| `useMyTasksCount` | `/app/api/task/mytasks/count` | Contadores de envío, entrega, planificación, calendarPlanning |
+| `useHistoricInstancesCount` | `/app/api/task/statistics?mode=historic_instances` | Contadores de finalizado, tareas_completadas |
+| `useMapPositions` | `/app/api/map` | Contador de vista geográfica |
+| `useSymptoms` | `/app/api/symptoms/dashboard` | Contador de síntomas |
+| `useUserFilters` | `/app/api/user/filters` | Sub-elementos dinámicos de filtros de tareas |
+
+Cada endpoint se llama exactamente una vez independientemente de cuántos componentes de barra lateral estén montados.
+
+## Tipo SidebarItem
+
+```typescript
+type SidebarItem = {
+  href?: string;
+  target?: HTMLAttributeAnchorTarget;
+  icon?: FC<ComponentProps<"svg">>;
+  label: string;
+  items?: SidebarItem[];
+  badge?: string;
+  totals: Record<string, number | string>;
+  requiredGroups?: string[];
+  blockedGroups?: string[];
+  dynamicItemsSource?: string;  // clave en el dynamicMap del proveedor
+};
+```
+
+`requiredGroups` y `blockedGroups` son evaluados por `SidebarItem` en tiempo de renderizado para mostrar u ocultar secciones según las membresías de grupo del usuario actual.
+
+## Enfoque de Pruebas
+
+El proveedor y sus hooks se prueban con Vitest + React Testing Library mediante `renderHook`. Las invariantes clave de las pruebas son:
+
+- `pages` no es mutado después de que el proveedor se monta, con o sin elementos dinámicos
+- Los elementos dinámicos se agregan después de los estáticos y se ordenan por `position`
+- Los totales de insignias se derivan correctamente de cada fuente de datos
+- Los totales de envío/entrega/planificación se omiten cuando la API de conteo de tareas devuelve un error
+
+Ver `src/features/layout/context/sidebar-navigation-context.test.tsx` para el conjunto completo de pruebas.
+
+## Relacionado
+
+- [Extender la Navegación](/reference/frontend-architecture/extending-navigation) — agregar una nueva sección dinámica a la barra lateral
+- [Navegación de la Aplicación](/operations/mission-control/navigation) — vista del operador de las secciones de la barra lateral
+- [ADR-001: Contexto de Navegación Lateral](/reference/architecture-decisions/adr-001-sidebar-navigation-context) — el registro de decisión de esta arquitectura

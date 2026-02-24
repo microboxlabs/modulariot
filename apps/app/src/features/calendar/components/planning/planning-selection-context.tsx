@@ -13,20 +13,22 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import {
-  usePlannedServices,
-  createPlannedService,
-  updatePlannedService,
-  deletePlannedService,
-  useTimeSlots,
-  createTimeSlot,
-  updateTimeSlot,
-  deleteTimeSlot,
+  useCalendarTimeWindows,
+  createCalendarTimeWindow,
+  updateCalendarTimeWindow,
+  deactivateCalendarTimeWindow,
+  createBooking,
+  cancelBooking,
+  listBookings,
 } from "@/features/common/providers/client-api.provider";
+import { z } from "zod";
+import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
+import { ShowNotification } from "@/features/notifications/notification";
 import {
-  apiToLocalPlannedService,
-  localToApiPlannedService,
-} from "@/features/calendar/services/planned-service.service";
-import type { CreatePlannedServiceRequest } from "@/features/calendar/types/planned-service.types";
+  apiToLocalTimeWindow,
+  localToApiTimeWindow,
+  TimeWindowResponseSchema,
+} from "@/features/calendar/services/time-window.service";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -626,15 +628,53 @@ interface PlanningSelectionContextType {
   removeService: (serviceId: string) => Promise<void>;
   startReassignment: (plannedService: PlannedService) => void;
   cancelReassignment: () => void;
+  /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
+  bookingsLoadError: string | null;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
+
+/**
+ * Zod schema for data stored inside booking.resource.data.
+ * All SelectedService fields are optional (defaults are applied on merge).
+ * _anden is stored here because SlotData has no anden field.
+ */
+const StoredServiceSchema = z
+  .object({
+    origen: z.string().optional(),
+    lugarCarguio: z.string().optional(),
+    destino: z.string().optional(),
+    tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
+    ocupacion: z.number().optional(),
+    permanencia: z.string().optional(),
+    leadTime: z
+      .object({
+        total_lineasoc_cumplen: z.number(),
+        total_lineasoc_incumplen: z.number(),
+        lineasoc_pctn_cumplimiento: z.number(),
+      })
+      .optional(),
+    eta: z.string().optional(),
+    incidencias: z.array(z.string()).optional(),
+    mintral_incidents: z.array(z.tuple([z.string(), z.string()])).optional(),
+    observaciones: z.string().optional(),
+    prioridad: z.number().optional(),
+    cm_created: z.string().optional(),
+    loadConstraint: z.string().optional(),
+    loadMaxUtilization: z.number().optional(),
+    loadWeightUtilization: z.number().optional(),
+    loadPalletUtilization: z.number().optional(),
+    loadVolumeUtilization: z.number().optional(),
+    _anden: z.number().optional(),
+  })
+  .optional();
 
 const PlanningSelectionContext =
   createContext<PlanningSelectionContextType | null>(null);
 
 interface PlanningSelectionProviderProps {
   readonly children: ReactNode;
+  readonly calendarId?: string;
 }
 
 /**
@@ -659,6 +699,7 @@ function getWeekOfMonth(date: dayjs.Dayjs): number {
 
 export function PlanningSelectionProvider({
   children,
+  calendarId,
 }: PlanningSelectionProviderProps) {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
@@ -670,62 +711,112 @@ export function PlanningSelectionProvider({
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
-  const [plannedServiceIds, setPlannedServiceIds] = useState<
-    Map<string, string>
-  >(new Map()); // Map of service.id -> API id
+  const [bookingIds, setBookingIds] = useState<Map<string, string>>(
+    new Map()
+  ); // Map of service.id -> booking.id from calendar backend
+  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
 
-  // Load planned services from API
-  // For now, load all services (can be optimized later with date range)
+  // Load time windows from the miot-calendar-client backend
   const {
-    plannedServices: apiPlannedServices,
-    error: plannedServicesError,
-    refresh: refreshPlannedServices,
-  } = usePlannedServices();
-
-  // Load time slots (windows and blocks) from API
-  const {
-    timeSlots: apiTimeSlots,
+    timeWindows: apiTimeWindows,
     error: timeSlotsError,
-    refresh: refreshTimeSlots,
-  } = useTimeSlots();
+    refresh: refreshTimeWindows,
+  } = useCalendarTimeWindows(calendarId ?? null);
 
-  // Sync API data to local state (only when there's no error and data has actually changed)
+  // Sync time windows from API to local state (only when there's no error)
   useEffect(() => {
-    // Skip if there's an error - don't update state based on error responses
-    if (plannedServicesError) return;
-
-    if (apiPlannedServices && apiPlannedServices.length > 0) {
-      const localServices = apiPlannedServices.map(apiToLocalPlannedService);
-      const idMap = new Map<string, string>();
-
-      apiPlannedServices.forEach((apiService, index) => {
-        if (apiService.id) {
-          idMap.set(localServices[index].service.id, apiService.id);
-        }
-      });
-
-      setPlannedServices(localServices);
-      setPlannedServiceIds(idMap);
-    } else if (apiPlannedServices?.length === 0) {
-      // Clear local state if API returns empty array
-      setPlannedServices([]);
-      setPlannedServiceIds(new Map());
-    }
-  }, [apiPlannedServices, plannedServicesError]);
-
-  // Sync time slots from API to local state (only when there's no error)
-  useEffect(() => {
-    // Skip if there's an error - don't update state based on error responses
     if (timeSlotsError) return;
 
-    if (apiTimeSlots?.length > 0) {
-      // API TimeSlotResponse matches our TimeSlot interface, so we can use directly
-      setTimeSlots(apiTimeSlots as TimeSlot[]);
-    } else if (apiTimeSlots?.length === 0) {
-      // Clear local state if API returns empty array
+    if (apiTimeWindows.length > 0) {
+      setTimeSlots(
+        apiTimeWindows.flatMap((tw) => {
+          const result = TimeWindowResponseSchema.safeParse(tw);
+          if (!result.success) {
+            console.warn("Skipping invalid time window response", tw, result.error.message);
+            return [];
+          }
+          return [apiToLocalTimeWindow(result.data)];
+        })
+      );
+    } else if (apiTimeWindows.length === 0 && !timeSlotsError) {
       setTimeSlots([]);
     }
-  }, [apiTimeSlots, timeSlotsError]);
+  }, [apiTimeWindows, timeSlotsError]);
+
+  // Load existing bookings from the backend when a calendar is selected.
+  // An AbortController cancels the in-flight request when calendarId changes
+  // or the component unmounts, preventing stale responses from overwriting state.
+  useEffect(() => {
+    if (!calendarId) return;
+
+    const controller = new AbortController();
+
+    listBookings({ calendarId }, controller.signal).then((result) => {
+      // Discard the response if the effect was cleaned up before it resolved.
+      if (controller.signal.aborted) return;
+
+      const loaded: PlannedService[] = [];
+      const ids = new Map<string, string>();
+
+      for (const booking of result.data) {
+        // Skip entries whose slot is missing — nothing to place on the grid.
+        if (!booking.slot) continue;
+
+        // Validate stored payload; malformed shapes are silently dropped.
+        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
+        const stored = storedParse.success ? storedParse.data : undefined;
+        // Keep _anden separate so it is not spread into SelectedService.
+        const { _anden, ...storedService } = stored ?? {};
+
+        const service: SelectedService = {
+          origen: "",
+          lugarCarguio: "",
+          destino: "",
+          tipoViaje: "Sider",
+          ocupacion: 0,
+          permanencia: "",
+          leadTime: {
+            total_lineasoc_cumplen: 0,
+            total_lineasoc_incumplen: 0,
+            lineasoc_pctn_cumplimiento: 0,
+          },
+          eta: "",
+          incidencias: [],
+          observaciones: "",
+          prioridad: 0,
+          ...storedService,
+          // Canonical booking fields always win over stored data
+          id: booking.resource.id,
+          cliente: booking.resource.label ?? booking.resource.id,
+        };
+
+        loaded.push({
+          service,
+          slot: {
+            date: dayjs(booking.slot.date).toDate(),
+            hour: booking.slot.hour,
+            minutes: booking.slot.minutes,
+            ...(_anden === undefined ? {} : { anden: _anden }),
+          },
+        });
+        ids.set(booking.resource.id, booking.id);
+      }
+
+      setPlannedServices(loaded);
+      setBookingIds(ids);
+      setBookingsLoadError(null);
+    }).catch((err) => {
+      if (controller.signal.aborted) return;
+      if (err instanceof Error && err.name === "AbortError") return;
+      const message = "No se pudieron cargar las reservas existentes del calendario.";
+      setBookingsLoadError(message);
+      ShowNotification({ type: "error", message });
+    });
+
+    return () => {
+      controller.abort();
+    };
+  }, [calendarId]);
 
   // Derived arrays from unified state (memoized for performance)
   const timeWindows = useMemo(
@@ -743,72 +834,84 @@ export function PlanningSelectionProvider({
     setSelectedService(service);
   }, []);
 
+  /** Deactivate API windows that were removed from local state; returns error strings. */
+  const deactivateRemovedWindows = useCallback(
+    async (
+      currentApiWindows: typeof apiTimeWindows,
+      newWindowIds: Set<string>
+    ): Promise<string[]> => {
+      if (!calendarId) return [];
+      const errors: string[] = [];
+      for (const apiWindow of currentApiWindows) {
+        if (!newWindowIds.has(apiWindow.id)) {
+          try {
+            await deactivateCalendarTimeWindow(calendarId, apiWindow);
+          } catch (err) {
+            errors.push(
+              `Failed to deactivate "${apiWindow.name}": ${err instanceof Error ? err.message : "unknown error"}`
+            );
+          }
+        }
+      }
+      return errors;
+    },
+    [calendarId]
+  );
+
+  /** Create or update local window slots against the API; returns error strings. */
+  const saveLocalWindows = useCallback(
+    async (slots: TimeSlot[], currentIds: Set<string>): Promise<string[]> => {
+      if (!calendarId) return [];
+      const errors: string[] = [];
+      for (const slot of slots) {
+        if (slot.kind !== "window") continue; // blocks are local-only
+        try {
+          const body = localToApiTimeWindow(slot);
+          if (currentIds.has(slot.id)) {
+            await updateCalendarTimeWindow(calendarId, slot.id, body);
+          } else {
+            await createCalendarTimeWindow(calendarId, body);
+          }
+        } catch (err) {
+          errors.push(
+            `Failed to save "${slot.name}": ${err instanceof Error ? err.message : "unknown error"}`
+          );
+        }
+      }
+      return errors;
+    },
+    [calendarId]
+  );
+
   // Primary setter: replaces entire unified array and syncs to API
   const setTimeSlotsAndSync = useCallback(
     async (slots: TimeSlot[]) => {
       // Update local state immediately (optimistic update)
       setTimeSlots(slots);
 
-      // Sync to API - save all slots
-      try {
-        // Get current API slots to determine what to create/update/delete
-        const currentApiSlots = apiTimeSlots || [];
-        const currentIds = new Set(currentApiSlots.map((s) => s.id));
-        const newIds = new Set(slots.map((s) => s.id));
+      // Skip API sync when there is no calendarId (generic planning page)
+      if (!calendarId) return;
 
-        // Delete slots that are no longer in the new array
-        for (const currentSlot of currentApiSlots) {
-          if (!newIds.has(currentSlot.id)) {
-            try {
-              await deleteTimeSlot(currentSlot.id);
-            } catch (error) {
-              console.error("Error deleting time slot:", error);
-            }
-          }
-        }
+      const currentApiWindows = apiTimeWindows;
+      const currentIds = new Set(currentApiWindows.map((w) => w.id));
+      const newWindowIds = new Set(
+        slots.filter((s) => s.kind === "window").map((s) => s.id)
+      );
 
-        // Create or update slots
-        for (const slot of slots) {
-          try {
-            if (currentIds.has(slot.id)) {
-              // Update existing
-              await updateTimeSlot(slot.id, {
-                id: slot.id,
-                name: slot.name,
-                kind: slot.kind,
-                type: slot.type,
-                weeklyPattern: slot.weeklyPattern,
-                startTimestamp: slot.startTimestamp,
-                endTimestamp: slot.endTimestamp,
-                quota: slot.quota,
-                color: slot.color,
-              });
-            } else {
-              // Create new
-              await createTimeSlot({
-                name: slot.name,
-                kind: slot.kind,
-                type: slot.type,
-                weeklyPattern: slot.weeklyPattern,
-                startTimestamp: slot.startTimestamp,
-                endTimestamp: slot.endTimestamp,
-                quota: slot.quota,
-                color: slot.color,
-              });
-            }
-          } catch (error) {
-            console.error("Error saving time slot:", error);
-          }
-        }
+      const [deactivateErrors, saveErrors] = await Promise.all([
+        deactivateRemovedWindows(currentApiWindows, newWindowIds),
+        saveLocalWindows(slots, currentIds),
+      ]);
 
-        // Refresh from API to ensure consistency
-        await refreshTimeSlots();
-      } catch (error) {
-        console.error("Error syncing time slots to API:", error);
-        // State was already updated optimistically, so we continue
+      // Reload from API to replace temp IDs with real server IDs
+      await refreshTimeWindows();
+
+      const errors = [...deactivateErrors, ...saveErrors];
+      if (errors.length > 0) {
+        throw new Error(errors.join("; "));
       }
     },
-    [apiTimeSlots, refreshTimeSlots]
+    [calendarId, apiTimeWindows, refreshTimeWindows, deactivateRemovedWindows, saveLocalWindows]
   );
 
   // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)
@@ -1042,115 +1145,111 @@ export function PlanningSelectionProvider({
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
-      if (slotToUse && selectedService) {
-        // Check if slot has room (unless re-planning same service)
-        const existingInSlot = getServicesForSlot(slotToUse);
-        const isReplanning = existingInSlot.some(
-          (ps) => ps.service.id === selectedService.id
+      if (!slotToUse || !selectedService) return false;
+
+      // Check if slot has room (unless re-planning same service)
+      const existingInSlot = getServicesForSlot(slotToUse);
+      const isReplanning = existingInSlot.some(
+        (ps) => ps.service.id === selectedService.id
+      );
+
+      if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
+        // Slot is full, cannot add more
+        return false;
+      }
+
+      // Check if this is a reassignment completion
+      const wasReassigning = reassigningService !== null;
+
+      // Capture the original PlannedService before the optimistic update so we
+      // can restore it if the backend call fails (reassignment case).
+      const originalPlannedService = reassigningService?.service ?? null;
+
+      // Create the new planned service with the final slot (including time and andén)
+      const newPlannedService: PlannedService = {
+        service: selectedService,
+        slot: slotToUse,
+      };
+
+      // Optimistic update: replace the existing entry with the new slot
+      setPlannedServices((prev) => {
+        const filtered = prev.filter(
+          (p) => p.service.id !== selectedService.id
         );
+        return [...filtered, newPlannedService];
+      });
 
-        if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
-          // Slot is full, cannot add more
-          return false;
-        }
-
-        // Check if this is a reassignment completion
-        const wasReassigning = reassigningService !== null;
-
-        // Create the new planned service with the final slot (including time and andén)
-        const newPlannedService: PlannedService = {
-          service: selectedService,
-          slot: slotToUse,
-        };
+      // Create / reassign booking in the calendar backend
+      if (calendarId) {
+        // Capture the old booking ID before any state updates.
+        const oldBookingId = bookingIds.get(selectedService.id);
 
         try {
-          // Check if this service already has an API ID (update) or needs creation
-          const existingApiId = plannedServiceIds.get(selectedService.id);
-
-          if (existingApiId) {
-            // Update existing planned service
-            const apiData = localToApiPlannedService(newPlannedService);
-            // Convert string date back to Date for UpdatePlannedServiceRequest
-            await updatePlannedService(existingApiId, {
-              id: existingApiId,
-              service: apiData.service,
-              slot: {
-                date: newPlannedService.slot.date, // Use the original Date object
-                hour: apiData.slot.hour,
-                minutes: apiData.slot.minutes,
+          const bookingBody: BookingRequest = {
+            calendarId,
+            resource: {
+              id: selectedService.id,
+              type: "service",
+              label: selectedService.cliente,
+              data: {
+                ...selectedService,
+                ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
               },
-            });
-          } else {
-            // Create new planned service
-            const apiData = localToApiPlannedService(newPlannedService);
-            // For create, we need to convert to the proper format
-            const createRequest: CreatePlannedServiceRequest = {
-              service: apiData.service,
-              slot: {
-                date: newPlannedService.slot.date, // Use the original Date object
-                hour: apiData.slot.hour,
-                minutes: apiData.slot.minutes,
-              },
-            };
-            const response = await createPlannedService(createRequest);
+            },
+            slot: {
+              date: dayjs(slotToUse.date).format("YYYY-MM-DD"),
+              hour: slotToUse.hour,
+              minutes: slotToUse.minutes,
+            },
+          };
 
-            // Store the API ID for future updates
-            if (response.id) {
-              setPlannedServiceIds((prev) => {
-                const newMap = new Map(prev);
-                newMap.set(selectedService.id, response.id);
-                return newMap;
-              });
-            }
+          // Create the new booking BEFORE cancelling the old one so that a
+          // creation failure leaves the original backend booking intact.
+          const booking = await createBooking(bookingBody);
+          setBookingIds((prev) => {
+            const next = new Map(prev);
+            next.set(selectedService.id, booking.id);
+            return next;
+          });
+
+          // Cancel the previous booking only after the new one is confirmed.
+          if (oldBookingId) {
+            await cancelBooking(oldBookingId).catch((err) =>
+              console.warn("Failed to cancel old booking:", err)
+            );
           }
-
-          // Update local state
+        } catch (err) {
+          console.warn("Failed to create booking:", err);
+          // Rollback local state: restore the original PlannedService on
+          // reassignment, or simply remove the new entry on a fresh assignment.
           setPlannedServices((prev) => {
-            // Remove if already planned (allow re-planning)
-            const filtered = prev.filter(
+            const withoutNew = prev.filter(
               (p) => p.service.id !== selectedService.id
             );
-            return [...filtered, newPlannedService];
+            return originalPlannedService
+              ? [...withoutNew, originalPlannedService]
+              : withoutNew;
           });
-
-          // Refresh from API to ensure consistency
-          await refreshPlannedServices();
-
-          // Always clear reassigning state after confirmation (not just when wasReassigning)
-          setReassigningService(null);
-
-          // Clear selection after confirming
-          setSelectedSlot(null);
-          setSelectedService(null);
-
-          return wasReassigning;
-        } catch (error) {
-          console.error("Error saving planned service:", error);
-          // Still update local state for optimistic UI, but log the error
-          setPlannedServices((prev) => {
-            const filtered = prev.filter(
-              (p) => p.service.id !== selectedService.id
-            );
-            return [...filtered, newPlannedService];
-          });
-
-          // Also clear state on error to prevent stuck UI
-          setReassigningService(null);
-          setSelectedSlot(null);
-          setSelectedService(null);
-
-          return wasReassigning;
+          throw err;
         }
       }
-      return false;
+
+      // Always clear reassigning state after confirmation
+      setReassigningService(null);
+
+      // Clear selection after confirming
+      setSelectedSlot(null);
+      setSelectedService(null);
+
+      return wasReassigning;
     },
     [
       selectedSlot,
       selectedService,
       getServicesForSlot,
       reassigningService,
-      plannedServiceIds,
-      refreshPlannedServices,
+      calendarId,
+      bookingIds,
     ]
   );
 
@@ -1176,73 +1275,25 @@ export function PlanningSelectionProvider({
    */
   const removeService = useCallback(
     async (serviceId: string) => {
-      console.log("removeService called with serviceId:", serviceId);
-      console.log(
-        "plannedServiceIds map:",
-        Array.from(plannedServiceIds.entries())
-      );
-
-      const apiId = plannedServiceIds.get(serviceId);
-      console.log("apiId found:", apiId);
-
-      let deleteError: Error | null = null;
-
-      // Try to delete from API if we have an apiId
-      if (apiId) {
-        try {
-          console.log("Calling deletePlannedService with apiId:", apiId);
-          await deletePlannedService(apiId);
-          console.log("deletePlannedService succeeded");
-
-          // Remove from ID map
-          setPlannedServiceIds((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(serviceId);
-            return newMap;
-          });
-          // Refresh from API
-          await refreshPlannedServices();
-        } catch (error) {
-          console.error("Error deleting planned service:", error);
-          deleteError =
-            error instanceof Error ? error : new Error("Unknown error");
-          // Still remove from local state for optimistic UI, but throw error for caller to handle
-        }
-      } else {
-        // If no apiId, try using serviceId directly as fallback
-        // This handles cases where the service was created locally or mapping is missing
-        console.warn(
-          "No apiId found for serviceId:",
-          serviceId,
-          "- trying serviceId as fallback"
+      // Cancel the booking in the calendar backend
+      const bookingId = bookingIds.get(serviceId);
+      if (bookingId) {
+        await cancelBooking(bookingId).catch((err) =>
+          console.warn("Failed to cancel booking:", err)
         );
-        try {
-          console.log(
-            "Calling deletePlannedService with serviceId as fallback:",
-            serviceId
-          );
-          await deletePlannedService(serviceId);
-          console.log("deletePlannedService with serviceId succeeded");
-          // Refresh from API
-          await refreshPlannedServices();
-        } catch (error) {
-          console.warn("Delete with serviceId also failed:", error);
-          // If both fail, we'll still remove from local state (optimistic update)
-          // Don't throw error in this case since the service might not exist in backend
-        }
+        setBookingIds((prev) => {
+          const next = new Map(prev);
+          next.delete(serviceId);
+          return next;
+        });
       }
 
-      // Update local state (optimistic UI update)
+      // Remove from local state
       setPlannedServices((prev) =>
         prev.filter((p) => p.service.id !== serviceId)
       );
-
-      // If there was an error from the apiId attempt, throw it so the caller can show a notification
-      if (deleteError) {
-        throw deleteError;
-      }
     },
-    [plannedServiceIds, refreshPlannedServices]
+    [bookingIds]
   );
 
   /**
@@ -1311,6 +1362,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     }),
     [
       selectedSlot,
@@ -1344,6 +1396,7 @@ export function PlanningSelectionProvider({
       removeService,
       startReassignment,
       cancelReassignment,
+      bookingsLoadError,
     ]
   );
 

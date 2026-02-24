@@ -4,6 +4,7 @@ import type { ViewMode } from "@/features/calendar/services/calendar.service.typ
 export interface PlanningHeaderProps {
   lang: string;
   dict: I18nDictionary;
+  calendarId?: string;
   initialDate?: Date;
   initialViewMode?: ViewMode;
   onDateChange?: (date: Date) => void;

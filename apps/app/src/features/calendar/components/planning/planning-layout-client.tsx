@@ -13,6 +13,7 @@ interface PlanningLayoutClientProps {
   readonly dict: I18nDictionary;
   readonly header: ReactNode;
   readonly calendar: ReactNode;
+  readonly calendarId?: string;
 }
 
 /**
@@ -61,9 +62,10 @@ export function PlanningLayoutClient({
   dict,
   header,
   calendar,
+  calendarId,
 }: PlanningLayoutClientProps) {
   return (
-    <PlanningSelectionProvider>
+    <PlanningSelectionProvider calendarId={calendarId}>
       <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
     </PlanningSelectionProvider>
   );

@@ -13,7 +13,8 @@
     "STREAMHUB_CLIENT_SECRET",
     "STREAMHUB_AUDIENCE",
     "STREAMHUB_URL",
-    "STREAMHUB_IOT_URL"
+    "STREAMHUB_IOT_URL",
+    "MIOT_CALENDAR_URL"
   ],
   "tasks": {
     "build": {
@@ -27,7 +28,7 @@
       "dependsOn": ["^lint"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["^build"]
     },
     "dev": {
       "cache": false,

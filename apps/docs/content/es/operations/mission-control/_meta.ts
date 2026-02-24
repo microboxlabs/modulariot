@@ -1,9 +1,10 @@
 export default {
-  index: 'Overview',
-  'control-tower': 'Control Tower',
-  'symptom-worklists': 'Symptom Worklists',
-  prioritization: 'Prioritization',
-  'operator-actions': 'Operator Actions',
-  escalation: 'Escalation',
-  'audit-traceability': 'Audit & Traceability'
+  index: 'Descripción General',
+  navigation: 'Navegación de la Aplicación',
+  'control-tower': 'Torre de Control',
+  'symptom-worklists': 'Listas de Síntomas',
+  prioritization: 'Priorización',
+  'operator-actions': 'Acciones del Operador',
+  escalation: 'Escalación',
+  'audit-traceability': 'Auditoría y Trazabilidad'
 }

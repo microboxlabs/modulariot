@@ -1,0 +1,93 @@
+# Application Navigation
+
+The sidebar is the primary navigation structure of the ModularIoT application. It provides access to all operational areas and shows live badge counts so operators can assess the current state of the fleet at a glance, without opening each section.
+
+## Sidebar Sections
+
+### Home
+
+The entry point to the application. When home dashboards are enabled for your deployment, this section expands to include sub-views covering fleet usage, operative events, vehicle technical health, maintenance status, and device telemetry.
+
+### Calendar
+
+Access to planning and scheduling views. Requires membership in the `GROUP_ALFRESCO_ADMINISTRATORS` group.
+
+**Sub-sections:**
+- **Calendar Planning** — View and manage service scheduling entries. The badge count shows the number of active `planService` tasks.
+
+### Kanban
+
+The main workflow board for coordinators. Requires `GROUP_MINTRAL_KANBAN_ACCESS` or `GROUP_GAMA_KANBAN_ACCESS`.
+
+**Sub-sections:**
+| Section | Badge count |
+|---|---|
+| Planning | Active planning tasks |
+| Shipping | Active shipping coordinator tasks |
+| Delivery | Active delivery coordinator tasks |
+| Finished | Completed instances (historic total) |
+
+### Tasks
+
+Personal task management. Hidden for users in `GROUP_MINTRAL_REVISOR`. Requires Kanban access groups.
+
+**Static sub-sections:**
+- **Completed Tasks** — Tasks with `status=finished`. Badge shows the historic instances total.
+- **Pending Tasks** — Tasks with `status=pending`. Badge shows the combined count of active delivery and shipping tasks.
+
+**Dynamic sub-sections (User Filters):** Personal saved filters appear below the static items. See [User Filters](#user-filters) below.
+
+### Control Tower
+
+Operational monitoring and management. Open to all groups.
+
+**Sub-sections:**
+| Section | Badge count | Access |
+|---|---|---|
+| Geographic View | Number of asset positions currently tracked on the map | All groups |
+| Symptoms | Total active symptoms detected | Hidden for `GROUP_MINTRAL_REVISOR` |
+| Signal History | Always shows `—` (historical, no live count) | All groups |
+
+### Where Is My Load
+
+Search interface for locating specific cargo by expedition code or number. Requires `GROUP_MINTRAL_BUSCADOR_CARGAS`.
+
+### Live Streams
+
+Live video feeds from facility cameras and vehicle devices. Requires `GROUP_ALFRESCO_ADMINISTRATORS`.
+
+**Sub-sections:**
+- Facility SCL
+- Truck Beds
+- All Devices
+
+---
+
+## Badge Counts
+
+Badge counts update automatically as the application fetches data. Each count is sourced from a specific API and shared across the desktop and mobile sidebar — both always show the same numbers.
+
+| Badge key | Source | Notes |
+|---|---|---|
+| `shipping` | Task count API, filtered by shipping process keys | Updates on data refresh |
+| `delivery` | Task count API, filtered by delivery process keys | Updates on data refresh |
+| `planning` | Task count API, filtered by planning process keys | Updates on data refresh |
+| `calendarPlanning` | Task count API, `planService` key | Updates on data refresh |
+| `geographicView` | Map positions API | Count of assets with known location |
+| `symptoms` | Symptoms dashboard API | Total active symptoms |
+| `finished` | Historic instances statistics API | Cumulative total |
+| `pending_tasks` | Derived: delivery + shipping | No separate API call |
+| `completed_tasks` | Same as `finished` | Alias for the Tasks section |
+| `signalHistory` | Static | Always `—` |
+
+---
+
+## User Filters
+
+User Filters are personal saved queries that appear as dynamic sub-items under the **Tasks** section. Each filter you create adds an entry to your sidebar with its own badge count showing how many tasks currently match that filter.
+
+Filters are stored per user and loaded at application startup. The position of each filter item in the sidebar is determined by the `position` parameter saved with the filter. Items are sorted from lowest to highest position value.
+
+When a filter item is clicked, it opens the Tasks view pre-filtered with your saved query parameters, scoped to editable tasks.
+
+> **Note:** User Filters are personal. Other users do not see your filters in their sidebar.

@@ -1,0 +1,33 @@
+# Architecture Decisions
+
+Architecture Decision Records (ADRs) document significant technical decisions made during the development of ModularIoT. Each record captures the context that made a decision necessary, the options that were considered, the choice that was made, and the consequences that followed.
+
+## Why we keep ADRs
+
+Code tells you *what* the system does. ADRs tell you *why* it does it that way. Without them, future contributors face two bad options when they encounter an unfamiliar pattern: leave it alone because they don't understand it, or replace it with something more familiar without knowing what problem the original design was solving.
+
+ADRs are not specifications or plans — they are records of decisions already made. They are written after the decision is implemented, in the past tense, describing what was decided and what we learned.
+
+## Status values
+
+| Status | Meaning |
+|---|---|
+| **Accepted** | Decision is in effect and reflected in the codebase |
+| **Deprecated** | Decision was superseded by a later ADR; the original is kept for history |
+| **Superseded by ADR-NNN** | Replaced by a more recent decision |
+
+## Index
+
+| ADR | Title | Status |
+|---|---|---|
+| [ADR-001](/reference/architecture-decisions/adr-001-sidebar-navigation-context) | Sidebar Navigation Context — centralized data fetching and immutable item merging | Accepted |
+
+## Contributing an ADR
+
+When a significant architectural decision is made — one that future contributors might question or want to revisit — capture it as an ADR. A good candidate is any decision where:
+
+- Multiple approaches were considered and one was chosen for non-obvious reasons
+- The decision has meaningful trade-offs that future changes should be aware of
+- The pattern introduces a constraint on how related features must be built
+
+Create a new file at `content/en/reference/architecture-decisions/adr-NNN-short-title.mdx` (and its Spanish counterpart), add it to both `_meta.ts` files, and follow the structure of existing ADRs.

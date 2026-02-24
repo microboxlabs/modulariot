@@ -1,0 +1,33 @@
+# Decisiones de Arquitectura
+
+Los Registros de Decisiones de Arquitectura (ADRs) documentan decisiones técnicas significativas tomadas durante el desarrollo de ModularIoT. Cada registro captura el contexto que hizo necesaria una decisión, las opciones que se consideraron, la elección que se tomó y las consecuencias que siguieron.
+
+## Por qué mantenemos ADRs
+
+El código te dice *qué* hace el sistema. Los ADRs te dicen *por qué* lo hace de esa manera. Sin ellos, los futuros colaboradores enfrentan dos malas opciones cuando encuentran un patrón desconocido: dejarlo intacto porque no lo entienden, o reemplazarlo con algo más familiar sin saber qué problema estaba resolviendo el diseño original.
+
+Los ADRs no son especificaciones ni planes — son registros de decisiones ya tomadas. Se escriben después de que la decisión está implementada, en tiempo pasado, describiendo qué se decidió y qué aprendimos.
+
+## Valores de estado
+
+| Estado | Significado |
+|---|---|
+| **Aceptado** | La decisión está en vigor y reflejada en el código |
+| **Obsoleto** | La decisión fue reemplazada por un ADR posterior; el original se conserva por historial |
+| **Reemplazado por ADR-NNN** | Sustituido por una decisión más reciente |
+
+## Índice
+
+| ADR | Título | Estado |
+|---|---|---|
+| [ADR-001](/reference/architecture-decisions/adr-001-sidebar-navigation-context) | Contexto de Navegación Lateral — obtención centralizada de datos y combinación inmutable de elementos | Aceptado |
+
+## Contribuir un ADR
+
+Cuando se toma una decisión arquitectónica significativa — una que los futuros colaboradores podrían cuestionar o querer revisar — captúrela como un ADR. Un buen candidato es cualquier decisión donde:
+
+- Se consideraron múltiples enfoques y se eligió uno por razones no obvias
+- La decisión tiene compromisos importantes que los cambios futuros deben conocer
+- El patrón introduce una restricción sobre cómo deben construirse las características relacionadas
+
+Cree un nuevo archivo en `content/en/reference/architecture-decisions/adr-NNN-titulo-corto.mdx` (y su contraparte en español), agréguelo a ambos archivos `_meta.ts`, y siga la estructura de los ADRs existentes.

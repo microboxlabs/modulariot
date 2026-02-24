@@ -21,6 +21,68 @@ Features and improvements in development:
 
 ## Recent Releases
 
+### `miot-calendar-client` v0.3.0 — Slot Managers (2026-02-20)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Adds a new Slot Managers resource for automating slot generation. Each manager keeps slots generated a configurable number of days in advance and can be triggered manually or by an external scheduler.
+
+**New — `client.slotManagers` namespace:**
+- `slotManagers.list({ active? })` — list all slot managers
+- `slotManagers.create(body)` — create a slot manager for a calendar
+- `slotManagers.get(id)` — get a slot manager by ID
+- `slotManagers.update(id, body)` — update configuration (including one-shot reprocessing)
+- `slotManagers.deactivate(id)` — soft-delete a slot manager
+- `slotManagers.runAll()` — trigger all active managers synchronously
+- `slotManagers.run(id)` — trigger a single manager
+- `slotManagers.listAllRuns({ limit? })` — list recent runs across all managers
+- `slotManagers.listRuns(id, { limit? })` — list runs for a specific manager
+
+**New types exported:** `SlotManagerRequest`, `SlotManagerResponse`, `SlotManagerRunResponse`
+
+---
+
+### `miot-calendar-client` v0.2.0 — Calendar Groups (2026-02-19)
+
+**`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)
+
+Adds a new Calendar Groups resource that lets you organize calendars into named collections and filter or query them by group.
+
+**New — `client.groups` namespace:**
+- `groups.list({ active? })` — list all groups
+- `groups.get(id)` — get a group by ID
+- `groups.create(body)` — create a group
+- `groups.update(id, body)` — update a group
+- `groups.deactivate(id)` — soft-delete a group
+
+**Updated — `client.calendars`:**
+- `calendars.list()` accepts a new `groupCode` query param to filter calendars by group membership
+- `CalendarRequest.groups?: string[]` — assign groups on create/update (`null` = no change, `[]` = remove all, `["code"]` = replace all)
+- `CalendarResponse.groups?: CalendarGroupResponse[]` — groups the calendar belongs to are now included in the response
+
+**New types exported:** `CalendarGroupRequest`, `CalendarGroupResponse`
+
+---
+
+### Architecture: Centralized Sidebar Navigation (2026-02-19)
+
+**`apps/app` — internal change, no API impact**
+
+The sidebar navigation was refactored to use a single shared `SidebarNavigationProvider` context above both the desktop and mobile sidebar components.
+
+**What changed for operators:**
+- Badge counts on the desktop and mobile sidebar are now guaranteed to be identical — previously they could diverge because each sidebar fetched data independently
+- User filter items under the Tasks section no longer duplicate after navigating between pages
+
+**What changed for developers:**
+- All navigation data (badge counts, dynamic task filter items) is fetched once per page load instead of twice
+- The `pages.ts` module constant is no longer mutated at runtime
+- New sections with dynamic sub-items can be added via `dynamicItemsSource` + a dedicated hook — see [Extending Navigation](/reference/frontend-architecture/extending-navigation)
+
+See [ADR-001](/reference/architecture-decisions/adr-001-sidebar-navigation-context) for the full decision record.
+
+---
+
 ### v1.0.0 (Coming Soon)
 
 Initial public release.

@@ -6,8 +6,9 @@ import PlanningLayout from "./planning-layout";
 interface PlanningProps {
   lang: string;
   dict: I18nDictionary;
+  calendarId?: string;
 }
 
-export default function Planning({ lang, dict }: Readonly<PlanningProps>) {
-  return <PlanningLayout lang={lang} dict={dict} />;
+export default function Planning({ lang, dict, calendarId }: Readonly<PlanningProps>) {
+  return <PlanningLayout lang={lang} dict={dict} calendarId={calendarId} />;
 }

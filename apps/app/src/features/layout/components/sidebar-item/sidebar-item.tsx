@@ -13,7 +13,6 @@ import { useSearchParams } from "next/navigation";
 
 export default function SidebarItem({
   href,
-  target,
   icon,
   label,
   items,
@@ -42,6 +41,7 @@ export default function SidebarItem({
 
   if (items) {
     const isOpen = true;
+    const isHomeSection = href === "/home";
     return (
       <SidebarCollapse
         icon={icon}
@@ -49,7 +49,7 @@ export default function SidebarItem({
         open={isOpen}
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
-        {items.map((item, index) => {
+        {items.map((item) => {
           // Check if user has any blocked groups for this sub-item
           const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
             (group) => userGroups.includes(group)
@@ -63,30 +63,64 @@ export default function SidebarItem({
             return null;
           }
 
+          // Render nested group as second-level SidebarCollapse
+          if (item.items) {
+            const isGroupOpen = item.items.some(
+              (child) => pathname === child.href?.split("?")[0]
+            );
+            return (
+              <SidebarCollapse
+                key={item.label}
+                label={tr(item.label, dict)}
+                open={isGroupOpen}
+                theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
+              >
+                {item.items.map((child) => (
+                  <FlowbiteSidebarItem
+                    key={child.href ?? child.label}
+                    href={child.href}
+                    as={Link}
+                    className={twMerge(
+                      "justify-center [&>*]:font-normal",
+                      (pathname === child.href?.split("?")[0] ||
+                        (searchParams.toString() &&
+                          child.href === pathname + "?" + searchParams.toString())) &&
+                        "bg-gray-100 dark:bg-gray-700"
+                    )}
+                  >
+                    {tr(child.label, dict)}
+                  </FlowbiteSidebarItem>
+                ))}
+              </SidebarCollapse>
+            );
+          }
+
+          const itemTotal = item.totals?.[item.label] ?? totals?.[item.label];
+          const badgeProps =
+            isHomeSection || itemTotal === undefined || typeof itemTotal === "string"
+              ? {}
+              : (() => {
+                  const count = getTotalCountBadges(itemTotal);
+                  const labelColor = getLabelColor(count);
+                  return { label: `${count}`, labelColor };
+                })();
+
           return (
             <FlowbiteSidebarItem
-              key={index}
+              key={item.href ?? item.label}
               href={item.href}
               as={Link}
               icon={item.icon}
               className={twMerge(
                 "justify-center [&>*]:font-normal",
+                isHomeSection &&
+                  "[&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis",
                 (pathname === item.href ||
-                  item.href === pathname + "?" + searchParams.toString()) &&
+                  (searchParams.toString() &&
+                    item.href === pathname + "?" + searchParams.toString())) &&
                   "bg-gray-100 dark:bg-gray-700"
               )}
-              label={
-                typeof totals[item.label] == "string"
-                  ? undefined
-                  : `${getTotalCountBagaes(totals[item.label] as number)}`
-              }
-              labelColor={
-                getTotalCountBagaes(totals[item.label] as number) <= 0
-                  ? "success"
-                  : getTotalCountBagaes(totals[item.label] as number) >= 100
-                    ? "warning"
-                    : "info"
-              }
+              {...badgeProps}
             >
               {tr(item.label, dict)}
             </FlowbiteSidebarItem>
@@ -104,7 +138,8 @@ export default function SidebarItem({
       label={badge}
       className={twMerge(
         (pathname === href ||
-          href === pathname + "?" + searchParams.toString()) &&
+          (searchParams.toString() &&
+            href === pathname + "?" + searchParams.toString())) &&
           "bg-gray-100 dark:bg-gray-700",
         "[&_svg]:!w-6 [&_svg]:!h-6 [&_svg]:!min-w-6 [&_svg]:!min-h-6"
       )}
@@ -114,6 +149,12 @@ export default function SidebarItem({
   );
 }
 
-function getTotalCountBagaes(totals: number) {
-  return totals ? totals : 0;
+function getTotalCountBadges(totals: number) {
+  return totals || 0;
+}
+
+function getLabelColor(totals: number) {
+  if (totals <= 0) return "success";
+  if (totals >= 100) return "warning";
+  return "info";
 }

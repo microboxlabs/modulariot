@@ -1,6 +1,7 @@
 "use client";
+import { z } from "zod";
 import useSWR from "swr";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import fetcher from "./fetcher";
 import { safeJsonParse } from "./safe-json";
@@ -40,26 +41,24 @@ import type {
 } from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
 import type {
-  PlannedServiceResponse,
-  PlannedServiceListResponse,
-  CreatePlannedServiceRequest,
-  UpdatePlannedServiceRequest,
-} from "@/features/calendar/types/planned-service.types";
-import type {
   TimeSlotResponse,
   TimeSlotListResponse,
   CreateTimeSlotRequest,
   UpdateTimeSlotRequest,
 } from "@/features/calendar/types/time-slot.types";
+import type {
+  CalendarResponse,
+  CalendarGroupResponse,
+  CalendarRequest,
+  CalendarGroupRequest,
+  TimeWindowResponse,
+  TimeWindowRequest,
+  BookingRequest,
+  BookingResponse,
+  BookingListResponse,
+} from "@microboxlabs/miot-calendar-client";
 
-// export function useI8n(lang: string) {
-//   const { data, error, isLoading } = useSWR(`/api/i18n/${lang}`, fetcher);
-//   return {
-//     dict: data,
-//     error,
-//     isLoading,
-//   };
-// }
+
 
 export function useMyTasks(
   columns: string[],
@@ -1244,121 +1243,11 @@ export function formatDuration(eta: ETAResponse | undefined): string {
 }
 
 // ============================================================================
-// PlannedService Hooks
-// ============================================================================
-
-// Stable empty arrays for hooks to prevent infinite re-renders
-const EMPTY_PLANNED_SERVICES: PlannedServiceResponse[] = [];
-const EMPTY_TIME_SLOTS: TimeSlotResponse[] = [];
-
-/**
- * Hook to fetch all planned services
- * @param startDate - Optional start date filter (ISO date string)
- * @param endDate - Optional end date filter (ISO date string)
- */
-export function usePlannedServices(startDate?: string, endDate?: string) {
-  const queryParams = new URLSearchParams();
-  if (startDate) queryParams.set("startDate", startDate);
-  if (endDate) queryParams.set("endDate", endDate);
-
-  const url = queryParams.toString()
-    ? `/app/api/planned-service?${queryParams.toString()}`
-    : "/app/api/planned-service";
-
-  const { data, error, isLoading, mutate } = useSWR<
-    PlannedServiceListResponse,
-    FetcherError
-  >(url, fetcher, {
-    // Disable error retry to prevent infinite loops when API is unavailable
-    errorRetryCount: 3,
-    errorRetryInterval: 5000,
-  });
-
-  return {
-    // Use stable empty array reference to prevent infinite re-renders
-    plannedServices: data?.data ?? EMPTY_PLANNED_SERVICES,
-    total: data?.total ?? 0,
-    error,
-    isLoading,
-    refresh: mutate,
-  };
-}
-
-/**
- * Hook to fetch a single planned service by ID
- */
-export function usePlannedService(id: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<
-    PlannedServiceResponse,
-    FetcherError
-  >(id ? `/app/api/planned-service/${id}` : null, fetcher);
-
-  return {
-    plannedService: data,
-    error,
-    isLoading,
-    refresh: mutate,
-  };
-}
-
-/**
- * Create a new planned service
- */
-export async function createPlannedService(
-  request: CreatePlannedServiceRequest
-): Promise<PlannedServiceResponse> {
-  const response = await fetch("/app/api/planned-service", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to create planned service");
-  }
-
-  return response.json();
-}
-
-/**
- * Update an existing planned service
- */
-export async function updatePlannedService(
-  id: string,
-  request: UpdatePlannedServiceRequest
-): Promise<PlannedServiceResponse> {
-  const response = await fetch(`/app/api/planned-service/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to update planned service");
-  }
-
-  return response.json();
-}
-
-/**
- * Delete a planned service
- */
-export async function deletePlannedService(id: string): Promise<void> {
-  const response = await fetch(`/app/api/planned-service/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to delete planned service");
-  }
-}
-
-// ============================================================================
 // TimeSlot Hooks (Windows and Blocks)
 // ============================================================================
+
+// Stable empty array for hooks to prevent infinite re-renders
+const EMPTY_TIME_SLOTS: TimeSlotResponse[] = [];
 
 /**
  * Hook to fetch all time slots, optionally filtered by kind
@@ -1475,4 +1364,271 @@ export async function deleteTimeSlot(id: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.error || "Failed to delete time slot");
   }
+}
+
+// ============================================================================
+// Calendar Hooks
+// ============================================================================
+
+const EMPTY_CALENDARS: CalendarResponse[] = [];
+
+/**
+ * Hook to fetch all active calendars (with their groups)
+ */
+export function useCalendars() {
+  const { data, error, isLoading, mutate } = useSWR<CalendarResponse[], FetcherError>(
+    "/app/api/calendar",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading, refresh: mutate };
+}
+
+/**
+ * Filters cached calendar data by group code — no extra network request
+ */
+export function useCalendarsInGroup(groupCode: string | null) {
+  const { calendars, isLoading, refresh, error } = useCalendars();
+  const filtered = useMemo(
+    () =>
+      groupCode
+        ? calendars.filter((cal) => cal.groups?.some((g) => g.code === groupCode))
+        : EMPTY_CALENDARS,
+    [calendars, groupCode]
+  );
+  return { calendars: filtered, isLoading, refresh, error };
+}
+
+const EMPTY_GROUPS: CalendarGroupResponse[] = [];
+
+/**
+ * Hook to fetch all active calendar groups
+ */
+export function useCalendarGroups() {
+  const { data, error, isLoading, mutate } = useSWR<CalendarGroupResponse[], FetcherError>(
+    "/app/api/calendar/groups",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return { groups: data ?? EMPTY_GROUPS, error, isLoading, refresh: mutate };
+}
+
+async function parseErrorBody(response: Response, fallback: string): Promise<string> {
+  const text = await response.text().catch(() => "");
+  try {
+    const json = JSON.parse(text) as { error?: string };
+    return `[${response.status}] ${json.error ?? fallback}`;
+  } catch {
+    return `[${response.status}] ${text || fallback}`;
+  }
+}
+
+/**
+ * Create a new calendar group
+ */
+export async function createCalendarGroup(body: CalendarGroupRequest): Promise<CalendarGroupResponse> {
+  const response = await fetch("/app/api/calendar/groups", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create calendar group"));
+  }
+  return response.json();
+}
+
+/**
+ * Create a new calendar
+ */
+export async function createCalendar(body: CalendarRequest): Promise<CalendarResponse> {
+  const response = await fetch("/app/api/calendar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create calendar"));
+  }
+  return response.json();
+}
+
+// ============================================================================
+// Calendar Time Windows Hooks
+// ============================================================================
+
+const EMPTY_TIME_WINDOWS: TimeWindowResponse[] = [];
+
+/**
+ * Fetch time windows for a specific calendar from the miot-calendar-client backend.
+ * Returns null SWR key (no fetch) when calendarId is null/undefined.
+ */
+export function useCalendarTimeWindows(calendarId: string | null) {
+  const url = calendarId
+    ? `/app/api/calendar/${calendarId}/time-windows`
+    : null;
+
+  const { data, error, isLoading, mutate } = useSWR<
+    TimeWindowResponse[],
+    FetcherError
+  >(url, fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+
+  return {
+    timeWindows: data ?? EMPTY_TIME_WINDOWS,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
+}
+
+/**
+ * Create a new time window for the given calendar.
+ */
+export async function createCalendarTimeWindow(
+  calendarId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(`/app/api/calendar/${calendarId}/time-windows`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to create time window"));
+  }
+  return response.json();
+}
+
+/**
+ * Update an existing time window.
+ */
+export async function updateCalendarTimeWindow(
+  calendarId: string,
+  timeWindowId: string,
+  body: TimeWindowRequest
+): Promise<TimeWindowResponse> {
+  const response = await fetch(
+    `/app/api/calendar/${calendarId}/time-windows/${timeWindowId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to update time window"));
+  }
+  return response.json();
+}
+
+/**
+ * Deactivate (soft-delete) a time window by setting active=false.
+ * Requires the existing window data to satisfy required API fields.
+ */
+export async function deactivateCalendarTimeWindow(
+  calendarId: string,
+  window: TimeWindowResponse
+): Promise<void> {
+  await updateCalendarTimeWindow(calendarId, window.id, {
+    name: window.name,
+    startHour: window.startHour,
+    endHour: window.endHour,
+    validFrom: window.validFrom,
+    validTo: window.validTo,
+    daysOfWeek: window.daysOfWeek,
+    capacityPerSlot: window.capacityPerSlot,
+    slotDurationMinutes: window.slotDurationMinutes,
+    active: false,
+  });
+}
+
+// ============================================================================
+// Booking Helpers
+// ============================================================================
+
+/**
+ * Create a booking for a calendar slot resource.
+ */
+export async function createBooking(
+  body: BookingRequest
+): Promise<BookingResponse> {
+  const response = await fetch("/app/api/calendar/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to create booking");
+  }
+  return response.json();
+}
+
+/**
+ * Cancel an existing booking by ID.
+ */
+export async function cancelBooking(bookingId: string): Promise<void> {
+  const response = await fetch(`/app/api/calendar/bookings/${bookingId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to cancel booking");
+  }
+}
+
+const BookingListResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      calendarId: z.string(),
+      resource: z.object({
+        id: z.string(),
+        type: z.string().optional(),
+        label: z.string().optional(),
+        data: z.record(z.string(), z.unknown()).optional(),
+      }),
+      slot: z.object({
+        date: z.string(),
+        hour: z.number(),
+        minutes: z.number(),
+      }).nullable(),
+      createdAt: z.string(),
+      createdBy: z.string().optional(),
+    }),
+  ),
+  total: z.number(),
+});
+
+/**
+ * List bookings for a calendar, optionally filtered by date range.
+ */
+export async function listBookings(
+  params?: { calendarId?: string; startDate?: string; endDate?: string },
+  signal?: AbortSignal,
+): Promise<BookingListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
+  if (params?.startDate) searchParams.set("startDate", params.startDate);
+  if (params?.endDate) searchParams.set("endDate", params.endDate);
+  const query = searchParams.toString();
+  const url = query ? `/app/api/calendar/bookings?${query}` : "/app/api/calendar/bookings";
+  const response = await fetch(url, { method: "GET", signal });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error ?? "Failed to list bookings");
+  }
+  const json = await response.json();
+  const parsed = BookingListResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("BookingListResponse validation warning:", parsed.error.issues);
+    if (!Array.isArray((json as BookingListResponse).data)) {
+      throw new TypeError("Invalid booking list response format");
+    }
+    return json as BookingListResponse;
+  }
+  return parsed.data as BookingListResponse;
 }

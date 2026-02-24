@@ -7,7 +7,8 @@ export type SidebarItem = {
   label: string;
   items?: SidebarItem[];
   badge?: string;
-  totals: Record<string, number | string>;
+  totals?: Record<string, number | string>;
   requiredGroups?: string[];
   blockedGroups?: string[];
+  dynamicItemsSource?: string;
 };

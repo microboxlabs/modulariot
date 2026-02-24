@@ -16,13 +16,13 @@ export default function DownloadSignedDocument({
   documentId,
   asLink = false,
   name,
-}: DownloadSignedDocumentProps) {
+}: Readonly<DownloadSignedDocumentProps>) {
   const documentPath =
     documentId && typeof documentId?.replace === "function"
       ? documentId?.replace(":/", "")
       : documentId;
 
-  const href = `/app/api/document/download?documentId=${documentPath}`;
+  const href = `/api/document/download?documentId=${documentPath}`;
 
   if (asLink) {
     return (

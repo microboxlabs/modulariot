@@ -118,7 +118,6 @@ export function DashletSettings({
   const [footerColumns, setFooterColumns] = useState<string[]>(
     cl.footerColumns
   );
-  const [accentColumn, setAccentColumn] = useState(cl.accentColumn);
 
   // Data provider fields
   const [rowsJson, setRowsJson] = useState(() =>
@@ -224,7 +223,6 @@ export function DashletSettings({
       headerBadgeColumns,
       kpiColumns,
       footerColumns,
-      accentColumn,
     };
 
     onSave({
@@ -416,29 +414,6 @@ export function DashletSettings({
                     sizing="sm"
                     value={subtitleColumn}
                     onChange={(e) => setSubtitleColumn(e.target.value)}
-                  >
-                    <option value="">— none —</option>
-                    {columnsWithKeys.map((c) => (
-                      <option key={c._id} value={c.key}>
-                        {c.label || c.key}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                {/* Accent column */}
-                <div>
-                  <Label
-                    htmlFor="dl-accent-col"
-                    className="mb-1 block text-sm font-medium"
-                  >
-                    Accent border column
-                  </Label>
-                  <Select
-                    id="dl-accent-col"
-                    sizing="sm"
-                    value={accentColumn}
-                    onChange={(e) => setAccentColumn(e.target.value)}
                   >
                     <option value="">— none —</option>
                     {columnsWithKeys.map((c) => (

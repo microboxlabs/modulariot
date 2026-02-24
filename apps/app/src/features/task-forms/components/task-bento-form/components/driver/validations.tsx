@@ -182,7 +182,7 @@ export default function ValidationsInfo({
   const multimediaDict = (msg.bento as I18nRecord)?.multimedia as I18nRecord | undefined;
   const categoriesDict = multimediaDict?.categories as I18nRecord | undefined;
   const validationDict = multimediaDict?.validation as I18nRecord | undefined;
-  const documentsLabel = (multimediaDict?.documents as string) || "Documents";
+  const documentsLabel = (multimediaDict?.documents as string) || "";
   const requiredToContinueMsg = (validationDict?.requiredToContinue as string) || "";
 
   const documentValidationItems: ValidationItem[] = [];

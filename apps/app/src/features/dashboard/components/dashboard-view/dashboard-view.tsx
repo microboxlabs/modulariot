@@ -161,7 +161,7 @@ export function DashboardView() {
       </div>
 
       {/* Content */}
-      <div ref={containerRef} className="w-full min-h-[200px]">
+      <div ref={containerRef} className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
         {hasWidgets ? (
           <>
             {/* Root-level grid - only render when width is measured */}

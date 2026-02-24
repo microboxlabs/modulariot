@@ -20,7 +20,9 @@ export default async function SymptomsList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <SymptomsIcuList condition={condition} dict={dict} lang={lang} />
+      <div className="max-w-screen-2xl mx-auto w-full">
+        <SymptomsIcuList condition={condition} dict={dict} lang={lang} />
+      </div>
     </div>
   );
 }

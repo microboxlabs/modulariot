@@ -47,8 +47,6 @@ export interface CardLayoutConfig {
   kpiColumns: string[];
   /** Column keys shown in the footer row */
   footerColumns: string[];
-  /** Column key whose value determines the left accent border color */
-  accentColumn: string;
 }
 
 export interface DashletConfig {
@@ -192,7 +190,6 @@ export const defaultCardLayout: CardLayoutConfig = {
   headerBadgeColumns: ["exposure"],
   kpiColumns: ["km", "events", "speed", "signal", "schedule", "stops"],
   footerColumns: ["lastDetection", "severity"],
-  accentColumn: "exposure",
 };
 
 export const defaultConfig: DashletConfig = {
@@ -254,38 +251,6 @@ function getBadgeClasses(value: string): string {
     return "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
   }
   return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
-}
-
-function getAccentBorderClass(value: string): string {
-  const lower = value.toLowerCase();
-  if (
-    lower.includes("crít") ||
-    lower.includes("critical") ||
-    lower.includes("error") ||
-    lower.includes("alto")
-  ) {
-    return "border-l-red-500 dark:border-l-red-400";
-  }
-  if (
-    lower.includes("medio") ||
-    lower.includes("medium") ||
-    lower.includes("warning") ||
-    lower.includes("advertencia")
-  ) {
-    return "border-l-yellow-500 dark:border-l-yellow-400";
-  }
-  if (lower.includes("bajo") || lower.includes("low")) {
-    return "border-l-blue-500 dark:border-l-blue-400";
-  }
-  if (
-    lower.includes("ok") ||
-    lower.includes("activo") ||
-    lower.includes("active") ||
-    lower.includes("success")
-  ) {
-    return "border-l-green-500 dark:border-l-green-400";
-  }
-  return "border-l-gray-300 dark:border-l-gray-600";
 }
 
 function getProgressColor(pct: number): string {
@@ -437,16 +402,11 @@ interface ListCardProps {
 function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
   const colMap = new Map(columns.map((c) => [c.key, c]));
 
-  const accentValue = row[cardLayout.accentColumn] ?? "";
-  const accentClass = getAccentBorderClass(accentValue);
-
   const titleValue = row[cardLayout.titleColumn] ?? "";
   const subtitleValue = row[cardLayout.subtitleColumn] ?? "";
 
   return (
-    <div
-      className={`rounded-lg border border-gray-200 border-l-4 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${accentClass}`}
-    >
+    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       {/* Header: title + badges + menu */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

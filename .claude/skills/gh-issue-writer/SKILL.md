@@ -1,158 +1,125 @@
-## claude---
-
+---
 name: gh-issue-writer
-description: Create and publish GitHub issues with full project board integration. Use when the user wants to create feature requests (feat:) or bug reports (bug:), track work in GitHub Projects, and set up development branches.
+description: >
+  Create and publish GitHub issues with full project board integration.
+  Use when the user wants to create a feature request (feat:), bug report (bug:),
+  or any tracked issue from a PR or description. Handles issue creation, project
+  board association, status setting, and development branch checkout. Also use
+  when the user says "create an issue", "write an issue for this PR",
+  "track this work", or provides a PR URL to turn into an issue.
+---
 
 # GitHub Issue Writer
 
-Create and publish GitHub issues for the bubo project with full project board integration.
+Create GitHub issues with project board integration and development branch setup.
 
-## When to Use
+## Workflow
 
-Use this skill when the user wants to:
+1. Parse input (type + description or PR URL)
+2. Create the issue via `gh issue create`
+3. Add issue to project board and capture item ID
+4. Set project status
+5. Create and checkout development branch
 
-- Create a new feature request (input starts with `feat:`)
-- Report a bug (input starts with `bug:`)
-- Track work in the Modular IoT project board
+## Step 1: Parse Input
 
-## Instructions
+Determine issue type from prefix or context:
 
-### Step 1: Parse User Input
+- `feat:` → label `enhancement`
+- `bug:` → label `bug`
+- PR URL → inspect the PR with `gh pr view <url> --json title,body,labels` and derive type + description
 
-1. Determine issue type from prefix:
+Extract a concise title and body from the user input or PR.
 
-- `feat:` → Feature request
-- `bug:` → Bug report
+## Step 2: Create the Issue
 
-1. Extract the brief description and additional context
-
-### Step 2: Create the Issue
-
-Publish the issue directly to the repository specified in `$GH_ISSUE_REPO` using `gh` CLI or GitHub MCP tools.
-
-**Required fields:**
-
-- **Title**: Concise, descriptive title based on user input
-- **Labels**: Appropriate labels (e.g., `enhancement`, `bug`, `bubo`, `cli`, `github-integration`)
-- **Body**: Fill in all template sections with relevant details
-
-### Step 3: Associate Issue to Project and Capture Item ID
-
-Read project configuration from `.env.local` file, add the issue to the project, and capture the project item ID in one step:
+Load config and publish:
 
 ```bash
 source .env.local
 
-# Add to project and capture item ID (more efficient than querying all items)
-ITEM_ID=$(gh project item-add $GH_PROJECT_NUMBER \
-  --owner $GH_PROJECT_OWNER \
+gh issue create \
+  --repo "$GH_ISSUE_REPO" \
+  --title "<title>" \
+  --body "<body>" \
+  --label "<labels>"
+```
+
+Capture the issue number from the output.
+
+## Step 3: Add to Project Board
+
+```bash
+source .env.local
+
+ITEM_ID=$(gh project item-add "$GH_PROJECT_NUMBER" \
+  --owner "$GH_PROJECT_OWNER" \
   --url "https://github.com/$GH_ISSUE_REPO/issues/<ISSUE_NUMBER>" \
   --format json | jq -r '.id')
-
-echo "Project Item ID: $ITEM_ID"
 ```
 
-### Step 4: Set Project Status
-
-Set the status using the captured item ID:
+## Step 4: Set Project Status
 
 ```bash
 source .env.local
 
-# Set status based on context:
-# If files are already modified → "In Progress"
-gh project item-edit --project-id $GH_PROJECT_ID --id "$ITEM_ID" --field-id $GH_STATUS_FIELD_ID --single-select-option-id $GH_STATUS_IN_PROGRESS
+# If files are already modified locally → "In Progress"
+gh project item-edit \
+  --project-id "$GH_PROJECT_ID" \
+  --id "$ITEM_ID" \
+  --field-id "$GH_STATUS_FIELD_ID" \
+  --single-select-option-id "$GH_STATUS_IN_PROGRESS"
 
 # Otherwise → "Ready for Development"
-gh project item-edit --project-id $GH_PROJECT_ID --id "$ITEM_ID" --field-id $GH_STATUS_FIELD_ID --single-select-option-id $GH_STATUS_READY_FOR_DEV
+gh project item-edit \
+  --project-id "$GH_PROJECT_ID" \
+  --id "$ITEM_ID" \
+  --field-id "$GH_STATUS_FIELD_ID" \
+  --single-select-option-id "$GH_STATUS_READY_FOR_DEV"
 ```
 
-### Step 5: Create Development Branch
-
-First identify the current repository with `git remote -v`, then create a linked branch:
+## Step 5: Create Development Branch
 
 ```bash
 source .env.local
 
 gh issue develop <ISSUE_NUMBER> \
-  --repo $GH_ISSUE_REPO \
-  --branch-repo $GH_ISSUE_REPO \
+  --repo "$GH_ISSUE_REPO" \
+  --branch-repo "$GH_ISSUE_REPO" \
   --base trunk \
-  --name based/<ISSUE_NUMBER>-<short-name> \
+  --name "based/<ISSUE_NUMBER>-<short-name>" \
   --checkout
 ```
 
-**Branch naming:**
-
-- Base branch: `trunk`
-- Format: `based/<issue-id>-<short-name>`
-- Short name: 3-4 words max, descriptive of the feature/fix
+Branch naming: `based/<issue-number>-<3-4-word-slug>`
 
 If `--checkout` fails due to local changes:
 
 ```bash
-git fetch origin && git checkout based/<ISSUE_NUMBER>-<short-name>
+git fetch origin && git checkout "based/<ISSUE_NUMBER>-<short-name>"
 ```
 
-## Required Environment Variables
+## Environment Variables
 
-These values must be set in the `.env.local` file (not committed to git):
+All values are read from `.env.local` (not committed to git):
 
-```bash
-# GitHub Organization/Repository
-GH_PROJECT_OWNER=         # Organization or user (e.g., microboxlabs)
-GH_ISSUE_REPO=            # Repository for issues (e.g., owner/repo)
+| Variable | Example | Purpose |
+|---|---|---|
+| `GH_PROJECT_OWNER` | `microboxlabs` | Org or user |
+| `GH_ISSUE_REPO` | `microboxlabs/modulariot` | Target repo |
+| `GH_PROJECT_NUMBER` | `4` | Project board number |
+| `GH_PROJECT_ID` | `PVT_...` | Project node ID |
+| `GH_STATUS_FIELD_ID` | `PVTSSF_...` | Status field ID |
+| `GH_STATUS_BACKLOG` | option ID | Backlog status |
+| `GH_STATUS_READY_FOR_DEV` | option ID | Ready for Dev status |
+| `GH_STATUS_IN_PROGRESS` | option ID | In Progress status |
+| `GH_STATUS_IN_REVIEW` | option ID | In Review status |
+| `GH_STATUS_DONE` | option ID | Done status |
 
-# GitHub Project Configuration
-GH_PROJECT_NUMBER=        # Project number (e.g., 4)
-GH_PROJECT_ID=            # Project ID (starts with PVT_)
-GH_STATUS_FIELD_ID=       # Status field ID (starts with PVTSSF_)
-
-# Status Option IDs
-GH_STATUS_BACKLOG=
-GH_STATUS_READY_FOR_DEV=
-GH_STATUS_IN_PROGRESS=
-GH_STATUS_IN_REVIEW=
-GH_STATUS_DONE=
-```
-
-To find these values, use:
+To discover these values:
 
 ```bash
 source .env.local
-
-# Get project ID
-gh project list --owner $GH_PROJECT_OWNER --format json | jq '.projects[] | select(.number == <NUMBER>)'
-
-# Get field IDs and option IDs
-gh project field-list <PROJECT_NUMBER> --owner $GH_PROJECT_OWNER --format json
+gh project list --owner "$GH_PROJECT_OWNER" --format json | jq '.projects[] | select(.number == <N>)'
+gh project field-list <N> --owner "$GH_PROJECT_OWNER" --format json
 ```
-
-## Project Context
-
-When writing issues, understand that bubo is:
-
-- An enterprise AI coding agent with deep GitHub integration
-- Automates software development workflows using Claude Code
-- Built with TypeScript (strict mode), ESM modules, Node.js 20+
-- Uses pnpm exclusively (never npm or yarn)
-- Uses Zod for runtime validation of external data
-- GitHub-native workflow: Issues, Projects v2, Pull Requests
-- Can run as CLI, GitHub Action, or webhook service
-
-**Code structure:**
-
-- `cli/` - Command-line interface and commands
-- `core/` - Core business logic and orchestration
-- `types/` - TypeScript type definitions
-- `utils/` - Shared utilities and helpers
-
-**Relevant labels:**
-
-- `bubo` - Triggers Bubo to work on this issue
-- `bubo:in-progress` - Bubo is currently working on this
-- `bubo:blocked` - Bubo encountered an issue and needs help
-- `bubo:complete` - Bubo has completed the task
-- `enhancement` - Feature requests
-- `bug` - Bug reports
-

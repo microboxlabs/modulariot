@@ -73,10 +73,6 @@ export function useDocumentValidation(
       file.entry.properties?.["mintral:contentType"] === "PROOF_OF_DELIVERY"
   );
 
-  // const hasPOLF = entries.some(
-  //   (file) =>
-  //     file.entry.properties?.["mintral:contentType"] === "PROOF_OF_LOAD_FLOOR"
-  // );
   const hasPOLF = false;
 
   let isValid = false;

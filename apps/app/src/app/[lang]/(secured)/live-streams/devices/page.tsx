@@ -30,7 +30,7 @@ export default async function AllDevicesPage({ params }: ParamsWithLang) {
           dict={dict["layout"]?.["secured"]?.["sidebar"] ?? {}}
         />
       </div>
-      <div className="flex-1 p-5 pt-0 overflow-hidden">
+      <div className="flex-1 p-5 pt-0 overflow-hidden max-w-screen-2xl mx-auto w-full">
         <AllDevicesView devices={MOCK_DEVICES} lang={lang} dict={dict.liveStreams} />
       </div>
     </div>

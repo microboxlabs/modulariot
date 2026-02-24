@@ -261,21 +261,27 @@ export default function ValidationsInfo({
                 {documentsLabel}
               </h2>
               <div className="space-y-1 flex flex-col gap-2">
-                {documentValidationItems.map((item) => (
-                  <Tooltip
-                    style="auto"
-                    key={item.key}
-                    content={requiredToContinueMsg}
-                    hidden={!requiredToContinueMsg}
-                  >
-                    <div className="flex gap-1 items-center">
-                      <ValidationIcon status={item.status} isLoading={false} />
-                      <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        {(categoriesDict?.[item.key] as string) || item.key}
-                      </span>
-                    </div>
-                  </Tooltip>
-                ))}
+                {documentValidationItems.map((item) => {
+                  const itemContent = (
+                    <ValidationItemComponent
+                      key={item.key}
+                      item={item}
+                      msg={{ bento: categoriesDict || {} } as I18nRecord}
+                    />
+                  );
+
+                  return item.status === "error" && requiredToContinueMsg ? (
+                    <Tooltip
+                      style="auto"
+                      key={item.key}
+                      content={requiredToContinueMsg}
+                    >
+                      {itemContent}
+                    </Tooltip>
+                  ) : (
+                    <div key={item.key}>{itemContent}</div>
+                  );
+                })}
               </div>
             </div>
           )}

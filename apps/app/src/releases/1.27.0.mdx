@@ -1,0 +1,82 @@
+# 🔔 Release Notes v1.27.0 — ModularIoT
+
+### Fecha: 23/02/2026
+
+**Objetivo**: Completar la integración del ecosistema de Calendario MIOT incorporando el servicio de generación automática de slots, el cliente TypeScript oficial y su CLI, y consolidar la experiencia de planificación en el dashboard con una sección de Calendar dedicada, navegación centralizada y flujo de reservas conectado al backend de calendario.
+
+## 🚀 Evolutivos
+
+- **🗓️ Slot Manager — Generación Automática de Slots** *(Integración OSS — MIOT-0.2.0)*
+  - **Motor de generación**: Proceso de fondo basado en base de datos que genera slots en advance para cada calendario, con gestión completa via REST API.
+  - **Modos de ejecución**: Soporte para instancia única y despliegues Kubernetes, garantizando compatibilidad en distintos entornos operativos.
+  - **Auto-provisionamiento**: Al crear un calendario se genera automáticamente un SlotManager por defecto; al desactivar el calendario, su SlotManager se desactiva en la misma transacción, manteniendo consistencia sin pasos manuales adicionales.
+  - **Eliminación definitiva**: Nuevo endpoint `DELETE /api/v1/miot-calendar/calendars/{id}/purge` para borrado físico de un calendario y todos sus datos asociados, preservando el soft-delete existente.
+
+- **📦 Cliente TypeScript `@modulariot/miot-calendar-client`** *(Integración OSS — MIOT-0.2.0)*
+  - **SDK v0.1.1**: Cliente TypeScript hand-written que cubre las 17 operaciones de la API MIOT Calendar (Bookings, Calendars, Slots). Sin dependencias de runtime, basado en `fetch` nativo, con tipado estricto completo.
+  - **Calendar Groups (v0.2.0)**: Soporte completo de Calendar Groups en el cliente, alineado con el upgrade de la API de v0.1.1 a v0.2.0.
+  - **Purge y nuevos campos (v0.2.1)**: Extensión del cliente y CLI para soportar el endpoint de purga y los nuevos campos de `CalendarRequest`/`CalendarResponse` introducidos en la spec OpenAPI v0.2.1.
+
+- **⌨️ CLI `@microboxlabs/miot-cli`** *(Integración OSS — MIOT-0.2.0)*
+  - **CLI modular**: Implementación de CLI Commander.js que envuelve el SDK `miot-calendar-client` para uso humano y por agentes de IA.
+  - **Salida adaptativa**: Tabla formateada en TTY, JSON limpio al pipear — diseñado tanto para operación manual como para integración en scripts y workflows automatizados.
+  - **Arquitectura extensible**: Módulo de calendario como primero; arquitectura preparada para futuros módulos (dispositivos, alertas, etc.).
+
+- **📋 Reservas en el Flujo de Planificación** *(Integración OSS — MIOT-0.2.0)*
+  - **Integración con backend**: El sidebar de planificación ahora llama a la API `bookings` del `miot-calendar-client` al confirmar o remover un servicio, reservando el slot de calendario real en el backend.
+  - **Flujo completo**: La asignación de servicio en el calendario queda persistida en el sistema de calendario y no solo en el estado local del frontend.
+
+- **🏠 Sección de Calendario — Página de Entrada** *(Integración OSS — MIOT-0.2.0)*
+  - **Landing page**: Nueva página de inicio para la sección Calendar que provee contexto y orientación antes de ingresar a la vista de planificación.
+  - **Entrada contextualizada**: Los usuarios que navegan al ítem "Calendar" en el sidebar aterrizan en una vista que explica las operaciones disponibles y el flujo de trabajo, en lugar de ser llevados directamente al calendario.
+
+- **🧭 Contexto de Navegación Centralizado** *(Integración OSS — MIOT-0.2.0)*
+  - **`SidebarNavigationProvider`**: Nuevo React context que actúa como fuente de verdad para todos los datos de navegación del sidebar — ítems resueltos (estáticos y dinámicos) y contadores de badges.
+  - **Sin duplicación**: Elimina el fetching redundante de datos compartido entre los componentes de sidebar desktop y móvil, y elimina configuración de página mutable.
+
+- **📦 Vista Compacta de Entrega** *(Integración OSS — MIOT-0.2.0)*
+  - **Columnas compactas**: Rediseño de las columnas confirmar y recibir en la sección de entrega para una presentación más densa y eficiente.
+  - **Flujo de cierre**: La acción "recibir" ahora transiciona al cierre del viaje (monitoreo) en lugar de la recepción de entrega, alineando el flujo con el proceso operativo real.
+
+## 🔧 Integraciones
+
+- **🧪 Resolución de `tsconfig extends` en SonarCloud CI** *(Integración OSS — MIOT-0.2.0)*
+  - **Problema**: SonarCloud no podía resolver las rutas de `tsconfig extends` que apuntan a paquetes del workspace en el monorepo, generando advertencias en cada análisis.
+  - **Corrección**: Ajuste de configuración para que SonarCloud resuelva correctamente las extensiones de TypeScript desde los paquetes del workspace.
+  - **Impacto**: Análisis de calidad de código limpio y sin ruido en el pipeline de CI/CD.
+
+## 🐛 Correcciones
+
+- **⚙️ SlotManager no se activaba en creación o mutación de Time-Window** *(Integración OSS — MIOT-0.2.0)*
+  - **Causa raíz**: El SlotManager del backend no era disparado al crear un calendario ni al modificar sus ventanas de tiempo.
+  - **Solución**: Corrección en el servicio de calendario para propagar correctamente los eventos de creación y mutación al SlotManager.
+  - **Impacto**: La generación de slots ahora se activa automáticamente ante cualquier cambio en la configuración de ventanas de tiempo.
+
+- **🔢 Generación de Slots Siempre Producía 0 Slots** *(Integración OSS — MIOT-0.2.0)*
+  - **Causa raíz**: `POST /slots/generate` y el slot manager devolvían `slotsCreated: 0` independientemente del rango de fechas o configuración de ventanas de tiempo, incluso con ventanas activas y bien configuradas.
+  - **Solución**: Corrección de la lógica de generación para respetar correctamente los parámetros de fecha y ventanas de tiempo activas.
+
+- **♿ Violaciones de SonarCloud y Accesibilidad en Gestor Multimedia** *(Integración OSS — MIOT-0.2.0)*
+  - **Problema**: Múltiples violaciones de SonarCloud y ESLint en los componentes de gestión multimedia (bento form) y visor de imágenes: problemas de accesibilidad, calidad de código y type safety.
+  - **Solución**: Corrección de todas las violaciones identificadas en los componentes afectados.
+
+- **📄 Descarga de Documentos Fallaba por basePath y NodeRef Incorrectos** *(Integración OSS — MIOT-0.2.0)*
+  - **Causa raíz**: La descarga desde el gestor multimedia retornaba error 404 por dos causas: falta del prefijo `/app` en el basePath y construcción incorrecta del `nodeRef` de Alfresco.
+  - **Solución**: Corrección del basePath en las rutas de descarga y del mecanismo de construcción del `nodeRef`.
+  - **Resultado**: Descarga de documentos funcional desde el formulario bento sin errores de ruta.
+
+## 📊 Beneficios
+
+- **🗓️ Calendario completamente operativo**: La combinación de Slot Manager automático, cliente TypeScript y reservas integradas convierte el módulo de Calendar en un sistema end-to-end funcional para la planificación de servicios.
+- **⌨️ Productividad para desarrolladores y agentes**: La CLI `miot-cli` permite operar el sistema de calendario desde terminal o pipelines automatizados, reduciendo fricción operativa y habilitando integraciones con herramientas de IA.
+- **🧭 Navegación más eficiente**: El contexto centralizado de sidebar elimina fetching redundante y establece una base sólida para escalabilidad de la navegación en futuros módulos.
+- **🔗 Integridad de datos de planificación**: Las reservas ahora se persisten en el backend de calendario, eliminando inconsistencias entre el estado del frontend y el sistema de slots.
+- **🐛 Estabilidad del servicio de calendario**: Las correcciones en la generación de slots y el trigger del SlotManager garantizan que el sistema produce slots correctamente bajo todas las condiciones de configuración.
+- **✅ Calidad de código sostenida**: La resolución de violaciones de SonarCloud y accesibilidad, junto con la corrección del CI, mantienen el pipeline de calidad limpio y confiable.
+- **📦 Plataforma extensible**: La arquitectura modular del CLI y el SDK typed sientan las bases para una expansión ordenada del ecosistema MIOT hacia nuevos módulos y consumidores.
+
+## 📌 Conclusión
+
+La versión 1.27.0 completa el ciclo inicial del ecosistema de Calendario MIOT con la integración de todos sus componentes: el servicio de generación automática de slots en el backend (`miot-calendar`), el cliente TypeScript oficial (`miot-calendar-client`), la CLI operacional (`miot-cli`) y la conexión del flujo de planificación del dashboard con el backend de reservas. Esta entrega transforma el módulo de Calendar de una interfaz visual sin persistencia real a un sistema de planificación completamente funcional.
+
+Complementan este hito las mejoras de experiencia en el dashboard — nueva página de entrada para la sección Calendar, navegación centralizada sin duplicación de datos y vista compacta de entrega — que sientan las bases estructurales para el crecimiento del módulo. Las correcciones en la generación de slots y el trigger del SlotManager cierran las brechas operativas identificadas en el ciclo de desarrollo MIOT-0.2.0, asegurando que el sistema funcione correctamente de extremo a extremo.

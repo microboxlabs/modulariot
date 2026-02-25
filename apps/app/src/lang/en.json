@@ -1200,7 +1200,8 @@
     },
     "title": "Title",
     "value": "Value",
-    "unit": "Unit"
+    "unit": "Unit",
+    "all": "All"
   },
   "dashboard": {
     "settings": {

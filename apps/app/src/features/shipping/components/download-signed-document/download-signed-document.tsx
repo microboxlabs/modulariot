@@ -4,7 +4,6 @@ import { Download } from "flowbite-react-icons/outline";
 import { Button } from "flowbite-react";
 import Link from "next/link";
 import { FaRegFilePdf } from "react-icons/fa";
-//import { useVerifyDocument } from "@/features/common/providers/client-api.provider";
 
 interface DownloadSignedDocumentProps {
   documentId?: string;
@@ -16,7 +15,7 @@ export default function DownloadSignedDocument({
   documentId,
   asLink = false,
   name,
-}: DownloadSignedDocumentProps) {
+}: Readonly<DownloadSignedDocumentProps>) {
   // Normalize the Alfresco nodeRef to its path-only form:
   // "workspace://SpacesStore/{uuid}" → "workspace/SpacesStore/{uuid}"
   const nodeContentPath =
@@ -24,7 +23,7 @@ export default function DownloadSignedDocument({
       ? documentId.replace(":/", "")
       : documentId;
 
-  const href = `/app/api/document/download?documentId=${nodeContentPath}`;
+  const href = `/api/document/download?documentId=${nodeContentPath}`;
 
   if (asLink) {
     return (

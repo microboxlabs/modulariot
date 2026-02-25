@@ -198,13 +198,13 @@ export function DashletSettings({
       try {
         const parsed = JSON.parse(rowsJson);
         if (!Array.isArray(parsed)) {
-          setRowsJsonError("Must be a JSON array");
+          setRowsJsonError(tr("dashboard.settings.mustBeJsonArray", dictionary));
           return;
         }
         rows = parsed as Record<string, string>[];
         setRowsJsonError(null);
       } catch {
-        setRowsJsonError("Invalid JSON");
+        setRowsJsonError(tr("dashboard.settings.invalidJson", dictionary));
         return;
       }
     }
@@ -287,14 +287,14 @@ export function DashletSettings({
               {/* Title */}
               <SettingsTextField
                 id="dl-title"
-                label="Title"
+                label={tr("common.title", dictionary)}
                 value={title}
                 onChange={setTitle}
               />
 
               {/* Show row count */}
               <div className="flex items-center justify-between py-0.5">
-                <Label className="text-sm font-medium">Show row count</Label>
+                <Label className="text-sm font-medium">{tr("dashboard.settings.showRowCount", dictionary)}</Label>
                 <ToggleSwitch
                   checked={showRowCount}
                   onChange={setShowRowCount}
@@ -305,7 +305,7 @@ export function DashletSettings({
               {/* Columns editor */}
               <div>
                 <Label className="mb-1.5 block text-sm font-medium">
-                  Columns
+                  {tr("dashboard.settings.columns", dictionary)}
                 </Label>
                 <div className="space-y-1.5">
                   {columns.map((col) => (
@@ -313,7 +313,7 @@ export function DashletSettings({
                       <div className="min-w-0 flex-1">
                         <TextInput
                           sizing="sm"
-                          placeholder="key"
+                          placeholder={tr("dashboard.settings.key", dictionary)}
                           value={col.key}
                           onChange={(e) =>
                             updateColumn(col._id, "key", e.target.value)
@@ -323,7 +323,7 @@ export function DashletSettings({
                       <div className="min-w-0 flex-1">
                         <TextInput
                           sizing="sm"
-                          placeholder="label"
+                          placeholder={tr("dashboard.settings.label", dictionary)}
                           value={col.label}
                           onChange={(e) =>
                             updateColumn(col._id, "label", e.target.value)
@@ -368,7 +368,7 @@ export function DashletSettings({
                   className="no-drag mt-2"
                 >
                   <HiPlus className="mr-1 h-3 w-3" />
-                  Add column
+                  {tr("dashboard.settings.addColumn", dictionary)}
                 </Button>
               </div>
 
@@ -376,7 +376,7 @@ export function DashletSettings({
               <hr className="border-gray-200 dark:border-gray-700" />
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Card Layout</Label>
+                <Label className="text-sm font-semibold">{tr("dashboard.settings.cardLayout", dictionary)}</Label>
 
                 {/* Title column */}
                 <div>
@@ -384,7 +384,7 @@ export function DashletSettings({
                     htmlFor="dl-title-col"
                     className="mb-1 block text-sm font-medium"
                   >
-                    Title column
+                    {tr("dashboard.settings.titleColumn", dictionary)}
                   </Label>
                   <Select
                     id="dl-title-col"
@@ -392,7 +392,7 @@ export function DashletSettings({
                     value={titleColumn}
                     onChange={(e) => setTitleColumn(e.target.value)}
                   >
-                    <option value="">— none —</option>
+                    <option value="">{tr("dashboard.settings.none", dictionary)}</option>
                     {columnsWithKeys.map((c) => (
                       <option key={c._id} value={c.key}>
                         {c.label || c.key}
@@ -407,7 +407,7 @@ export function DashletSettings({
                     htmlFor="dl-subtitle-col"
                     className="mb-1 block text-sm font-medium"
                   >
-                    Subtitle column
+                    {tr("dashboard.settings.subtitleColumn", dictionary)}
                   </Label>
                   <Select
                     id="dl-subtitle-col"
@@ -415,7 +415,7 @@ export function DashletSettings({
                     value={subtitleColumn}
                     onChange={(e) => setSubtitleColumn(e.target.value)}
                   >
-                    <option value="">— none —</option>
+                    <option value="">{tr("dashboard.settings.none", dictionary)}</option>
                     {columnsWithKeys.map((c) => (
                       <option key={c._id} value={c.key}>
                         {c.label || c.key}
@@ -427,7 +427,7 @@ export function DashletSettings({
                 {/* Header badge columns (checkboxes) */}
                 <div>
                   <Label className="mb-1.5 block text-sm font-medium">
-                    Header badge columns
+                    {tr("dashboard.settings.headerBadgeColumns", dictionary)}
                   </Label>
                   <div className="space-y-1">
                     {columnsWithKeys.map((c) => (
@@ -458,7 +458,7 @@ export function DashletSettings({
                 {/* KPI columns (checkboxes) */}
                 <div>
                   <Label className="mb-1.5 block text-sm font-medium">
-                    KPI grid columns
+                    {tr("dashboard.settings.kpiGridColumns", dictionary)}
                   </Label>
                   <div className="space-y-1">
                     {columnsWithKeys.map((c) => (
@@ -489,7 +489,7 @@ export function DashletSettings({
                 {/* Footer columns (checkboxes) */}
                 <div>
                   <Label className="mb-1.5 block text-sm font-medium">
-                    Footer columns
+                    {tr("dashboard.settings.footerColumns", dictionary)}
                   </Label>
                   <div className="space-y-1">
                     {columnsWithKeys.map((c) => (
@@ -523,7 +523,7 @@ export function DashletSettings({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Filter</Label>
+                  <Label className="text-sm font-medium">{tr("dashboard.settings.filter", dictionary)}</Label>
                   <ToggleSwitch
                     checked={filterEnabled}
                     onChange={setFilterEnabled}
@@ -534,7 +534,7 @@ export function DashletSettings({
                 {filterEnabled && (
                   <div>
                     <Label className="mb-1.5 block text-sm font-medium">
-                      Filter rows
+                      {tr("dashboard.settings.filterRows", dictionary)}
                     </Label>
                     <div className="space-y-1.5">
                       {filterItems.map((fi) => (
@@ -542,7 +542,7 @@ export function DashletSettings({
                           <div className="min-w-0 flex-1">
                             <TextInput
                               sizing="sm"
-                              placeholder="label"
+                              placeholder={tr("dashboard.settings.label", dictionary)}
                               value={fi.label}
                               onChange={(e) =>
                                 updateFilterItem(
@@ -591,7 +591,7 @@ export function DashletSettings({
                       className="no-drag mt-2"
                     >
                       <HiPlus className="mr-1 h-3 w-3" />
-                      Add filter
+                      {tr("dashboard.settings.addFilter", dictionary)}
                     </Button>
                   </div>
                 )}
@@ -602,7 +602,7 @@ export function DashletSettings({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Sort</Label>
+                  <Label className="text-sm font-medium">{tr("dashboard.settings.sort", dictionary)}</Label>
                   <ToggleSwitch
                     checked={sortEnabled}
                     onChange={setSortEnabled}
@@ -613,7 +613,7 @@ export function DashletSettings({
                 {sortEnabled && (
                   <div>
                     <Label className="mb-1.5 block text-sm font-medium">
-                      Sortable columns
+                      {tr("dashboard.settings.sortableColumns", dictionary)}
                     </Label>
                     <div className="space-y-1">
                       {columnsWithKeys.map((c) => (
@@ -644,12 +644,12 @@ export function DashletSettings({
               {/* Data source mode */}
               <SettingsSelectField
                 id="dl-data-mode"
-                label="Data Source"
+                label={tr("dashboard.settings.dataSource", dictionary)}
                 value={dataMode}
                 onChange={(v) => setDataMode(v as "static" | "dynamic")}
                 options={[
-                  { value: "static", label: "Static (JSON)" },
-                  { value: "dynamic", label: "Dynamic (API)" },
+                  { value: "static", label: tr("dashboard.settings.staticJson", dictionary) },
+                  { value: "dynamic", label: tr("dashboard.settings.dynamicApi", dictionary) },
                 ]}
               />
 
@@ -660,7 +660,7 @@ export function DashletSettings({
                     htmlFor="dl-rows-json"
                     className="mb-1 block text-sm font-medium"
                   >
-                    Rows (JSON array)
+                    {tr("dashboard.settings.rowsJsonArray", dictionary)}
                   </Label>
                   <Textarea
                     id="dl-rows-json"
@@ -686,7 +686,7 @@ export function DashletSettings({
               {dataMode === "dynamic" && (
                 <SettingsTextField
                   id="dl-api-url"
-                  label="API URL"
+                  label={tr("dashboard.settings.apiUrl", dictionary)}
                   value={apiUrl}
                   onChange={setApiUrl}
                 />

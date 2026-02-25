@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
+import { renderCell } from "../common/cell-renderers";
+import { Pill } from "../common/pill";
+import { useDynamicRows } from "../common/use-dynamic-rows";
+
+export type { ColumnType, TableColumn, SortConfig };
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
-
-export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
-
-export interface TableColumn {
-  key: string;
-  label: string;
-  type: ColumnType;
-}
 
 export interface FilterConfig {
   enabled: boolean;
@@ -22,12 +20,6 @@ export interface FilterConfig {
   column: string;
   /** Label shown before the filter pills, e.g. "Estado:" */
   label: string;
-}
-
-export interface SortConfig {
-  enabled: boolean;
-  /** Ordered list of column keys available in the sort toolbar */
-  columns: string[];
 }
 
 export interface DashletConfig {
@@ -130,150 +122,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 // ============================================================================
-// Cell Rendering Helpers
-// ============================================================================
-
-function getBadgeClasses(value: string): string {
-  const lower = value.toLowerCase();
-  if (
-    lower.includes("crít") ||
-    lower.includes("critical") ||
-    lower.includes("error") ||
-    lower.includes("alto")
-  ) {
-    return "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
-  }
-  if (
-    lower.includes("medio") ||
-    lower.includes("medium") ||
-    lower.includes("warning") ||
-    lower.includes("advertencia")
-  ) {
-    return "bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800";
-  }
-  if (lower.includes("bajo") || lower.includes("low")) {
-    return "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
-  }
-  if (
-    lower.includes("ok") ||
-    lower.includes("activo") ||
-    lower.includes("active") ||
-    lower.includes("success")
-  ) {
-    return "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
-  }
-  return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
-}
-
-function getProgressColor(pct: number): string {
-  if (pct >= 90) return "bg-green-500";
-  if (pct >= 80) return "bg-orange-400";
-  return "bg-red-500";
-}
-
-function renderProgress(value: string) {
-  const pct = Number.parseFloat(value.replaceAll(/[^\d.]/g, ""));
-  const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
-  const barColor = getProgressColor(safePct);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
-        <div
-          className={`h-full rounded-full ${barColor}`}
-          style={{ width: `${safePct}%` }}
-        />
-      </div>
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function getSignedClasses(value: string): string {
-  // Strip everything except digits, minus sign, and decimal separator
-  const numeric = Number.parseFloat(value.replaceAll(/[^\d.-]/g, ""));
-  if (Number.isNaN(numeric)) {
-    return "text-gray-700 dark:text-gray-300";
-  }
-  if (numeric < 0) {
-    return "font-semibold text-red-600 dark:text-red-400";
-  }
-  if (numeric < 1000) {
-    return "font-semibold text-orange-500 dark:text-orange-400";
-  }
-  return "font-semibold text-green-600 dark:text-green-400";
-}
-
-function renderCell(value: string, type: ColumnType) {
-  if (type === "badge") {
-    return (
-      <span
-        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClasses(value)}`}
-      >
-        {value}
-      </span>
-    );
-  }
-  if (type === "highlight") {
-    return (
-      <span className="font-semibold text-blue-600 dark:text-blue-400">
-        {value}
-      </span>
-    );
-  }
-  if (type === "signed") {
-    return <span className={getSignedClasses(value)}>{value}</span>;
-  }
-  if (type === "progress") {
-    return renderProgress(value);
-  }
-  // text — multiline: first line bold, rest as muted subtitle
-  const lines = value.split("\n");
-  if (lines.length > 1) {
-    return (
-      <span>
-        <span className="block font-semibold text-gray-900 dark:text-white">
-          {lines[0]}
-        </span>
-        <span className="block text-xs text-gray-500 dark:text-gray-400">
-          {lines.slice(1).join(" ")}
-        </span>
-      </span>
-    );
-  }
-  return <span>{value}</span>;
-}
-
-// ============================================================================
-// Pill Button
-// ============================================================================
-
-interface PillProps {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  icon?: React.ReactNode;
-}
-
-function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`no-drag inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-        active
-          ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-      }`}
-    >
-      {label}
-      {icon}
-    </button>
-  );
-}
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -291,50 +139,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   } = config;
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const [dynamicRows, setDynamicRows] = useState<Record<string, string>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (dataMode !== "dynamic" || !apiUrl) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-
-    fetch(apiUrl)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: unknown) => {
-        if (cancelled) return;
-        let parsed: Record<string, string>[];
-        if (Array.isArray(data)) {
-          parsed = data as Record<string, string>[];
-        } else if (data && typeof data === "object") {
-          const obj = data as Record<string, unknown>;
-          const candidate = obj.rows ?? obj.data ?? obj.results;
-          parsed = Array.isArray(candidate)
-            ? (candidate as Record<string, string>[])
-            : [];
-        } else {
-          parsed = [];
-        }
-        setDynamicRows(parsed);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setFetchError(err instanceof Error ? err.message : "Failed to fetch");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dataMode, apiUrl]);
+  const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
   const [filterValue, setFilterValue] = useState("");

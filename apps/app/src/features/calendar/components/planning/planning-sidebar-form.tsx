@@ -469,7 +469,7 @@ export function PlanningSidebarForm({
 
       {/* KPIs Section */}
       <FormSection title={tr("pages.planning.sidebar.form.kpis", dict)}>
-        <LeadTimeDisplay leadTime={selectedService.leadTime} />
+        <LeadTimeDisplay leadTime={selectedService.leadTime} dict={dict} />
         <KpiRow label="ETA" value={eta} />
         <ProgressBar
           label={tr("pages.planning.sidebar.form.occupancy", dict)}

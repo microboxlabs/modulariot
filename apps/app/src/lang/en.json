@@ -292,7 +292,9 @@
           "maxUtilization": "Total",
           "weightUtilization": "Weight utilization",
           "palletUtilization": "Pallet utilization",
-          "volumeUtilization": "Volume utilization"
+          "volumeUtilization": "Volume utilization",
+          "leadTimeLocCount": "{count} LOC",
+          "leadTimeLocLines": "{count} LOC lines"
         },
         "contextMenu": {
           "reassign": "Reassign",

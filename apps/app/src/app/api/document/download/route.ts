@@ -10,17 +10,19 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const documentId = url.searchParams.get("documentId");
-  //const documentName = url.searchParams.get("documentName");
   if (!documentId) {
     return NextResponse.json({ error: "Missing documentId" }, { status: 400 });
   }
 
   try {
-    const nodeRef = `workspace://SpacesStore/${documentId}`;
-    const path = nodeRef.replace(/:\//, "");
+    // documentId arrives as the Alfresco node content path
+    // Format: "{protocol}/{storeType}/{uuid}" — e.g. "workspace/SpacesStore/1c903be0-..."
+    // This is the slash-separated form of the nodeRef (workspace://SpacesStore/{uuid})
+    // and maps directly to the legacy API path: /alfresco/s/api/node/content/{nodeContentPath}
+    const nodeContentPath = documentId;
 
     const { url, headers } = prepareAlfrescoAuth(
-      `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${path}?a=true`,
+      `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${nodeContentPath}?a=true`,
       session
     );
 

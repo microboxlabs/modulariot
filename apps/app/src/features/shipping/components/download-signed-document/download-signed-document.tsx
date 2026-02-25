@@ -17,12 +17,14 @@ export default function DownloadSignedDocument({
   asLink = false,
   name,
 }: DownloadSignedDocumentProps) {
-  const documentPath =
-    documentId && typeof documentId?.replace === "function"
-      ? documentId?.replace(":/", "")
+  // Normalize the Alfresco nodeRef to its path-only form:
+  // "workspace://SpacesStore/{uuid}" → "workspace/SpacesStore/{uuid}"
+  const nodeContentPath =
+    documentId && typeof documentId.replace === "function"
+      ? documentId.replace(":/", "")
       : documentId;
 
-  const href = `/app/api/document/download?documentId=${documentPath}`;
+  const href = `/app/api/document/download?documentId=${nodeContentPath}`;
 
   if (asLink) {
     return (

@@ -33,7 +33,9 @@ export default async function SymptomsPage({ params }: ParamsWithLang) {
       </div>
       {/* BREADCRUMB */}
       {/* CONTENT */}
-      <Notifications lang={lang} />
+      <div className="max-w-screen-2xl mx-auto w-full">
+        <Notifications lang={lang} />
+      </div>
       {/* CONTENT */}
     </div>
   );

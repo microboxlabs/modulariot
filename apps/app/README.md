@@ -35,7 +35,7 @@ This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-opti
 This project uses [Knip](https://knip.dev) to automatically detect and eliminate dead code. The dead code detection is integrated into:
 
 - **Pre-commit hooks**: Automatically checks for dead code before each commit
-- **CI/CD pipeline**: Runs during the build process
+<!-- - **CI/CD pipeline**: Runs during the build process -->
 - **Development workflow**: Manual commands available for regular checks
 
 ### Quick Commands

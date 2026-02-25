@@ -1272,6 +1272,12 @@
       "descriptorPlaceholder": "Descripción o {{data_provider.descriptor}}",
       "aiPlaceholderPlaceholder": "Texto provisional para resumen IA"
     },
+    "dashlets": {
+      "data_list": {
+        "name": "Lista de Datos",
+        "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos"
+      }
+    },
     "defaults": {
       "pageViews": "Vistas de Página",
       "storageUsed": "Almacenamiento Usado",

@@ -640,8 +640,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </h3>
         {showRowCount && (
           <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-            {displayRows.length}{" "}
-            {displayRows.length === 1 ? "item" : "items"} en total
+            {displayRows.length === 1
+              ? tr("dashboard.dashlets.data_list.itemTotal", dictionary)
+              : tr("dashboard.dashlets.data_list.itemsTotal", dictionary, {
+                  count: String(displayRows.length),
+                })}
           </span>
         )}
       </div>
@@ -668,7 +671,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {sort.enabled && sort.columns.length > 0 && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            Ordenar por:
+            {tr("dashboard.dashlets.data_list.sortBy", dictionary)}
           </span>
           {sort.columns.map((key) => (
             <Pill
@@ -686,17 +689,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       <div className="flex-1 space-y-3 overflow-auto">
         {loading && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Loading...
+            {tr("dashboard.dashlets.data_list.loading", dictionary)}
           </div>
         )}
         {fetchError && (
           <div className="flex h-20 items-center justify-center text-sm text-red-500 dark:text-red-400">
-            Error: {fetchError}
+            {tr("dashboard.dashlets.data_list.error", dictionary, { message: fetchError ?? "" })}
           </div>
         )}
         {!loading && !fetchError && displayRows.length === 0 && (
           <div className="flex h-20 items-center justify-center text-sm text-gray-400 dark:text-gray-500">
-            No data
+            {tr("dashboard.dashlets.data_list.noData", dictionary)}
           </div>
         )}
         {!loading &&

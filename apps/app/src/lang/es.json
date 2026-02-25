@@ -1297,7 +1297,13 @@
     "dashlets": {
       "data_list": {
         "name": "Lista de Datos",
-        "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos"
+        "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos",
+        "itemTotal": "1 elemento en total",
+        "itemsTotal": "{count} elementos en total",
+        "sortBy": "Ordenar por:",
+        "loading": "Cargando...",
+        "error": "Error: {message}",
+        "noData": "Sin datos"
       }
     },
     "defaults": {

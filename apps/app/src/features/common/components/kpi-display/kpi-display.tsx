@@ -3,6 +3,8 @@
 import { HiCheck, HiExclamation, HiClock, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { type LeadTimeData, getLeadTimeStatus } from "./kpi-display.types";
+import { type I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 
 interface KpiRowProps {
   readonly label: string;
@@ -108,6 +110,7 @@ interface LeadTimeDisplayProps {
   readonly leadTime: LeadTimeData;
   /** If true, displays as a compact horizontal row instead of full card layout */
   readonly compact?: boolean;
+  readonly dict: I18nRecord;
 }
 
 const leadTimeStatusColors = {
@@ -129,7 +132,7 @@ const leadTimeBarColors = {
  * @param leadTime - The lead time data to display
  * @param compact - If true, displays as a compact horizontal row
  */
-export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
+export function LeadTimeDisplay({ leadTime, compact, dict }: LeadTimeDisplayProps) {
   const status = getLeadTimeStatus(leadTime);
   const StatusIcon = {
     success: HiCheck,
@@ -149,7 +152,7 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             Lead Time
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            ({totalLines} OC)
+            ({tr("pages.planning.sidebar.form.leadTimeLocCount", dict, { count: String(totalLines) })})
           </span>
         </div>
         {/* Column 2: Progress bar + percentage + metadata */}
@@ -194,7 +197,7 @@ export function LeadTimeDisplay({ leadTime, compact }: LeadTimeDisplayProps) {
             Lead Time
           </span>
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            ({totalLines} líneas OC)
+            ({tr("pages.planning.sidebar.form.leadTimeLocLines", dict, { count: String(totalLines) })})
           </span>
         </div>
         <div className="flex items-center gap-1">

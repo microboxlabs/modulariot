@@ -8,11 +8,13 @@ export default function TaskActionButton({
   label,
   onClick,
   fluid = false,
+  disabled = false,
 }: TaskActionButtonProps) {
   return (
     <Button
       size="md"
       color="blue"
+      disabled={disabled}
       onClick={onClick}
       className={`h-10 rounded-l-none w-full ${fluid ? "" : ""}`}
     >

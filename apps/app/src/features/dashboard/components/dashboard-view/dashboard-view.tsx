@@ -39,14 +39,12 @@ export function DashboardView() {
   // Measure container width reactively
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      console.log("Container ref not available yet");
+    if (!container) {      
       return;
     }
 
     const updateWidth = () => {
       const width = container.offsetWidth;
-      console.log("Container width measured:", width);
       if (width > 0) {
         setContainerWidth(width);
       }
@@ -58,7 +56,6 @@ export function DashboardView() {
     // Use ResizeObserver for reactive updates
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        console.log("ResizeObserver width:", entry.contentRect.width);
         setContainerWidth(entry.contentRect.width);
       }
     });
@@ -133,14 +130,6 @@ export function DashboardView() {
 
   const hasWidgets = widgets.length > 0;
 
-  // Debug logging
-  console.log("Dashboard render:", {
-    hasWidgets,
-    containerWidth,
-    widgetsCount: widgets.length,
-    isLoaded,
-  });
-
   return (
     <div className="w-full">
       {/* Header */}
@@ -161,7 +150,7 @@ export function DashboardView() {
       </div>
 
       {/* Content */}
-      <div ref={containerRef} className="w-full min-h-[200px]">
+      <div ref={containerRef} className="w-full min-h-[200px] max-w-screen-2xl mx-auto">
         {hasWidgets ? (
           <>
             {/* Root-level grid - only render when width is measured */}

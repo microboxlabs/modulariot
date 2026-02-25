@@ -49,7 +49,7 @@ export default async function DefaultSymptomsList({ params }: ParamsWithLang) {
       {loading ? (
         <SymptomsListSkeleton />
       ) : (
-        <div className="relative overflow-visible px-5 flex flex-col gap-5">
+        <div className="relative overflow-visible px-5 flex flex-col gap-5 max-w-screen-2xl mx-auto w-full">
           <Card
             className="flex flex-row animate-shadow-toggle"
             color="white"

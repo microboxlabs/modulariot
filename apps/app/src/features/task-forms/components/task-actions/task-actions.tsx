@@ -1,7 +1,8 @@
 "use client";
-import { Button, ButtonGroup } from "flowbite-react";
+import { ButtonGroup } from "flowbite-react";
 import { TaskActionsProps } from "./task-actions.types";
 import TaskActionButton from "../task-action-button/task-action-button";
+import { useDocumentValidation } from "./use-document-validation";
 import {
   OUTCOME_CONFIRM_ARRIVAL_TO_DESTINATION,
   OUTCOME_CONFIRM_DELIVERY,
@@ -81,6 +82,11 @@ export default function TaskActions({
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
+  const bpmPackage = typeof extraData?.bpm_package === "string" ? extraData.bpm_package : undefined;
+  const {
+    isValid: documentsValid,
+    isLoading: documentsLoading,
+  } = useDocumentValidation(taskType, bpmPackage);
   const [state, _formAction] = useActionState<TaskNextActionState, FormData>(
     taskNextAction,
     {}
@@ -173,6 +179,8 @@ export default function TaskActions({
     taskType as ShippingCoordinatorProcessFormsV2,
     dict
   );
+  const showDocumentWarning = !documentsValid && !documentsLoading;
+
   return (
     <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
       <GroupAllowed
@@ -180,24 +188,26 @@ export default function TaskActions({
         userGroups={userGroups}
       >
         <ButtonGroup className="w-full">
-          <GroupButtonOptions
-            dict={dict}
-            handleSelection={handleSelection}
-            otherOptions={otherOptions}
-          />
-          <TaskActionButton
-            fluid={fluid}
-            label={(dict.outcome as I18nRecord).continue as string}
-            taskId={taskId}
-            transitionId={transitionId}
-            onClick={() =>
-              handleSelection(
-                transitionId,
-                (dict.outcome as I18nRecord)[transitionId] as string
-              )
-            }
-          />
-        </ButtonGroup>
+            <GroupButtonOptions
+              dict={dict}
+              handleSelection={handleSelection}
+              otherOptions={otherOptions}
+            />
+            {!showDocumentWarning && (
+              <TaskActionButton
+                fluid={fluid}
+                label={(dict.outcome as I18nRecord).continue as string}
+                taskId={taskId}
+                transitionId={transitionId}
+                onClick={() =>
+                  handleSelection(
+                    transitionId,
+                    (dict.outcome as I18nRecord)[transitionId] as string
+                  )
+                }
+              />
+            )}
+          </ButtonGroup>
 
         <TaskConfirmModal
           commentsFieldEnabled={isCommentsFieldEnabled(outcome!, taskType)}

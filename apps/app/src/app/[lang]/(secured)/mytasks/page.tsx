@@ -43,12 +43,14 @@ export default async function MyTasksPage(params: {
             }
           />
         </div>
-        <MyTasks
-          dict={dict}
-          status={status}
-          userGroups={userGroups}
-          lang={lang}
-        />
+        <div className="max-w-screen-2xl mx-auto w-full flex-1 overflow-hidden">
+          <MyTasks
+            dict={dict}
+            status={status}
+            userGroups={userGroups}
+            lang={lang}
+          />
+        </div>
       </div>
     </RouteGuard>
   );

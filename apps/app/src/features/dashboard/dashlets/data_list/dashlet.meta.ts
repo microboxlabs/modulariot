@@ -3,8 +3,8 @@ import type { DashletMeta } from "../types";
 
 export const dashletMeta: DashletMeta = {
   id: "data_list",
-  name: "Data List",
-  description: "Displays data as a list of cards with KPI grids and metadata",
+  name: "dashboard.dashlets.data_list.name",
+  description: "dashboard.dashlets.data_list.description",
   icon: HiQueueList,
   category: "data-display",
   canNestIn: [],

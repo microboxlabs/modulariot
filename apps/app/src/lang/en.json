@@ -1763,7 +1763,14 @@
       "viewMore": "View more",
       "noImages": "No images",
       "documents": "Documents",
-      "noDocuments": "No documents"
+      "noDocuments": "No documents",
+      "validation": {
+        "missingDocuments": "Required documents are missing to continue",
+        "requiresPOD": "Proof of Delivery (POD)",
+        "requiresPOLF": "Proof of Load Floor (POLF)",
+        "uploadRequired": "Please upload at least one of the following:",
+        "requiredToContinue": "This document is required in order to continue"
+      }
     },
     "forum_reasons": {
       "FINGERPRINT_DEVICES_TECH_ISSUES": "Fingerprint devices technical issues",

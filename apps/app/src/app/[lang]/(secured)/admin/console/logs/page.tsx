@@ -87,7 +87,7 @@ export default async function LogManagementPage({ params }: ParamsWithLang) {
             </div>
           </div>
         </div>
-        <div className="h-screen w-full overflow-auto">
+        <div className="h-screen w-full overflow-auto max-w-screen-2xl mx-auto">
           <Suspense fallback={<LoadingConsole />}>
             <AdminLogConsole />
           </Suspense>

@@ -264,17 +264,17 @@ function renderProgress(value: string) {
   const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
   const barColor = getProgressColor(safePct);
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
-        <div
-          className={`h-full rounded-full ${barColor}`}
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-block h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
+        <span
+          className={`block h-full rounded-full ${barColor}`}
           style={{ width: `${safePct}%` }}
         />
-      </div>
+      </span>
       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
         {value}
       </span>
-    </div>
+    </span>
   );
 }
 

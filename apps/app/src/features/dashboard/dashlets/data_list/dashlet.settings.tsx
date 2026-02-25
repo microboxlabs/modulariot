@@ -30,6 +30,8 @@ import {
   normalizeFilterConfig,
 } from "./dashlet";
 import { SettingsTextField, SettingsSelectField } from "../common";
+import type { ColumnItem } from "../common/column-helpers";
+import { toColumnItems, fromColumnItems } from "../common/column-helpers";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -39,24 +41,8 @@ import { tr } from "@/features/i18n/tr.service";
 
 type SettingsTab = "visualization" | "data";
 
-interface ColumnItem extends TableColumn {
-  _id: string;
-}
-
 interface FilterItem extends FilterItemConfig {
   _id: string;
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function toColumnItems(columns: TableColumn[]): ColumnItem[] {
-  return columns.map((col, i) => ({ ...col, _id: `col-${i}-${col.key}` }));
-}
-
-function fromColumnItems(items: ColumnItem[]): TableColumn[] {
-  return items.map(({ key, label, type }) => ({ key, label, type }));
 }
 
 function toFilterItems(items: FilterItemConfig[]): FilterItem[] {

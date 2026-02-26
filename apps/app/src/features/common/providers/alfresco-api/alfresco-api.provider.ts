@@ -6,6 +6,7 @@ import {
   NodeEntry,
   AlfrescoApi,
 } from "@alfresco/js-api";
+import type { ServiceType } from "./service-types.types";
 import type {
   EndTaskResponse,
   FastTasksResponse,
@@ -1413,4 +1414,24 @@ export async function calculateETA(
   });
 
   return result as ETAResponse;
+}
+
+export async function getServiceTypes(
+  session: Session
+): Promise<ServiceType[]> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service-types`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`service-types: ${response.status}`);
+  return response.json() as Promise<ServiceType[]>;
+}
+
+export async function updateTaskServiceCategory(
+  session: Session,
+  taskId: string,
+  serviceTypeCode: string
+): Promise<void> {
+  await formProcessor(session, "task", taskId, {
+    mintral_serviceCategory: serviceTypeCode,
+  });
 }

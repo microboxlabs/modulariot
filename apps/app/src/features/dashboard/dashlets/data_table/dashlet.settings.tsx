@@ -1,36 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  TextInput,
-  Textarea,
-  Label,
-  ToggleSwitch,
-  Select,
-} from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { Button } from "flowbite-react";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
-import type {
-  DashletConfig,
-  TableColumn,
-  ColumnType,
-  SortConfig,
-} from "./dashlet";
+import type { DashletConfig } from "./dashlet";
 import {
   defaultColumns,
   defaultRows,
   defaultSort,
   defaultFilter,
 } from "./dashlet";
-import type { FilterConfig, FilterItemConfig } from "@/features/dashboard/dashlets/common/filter-types";
-import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "@/features/dashboard/dashlets/common/filter-helpers";
-import type { FilterItem } from "@/features/dashboard/dashlets/common/filter-helpers";
-import { SettingsTextField, SettingsSelectField } from "../common";
-import type { ColumnItem } from "@/features/dashboard/dashlets/common/column-helpers";
-import { toColumnItems, fromColumnItems } from "@/features/dashboard/dashlets/common/column-helpers";
+import { useSettingsState } from "../common/use-settings-state";
+import {
+  ColumnEditor,
+  FilterEditor,
+  SortEditor,
+  DataProviderTab,
+} from "../common/settings-sections";
+import { SettingsTextField } from "../common/settings-fields";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -52,130 +41,38 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
-  const [dataMode, setDataMode] = useState<"static" | "dynamic">(
-    config.dataMode ?? "static"
-  );
 
-  // Visualization fields
-  const [title, setTitle] = useState(config.title ?? "Data Table");
-  const [showRowCount, setShowRowCount] = useState(
-    config.showRowCount ?? true
-  );
-  const [columns, setColumns] = useState<ColumnItem[]>(
-    toColumnItems(config.columns ?? defaultColumns)
-  );
-
-  // Filter config (normalize legacy shapes)
-  const normalizedFilter = normalizeFilterConfig(config.filter, defaultFilter);
-  const [filterEnabled, setFilterEnabled] = useState(normalizedFilter.enabled);
-  const [filterItems, setFilterItems] = useState<FilterItem[]>(
-    toFilterItems(normalizedFilter.items)
-  );
-
-  // Sort config
-  const [sortEnabled, setSortEnabled] = useState(
-    config.sort?.enabled ?? defaultSort.enabled
-  );
-  const [sortColumns, setSortColumns] = useState<string[]>(
-    config.sort?.columns ?? defaultSort.columns
-  );
-
-  // Data provider fields
-  const [rowsJson, setRowsJson] = useState(() =>
-    JSON.stringify(config.rows ?? defaultRows, null, 2)
-  );
-  const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const [apiUrl, setApiUrl] = useState(config.apiUrl ?? "");
-
-  const handleSortColumnToggle = (checked: boolean, key: string) => {
-    setSortColumns((prev) =>
-      checked ? [...prev, key] : prev.filter((k) => k !== key)
-    );
-  };
-
-  // ── Column helpers ──────────────────────────────────────────────────────────
-
-  const addColumn = () => {
-    setColumns((prev) => [
-      ...prev,
-      { _id: `col-${Date.now()}`, key: "", label: "", type: "text" },
-    ]);
-  };
-
-  const removeColumn = (id: string) => {
-    setColumns((prev) => prev.filter((c) => c._id !== id));
-  };
-
-  const updateColumn = (
-    id: string,
-    field: keyof TableColumn,
-    value: string
-  ) => {
-    setColumns((prev) =>
-      prev.map((c) => (c._id === id ? { ...c, [field]: value } : c))
-    );
-  };
-
-  // ── Filter item helpers ───────────────────────────────────────────────────
-
-  const addFilterItem = () => {
-    const firstCol = columns.find((c) => c.key)?.key ?? "";
-    setFilterItems((prev) => [
-      ...prev,
-      { _id: `fi-${Date.now()}`, column: firstCol, label: "" },
-    ]);
-  };
-
-  const removeFilterItem = (id: string) => {
-    setFilterItems((prev) => prev.filter((f) => f._id !== id));
-  };
-
-  const updateFilterItem = (
-    id: string,
-    field: keyof FilterItemConfig,
-    value: string
-  ) => {
-    setFilterItems((prev) =>
-      prev.map((f) => (f._id === id ? { ...f, [field]: value } : f))
-    );
-  };
+  const s = useSettingsState({
+    title: config.title,
+    defaultTitle: "Data Table",
+    showRowCount: config.showRowCount,
+    columns: config.columns,
+    defaultColumns,
+    rows: config.rows,
+    defaultRows,
+    filter: config.filter,
+    defaultFilter,
+    sort: config.sort,
+    defaultSort,
+    dataMode: config.dataMode,
+    apiUrl: config.apiUrl,
+  });
 
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    let rows = config.rows ?? defaultRows;
+    const rows = s.parseRows("Must be a JSON array", "Invalid JSON");
+    if (!rows) return;
 
-    if (dataMode === "static") {
-      try {
-        const parsed = JSON.parse(rowsJson);
-        if (!Array.isArray(parsed)) {
-          setRowsJsonError("Must be a JSON array");
-          return;
-        }
-        rows = parsed as Record<string, string>[];
-        setRowsJsonError(null);
-      } catch {
-        setRowsJsonError("Invalid JSON");
-        return;
-      }
-    }
-
-    const filter: FilterConfig = {
-      enabled: filterEnabled,
-      items: fromFilterItems(filterItems),
-    };
-    const sort: SortConfig = {
-      enabled: sortEnabled,
-      columns: sortColumns,
-    };
+    const { filter, sort, savedColumns } = s.buildFilterSort();
 
     onSave({
-      title,
-      showRowCount,
-      dataMode,
-      columns: fromColumnItems(columns),
+      title: s.title,
+      showRowCount: s.showRowCount,
+      dataMode: s.dataMode,
+      columns: savedColumns,
       rows,
-      apiUrl,
+      apiUrl: s.apiUrl,
       filter,
       sort,
     });
@@ -225,264 +122,83 @@ export function DashletSettings({
         <div className="flex-1 overflow-y-auto space-y-3">
           {activeTab === "visualization" ? (
             <>
-              {/* Title */}
               <SettingsTextField
                 id="dt-title"
-                label="Title"
-                value={title}
-                onChange={setTitle}
+                label={tr("common.title", dictionary)}
+                value={s.title}
+                onChange={s.setTitle}
               />
 
-              {/* Show row count */}
               <div className="flex items-center justify-between py-0.5">
-                <Label className="text-sm font-medium">Show row count</Label>
-                <ToggleSwitch
-                  checked={showRowCount}
-                  onChange={setShowRowCount}
-                  sizing="sm"
+                <label className="text-sm font-medium">{tr("dashboard.settings.showRowCount", dictionary)}</label>
+                <input
+                  type="checkbox"
+                  checked={s.showRowCount}
+                  onChange={(e) => s.setShowRowCount(e.target.checked)}
+                  className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
                 />
               </div>
 
-              {/* Columns editor */}
-              <div>
-                <Label className="mb-1.5 block text-sm font-medium">
-                  Columns
-                </Label>
-                <div className="space-y-1.5">
-                  {columns.map((col) => (
-                    <div key={col._id} className="flex items-center gap-1">
-                      <div className="flex-1 min-w-0">
-                        <TextInput
-                          sizing="sm"
-                          placeholder="key"
-                          value={col.key}
-                          onChange={(e) =>
-                            updateColumn(col._id, "key", e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <TextInput
-                          sizing="sm"
-                          placeholder="label"
-                          value={col.label}
-                          onChange={(e) =>
-                            updateColumn(col._id, "label", e.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="w-24 shrink-0">
-                        <Select
-                          sizing="sm"
-                          value={col.type}
-                          onChange={(e) =>
-                            updateColumn(
-                              col._id,
-                              "type",
-                              e.target.value as ColumnType
-                            )
-                          }
-                        >
-                          <option value="text">text</option>
-                          <option value="badge">badge</option>
-                          <option value="highlight">highlight</option>
-                          <option value="signed">signed</option>
-                          <option value="progress">progress</option>
-                        </Select>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeColumn(col._id)}
-                        onMouseDown={handleMouseDown}
-                        className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                      >
-                        <HiTrash className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  color="light"
-                  size="xs"
-                  onClick={addColumn}
-                  onMouseDown={handleMouseDown}
-                  className="no-drag mt-2"
-                >
-                  <HiPlus className="mr-1 h-3 w-3" />
-                  Add column
-                </Button>
-              </div>
+              <ColumnEditor
+                columns={s.columns}
+                onAdd={s.addColumn}
+                onRemove={s.removeColumn}
+                onUpdate={s.updateColumn}
+                labels={{
+                  columns: tr("dashboard.settings.columns", dictionary),
+                  key: tr("dashboard.settings.key", dictionary),
+                  label: tr("dashboard.settings.label", dictionary),
+                  addColumn: tr("dashboard.settings.addColumn", dictionary),
+                }}
+              />
 
-              {/* ── Filter ─────────────────────────────────────────────── */}
-              <hr className="border-gray-200 dark:border-gray-700" />
+              <FilterEditor
+                enabled={s.filterEnabled}
+                onToggle={s.setFilterEnabled}
+                items={s.filterItems}
+                columnsWithKeys={s.columnsWithKeys}
+                onAdd={s.addFilterItem}
+                onRemove={s.removeFilterItem}
+                onUpdate={s.updateFilterItem}
+                labels={{
+                  filter: tr("dashboard.settings.filter", dictionary),
+                  filterRows: tr("dashboard.settings.filterRows", dictionary),
+                  label: tr("dashboard.settings.label", dictionary),
+                  addFilter: tr("dashboard.settings.addFilter", dictionary),
+                }}
+              />
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Filter</Label>
-                  <ToggleSwitch
-                    checked={filterEnabled}
-                    onChange={setFilterEnabled}
-                    sizing="sm"
-                  />
-                </div>
-
-                {filterEnabled && (
-                  <div>
-                    <Label className="mb-1.5 block text-sm font-medium">
-                      Filter rows
-                    </Label>
-                    <div className="space-y-1.5">
-                      {filterItems.map((fi) => (
-                        <div key={fi._id} className="flex items-center gap-1">
-                          <div className="flex-1 min-w-0">
-                            <TextInput
-                              sizing="sm"
-                              placeholder="label"
-                              value={fi.label}
-                              onChange={(e) =>
-                                updateFilterItem(fi._id, "label", e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <Select
-                              sizing="sm"
-                              value={fi.column}
-                              onChange={(e) =>
-                                updateFilterItem(fi._id, "column", e.target.value)
-                              }
-                            >
-                              {columns
-                                .filter((c) => c.key)
-                                .map((c) => (
-                                  <option key={c._id} value={c.key}>
-                                    {c.label || c.key}
-                                  </option>
-                                ))}
-                            </Select>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeFilterItem(fi._id)}
-                            onMouseDown={handleMouseDown}
-                            className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
-                          >
-                            <HiTrash className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      color="light"
-                      size="xs"
-                      onClick={addFilterItem}
-                      onMouseDown={handleMouseDown}
-                      className="no-drag mt-2"
-                    >
-                      <HiPlus className="mr-1 h-3 w-3" />
-                      Add filter
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Sort ───────────────────────────────────────────────── */}
-              <hr className="border-gray-200 dark:border-gray-700" />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Sort</Label>
-                  <ToggleSwitch
-                    checked={sortEnabled}
-                    onChange={setSortEnabled}
-                    sizing="sm"
-                  />
-                </div>
-
-                {sortEnabled && (
-                  <div>
-                    <Label className="mb-1.5 block text-sm font-medium">
-                      Sortable columns
-                    </Label>
-                    <div className="space-y-1">
-                      {columns
-                        .filter((c) => c.key)
-                        .map((c) => (
-                          <label
-                            key={c._id}
-                            className="flex cursor-pointer items-center gap-2"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={sortColumns.includes(c.key)}
-                              onChange={(e) =>
-                                handleSortColumnToggle(e.target.checked, c.key)
-                              }
-                              className="no-drag h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {c.label || c.key}
-                            </span>
-                          </label>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <SortEditor
+                enabled={s.sortEnabled}
+                onToggle={s.setSortEnabled}
+                sortColumns={s.sortColumns}
+                columnsWithKeys={s.columnsWithKeys}
+                onColumnToggle={s.handleSortColumnToggle}
+                labels={{
+                  sort: tr("dashboard.settings.sort", dictionary),
+                  sortableColumns: tr("dashboard.settings.sortableColumns", dictionary),
+                }}
+              />
             </>
           ) : (
-            <>
-              {/* Data source mode */}
-              <SettingsSelectField
-                id="dt-data-mode"
-                label="Data Source"
-                value={dataMode}
-                onChange={(v) => setDataMode(v as "static" | "dynamic")}
-                options={[
-                  { value: "static", label: "Static (JSON)" },
-                  { value: "dynamic", label: "Dynamic (API)" },
-                ]}
-              />
-
-              {/* Static: JSON rows */}
-              {dataMode === "static" && (
-                <div>
-                  <Label
-                    htmlFor="dt-rows-json"
-                    className="mb-1 block text-sm font-medium"
-                  >
-                    Rows (JSON array)
-                  </Label>
-                  <Textarea
-                    id="dt-rows-json"
-                    value={rowsJson}
-                    onChange={(e) => {
-                      setRowsJson(e.target.value);
-                      setRowsJsonError(null);
-                    }}
-                    rows={8}
-                    color={rowsJsonError ? "failure" : "gray"}
-                    className="font-mono text-xs"
-                    placeholder='[{"key": "value"}]'
-                  />
-                  {rowsJsonError && (
-                    <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                      {rowsJsonError}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Dynamic: API URL */}
-              {dataMode === "dynamic" && (
-                <SettingsTextField
-                  id="dt-api-url"
-                  label="API URL"
-                  value={apiUrl}
-                  onChange={setApiUrl}
-                />
-              )}
-            </>
+            <DataProviderTab
+              id="dt"
+              dataMode={s.dataMode}
+              onDataModeChange={s.setDataMode}
+              rowsJson={s.rowsJson}
+              onRowsJsonChange={s.setRowsJson}
+              rowsJsonError={s.rowsJsonError}
+              onRowsJsonErrorClear={() => s.setRowsJsonError(null)}
+              apiUrl={s.apiUrl}
+              onApiUrlChange={s.setApiUrl}
+              labels={{
+                dataSource: tr("dashboard.settings.dataSource", dictionary),
+                staticJson: tr("dashboard.settings.staticJson", dictionary),
+                dynamicApi: tr("dashboard.settings.dynamicApi", dictionary),
+                rowsJsonArray: tr("dashboard.settings.rowsJsonArray", dictionary),
+                apiUrl: tr("dashboard.settings.apiUrl", dictionary),
+              }}
+            />
           )}
         </div>
 

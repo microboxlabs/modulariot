@@ -318,7 +318,7 @@
           "enabled": true,
           "items": [
             { "column": "docStatus", "label": "Filtrar por:" },
-            { "column": "marca", "label": "Tipo vehículo:" }
+            { "column": "marca", "label": "Marca:" }
           ]
         },
         "sort": {

@@ -6,6 +6,7 @@ import {
   NodeEntry,
   AlfrescoApi,
 } from "@alfresco/js-api";
+import type { ServiceType } from "./service-types.types";
 import type {
   EndTaskResponse,
   FastTasksResponse,
@@ -38,6 +39,7 @@ import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
+import { z } from "zod";
 
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
@@ -1413,4 +1415,33 @@ export async function calculateETA(
   });
 
   return result as ETAResponse;
+}
+
+const serviceTypeSchema = z.object({
+  nodeRef: z.string(),
+  code: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  isActive: z.boolean(),
+});
+const serviceTypesSchema = z.array(serviceTypeSchema);
+
+export async function getServiceTypes(
+  session: Session
+): Promise<ServiceType[]> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/service-types`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`service-types: ${response.status}`);
+  return serviceTypesSchema.parse(await response.json());
+}
+
+export async function updateTaskServiceCategory(
+  session: Session,
+  taskId: string,
+  serviceTypeCode: string
+): Promise<void> {
+  await formProcessor(session, "task", taskId, {
+    mintral_serviceCategory: serviceTypeCode,
+  });
 }

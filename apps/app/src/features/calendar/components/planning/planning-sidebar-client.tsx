@@ -141,6 +141,7 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
     loadWeightUtilization: task.mintral_loadWeightUtilization,
     loadPalletUtilization: task.mintral_loadPalletUtilization,
     loadVolumeUtilization: task.mintral_loadVolumeUtilization,
+    serviceCategory: task.mintral_serviceCategory ?? undefined,
   };
 }
 

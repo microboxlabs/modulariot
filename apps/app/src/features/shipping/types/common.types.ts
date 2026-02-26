@@ -56,6 +56,7 @@ export type KanbanBoardTask = {
   mintral_deliveryComplianceRate?: number;
   mintral_compliantOrderLines?: number;
   mintral_nonCompliantOrderLines?: number;
+  mintral_serviceCategory?: string;
 };
 
 export type KanbanBoardTaskMember = {

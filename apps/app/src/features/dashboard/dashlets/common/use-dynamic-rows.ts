@@ -13,9 +13,15 @@ export function useDynamicRows(
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (dataMode !== "dynamic" || !apiUrl) return;
-
     let cancelled = false;
+
+    if (dataMode !== "dynamic" || !apiUrl) {
+      setRows([]);
+      setLoading(false);
+      setFetchError(null);
+      return () => { cancelled = true; };
+    }
+
     setLoading(true);
     setFetchError(null);
 

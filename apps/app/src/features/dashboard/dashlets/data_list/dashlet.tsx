@@ -1,32 +1,26 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { HiArrowUp, HiArrowDown, HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import type { TableColumn, SortConfig } from "../common/column-types";
+import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
 import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
+import { normalizeFilterConfig } from "../common/filter-helpers";
+import { FilterPillRow } from "../common/filter-pill-row";
+import { useFilterAndSort } from "../common/use-filter-and-sort";
 
 export type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
+export type { FilterItemConfig, FilterConfig } from "../common/filter-types";
+export { normalizeFilterConfig } from "../common/filter-helpers";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
-
-export interface FilterItemConfig {
-  /** Column key whose distinct values are used as filter pills */
-  column: string;
-  /** Label shown before the filter pills, e.g. "Estado:" */
-  label: string;
-}
-
-export interface FilterConfig {
-  enabled: boolean;
-  items: FilterItemConfig[];
-}
 
 export interface CardLayoutConfig {
   /** Column key for the primary title (e.g. vehicle ID) */
@@ -131,46 +125,6 @@ export const defaultFilter: FilterConfig = {
   items: [{ column: "exposure", label: "Exposición:" }],
 };
 
-/**
- * Normalize a persisted filter config into the current shape.
- * Old configs stored `{ enabled, column, label }` — convert to `{ enabled, items }`.
- */
-export function normalizeFilterConfig(raw: unknown): FilterConfig {
-  if (!raw || typeof raw !== "object") return defaultFilter;
-  const obj = raw as Record<string, unknown>;
-  const enabled =
-    typeof obj.enabled === "boolean" ? obj.enabled : defaultFilter.enabled;
-  if (Array.isArray(obj.items)) {
-    const validItems = obj.items
-      .filter(
-        (item): item is FilterItemConfig =>
-          !!item &&
-          typeof item === "object" &&
-          typeof (item as Record<string, unknown>).column === "string" &&
-          (item as Record<string, unknown>).column !== ""
-      )
-      .map((item) => ({
-        column: item.column,
-        label: typeof item.label === "string" ? item.label : "",
-      }));
-    if (validItems.length === 0) return defaultFilter;
-    return { enabled, items: validItems };
-  }
-  // Legacy shape: { enabled, column, label }
-  if (typeof obj.column === "string" && obj.column !== "") {
-    return {
-      enabled,
-      items: [
-        {
-          column: obj.column,
-          label: typeof obj.label === "string" ? obj.label : "",
-        },
-      ],
-    };
-  }
-  return defaultFilter;
-}
-
 export const defaultSort: SortConfig = {
   enabled: true,
   columns: ["exposure", "km", "events"],
@@ -207,49 +161,6 @@ export const layoutDefaults: DashletLayoutDefaults = {
 
 export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
-}
-
-// ============================================================================
-// Filter Pill Row
-// ============================================================================
-
-interface FilterPillRowProps {
-  item: FilterItemConfig;
-  options: string[];
-  selected: string;
-  allLabel: string;
-  onClear: (column: string) => void;
-  onSelect: (column: string, value: string) => void;
-}
-
-function FilterPillRow({
-  item,
-  options,
-  selected,
-  allLabel,
-  onClear,
-  onSelect,
-}: Readonly<FilterPillRowProps>) {
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-      <span className="text-sm text-gray-500 dark:text-gray-400">
-        {item.label}
-      </span>
-      <Pill
-        label={allLabel}
-        active={selected === ""}
-        onClick={() => onClear(item.column)}
-      />
-      {options.map((val) => (
-        <Pill
-          key={val}
-          label={val}
-          active={selected === val}
-          onClick={() => onSelect(item.column, val)}
-        />
-      ))}
-    </div>
-  );
 }
 
 // ============================================================================
@@ -366,61 +277,27 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     cardLayout = defaultCardLayout,
   } = config;
   const filter = useMemo(
-    () => normalizeFilterConfig(config.filter),
+    () => normalizeFilterConfig(config.filter, defaultFilter),
     [config.filter]
   );
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
 
-  // ── Filter & sort state ─────────────────────────────────────────────────────
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-
   const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
 
-  // Distinct values per filter item (derived from full dataset)
-  const filterOptionsByColumn = useMemo(() => {
-    if (!filter.enabled) return {};
-    const result: Record<string, string[]> = {};
-    for (const item of filter.items) {
-      const seen = new Set<string>();
-      for (const row of allRows) {
-        const val = row[item.column];
-        if (val) seen.add(val);
-      }
-      result[item.column] = Array.from(seen);
-    }
-    return result;
-  }, [allRows, filter.enabled, filter.items]);
-
-  // Column label lookup for sort toolbar
-  const getColumnLabel = (key: string) =>
-    columns.find((c) => c.key === key)?.label ?? key;
-
-  // Apply all active filters (AND) then sort
-  const displayRows = useMemo(() => {
-    let result = allRows;
-
-    if (filter.enabled) {
-      for (const item of filter.items) {
-        const selected = filterValues[item.column];
-        if (selected) {
-          result = result.filter((row) => row[item.column] === selected);
-        }
-      }
-    }
-
-    if (sort.enabled && sortKey) {
-      result = [...result].sort((a, b) => {
-        const cmp = (a[sortKey] ?? "").localeCompare(b[sortKey] ?? "");
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    }
-
-    return result;
-  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
+  // ── Filter & sort (shared hook) ───────────────────────────────────────────
+  const {
+    filterValues,
+    sortKey,
+    sortDir,
+    filterOptionsByColumn,
+    displayRows,
+    getColumnLabel,
+    handleFilterClear,
+    handleFilterSelect,
+    handleSortClick,
+  } = useFilterAndSort(filter, sort, allRows, columns);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? (
@@ -428,27 +305,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     ) : (
       <HiArrowDown className="h-3 w-3" />
     );
-
-  const handleFilterClear = (column: string) => {
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next[column];
-      return next;
-    });
-  };
-
-  const handleFilterSelect = (column: string, value: string) => {
-    setFilterValues((prev) => ({ ...prev, [column]: value }));
-  };
-
-  const handleSortClick = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -473,7 +329,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
       {/* Filter cards */}
       {filter.enabled &&
-        filter.items.map((item, idx) => {
+        filter.items.map((item: FilterItemConfig, idx: number) => {
           const options = filterOptionsByColumn[item.column];
           if (!options || options.length === 0) return null;
           return (

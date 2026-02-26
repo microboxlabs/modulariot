@@ -17,8 +17,6 @@ import type {
   DashletConfig,
   TableColumn,
   ColumnType,
-  FilterConfig,
-  FilterItemConfig,
   SortConfig,
   CardLayoutConfig,
 } from "./dashlet";
@@ -26,9 +24,12 @@ import {
   defaultColumns,
   defaultRows,
   defaultSort,
+  defaultFilter,
   defaultCardLayout,
-  normalizeFilterConfig,
 } from "./dashlet";
+import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
+import { normalizeFilterConfig, toFilterItems, fromFilterItems } from "../common/filter-helpers";
+import type { FilterItem } from "../common/filter-helpers";
 import { SettingsTextField, SettingsSelectField } from "../common";
 import type { ColumnItem } from "../common/column-helpers";
 import { toColumnItems, fromColumnItems } from "../common/column-helpers";
@@ -40,18 +41,6 @@ import { tr } from "@/features/i18n/tr.service";
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
-
-interface FilterItem extends FilterItemConfig {
-  _id: string;
-}
-
-function toFilterItems(items: FilterItemConfig[]): FilterItem[] {
-  return items.map((item, i) => ({ ...item, _id: `fi-${i}-${item.column}` }));
-}
-
-function fromFilterItems(items: FilterItem[]): FilterItemConfig[] {
-  return items.map(({ column, label }) => ({ column, label }));
-}
 
 // ============================================================================
 // Component
@@ -79,7 +68,7 @@ export function DashletSettings({
   );
 
   // Filter config (normalize legacy shapes)
-  const normalizedFilter = normalizeFilterConfig(config.filter);
+  const normalizedFilter = normalizeFilterConfig(config.filter, defaultFilter);
   const [filterEnabled, setFilterEnabled] = useState(normalizedFilter.enabled);
   const [filterItems, setFilterItems] = useState<FilterItem[]>(
     toFilterItems(normalizedFilter.items)

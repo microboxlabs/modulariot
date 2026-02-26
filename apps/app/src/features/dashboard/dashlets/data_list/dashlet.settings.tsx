@@ -195,20 +195,23 @@ export function DashletSettings({
       }
     }
 
+    const savedColumns = fromColumnItems(columns);
+    const validKeys = new Set(savedColumns.map((c) => c.key).filter(Boolean));
+
     const filter: FilterConfig = {
       enabled: filterEnabled,
-      items: fromFilterItems(filterItems),
+      items: fromFilterItems(filterItems).filter((fi) => validKeys.has(fi.column)),
     };
     const sort: SortConfig = {
       enabled: sortEnabled,
-      columns: sortColumns,
+      columns: sortColumns.filter((k) => validKeys.has(k)),
     };
     const cardLayout: CardLayoutConfig = {
-      titleColumn,
-      subtitleColumn,
-      headerBadgeColumns,
-      kpiColumns,
-      footerColumns,
+      titleColumn: validKeys.has(titleColumn) ? titleColumn : "",
+      subtitleColumn: validKeys.has(subtitleColumn) ? subtitleColumn : "",
+      headerBadgeColumns: headerBadgeColumns.filter((k) => validKeys.has(k)),
+      kpiColumns: kpiColumns.filter((k) => validKeys.has(k)),
+      footerColumns: footerColumns.filter((k) => validKeys.has(k)),
     };
 
     onSave({

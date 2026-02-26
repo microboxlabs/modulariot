@@ -142,7 +142,7 @@ export function AddWidgetModal({
 function resolveMetaString(value: string, dictionary: I18nRecord): string {
   const resolved = tr(value, dictionary);
   // tr() returns the path itself when the key is not found
-  return resolved !== value ? resolved : value;
+  return resolved === value ? value : resolved;
 }
 
 interface DashletOptionProps {

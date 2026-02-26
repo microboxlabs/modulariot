@@ -5,12 +5,12 @@ import { HiArrowUp, HiArrowDown, HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
+import type { TableColumn, SortConfig } from "../common/column-types";
 import { renderCell } from "../common/cell-renderers";
 import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
 
-export type { ColumnType, TableColumn, SortConfig };
+export type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
 
 // ============================================================================
 // Configuration Types

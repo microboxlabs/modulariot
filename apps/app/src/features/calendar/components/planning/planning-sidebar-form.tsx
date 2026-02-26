@@ -599,7 +599,7 @@ export function PlanningSidebarForm({
               </button>
 
               {/* Dropdown menu */}
-              {isTripTypeDropdownOpen && !isLoadingServiceTypes && (
+              {isTripTypeDropdownOpen && (
                 <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {serviceCategoryOptions.map((option) => (
                     <button

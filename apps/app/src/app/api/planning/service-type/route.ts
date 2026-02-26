@@ -1,6 +1,7 @@
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { updateTaskServiceCategory } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export async function PATCH(request: Request) {
   const authResult = await requireAuth();
@@ -25,6 +26,7 @@ export async function PATCH(request: Request) {
     await updateTaskServiceCategory(authResult.session, taskId, serviceTypeCode);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
+    logger.error({ err: error }, "Failed to update service category");
     return NextResponse.json(
       { error: "Failed to update service category" },
       { status: 500 }

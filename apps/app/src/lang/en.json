@@ -1089,7 +1089,8 @@
         "liveStreams": "Live Streams",
         "facilitySCL": "Facility SCL",
         "truckBeds": "Truck Beds",
-        "allDevices": "All Devices"
+        "allDevices": "All Devices",
+        "fleetManagement": "Fleet Management"
       }
     },
     "calendar": {
@@ -2046,6 +2047,46 @@
       },
       "successNotification": "Calendar created successfully",
       "errorNotification": "Failed to create calendar"
+    }
+  },
+  "fleetManagement": {
+    "title": "Fleet Management",
+    "subtitle": "Monitor and manage all your fleet vehicles in real time",
+    "kpi": {
+      "totalFleet": "Total Fleet",
+      "active": "Active",
+      "inMaintenance": "In Maintenance",
+      "alerts": "Alerts",
+      "inactive": "Inactive"
+    },
+    "specialViews": {
+      "title": "Special Views",
+      "realTimeLocation": "Real-Time Location",
+      "realTimeLocationDesc": "View the current position of all active vehicles on the map",
+      "maintenanceSchedule": "Maintenance Schedule",
+      "maintenanceScheduleDesc": "Upcoming scheduled maintenance and pending vehicles",
+      "performanceAnalysis": "Performance Analysis",
+      "performanceAnalysisDesc": "Operational efficiency and fuel consumption indicators",
+      "vehiclesTracked": "vehicles tracked",
+      "pendingServices": "pending services",
+      "efficiency": "efficiency"
+    },
+    "vehicleGrid": {
+      "title": "Vehicles",
+      "vehicleCount": "{count} vehicles",
+      "detailed": "Detailed",
+      "simplified": "Simplified",
+      "driver": "Driver",
+      "location": "Location",
+      "fuel": "Fuel",
+      "maintenance": "Maintenance",
+      "kmTraveled": "Km Traveled"
+    },
+    "status": {
+      "active": "Active",
+      "maintenance": "In Maintenance",
+      "alert": "Alert",
+      "inactive": "Inactive"
     }
   }
 }

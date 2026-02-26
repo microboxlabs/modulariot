@@ -50,6 +50,9 @@ export const ROUTE_PERMISSIONS = {
   "/api/admin/message-templates": ADMIN_ROLES,
   "/api/admin/webhooks": ADMIN_ROLES,
 
+  // Fleet management
+  "/fleet-management": FULL_ACCESS_ROLES,
+
   // Admin console routes
   "/admin/console/message-templates": ADMIN_ROLES,
 } as const;

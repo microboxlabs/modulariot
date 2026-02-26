@@ -1114,7 +1114,8 @@
         "liveStreams": "CCTV",
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
-        "allDevices": "Todos"
+        "allDevices": "Todos",
+        "fleetManagement": "Gestión de Flotas"
       }
     },
     "calendar": {
@@ -2078,6 +2079,46 @@
       },
       "successNotification": "Calendario creado correctamente",
       "errorNotification": "Error al crear el calendario"
+    }
+  },
+  "fleetManagement": {
+    "title": "Gestión de Flotas",
+    "subtitle": "Monitorea y administra todos los vehículos de tu flota en tiempo real",
+    "kpi": {
+      "totalFleet": "Total Flota",
+      "active": "Activos",
+      "inMaintenance": "En Mantención",
+      "alerts": "Alertas",
+      "inactive": "Inactivos"
+    },
+    "specialViews": {
+      "title": "Vistas Especiales",
+      "realTimeLocation": "Ubicación en Tiempo Real",
+      "realTimeLocationDesc": "Visualiza la posición actual de todos los vehículos activos en el mapa",
+      "maintenanceSchedule": "Calendario de Mantenciones",
+      "maintenanceScheduleDesc": "Próximas mantenciones programadas y vehículos pendientes",
+      "performanceAnalysis": "Análisis de Rendimiento",
+      "performanceAnalysisDesc": "Indicadores de eficiencia operativa y consumo de combustible",
+      "vehiclesTracked": "vehículos rastreados",
+      "pendingServices": "servicios pendientes",
+      "efficiency": "eficiencia"
+    },
+    "vehicleGrid": {
+      "title": "Vehículos",
+      "vehicleCount": "{count} vehículos",
+      "detailed": "Detallada",
+      "simplified": "Simplificada",
+      "driver": "Conductor",
+      "location": "Ubicación",
+      "fuel": "Combustible",
+      "maintenance": "Mantención",
+      "kmTraveled": "Km Recorridos"
+    },
+    "status": {
+      "active": "Activo",
+      "maintenance": "En Mantención",
+      "alert": "Alerta",
+      "inactive": "Inactivo"
     }
   }
 }

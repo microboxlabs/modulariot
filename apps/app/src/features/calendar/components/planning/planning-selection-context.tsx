@@ -20,6 +20,7 @@ import {
   createBooking,
   cancelBooking,
   listBookings,
+  updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
@@ -562,6 +563,7 @@ export interface SelectedService {
   loadWeightUtilization?: number; // Weight capacity utilization %
   loadPalletUtilization?: number; // Pallet position utilization %
   loadVolumeUtilization?: number; // Volumetric utilization %
+  serviceCategory?: string; // Alfresco mintral_serviceCategory code
 }
 
 /**
@@ -595,8 +597,9 @@ interface PlanningSelectionContextType {
   reassigningService: ReassigningService | null;
   selectSlot: (slot: SelectedSlot) => void;
   selectService: (service: SelectedService) => void;
-  /** Confirm service assignment. Pass finalSlot to override the selected slot with specific time/andén */
-  confirmService: (finalSlot?: SelectedSlot) => Promise<boolean>;
+  /** Confirm service assignment. Pass finalSlot to override the selected slot with specific time/andén.
+   * Pass serviceOverrides to merge additional fields into the selected service before confirming. */
+  confirmService: (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>) => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -665,6 +668,7 @@ const StoredServiceSchema = z
     loadWeightUtilization: z.number().optional(),
     loadPalletUtilization: z.number().optional(),
     loadVolumeUtilization: z.number().optional(),
+    serviceCategory: z.string().optional(),
     _anden: z.number().optional(),
   })
   .optional();
@@ -1141,16 +1145,21 @@ export function PlanningSelectionProvider({
   );
 
   const confirmService = useCallback(
-    async (finalSlot?: SelectedSlot): Promise<boolean> => {
+    async (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>): Promise<boolean> => {
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
       if (!slotToUse || !selectedService) return false;
 
+      // Merge any overrides (e.g. serviceCategory) into the service for this confirmation
+      const effectiveService = serviceOverrides
+        ? { ...selectedService, ...serviceOverrides }
+        : selectedService;
+
       // Check if slot has room (unless re-planning same service)
       const existingInSlot = getServicesForSlot(slotToUse);
       const isReplanning = existingInSlot.some(
-        (ps) => ps.service.id === selectedService.id
+        (ps) => ps.service.id === effectiveService.id
       );
 
       if (!isReplanning && existingInSlot.length >= MAX_SERVICES_PER_SLOT) {
@@ -1167,14 +1176,14 @@ export function PlanningSelectionProvider({
 
       // Create the new planned service with the final slot (including time and andén)
       const newPlannedService: PlannedService = {
-        service: selectedService,
+        service: effectiveService,
         slot: slotToUse,
       };
 
       // Optimistic update: replace the existing entry with the new slot
       setPlannedServices((prev) => {
         const filtered = prev.filter(
-          (p) => p.service.id !== selectedService.id
+          (p) => p.service.id !== effectiveService.id
         );
         return [...filtered, newPlannedService];
       });
@@ -1182,17 +1191,17 @@ export function PlanningSelectionProvider({
       // Create / reassign booking in the calendar backend
       if (calendarId) {
         // Capture the old booking ID before any state updates.
-        const oldBookingId = bookingIds.get(selectedService.id);
+        const oldBookingId = bookingIds.get(effectiveService.id);
 
         try {
           const bookingBody: BookingRequest = {
             calendarId,
             resource: {
-              id: selectedService.id,
+              id: effectiveService.id,
               type: "service",
-              label: selectedService.cliente,
+              label: effectiveService.cliente,
               data: {
-                ...selectedService,
+                ...effectiveService,
                 ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
               },
             },
@@ -1208,7 +1217,7 @@ export function PlanningSelectionProvider({
           const booking = await createBooking(bookingBody);
           setBookingIds((prev) => {
             const next = new Map(prev);
-            next.set(selectedService.id, booking.id);
+            next.set(effectiveService.id, booking.id);
             return next;
           });
 
@@ -1218,13 +1227,23 @@ export function PlanningSelectionProvider({
               console.warn("Failed to cancel old booking:", err)
             );
           }
+
+          // Fire-and-forget: update Alfresco task service category
+          if (effectiveService.serviceCategory) {
+            updateServiceCategory(
+              effectiveService.id,
+              effectiveService.serviceCategory
+            ).catch((err) =>
+              console.error("Failed to update service category:", err)
+            );
+          }
         } catch (err) {
           console.warn("Failed to create booking:", err);
           // Rollback local state: restore the original PlannedService on
           // reassignment, or simply remove the new entry on a fresh assignment.
           setPlannedServices((prev) => {
             const withoutNew = prev.filter(
-              (p) => p.service.id !== selectedService.id
+              (p) => p.service.id !== effectiveService.id
             );
             return originalPlannedService
               ? [...withoutNew, originalPlannedService]

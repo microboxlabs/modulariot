@@ -339,16 +339,14 @@ export function PlanningSidebarForm({
 
   // Extract incident codes and create code-to-label map for tooltips
   const codeToLabelMap = new Map<string, string>();
-  const incidentCodes = selectedService.mintral_incidents
-    ? selectedService.mintral_incidents.map((incident) => {
-        const rawCode = incident[0];
-        const label = incident[1];
-        // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
-        const code = rawCode.replace(/^mintral_incident_/i, "");
-        codeToLabelMap.set(code, label);
-        return code;
-      })
-    : [];
+  const incidentCodes = (selectedService.mintral_incidents ?? []).map((incident) => {
+    const rawCode = incident[0];
+    const label = incident[1];
+    // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
+    const code = rawCode.replace(/^mintral_incident_/i, "");
+    codeToLabelMap.set(code, label);
+    return code;
+  });
 
   // Categorize incidencias into primary (always visible) and secondary (expandable)
   const { primary, secondary } = categorizeIncidencias(incidentCodes);

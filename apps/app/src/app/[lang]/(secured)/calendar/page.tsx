@@ -26,7 +26,7 @@ export default async function CalendarPage(props: ParamsWithLang) {
           dict={dict.layout.secured.sidebar}
         />
       </div>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto max-w-screen-2xl mx-auto w-full">
         <CalendarLanding lang={lang} />
       </div>
     </div>

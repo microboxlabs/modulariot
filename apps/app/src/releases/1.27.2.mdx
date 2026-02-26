@@ -1,0 +1,40 @@
+# 🔔 Release Notes v1.27.2 — ModularIoT
+
+### Fecha: 25/02/2026
+
+**Objetivo**: Incorporar validación visual de documentos en el flujo de entrega e introducir correcciones de diseño y terminología aportadas por la línea OSS MIOT-0.2.2, mejorando la consistencia de la interfaz y reduciendo errores evitables en operaciones de campo.
+
+## 🚀 Evolutivos
+
+- **🛡️ Validación visual de documentos POD/POLF antes de completar tareas de entrega** *(Integración OSS — MIOT-0.2.2)*
+  - **Funcionalidad**: El botón "Continuar/Completar tarea" se bloquea cuando los documentos requeridos no están cargados, impidiendo que el usuario avance y reciba el error únicamente desde el backend.
+  - **Reglas por tipo de tarea**: `Confirmar Entrega` exige al menos un POD (`PROOF_OF_DELIVERY`) o un POLF (`PROOF_OF_LOAD_FLOOR`); `Recibir Entrega` solo requiere POD.
+  - **Experiencia de usuario**: Se muestra un aviso visual claro antes de intentar la acción; la validación en el backend se mantiene como capa de seguridad adicional.
+
+## 🐛 Correcciones
+
+- **🖥️ Restricción de ancho máximo en el contenedor principal para pantallas anchas** *(Integración OSS — MIOT-0.2.2)*
+  - **Impacto**: El contenido se extendía hasta el borde del viewport en monitores anchos, rompiendo la alineación visual de todas las vistas principales.
+  - **Solución**: Se aplicaron restricciones consistentes de `max-width` y centrado en consola de administración, calendario, transmisiones en vivo, tareas, notificaciones, síntomas, panel principal y configuración.
+  - Se eliminaron sentencias de depuración `console.log` residuales en el componente del panel principal.
+
+- **🏷️ Corrección de terminología OC → LOC en indicadores de tiempo de entrega (KPIs)** *(Integración OSS — MIOT-0.2.2)*
+  - **Impacto**: Los componentes de KPIs mostraban la abreviatura incorrecta "OC" (Órdenes de Cambio) en lugar de "LOC" en los totales de tiempo de entrega, generando confusión en operadores.
+  - **Solución**: Etiquetas corregidas en `LeadTimeDisplay` (vistas compacta y expandida) y en `KpisCard` del formulario bento de tareas, incluyendo la variante en español `({totalLines} líneas LOC)`.
+
+## 📊 Beneficios
+
+- 🛡️ **Prevención de errores en flujo de entrega**: Los conductores no pueden completar tareas de entrega sin los documentos requeridos, eliminando rechazos innecesarios en backend.
+- 🎯 **Reglas de validación diferenciadas por tipo de tarea**: Las restricciones para `Confirmar Entrega` y `Recibir Entrega` se aplican correctamente en el frontend.
+- 🖥️ **Experiencia visual consistente en pantallas anchas**: Todas las vistas principales presentan ancho máximo definido, mejorando legibilidad en monitores grandes.
+- 🏷️ **Terminología de KPIs precisa y coherente**: Los indicadores de tiempo de entrega muestran "LOC" de forma uniforme en todas sus variantes de visualización.
+- 🧹 **Código de depuración eliminado**: El panel principal ya no emite mensajes de consola en entornos productivos.
+- ⚡ **Correcciones puntuales sin impacto en arquitectura**: Ninguna de las mejoras altera contratos de API ni estructuras de datos existentes.
+
+## 📌 Conclusión
+
+La versión 1.27.2 consolida mejoras de usabilidad y correcciones visuales aportadas por la línea OSS MIOT-0.2.2. El cambio más relevante es la incorporación de validación frontend para documentos POD/POLF en el flujo de entrega, que previene intentos de completar tareas sin los documentos requeridos y reduce la fricción generada por errores devueltos únicamente desde el backend.
+
+Las correcciones de diseño en el contenedor principal y la normalización de etiquetas en los KPIs de tiempo de entrega completan una entrega orientada a la calidad y consistencia de la interfaz. Estas mejoras son transparentes para los integradores, ya que no modifican contratos de API ni estructuras de datos.
+
+Con esta versión, la plataforma avanza en su madurez visual y en la solidez del flujo de gestión de tareas de entrega, sentando las bases para las próximas iteraciones funcionales.

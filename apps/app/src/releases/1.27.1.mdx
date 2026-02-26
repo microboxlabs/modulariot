@@ -1,0 +1,24 @@
+# 🔔 Release Notes v1.27.1 — ModularIoT
+
+### Fecha: 24/02/2026
+
+**Objetivo**: Corregir una regresión introducida en v1.27.0 que producía URLs de descarga rotas por prefijado doble del `basePath` en los componentes de descarga de documentos del gestor multimedia.
+
+## 🐛 Correcciones
+
+- **📄 Prefijo `/app` hardcodeado en URLs de descarga de documentos** *(Integración OSS — MIOT-0.2.1)*
+  - **Causa raíz**: El commit `8fc347a6` (v1.27.0) agregó incorrectamente el prefijo `/app` (el `basePath` de Next.js) en las URLs de API del lado del cliente en `download-signed-document.tsx` e `image-element.tsx`. Next.js antepone el `basePath` automáticamente, provocando un doble prefijado (`/app/app/api/...`) y URLs rotas.
+  - **Solución**: Eliminación del prefijo `/app` hardcodeado en ambos componentes, restaurando las URLs a `/api/document/download?...`.
+  - **Impacto**: La descarga de documentos firmados e imágenes desde el formulario bento vuelve a funcionar sin errores de ruta 404.
+
+## 📊 Beneficios
+
+- **🔗 Descarga de documentos restaurada**: Los usuarios pueden descargar documentos firmados e imágenes desde el gestor multimedia sin interrupciones.
+- **🧹 URLs de API correctamente formadas**: Se eliminan referencias hardcodeadas al `basePath`, alineando el código con las convenciones de Next.js y reduciendo el riesgo de regresiones similares.
+- **⚡ Parche focalizado**: Corrección quirúrgica de dos componentes sin efectos colaterales en el resto de la plataforma.
+
+## 📌 Conclusión
+
+La versión 1.27.1 es un parche de urgencia que revierte la regresión de descarga de documentos introducida en v1.27.0. La corrección restaura el comportamiento esperado en `download-signed-document.tsx` e `image-element.tsx` al eliminar el prefijo de `basePath` que Next.js ya aplica automáticamente en las llamadas de cliente.
+
+Esta entrega no incorpora funcionalidad nueva; su único objetivo es garantizar la estabilidad del flujo de gestión documental antes de la próxima iteración de desarrollo.

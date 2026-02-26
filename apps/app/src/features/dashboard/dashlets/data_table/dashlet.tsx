@@ -9,17 +9,30 @@ import { Pill } from "../common/pill";
 import { useDynamicRows } from "../common/use-dynamic-rows";
 
 export type { ColumnType, TableColumn, SortConfig };
+import { useDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
+export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 
-export interface FilterConfig {
-  enabled: boolean;
+export interface TableColumn {
+  key: string;
+  label: string;
+  type: ColumnType;
+}
+
+export interface FilterItemConfig {
   /** Column key whose distinct values are used as filter pills */
   column: string;
   /** Label shown before the filter pills, e.g. "Estado:" */
   label: string;
+}
+
+export interface FilterConfig {
+  enabled: boolean;
+  items: FilterItemConfig[];
 }
 
 export interface DashletConfig {
@@ -88,9 +101,40 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  column: "status",
-  label: "Estado:",
+  items: [{ column: "status", label: "Estado:" }],
 };
+
+/**
+ * Normalize a persisted filter config into the current shape.
+ * Old configs stored `{ enabled, column, label }` — convert to `{ enabled, items }`.
+ */
+export function normalizeFilterConfig(raw: unknown): FilterConfig {
+  if (!raw || typeof raw !== "object") return defaultFilter;
+  const obj = raw as Record<string, unknown>;
+  const enabled = typeof obj.enabled === "boolean" ? obj.enabled : defaultFilter.enabled;
+  if (Array.isArray(obj.items)) {
+    const validItems = obj.items.filter(
+      (item): item is FilterItemConfig =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as Record<string, unknown>).column === "string" &&
+        (item as Record<string, unknown>).column !== ""
+    ).map((item) => ({
+      column: item.column,
+      label: typeof item.label === "string" ? item.label : "",
+    }));
+    if (validItems.length === 0) return defaultFilter;
+    return { enabled, items: validItems };
+  }
+  // Legacy shape: { enabled, column, label }
+  if (typeof obj.column === "string" && obj.column !== "") {
+    return {
+      enabled,
+      items: [{ column: obj.column, label: typeof obj.label === "string" ? obj.label : "" }],
+    };
+  }
+  return defaultFilter;
+}
 
 export const defaultSort: SortConfig = {
   enabled: true,
@@ -122,10 +166,54 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 // ============================================================================
+// Filter Pill Row
+// ============================================================================
+
+interface FilterPillRowProps {
+  item: FilterItemConfig;
+  options: string[];
+  selected: string;
+  allLabel: string;
+  onClear: (column: string) => void;
+  onSelect: (column: string, value: string) => void;
+}
+
+function FilterPillRow({
+  item,
+  options,
+  selected,
+  allLabel,
+  onClear,
+  onSelect,
+}: Readonly<FilterPillRowProps>) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {item.label}
+      </span>
+      <Pill
+        label={allLabel}
+        active={selected === ""}
+        onClick={() => onClear(item.column)}
+      />
+      {options.map((val) => (
+        <Pill
+          key={val}
+          label={val}
+          active={selected === val}
+          onClick={() => onSelect(item.column, val)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const { dictionary } = useDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,
@@ -134,41 +222,50 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     columns = defaultColumns,
     rows: staticRows = defaultRows,
     apiUrl = "",
-    filter = defaultFilter,
     sort = defaultSort,
   } = config;
+  const filter = useMemo(() => normalizeFilterConfig(config.filter), [config.filter]);
 
   // ── Dynamic data fetching ───────────────────────────────────────────────────
   const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
-  const [filterValue, setFilterValue] = useState("");
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
 
-  // Distinct values for the filter pills (derived from full dataset)
-  const filterValues = useMemo(() => {
-    if (!filter.enabled || !filter.column) return [];
-    const seen = new Set<string>();
-    for (const row of allRows) {
-      const val = row[filter.column];
-      if (val) seen.add(val);
+  // Distinct values per filter item (derived from full dataset)
+  const filterOptionsByColumn = useMemo(() => {
+    if (!filter.enabled) return {};
+    const result: Record<string, string[]> = {};
+    for (const item of filter.items) {
+      const seen = new Set<string>();
+      for (const row of allRows) {
+        const val = row[item.column];
+        if (val) seen.add(val);
+      }
+      result[item.column] = Array.from(seen);
     }
-    return Array.from(seen);
-  }, [allRows, filter.enabled, filter.column]);
+    return result;
+  }, [allRows, filter.enabled, filter.items]);
 
   // Column label lookup for sort toolbar
   const getColumnLabel = (key: string) =>
     columns.find((c) => c.key === key)?.label ?? key;
 
-  // Apply filter then sort
+  // Apply all active filters (AND) then sort
   const displayRows = useMemo(() => {
     let result = allRows;
 
-    if (filter.enabled && filterValue) {
-      result = result.filter((row) => row[filter.column] === filterValue);
+    if (filter.enabled) {
+      for (const item of filter.items) {
+        const selected = filterValues[item.column];
+        if (selected) {
+          result = result.filter((row) => row[item.column] === selected);
+        }
+      }
     }
 
     if (sort.enabled && sortKey) {
@@ -179,10 +276,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     }
 
     return result;
-  }, [allRows, filter, filterValue, sort, sortKey, sortDir]);
+  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
+
+  const handleFilterClear = (column: string) => {
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next[column];
+      return next;
+    });
+  };
+
+  const handleFilterSelect = (column: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [column]: value }));
+  };
 
   const handleSortClick = (key: string) => {
     if (sortKey === key) {
@@ -194,6 +303,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const allLabel = tr("common.all", dictionary);
+
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Title + row count — outside any card */}
@@ -209,27 +320,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
       </div>
 
-      {/* Filter card */}
-      {filter.enabled && filterValues.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {filter.label}
-          </span>
-          <Pill
-            label="All"
-            active={filterValue === ""}
-            onClick={() => setFilterValue("")}
-          />
-          {filterValues.map((val) => (
-            <Pill
-              key={val}
-              label={val}
-              active={filterValue === val}
-              onClick={() => setFilterValue(val)}
+      {/* Filter cards */}
+      {filter.enabled &&
+        filter.items.map((item, idx) => {
+          const options = filterOptionsByColumn[item.column];
+          if (!options || options.length === 0) return null;
+          return (
+            <FilterPillRow
+              key={`${item.column}-${idx}`}
+              item={item}
+              options={options}
+              selected={filterValues[item.column] ?? ""}
+              allLabel={allLabel}
+              onClear={handleFilterClear}
+              onSelect={handleFilterSelect}
             />
-          ))}
-        </div>
-      )}
+          );
+        })}
 
       {/* Sort card */}
       {sort.enabled && sort.columns.length > 0 && (

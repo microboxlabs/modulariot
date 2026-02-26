@@ -25,7 +25,7 @@ export default function PageContent({ dict }: PropsWithI18nDict) {
             dict={dict}
           />
         </div>
-        <div className="grid grid-cols-1 px-4 pt-6 xl:grid-cols-2 xl:gap-2 dark:bg-gray-900">
+        <div className="grid grid-cols-1 px-4 pt-6 xl:grid-cols-2 xl:gap-2 dark:bg-gray-900 max-w-screen-2xl mx-auto w-full">
           <SymptomsCard dict={dict} />
         </div>
       </div>

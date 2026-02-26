@@ -246,6 +246,121 @@ describe("calendar create", () => {
       autoSlotManager: false,
     });
   });
+
+  it("should pass groups when --group is provided", async () => {
+    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true };
+    const mockClient = {
+      calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "create",
+      "--code", "c", "--name", "n", "--group", "scl",
+    ]);
+
+    expect(mockClient.calendars.create).toHaveBeenCalledWith({
+      code: "c",
+      name: "n",
+      timezone: undefined,
+      description: undefined,
+      groups: ["scl"],
+    });
+  });
+
+  it("should pass multiple groups when --group is repeated", async () => {
+    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true };
+    const mockClient = {
+      calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "create",
+      "--code", "c", "--name", "n", "--group", "scl", "--group", "north",
+    ]);
+
+    expect(mockClient.calendars.create).toHaveBeenCalledWith({
+      code: "c",
+      name: "n",
+      timezone: undefined,
+      description: undefined,
+      groups: ["scl", "north"],
+    });
+  });
+});
+
+describe("calendar update", () => {
+  const mockCalendar = { id: "cal-1", code: "cal-1", name: "New Name", timezone: "UTC", active: true };
+
+  beforeEach(() => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should call calendars.update with provided fields", async () => {
+    const mockClient = {
+      calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "update", "cal-1", "--name", "New Name",
+    ]);
+
+    expect(mockClient.calendars.update).toHaveBeenCalledWith("cal-1", { name: "New Name" });
+  });
+
+  it("should pass groups when --group is provided", async () => {
+    const mockClient = {
+      calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "update", "cal-1", "--group", "scl",
+    ]);
+
+    expect(mockClient.calendars.update).toHaveBeenCalledWith("cal-1", { groups: ["scl"] });
+  });
+
+  it("should pass multiple groups when --group is repeated", async () => {
+    const mockClient = {
+      calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "update", "cal-1", "--group", "scl", "--group", "north",
+    ]);
+
+    expect(mockClient.calendars.update).toHaveBeenCalledWith("cal-1", { groups: ["scl", "north"] });
+  });
+
+  it("should not include groups in body when --group is not provided", async () => {
+    const mockClient = {
+      calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "update", "cal-1", "--name", "New Name",
+    ]);
+
+    expect(mockClient.calendars.update).toHaveBeenCalledWith(
+      "cal-1",
+      expect.not.objectContaining({ groups: expect.anything() }),
+    );
+  });
 });
 
 describe("calendar purge", () => {

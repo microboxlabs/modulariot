@@ -294,7 +294,10 @@
           "palletUtilization": "Utilización pallets",
           "volumeUtilization": "Utilización volumen",
           "leadTimeLocCount": "{count} LOC",
-          "leadTimeLocLines": "{count} líneas LOC"
+          "leadTimeLocLines": "{count} líneas LOC",
+          "serviceCategory": "Categoría de servicio",
+          "serviceCategoryLoading": "Cargando\u2026",
+          "serviceCategoryPlaceholder": "Seleccionar categoría"
         },
         "contextMenu": {
           "reassign": "Reasignar",

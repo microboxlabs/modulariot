@@ -574,7 +574,7 @@ export function PlanningSidebarForm({
                 htmlFor="service-category-select"
                 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
               >
-                Categoría de servicio
+                {tr("pages.planning.sidebar.form.serviceCategory", dict)}
               </Label>
 
               {/* Dropdown trigger button */}
@@ -588,10 +588,10 @@ export function PlanningSidebarForm({
               >
                 <span className="font-medium text-gray-900 dark:text-white">
                   {isLoadingServiceTypes
-                    ? "Cargando…"
+                    ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
                     : (serviceCategoryOptions.find(
                         (opt) => opt.value === selectedServiceCategory
-                      )?.label ?? "Seleccionar categoría")}
+                      )?.label ?? tr("pages.planning.sidebar.form.serviceCategoryPlaceholder", dict))}
                 </span>
                 <HiChevronDown
                   className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}

@@ -28,8 +28,8 @@ import {
   normalizeFilterConfig,
 } from "./dashlet";
 import { SettingsTextField, SettingsSelectField } from "../common";
-import type { ColumnItem } from "../common/column-helpers";
-import { toColumnItems, fromColumnItems } from "../common/column-helpers";
+import type { ColumnItem } from "@/features/dashboard/dashlets/common/column-helpers";
+import { toColumnItems, fromColumnItems } from "@/features/dashboard/dashlets/common/column-helpers";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 

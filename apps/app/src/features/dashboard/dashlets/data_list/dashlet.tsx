@@ -296,6 +296,8 @@ function ListCard({ row, columns, cardLayout }: Readonly<ListCardProps>) {
         </div>
         <button
           type="button"
+          aria-hidden="true"
+          tabIndex={-1}
           className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
         >
           <HiEllipsisVertical className="h-5 w-5" />

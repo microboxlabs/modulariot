@@ -42,3 +42,18 @@ export {
   fromColumnItems,
 } from "./column-helpers";
 export { useDynamicRows } from "./use-dynamic-rows";
+export {
+  type FilterItemConfig,
+  type FilterConfig,
+} from "./filter-types";
+export {
+  type FilterItem,
+  toFilterItems,
+  fromFilterItems,
+  normalizeFilterConfig,
+} from "./filter-helpers";
+export { FilterPillRow } from "./filter-pill-row";
+export {
+  type UseFilterAndSortResult,
+  useFilterAndSort,
+} from "./use-filter-and-sort";

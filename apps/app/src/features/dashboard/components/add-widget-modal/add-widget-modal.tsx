@@ -46,7 +46,7 @@ export function AddWidgetModal({
   // Filter by search query (resolve i18n keys for matching)
   const filteredDashlets = useMemo(() => {
     if (!searchQuery.trim()) return validDashlets;
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
     return validDashlets.filter(
       (d) =>
         resolveMetaString(d.meta.name, dictionary).toLowerCase().includes(query) ||

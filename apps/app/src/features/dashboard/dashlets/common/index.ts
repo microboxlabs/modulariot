@@ -68,3 +68,4 @@ export {
   type SettingsStateConfig,
   useSettingsState,
 } from "./use-settings-state";
+export { TableListSettingsShell } from "./table-list-settings-shell";

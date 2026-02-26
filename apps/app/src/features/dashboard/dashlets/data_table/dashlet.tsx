@@ -15,13 +15,6 @@ import { tr } from "@/features/i18n/tr.service";
 // ============================================================================
 // Configuration Types
 // ============================================================================
-export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
-
-export interface TableColumn {
-  key: string;
-  label: string;
-  type: ColumnType;
-}
 
 export interface FilterItemConfig {
   /** Column key whose distinct values are used as filter pills */

@@ -39,10 +39,6 @@ import { tr } from "@/features/i18n/tr.service";
 
 type SettingsTab = "visualization" | "data";
 
-interface ColumnItem extends TableColumn {
-  _id: string;
-}
-
 interface FilterItem extends FilterItemConfig {
   _id: string;
 }
@@ -50,14 +46,6 @@ interface FilterItem extends FilterItemConfig {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function toColumnItems(columns: TableColumn[]): ColumnItem[] {
-  return columns.map((col, i) => ({ ...col, _id: `col-${i}-${col.key}` }));
-}
-
-function fromColumnItems(items: ColumnItem[]): TableColumn[] {
-  return items.map(({ key, label, type }) => ({ key, label, type }));
-}
 
 function toFilterItems(items: FilterItemConfig[]): FilterItem[] {
   return items.map((item, i) => ({ ...item, _id: `fi-${i}-${item.column}` }));

@@ -39,6 +39,7 @@ import fetcher from "../fetcher";
 import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.types";
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
+import { z } from "zod";
 
 const alfrescoApiLogger = createManagedLogger(
   "alfresco-api",
@@ -1416,6 +1417,15 @@ export async function calculateETA(
   return result as ETAResponse;
 }
 
+const serviceTypeSchema = z.object({
+  nodeRef: z.string(),
+  code: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  isActive: z.boolean(),
+});
+const serviceTypesSchema = z.array(serviceTypeSchema);
+
 export async function getServiceTypes(
   session: Session
 ): Promise<ServiceType[]> {
@@ -1423,7 +1433,7 @@ export async function getServiceTypes(
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const response = await fetch(url, { headers });
   if (!response.ok) throw new Error(`service-types: ${response.status}`);
-  return response.json() as Promise<ServiceType[]>;
+  return serviceTypesSchema.parse(await response.json());
 }
 
 export async function updateTaskServiceCategory(

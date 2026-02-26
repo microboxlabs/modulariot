@@ -58,8 +58,8 @@ export default function Bento({
         <div
           className={`col-span-1 flex flex-col gap-2 ${hasTwoDrivers ? "lg:col-span-2" : "lg:col-span-3"}`}
         >
-          {/* Trip Information - shrinks to fit content */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700">
+          {/* Trip Information - grows to fill available space */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-700 flex-1">
             <TripInformation task={task} msg={dict} />
           </div>
 

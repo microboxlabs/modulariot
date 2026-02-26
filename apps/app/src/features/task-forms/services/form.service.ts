@@ -379,14 +379,7 @@ export const getSecondaryTransitionIdV2 = (
   } else if (taskType === TYPE_WFSHIP2_CLOSE_MONITORING_TASK) {
     // nothing to do here
   } else if (taskType === TYPE_WFDELIVERY_CONFIRM_DELIVERY_TASK) {
-    otherOptions.push(
-      {
-        id: OUTCOME_TO_CLOSE_MONITORING_V2,
-        label: (dict.outcome as I18nRecord)[
-          OUTCOME_TO_CLOSE_MONITORING_V2
-        ] as string,
-        icon: HiOutlineArrowRight,
-      },
+    otherOptions.push(     
       {
         id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
         label: (dict.outcome as I18nRecord)[
@@ -403,14 +396,7 @@ export const getSecondaryTransitionIdV2 = (
           OUTCOME_CONFIRM_DELIVERY_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-      },
-      /* {
-        id: OUTCOME_TO_CLOSE_MONITORING_V2,
-        label: (dict.outcome as I18nRecord)[
-          OUTCOME_TO_CLOSE_MONITORING_V2
-        ] as string,
-        icon: HiOutlineArrowRight,
-      }, */
+      },     
       {
         id: OUTCOME_OVERLORD_CANCELED_SOVOS_V2,
         label: (dict.outcome as I18nRecord)[

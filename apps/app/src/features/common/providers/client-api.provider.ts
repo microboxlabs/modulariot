@@ -232,7 +232,7 @@ export function useDownloadDocument(documentId: string | undefined) {
     DownloadDocumentResponse,
     FetcherError
   >(
-    documentId ? `/app/api/document/download?documentId=${documentId}` : null,
+    documentId ? `/api/document/download?documentId=${documentId}` : null,
     fetcher
   );
   return {

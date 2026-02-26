@@ -18,7 +18,7 @@ export default function ClientSymptoms({ dict }: { dict: I18nRecord }) {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-visible w-full gap-0">
+    <div className="h-full flex flex-col overflow-visible w-full gap-0 max-w-screen-2xl mx-auto">
       <SymptomsCards
         showCards={showCards}
         dict={dict}

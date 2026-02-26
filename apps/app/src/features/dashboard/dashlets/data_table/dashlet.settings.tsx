@@ -18,13 +18,14 @@ import type {
   TableColumn,
   ColumnType,
   FilterConfig,
+  FilterItemConfig,
   SortConfig,
 } from "./dashlet";
 import {
   defaultColumns,
   defaultRows,
-  defaultFilter,
   defaultSort,
+  normalizeFilterConfig,
 } from "./dashlet";
 import { SettingsTextField, SettingsSelectField } from "../common";
 import type { ColumnItem } from "../common/column-helpers";
@@ -37,6 +38,34 @@ import { tr } from "@/features/i18n/tr.service";
 // ============================================================================
 
 type SettingsTab = "visualization" | "data";
+
+interface ColumnItem extends TableColumn {
+  _id: string;
+}
+
+interface FilterItem extends FilterItemConfig {
+  _id: string;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function toColumnItems(columns: TableColumn[]): ColumnItem[] {
+  return columns.map((col, i) => ({ ...col, _id: `col-${i}-${col.key}` }));
+}
+
+function fromColumnItems(items: ColumnItem[]): TableColumn[] {
+  return items.map(({ key, label, type }) => ({ key, label, type }));
+}
+
+function toFilterItems(items: FilterItemConfig[]): FilterItem[] {
+  return items.map((item, i) => ({ ...item, _id: `fi-${i}-${item.column}` }));
+}
+
+function fromFilterItems(items: FilterItem[]): FilterItemConfig[] {
+  return items.map(({ column, label }) => ({ column, label }));
+}
 
 // ============================================================================
 // Component
@@ -63,15 +92,11 @@ export function DashletSettings({
     toColumnItems(config.columns ?? defaultColumns)
   );
 
-  // Filter config
-  const [filterEnabled, setFilterEnabled] = useState(
-    config.filter?.enabled ?? defaultFilter.enabled
-  );
-  const [filterColumn, setFilterColumn] = useState(
-    config.filter?.column ?? defaultFilter.column
-  );
-  const [filterLabel, setFilterLabel] = useState(
-    config.filter?.label ?? defaultFilter.label
+  // Filter config (normalize legacy shapes)
+  const normalizedFilter = normalizeFilterConfig(config.filter);
+  const [filterEnabled, setFilterEnabled] = useState(normalizedFilter.enabled);
+  const [filterItems, setFilterItems] = useState<FilterItem[]>(
+    toFilterItems(normalizedFilter.items)
   );
 
   // Sort config
@@ -118,6 +143,30 @@ export function DashletSettings({
     );
   };
 
+  // ── Filter item helpers ───────────────────────────────────────────────────
+
+  const addFilterItem = () => {
+    const firstCol = columns.find((c) => c.key)?.key ?? "";
+    setFilterItems((prev) => [
+      ...prev,
+      { _id: `fi-${Date.now()}`, column: firstCol, label: "" },
+    ]);
+  };
+
+  const removeFilterItem = (id: string) => {
+    setFilterItems((prev) => prev.filter((f) => f._id !== id));
+  };
+
+  const updateFilterItem = (
+    id: string,
+    field: keyof FilterItemConfig,
+    value: string
+  ) => {
+    setFilterItems((prev) =>
+      prev.map((f) => (f._id === id ? { ...f, [field]: value } : f))
+    );
+  };
+
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
@@ -140,8 +189,7 @@ export function DashletSettings({
 
     const filter: FilterConfig = {
       enabled: filterEnabled,
-      column: filterColumn,
-      label: filterLabel,
+      items: fromFilterItems(filterItems),
     };
     const sort: SortConfig = {
       enabled: sortEnabled,
@@ -181,7 +229,7 @@ export function DashletSettings({
       }}
       className="no-drag w-96 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
-      <div className="flex w-full flex-col gap-3 max-h-[70vh]">
+      <div className="flex w-full flex-col gap-3 max-h-[75vh]">
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
@@ -306,36 +354,62 @@ export function DashletSettings({
                 </div>
 
                 {filterEnabled && (
-                  <>
-                    <SettingsTextField
-                      id="dt-filter-label"
-                      label="Filter label"
-                      value={filterLabel}
-                      onChange={setFilterLabel}
-                    />
-                    <div>
-                      <Label
-                        htmlFor="dt-filter-column"
-                        className="mb-1 block text-sm font-medium"
-                      >
-                        Filter by column
-                      </Label>
-                      <Select
-                        id="dt-filter-column"
-                        sizing="sm"
-                        value={filterColumn}
-                        onChange={(e) => setFilterColumn(e.target.value)}
-                      >
-                        {columns
-                          .filter((c) => c.key)
-                          .map((c) => (
-                            <option key={c._id} value={c.key}>
-                              {c.label || c.key}
-                            </option>
-                          ))}
-                      </Select>
+                  <div>
+                    <Label className="mb-1.5 block text-sm font-medium">
+                      Filter rows
+                    </Label>
+                    <div className="space-y-1.5">
+                      {filterItems.map((fi) => (
+                        <div key={fi._id} className="flex items-center gap-1">
+                          <div className="flex-1 min-w-0">
+                            <TextInput
+                              sizing="sm"
+                              placeholder="label"
+                              value={fi.label}
+                              onChange={(e) =>
+                                updateFilterItem(fi._id, "label", e.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              sizing="sm"
+                              value={fi.column}
+                              onChange={(e) =>
+                                updateFilterItem(fi._id, "column", e.target.value)
+                              }
+                            >
+                              {columns
+                                .filter((c) => c.key)
+                                .map((c) => (
+                                  <option key={c._id} value={c.key}>
+                                    {c.label || c.key}
+                                  </option>
+                                ))}
+                            </Select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFilterItem(fi._id)}
+                            onMouseDown={handleMouseDown}
+                            className="no-drag shrink-0 rounded p-1 text-gray-400 transition-colors hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+                          >
+                            <HiTrash className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  </>
+                    <Button
+                      color="light"
+                      size="xs"
+                      onClick={addFilterItem}
+                      onMouseDown={handleMouseDown}
+                      className="no-drag mt-2"
+                    >
+                      <HiPlus className="mr-1 h-3 w-3" />
+                      Add filter
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -444,7 +518,7 @@ export function DashletSettings({
           onClick={handleSave}
           onMouseDown={handleMouseDown}
           size="sm"
-          className="no-drag w-full"
+          className="no-drag w-full shrink-0"
         >
           {tr("common.save", dictionary)}
         </Button>

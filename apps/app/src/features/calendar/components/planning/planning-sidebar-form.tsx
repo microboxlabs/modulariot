@@ -16,6 +16,7 @@ import {
   type SelectedService,
   type SelectedSlot,
 } from "./planning-selection-context";
+import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCheck, HiChevronDown, HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -120,18 +121,19 @@ export function PlanningSidebarForm({
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedTripType, setSelectedTripType] = useState<string>("tipo_1");
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>(
+    selectedService?.serviceCategory ?? ""
+  );
   const [isTripTypeDropdownOpen, setIsTripTypeDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tripTypeDropdownRef = useRef<HTMLDivElement>(null);
 
-  const tripTypeOptions = [
-    { value: "tipo_1", label: "Tipo 1" },
-    { value: "tipo_2", label: "Tipo 2" },
-    { value: "tipo_3", label: "Tipo 3" },
-    { value: "tipo_4", label: "Tipo 4" },
-    { value: "otro", label: "Otro" },
-  ];
+  const { serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes();
+  const serviceCategoryOptions = serviceTypes.map((t) => ({
+    value: t.code,
+    label: t.name,
+  }));
+
   const {
     confirmService,
     selectedSlot,
@@ -291,9 +293,12 @@ export function PlanningSidebarForm({
     }
 
     const wasReassigning = reassigningService !== null;
-    // Pass the final slot directly to confirmService
+    // Pass the final slot directly to confirmService, along with service category override
+    const serviceOverrides = selectedServiceCategory
+      ? { serviceCategory: selectedServiceCategory }
+      : undefined;
     try {
-      const result = await confirmService(finalSlot);
+      const result = await confirmService(finalSlot, serviceOverrides);
       if (wasReassigning || result) {
         ShowNotification({
           type: "success",
@@ -334,16 +339,14 @@ export function PlanningSidebarForm({
 
   // Extract incident codes and create code-to-label map for tooltips
   const codeToLabelMap = new Map<string, string>();
-  const incidentCodes = selectedService.mintral_incidents
-    ? selectedService.mintral_incidents.map((incident) => {
-        const rawCode = incident[0];
-        const label = incident[1];
-        // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
-        const code = rawCode.replace(/^mintral_incident_/i, "");
-        codeToLabelMap.set(code, label);
-        return code;
-      })
-    : [];
+  const incidentCodes = (selectedService.mintral_incidents ?? []).map((incident) => {
+    const rawCode = incident[0];
+    const label = incident[1];
+    // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
+    const code = rawCode.replace(/^mintral_incident_/i, "");
+    codeToLabelMap.set(code, label);
+    return code;
+  });
 
   // Categorize incidencias into primary (always visible) and secondary (expandable)
   const { primary, secondary } = categorizeIncidencias(incidentCodes);
@@ -563,26 +566,30 @@ export function PlanningSidebarForm({
       {timeOptions.length > 0 && (
         <FormSection title="Asignación de horario">
           <div className="space-y-3">
-            {/* Trip Type Dropdown */}
+            {/* Service Category Dropdown */}
             <div ref={tripTypeDropdownRef} className="relative">
               <Label
-                htmlFor="trip-type-select"
+                htmlFor="service-category-select"
                 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block"
               >
-                Tipo de viaje
+                {tr("pages.planning.sidebar.form.serviceCategory", dict)}
               </Label>
 
               {/* Dropdown trigger button */}
               <button
                 type="button"
+                disabled={isLoadingServiceTypes}
                 onClick={() =>
                   setIsTripTypeDropdownOpen(!isTripTypeDropdownOpen)
                 }
-                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {tripTypeOptions.find((opt) => opt.value === selectedTripType)
-                    ?.label || "Seleccionar tipo"}
+                  {isLoadingServiceTypes
+                    ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
+                    : (serviceCategoryOptions.find(
+                        (opt) => opt.value === selectedServiceCategory
+                      )?.label ?? tr("pages.planning.sidebar.form.serviceCategoryPlaceholder", dict))}
                 </span>
                 <HiChevronDown
                   className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}
@@ -592,27 +599,27 @@ export function PlanningSidebarForm({
               {/* Dropdown menu */}
               {isTripTypeDropdownOpen && (
                 <div className="absolute z-10 w-full bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {tripTypeOptions.map((option) => (
+                  {serviceCategoryOptions.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => {
-                        setSelectedTripType(option.value);
+                        setSelectedServiceCategory(option.value);
                         setIsTripTypeDropdownOpen(false);
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
-                        option.value === selectedTripType
+                        option.value === selectedServiceCategory
                           ? "bg-blue-50 dark:bg-blue-900/20"
                           : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                       } cursor-pointer`}
                     >
                       <div className="flex items-center gap-2">
-                        {option.value === selectedTripType && (
+                        {option.value === selectedServiceCategory && (
                           <HiCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                         )}
                         <span
                           className={`text-sm ${
-                            option.value === selectedTripType
+                            option.value === selectedServiceCategory
                               ? "text-blue-700 dark:text-blue-300"
                               : "text-gray-900 dark:text-white"
                           }`}

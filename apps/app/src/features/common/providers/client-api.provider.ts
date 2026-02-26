@@ -57,6 +57,7 @@ import type {
   BookingResponse,
   BookingListResponse,
 } from "@microboxlabs/miot-calendar-client";
+import type { ServiceType } from "./alfresco-api/service-types.types";
 
 
 
@@ -1631,4 +1632,30 @@ export async function listBookings(
     return json as BookingListResponse;
   }
   return parsed.data as BookingListResponse;
+}
+
+export function useServiceTypes() {
+  const { data, error, isLoading } = useSWR<ServiceType[], FetcherError>(
+    "/app/api/service-types",
+    fetcher,
+    { errorRetryCount: 3, errorRetryInterval: 5000 }
+  );
+  return {
+    serviceTypes: (data ?? []).filter((t) => t.isActive),
+    error,
+    isLoading,
+  };
+}
+
+export async function updateServiceCategory(
+  taskId: string,
+  serviceTypeCode: string
+): Promise<void> {
+  const response = await fetch("/app/api/planning/service-type", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, serviceTypeCode }),
+  });
+  if (!response.ok)
+    throw new Error(`updateServiceCategory: ${response.status}`);
 }

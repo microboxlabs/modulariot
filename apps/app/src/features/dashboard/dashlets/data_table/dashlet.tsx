@@ -2,15 +2,15 @@
 
 import { useState, useMemo } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import type { ColumnType, TableColumn, SortConfig } from "../common/column-types";
-import { renderCell } from "../common/cell-renderers";
-import { Pill } from "../common/pill";
-import { useDynamicRows } from "../common/use-dynamic-rows";
-
-export type { ColumnType, TableColumn, SortConfig };
-import { useDashboard } from "../../context/dashboard-context";
+import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
+import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
+import { Pill } from "@/features/dashboard/dashlets/common/pill";
+import { useDynamicRows } from "@/features/dashboard/dashlets/common/use-dynamic-rows";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
+
+export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
 
 // ============================================================================
 // Configuration Types

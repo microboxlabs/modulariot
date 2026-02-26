@@ -6,6 +6,7 @@ import { HiSwitchHorizontal, HiTrash } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import type { PlannedService } from "./planning-selection-context";
 import { Button } from "flowbite-react";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 
 export interface ContextMenuPosition {
   x: number;
@@ -16,6 +17,7 @@ interface ServiceContextMenuProps {
   isOpen: boolean;
   position: ContextMenuPosition;
   plannedService: PlannedService | null;
+  dict: I18nDictionary;
   onReassign: (plannedService: PlannedService) => void;
   onDelete: (plannedService: PlannedService) => void;
   onClose: () => void;
@@ -56,6 +58,7 @@ export function ServiceContextMenu({
   isOpen,
   position,
   plannedService,
+  dict,
   onReassign,
   onDelete,
   onClose,
@@ -153,7 +156,7 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiSwitchHorizontal className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span>Reasignar</span>
+          <span>{dict.pages.planning.sidebar.contextMenu.reassign}</span>
         </Button>
         <Button
           color={"alternative"}
@@ -162,7 +165,7 @@ export function ServiceContextMenu({
           className="border-0 rounded-none w-full justify-start gap-2"
         >
           <HiTrash className="w-4 h-4" />
-          <span>Eliminar planificación</span>
+          <span>{dict.pages.planning.sidebar.contextMenu.delete}</span>
         </Button>
       </div>
     </div>,

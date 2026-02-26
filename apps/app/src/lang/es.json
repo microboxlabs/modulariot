@@ -295,8 +295,8 @@
           "volumeUtilization": "Utilización volumen"
         },
         "contextMenu": {
-          "reassign": "Reasignar",
-          "delete": "Eliminar",
+          "reassign": "Replanificar",
+          "delete": "Eliminar planificación",
           "deleteConfirmTitle": "Confirmar eliminación",
           "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
           "cancelReassignment": "Cancelar reasignación"

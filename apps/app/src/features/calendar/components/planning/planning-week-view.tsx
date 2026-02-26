@@ -380,6 +380,7 @@ export default function PlanningWeekView({
         isOpen={contextMenu.isOpen}
         position={contextMenu.position}
         plannedService={contextMenu.plannedService}
+        dict={dict}
         onReassign={handleReassign}
         onDelete={handleDeleteRequest}
         onClose={handleCloseContextMenu}

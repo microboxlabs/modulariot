@@ -295,8 +295,8 @@
           "volumeUtilization": "Volume utilization"
         },
         "contextMenu": {
-          "reassign": "Reassign",
-          "delete": "Delete",
+          "reassign": "Reschedule",
+          "delete": "Delete planning",
           "deleteConfirmTitle": "Confirm deletion",
           "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
           "cancelReassignment": "Cancel reassignment"

@@ -30,6 +30,7 @@ export default function VehicleGrid({ vehicles, dict }: VehicleGridProps) {
         <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
           <button
             type="button"
+            aria-pressed={isDetailed}
             onClick={() => setIsDetailed(true)}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
               isDetailed
@@ -41,11 +42,12 @@ export default function VehicleGrid({ vehicles, dict }: VehicleGridProps) {
           </button>
           <button
             type="button"
+            aria-pressed={!isDetailed}
             onClick={() => setIsDetailed(false)}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-              !isDetailed
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-500 dark:text-gray-400"
+              isDetailed
+                ? "text-gray-500 dark:text-gray-400"
+                : "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
             }`}
           >
             {tr("vehicleGrid.simplified", dict)}

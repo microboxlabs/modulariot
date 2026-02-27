@@ -44,9 +44,9 @@ export default function SpecialViewsCarousel({
             transform: `translateX(-${(activeIndex * 100) / pages.length}%)`,
           }}
         >
-          {pages.map((page, pageIndex) => (
+          {pages.map((page) => (
             <div
-              key={`page-${pageIndex}`}
+              key={`page-${page[0].id}`}
               style={{ width: `${100 / pages.length}%` }}
               className="grid grid-cols-1 md:grid-cols-3 gap-3 px-0.5"
             >
@@ -59,9 +59,9 @@ export default function SpecialViewsCarousel({
       </div>
       {pages.length > 1 && (
         <div className="flex justify-center gap-1.5">
-          {pages.map((_, index) => (
+          {pages.map((page, index) => (
             <button
-              key={`dot-${index}`}
+              key={`dot-${page[0].id}`}
               type="button"
               onClick={() => goToSlide(index)}
               className={`w-2 h-2 rounded-full transition-colors ${

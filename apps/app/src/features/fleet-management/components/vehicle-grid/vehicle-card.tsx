@@ -49,7 +49,10 @@ export default function VehicleCard({
             </div>
             <div className="flex items-center gap-1.5">
               <HiOutlineMapPin className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-              <span className="text-gray-500 dark:text-gray-400 truncate">
+              <span className="text-gray-500 dark:text-gray-400">
+                {tr("vehicleGrid.location", dict)}:
+              </span>
+              <span className="text-gray-700 dark:text-gray-300 font-medium truncate">
                 {vehicle.lastLocation}
               </span>
             </div>

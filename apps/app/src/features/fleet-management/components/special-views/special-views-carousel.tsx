@@ -69,7 +69,7 @@ export default function SpecialViewsCarousel({
                   ? "bg-blue-600 dark:bg-blue-400"
                   : "bg-gray-300 dark:bg-gray-600"
               }`}
-              aria-label={`Go to slide ${index + 1}`}
+              aria-label={tr("specialViews.goToSlide", dict, { number: String(index + 1) })}
             />
           ))}
         </div>

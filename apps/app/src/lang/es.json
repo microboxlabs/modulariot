@@ -2105,7 +2105,8 @@
       "technicalHealthView": "Salud Técnica del Vehículo",
       "technicalHealthViewDesc": "Diagnóstico técnico, estado mecánico y cumplimiento de revisiones",
       "devicesTelemetryView": "Dispositivos y Telemetría",
-      "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota"
+      "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota",
+      "goToSlide": "Ir a diapositiva {number}"
     },
     "vehicleGrid": {
       "title": "Vehículos",

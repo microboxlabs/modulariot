@@ -2061,15 +2061,19 @@
     },
     "specialViews": {
       "title": "Special Views",
-      "realTimeLocation": "Real-Time Location",
-      "realTimeLocationDesc": "View the current position of all active vehicles on the map",
-      "maintenanceSchedule": "Maintenance Schedule",
-      "maintenanceScheduleDesc": "Upcoming scheduled maintenance and pending vehicles",
-      "performanceAnalysis": "Performance Analysis",
-      "performanceAnalysisDesc": "Operational efficiency and fuel consumption indicators",
-      "vehiclesTracked": "vehicles tracked",
-      "pendingServices": "pending services",
-      "efficiency": "efficiency"
+      "badge": "Special view",
+      "eventsView": "Events View",
+      "eventsViewDesc": "Record of incidents, alerts and critical operational events",
+      "usageView": "Usage View",
+      "usageViewDesc": "Mileage analysis, consumption and contractual compliance",
+      "generalInfoView": "General Information View",
+      "generalInfoViewDesc": "Executive dashboard with indicators and regulatory compliance",
+      "maintenanceStatusView": "Maintenance Status",
+      "maintenanceStatusViewDesc": "Tracking of preventive and corrective maintenance status",
+      "technicalHealthView": "Vehicle Technical Health",
+      "technicalHealthViewDesc": "Technical diagnostics, mechanical status and inspection compliance",
+      "devicesTelemetryView": "Devices & Telemetry",
+      "devicesTelemetryViewDesc": "Monitoring of sensors, GPS and devices installed in the fleet"
     },
     "vehicleGrid": {
       "title": "Vehicles",

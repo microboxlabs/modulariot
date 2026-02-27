@@ -2073,7 +2073,8 @@
       "technicalHealthView": "Vehicle Technical Health",
       "technicalHealthViewDesc": "Technical diagnostics, mechanical status and inspection compliance",
       "devicesTelemetryView": "Devices & Telemetry",
-      "devicesTelemetryViewDesc": "Monitoring of sensors, GPS and devices installed in the fleet"
+      "devicesTelemetryViewDesc": "Monitoring of sensors, GPS and devices installed in the fleet",
+      "goToSlide": "Go to slide {number}"
     },
     "vehicleGrid": {
       "title": "Vehicles",

@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.27.3 — ModularIoT
+
+### Fecha: 27/02/2026
+
+**Objetivo**: Implementar el catálogo de tipos de servicio end-to-end —desde el modelo de datos en Alfresco hasta el selector dinámico en la barra lateral de planificación— y corregir la marca de tiempo de confirmación de arribo enviada a Alerce TMS.
+
+## 🚀 Evolutivos
+
+- **📋 Catálogo de Tipos de Servicio en Alfresco y selector dinámico en planificación**
+  - **Backend (Alfresco)**: Nuevo modelo `servicetypedl` con propiedades `code`, `name`, `description` e `isActive`, bootstrapeado como Data List en el sitio `mintral`. API REST completa (`GET`, `POST`, `PUT`, `DELETE`) bajo `/alfresco/s/mintral/service-types`.
+  - **Frontend (Planificación)**: El dropdown de "Asignación de Horario" reemplaza las opciones hardcodeadas por datos reales obtenidos del endpoint de tipos de servicio. Solo se muestran los tipos activos; al confirmar un slot se persiste `mintral_serviceCategory` en la tarea de Alfresco. *(Integración OSS — MIOT-0.2.3)*
+  - **Proxy Next.js**: Nuevas rutas `GET /api/service-types` y `PATCH /api/planning/service-type` para comunicación segura entre el cliente web y el backend Alfresco.
+
+## 🐛 Correcciones
+
+- **🕐 Marca de tiempo real de confirmación de arribo en notificación a Alerce (Integración 4.7)**
+  - **Impacto**: La integración 4.7 (Notificar Arribo a Alerce) enviaba una fecha fabricada (`Instant.now() - 5 min`) en lugar de la fecha/hora real en que el operador confirmó el arribo, afectando la fiabilidad de datos en Alerce TMS.
+  - **Solución**: Se captura el timestamp real al completar `confirmArrivalTask` (nueva propiedad `mintral:confirmArrivalEndTime`) y se propaga a la notificación. Se mantiene fallback a `Instant.now() - 5 min` para procesos en vuelo anteriores.
+  - **Corrección adicional**: Se corrigió un bug donde `alerceNotify()` asignaba el valor de fecha de arribo a `VAR_DEPARTURE_DATE` en lugar de `VAR_ARRIVAL_DATE`.
+
+## 📊 Beneficios
+
+- 📋 **Catálogo de tipos de servicio administrable**: Los administradores pueden crear, editar y desactivar tipos de servicio directamente desde Alfresco, sin intervención de desarrollo.
+- 🔄 **Selector dinámico en planificación**: El dropdown refleja en tiempo real los tipos de servicio configurados, eliminando la dependencia de opciones hardcodeadas.
+- 🕐 **Datos de arribo precisos en Alerce TMS**: Las marcas de tiempo de confirmación de arribo ahora corresponden a la acción real del operador, mejorando la trazabilidad logística.
+- 🐛 **Corrección de variable de fecha en notificación**: El campo de fecha de arribo se asigna correctamente, evitando inconsistencias entre los datos de partida y llegada.
+- 🏗️ **Arquitectura extensible**: El patrón Data List + Web Script + proxy Next.js es reutilizable para futuros catálogos administrables.
+- ⚡ **Retrocompatibilidad garantizada**: El fallback en la integración 4.7 asegura que procesos en vuelo anteriores a la actualización siguen funcionando sin intervención.
+
+## 📌 Conclusión
+
+La versión 1.27.3 entrega la funcionalidad completa de tipos de servicio para el módulo de planificación, conectando el catálogo administrable en Alfresco con el selector dinámico en la interfaz de usuario a través de la línea OSS MIOT-0.2.3. Esto permite a los administradores gestionar los tipos de servicio sin intervención técnica y garantiza que los operadores trabajen siempre con información actualizada.
+
+En paralelo, la corrección de la marca de tiempo de arribo en la integración con Alerce TMS resuelve un problema de fiabilidad de datos que afectaba la trazabilidad logística. La corrección del bug de asignación de variable de fecha completa una mejora integral en la calidad de los datos enviados al sistema externo.
+
+Con esta entrega, la plataforma fortalece tanto su capacidad de configuración dinámica como la precisión de sus integraciones con sistemas de terceros, preparando el terreno para futuras extensiones del módulo de planificación.

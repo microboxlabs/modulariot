@@ -13,24 +13,24 @@ export default function SpecialViewCard({ view, dict }: SpecialViewCardProps) {
   const Icon = view.icon;
 
   return (
-    <div className="flex-shrink-0 w-full flex items-center gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+    <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-800/40 rounded-xl p-4 min-w-0">
       <div
-        className={`flex items-center justify-center w-12 h-12 rounded-xl ${view.color} ${view.darkColor}`}
+        className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${view.iconColor} ${view.iconDarkColor}`}
       >
-        <Icon className="w-6 h-6" />
+        <Icon className="w-5 h-5" />
       </div>
-      <div className="flex flex-col flex-1 min-w-0">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-          {tr(`specialViews.${view.titleKey}`, dict)}
-        </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+      <div className="flex flex-col min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+            {tr(`specialViews.${view.titleKey}`, dict)}
+          </h3>
+          <span className="shrink-0 text-[10px] font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded border border-green-300 dark:border-green-700">
+            {tr("specialViews.badge", dict)}
+          </span>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
           {tr(`specialViews.${view.descriptionKey}`, dict)}
         </p>
-      </div>
-      <div className="flex flex-col items-end shrink-0">
-        <span className="text-xl font-bold text-gray-900 dark:text-white">
-          {view.value}
-        </span>
       </div>
     </div>
   );

@@ -29,7 +29,6 @@ export interface SpecialView {
   titleKey: string;
   descriptionKey: string;
   icon: IconType;
-  color: string;
-  darkColor: string;
-  value: string;
+  iconColor: string;
+  iconDarkColor: string;
 }

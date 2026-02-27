@@ -27,9 +27,13 @@ export default function SpecialViewsCarousel({
     return result;
   }, [views]);
 
+  const pageCount = Math.max(1, pages.length);
+
   const goToSlide = useCallback((index: number) => {
     setActiveIndex(index);
   }, []);
+
+  const safeIndex = Math.min(activeIndex, pageCount - 1);
 
   return (
     <div className="flex flex-col gap-3">
@@ -40,14 +44,14 @@ export default function SpecialViewsCarousel({
         <div
           className="flex transition-transform duration-300 ease-in-out"
           style={{
-            width: `${pages.length * 100}%`,
-            transform: `translateX(-${(activeIndex * 100) / pages.length}%)`,
+            width: `${pageCount * 100}%`,
+            transform: `translateX(-${(safeIndex * 100) / pageCount}%)`,
           }}
         >
           {pages.map((page) => (
             <div
               key={`page-${page[0].id}`}
-              style={{ width: `${100 / pages.length}%` }}
+              style={{ width: `${100 / pageCount}%` }}
               className="grid grid-cols-1 md:grid-cols-3 gap-3 px-0.5"
             >
               {page.map((view) => (

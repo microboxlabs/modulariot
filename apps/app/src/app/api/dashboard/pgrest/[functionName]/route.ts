@@ -1,0 +1,108 @@
+import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+
+const FUNCTION_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+type RouteContext = { params: Promise<{ functionName: string }> };
+
+async function handleRequest(req: NextRequest, ctx: RouteContext) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ status: 401 });
+  }
+
+  const { functionName } = await ctx.params;
+
+  if (!FUNCTION_NAME_REGEX.test(functionName)) {
+    return NextResponse.json(
+      { error: "Invalid function name." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const baseUrl = process.env.OPENAPI_URL;
+    const token = process.env.OPENAPI_TOKEN;
+
+    if (!baseUrl || !token) {
+      return NextResponse.json(
+        { error: "PGREST is not configured on the server." },
+        { status: 500 }
+      );
+    }
+
+    const rpcUrl = `${baseUrl}/api/v1/pgrest/rpc/${functionName}`;
+
+    // Build upstream fetch options based on incoming method
+    const headers: Record<string, string> = {
+      accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+
+    let fullUrl = rpcUrl;
+    const fetchInit: RequestInit = { headers };
+
+    if (req.method === "POST") {
+      headers["Content-Type"] = "application/json";
+      const body = await req.text();
+      fetchInit.method = "POST";
+      fetchInit.body = body || "{}";
+    } else {
+      fetchInit.method = "GET";
+      const qs = new URL(req.url).searchParams.toString();
+      if (qs) fullUrl = `${rpcUrl}?${qs}`;
+    }
+
+    const response = await fetch(fullUrl, fetchInit);
+
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("text/html")) {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable. Please try again." },
+          { status: response.status >= 500 ? response.status : 502 }
+        );
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType?.includes("application/json")) {
+      return NextResponse.json(
+        {
+          error:
+            "Service returned an unexpected response. Please try again.",
+        },
+        { status: 502 }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error(error);
+
+    if (
+      error instanceof SyntaxError &&
+      error.message.includes("Unexpected token")
+    ) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Failed to fetch data. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: NextRequest, ctx: RouteContext) {
+  return handleRequest(req, ctx);
+}
+
+export async function POST(req: NextRequest, ctx: RouteContext) {
+  return handleRequest(req, ctx);
+}

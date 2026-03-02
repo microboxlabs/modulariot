@@ -36,13 +36,23 @@ export interface SortConfig {
   columns: string[];
 }
 
+export interface PgrestParam {
+  key: string;
+  value: string;
+}
+
+export type PgrestHttpMethod = "POST" | "GET";
+
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic";
+  dataMode: "static" | "dynamic" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
   apiUrl: string;
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
 }
@@ -149,6 +159,9 @@ export const defaultConfig: DashletConfig = {
   columns: defaultColumns,
   rows: defaultRows,
   apiUrl: "",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
   filter: defaultFilter,
   sort: defaultSort,
 };
@@ -367,6 +380,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     columns = defaultColumns,
     rows: staticRows = defaultRows,
     apiUrl = "",
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
     sort = defaultSort,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter), [config.filter]);
@@ -377,13 +393,39 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (dataMode !== "dynamic" || !apiUrl) return;
+    let fetchUrl: string | undefined;
+    let fetchInit: RequestInit | undefined;
+
+    if (dataMode === "dynamic" && apiUrl) {
+      fetchUrl = apiUrl;
+    } else if (dataMode === "pgrest" && pgrestFunctionName) {
+      const validParams = pgrestParams.filter((p) => p.key && p.value);
+      const baseUrl = `/app/api/dashboard/pgrest/${pgrestFunctionName}`;
+
+      if (pgrestHttpMethod === "POST") {
+        const body: Record<string, string> = {};
+        for (const p of validParams) body[p.key] = p.value;
+        fetchUrl = baseUrl;
+        fetchInit = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        };
+      } else {
+        const qs = new URLSearchParams();
+        for (const p of validParams) qs.set(p.key, p.value);
+        const query = qs.toString();
+        fetchUrl = query ? `${baseUrl}?${query}` : baseUrl;
+      }
+    }
+
+    if (!fetchUrl) return;
 
     let cancelled = false;
     setLoading(true);
     setFetchError(null);
 
-    fetch(apiUrl)
+    fetch(fetchUrl, fetchInit)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -415,14 +457,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return () => {
       cancelled = true;
     };
-  }, [dataMode, apiUrl]);
+  }, [dataMode, apiUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
+  const allRows = dataMode === "dynamic" || dataMode === "pgrest" ? dynamicRows : staticRows;
 
   // Distinct values per filter item (derived from full dataset)
   const filterOptionsByColumn = useMemo(() => {
@@ -587,7 +629,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               ) : (
                 displayRows.map((row) => (
                   <tr
-                    key={columns.map((col) => row[col.key] ?? "").join("|")}
+                    key={columns.map((col) => String(row[col.key] ?? "")).join("|")}
                     className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
                   >
                     {columns.map((col) => (
@@ -595,7 +637,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         key={col.key}
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
-                        {renderCell(row[col.key] ?? "", col.type)}
+                        {renderCell(String(row[col.key] ?? ""), col.type)}
                       </td>
                     ))}
                   </tr>

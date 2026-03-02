@@ -2047,5 +2047,13 @@
       "successNotification": "Calendar created successfully",
       "errorNotification": "Failed to create calendar"
     }
+  },
+  "ext_tasks": {
+    "processing": "Processing your request...",
+    "completed": "Action completed successfully",
+    "already_completed": "This action has already been completed",
+    "expired": "This link has expired",
+    "error": "Something went wrong. Please try again later.",
+    "invalid": "This link is not valid"
   }
 }

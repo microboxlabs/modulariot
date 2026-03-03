@@ -648,9 +648,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row) => (
+                displayRows.map((row, rowIdx) => (
                   <tr
-                    key={columns.map((col) => String(row[col.key] ?? "")).join("|")}
+                    key={row.id ?? row._id ?? rowIdx}
                     className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
                   >
                     {columns.map((col) => (

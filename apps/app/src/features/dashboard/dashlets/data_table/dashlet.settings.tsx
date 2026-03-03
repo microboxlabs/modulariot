@@ -31,6 +31,7 @@ import {
   normalizeFilterConfig,
 } from "./dashlet";
 import { SettingsTextField, SettingsSelectField } from "../common";
+import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -65,17 +66,6 @@ function humanizeKey(key: string): string {
     .join(" ");
 }
 
-/** Parse a PGREST / dynamic API response into a row array. */
-function extractRows(data: unknown): Record<string, string>[] {
-  if (Array.isArray(data)) return data as Record<string, string>[];
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    const candidate = obj.rows ?? obj.data ?? obj.results;
-    if (Array.isArray(candidate)) return candidate as Record<string, string>[];
-  }
-  return [];
-}
-
 function toColumnItems(columns: TableColumn[]): ColumnItem[] {
   return columns.map((col, i) => ({ ...col, _id: `col-${i}-${col.key}` }));
 }
@@ -94,34 +84,6 @@ function fromFilterItems(items: FilterItem[]): FilterItemConfig[] {
 
 function toPgrestParamItems(params: PgrestParam[]): PgrestParamItem[] {
   return params.map((p, i) => ({ ...p, _id: `pp-${i}-${p.key}` }));
-}
-
-/** Build the fetch URL and init for the PGREST detect-columns call. */
-function buildPgrestDetectFetch(
-  functionName: string,
-  method: PgrestHttpMethod,
-  params: PgrestParamItem[]
-): { url: string; init?: RequestInit } {
-  const validParams = params.filter((p) => p.key && p.value);
-  const baseUrl = `/app/api/dashboard/pgrest/${functionName.trim()}`;
-
-  if (method === "POST") {
-    const body: Record<string, string> = {};
-    for (const p of validParams) body[p.key] = p.value;
-    return {
-      url: baseUrl,
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    };
-  }
-
-  const qs = new URLSearchParams();
-  for (const p of validParams) qs.set(p.key, p.value);
-  const query = qs.toString();
-  return { url: query ? `${baseUrl}?${query}` : baseUrl };
 }
 
 function fromPgrestParamItems(items: PgrestParamItem[]): PgrestParam[] {
@@ -204,12 +166,12 @@ export function DashletSettings({
     try {
       const { url, init } =
         dataMode === "pgrest"
-          ? buildPgrestDetectFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams)
+          ? buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams)
           : { url: apiUrl.trim(), init: undefined };
 
       const res = await fetch(url, init);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const rows = extractRows(await res.json());
+      const rows = parseRows(await res.json());
       if (rows.length === 0) {
         setDetectError("Response returned no rows");
         return;

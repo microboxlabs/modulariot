@@ -145,7 +145,7 @@ export function DashletSettings({
     JSON.stringify(config.rows ?? defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const [apiUrl, setApiUrl] = useState(config.apiUrl ?? "");
+  const [apiUrl] = useState(config.apiUrl ?? "");
   const [pgrestFunctionName, setPgrestFunctionName] = useState(
     config.pgrestFunctionName ?? ""
   );
@@ -218,13 +218,20 @@ export function DashletSettings({
       }));
       setColumns(detected);
 
-      // Sync filter labels to the detected column names
+      // Sync filter items to the detected columns
+      const detectedKeys = new Set(detected.map((c) => c.key));
       const labelByKey = new Map(detected.map((c) => [c.key, c.label]));
+      const firstKey = detected.find((c) => c.key)?.key ?? "";
       setFilterItems((prev) =>
-        prev.map((fi) => ({
-          ...fi,
-          label: labelByKey.get(fi.column) ?? fi.label,
-        }))
+        prev.map((fi) => {
+          // If the filter column no longer exists, re-point to the first column
+          const column = detectedKeys.has(fi.column) ? fi.column : firstKey;
+          return {
+            ...fi,
+            column,
+            label: labelByKey.get(column) ?? fi.label,
+          };
+        })
       );
     } catch (err: unknown) {
       setDetectError(err instanceof Error ? err.message : "Detection failed");

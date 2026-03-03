@@ -88,7 +88,7 @@ export function DashboardView() {
           isDraggable: editMode,
           isResizable: editMode,
           minW: widget.layout?.minW ?? fallbackMinW,
-          maxW: widget.layout?.maxW ?? 21,
+          maxW: widget.layout?.maxW ?? GRID_COLS,
           minH: widget.layout?.minH ?? fallbackMinH,
           maxH: widget.layout?.maxH ?? Infinity,
         };

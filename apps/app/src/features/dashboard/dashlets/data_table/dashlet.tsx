@@ -5,6 +5,7 @@ import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
+import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 
 // ============================================================================
 // Configuration Types
@@ -178,38 +179,7 @@ function buildDataFetchRequest(
     return { url: apiUrl };
   }
   if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
-
-  const validParams = pgrestParams.filter((p) => p.key && p.value);
-  const baseUrl = `/app/api/dashboard/pgrest/${pgrestFunctionName}`;
-
-  if (pgrestHttpMethod === "POST") {
-    const body: Record<string, string> = {};
-    for (const p of validParams) body[p.key] = p.value;
-    return {
-      url: baseUrl,
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    };
-  }
-
-  const qs = new URLSearchParams();
-  for (const p of validParams) qs.set(p.key, p.value);
-  const query = qs.toString();
-  return { url: query ? `${baseUrl}?${query}` : baseUrl };
-}
-
-/** Parse a dynamic API / PGREST response into a row array. */
-function parseRows(data: unknown): Record<string, string>[] {
-  if (Array.isArray(data)) return data as Record<string, string>[];
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    const candidate = obj.rows ?? obj.data ?? obj.results;
-    if (Array.isArray(candidate)) return candidate as Record<string, string>[];
-  }
-  return [];
+  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams);
 }
 
 // ============================================================================

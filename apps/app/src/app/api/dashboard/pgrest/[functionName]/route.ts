@@ -25,16 +25,24 @@ function buildFetchOptions(req: NextRequest, rpcUrl: string, token: string) {
   return { fullUrl, fetchInit };
 }
 
+function isValidHttpError(status: number): boolean {
+  return status >= 400 && status < 600;
+}
+
 function validateResponse(response: Response) {
   if (!response.ok) {
+    const status = isValidHttpError(response.status) ? response.status : 502;
     const contentType = response.headers.get("content-type");
     if (contentType?.includes("text/html")) {
       return NextResponse.json(
         { error: "Service temporarily unavailable. Please try again." },
-        { status: response.status >= 500 ? response.status : 502 }
+        { status }
       );
     }
-    throw new Error(`HTTP error! status: ${response.status}`);
+    return NextResponse.json(
+      { error: response.statusText || "Upstream error" },
+      { status }
+    );
   }
 
   const contentType = response.headers.get("content-type");
@@ -51,7 +59,7 @@ function validateResponse(response: Response) {
 async function handleRequest(req: NextRequest, ctx: RouteContext) {
   const session = await auth();
   if (!session) {
-    return NextResponse.json({ status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { functionName } = await ctx.params;

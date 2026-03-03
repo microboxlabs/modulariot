@@ -166,6 +166,52 @@ export const defaultConfig: DashletConfig = {
   sort: defaultSort,
 };
 
+/** Build the fetch URL + init for PGREST or dynamic data sources. */
+function buildDataFetchRequest(
+  dataMode: string,
+  apiUrl: string,
+  pgrestFunctionName: string,
+  pgrestParams: PgrestParam[],
+  pgrestHttpMethod: PgrestHttpMethod
+): { url: string; init?: RequestInit } | null {
+  if (dataMode === "dynamic" && apiUrl) {
+    return { url: apiUrl };
+  }
+  if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
+
+  const validParams = pgrestParams.filter((p) => p.key && p.value);
+  const baseUrl = `/app/api/dashboard/pgrest/${pgrestFunctionName}`;
+
+  if (pgrestHttpMethod === "POST") {
+    const body: Record<string, string> = {};
+    for (const p of validParams) body[p.key] = p.value;
+    return {
+      url: baseUrl,
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    };
+  }
+
+  const qs = new URLSearchParams();
+  for (const p of validParams) qs.set(p.key, p.value);
+  const query = qs.toString();
+  return { url: query ? `${baseUrl}?${query}` : baseUrl };
+}
+
+/** Parse a dynamic API / PGREST response into a row array. */
+function parseRows(data: unknown): Record<string, string>[] {
+  if (Array.isArray(data)) return data as Record<string, string>[];
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    const candidate = obj.rows ?? obj.data ?? obj.results;
+    if (Array.isArray(candidate)) return candidate as Record<string, string>[];
+  }
+  return [];
+}
+
 // ============================================================================
 // Layout Defaults
 // ============================================================================
@@ -393,62 +439,26 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    let fetchUrl: string | undefined;
-    let fetchInit: RequestInit | undefined;
-
-    if (dataMode === "dynamic" && apiUrl) {
-      fetchUrl = apiUrl;
-    } else if (dataMode === "pgrest" && pgrestFunctionName) {
-      const validParams = pgrestParams.filter((p) => p.key && p.value);
-      const baseUrl = `/app/api/dashboard/pgrest/${pgrestFunctionName}`;
-
-      if (pgrestHttpMethod === "POST") {
-        const body: Record<string, string> = {};
-        for (const p of validParams) body[p.key] = p.value;
-        fetchUrl = baseUrl;
-        fetchInit = {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        };
-      } else {
-        const qs = new URLSearchParams();
-        for (const p of validParams) qs.set(p.key, p.value);
-        const query = qs.toString();
-        fetchUrl = query ? `${baseUrl}?${query}` : baseUrl;
-      }
-    }
-
-    if (!fetchUrl) return;
+    const request = buildDataFetchRequest(
+      dataMode, apiUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod
+    );
+    if (!request) return;
 
     let cancelled = false;
     setLoading(true);
     setFetchError(null);
 
-    fetch(fetchUrl, fetchInit)
+    fetch(request.url, request.init)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data: unknown) => {
-        if (cancelled) return;
-        let parsed: Record<string, string>[];
-        if (Array.isArray(data)) {
-          parsed = data as Record<string, string>[];
-        } else if (data && typeof data === "object") {
-          const obj = data as Record<string, unknown>;
-          const candidate = obj.rows ?? obj.data ?? obj.results;
-          parsed = Array.isArray(candidate)
-            ? (candidate as Record<string, string>[])
-            : [];
-        } else {
-          parsed = [];
-        }
-        setDynamicRows(parsed);
+        if (!cancelled) setDynamicRows(parseRows(data));
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        setFetchError(err instanceof Error ? err.message : "Failed to fetch");
+        if (!cancelled)
+          setFetchError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

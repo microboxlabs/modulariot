@@ -96,6 +96,34 @@ function toPgrestParamItems(params: PgrestParam[]): PgrestParamItem[] {
   return params.map((p, i) => ({ ...p, _id: `pp-${i}-${p.key}` }));
 }
 
+/** Build the fetch URL and init for the PGREST detect-columns call. */
+function buildPgrestDetectFetch(
+  functionName: string,
+  method: PgrestHttpMethod,
+  params: PgrestParamItem[]
+): { url: string; init?: RequestInit } {
+  const validParams = params.filter((p) => p.key && p.value);
+  const baseUrl = `/app/api/dashboard/pgrest/${functionName.trim()}`;
+
+  if (method === "POST") {
+    const body: Record<string, string> = {};
+    for (const p of validParams) body[p.key] = p.value;
+    return {
+      url: baseUrl,
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    };
+  }
+
+  const qs = new URLSearchParams();
+  for (const p of validParams) qs.set(p.key, p.value);
+  const query = qs.toString();
+  return { url: query ? `${baseUrl}?${query}` : baseUrl };
+}
+
 function fromPgrestParamItems(items: PgrestParamItem[]): PgrestParam[] {
   return items.map(({ key, value }) => ({ key, value }));
 }
@@ -145,7 +173,7 @@ export function DashletSettings({
     JSON.stringify(config.rows ?? defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const [apiUrl] = useState(config.apiUrl ?? "");
+  const apiUrl = config.apiUrl ?? "";
   const [pgrestFunctionName, setPgrestFunctionName] = useState(
     config.pgrestFunctionName ?? ""
   );
@@ -174,43 +202,20 @@ export function DashletSettings({
     setDetectError(null);
 
     try {
-      let fetchUrl: string;
-      let fetchInit: RequestInit | undefined;
+      const { url, init } =
+        dataMode === "pgrest"
+          ? buildPgrestDetectFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams)
+          : { url: apiUrl.trim(), init: undefined };
 
-      if (dataMode === "pgrest") {
-        const validParams = pgrestParams.filter((p) => p.key && p.value);
-        const baseUrl = `/app/api/dashboard/pgrest/${pgrestFunctionName.trim()}`;
-
-        if (pgrestHttpMethod === "POST") {
-          const body: Record<string, string> = {};
-          for (const p of validParams) body[p.key] = p.value;
-          fetchUrl = baseUrl;
-          fetchInit = {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          };
-        } else {
-          const qs = new URLSearchParams();
-          for (const p of validParams) qs.set(p.key, p.value);
-          const query = qs.toString();
-          fetchUrl = query ? `${baseUrl}?${query}` : baseUrl;
-        }
-      } else {
-        fetchUrl = apiUrl.trim();
-      }
-
-      const res = await fetch(fetchUrl, fetchInit);
+      const res = await fetch(url, init);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: unknown = await res.json();
-      const rows = extractRows(data);
+      const rows = extractRows(await res.json());
       if (rows.length === 0) {
         setDetectError("Response returned no rows");
         return;
       }
 
-      const keys = Object.keys(rows[0]);
-      const detected: ColumnItem[] = keys.map((key, i) => ({
+      const detected: ColumnItem[] = Object.keys(rows[0]).map((key, i) => ({
         _id: `col-${Date.now()}-${i}`,
         key,
         label: humanizeKey(key),
@@ -218,23 +223,16 @@ export function DashletSettings({
       }));
       setColumns(detected);
 
-      // Sync filter items to the detected columns
+      // Sync filter & sort to detected columns
       const detectedKeys = new Set(detected.map((c) => c.key));
       const labelByKey = new Map(detected.map((c) => [c.key, c.label]));
       const firstKey = detected.find((c) => c.key)?.key ?? "";
       setFilterItems((prev) =>
         prev.map((fi) => {
-          // If the filter column no longer exists, re-point to the first column
           const column = detectedKeys.has(fi.column) ? fi.column : firstKey;
-          return {
-            ...fi,
-            column,
-            label: labelByKey.get(column) ?? fi.label,
-          };
+          return { ...fi, column, label: labelByKey.get(column) ?? fi.label };
         })
       );
-
-      // Remove stale sort columns that no longer exist
       setSortColumns((prev) => prev.filter((k) => detectedKeys.has(k)));
     } catch (err: unknown) {
       setDetectError(err instanceof Error ? err.message : "Detection failed");

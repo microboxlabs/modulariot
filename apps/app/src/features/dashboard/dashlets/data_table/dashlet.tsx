@@ -442,7 +442,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const request = buildDataFetchRequest(
       dataMode, apiUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod
     );
-    if (!request) return;
+    if (!request) {
+      setLoading(false);
+      setFetchError(null);
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);

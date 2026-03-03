@@ -102,8 +102,8 @@ export function DashletSettings({
   dictionary,
 }: Readonly<DashletSettingsProps<DashletConfig>>) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("visualization");
-  const [dataMode, setDataMode] = useState<"static" | "dynamic" | "pgrest">(
-    config.dataMode ?? "static"
+  const [dataMode, setDataMode] = useState<"static" | "pgrest">(
+    config.dataMode === "pgrest" ? "pgrest" : "static"
   );
 
   // Visualization fields
@@ -135,7 +135,6 @@ export function DashletSettings({
     JSON.stringify(config.rows ?? defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const [apiUrl, setApiUrl] = useState(config.apiUrl ?? "");
   const [pgrestFunctionName, setPgrestFunctionName] = useState(
     config.pgrestFunctionName ?? ""
   );
@@ -156,18 +155,16 @@ export function DashletSettings({
   const [paramHints, setParamHints] = useState<Record<string, string>>({});
 
   const canDetectColumns =
-    (dataMode === "pgrest" && pgrestFunctionName.trim() !== "") ||
-    (dataMode === "dynamic" && apiUrl.trim() !== "");
+    dataMode === "pgrest" && pgrestFunctionName.trim() !== "";
 
   const detectColumns = async () => {
     setDetecting(true);
     setDetectError(null);
 
     try {
-      const { url, init } =
-        dataMode === "pgrest"
-          ? buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams)
-          : { url: apiUrl.trim(), init: undefined };
+      const { url, init } = buildPgrestFetch(
+        pgrestFunctionName, pgrestHttpMethod, pgrestParams
+      );
 
       const res = await fetch(url, init);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -383,7 +380,6 @@ export function DashletSettings({
       dataMode,
       columns: fromColumnItems(columns),
       rows,
-      apiUrl,
       pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pgrestParams),
       pgrestHttpMethod,
@@ -671,11 +667,10 @@ export function DashletSettings({
                 label={tr("dashboard.settings.dataSource", dictionary)}
                 value={dataMode}
                 onChange={(v) =>
-                  setDataMode(v as "static" | "dynamic" | "pgrest")
+                  setDataMode(v as "static" | "pgrest")
                 }
                 options={[
                   { value: "static", label: "Static (JSON)" },
-                  { value: "dynamic", label: "Dynamic (API)" },
                   { value: "pgrest", label: "PGREST" },
                 ]}
               />
@@ -707,17 +702,6 @@ export function DashletSettings({
                     </p>
                   )}
                 </div>
-              )}
-
-              {/* Dynamic: API URL */}
-              {dataMode === "dynamic" && (
-                <SettingsTextField
-                  id="dt-api-url"
-                  label="API URL"
-                  value={apiUrl}
-                  onChange={setApiUrl}
-                  placeholder="https://api.example.com/data"
-                />
               )}
 
               {/* PGREST: Function name + params */}

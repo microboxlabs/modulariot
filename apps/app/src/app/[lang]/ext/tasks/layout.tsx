@@ -5,7 +5,7 @@ import { twMerge } from "tailwind-merge";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default function ExtTasksLayout({ children }: PropsWithChildren) {
+export default function ExtTasksLayout({ children }: Readonly<PropsWithChildren>) {
   return (
     <main className={twMerge(inter.className, "dark:bg-gray-900 h-full")}>
       {children}

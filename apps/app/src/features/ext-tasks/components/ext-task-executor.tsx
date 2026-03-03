@@ -29,7 +29,7 @@ export default function ExtTaskExecutor({
   token,
   taskType,
   dict,
-}: ExtTaskExecutorProps) {
+}: Readonly<ExtTaskExecutorProps>) {
   const [state, setState] = useState<ViewState>("loading");
   const t = dict.ext_tasks;
 

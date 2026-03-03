@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   }
 
   const fn = new URL(req.url).searchParams.get("fn");
-  if (!fn || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fn)) {
+  if (!fn || !/^[a-zA-Z_]\w*$/.test(fn)) {
     return NextResponse.json(
       { error: "Invalid or missing function name." },
       { status: 400 }

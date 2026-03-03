@@ -111,7 +111,8 @@ export const authConfig: NextAuthConfig = {
           nextUrl.pathname.endsWith("/totem") ||
           nextUrl.pathname.endsWith("/favicon.ico") ||
           nextUrl.pathname.endsWith("/app/release") ||
-          nextUrl.pathname.includes("/release/")
+          nextUrl.pathname.includes("/release/") ||
+          nextUrl.pathname.includes("/ext/")
         ) {
           authAuthzLogger.debug( { path: nextUrl.pathname }, "Public route access granted");
           return;

@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 
 const SAFE_ENV = {
   ...process.env,
-  PATH: "/usr/local/bin:/usr/bin:/bin",
+  PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
 };
 
 export function detectBranch(): string {

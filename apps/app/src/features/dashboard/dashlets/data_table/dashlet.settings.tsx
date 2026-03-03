@@ -173,7 +173,7 @@ export function DashletSettings({
     JSON.stringify(config.rows ?? defaultRows, null, 2)
   );
   const [rowsJsonError, setRowsJsonError] = useState<string | null>(null);
-  const apiUrl = config.apiUrl ?? "";
+  const [apiUrl, setApiUrl] = useState(config.apiUrl ?? "");
   const [pgrestFunctionName, setPgrestFunctionName] = useState(
     config.pgrestFunctionName ?? ""
   );
@@ -713,6 +713,7 @@ export function DashletSettings({
                 }
                 options={[
                   { value: "static", label: "Static (JSON)" },
+                  { value: "dynamic", label: "Dynamic (API)" },
                   { value: "pgrest", label: "PGREST" },
                 ]}
               />
@@ -744,6 +745,17 @@ export function DashletSettings({
                     </p>
                   )}
                 </div>
+              )}
+
+              {/* Dynamic: API URL */}
+              {dataMode === "dynamic" && (
+                <SettingsTextField
+                  id="dt-api-url"
+                  label="API URL"
+                  value={apiUrl}
+                  onChange={setApiUrl}
+                  placeholder="https://api.example.com/data"
+                />
               )}
 
               {/* PGREST: Function name + params */}

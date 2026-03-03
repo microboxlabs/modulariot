@@ -47,10 +47,9 @@ export type PgrestHttpMethod = "POST" | "GET";
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic" | "pgrest";
+  dataMode: "static" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
-  apiUrl: string;
   pgrestFunctionName: string;
   pgrestParams: PgrestParam[];
   pgrestHttpMethod: PgrestHttpMethod;
@@ -159,7 +158,6 @@ export const defaultConfig: DashletConfig = {
   dataMode: "static",
   columns: defaultColumns,
   rows: defaultRows,
-  apiUrl: "",
   pgrestFunctionName: "",
   pgrestParams: [],
   pgrestHttpMethod: "POST",
@@ -167,17 +165,13 @@ export const defaultConfig: DashletConfig = {
   sort: defaultSort,
 };
 
-/** Build the fetch URL + init for PGREST or dynamic data sources. */
+/** Build the fetch URL + init for PGREST data sources. */
 function buildDataFetchRequest(
   dataMode: string,
-  apiUrl: string,
   pgrestFunctionName: string,
   pgrestParams: PgrestParam[],
   pgrestHttpMethod: PgrestHttpMethod
 ): { url: string; init?: RequestInit } | null {
-  if (dataMode === "dynamic" && apiUrl) {
-    return { url: apiUrl };
-  }
   if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
   return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams);
 }
@@ -395,7 +389,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
     rows: staticRows = defaultRows,
-    apiUrl = "",
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
@@ -403,14 +396,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter), [config.filter]);
 
-  // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const [dynamicRows, setDynamicRows] = useState<Record<string, string>[]>([]);
+  // ── PGREST data fetching ────────────────────────────────────────────────────
+  const [pgrestRows, setPgrestRows] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const request = buildDataFetchRequest(
-      dataMode, apiUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod
+      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod
     );
     if (!request) {
       setLoading(false);
@@ -428,7 +421,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         return res.json();
       })
       .then((data: unknown) => {
-        if (!cancelled) setDynamicRows(parseRows(data));
+        if (!cancelled) setPgrestRows(parseRows(data));
       })
       .catch((err: unknown) => {
         if (!cancelled)
@@ -441,14 +434,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     return () => {
       cancelled = true;
     };
-  }, [dataMode, apiUrl, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
 
   // ── Filter & sort state ─────────────────────────────────────────────────────
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const allRows = dataMode === "dynamic" || dataMode === "pgrest" ? dynamicRows : staticRows;
+  const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
 
   // Distinct values per filter item (derived from full dataset)
   const filterOptionsByColumn = useMemo(() => {

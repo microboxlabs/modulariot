@@ -485,6 +485,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const getColumnLabel = (key: string) =>
     columns.find((c) => c.key === key)?.label ?? key;
 
+  // Only show sort pills for columns that actually exist
+  const validSortColumns = useMemo(() => {
+    const colKeys = new Set(columns.map((c) => c.key));
+    return sort.columns.filter((k) => colKeys.has(k));
+  }, [sort.columns, columns]);
+
   // Apply all active filters (AND) then sort
   const displayRows = useMemo(() => {
     let result = allRows;
@@ -569,12 +575,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         })}
 
       {/* Sort card */}
-      {sort.enabled && sort.columns.length > 0 && (
+      {sort.enabled && validSortColumns.length > 0 && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Ordenar por:
           </span>
-          {sort.columns.map((key) => (
+          {validSortColumns.map((key) => (
             <Pill
               key={key}
               label={getColumnLabel(key)}

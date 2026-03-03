@@ -233,6 +233,9 @@ export function DashletSettings({
           };
         })
       );
+
+      // Remove stale sort columns that no longer exist
+      setSortColumns((prev) => prev.filter((k) => detectedKeys.has(k)));
     } catch (err: unknown) {
       setDetectError(err instanceof Error ? err.message : "Detection failed");
     } finally {

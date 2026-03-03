@@ -550,8 +550,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </h3>
         {showRowCount && (
           <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-            {displayRows.length}{" "}
-            {displayRows.length === 1 ? "item" : "items"} en total
+            {tr(
+              displayRows.length === 1
+                ? "dashboard.settings.totalItemsSingular"
+                : "dashboard.settings.totalItems",
+              dictionary,
+              { count: String(displayRows.length) }
+            )}
           </span>
         )}
       </div>

@@ -479,14 +479,14 @@ export function DashletSettings({
               {/* Title */}
               <SettingsTextField
                 id="dt-title"
-                label="Title"
+                label={tr("common.title", dictionary)}
                 value={title}
                 onChange={setTitle}
               />
 
               {/* Show row count */}
               <div className="flex items-center justify-between py-0.5">
-                <Label className="text-sm font-medium">Show row count</Label>
+                <Label className="text-sm font-medium">{tr("dashboard.settings.showRowCount", dictionary)}</Label>
                 <ToggleSwitch
                   checked={showRowCount}
                   onChange={setShowRowCount}
@@ -497,7 +497,7 @@ export function DashletSettings({
               {/* Columns editor */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <Label className="text-sm font-medium">Columns</Label>
+                  <Label className="text-sm font-medium">{tr("dashboard.settings.columns", dictionary)}</Label>
                   {canDetectColumns && (
                     <Button
                       color="light"
@@ -512,7 +512,7 @@ export function DashletSettings({
                       ) : (
                         <HiMagnifyingGlass className="mr-1 h-3 w-3" />
                       )}
-                      Detect columns
+                      {tr("dashboard.settings.detectColumns", dictionary)}
                     </Button>
                   )}
                 </div>
@@ -527,7 +527,7 @@ export function DashletSettings({
                       <div className="flex-1 min-w-0">
                         <TextInput
                           sizing="sm"
-                          placeholder="key"
+                          placeholder={tr("dashboard.settings.key", dictionary)}
                           value={col.key}
                           onChange={(e) =>
                             updateColumn(col._id, "key", e.target.value)
@@ -537,7 +537,7 @@ export function DashletSettings({
                       <div className="flex-1 min-w-0">
                         <TextInput
                           sizing="sm"
-                          placeholder="label"
+                          placeholder={tr("dashboard.settings.label", dictionary)}
                           value={col.label}
                           onChange={(e) =>
                             updateColumn(col._id, "label", e.target.value)
@@ -582,7 +582,7 @@ export function DashletSettings({
                   className="no-drag mt-2"
                 >
                   <HiPlus className="mr-1 h-3 w-3" />
-                  Add column
+                  {tr("dashboard.settings.addColumn", dictionary)}
                 </Button>
               </div>
 
@@ -591,7 +591,7 @@ export function DashletSettings({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Filter</Label>
+                  <Label className="text-sm font-medium">{tr("dashboard.settings.filter", dictionary)}</Label>
                   <ToggleSwitch
                     checked={filterEnabled}
                     onChange={setFilterEnabled}
@@ -602,7 +602,7 @@ export function DashletSettings({
                 {filterEnabled && (
                   <div>
                     <Label className="mb-1.5 block text-sm font-medium">
-                      Filter rows
+                      {tr("dashboard.settings.filterRows", dictionary)}
                     </Label>
                     <div className="space-y-1.5">
                       {filterItems.map((fi) => (
@@ -610,7 +610,7 @@ export function DashletSettings({
                           <div className="flex-1 min-w-0">
                             <TextInput
                               sizing="sm"
-                              placeholder="label"
+                              placeholder={tr("dashboard.settings.label", dictionary)}
                               value={fi.label}
                               onChange={(e) =>
                                 updateFilterItem(fi._id, "label", e.target.value)
@@ -653,7 +653,7 @@ export function DashletSettings({
                       className="no-drag mt-2"
                     >
                       <HiPlus className="mr-1 h-3 w-3" />
-                      Add filter
+                      {tr("dashboard.settings.addFilter", dictionary)}
                     </Button>
                   </div>
                 )}
@@ -664,7 +664,7 @@ export function DashletSettings({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Sort</Label>
+                  <Label className="text-sm font-medium">{tr("dashboard.settings.sort", dictionary)}</Label>
                   <ToggleSwitch
                     checked={sortEnabled}
                     onChange={setSortEnabled}
@@ -675,7 +675,7 @@ export function DashletSettings({
                 {sortEnabled && (
                   <div>
                     <Label className="mb-1.5 block text-sm font-medium">
-                      Sortable columns
+                      {tr("dashboard.settings.sortableColumns", dictionary)}
                     </Label>
                     <div className="space-y-1">
                       {columns
@@ -708,7 +708,7 @@ export function DashletSettings({
               {/* Data source mode */}
               <SettingsSelectField
                 id="dt-data-mode"
-                label="Data Source"
+                label={tr("dashboard.settings.dataSource", dictionary)}
                 value={dataMode}
                 onChange={(v) =>
                   setDataMode(v as "static" | "dynamic" | "pgrest")
@@ -757,7 +757,7 @@ export function DashletSettings({
                         htmlFor="dt-pgrest-fn"
                         className="text-sm font-medium"
                       >
-                        Function name
+                        {tr("dashboard.settings.functionName", dictionary)}
                       </Label>
                       {pgrestFunctionName.trim() && (
                         <Button
@@ -773,7 +773,7 @@ export function DashletSettings({
                           ) : (
                             <HiMagnifyingGlass className="mr-1 h-3 w-3" />
                           )}
-                          Introspect
+                          {tr("dashboard.settings.introspect", dictionary)}
                         </Button>
                       )}
                     </div>
@@ -792,7 +792,7 @@ export function DashletSettings({
                   </div>
                   <SettingsSelectField
                     id="dt-pgrest-method"
-                    label="HTTP Method"
+                    label={tr("dashboard.settings.httpMethod", dictionary)}
                     value={pgrestHttpMethod}
                     onChange={(v) =>
                       setPgrestHttpMethod(v as PgrestHttpMethod)
@@ -804,7 +804,7 @@ export function DashletSettings({
                   />
                   <div>
                     <Label className="mb-1.5 block text-sm font-medium">
-                      Parameters
+                      {tr("dashboard.settings.parameters", dictionary)}
                     </Label>
                     <div className="space-y-1.5">
                       {pgrestParams.map((p) => (
@@ -812,7 +812,7 @@ export function DashletSettings({
                           <div className="flex-1 min-w-0">
                             <TextInput
                               sizing="sm"
-                              placeholder="key"
+                              placeholder={tr("dashboard.settings.key", dictionary)}
                               value={p.key}
                               onChange={(e) =>
                                 updatePgrestParam(p._id, "key", e.target.value)
@@ -822,7 +822,7 @@ export function DashletSettings({
                           <div className="flex-1 min-w-0">
                             <TextInput
                               sizing="sm"
-                              placeholder={paramHints[p.key] ?? "value"}
+                              placeholder={paramHints[p.key] ?? tr("common.value", dictionary)}
                               value={p.value}
                               onChange={(e) =>
                                 updatePgrestParam(
@@ -852,7 +852,7 @@ export function DashletSettings({
                       className="no-drag mt-2"
                     >
                       <HiPlus className="mr-1 h-3 w-3" />
-                      Add parameter
+                      {tr("dashboard.settings.addParameter", dictionary)}
                     </Button>
                   </div>
                 </>

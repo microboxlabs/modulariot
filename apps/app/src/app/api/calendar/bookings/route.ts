@@ -26,7 +26,11 @@ export async function GET(request: Request) {
   });
 
   try {
-    const bookings = await client.bookings.list({ calendarId, startDate, endDate });
+    const bookings = await client.bookings.list({
+      calendarId,
+      startDate,
+      endDate,
+    });
     return NextResponse.json(bookings);
   } catch (error) {
     const status = error instanceof MiotCalendarApiError ? error.status : 500;

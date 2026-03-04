@@ -29,17 +29,32 @@ export interface TimeOption {
   label: string;
 }
 
+/**
+ * Generate time options based on slot duration
+ * @param minHour - Minimum hour (default: 0)
+ * @param maxHour - Maximum hour (default: 23)
+ * @param slotDurationMinutes - Slot duration in minutes (default: 30)
+ */
 export function generateTimeOptions(
   minHour = MIN_HOUR,
-  maxHour = MAX_HOUR
+  maxHour = MAX_HOUR,
+  slotDurationMinutes = 30
 ): TimeOption[] {
   const options: TimeOption[] = [];
-  for (let hour = minHour; hour <= maxHour; hour++) {
-    for (const minutes of [0, 30]) {
-      if (hour === maxHour && minutes > 0) continue;
-      const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      options.push({ value, label: value });
-    }
+  const totalMinutes = (maxHour + 1) * 60; // Include the last hour
+  const startMinutes = minHour * 60;
+
+  for (let mins = startMinutes; mins < totalMinutes; mins += slotDurationMinutes) {
+    const hour = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    if (hour > maxHour) break;
+    const value = `${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    options.push({ value, label: value });
+  }
+  // Always include the end of day option if not already included
+  const lastOption = options[options.length - 1];
+  if (lastOption?.value !== `${maxHour.toString().padStart(2, "0")}:00`) {
+    options.push({ value: `${maxHour.toString().padStart(2, "0")}:00`, label: `${maxHour.toString().padStart(2, "0")}:00` });
   }
   return options;
 }
@@ -65,13 +80,19 @@ export interface TimeRangeAdjustment {
 }
 
 /**
- * Adjust time range to ensure start < end, with 30-minute minimum gap
+ * Adjust time range to ensure start < end, with minimum gap based on slot duration
+ * @param pattern - Current time pattern
+ * @param field - Which field is being changed ("start" or "end")
+ * @param hour - New hour value
+ * @param minutes - New minutes value
+ * @param slotDurationMinutes - Minimum gap in minutes (default: 30)
  */
 export function adjustTimeRange(
   pattern: ParsedWeeklyPattern,
   field: "start" | "end",
   hour: number,
-  minutes: number
+  minutes: number,
+  slotDurationMinutes = 30
 ): TimeRangeAdjustment {
   let { startHour, startMinutes, endHour, endMinutes } = pattern;
 
@@ -79,7 +100,7 @@ export function adjustTimeRange(
     const newStartMin = timeToMinutes(hour, minutes);
     const endMin = timeToMinutes(endHour, endMinutes);
     if (newStartMin >= endMin) {
-      const adjustedEnd = newStartMin + 30;
+      const adjustedEnd = newStartMin + slotDurationMinutes;
       endHour = Math.min(Math.floor(adjustedEnd / 60), MAX_HOUR);
       endMinutes = endHour === MAX_HOUR ? 0 : adjustedEnd % 60;
     }
@@ -89,7 +110,7 @@ export function adjustTimeRange(
     const startMin = timeToMinutes(startHour, startMinutes);
     const newEndMin = timeToMinutes(hour, minutes);
     if (newEndMin <= startMin) {
-      const adjustedStart = Math.max(newEndMin - 30, 0);
+      const adjustedStart = Math.max(newEndMin - slotDurationMinutes, 0);
       startHour = Math.floor(adjustedStart / 60);
       startMinutes = adjustedStart % 60;
     }

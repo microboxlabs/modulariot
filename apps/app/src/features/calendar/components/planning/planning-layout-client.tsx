@@ -14,6 +14,8 @@ interface PlanningLayoutClientProps {
   readonly header: ReactNode;
   readonly calendar: ReactNode;
   readonly calendarId?: string;
+  /** Slot duration in minutes (default: 30) */
+  readonly slotDurationMinutes?: number;
 }
 
 /**
@@ -63,9 +65,10 @@ export function PlanningLayoutClient({
   header,
   calendar,
   calendarId,
+  slotDurationMinutes,
 }: PlanningLayoutClientProps) {
   return (
-    <PlanningSelectionProvider calendarId={calendarId}>
+    <PlanningSelectionProvider calendarId={calendarId} slotDurationMinutes={slotDurationMinutes}>
       <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
     </PlanningSelectionProvider>
   );

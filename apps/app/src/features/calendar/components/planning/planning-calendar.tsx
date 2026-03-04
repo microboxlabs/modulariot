@@ -24,14 +24,22 @@ export default function PlanningCalendar({
     return isValidViewMode(urlView) ? urlView : "week";
   }, [searchParams]);
 
+  // Read slot duration from URL for testing (default: 30 minutes)
+  const slotDurationMinutes = useMemo(() => {
+    const urlDuration = searchParams.get("slotDuration");
+    if (!urlDuration) return 30;
+    const parsed = Number.parseInt(urlDuration, 10);
+    return Number.isNaN(parsed) || parsed < 5 || parsed > 480 ? 30 : parsed;
+  }, [searchParams]);
+
   switch (viewMode) {
     case "day":
-      return <PlanningDayView lang={lang} dict={dict} />;
+      return <PlanningDayView lang={lang} dict={dict} slotDurationMinutes={slotDurationMinutes} />;
     case "week":
-      return <PlanningWeekView lang={lang} dict={dict} />;
+      return <PlanningWeekView lang={lang} dict={dict} slotDurationMinutes={slotDurationMinutes} />;
     case "month":
       return <PlanningMonthView lang={lang} dict={dict} />;
     default:
-      return <PlanningWeekView lang={lang} dict={dict} />;
+      return <PlanningWeekView lang={lang} dict={dict} slotDurationMinutes={slotDurationMinutes} />;
   }
 }

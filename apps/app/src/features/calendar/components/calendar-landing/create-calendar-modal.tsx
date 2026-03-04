@@ -4,17 +4,26 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSWRConfig } from "swr";
 import FormModal from "@/features/common/components/form-modal/form-modal";
-import { DynamicFormField, useDynamicFormState } from "@/features/dynamic-forms";
+import {
+  DynamicFormField,
+  useDynamicFormState,
+} from "@/features/dynamic-forms";
 import {
   useCalendarGroups,
   createCalendar,
 } from "@/features/common/providers/client-api.provider";
-import type { CalendarGroupResponse, CalendarRequest } from "@microboxlabs/miot-calendar-client";
+import type {
+  CalendarGroupResponse,
+  CalendarRequest,
+} from "@microboxlabs/miot-calendar-client";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
-import { CREATE_CALENDAR_FORM_CONFIG, normalizeCode } from "./create-calendar-modal.config";
+import {
+  CREATE_CALENDAR_FORM_CONFIG,
+  normalizeCode,
+} from "./create-calendar-modal.config";
 import { GroupAutocompleteField } from "./group-autocomplete-field";
 
 interface CreateCalendarModalProps {
@@ -33,6 +42,7 @@ export function CreateCalendarModal({
 }: Readonly<CreateCalendarModalProps>) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedGroupCode, setSelectedGroupCode] = useState("");
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(30);
   const { mutate } = useSWRConfig();
   const { groups } = useCalendarGroups();
   const router = useRouter();
@@ -78,6 +88,9 @@ export function CreateCalendarModal({
         autoSlotManager: true,
       };
 
+      // Debug: log the request body
+      console.log("[CreateCalendarModal] Submitting calendar:", body);
+
       const calendar = await createCalendar(body);
       await mutate("/app/api/calendar");
       ShowNotification({
@@ -86,17 +99,35 @@ export function CreateCalendarModal({
       });
       handleClose();
       onCreated?.();
-      const groupQuery = selectedGroupCode ? `?groupCode=${selectedGroupCode}` : "";
-      router.push(`/${params.lang}/calendar/${calendar.id}/planning${groupQuery}`);
+      const queryParams = new URLSearchParams();
+      if (selectedGroupCode) queryParams.set("groupCode", selectedGroupCode);
+      if (slotDurationMinutes !== 30) queryParams.set("slotDuration", String(slotDurationMinutes));
+      const queryString = queryParams.toString();
+      router.push(
+        `/${params.lang}/calendar/${calendar.id}/planning${queryString ? `?${queryString}` : ""}`
+      );
     } catch (err) {
       ShowNotification({
         type: "error",
-        message: err instanceof Error ? err.message : tr("create.errorNotification", dict),
+        message:
+          err instanceof Error
+            ? err.message
+            : tr("create.errorNotification", dict),
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [formValues, selectedGroupCode, mutate, dict, handleClose, onCreated, router, params.lang]);
+  }, [
+    formValues,
+    selectedGroupCode,
+    slotDurationMinutes,
+    mutate,
+    dict,
+    handleClose,
+    onCreated,
+    router,
+    params.lang,
+  ]);
 
   // Fields rendered via DynamicFormField (all except "groups" handled by GroupAutocompleteField)
   const standardFields = CREATE_CALENDAR_FORM_CONFIG.fields;
@@ -135,6 +166,26 @@ export function CreateCalendarModal({
           onGroupCreated={handleGroupCreated}
           dict={dict}
         />
+
+        {/* Slot duration (testing) */}
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="slotDuration"
+            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Slot Duration (minutes)
+          </label>
+          <input
+            id="slotDuration"
+            type="number"
+            min={5}
+            max={480}
+            step={5}
+            value={slotDurationMinutes}
+            onChange={(e) => setSlotDurationMinutes(Number(e.target.value))}
+            className="rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
+          />
+        </div>
 
         {/* active checkbox */}
         {standardFields

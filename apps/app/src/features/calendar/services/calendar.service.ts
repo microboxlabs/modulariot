@@ -20,15 +20,20 @@ export function parseUrlDate(dateStr: string | null): dayjs.Dayjs | null {
 
 export function generateTimeSlots(
   startHour: number,
-  endHour: number
+  endHour: number,
+  slotDurationMinutes = 30
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
-  for (let hour = startHour; hour < endHour; hour++) {
+  const totalMinutes = (endHour - startHour) * 60;
+  const slotCount = Math.floor(totalMinutes / slotDurationMinutes);
+
+  for (let i = 0; i < slotCount; i++) {
+    const minutesFromStart = i * slotDurationMinutes;
+    const hour = startHour + Math.floor(minutesFromStart / 60);
+    const minutes = minutesFromStart % 60;
     const hourStr = hour.toString().padStart(2, "0");
-    slots.push(
-      { hour, minutes: 0, label: `${hourStr}:00` },
-      { hour, minutes: 30, label: `${hourStr}:30` }
-    );
+    const minStr = minutes.toString().padStart(2, "0");
+    slots.push({ hour, minutes, label: `${hourStr}:${minStr}` });
   }
   return slots;
 }

@@ -12,6 +12,7 @@ export default function PlanningDayView({
   currentDate: propDate,
   startHour = 8,
   endHour = 22,
+  slotDurationMinutes = 30,
 }: Readonly<PlanningDayViewProps>) {
   const searchParams = useSearchParams();
 
@@ -31,6 +32,7 @@ export default function PlanningDayView({
         currentDate={currentDate}
         startHour={startHour}
         endHour={endHour}
+        slotDurationMinutes={slotDurationMinutes}
       />
     </div>
   );

@@ -1168,6 +1168,16 @@
           "infoSingular": "Users can schedule up to {count} service in the same time slot.",
           "infoPlural": "Users can schedule up to {count} services in the same time slot.",
           "save": "Save"
+        },
+        "settings": {
+          "slotDuration": "Slot duration",
+          "slotDurationDescription": "Define the time interval for each time slot.",
+          "apply": "Apply",
+          "minutes": "minutes"
+        },
+        "calendarSettings": {
+          "title": "Calendar settings",
+          "description": "Adjust time slot duration."
         }
       }
     },

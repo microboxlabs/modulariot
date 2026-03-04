@@ -9,6 +9,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -144,6 +145,8 @@ export interface TimeSlot {
   quota?: number;
   // Visual color (optional, mainly for windows)
   color?: TimeWindowColor;
+  // Duration of each slot in minutes (default: 30)
+  slotDurationMinutes?: number;
 }
 
 /**
@@ -633,6 +636,8 @@ interface PlanningSelectionContextType {
   cancelReassignment: () => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
+  /** Slot duration in minutes for time window configuration */
+  slotDurationMinutes: number;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
@@ -679,6 +684,8 @@ const PlanningSelectionContext =
 interface PlanningSelectionProviderProps {
   readonly children: ReactNode;
   readonly calendarId?: string;
+  /** Slot duration in minutes (default: 30) */
+  readonly slotDurationMinutes?: number;
 }
 
 /**
@@ -704,7 +711,14 @@ function getWeekOfMonth(date: dayjs.Dayjs): number {
 export function PlanningSelectionProvider({
   children,
   calendarId,
+  slotDurationMinutes: propSlotDuration,
 }: PlanningSelectionProviderProps) {
+  // Read slotDuration from URL search params, fallback to prop or default 30
+  const searchParams = useSearchParams();
+  const urlSlotDuration = searchParams.get("slotDuration");
+  const slotDurationMinutes =
+    propSlotDuration ?? (urlSlotDuration ? parseInt(urlSlotDuration, 10) : 30);
+
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlot | null>(null);
   const [selectedService, setSelectedService] =
     useState<SelectedService | null>(null);
@@ -1382,6 +1396,7 @@ export function PlanningSelectionProvider({
       startReassignment,
       cancelReassignment,
       bookingsLoadError,
+      slotDurationMinutes,
     }),
     [
       selectedSlot,
@@ -1416,6 +1431,7 @@ export function PlanningSelectionProvider({
       startReassignment,
       cancelReassignment,
       bookingsLoadError,
+      slotDurationMinutes,
     ]
   );
 

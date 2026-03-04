@@ -79,6 +79,7 @@ export function apiToLocalTimeWindow(response: ValidatedTimeWindowResponse): Tim
       endTimestamp: endTs,
       quota: response.capacityPerSlot,
       color: "emerald",
+      slotDurationMinutes: response.slotDurationMinutes,
     };
   }
 
@@ -97,6 +98,7 @@ export function apiToLocalTimeWindow(response: ValidatedTimeWindowResponse): Tim
     weeklyPattern,
     quota: response.capacityPerSlot,
     color: "emerald",
+    slotDurationMinutes: response.slotDurationMinutes,
   };
 }
 
@@ -111,6 +113,8 @@ export function localToApiTimeWindow(
   slot: TimeSlot,
   validFrom?: string
 ): TimeWindowRequest {
+  const slotDuration = slot.slotDurationMinutes ?? 30;
+
   if (slot.type === "daily-override") {
     const start = slot.startTimestamp ? dayjs(slot.startTimestamp) : dayjs();
     const end = slot.endTimestamp ? dayjs(slot.endTimestamp) : dayjs().add(1, "hour");
@@ -126,14 +130,14 @@ export function localToApiTimeWindow(
       validTo: dateStr,
       daysOfWeek: String(formatDay),
       capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 60,
+      slotDurationMinutes: slotDuration,
       active: true,
     };
   }
 
   // Weekly type: parse weeklyPattern "W* 1-5 0900-1700"
   const pattern = slot.weeklyPattern ?? "W* 1-5 0900-1700";
-  const match = /^W(?:\*|[\d,-]+)\s+([\d,-]+)\s+(\d{4})-(\d{4})$/.exec(pattern);
+  const match = /^W(?:\\*|[\\d,-]+)\\s+([\\d,-]+)\\s+(\\d{4})-(\\d{4})$/.exec(pattern);
 
   if (!match) {
     return {
@@ -143,7 +147,7 @@ export function localToApiTimeWindow(
       validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
       daysOfWeek: "1,2,3,4,5",
       capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 60,
+      slotDurationMinutes: slotDuration,
       active: true,
     };
   }
@@ -160,7 +164,7 @@ export function localToApiTimeWindow(
     validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
     daysOfWeek: days.join(","),
     capacityPerSlot: slot.quota ?? 1,
-    slotDurationMinutes: 60,
+    slotDurationMinutes: slotDuration,
     active: true,
   };
 }

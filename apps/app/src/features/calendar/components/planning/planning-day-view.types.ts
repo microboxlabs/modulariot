@@ -9,6 +9,7 @@ export interface PlanningDayViewProps {
   currentDate?: Date;
   startHour?: number;
   endHour?: number;
+  slotDurationMinutes?: number;
 }
 
 export interface DayInfo {

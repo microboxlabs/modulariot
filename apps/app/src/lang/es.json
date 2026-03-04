@@ -1193,6 +1193,16 @@
           "infoSingular": "Los usuarios podrán agendar hasta {count} servicio en la misma franja horaria.",
           "infoPlural": "Los usuarios podrán agendar hasta {count} servicios en la misma franja horaria.",
           "save": "Guardar"
+        },
+        "settings": {
+          "slotDuration": "Duración del slot",
+          "slotDurationDescription": "Define el intervalo de tiempo para cada franja horaria.",
+          "apply": "Aplicar",
+          "minutes": "minutos"
+        },
+        "calendarSettings": {
+          "title": "Configuración del calendario",
+          "description": "Ajusta la duración de las franjas horarias."
         }
       }
     },

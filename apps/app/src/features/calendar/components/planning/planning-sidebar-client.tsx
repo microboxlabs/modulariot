@@ -239,9 +239,6 @@ export function PlanningSidebarClient({
     ? [...TEST_SERVICES, ...apiServices]
     : apiServices;
 
-  // Default slot duration in minutes (can be changed in the future)
-  const SLOT_DURATION_MINUTES = 30;
-
   // Get the time window for the selected slot to get quota
   const selectedTimeWindow = useMemo(() => {
     if (!selectedSlot) return null;
@@ -252,11 +249,14 @@ export function PlanningSidebarClient({
     );
   }, [selectedSlot, getTimeWindowForSlot]);
 
+  // Slot duration from time window or default
+  const slotDurationMinutes = selectedTimeWindow?.slotDurationMinutes ?? 30;
+
   // Calculate the number of base slots in the time window
   const windowBaseSlots = useMemo(() => {
     if (!selectedTimeWindow?.weeklyPattern) return 1;
     // Parse the window pattern to get start and end times
-    const match = /(\d{4})-(\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
+    const match = /(\\d{4})-(\\d{4})$/.exec(selectedTimeWindow.weeklyPattern);
     if (!match) return 1;
     const [, startTime, endTime] = match;
     const startHour = Number.parseInt(startTime.slice(0, 2), 10);
@@ -266,8 +266,8 @@ export function PlanningSidebarClient({
 
     const totalMinutes =
       endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
-    return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
-  }, [selectedTimeWindow]);
+    return Math.max(1, Math.floor(totalMinutes / slotDurationMinutes));
+  }, [selectedTimeWindow, slotDurationMinutes]);
 
   // Format the selected slot for display with start and end times.
   // When a matching time window is available, use its actual boundaries so
@@ -292,7 +292,7 @@ export function PlanningSidebarClient({
       ? dayjs(selectedSlot.date)
           .hour(windowRange.endHour)
           .minute(windowRange.endMinutes)
-      : startDate.add(SLOT_DURATION_MINUTES, "minute");
+      : startDate.add(slotDurationMinutes, "minute");
 
     const dateStr = formatDateString(startDate.toDate(), "date");
     const startTime = formatDateString(startDate.toDate(), "time");
@@ -304,7 +304,7 @@ export function PlanningSidebarClient({
       endTime,
       full: `${dateStr}, ${startTime} - ${endTime}`,
     };
-  }, [selectedSlot, selectedTimeWindow]);
+  }, [selectedSlot, selectedTimeWindow, slotDurationMinutes]);
 
   type MatchType =
     | "id"

@@ -11,6 +11,9 @@ import AndenesManager, {
   type PlatformConfig,
   getAndenesManagerMessages,
 } from "./andenes-manager";
+import SettingsManager, {
+  getSettingsManagerMessages,
+} from "./settings-manager";
 import { ChevronLeft } from "flowbite-react-icons/outline";
 import { twMerge } from "tailwind-merge";
 import { type TimeWindow, type TimeBlock } from "../planning-selection-context";
@@ -18,7 +21,7 @@ import type { ReactNode } from "react";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-type SettingOption = "quota" | "timeBlock" | "andenes" | null;
+type SettingOption = "quota" | "timeBlock" | "andenes" | "settings" | null;
 
 function isSectionExpanded(
   selected: SettingOption,
@@ -182,6 +185,10 @@ export interface CalendarRulesMessages {
     title: string;
     description: string;
   };
+  calendarSettings: {
+    title: string;
+    description: string;
+  };
 }
 
 const CALENDAR_RULES_BASE = "layout.planning.calendarRules" as const;
@@ -212,6 +219,13 @@ export function getCalendarRulesMessages(
         dict
       ),
     },
+    calendarSettings: {
+      title: tr(`${CALENDAR_RULES_BASE}.calendarSettings.title`, dict),
+      description: tr(
+        `${CALENDAR_RULES_BASE}.calendarSettings.description`,
+        dict
+      ),
+    },
   };
 }
 
@@ -221,6 +235,7 @@ interface CalendarRulesProps {
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
+  onSettingsChange?: (settings: { slotDurationMinutes: number }) => void;
 }
 
 export default function CalendarRules({
@@ -229,6 +244,7 @@ export default function CalendarRules({
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
+  onSettingsChange,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
@@ -295,6 +311,22 @@ export default function CalendarRules({
               messages={getAndenesManagerMessages(dict)}
               onConfigChange={(config) => {
                 onAndenesChange?.(config);
+                closePanel();
+              }}
+            />
+          </CalendarRulesSection>
+
+          <CalendarRulesSection
+            option="settings"
+            selected={selected}
+            setSelected={setSelected}
+            title={messages.calendarSettings.title}
+            description={messages.calendarSettings.description}
+          >
+            <SettingsManager
+              messages={getSettingsManagerMessages(dict)}
+              onSettingsChange={(settings) => {
+                onSettingsChange?.(settings);
                 closePanel();
               }}
             />

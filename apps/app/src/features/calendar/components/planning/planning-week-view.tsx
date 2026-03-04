@@ -171,6 +171,7 @@ export default function PlanningWeekView({
   currentDate: propDate,
   startHour = 8,
   endHour = 22,
+  slotDurationMinutes = 30,
 }: Readonly<PlanningWeekViewProps>) {
   const searchParams = useSearchParams();
   const {
@@ -206,8 +207,8 @@ export default function PlanningWeekView({
   }, [searchParams, propDate]);
 
   const timeSlots = useMemo(
-    () => generateTimeSlots(startHour, endHour),
-    [startHour, endHour]
+    () => generateTimeSlots(startHour, endHour, slotDurationMinutes),
+    [startHour, endHour, slotDurationMinutes]
   );
 
   const weekDays = useMemo(

@@ -304,9 +304,12 @@ export default function QuotaManager({
   messages,
   onRulesChange,
 }: Readonly<QuotaManagerProps>) {
-  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI } =
+  const { timeWindows, setTimeWindows, syncTimeSlotsToAPI, slotDurationMinutes } =
     usePlanningSelection();
-  const timeOptions = useMemo(() => generateTimeOptions(), []);
+  const timeOptions = useMemo(
+    () => generateTimeOptions(0, 23, slotDurationMinutes),
+    [slotDurationMinutes]
+  );
   const colorOptions = useMemo(() => getColorOptions(messages), [messages]);
 
   // Auto-delete expired daily-override exceptions (date before today)
@@ -534,7 +537,7 @@ export default function QuotaManager({
         timeWindows.map((w) => {
           if (w.id !== id) return w;
           const pattern = getSlotPattern(w);
-          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes, slotDurationMinutes);
 
           if (w.type === "weekly") {
             return buildWeeklySlot(w, { ...pattern, ...adjusted });
@@ -554,7 +557,7 @@ export default function QuotaManager({
         })
       );
     },
-    [timeWindows, setTimeWindows]
+    [timeWindows, setTimeWindows, slotDurationMinutes]
   );
 
   const handleApply = useCallback(async () => {

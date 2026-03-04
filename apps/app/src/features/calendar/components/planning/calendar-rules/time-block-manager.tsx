@@ -186,9 +186,12 @@ export default function TimeBlockManager({
   messages,
   onBlocksChange,
 }: Readonly<TimeBlockManagerProps>) {
-  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI } =
+  const { timeBlocks, setTimeBlocks, syncTimeSlotsToAPI, slotDurationMinutes } =
     usePlanningSelection();
-  const timeOptions = useMemo(() => generateTimeOptions(), []);
+  const timeOptions = useMemo(
+    () => generateTimeOptions(0, 23, slotDurationMinutes),
+    [slotDurationMinutes]
+  );
 
   // Auto-delete expired daily-override blocks (date before today)
   useEffect(() => {
@@ -350,7 +353,7 @@ export default function TimeBlockManager({
         timeBlocks.map((b) => {
           if (b.id !== id) return b;
           const pattern = getSlotPattern(b);
-          const adjusted = adjustTimeRange(pattern, field, hour, minutes);
+          const adjusted = adjustTimeRange(pattern, field, hour, minutes, slotDurationMinutes);
 
           if (b.type === "weekly") {
             return buildWeeklySlot(b, { ...pattern, ...adjusted });
@@ -370,7 +373,7 @@ export default function TimeBlockManager({
         })
       );
     },
-    [timeBlocks, setTimeBlocks]
+    [timeBlocks, setTimeBlocks, slotDurationMinutes]
   );
 
   const handleApply = useCallback(async () => {

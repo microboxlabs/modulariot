@@ -32,6 +32,7 @@ interface DayGridProps {
   currentDate: Date;
   startHour?: number;
   endHour?: number;
+  slotDurationMinutes?: number;
 }
 
 function getDayInfo(date: Date, lang: string): DayInfo {
@@ -165,6 +166,7 @@ export default function DayGrid({
   currentDate,
   startHour = 8,
   endHour = 22,
+  slotDurationMinutes = 30,
 }: Readonly<DayGridProps>) {
   const {
     selectedSlot,
@@ -191,8 +193,8 @@ export default function DayGrid({
   } = useServiceActions({ removeService, startReassignment });
 
   const timeSlots = useMemo(
-    () => generateTimeSlots(startHour, endHour),
-    [startHour, endHour]
+    () => generateTimeSlots(startHour, endHour, slotDurationMinutes),
+    [startHour, endHour, slotDurationMinutes]
   );
 
   const dayInfo = useMemo(

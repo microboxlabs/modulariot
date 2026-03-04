@@ -4,4 +4,5 @@ export type SelectedOption =
   | "contact_carabineros"
   | "contact_via_whatsapp"
   | "copilot"
-  | "ignore_condition";
+  | "ignore_condition"
+  | "invalidate_symptom";

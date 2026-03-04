@@ -1114,7 +1114,8 @@
         "liveStreams": "CCTV",
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
-        "allDevices": "Todos"
+        "allDevices": "Todos",
+        "fleetManagement": "Gestión de Flotas"
       }
     },
     "calendar": {
@@ -2120,6 +2121,51 @@
       },
       "successNotification": "Calendario creado correctamente",
       "errorNotification": "Error al crear el calendario"
+    }
+  },
+  "fleetManagement": {
+    "title": "Gestión de Flotas",
+    "subtitle": "Monitorea y administra todos los vehículos de tu flota en tiempo real",
+    "kpi": {
+      "totalFleet": "Total Flota",
+      "active": "Activos",
+      "inMaintenance": "En Mantención",
+      "alerts": "Alertas",
+      "inactive": "Inactivos"
+    },
+    "specialViews": {
+      "title": "Vistas Especiales",
+      "badge": "Vista especial",
+      "eventsView": "Vista de Eventos",
+      "eventsViewDesc": "Registro de incidentes, alertas y eventos operativos críticos",
+      "usageView": "Vista de Uso",
+      "usageViewDesc": "Análisis de kilometraje, consumo y cumplimiento contractual",
+      "generalInfoView": "Vista de Información General",
+      "generalInfoViewDesc": "Dashboard ejecutivo con indicadores y cumplimiento normativo",
+      "maintenanceStatusView": "Estado de Mantención",
+      "maintenanceStatusViewDesc": "Seguimiento del estado de mantenciones preventivas y correctivas",
+      "technicalHealthView": "Salud Técnica del Vehículo",
+      "technicalHealthViewDesc": "Diagnóstico técnico, estado mecánico y cumplimiento de revisiones",
+      "devicesTelemetryView": "Dispositivos y Telemetría",
+      "devicesTelemetryViewDesc": "Monitoreo de sensores, GPS y dispositivos instalados en la flota",
+      "goToSlide": "Ir a diapositiva {number}"
+    },
+    "vehicleGrid": {
+      "title": "Vehículos",
+      "vehicleCount": "{count} vehículos",
+      "detailed": "Detallada",
+      "simplified": "Simplificada",
+      "driver": "Conductor",
+      "location": "Ubicación",
+      "fuel": "Combustible",
+      "maintenance": "Mantención",
+      "kmTraveled": "Km Recorridos"
+    },
+    "status": {
+      "active": "Activo",
+      "maintenance": "En Mantención",
+      "alert": "Alerta",
+      "inactive": "Inactivo"
     }
   },
   "ext_tasks": {

@@ -2,6 +2,7 @@ import CalendarIcon from "@/features/icons/calendar";
 import ChartMixedIcon from "@/features/icons/chart-mixed";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
+import TruckIcon from "@/features/icons/truck";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
@@ -70,6 +71,13 @@ export const pages: SidebarItem[] = [
           ]
         : undefined,
     requiredGroups: [], // Public route
+  },
+  {
+    href: "/fleet-management",
+    icon: TruckIcon,
+    label: "fleetManagement",
+    totals: {},
+    requiredGroups: [],
   },
   {
     icon: CalendarIcon,

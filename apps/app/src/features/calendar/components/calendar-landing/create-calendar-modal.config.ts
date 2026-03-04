@@ -38,6 +38,15 @@ export const CREATE_CALENDAR_FORM_CONFIG: DynamicFormConfig = {
       readonly: true,
     },
     {
+      name: "parallelism",
+      labelKey: "create.parallelismLabel",
+      type: "number",
+      required: true,
+      defaultValue: 1,
+      min: 1,
+      placeholder: "1",
+    },
+    {
       name: "description",
       labelKey: "create.descriptionLabel",
       type: "textarea",

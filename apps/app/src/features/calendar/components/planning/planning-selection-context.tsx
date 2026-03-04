@@ -7,6 +7,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import dayjs from "dayjs";
@@ -14,6 +15,7 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import {
   useCalendarTimeWindows,
+  useCalendars,
   createCalendarTimeWindow,
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
@@ -719,6 +721,19 @@ export function PlanningSelectionProvider({
     new Map()
   ); // Map of service.id -> booking.id from calendar backend
   const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
+
+  // Load calendar parallelism from the backend
+  const { calendars } = useCalendars();
+  const initializedParallelismRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedParallelismRef.current || !calendarId) return;
+    const calendar = calendars.find((c) => c.id === calendarId);
+    if (calendar?.parallelism) {
+      setAndenesCount(calendar.parallelism);
+      initializedParallelismRef.current = true;
+    }
+  }, [calendars, calendarId]);
 
   // Load time windows from the miot-calendar-client backend
   const {

@@ -1167,7 +1167,9 @@
           "availablePlatforms": "Available platforms in the terminal",
           "infoSingular": "Users can schedule up to {count} service in the same time slot.",
           "infoPlural": "Users can schedule up to {count} services in the same time slot.",
-          "save": "Save"
+          "save": "Save",
+          "saveSuccess": "Loading docks updated",
+          "saveError": "Failed to update loading docks"
         }
       }
     },
@@ -2075,6 +2077,7 @@
       "subtitle": "Create a calendar to manage scheduling and time windows.",
       "nameLabel": "Name",
       "codeLabel": "Code",
+      "parallelismLabel": "Loading Docks",
       "descriptionLabel": "Description",
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",

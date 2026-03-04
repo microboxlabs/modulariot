@@ -1,6 +1,8 @@
 "use client";
 
-import { Label, TextInput, Select, Textarea, Checkbox } from "flowbite-react";
+import { Label, TextInput, Select, Textarea, Checkbox, Button } from "flowbite-react";
+import { useState, useEffect } from "react";
+import { HiMinus, HiPlus } from "react-icons/hi";
 import { DynamicFieldConfig } from "../dynamic-form.types";
 import { DisplayField } from "./display-field";
 
@@ -11,9 +13,9 @@ export interface DynamicFormFieldProps {
   /** Field configuration */
   readonly field: DynamicFieldConfig;
   /** Current field value */
-  readonly value: string | boolean;
+  readonly value: string | boolean | number;
   /** Change handler */
-  readonly onChange: (value: string | boolean) => void;
+  readonly onChange: (value: string | boolean | number) => void;
   /** Whether field is visible (based on dependsOn) */
   readonly isVisible: boolean;
   /** Translation function */
@@ -28,8 +30,81 @@ export interface DynamicFormFieldProps {
   /** Custom renderer for display fields */
   readonly displayFieldRenderer?: (
     field: DynamicFieldConfig,
-    value: string | boolean
+    value: string | boolean | number
   ) => React.ReactNode;
+}
+
+/**
+ * NumberStepper - Wide stepper with square −/+ buttons and centered input
+ * Matches the AndenesManager pattern (Flowbite Button + TextInput).
+ */
+function NumberStepper({
+  field,
+  value,
+  onChange,
+}: {
+  field: DynamicFieldConfig;
+  value: string | boolean | number;
+  onChange: (value: string | boolean | number) => void;
+}) {
+  const min = field.min ?? 0;
+  const max = field.max ?? 99;
+  const numValue = typeof value === "number" ? value : (Number.parseInt(String(value)) || min);
+  const [inputValue, setInputValue] = useState<string>(String(numValue));
+
+  useEffect(() => {
+    setInputValue(String(numValue));
+  }, [numValue]);
+
+  const commitInputValue = () => {
+    const parsed = Number.parseInt(inputValue, 10);
+    if (!Number.isNaN(parsed) && parsed >= min && parsed <= max) {
+      onChange(parsed);
+      setInputValue(String(parsed));
+    } else {
+      setInputValue(String(numValue));
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="xs"
+        color="alternative"
+        onClick={() => onChange(Math.max(min, numValue - 1))}
+        disabled={numValue <= min}
+        className="h-9 w-9 p-0 shrink-0"
+      >
+        <HiMinus className="h-4 w-4" />
+      </Button>
+      <TextInput
+        id={field.name}
+        name={field.name}
+        type="number"
+        min={min}
+        max={max}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commitInputValue();
+          }
+        }}
+        onBlur={commitInputValue}
+        className="flex-1 [&_input]:text-center"
+        sizing="sm"
+      />
+      <Button
+        size="xs"
+        color="alternative"
+        onClick={() => onChange(Math.min(max, numValue + 1))}
+        disabled={numValue >= max}
+        className="h-9 w-9 p-0 shrink-0"
+      >
+        <HiPlus className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 }
 
 /**
@@ -165,6 +240,15 @@ export function DynamicFormField({
             placeholder={field.placeholder}
             readOnly={field.readonly}
             disabled={field.readonly}
+          />
+        );
+
+      case "number":
+        return (
+          <NumberStepper
+            field={field}
+            value={value}
+            onChange={onChange}
           />
         );
 

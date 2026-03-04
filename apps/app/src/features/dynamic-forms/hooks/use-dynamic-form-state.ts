@@ -12,7 +12,7 @@ export interface DynamicFormState {
   /** Current form values */
   formValues: DynamicFormValues;
   /** Update a single field value */
-  setFormValue: (fieldName: string, value: string | boolean) => void;
+  setFormValue: (fieldName: string, value: string | boolean | number) => void;
   /** Reset all form values to initial state */
   resetFormValues: () => void;
   /** Check if a field should be visible based on dependsOn config */
@@ -33,6 +33,8 @@ function getInitialFormValues(
       values[field.name] = field.defaultValue;
     } else if (field.type === "checkbox") {
       values[field.name] = false;
+    } else if (field.type === "number") {
+      values[field.name] = field.min ?? 0;
     } else {
       values[field.name] = "";
     }
@@ -77,7 +79,7 @@ export function useDynamicFormState(
   }, [isActive, formConfig]);
 
   const setFormValue = useCallback(
-    (fieldName: string, value: string | boolean) => {
+    (fieldName: string, value: string | boolean | number) => {
       setFormValues((prev) => ({
         ...prev,
         [fieldName]: value,

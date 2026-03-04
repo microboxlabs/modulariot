@@ -1454,6 +1454,24 @@ export async function createCalendar(body: CalendarRequest): Promise<CalendarRes
   return response.json();
 }
 
+/**
+ * Update an existing calendar (partial update — merges with current on the server)
+ */
+export async function updateCalendar(
+  calendarId: string,
+  body: Partial<CalendarRequest>
+): Promise<CalendarResponse> {
+  const response = await fetch(`/app/api/calendar/${calendarId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorBody(response, "Failed to update calendar"));
+  }
+  return response.json();
+}
+
 // ============================================================================
 // Calendar Time Windows Hooks
 // ============================================================================

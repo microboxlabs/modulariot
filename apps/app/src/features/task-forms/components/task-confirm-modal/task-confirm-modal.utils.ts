@@ -50,6 +50,8 @@ export function prepareFormData({
     Object.entries(customFormValues).forEach(([key, value]) => {
       if (typeof value === "boolean") {
         formData.append(key, value.toString());
+      } else if (typeof value === "number") {
+        formData.append(key, value.toString());
       } else if (
         key === "mintral_estimatedArrivalDate" &&
         typeof value === "string" &&
@@ -60,7 +62,7 @@ export function prepareFormData({
         // We need to convert it to ISO format with timezone
         const isoDate = dayjs(value).toISOString();
         formData.append(key, isoDate);
-      } else if (value && value.length > 0) {
+      } else if (typeof value === "string" && value.length > 0) {
         formData.append(key, value);
       }
     });

@@ -22,6 +22,12 @@ import CalendarRules, {
 } from "./calendar-rules/calendar-rules";
 import PlanningTitle from "./planning-title";
 import { usePlanningSelection } from "./planning-selection-context";
+import {
+  updateCalendar,
+  useCalendars,
+} from "@/features/common/providers/client-api.provider";
+import { ShowNotification } from "@/features/notifications/notification";
+import { tr } from "@/features/i18n/tr.service";
 
 dayjs.extend(weekOfYear);
 
@@ -75,7 +81,8 @@ export default function PlanningHeader({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { setAndenesCount } = usePlanningSelection();
+  const { andenesCount, setAndenesCount } = usePlanningSelection();
+  const { refresh: refreshCalendars } = useCalendars();
   const groupCode = searchParams.get("groupCode");
 
   // Read state from URL, fallback to props/defaults
@@ -178,8 +185,23 @@ export default function PlanningHeader({
         <CalendarRules
           dict={dict}
           messages={getCalendarRulesMessages(dict)}
-          onAndenesChange={(config) => {
+          andenesCount={andenesCount}
+          onAndenesChange={async (config) => {
             setAndenesCount(config.count);
+            if (!calendarId) return;
+            try {
+              await updateCalendar(calendarId, { parallelism: config.count });
+              await refreshCalendars();
+              ShowNotification({
+                type: "success",
+                message: tr("layout.planning.calendarRules.platformConfig.saveSuccess", dict),
+              });
+            } catch {
+              ShowNotification({
+                type: "error",
+                message: tr("layout.planning.calendarRules.platformConfig.saveError", dict),
+              });
+            }
           }}
         />
       </div>

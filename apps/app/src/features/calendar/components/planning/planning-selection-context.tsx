@@ -602,7 +602,10 @@ interface PlanningSelectionContextType {
   selectService: (service: SelectedService) => void;
   /** Confirm service assignment. Pass finalSlot to override the selected slot with specific time/andén.
    * Pass serviceOverrides to merge additional fields into the selected service before confirming. */
-  confirmService: (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>) => Promise<boolean>;
+  confirmService: (
+    finalSlot?: SelectedSlot,
+    serviceOverrides?: Partial<SelectedService>
+  ) => Promise<boolean>;
   clearService: () => void;
   closeSidebar: () => void;
   clearSelection: () => void;
@@ -729,10 +732,10 @@ export function PlanningSelectionProvider({
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService | null>(null);
-  const [bookingIds, setBookingIds] = useState<Map<string, string>>(
-    new Map()
-  ); // Map of service.id -> booking.id from calendar backend
-  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(null);
+  const [bookingIds, setBookingIds] = useState<Map<string, string>>(new Map()); // Map of service.id -> booking.id from calendar backend
+  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(
+    null
+  );
 
   // Load time windows from the miot-calendar-client backend
   const {
@@ -750,7 +753,11 @@ export function PlanningSelectionProvider({
         apiTimeWindows.flatMap((tw) => {
           const result = TimeWindowResponseSchema.safeParse(tw);
           if (!result.success) {
-            console.warn("Skipping invalid time window response", tw, result.error.message);
+            console.warn(
+              "Skipping invalid time window response",
+              tw,
+              result.error.message
+            );
             return [];
           }
           return [apiToLocalTimeWindow(result.data)];
@@ -769,67 +776,72 @@ export function PlanningSelectionProvider({
 
     const controller = new AbortController();
 
-    listBookings({ calendarId }, controller.signal).then((result) => {
-      // Discard the response if the effect was cleaned up before it resolved.
-      if (controller.signal.aborted) return;
+    listBookings({ calendarId }, controller.signal)
+      .then((result) => {
+        // Discard the response if the effect was cleaned up before it resolved.
+        if (controller.signal.aborted) return;
 
-      const loaded: PlannedService[] = [];
-      const ids = new Map<string, string>();
+        const loaded: PlannedService[] = [];
+        const ids = new Map<string, string>();
 
-      for (const booking of result.data) {
-        // Skip entries whose slot is missing — nothing to place on the grid.
-        if (!booking.slot) continue;
+        for (const booking of result.data) {
+          // Skip entries whose slot is missing — nothing to place on the grid.
+          if (!booking.slot) continue;
 
-        // Validate stored payload; malformed shapes are silently dropped.
-        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
-        const stored = storedParse.success ? storedParse.data : undefined;
-        // Keep _anden separate so it is not spread into SelectedService.
-        const { _anden, ...storedService } = stored ?? {};
+          // Validate stored payload; malformed shapes are silently dropped.
+          const storedParse = StoredServiceSchema.safeParse(
+            booking.resource.data
+          );
+          const stored = storedParse.success ? storedParse.data : undefined;
+          // Keep _anden separate so it is not spread into SelectedService.
+          const { _anden, ...storedService } = stored ?? {};
 
-        const service: SelectedService = {
-          origen: "",
-          lugarCarguio: "",
-          destino: "",
-          tipoViaje: "Sider",
-          ocupacion: 0,
-          permanencia: "",
-          leadTime: {
-            total_lineasoc_cumplen: 0,
-            total_lineasoc_incumplen: 0,
-            lineasoc_pctn_cumplimiento: 0,
-          },
-          eta: "",
-          incidencias: [],
-          observaciones: "",
-          prioridad: 0,
-          ...storedService,
-          // Canonical booking fields always win over stored data
-          id: booking.resource.id,
-          cliente: booking.resource.label ?? booking.resource.id,
-        };
+          const service: SelectedService = {
+            origen: "",
+            lugarCarguio: "",
+            destino: "",
+            tipoViaje: "Sider",
+            ocupacion: 0,
+            permanencia: "",
+            leadTime: {
+              total_lineasoc_cumplen: 0,
+              total_lineasoc_incumplen: 0,
+              lineasoc_pctn_cumplimiento: 0,
+            },
+            eta: "",
+            incidencias: [],
+            observaciones: "",
+            prioridad: 0,
+            ...storedService,
+            // Canonical booking fields always win over stored data
+            id: booking.resource.id,
+            cliente: booking.resource.label ?? booking.resource.id,
+          };
 
-        loaded.push({
-          service,
-          slot: {
-            date: dayjs(booking.slot.date).toDate(),
-            hour: booking.slot.hour,
-            minutes: booking.slot.minutes,
-            ...(_anden === undefined ? {} : { anden: _anden }),
-          },
-        });
-        ids.set(booking.resource.id, booking.id);
-      }
+          loaded.push({
+            service,
+            slot: {
+              date: dayjs(booking.slot.date).toDate(),
+              hour: booking.slot.hour,
+              minutes: booking.slot.minutes,
+              ...(_anden === undefined ? {} : { anden: _anden }),
+            },
+          });
+          ids.set(booking.resource.id, booking.id);
+        }
 
-      setPlannedServices(loaded);
-      setBookingIds(ids);
-      setBookingsLoadError(null);
-    }).catch((err) => {
-      if (controller.signal.aborted) return;
-      if (err instanceof Error && err.name === "AbortError") return;
-      const message = "No se pudieron cargar las reservas existentes del calendario.";
-      setBookingsLoadError(message);
-      ShowNotification({ type: "error", message });
-    });
+        setPlannedServices(loaded);
+        setBookingIds(ids);
+        setBookingsLoadError(null);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof Error && err.name === "AbortError") return;
+        const message =
+          "No se pudieron cargar las reservas existentes del calendario.";
+        setBookingsLoadError(message);
+        ShowNotification({ type: "error", message });
+      });
 
     return () => {
       controller.abort();
@@ -929,7 +941,13 @@ export function PlanningSelectionProvider({
         throw new Error(errors.join("; "));
       }
     },
-    [calendarId, apiTimeWindows, refreshTimeWindows, deactivateRemovedWindows, saveLocalWindows]
+    [
+      calendarId,
+      apiTimeWindows,
+      refreshTimeWindows,
+      deactivateRemovedWindows,
+      saveLocalWindows,
+    ]
   );
 
   // Convenience setter: updates only windows, preserves blocks (local state only, no API sync)
@@ -1159,7 +1177,10 @@ export function PlanningSelectionProvider({
   );
 
   const confirmService = useCallback(
-    async (finalSlot?: SelectedSlot, serviceOverrides?: Partial<SelectedService>): Promise<boolean> => {
+    async (
+      finalSlot?: SelectedSlot,
+      serviceOverrides?: Partial<SelectedService>
+    ): Promise<boolean> => {
       // Use finalSlot if provided, otherwise fall back to selectedSlot
       const slotToUse = finalSlot ?? selectedSlot;
 
@@ -1216,7 +1237,9 @@ export function PlanningSelectionProvider({
               label: effectiveService.cliente,
               data: {
                 ...effectiveService,
-                ...(slotToUse.anden === undefined ? {} : { _anden: slotToUse.anden }),
+                ...(slotToUse.anden === undefined
+                  ? {}
+                  : { _anden: slotToUse.anden }),
               },
             },
             slot: {

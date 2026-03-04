@@ -39,7 +39,6 @@ type PlanningSearchMatchType =
   | "permanencia"
   | "tipoViaje";
 
-
 /**
  * Determine trip type from serviceKind or executionType
  */
@@ -70,7 +69,6 @@ function calculatePermanencia(task: KanbanBoardTask): string {
   const hours = arr.diff(dep, "hour");
   return `${hours}h`;
 }
-
 
 /**
  * Extract incidencias from task fields
@@ -131,7 +129,10 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
       lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias: extractIncidencias(task, task.mintral_deliveryComplianceRate ?? 0),
+    incidencias: extractIncidencias(
+      task,
+      task.mintral_deliveryComplianceRate ?? 0
+    ),
     mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
     prioridad: task.mintral_icuCondition ?? 0,

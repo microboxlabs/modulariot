@@ -73,6 +73,7 @@ export function CreateCalendarModal({
         code: formValues.code as string,
         description: (formValues.description as string) || undefined,
         timezone: (formValues.timezone as string) || "UTC",
+        parallelism: (formValues.parallelism as number) ?? 1,
         active: (formValues.active as boolean) ?? true,
         groups: selectedGroupCode ? [selectedGroupCode] : [],
         autoSlotManager: true,

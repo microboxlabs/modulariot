@@ -1192,7 +1192,9 @@
           "availablePlatforms": "Andenes disponibles en el terminal",
           "infoSingular": "Los usuarios podrán agendar hasta {count} servicio en la misma franja horaria.",
           "infoPlural": "Los usuarios podrán agendar hasta {count} servicios en la misma franja horaria.",
-          "save": "Guardar"
+          "save": "Guardar",
+          "saveSuccess": "Andenes actualizados",
+          "saveError": "Error al actualizar andenes"
         }
       }
     },
@@ -2107,6 +2109,7 @@
       "subtitle": "Crea un calendario para gestionar la programación y las ventanas de tiempo.",
       "nameLabel": "Nombre",
       "codeLabel": "Código",
+      "parallelismLabel": "Andenes",
       "descriptionLabel": "Descripción",
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",

@@ -4,8 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Handlebars from "handlebars";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
-import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-import type { FilterConfig, FilterItemConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import { useDynamicRows } from "@/features/dashboard/dashlets/common/use-dynamic-rows";
@@ -25,7 +23,7 @@ export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 export interface TableColumn {
   key: string;
   label: string;
-  type: ColumnType;
+  type: string;
 }
 
 export interface FilterItemConfig {
@@ -388,6 +386,39 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     [compiledLabels, displayRows.length]
   );
 
+  // ── Handlebars type-template compilation ───────────────────────────────────
+  const compiledTypeTemplates = useMemo(() => {
+    const map = new Map<string, Handlebars.TemplateDelegate>();
+    for (const col of columns) {
+      if (col.type.includes("{{")) {
+        try {
+          map.set(col.key, Handlebars.compile(col.type));
+        } catch {
+          // Invalid template — skip; resolveCellType will fallback to col.type
+        }
+      }
+    }
+    return map;
+  }, [columns]);
+
+  const resolveCellType = useCallback(
+    (
+      row: Record<string, string>,
+      col: TableColumn,
+      rowIdx: number,
+      totalRows: number
+    ): string => {
+      const tpl = compiledTypeTemplates.get(col.key);
+      if (!tpl) return col.type || "text";
+      try {
+        return tpl({ row, ...row, _index: rowIdx, _count: totalRows }).trim() || "text";
+      } catch {
+        return "text";
+      }
+    },
+    [compiledTypeTemplates]
+  );
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
@@ -500,7 +531,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                       >
                         {renderCell(
                           resolveCellValue(row, col, rowIdx, displayRows.length),
-                          col.type
+                          resolveCellType(row, col, rowIdx, displayRows.length)
                         )}
                       </td>
                     ))}

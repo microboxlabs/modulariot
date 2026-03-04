@@ -1,12 +1,23 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { twMerge } from "tailwind-merge";
+import {
+  Label,
+  Button,
+  TextInput,
+  Select,
+  ToggleSwitch,
+  Textarea,
+} from "flowbite-react";
+import { HiPlus, HiTrash } from "react-icons/hi2";
 import type { DashletSettingsProps } from "../types";
 import type {
   DashletConfig,
   TableColumn,
-  ColumnType,
-  FilterConfig,
   FilterItemConfig,
+  FilterConfig,
   SortConfig,
   PgrestParam,
   PgrestHttpMethod,
@@ -15,6 +26,7 @@ import {
   defaultColumns,
   defaultRows,
   defaultSort,
+  defaultFilter,
   normalizeFilterConfig,
 } from "./dashlet";
 import {
@@ -109,7 +121,7 @@ export function DashletSettings({
   );
 
   // Filter config (normalize legacy shapes)
-  const normalizedFilter = normalizeFilterConfig(config.filter);
+  const normalizedFilter = normalizeFilterConfig(config.filter, defaultFilter);
   const [filterEnabled, setFilterEnabled] = useState(normalizedFilter.enabled);
   const [filterItems, setFilterItems] = useState<FilterItem[]>(
     toFilterItems(normalizedFilter.items)
@@ -355,17 +367,44 @@ export function DashletSettings({
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    const rows = s.parseRows("Must be a JSON array", "Invalid JSON");
-    if (!rows) return;
+    // Parse rows for static mode
+    let parsedRows: Record<string, string>[] | undefined;
+    if (dataMode === "static") {
+      try {
+        const parsed = JSON.parse(rowsJson);
+        if (!Array.isArray(parsed)) {
+          setRowsJsonError("Must be a JSON array");
+          return;
+        }
+        setRowsJsonError(null);
+        parsedRows = parsed as Record<string, string>[];
+      } catch {
+        setRowsJsonError("Invalid JSON");
+        return;
+      }
+    }
 
-    const { filter, sort, savedColumns } = s.buildFilterSort();
+    // Build filter/sort from current state
+    const savedColumns = fromColumnItems(columns);
+    const validKeys = new Set(savedColumns.map((c) => c.key).filter(Boolean));
+
+    const filter: FilterConfig = {
+      enabled: filterEnabled,
+      items: fromFilterItems(filterItems).filter((fi) =>
+        validKeys.has(fi.column)
+      ),
+    };
+    const sort: SortConfig = {
+      enabled: sortEnabled,
+      columns: sortColumns.filter((k) => validKeys.has(k)),
+    };
 
     onSave({
-      title: s.title,
-      showRowCount: s.showRowCount,
-      dataMode: s.dataMode,
+      title,
+      showRowCount,
+      dataMode,
       columns: savedColumns,
-      rows,
+      rows: parsedRows ?? config.rows ?? defaultRows,
       pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pgrestParams),
       pgrestHttpMethod,
@@ -464,24 +503,16 @@ export function DashletSettings({
                           color={getFlowbiteColor(getHandlebarsStatus(col.label))}
                         />
                       </div>
-                      <div className="w-24 shrink-0">
-                        <Select
+                      <div className="w-28 shrink-0">
+                        <TextInput
                           sizing="sm"
+                          placeholder="text"
                           value={col.type}
                           onChange={(e) =>
-                            updateColumn(
-                              col._id,
-                              "type",
-                              e.target.value as ColumnType
-                            )
+                            updateColumn(col._id, "type", e.target.value)
                           }
-                        >
-                          <option value="text">text</option>
-                          <option value="badge">badge</option>
-                          <option value="highlight">highlight</option>
-                          <option value="signed">signed</option>
-                          <option value="progress">progress</option>
-                        </Select>
+                          color={getFlowbiteColor(getHandlebarsStatus(col.type))}
+                        />
                       </div>
                       <button
                         type="button"

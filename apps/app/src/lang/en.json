@@ -1606,7 +1606,9 @@
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
     "hide_stops": "Hide stops",
-    "image_prefix": "image"
+    "image_prefix": "image",
+    "processing": "Processing...",
+    "download_failed": "Download failed — opening in a new tab"
   },
   "release": {
     "other_versions": "Other Versions",

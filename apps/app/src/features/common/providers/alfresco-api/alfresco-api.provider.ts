@@ -1436,7 +1436,7 @@ export async function getServiceTypes(
   return serviceTypesSchema.parse(await response.json());
 }
 
-const timelapseMetadataSchema = z.object({
+export const timelapseMetadataSchema = z.object({
   streamUrl: z.string(),
   estimatedDurationSeconds: z.number(),
   framerate: z.number(),

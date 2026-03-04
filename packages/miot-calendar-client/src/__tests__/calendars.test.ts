@@ -17,6 +17,7 @@ const sampleCalendar: CalendarResponse = {
   name: "Main Calendar",
   timezone: "Europe/Madrid",
   active: true,
+  parallelism: 1,
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: "2025-01-01T00:00:00Z",
 };
@@ -28,7 +29,7 @@ const sampleTimeWindow: TimeWindowResponse = {
   startHour: 8,
   endHour: 12,
   slotDurationMinutes: 30,
-  capacityPerSlot: 5,
+  capacity: 5,
   daysOfWeek: "MON,TUE,WED,THU,FRI",
   validFrom: "2025-01-01",
   active: true,
@@ -178,8 +179,7 @@ describe("calendars", () => {
       startHour: 8,
       endHour: 12,
       validFrom: "2025-01-01",
-      slotDurationMinutes: 30,
-      capacityPerSlot: 5,
+      capacity: 5,
       daysOfWeek: "MON,TUE,WED,THU,FRI",
     };
 

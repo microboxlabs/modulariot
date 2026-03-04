@@ -78,7 +78,7 @@ The MCP server imports the SDK directly — it does NOT shell out to the CLI. Th
 | `miot_groups_create` | `{ code, name, description? }` | Create group |
 | `miot_groups_update` | `{ id, name?, description? }` | Update group |
 | `miot_groups_deactivate` | `{ id: string }` | Deactivate group |
-| `miot_time_windows_create` | `{ calendarId, name, startHour, endHour, validFrom, validTo?, slotDurationMinutes?, capacityPerSlot?, daysOfWeek? }` | Create time window |
+| `miot_time_windows_create` | `{ calendarId, name, startHour, endHour, validFrom, validTo?, capacity?, daysOfWeek? }` | Create time window |
 | `miot_time_windows_update` | `{ calendarId, timeWindowId, ...same fields }` | Update time window |
 | `miot_slot_managers_create` | `{ calendarId, daysInAdvance?, batchDays? }` | Create slot manager |
 | `miot_slot_managers_update` | `{ id, daysInAdvance?, batchDays?, active? }` | Update slot manager |

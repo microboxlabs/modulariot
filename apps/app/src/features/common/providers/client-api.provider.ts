@@ -17,7 +17,8 @@ import {
   StatisticsTasksResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
-import { FetcherError } from "./fetcher.types";
+import { FetcherError, FetcherErrorCode } from "./fetcher.types";
+import { createFetcherError } from "./fetcher";
 import {
   SymptomDashboard,
   SymptomTableResponse,
@@ -1423,17 +1424,26 @@ export function useCalendarGroups() {
   return { groups: data ?? EMPTY_GROUPS, error, isLoading, refresh: mutate };
 }
 
-async function parseErrorBody(
+async function throwApiError(
   response: Response,
   fallback: string
-): Promise<string> {
+): Promise<never> {
   const text = await response.text().catch(() => "");
+  let message: string;
+  let info: string | null = null;
   try {
     const json = JSON.parse(text) as { error?: string };
-    return `[${response.status}] ${json.error ?? fallback}`;
+    message = `[${response.status}] ${json.error ?? fallback}`;
+    info = text;
   } catch {
-    return `[${response.status}] ${text || fallback}`;
+    message = `[${response.status}] ${text || fallback}`;
+    info = text || null;
   }
+  const code =
+    response.status >= 500
+      ? FetcherErrorCode.SERVER_ERROR
+      : FetcherErrorCode.CLIENT_ERROR;
+  throw createFetcherError(message, response.status, code, info);
 }
 
 /**
@@ -1448,9 +1458,7 @@ export async function createCalendarGroup(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(
-      await parseErrorBody(response, "Failed to create calendar group")
-    );
+    await throwApiError(response, "Failed to create calendar group");
   }
   return response.json();
 }
@@ -1467,9 +1475,7 @@ export async function createCalendar(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(
-      await parseErrorBody(response, "Failed to create calendar")
-    );
+    await throwApiError(response, "Failed to create calendar");
   }
   return response.json();
 }
@@ -1518,9 +1524,7 @@ export async function createCalendarTimeWindow(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(
-      await parseErrorBody(response, "Failed to create time window")
-    );
+    await throwApiError(response, "Failed to create time window");
   }
   return response.json();
 }
@@ -1542,9 +1546,7 @@ export async function updateCalendarTimeWindow(
     }
   );
   if (!response.ok) {
-    throw new Error(
-      await parseErrorBody(response, "Failed to update time window")
-    );
+    await throwApiError(response, "Failed to update time window");
   }
   return response.json();
 }
@@ -1652,10 +1654,12 @@ export async function listBookings(
   const json = await response.json();
   const parsed = BookingListResponseSchema.safeParse(json);
   if (!parsed.success) {
-    console.error(
-      "BookingListResponse validation warning:",
-      parsed.error.issues
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "BookingListResponse validation warning:",
+        parsed.error.issues
+      );
+    }
     if (!Array.isArray((json as BookingListResponse).data)) {
       throw new TypeError("Invalid booking list response format");
     }

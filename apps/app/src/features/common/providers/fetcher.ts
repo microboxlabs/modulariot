@@ -20,7 +20,7 @@ const isJsonContentType = (response: Response): boolean => {
 /**
  * Creates a FetcherError with proper structure
  */
-const createFetcherError = (
+export const createFetcherError = (
   message: string,
   status: number,
   code: string,
@@ -67,7 +67,8 @@ const parseJsonResponse = async <T>(response: Response): Promise<T> => {
         text.toLowerCase().includes("504") ||
         text.toLowerCase().includes("gateway timeout")
       ) {
-        errorMessage = "The service took too long to respond. Please try again.";
+        errorMessage =
+          "The service took too long to respond. Please try again.";
       } else {
         errorMessage = "Service unavailable. Please try again later.";
       }
@@ -91,7 +92,10 @@ const parseJsonResponse = async <T>(response: Response): Promise<T> => {
       "Failed to parse server response",
       response.status || 500,
       FetcherErrorCode.JSON_PARSE_ERROR,
-      { parseError: parseError instanceof Error ? parseError.message : String(parseError) }
+      {
+        parseError:
+          parseError instanceof Error ? parseError.message : String(parseError),
+      }
     );
   }
 };
@@ -215,27 +219,30 @@ function getHtmlErrorMessage(
 function extractJsonErrorMessage(responseText: string): string | null {
   try {
     const json = JSON.parse(responseText);
-    
+
     // Handle Alerce error format: { code, message, involvedObject: { respuesta } }
     if (json.involvedObject?.respuesta) {
       return json.involvedObject.respuesta;
     }
-    
+
     // Handle standard error format: { message }
     if (typeof json.message === "string" && json.message.length > 0) {
       return json.message;
     }
-    
+
     // Handle nested error format: { error: { message } }
-    if (typeof json.error?.message === "string" && json.error.message.length > 0) {
+    if (
+      typeof json.error?.message === "string" &&
+      json.error.message.length > 0
+    ) {
       return json.error.message;
     }
-    
+
     // Handle error as string: { error: "message" }
     if (typeof json.error === "string" && json.error.length > 0) {
       return json.error;
     }
-    
+
     return null;
   } catch {
     // Not valid JSON, return null
@@ -260,10 +267,13 @@ function getResponseErrorMessage(
 
   // Try to extract error message from JSON response body
   const jsonErrorMessage = extractJsonErrorMessage(responseText);
-  
+
   if (response.status >= 500) {
     return {
-      message: jsonErrorMessage || response.statusText || "A server error occurred. Please try again.",
+      message:
+        jsonErrorMessage ||
+        response.statusText ||
+        "A server error occurred. Please try again.",
       code: FetcherErrorCode.SERVER_ERROR,
     };
   }
@@ -476,7 +486,7 @@ export default async function httfetcher<T>(
   const { pathAndQuery, upstreamHost } = parseTarget(input);
 
   const headers = buildMergedHeaders(input, init?.headers);
-  let requestId = headers.get("x-request-id") || generateRequestId();
+  const requestId = headers.get("x-request-id") || generateRequestId();
   if (!headers.has("x-request-id")) {
     headers.set("x-request-id", requestId);
   }
@@ -516,7 +526,7 @@ export default async function httfetcher<T>(
         FetcherErrorCode.CLIENT_ERROR,
         { message: "Unauthorized" }
       );
-      
+
       if (shouldLog) {
         logError(error, {
           ...buildAccessLogFields({
@@ -533,7 +543,7 @@ export default async function httfetcher<T>(
           }),
         });
       }
-      
+
       throw error;
     }
 

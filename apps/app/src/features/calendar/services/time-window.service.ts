@@ -11,9 +11,16 @@ export const TimeWindowResponseSchema = z.object({
   endHour: z.number().int().min(0).max(23),
   slotDurationMinutes: z.number(),
   capacityPerSlot: z.number(),
-  daysOfWeek: z.string().regex(/^[\d,-]+$/).min(1).nullish(),
+  daysOfWeek: z
+    .string()
+    .regex(/^[\d,-]+$/)
+    .min(1)
+    .nullish(),
   validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  validTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  validTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
   active: z.boolean(),
 });
 
@@ -47,7 +54,8 @@ function formatDaysRangeString(nums: number[]): string {
   if (nums.length === 0) return "";
   const sorted = [...nums].sort((a, b) => a - b);
   const isRange =
-    sorted.length > 1 && sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+    sorted.length > 1 &&
+    sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
   return isRange ? `${sorted[0]}-${sorted.at(-1)}` : sorted.join(",");
 }
 
@@ -63,7 +71,9 @@ function hourToHHMM(hour: number): string {
  *  - If validFrom === validTo → "daily-override" (specific-date window)
  *  - Otherwise              → "weekly" (recurring weekly pattern)
  */
-export function apiToLocalTimeWindow(response: ValidatedTimeWindowResponse): TimeSlot {
+export function apiToLocalTimeWindow(
+  response: ValidatedTimeWindowResponse
+): TimeSlot {
   const isDailyOverride =
     Boolean(response.validTo) && response.validFrom === response.validTo;
 
@@ -113,7 +123,9 @@ export function localToApiTimeWindow(
 ): TimeWindowRequest {
   if (slot.type === "daily-override") {
     const start = slot.startTimestamp ? dayjs(slot.startTimestamp) : dayjs();
-    const end = slot.endTimestamp ? dayjs(slot.endTimestamp) : dayjs().add(1, "hour");
+    const end = slot.endTimestamp
+      ? dayjs(slot.endTimestamp)
+      : dayjs().add(1, "hour");
     const dateStr = start.format("YYYY-MM-DD");
     // Day of week: JS 0=Sunday → format 1=Monday…7=Sunday
     const jsDay = start.day();
@@ -126,7 +138,7 @@ export function localToApiTimeWindow(
       validTo: dateStr,
       daysOfWeek: String(formatDay),
       capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 60,
+      slotDurationMinutes: 30,
       active: true,
     };
   }
@@ -143,7 +155,7 @@ export function localToApiTimeWindow(
       validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
       daysOfWeek: "1,2,3,4,5",
       capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 60,
+      slotDurationMinutes: 30,
       active: true,
     };
   }
@@ -160,7 +172,7 @@ export function localToApiTimeWindow(
     validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
     daysOfWeek: days.join(","),
     capacityPerSlot: slot.quota ?? 1,
-    slotDurationMinutes: 60,
+    slotDurationMinutes: 30,
     active: true,
   };
 }

@@ -1,0 +1,271 @@
+{
+  "version": 2,
+  "name": "Uso de Flota",
+  "widgets": [
+    {
+      "id": "fu-card-1",
+      "componentId": "card",
+      "layout": { "i": "fu-card-1", "x": 0, "y": 0, "w": 6, "h": 3, "minW": 3, "minH": 2 },
+      "config": {
+        "name": "Uso Total Últimos 30 días",
+        "value": "41,512 km",
+        "icon": "chart",
+        "backgroundColor": "white"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-card-2",
+      "componentId": "card",
+      "layout": { "i": "fu-card-2", "x": 6, "y": 0, "w": 6, "h": 3, "minW": 3, "minH": 2 },
+      "config": {
+        "name": "Desviación Contractual",
+        "value": "-79%",
+        "icon": "chart",
+        "backgroundColor": "white"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-card-3",
+      "componentId": "card",
+      "layout": { "i": "fu-card-3", "x": 12, "y": 0, "w": 6, "h": 3, "minW": 3, "minH": 2 },
+      "config": {
+        "name": "Distribución de Intensidad",
+        "value": "Alta: 2, Media: 5, Baja: 3",
+        "icon": "clock",
+        "backgroundColor": "white"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-card-4",
+      "componentId": "card",
+      "layout": { "i": "fu-card-4", "x": 18, "y": 0, "w": 6, "h": 3, "minW": 3, "minH": 2 },
+      "config": {
+        "name": "Eficiencia de Combustible",
+        "value": "6.9 km/l",
+        "icon": "chart",
+        "backgroundColor": "white"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "fu-text-1", "x": 0, "y": 3, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"El uso total de la flota en los últimos 30 días fue de 41,512 km, con una desviación contractual de -79%. La intensidad de uso se distribuye en Alta (2), Media (5) y Baja (3). La eficiencia promedio de combustible es de 6.9 km/l.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-list-1",
+      "componentId": "data_list",
+      "layout": { "i": "fu-list-1", "x": 0, "y": 6, "w": 24, "h": 14 },
+      "config": {
+        "title": "Vehículos Priorizados",
+        "showRowCount": true,
+        "dataMode": "static",
+        "columns": [
+          { "key": "vehicleId", "label": "Vehículo", "type": "text" },
+          { "key": "vehicleDesc", "label": "Descripción", "type": "text" },
+          { "key": "intensity", "label": "Intensidad", "type": "badge" },
+          { "key": "usageFlag", "label": "Uso", "type": "badge" },
+          { "key": "kmTotal", "label": "Km Totales", "type": "highlight" },
+          { "key": "kmLast30", "label": "Últimos 30 días", "type": "text" },
+          { "key": "dailyAvg", "label": "Promedio diario", "type": "text" },
+          { "key": "routeTime", "label": "Tiempo en ruta", "type": "text" },
+          { "key": "contractPct", "label": "% del contrato consumido", "type": "signed" },
+          { "key": "deviation", "label": "Desviación", "type": "signed" },
+          { "key": "kml", "label": "Km/l", "type": "highlight" },
+          { "key": "fuelVariation", "label": "Variación consumo", "type": "signed" },
+          { "key": "lastUpdate", "label": "Última actualización", "type": "text" }
+        ],
+        "rows": [
+          {
+            "vehicleId": "FL-2341",
+            "vehicleDesc": "Peugeot Partner · Traza Logistics",
+            "intensity": "Alta",
+            "usageFlag": "Sobreuso",
+            "kmTotal": "47,400 km",
+            "kmLast30": "5,820 km",
+            "dailyAvg": "194 km",
+            "routeTime": "6.2 h",
+            "contractPct": "+118%",
+            "deviation": "+18%",
+            "kml": "6.1 km/l",
+            "fuelVariation": "+12%",
+            "lastUpdate": "Hace 15 min"
+          },
+          {
+            "vehicleId": "FL-8921",
+            "vehicleDesc": "Volkswagen Amarok · Distribuciones FastGo",
+            "intensity": "Alta",
+            "usageFlag": "Sobreuso",
+            "kmTotal": "52,300 km",
+            "kmLast30": "6,100 km",
+            "dailyAvg": "203 km",
+            "routeTime": "7.1 h",
+            "contractPct": "+125%",
+            "deviation": "+25%",
+            "kml": "5.8 km/l",
+            "fuelVariation": "+15%",
+            "lastUpdate": "Hace 20 min"
+          },
+          {
+            "vehicleId": "FL-3456",
+            "vehicleDesc": "Mitsubishi L200 · Constructora Andina S.A.",
+            "intensity": "Media",
+            "usageFlag": "Normal",
+            "kmTotal": "61,200 km",
+            "kmLast30": "4,200 km",
+            "dailyAvg": "140 km",
+            "routeTime": "5.0 h",
+            "contractPct": "85%",
+            "deviation": "-15%",
+            "kml": "7.2 km/l",
+            "fuelVariation": "-3%",
+            "lastUpdate": "Hace 30 min"
+          },
+          {
+            "vehicleId": "FL-1892",
+            "vehicleDesc": "Mercedes Vito · Logística Express",
+            "intensity": "Media",
+            "usageFlag": "Normal",
+            "kmTotal": "38,900 km",
+            "kmLast30": "3,950 km",
+            "dailyAvg": "132 km",
+            "routeTime": "4.8 h",
+            "contractPct": "79%",
+            "deviation": "-21%",
+            "kml": "7.5 km/l",
+            "fuelVariation": "-5%",
+            "lastUpdate": "Hace 45 min"
+          },
+          {
+            "vehicleId": "FL-6789",
+            "vehicleDesc": "Peugeot Partner · Transportes Andes",
+            "intensity": "Media",
+            "usageFlag": "Normal",
+            "kmTotal": "25,600 km",
+            "kmLast30": "3,800 km",
+            "dailyAvg": "127 km",
+            "routeTime": "4.5 h",
+            "contractPct": "76%",
+            "deviation": "-24%",
+            "kml": "7.0 km/l",
+            "fuelVariation": "-2%",
+            "lastUpdate": "Hace 1 hora"
+          },
+          {
+            "vehicleId": "FL-4521",
+            "vehicleDesc": "Volkswagen Amarok · Distribuciones FastGo",
+            "intensity": "Media",
+            "usageFlag": "Normal",
+            "kmTotal": "23,400 km",
+            "kmLast30": "3,600 km",
+            "dailyAvg": "120 km",
+            "routeTime": "4.2 h",
+            "contractPct": "72%",
+            "deviation": "-28%",
+            "kml": "6.8 km/l",
+            "fuelVariation": "+1%",
+            "lastUpdate": "Hace 1 hora"
+          },
+          {
+            "vehicleId": "FL-5432",
+            "vehicleDesc": "Mercedes Vito · Logística Express",
+            "intensity": "Media",
+            "usageFlag": "Subuso",
+            "kmTotal": "21,500 km",
+            "kmLast30": "2,900 km",
+            "dailyAvg": "97 km",
+            "routeTime": "3.5 h",
+            "contractPct": "58%",
+            "deviation": "-42%",
+            "kml": "7.8 km/l",
+            "fuelVariation": "-8%",
+            "lastUpdate": "Hace 2 horas"
+          },
+          {
+            "vehicleId": "FL-9012",
+            "vehicleDesc": "Mitsubishi L200 · Constructora Andina S.A.",
+            "intensity": "Baja",
+            "usageFlag": "Subuso",
+            "kmTotal": "18,700 km",
+            "kmLast30": "2,100 km",
+            "dailyAvg": "70 km",
+            "routeTime": "2.8 h",
+            "contractPct": "42%",
+            "deviation": "-58%",
+            "kml": "8.1 km/l",
+            "fuelVariation": "-10%",
+            "lastUpdate": "Hace 2 horas"
+          },
+          {
+            "vehicleId": "FL-7891",
+            "vehicleDesc": "Nissan NP300 · Minera Norte S.A.",
+            "intensity": "Baja",
+            "usageFlag": "Subuso",
+            "kmTotal": "14,200 km",
+            "kmLast30": "1,800 km",
+            "dailyAvg": "60 km",
+            "routeTime": "2.3 h",
+            "contractPct": "36%",
+            "deviation": "-64%",
+            "kml": "8.4 km/l",
+            "fuelVariation": "-12%",
+            "lastUpdate": "Hace 3 horas"
+          },
+          {
+            "vehicleId": "FL-0234",
+            "vehicleDesc": "Iveco Daily · Constructora Andina S.A.",
+            "intensity": "Baja",
+            "usageFlag": "Subuso",
+            "kmTotal": "11,800 km",
+            "kmLast30": "1,242 km",
+            "dailyAvg": "41 km",
+            "routeTime": "1.8 h",
+            "contractPct": "25%",
+            "deviation": "-75%",
+            "kml": "8.9 km/l",
+            "fuelVariation": "-15%",
+            "lastUpdate": "Hace 4 horas"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": true,
+          "items": [
+            { "column": "usageFlag", "label": "Tipo de uso:" },
+            { "column": "intensity", "label": "Eficiencia/Intensidad:" }
+          ]
+        },
+        "sort": {
+          "enabled": true,
+          "columns": ["kmLast30", "dailyAvg", "deviation", "kml"]
+        },
+        "cardLayout": {
+          "titleColumn": "vehicleId",
+          "subtitleColumn": "vehicleDesc",
+          "headerBadgeColumns": ["intensity", "usageFlag"],
+          "kpiColumns": ["kmTotal", "kmLast30", "dailyAvg", "routeTime", "contractPct", "deviation", "kml", "fuelVariation"],
+          "footerColumns": ["lastUpdate"]
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

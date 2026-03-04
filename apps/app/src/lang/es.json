@@ -1276,7 +1276,41 @@
       "titlePlaceholder": "Título de tarjeta o {{data_provider.title}}",
       "valuePlaceholder": "ej., {{data_provider.value}}%",
       "descriptorPlaceholder": "Descripción o {{data_provider.descriptor}}",
-      "aiPlaceholderPlaceholder": "Texto provisional para resumen IA"
+      "aiPlaceholderPlaceholder": "Texto provisional para resumen IA",
+      "showRowCount": "Mostrar conteo de filas",
+      "columns": "Columnas",
+      "addColumn": "Agregar columna",
+      "cardLayout": "Diseño de Tarjeta",
+      "titleColumn": "Columna de título",
+      "subtitleColumn": "Columna de subtítulo",
+      "none": "— ninguno —",
+      "headerBadgeColumns": "Columnas de insignia",
+      "kpiGridColumns": "Columnas de grilla KPI",
+      "footerColumns": "Columnas de pie",
+      "filter": "Filtro",
+      "filterRows": "Filtrar filas",
+      "addFilter": "Agregar filtro",
+      "sort": "Ordenar",
+      "sortableColumns": "Columnas ordenables",
+      "dataSource": "Fuente de Datos",
+      "staticJson": "Estático (JSON)",
+      "dynamicApi": "Dinámico (API)",
+      "rowsJsonArray": "Filas (arreglo JSON)",
+      "apiUrl": "URL de API",
+      "mustBeJsonArray": "Debe ser un arreglo JSON",
+      "invalidJson": "JSON inválido"
+    },
+    "dashlets": {
+      "data_list": {
+        "name": "Lista de Datos",
+        "description": "Muestra datos como una lista de tarjetas con grillas de KPI y metadatos",
+        "itemTotal": "1 elemento en total",
+        "itemsTotal": "{count} elementos en total",
+        "sortBy": "Ordenar por:",
+        "loading": "Cargando...",
+        "error": "Error: {message}",
+        "noData": "Sin datos"
+      }
     },
     "defaults": {
       "pageViews": "Vistas de Página",
@@ -1374,6 +1408,12 @@
     "prescription": "Prescripción recomendada",
     "call_driver": "Llamar al conductor",
     "ignore_condition": "Ignorar condición",
+    "invalidate_symptom": "Invalidar síntoma",
+    "invalidate_alert": "¿Estás seguro de querer invalidar este síntoma? Debes proporcionar una razón para esta acción. Esta acción no se puede deshacer.",
+    "invalidate_reason": "Razón",
+    "invalidate_reason_placeholder": "Explica por qué este síntoma está siendo invalidado...",
+    "invalidate_reason_required": "Se requiere una razón para invalidar este síntoma",
+    "invalidate_error": "Error al invalidar el síntoma",
     "actions": "Acciones",
     "management": "Gestión",
     "assigned_to": "Encargado",
@@ -1599,7 +1639,9 @@
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
     "hide_stops": "Ocultar paradas",
-    "image_prefix": "imagen"
+    "image_prefix": "imagen",
+    "processing": "Procesando...",
+    "download_failed": "Descarga fallida — abriendo en nueva pestaña"
   },
   "release": {
     "other_versions": "Otras versiones",
@@ -2125,5 +2167,13 @@
       "alert": "Alerta",
       "inactive": "Inactivo"
     }
+  },
+  "ext_tasks": {
+    "processing": "Procesando tu solicitud...",
+    "completed": "Acción completada exitosamente",
+    "already_completed": "Esta acción ya fue completada",
+    "expired": "Este enlace ha expirado",
+    "error": "Algo salió mal. Por favor, intenta más tarde.",
+    "invalid": "Este enlace no es válido"
   }
 }

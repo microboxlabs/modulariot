@@ -1,0 +1,343 @@
+{
+  "version": 2,
+  "name": "Información General",
+  "widgets": [
+    {
+      "id": "gi-info-1",
+      "componentId": "info_card",
+      "layout": { "i": "gi-info-1", "x": 0, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Cumplimiento Normativo",
+        "icon": "chart",
+        "value": "60%",
+        "descriptor": "6 de 10 vehículos con documentación vigente",
+        "aiPlaceholder": "0 Revisión técnica vencida\n1 Permiso por vencer\n1 SOAT próximo a vencer",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [
+        {
+          "id": "gi-info-1-stacked",
+          "componentId": "stat_stacked",
+          "layout": { "i": "gi-info-1-stacked", "x": 0, "y": 0, "w": 4, "h": 3, "minW": 4, "minH": 3 },
+          "config": {
+            "title": "Cumplimiento",
+            "items": [
+              { "label": "Vigente", "value": 6, "color": "bg-green-500 dark:bg-green-400" },
+              { "label": "No vigente", "value": 4, "color": "bg-gray-300 dark:bg-gray-600" }
+            ],
+            "unit": "%",
+            "showHeader": false
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "gi-info-2",
+      "componentId": "info_card",
+      "layout": { "i": "gi-info-2", "x": 8, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Vigencia Contractual Gama",
+        "icon": "chart",
+        "value": "100%",
+        "descriptor": "10 contratos vigentes",
+        "aiPlaceholder": "",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [
+        {
+          "id": "gi-info-2-stacked",
+          "componentId": "stat_stacked",
+          "layout": { "i": "gi-info-2-stacked", "x": 0, "y": 0, "w": 4, "h": 3, "minW": 4, "minH": 3 },
+          "config": {
+            "title": "Vigencia",
+            "items": [
+              { "label": "Vigentes", "value": 10, "color": "bg-orange-500 dark:bg-orange-400" }
+            ],
+            "unit": "%",
+            "showHeader": false
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "gi-info-3",
+      "componentId": "info_card",
+      "layout": { "i": "gi-info-3", "x": 16, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Composición de Flota",
+        "icon": "chart",
+        "value": "3.8 años",
+        "descriptor": "Edad promedio de flota",
+        "aiPlaceholder": "",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [
+        {
+          "id": "gi-info-3-stacked",
+          "componentId": "stat_stacked",
+          "layout": { "i": "gi-info-3-stacked", "x": 0, "y": 0, "w": 4, "h": 3, "minW": 4, "minH": 3 },
+          "config": {
+            "title": "Composición",
+            "items": [
+              { "label": "Camiones", "value": 60, "color": "bg-blue-500 dark:bg-blue-400" },
+              { "label": "Vans", "value": 25, "color": "bg-blue-500 dark:bg-blue-400" },
+              { "label": "Camionetas", "value": 15, "color": "bg-blue-500 dark:bg-blue-400" }
+            ],
+            "unit": "%",
+            "showHeader": false
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "gi-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "gi-text-1", "x": 0, "y": 5, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"El cumplimiento normativo se mantiene alto, con casos aislados próximos a vencer. Un grupo reducido de contratos vence durante el próximo trimestre. La flota mantiene una edad promedio baja con predominio de camiones pesados.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "gi-list-1",
+      "componentId": "data_list",
+      "layout": { "i": "gi-list-1", "x": 0, "y": 8, "w": 24, "h": 14 },
+      "config": {
+        "title": "Listado de Vehículos",
+        "showRowCount": true,
+        "dataMode": "static",
+        "columns": [
+          { "key": "vehicleId", "label": "Vehículo", "type": "text" },
+          { "key": "vehicleDesc", "label": "Descripción", "type": "text" },
+          { "key": "docStatus", "label": "Estado documental", "type": "badge" },
+          { "key": "permisoCirculacion", "label": "Permiso circulación", "type": "badge" },
+          { "key": "revisionTecnica", "label": "Revisión técnica", "type": "badge" },
+          { "key": "seguroObligatorio", "label": "Seguro obligatorio", "type": "badge" },
+          { "key": "contratoGama", "label": "Contrato Gama", "type": "badge" },
+          { "key": "kmTotal", "label": "Kilometraje total", "type": "highlight" },
+          { "key": "vin", "label": "VIN", "type": "text" },
+          { "key": "marca", "label": "Marca", "type": "text" },
+          { "key": "clienteAsociado", "label": "Cliente asociado", "type": "text" },
+          { "key": "modelo", "label": "Modelo", "type": "text" },
+          { "key": "inicioContrato", "label": "Inicio contrato", "type": "text" },
+          { "key": "year", "label": "Año", "type": "text" },
+          { "key": "fechaVencimiento", "label": "Fecha de vencimiento", "type": "text" }
+        ],
+        "rows": [
+          {
+            "vehicleId": "FL-2341",
+            "vehicleDesc": "Peugeot Partner 2022\nContrato Gama vigente",
+            "docStatus": "Próximo a vencer",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Por vencer",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "47,400 km",
+            "vin": "VF3KCYHZPHS123456",
+            "marca": "Peugeot",
+            "clienteAsociado": "Traza Logistics",
+            "modelo": "Peugeot Partner",
+            "inicioContrato": "15 Ene 2023",
+            "year": "2022",
+            "fechaVencimiento": "28 Mar 2026"
+          },
+          {
+            "vehicleId": "FL-1892",
+            "vehicleDesc": "Mercedes Vito 2021\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "38,900 km",
+            "vin": "WDF63970112345678",
+            "marca": "Mercedes-Benz",
+            "clienteAsociado": "Logística Express",
+            "modelo": "Mercedes Vito",
+            "inicioContrato": "10 Mar 2022",
+            "year": "2021",
+            "fechaVencimiento": "10 Sep 2026"
+          },
+          {
+            "vehicleId": "FL-3456",
+            "vehicleDesc": "Mitsubishi L200 2023\nContrato Gama vigente",
+            "docStatus": "Vencido",
+            "permisoCirculacion": "Vencido",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "61,200 km",
+            "vin": "MMBCX52MPNJ098765",
+            "marca": "Mitsubishi",
+            "clienteAsociado": "Constructora Andina S.A.",
+            "modelo": "Mitsubishi L200",
+            "inicioContrato": "20 Jun 2023",
+            "year": "2023",
+            "fechaVencimiento": "05 Feb 2026"
+          },
+          {
+            "vehicleId": "FL-4521",
+            "vehicleDesc": "Volkswagen Amarok 2022\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "23,400 km",
+            "vin": "WVG2ZZ2HZ9H456789",
+            "marca": "Volkswagen",
+            "clienteAsociado": "Distribuciones FastGo",
+            "modelo": "Volkswagen Amarok",
+            "inicioContrato": "15 Sep 2023",
+            "year": "2022",
+            "fechaVencimiento": "15 Mar 2027"
+          },
+          {
+            "vehicleId": "FL-6789",
+            "vehicleDesc": "Peugeot Partner 2021\nContrato Gama vigente",
+            "docStatus": "Próximo a vencer",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Por vencer",
+            "contratoGama": "Vigente",
+            "kmTotal": "25,600 km",
+            "vin": "VF3KCYHZPHS987654",
+            "marca": "Peugeot",
+            "clienteAsociado": "Transportes Andes",
+            "modelo": "Peugeot Partner",
+            "inicioContrato": "01 Abr 2022",
+            "year": "2021",
+            "fechaVencimiento": "15 Abr 2026"
+          },
+          {
+            "vehicleId": "FL-8921",
+            "vehicleDesc": "Volkswagen Amarok 2023\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "52,300 km",
+            "vin": "WVG2ZZ2HZ9H112233",
+            "marca": "Volkswagen",
+            "clienteAsociado": "Distribuciones FastGo",
+            "modelo": "Volkswagen Amarok",
+            "inicioContrato": "05 Ene 2024",
+            "year": "2023",
+            "fechaVencimiento": "05 Jul 2027"
+          },
+          {
+            "vehicleId": "FL-5432",
+            "vehicleDesc": "Mercedes Vito 2022\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "21,500 km",
+            "vin": "WDF63970112233445",
+            "marca": "Mercedes-Benz",
+            "clienteAsociado": "Logística Express",
+            "modelo": "Mercedes Vito",
+            "inicioContrato": "20 Ago 2023",
+            "year": "2022",
+            "fechaVencimiento": "20 Feb 2027"
+          },
+          {
+            "vehicleId": "FL-9012",
+            "vehicleDesc": "Mitsubishi L200 2022\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "18,700 km",
+            "vin": "MMBCX52MPNJ556677",
+            "marca": "Mitsubishi",
+            "clienteAsociado": "Constructora Andina S.A.",
+            "modelo": "Mitsubishi L200",
+            "inicioContrato": "10 Nov 2023",
+            "year": "2022",
+            "fechaVencimiento": "10 May 2027"
+          },
+          {
+            "vehicleId": "FL-7891",
+            "vehicleDesc": "Peugeot Partner 2023\nContrato Gama vigente",
+            "docStatus": "Próximo a vencer",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Por vencer",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "14,200 km",
+            "vin": "VF3KCYHZPHS445566",
+            "marca": "Peugeot",
+            "clienteAsociado": "Minera Norte S.A.",
+            "modelo": "Peugeot Partner",
+            "inicioContrato": "01 Feb 2024",
+            "year": "2023",
+            "fechaVencimiento": "22 Abr 2026"
+          },
+          {
+            "vehicleId": "FL-0234",
+            "vehicleDesc": "Volkswagen Amarok 2021\nContrato Gama vigente",
+            "docStatus": "Todo en regla",
+            "permisoCirculacion": "Vigente",
+            "revisionTecnica": "Vigente",
+            "seguroObligatorio": "Vigente",
+            "contratoGama": "Vigente",
+            "kmTotal": "11,800 km",
+            "vin": "WVG2ZZ2HZ9H778899",
+            "marca": "Volkswagen",
+            "clienteAsociado": "Agro Pacífico Ltda.",
+            "modelo": "Volkswagen Amarok",
+            "inicioContrato": "15 Mar 2023",
+            "year": "2021",
+            "fechaVencimiento": "15 Sep 2026"
+          }
+        ],
+        "apiUrl": "",
+        "filter": {
+          "enabled": true,
+          "items": [
+            { "column": "docStatus", "label": "Filtrar por:" },
+            { "column": "marca", "label": "Marca:" }
+          ]
+        },
+        "sort": {
+          "enabled": true,
+          "columns": ["fechaVencimiento", "docStatus", "year", "marca"]
+        },
+        "cardLayout": {
+          "titleColumn": "vehicleId",
+          "subtitleColumn": "vehicleDesc",
+          "headerBadgeColumns": ["docStatus"],
+          "kpiColumns": ["permisoCirculacion", "revisionTecnica", "seguroObligatorio", "contratoGama", "kmTotal", "vin", "marca", "clienteAsociado", "modelo", "inicioContrato", "year"],
+          "footerColumns": ["fechaVencimiento"]
+        }
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

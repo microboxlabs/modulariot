@@ -1251,7 +1251,41 @@
       "titlePlaceholder": "Card title or {{data_provider.title}}",
       "valuePlaceholder": "e.g., {{data_provider.value}}%",
       "descriptorPlaceholder": "Description or {{data_provider.descriptor}}",
-      "aiPlaceholderPlaceholder": "Placeholder text for AI summary"
+      "aiPlaceholderPlaceholder": "Placeholder text for AI summary",
+      "showRowCount": "Show row count",
+      "columns": "Columns",
+      "addColumn": "Add column",
+      "cardLayout": "Card Layout",
+      "titleColumn": "Title column",
+      "subtitleColumn": "Subtitle column",
+      "none": "— none —",
+      "headerBadgeColumns": "Header badge columns",
+      "kpiGridColumns": "KPI grid columns",
+      "footerColumns": "Footer columns",
+      "filter": "Filter",
+      "filterRows": "Filter rows",
+      "addFilter": "Add filter",
+      "sort": "Sort",
+      "sortableColumns": "Sortable columns",
+      "dataSource": "Data Source",
+      "staticJson": "Static (JSON)",
+      "dynamicApi": "Dynamic (API)",
+      "rowsJsonArray": "Rows (JSON array)",
+      "apiUrl": "API URL",
+      "mustBeJsonArray": "Must be a JSON array",
+      "invalidJson": "Invalid JSON"
+    },
+    "dashlets": {
+      "data_list": {
+        "name": "Data List",
+        "description": "Displays data as a list of cards with KPI grids and metadata",
+        "itemTotal": "1 item total",
+        "itemsTotal": "{count} items total",
+        "sortBy": "Sort by:",
+        "loading": "Loading...",
+        "error": "Error: {message}",
+        "noData": "No data"
+      }
     },
     "defaults": {
       "pageViews": "Page Views",
@@ -1347,6 +1381,12 @@
     "prescription": "Recommended prescription",
     "call_driver": "Call driver",
     "ignore_condition": "Ignore condition",
+    "invalidate_symptom": "Invalidate symptom",
+    "invalidate_alert": "Are you sure you want to invalidate this symptom? You must provide a reason for this action. This action cannot be undone.",
+    "invalidate_reason": "Reason",
+    "invalidate_reason_placeholder": "Explain why this symptom is being invalidated...",
+    "invalidate_reason_required": "A reason is required to invalidate this symptom",
+    "invalidate_error": "Failed to invalidate symptom",
     "actions": "Actions",
     "management": "Management",
     "assigned_to": "Assigned to",
@@ -1573,7 +1613,9 @@
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
     "hide_stops": "Hide stops",
-    "image_prefix": "image"
+    "image_prefix": "image",
+    "processing": "Processing...",
+    "download_failed": "Download failed — opening in a new tab"
   },
   "release": {
     "other_versions": "Other Versions",
@@ -2093,5 +2135,13 @@
       "alert": "Alert",
       "inactive": "Inactive"
     }
+  },
+  "ext_tasks": {
+    "processing": "Processing your request...",
+    "completed": "Action completed successfully",
+    "already_completed": "This action has already been completed",
+    "expired": "This link has expired",
+    "error": "Something went wrong. Please try again later.",
+    "invalid": "This link is not valid"
   }
 }

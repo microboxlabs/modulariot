@@ -1580,8 +1580,6 @@ export async function deactivateCalendarTimeWindow(
 export async function createBooking(
   body: BookingRequest
 ): Promise<BookingResponse> {
-  console.log("Whatefak elmano");
-
   const response = await fetch("/app/api/calendar/bookings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

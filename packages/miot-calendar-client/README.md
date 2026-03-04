@@ -29,7 +29,7 @@ const calendar = await client.calendars.create({
   timezone: "America/New_York", // defaults to "UTC" if omitted
 });
 
-// 2. Add a time window (Mon–Fri, 8 AM – 5 PM, 30-min slots)
+// 2. Add a time window (Mon–Fri, 8 AM – 5 PM)
 const timeWindow = await client.calendars.createTimeWindow(calendar.id, {
   name: "Business Hours",
   startHour: 8,
@@ -120,6 +120,7 @@ Create a new calendar.
 | `description` | `string` | No | — | Optional description |
 | `timezone` | `string` | No | `"UTC"` | IANA timezone |
 | `active` | `boolean` | No | `true` | Whether the calendar is active |
+| `parallelism` | `number` | No | `1` | Parallel resources per slot (e.g. loading docks) |
 | `groups` | `string[]` | No | — | Group codes to assign. `null` = no change; `[]` = remove all; `["code"]` = replace all |
 
 **Returns:** `CalendarResponse`

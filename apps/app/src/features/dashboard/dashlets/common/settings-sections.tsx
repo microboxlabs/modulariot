@@ -9,11 +9,11 @@ import {
   Select,
 } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
-import type { ColumnType } from "./column-types";
 import type { ColumnItem } from "./column-helpers";
 import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
+import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -64,20 +64,16 @@ export function ColumnEditor({
                 onChange={(e) => onUpdate(col._id, "label", e.target.value)}
               />
             </div>
-            <div className="w-24 shrink-0">
-              <Select
+            <div className="w-28 shrink-0">
+              <TextInput
                 sizing="sm"
+                placeholder="text"
                 value={col.type}
                 onChange={(e) =>
-                  onUpdate(col._id, "type", e.target.value as ColumnType)
+                  onUpdate(col._id, "type", e.target.value)
                 }
-              >
-                <option value="text">text</option>
-                <option value="badge">badge</option>
-                <option value="highlight">highlight</option>
-                <option value="signed">signed</option>
-                <option value="progress">progress</option>
-              </Select>
+                color={getFlowbiteColor(getHandlebarsStatus(col.type))}
+              />
             </div>
             <button
               type="button"

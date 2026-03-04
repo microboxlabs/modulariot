@@ -35,7 +35,7 @@ describe("calendar list", () => {
 
   it("should call calendars.list and print JSON", async () => {
     const mockCalendars = [
-      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true },
+      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true, parallelism: 1 },
     ];
     const mockClient = {
       calendars: { list: vi.fn().mockResolvedValue(mockCalendars) },
@@ -109,7 +109,7 @@ describe("calendar list", () => {
 
   it("should print table output", async () => {
     const mockCalendars = [
-      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true, hasSlotManager: true },
+      { id: "1", code: "test", name: "Test", timezone: "UTC", active: true, hasSlotManager: true, parallelism: 1 },
     ];
     const mockClient = {
       calendars: { list: vi.fn().mockResolvedValue(mockCalendars) },
@@ -143,6 +143,7 @@ describe("calendar get", () => {
       name: "Test",
       timezone: "UTC",
       active: true,
+      parallelism: 1,
     };
     const mockClient = {
       calendars: { get: vi.fn().mockResolvedValue(mockCalendar) },
@@ -178,6 +179,7 @@ describe("calendar create", () => {
       name: "New Calendar",
       timezone: "UTC",
       active: true,
+      parallelism: 1,
     };
     const mockClient = {
       calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
@@ -216,6 +218,7 @@ describe("calendar create", () => {
       name: "New Calendar",
       timezone: "UTC",
       active: true,
+      parallelism: 1,
     };
     const mockClient = {
       calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
@@ -248,7 +251,7 @@ describe("calendar create", () => {
   });
 
   it("should pass groups when --group is provided", async () => {
-    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true };
+    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true, parallelism: 1 };
     const mockClient = {
       calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
     };
@@ -270,7 +273,7 @@ describe("calendar create", () => {
   });
 
   it("should pass multiple groups when --group is repeated", async () => {
-    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true };
+    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true, parallelism: 1 };
     const mockClient = {
       calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
     };
@@ -290,10 +293,32 @@ describe("calendar create", () => {
       groups: ["scl", "north"],
     });
   });
+
+  it("should pass parallelism when --parallelism is provided", async () => {
+    const mockCalendar = { id: "1", code: "c", name: "n", timezone: "UTC", active: true, parallelism: 3 };
+    const mockClient = {
+      calendars: { create: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "create",
+      "--code", "c", "--name", "n", "--parallelism", "3",
+    ]);
+
+    expect(mockClient.calendars.create).toHaveBeenCalledWith({
+      code: "c",
+      name: "n",
+      timezone: undefined,
+      description: undefined,
+      parallelism: 3,
+    });
+  });
 });
 
 describe("calendar update", () => {
-  const mockCalendar = { id: "cal-1", code: "cal-1", name: "New Name", timezone: "UTC", active: true };
+  const mockCalendar = { id: "cal-1", code: "cal-1", name: "New Name", timezone: "UTC", active: true, parallelism: 1 };
 
   beforeEach(() => {
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -345,7 +370,7 @@ describe("calendar update", () => {
     expect(mockClient.calendars.update).toHaveBeenCalledWith("cal-1", { groups: ["scl", "north"] });
   });
 
-  it("should not include groups in body when --group is not provided", async () => {
+  it("should not include groups or parallelism in body when not provided", async () => {
     const mockClient = {
       calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
     };
@@ -358,8 +383,22 @@ describe("calendar update", () => {
 
     expect(mockClient.calendars.update).toHaveBeenCalledWith(
       "cal-1",
-      expect.not.objectContaining({ groups: expect.anything() }),
+      expect.not.objectContaining({ groups: expect.anything(), parallelism: expect.anything() }),
     );
+  });
+
+  it("should pass parallelism when --parallelism is provided", async () => {
+    const mockClient = {
+      calendars: { update: vi.fn().mockResolvedValue(mockCalendar) },
+    };
+    mockGetActionContext.mockReturnValue({ client: mockClient as any, outputMode: "json" });
+
+    const program = createProgram();
+    await program.parseAsync([
+      "node", "miot", "calendar", "update", "cal-1", "--parallelism", "5",
+    ]);
+
+    expect(mockClient.calendars.update).toHaveBeenCalledWith("cal-1", { parallelism: 5 });
   });
 });
 

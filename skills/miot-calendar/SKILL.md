@@ -40,6 +40,7 @@ Key relationships:
 - Time windows define the **rules**; slots are the **instances** generated from those rules.
 - A slot has `capacity` and `currentOccupancy`; `availableCapacity = capacity - currentOccupancy`.
 - A booking ties a resource to a specific slot. It requires the slot to be OPEN with remaining capacity.
+- A calendar has `parallelism` (default: 1) — the number of parallel resources that can use a slot simultaneously (e.g. multiple loading docks).
 
 ## Common Workflows
 
@@ -137,6 +138,7 @@ Explain the error in plain language to the user.
 - Hour: 0–23, Minutes: 0–59.
 - `calendar purge` is **irreversible** — deletes the calendar and all its slots, bookings, time windows, and slot manager. Always confirm with the user before running.
 - `hasSlotManager` on a calendar response indicates whether a SlotManager is provisioned. Use `--no-auto-slot-manager` on `calendar create` to suppress auto-provisioning.
+- `parallelism` (default: 1) controls how many parallel resources can use a slot. Set via `--parallelism <n>` on `calendar create` or `calendar update`.
 
 ## Full CLI Reference
 

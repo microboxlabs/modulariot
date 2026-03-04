@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { getActionContext } from "../../action-context.js";
 import { printJson, printDetail, printSuccess } from "../../output.js";
 import { handleError } from "../../utils/error.js";
+import { parseOptionalInt } from "../../utils/parse.js";
 
 export function registerCreateCommand(parent: Command): void {
   parent
@@ -13,6 +14,7 @@ export function registerCreateCommand(parent: Command): void {
     .option("--description <desc>", "Description")
     .option("--no-auto-slot-manager", "Skip auto-provisioning a default SlotManager on creation")
     .option("--group <code>", "Assign to group by code (repeatable)", (val, acc: string[]) => [...acc, val], [] as string[])
+    .option("--parallelism <n>", "Parallel resources per slot (default: 1)")
     .action(async (_opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
       try {
@@ -23,6 +25,7 @@ export function registerCreateCommand(parent: Command): void {
           description?: string;
           autoSlotManager: boolean;
           group: string[];
+          parallelism?: string;
         };
 
         const calendar = await client.calendars.create({
@@ -32,6 +35,7 @@ export function registerCreateCommand(parent: Command): void {
           description: opts.description,
           ...(opts.autoSlotManager === false && { autoSlotManager: false }),
           ...(opts.group.length > 0 && { groups: opts.group }),
+          parallelism: parseOptionalInt(opts.parallelism, "--parallelism"),
         });
 
         if (outputMode === "json") {
@@ -54,6 +58,7 @@ export function registerUpdateCommand(parent: Command): void {
     .option("--timezone <tz>", "Timezone")
     .option("--description <desc>", "Description")
     .option("--group <code>", "Assign to group by code (repeatable)", (val, acc: string[]) => [...acc, val], [] as string[])
+    .option("--parallelism <n>", "Parallel resources per slot (default: 1)")
     .action(async (id: string, _opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
       try {
@@ -63,6 +68,7 @@ export function registerUpdateCommand(parent: Command): void {
           timezone?: string;
           description?: string;
           group: string[];
+          parallelism?: string;
         };
 
         const body = {
@@ -73,6 +79,7 @@ export function registerUpdateCommand(parent: Command): void {
             description: opts.description,
           }),
           ...(opts.group.length > 0 && { groups: opts.group }),
+          ...(opts.parallelism !== undefined && { parallelism: parseOptionalInt(opts.parallelism, "--parallelism") }),
         };
 
         const calendar = await client.calendars.update(id, body as Parameters<typeof client.calendars.update>[1]);

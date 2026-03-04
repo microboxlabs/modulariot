@@ -34,6 +34,7 @@ export default function Geographic({
         dict={dictionary}
         selectedTreatmentIndex={null}
         minimized={true}
+        licensePlate={(task.mintral_truckLicensePlate as string) ?? null}
       />
     </div>
   );

@@ -26,6 +26,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 // import { BsSignStop } from "react-icons/bs";
 import { ConditionsAgg } from "@/features/symptoms/types/timeline";
 import ImageSelector from "./image-viewer/image-selector";
+import { useTimelapse } from "../hooks/use-timelapse";
 import { logger } from "@/lib/logger";
 import { tr } from "@/features/i18n/tr.service";
 import PulseRange from "./tool-bar/pulse-range";
@@ -113,6 +114,7 @@ type MapVisualizationProps = {
   ) => void;
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
+  licensePlate?: string | null;
 };
 
 type GeometryFeature = {
@@ -136,6 +138,7 @@ export default function MapVisualizationTrip({
   setSelectedTreatment,
   setSelectedTreatmentIndex,
   minimized = false,
+  licensePlate,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -148,6 +151,11 @@ export default function MapVisualizationTrip({
   const [pictures_list, setPicturesList] = useState<string[]>([]);
 
   const mapRef = useRef<MapRef>(null);
+
+  const { timelapse } = useTimelapse(
+    licensePlate ?? null,
+    selectedTreatmentIndex?.start ?? null
+  );
 
   useEffect(() => {
     if (selectedTreatmentIndex && selectedTreatmentIndex.evidences) {
@@ -434,10 +442,12 @@ export default function MapVisualizationTrip({
 
   return (
     <div className="h-full w-full relative overflow-hidden">
+      {(pictures_list.length > 0 || timelapse) && !minimized ? (
+        <div className="z-[700] absolute top-0 left-0 h-full pointer-events-none">
+          <ImageSelector images={pictures_list} dictionary={dict} timelapse={timelapse} />
+        </div>
+      ) : null}
       <div className="z-[700] absolute bottom-0 left-0 right-0 w-full pointer-events-none">
-        {pictures_list.length > 0 && !minimized ? (
-          <ImageSelector images={pictures_list} dictionary={dict} />
-        ) : null}
         <ToolBar
           dictionary={dict}
           positions={positions ?? []}

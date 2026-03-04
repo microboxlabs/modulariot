@@ -4,47 +4,59 @@
   "widgets": [
     {
       "id": "vth-stat-1",
-      "componentId": "stat_status",
-      "layout": { "i": "vth-stat-1", "x": 0, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "vth-stat-1", "x": 0, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Fallas técnicas activas",
+        "icon": "chart",
         "value": "8",
-        "color": "red",
-        "icon": "warning"
+        "descriptor": "vehículos con fallas detectadas",
+        "aiPlaceholder": "Las fallas activas se concentran en sensores de motor y alimentación.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "vth-stat-2",
-      "componentId": "stat_status",
-      "layout": { "i": "vth-stat-2", "x": 8, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "vth-stat-2", "x": 8, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Alertas DPF",
+        "icon": "chart",
         "value": "2",
-        "color": "orange",
-        "icon": "signal"
+        "descriptor": "alertas de filtro de partículas",
+        "aiPlaceholder": "Las fallas DPF críticas se concentran en vehículos con recorridos urbanos frecuentes.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "vth-stat-3",
-      "componentId": "stat_status",
-      "layout": { "i": "vth-stat-3", "x": 16, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "vth-stat-3", "x": 16, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Otros sistemas críticos",
+        "icon": "chart",
         "value": "6",
-        "color": "blue",
-        "icon": "bolt"
+        "descriptor": "fallas en sistemas adicionales",
+        "aiPlaceholder": "Las fallas en otros sistemas incluyen transmisión, sensores y alimentación.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "vth-text-1",
       "componentId": "text_card",
-      "layout": { "i": "vth-text-1", "x": 0, "y": 4, "w": 24, "h": 3 },
+      "layout": { "i": "vth-text-1", "x": 0, "y": 5, "w": 24, "h": 3 },
       "config": {
         "text": "\"Las fallas DPF críticas se concentran en vehículos con recorridos urbanos frecuentes. Recomendamos revisión preventiva y regeneración forzada.\"",
         "italic": true,
@@ -56,7 +68,7 @@
     {
       "id": "vth-table-1",
       "componentId": "data_table",
-      "layout": { "i": "vth-table-1", "x": 0, "y": 7, "w": 24, "h": 12 },
+      "layout": { "i": "vth-table-1", "x": 0, "y": 8, "w": 24, "h": 12 },
       "config": {
         "title": "Vehículos con síntomas técnicos",
         "showRowCount": true,

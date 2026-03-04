@@ -4,47 +4,59 @@
   "widgets": [
     {
       "id": "stat-status-1",
-      "componentId": "stat_status",
-      "layout": { "i": "stat-status-1", "x": 0, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "stat-status-1", "x": 0, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Mantenimiento Atrasado",
+        "icon": "chart",
         "value": "3",
-        "color": "red",
-        "icon": "wrench"
+        "descriptor": "vehículos con mantenimiento vencido",
+        "aiPlaceholder": "Los vehículos con mantenimiento atrasado presentan mayor riesgo de falla operacional.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "stat-status-2",
-      "componentId": "stat_status",
-      "layout": { "i": "stat-status-2", "x": 8, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "stat-status-2", "x": 8, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Próximo a Vencer",
+        "icon": "chart",
         "value": "2",
-        "color": "orange",
-        "icon": "calendar"
+        "descriptor": "vehículos próximos a fecha de mantención",
+        "aiPlaceholder": "Se recomienda agendar mantenimiento preventivo para evitar vencimientos.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "stat-status-3",
-      "componentId": "stat_status",
-      "layout": { "i": "stat-status-3", "x": 16, "y": 0, "w": 8, "h": 4 },
+      "componentId": "info_card",
+      "layout": { "i": "stat-status-3", "x": 16, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Al Día",
+        "icon": "chart",
         "value": "5",
-        "color": "green",
-        "icon": "check"
+        "descriptor": "vehículos con mantenimiento al día",
+        "aiPlaceholder": "El 50% de la flota tiene su mantenimiento al día y en condiciones óptimas.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "text-card-1",
       "componentId": "text_card",
-      "layout": { "i": "text-card-1", "x": 0, "y": 4, "w": 24, "h": 3 },
+      "layout": { "i": "text-card-1", "x": 0, "y": 5, "w": 24, "h": 3 },
       "config": {
         "text": "Los vehículos con mantenimiento atrasado presentan mayor riesgo de falla operacional. Se recomienda priorizar las intervenciones según el nivel de urgencia y la disponibilidad del taller.",
         "italic": true,
@@ -56,7 +68,7 @@
     {
       "id": "data-table-1",
       "componentId": "data_table",
-      "layout": { "i": "data-table-1", "x": 0, "y": 7, "w": 24, "h": 10 },
+      "layout": { "i": "data-table-1", "x": 0, "y": 8, "w": 24, "h": 10 },
       "config": {
         "title": "Vehículos Priorizados",
         "showRowCount": true,

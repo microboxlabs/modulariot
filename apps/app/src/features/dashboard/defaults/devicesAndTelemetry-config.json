@@ -4,43 +4,52 @@
   "widgets": [
     {
       "id": "dat-stat-1",
-      "componentId": "stat_status",
-      "layout": { "i": "dat-stat-1", "x": 0, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "dat-stat-1", "x": 0, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Dispositivos operativos",
+        "icon": "chart",
         "value": "89%",
-        "subtitle": "204 de 230 dispositivos",
-        "color": "green",
-        "icon": "wifi"
+        "descriptor": "204 de 230 dispositivos",
+        "aiPlaceholder": "La mayoría de los dispositivos operan correctamente con señal estable.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "dat-stat-2",
-      "componentId": "stat_status",
-      "layout": { "i": "dat-stat-2", "x": 8, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "dat-stat-2", "x": 8, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Calidad de señal",
+        "icon": "chart",
         "value": "3%",
-        "subtitle": "con pérdida o latencia alta",
-        "color": "orange",
-        "icon": "signal"
+        "descriptor": "con pérdida o latencia alta",
+        "aiPlaceholder": "Las pérdidas de señal se concentran en zonas rurales y proveedores específicos.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "dat-stat-3",
-      "componentId": "stat_status",
-      "layout": { "i": "dat-stat-3", "x": 16, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "dat-stat-3", "x": 16, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Completitud de datos",
+        "icon": "chart",
         "value": "92%",
-        "subtitle": "transmiten todos los campos",
-        "color": "blue",
-        "icon": "database"
+        "descriptor": "transmiten todos los campos",
+        "aiPlaceholder": "La completitud de datos se mantiene alta con casos aislados de campos faltantes.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },

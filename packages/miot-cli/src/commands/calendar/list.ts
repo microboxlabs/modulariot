@@ -36,6 +36,7 @@ export function registerListCommand(parent: Command): void {
             { header: "TIMEZONE", key: "timezone" },
             { header: "ACTIVE", key: "active" },
             { header: "HAS SM", key: "hasSlotManager" },
+            { header: "PARALLELISM", key: "parallelism" },
           ]);
         }
       } catch (err) {

@@ -69,7 +69,8 @@ List all calendars.
     "name": "Vehicle Inspection",
     "timezone": "America/New_York",
     "active": true,
-    "hasSlotManager": true
+    "hasSlotManager": true,
+    "parallelism": 1
   }
 ]
 ```
@@ -91,7 +92,8 @@ Get a single calendar by ID.
   "name": "Vehicle Inspection",
   "timezone": "America/New_York",
   "active": true,
-  "hasSlotManager": true
+  "hasSlotManager": true,
+  "parallelism": 1
 }
 ```
 
@@ -108,6 +110,7 @@ Create a new calendar.
 | `--timezone <tz>` | string | no | Timezone |
 | `--description <desc>` | string | no | Description |
 | `--no-auto-slot-manager` | boolean | no | Skip auto-provisioning a default SlotManager on creation |
+| `--parallelism <n>` | integer | no | Parallel resources per slot (default: 1) |
 
 **JSON output:** Same shape as `calendar get`. When `--no-auto-slot-manager` is passed, `hasSlotManager` will be `false`.
 
@@ -125,6 +128,8 @@ Update an existing calendar.
 | `--name <name>` | string | Update calendar name |
 | `--timezone <tz>` | string | Update timezone |
 | `--description <desc>` | string | Update description |
+| `--group <code>` | string | Assign to group by code (repeatable) |
+| `--parallelism <n>` | integer | Parallel resources per slot (default: 1) |
 
 **JSON output:** Same shape as `calendar get`.
 
@@ -441,8 +446,7 @@ Create a new time window.
 | `--end-hour <hour>` | integer | yes | End hour (0–23, must be > start-hour) |
 | `--valid-from <date>` | string | yes | Valid from date (YYYY-MM-DD) |
 | `--valid-to <date>` | string | no | Valid to date (YYYY-MM-DD) |
-| `--slot-duration <minutes>` | integer | no | Slot duration in minutes |
-| `--capacity <n>` | integer | no | Capacity per slot |
+| `--capacity <n>` | integer | no | Total capacity for the window |
 | `--days-of-week <days>` | string | no | Days of week (e.g. `"1,2,3,4,5"`) |
 
 **JSON output:** Created time window object.
@@ -462,9 +466,8 @@ Update an existing time window.
 | `--end-hour <hour>` | integer | yes | End hour (0–23) |
 | `--valid-from <date>` | string | yes | Valid from date (YYYY-MM-DD) |
 | `--valid-to <date>` | string | no | Valid to date (YYYY-MM-DD) |
-| `--slot-duration <minutes>` | integer | no | Slot duration in minutes |
-| `--capacity <n>` | integer | no | Capacity per slot |
-| `--days-of-week <days>` | string | no | Days of week |
+| `--capacity <n>` | integer | no | Total capacity for the window |
+| `--days-of-week <days>` | string | no | Days of week (e.g. `"1,2,3,4,5"`) |
 
 **JSON output:** Updated time window object.
 

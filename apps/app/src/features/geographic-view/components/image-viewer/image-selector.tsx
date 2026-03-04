@@ -114,12 +114,10 @@ function VideoFilmstripFrame({
     <div className="flex items-stretch px-1 py-2">
       <SprocketStrip />
       <div className="flex-1 mx-1 relative overflow-hidden border border-gray-300 dark:border-gray-600 rounded-sm bg-gray-200 dark:bg-gray-800">
-        <div
-          className="relative w-full aspect-[4/3] cursor-pointer"
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
+          className="relative w-full aspect-[4/3] cursor-pointer border-none bg-transparent p-0 block"
           onClick={togglePlay}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePlay(); } }}
         >
           <video
             ref={videoRef}
@@ -169,7 +167,7 @@ function VideoFilmstripFrame({
               <MdOutlineRemoveRedEye className="w-5 h-5 text-white" />
             </Button>
           </div>
-        </div>
+        </button>
       </div>
       <SprocketStrip />
     </div>

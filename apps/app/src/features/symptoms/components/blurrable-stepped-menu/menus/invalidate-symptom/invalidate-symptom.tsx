@@ -10,6 +10,7 @@ import { MdBlock } from "react-icons/md";
 import { useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
+import ServiceInformation from "../service-information";
 
 export default function InvalidateSymptom({
   dict,
@@ -19,7 +20,7 @@ export default function InvalidateSymptom({
   treatmentRequest,
   setTreatmentRequest,
   setIsMenuOpen,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   reason: string;
@@ -27,7 +28,7 @@ export default function InvalidateSymptom({
   treatmentRequest: TreatmentsRequest;
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
-}) {
+}>) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -70,7 +71,7 @@ export default function InvalidateSymptom({
     } catch {
       ShowNotification({
         type: "error",
-        message: "Failed to invalidate symptom",
+        message: tr("symptoms.invalidate_error", dict),
       });
     } finally {
       setIsSubmitting(false);
@@ -80,58 +81,18 @@ export default function InvalidateSymptom({
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className="w-full flex flex-col items-center gap-3 flex-grow">
-        <div className="w-full flex flex-col gap-2">
-          <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-            {tr("symptoms.service_information", dict)}
-          </h1>
-          <div className="w-full grid grid-cols-2 gap-2">
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.driver_name", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.driver}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.vehicle_plate", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.asset_id}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.phone", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.driver_contact}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.service", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.symptom_info?.name}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.load_type", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.type_load}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.recommended_prescription", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {tr("symptoms.invalidate_symptom", dict)}
-              </span>
-            </p>
-          </div>
-        </div>
+        <ServiceInformation
+          dict={dict}
+          treatmentData={treatmentData}
+          prescriptionKey="symptoms.invalidate_symptom"
+        />
 
         <div className="w-full flex flex-col gap-2 mt-2">
           <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
             {tr("symptoms.invalidate_reason", dict)}
           </h1>
           <Textarea
-            placeholder={
-              tr("symptoms.invalidate_reason_placeholder", dict) as string
-            }
+            placeholder={tr("symptoms.invalidate_reason_placeholder", dict)}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={4}
@@ -159,7 +120,7 @@ export default function InvalidateSymptom({
             onClick={handleSubmit}
             disabled={reason.trim().length === 0 || isSubmitting}
           >
-            {tr("symptoms.save_and_confirm", dict) as string}
+            {tr("symptoms.save_and_confirm", dict)}
           </Button>
         </div>
       </div>

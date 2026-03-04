@@ -35,6 +35,7 @@ export function getAndenesManagerMessages(
 
 interface AndenesManagerProps {
   messages: AndenesManagerMessages;
+  initialCount?: number;
   onConfigChange?: (config: PlatformConfig) => void;
 }
 
@@ -44,11 +45,18 @@ interface AndenesManagerProps {
  */
 export default function AndenesManager({
   messages,
+  initialCount = 1,
   onConfigChange,
 }: Readonly<AndenesManagerProps>) {
-  const [platformCount, setPlatformCount] = useState<number>(1);
+  const [platformCount, setPlatformCount] = useState<number>(initialCount);
   // Local input state - allows empty string while typing
-  const [inputValue, setInputValue] = useState<string>("1");
+  const [inputValue, setInputValue] = useState<string>(String(initialCount));
+
+  // Sync from parent when initialCount changes (e.g. backend load)
+  useEffect(() => {
+    setPlatformCount(initialCount);
+    setInputValue(String(initialCount));
+  }, [initialCount]);
 
   // Sync input value when platformCount changes from buttons
   useEffect(() => {

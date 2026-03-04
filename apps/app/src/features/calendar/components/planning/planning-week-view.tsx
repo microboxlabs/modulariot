@@ -251,12 +251,13 @@ export default function PlanningWeekView({
 
   const getPlannedServicesForSlot = useCallback(
     (day: WeekDay, slot: { hour: number; minutes: number }) => {
-      return plannedServices.filter(
-        (ps) =>
-          dayjs(ps.slot.date).isSame(day.date, "day") &&
-          ps.slot.hour === slot.hour &&
-          ps.slot.minutes === slot.minutes
-      );
+      const cellStartMin = slot.hour * 60 + slot.minutes;
+      const cellEndMin = cellStartMin + 30;
+      return plannedServices.filter((ps) => {
+        if (!dayjs(ps.slot.date).isSame(day.date, "day")) return false;
+        const serviceMin = ps.slot.hour * 60 + ps.slot.minutes;
+        return serviceMin >= cellStartMin && serviceMin < cellEndMin;
+      });
     },
     [plannedServices]
   );

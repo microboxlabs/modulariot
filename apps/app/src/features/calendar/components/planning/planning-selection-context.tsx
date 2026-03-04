@@ -14,6 +14,7 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import {
   useCalendarTimeWindows,
+  useCalendarSlots,
   createCalendarTimeWindow,
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,
@@ -22,6 +23,7 @@ import {
   listBookings,
   updateServiceCategory,
 } from "@/features/common/providers/client-api.provider";
+import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 import { z } from "zod";
 import type { BookingRequest } from "@microboxlabs/miot-calendar-client";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -633,6 +635,12 @@ interface PlanningSelectionContextType {
   cancelReassignment: () => void;
   /** Non-null when the initial bookings fetch failed; null while loading or after a successful load */
   bookingsLoadError: string | null;
+  /** Backend slot data for the selected date */
+  backendSlots: SlotResponse[];
+  /** Whether backend slots are currently loading */
+  isSlotsLoading: boolean;
+  /** Refresh backend slots (e.g. after booking) */
+  refreshSlots: () => void;
 }
 
 const MAX_SERVICES_PER_SLOT = 99;
@@ -726,6 +734,19 @@ export function PlanningSelectionProvider({
     error: timeSlotsError,
     refresh: refreshTimeWindows,
   } = useCalendarTimeWindows(calendarId ?? null);
+
+  // Derive the selected date string for slots fetching
+  const selectedDateStr = useMemo(() => {
+    if (!selectedSlot) return null;
+    return dayjs(selectedSlot.date).format("YYYY-MM-DD");
+  }, [selectedSlot]);
+
+  // Load backend slots for the selected calendar + date
+  const {
+    slots: backendSlots,
+    isLoading: isSlotsLoading,
+    refresh: refreshSlots,
+  } = useCalendarSlots(calendarId ?? null, selectedDateStr);
 
   // Sync time windows from API to local state (only when there's no error)
   useEffect(() => {
@@ -1228,6 +1249,9 @@ export function PlanningSelectionProvider({
             );
           }
 
+          // Refresh backend slots so availability is up-to-date
+          refreshSlots();
+
           // Fire-and-forget: update Alfresco task service category
           if (effectiveService.serviceCategory) {
             updateServiceCategory(
@@ -1269,6 +1293,7 @@ export function PlanningSelectionProvider({
       reassigningService,
       calendarId,
       bookingIds,
+      refreshSlots,
     ]
   );
 
@@ -1382,6 +1407,9 @@ export function PlanningSelectionProvider({
       startReassignment,
       cancelReassignment,
       bookingsLoadError,
+      backendSlots,
+      isSlotsLoading,
+      refreshSlots,
     }),
     [
       selectedSlot,
@@ -1416,6 +1444,9 @@ export function PlanningSelectionProvider({
       startReassignment,
       cancelReassignment,
       bookingsLoadError,
+      backendSlots,
+      isSlotsLoading,
+      refreshSlots,
     ]
   );
 

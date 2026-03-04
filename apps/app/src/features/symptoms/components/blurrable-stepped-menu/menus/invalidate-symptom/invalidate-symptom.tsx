@@ -37,19 +37,21 @@ export default function InvalidateSymptom({
 
     setIsSubmitting(true);
     try {
-      setTreatmentRequest({
-        ...treatmentRequest,
-        status: "active",
-        description: reason,
-      });
-      await requestTreatment({
+      const treatmentResult = await requestTreatment({
         ...treatmentRequest,
         status: "active",
         treatment_type: "invalidar sintoma",
         description: reason,
       });
 
-      await fetch("/app/api/symptoms/invalidate", {
+      setTreatmentRequest({
+        ...treatmentRequest,
+        status: "active",
+        description: reason,
+        treatment_id: treatmentResult.treatment_id,
+      });
+
+      const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -58,9 +60,13 @@ export default function InvalidateSymptom({
           trip_id: treatmentData?.trip_info?.trip_id ?? "",
           reason,
           invalidated_by: treatmentRequest.assigned_to,
-          treatment_id: treatmentRequest.treatment_id,
+          treatment_id: treatmentResult.treatment_id,
         }),
       });
+
+      if (!invalidateResponse.ok) {
+        throw new Error("Invalidate webhook failed");
+      }
 
       setIsMenuOpen(false);
       router.push("/symptoms");

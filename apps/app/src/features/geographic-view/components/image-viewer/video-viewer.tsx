@@ -1,6 +1,7 @@
 import { Button, Modal, ModalBody } from "flowbite-react";
 import { MdOutlineFileDownload } from "react-icons/md";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 
@@ -71,7 +72,7 @@ export default function VideoViewer({
                 URL.revokeObjectURL(blobUrl);
               } catch (error) {
                 logger.error({ err: error, videoUrl }, "Video download failed");
-                toast.error("Download failed — opening in a new tab");
+                toast.error(tr("geographic_view.download_failed", dictionary));
                 window.open(videoUrl, "_blank");
               }
             }}

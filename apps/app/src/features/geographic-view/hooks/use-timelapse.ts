@@ -1,57 +1,41 @@
-import { useState, useEffect } from "react";
-import type { TimelapseMetadata } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import useSWR from "swr";
+import {
+  timelapseMetadataSchema,
+  type TimelapseMetadata,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export type TimelapseData = TimelapseMetadata & {
   proxyStreamUrl: string;
 };
 
+async function timelapseFetcher(url: string): Promise<TimelapseData | null> {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const metadata = timelapseMetadataSchema.parse(json);
+  return {
+    ...metadata,
+    proxyStreamUrl: `/app/api/timelapse/stream?session_id=${encodeURIComponent(metadata.sessionId)}`,
+  };
+}
+
 export function useTimelapse(
   licensePlate: string | null,
   timestamp: string | null
 ) {
-  const [timelapse, setTimelapse] = useState<TimelapseData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const key =
+    licensePlate && timestamp
+      ? `/app/api/timelapse?license_plate=${encodeURIComponent(licensePlate)}&timestamp=${encodeURIComponent(timestamp)}`
+      : null;
 
-  useEffect(() => {
-    if (!licensePlate || !timestamp) {
-      setTimelapse(null);
-      setLoading(false);
-      setError(null);
-      return;
+  const { data, error, isLoading } = useSWR<TimelapseData | null>(
+    key,
+    timelapseFetcher,
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
     }
+  );
 
-    let cancelled = false;
-    setLoading(true);
-
-    fetch(
-      `/app/api/timelapse?license_plate=${encodeURIComponent(licensePlate)}&timestamp=${encodeURIComponent(timestamp)}`
-    )
-      .then(async (res) => {
-        if (cancelled) return;
-        if (!res.ok) {
-          setTimelapse(null);
-          return;
-        }
-        const metadata: TimelapseMetadata = await res.json();
-        setTimelapse({
-          ...metadata,
-          proxyStreamUrl: `/app/api/timelapse/stream?session_id=${encodeURIComponent(metadata.sessionId)}`,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err);
-        setTimelapse(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [licensePlate, timestamp]);
-
-  return { timelapse, loading, error };
+  return { timelapse: data ?? null, loading: isLoading, error: error ?? null };
 }

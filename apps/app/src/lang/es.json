@@ -1632,7 +1632,9 @@
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
     "hide_stops": "Ocultar paradas",
-    "image_prefix": "imagen"
+    "image_prefix": "imagen",
+    "processing": "Procesando...",
+    "download_failed": "Descarga fallida — abriendo en nueva pestaña"
   },
   "release": {
     "other_versions": "Otras versiones",

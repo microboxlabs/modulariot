@@ -8,6 +8,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { downloadImage } from "../../utils/download-image";
 import { Button } from "flowbite-react";
 import type { TimelapseData } from "../../hooks/use-timelapse";
+import { tr } from "@/features/i18n/tr.service";
 
 function SprocketStrip() {
   return (
@@ -91,9 +92,11 @@ function formatDuration(seconds: number): string {
 function VideoFilmstripFrame({
   timelapse,
   onOpenViewer,
+  dictionary,
 }: Readonly<{
   timelapse: TimelapseData;
   onOpenViewer: () => void;
+  dictionary: I18nRecord;
 }>) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -151,7 +154,7 @@ function VideoFilmstripFrame({
           {/* Processing badge */}
           {timelapse.state === "PROCESSING" && (
             <div className="absolute top-1 left-1 bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-              Processing...
+              {tr("geographic_view.processing", dictionary)}
             </div>
           )}
 
@@ -238,6 +241,7 @@ export default function ImageSelector({
             <VideoFilmstripFrame
               timelapse={timelapse}
               onOpenViewer={() => setShowVideoViewer(true)}
+              dictionary={dictionary}
             />
           )}
           {images.map((image, index) => (

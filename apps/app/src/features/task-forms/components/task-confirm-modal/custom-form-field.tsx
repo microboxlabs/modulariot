@@ -20,8 +20,8 @@ import { DisplayField } from "./display-field";
 
 type CustomFormFieldProps = {
   field: DynamicFieldConfig;
-  value: string | boolean;
-  onChange: (value: string | boolean) => void;
+  value: string | boolean | number;
+  onChange: (value: string | boolean | number) => void;
   dict: I18nRecord;
   isVisible: boolean;
   allValues?: Record<string, unknown>;

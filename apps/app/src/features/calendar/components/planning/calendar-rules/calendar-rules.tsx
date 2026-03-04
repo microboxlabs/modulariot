@@ -218,6 +218,7 @@ export function getCalendarRulesMessages(
 interface CalendarRulesProps {
   dict: I18nDictionary;
   messages: CalendarRulesMessages;
+  andenesCount?: number;
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
@@ -226,6 +227,7 @@ interface CalendarRulesProps {
 export default function CalendarRules({
   dict,
   messages,
+  andenesCount,
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
@@ -293,6 +295,7 @@ export default function CalendarRules({
           >
             <AndenesManager
               messages={getAndenesManagerMessages(dict)}
+              initialCount={andenesCount}
               onConfigChange={(config) => {
                 onAndenesChange?.(config);
                 closePanel();

@@ -10,6 +10,7 @@
  */
 export type DynamicFieldType =
   | "text"
+  | "number"
   | "select"
   | "date"
   | "datetime-local"
@@ -66,7 +67,11 @@ export type DynamicFieldConfig = {
   /** Whether field is required */
   required?: boolean;
   /** Default value */
-  defaultValue?: string | boolean;
+  defaultValue?: string | boolean | number;
+  /** Minimum value for number fields */
+  min?: number;
+  /** Maximum value for number fields */
+  max?: number;
   /** Options for select fields */
   options?: DynamicFieldOption[];
   /** Conditional visibility based on another field's value */
@@ -96,7 +101,7 @@ export type DynamicFormConfig = {
 /**
  * Form values record type
  */
-export type DynamicFormValues = Record<string, string | boolean>;
+export type DynamicFormValues = Record<string, string | boolean | number>;
 
 /**
  * Props for live field data fetcher

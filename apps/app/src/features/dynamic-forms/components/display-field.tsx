@@ -7,10 +7,10 @@ export interface DisplayFieldProps {
   /** Field configuration */
   field: DynamicFieldConfig;
   /** Current value to display */
-  value: string | boolean;
+  value: string | boolean | number;
   /** Optional custom renderer for complex displays */
   customRenderer?: (
-    value: string | boolean,
+    value: string | boolean | number,
     format: DisplayFormat
   ) => React.ReactNode;
 }

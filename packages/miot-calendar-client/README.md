@@ -29,15 +29,14 @@ const calendar = await client.calendars.create({
   timezone: "America/New_York", // defaults to "UTC" if omitted
 });
 
-// 2. Add a time window (Mon–Fri, 8 AM – 5 PM, 30-min slots)
+// 2. Add a time window (Mon–Fri, 8 AM – 5 PM)
 const timeWindow = await client.calendars.createTimeWindow(calendar.id, {
   name: "Business Hours",
   startHour: 8,
   endHour: 17,
   validFrom: "2026-03-01",
   daysOfWeek: "1,2,3,4,5",        // Mon–Fri
-  slotDurationMinutes: 30,         // default: 30
-  capacityPerSlot: 2,              // default: 1
+  capacity: 2,                     // default: 1
 });
 
 // 3. Generate slots for the first two weeks
@@ -121,6 +120,7 @@ Create a new calendar.
 | `description` | `string` | No | — | Optional description |
 | `timezone` | `string` | No | `"UTC"` | IANA timezone |
 | `active` | `boolean` | No | `true` | Whether the calendar is active |
+| `parallelism` | `number` | No | `1` | Parallel resources per slot (e.g. loading docks) |
 | `groups` | `string[]` | No | — | Group codes to assign. `null` = no change; `[]` = remove all; `["code"]` = replace all |
 
 **Returns:** `CalendarResponse`
@@ -173,8 +173,7 @@ Create a time window within a calendar.
 | `endHour` | `number` | Yes | — | End hour (0–23, must be > startHour) |
 | `validFrom` | `string` | Yes | — | Start date (`YYYY-MM-DD`) |
 | `validTo` | `string` | No | — | End date (`YYYY-MM-DD`) |
-| `slotDurationMinutes` | `number` | No | `30` | Slot duration in minutes |
-| `capacityPerSlot` | `number` | No | `1` | Max bookings per slot |
+| `capacity` | `number` | No | `1` | Total number of services this window can handle across all slots |
 | `daysOfWeek` | `string` | No | — | Comma-separated days (1=Mon … 7=Sun) |
 | `active` | `boolean` | No | `true` | Whether the time window is active |
 
@@ -528,6 +527,7 @@ interface CalendarRequest {
   description?: string;   // Optional description
   timezone?: string;      // IANA timezone (default: "UTC")
   active?: boolean;       // Active status (default: true)
+  parallelism?: number;   // Parallel resources per slot (default: 1, e.g. loading docks)
   groups?: string[];      // Group codes to assign. null = no change; [] = remove all; ["code"] = replace all
 }
 ```
@@ -542,6 +542,7 @@ interface CalendarResponse {
   description?: string;
   timezone: string;                    // Always present (default: "UTC")
   active: boolean;                     // Always present (default: true)
+  parallelism: number;                 // Parallel resources per slot (min: 1)
   createdAt: string;                   // ISO 8601
   updatedAt: string;                   // ISO 8601
   groups?: CalendarGroupResponse[];    // Groups this calendar belongs to
@@ -557,8 +558,7 @@ interface TimeWindowRequest {
   endHour: number;              // 0–23 (must be > startHour)
   validFrom: string;            // YYYY-MM-DD
   validTo?: string;             // YYYY-MM-DD
-  slotDurationMinutes?: number; // Default: 30
-  capacityPerSlot?: number;     // Default: 1
+  capacity?: number;            // Default: 1 — total services this window can handle
   daysOfWeek?: string;          // Comma-separated: "1,2,3,4,5" (1=Mon, 7=Sun)
   active?: boolean;             // Default: true
 }
@@ -573,8 +573,8 @@ interface TimeWindowResponse {
   name: string;
   startHour: number;
   endHour: number;
-  slotDurationMinutes: number;  // Always present (default: 30)
-  capacityPerSlot: number;      // Always present (default: 1)
+  slotDurationMinutes: number;  // Read-only, derived from capacity model
+  capacity: number;             // Total services this window can handle
   daysOfWeek: string;
   validFrom: string;
   validTo?: string;

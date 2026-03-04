@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "name": "Uso de Flota",
+  "widgets": [
+    {
+      "id": "fu-stat-1",
+      "componentId": "info_card",
+      "layout": { "i": "fu-stat-1", "x": 0, "y": 0, "w": 6, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Uso Total Últimos 30 días",
+        "icon": "chart",
+        "value": "41,512 km",
+        "descriptor": "+7% vs periodo anterior",
+        "aiPlaceholder": "El uso promedio de la flota se mantiene estable, con mayor intensidad en 7 unidades.",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-stat-2",
+      "componentId": "info_card",
+      "layout": { "i": "fu-stat-2", "x": 6, "y": 0, "w": 6, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Desviación Contractual",
+        "icon": "chart",
+        "value": "-79%",
+        "descriptor": "41,512 km / 200,000 km contratados",
+        "aiPlaceholder": "Un grupo reducido de vehículos concentra el sobreuso del contrato mensual.",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [
+        {
+          "id": "fu-stat-2-bar",
+          "componentId": "stat_stacked",
+          "layout": { "i": "fu-stat-2-bar", "x": 0, "y": 0, "w": 4, "h": 3, "minW": 4, "minH": 3 },
+          "config": {
+            "title": "Desviación",
+            "items": [
+              { "label": "Usado", "value": 41512, "color": "bg-red-500 dark:bg-red-400" },
+              { "label": "Restante", "value": 158488, "color": "bg-gray-200 dark:bg-gray-600" }
+            ],
+            "unit": "km",
+            "showHeader": false
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-stat-3",
+      "componentId": "info_card",
+      "layout": { "i": "fu-stat-3", "x": 12, "y": 0, "w": 6, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Distribución de Intensidad",
+        "icon": "chart",
+        "value": "10",
+        "descriptor": "vehículos monitoreados",
+        "aiPlaceholder": "La intensidad alta se concentra en rutas interurbanas recurrentes.",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [
+        {
+          "id": "fu-stat-3-bar",
+          "componentId": "stat_stacked",
+          "layout": { "i": "fu-stat-3-bar", "x": 0, "y": 0, "w": 4, "h": 3, "minW": 4, "minH": 3 },
+          "config": {
+            "title": "Intensidad",
+            "items": [
+              { "label": "Alta", "value": 2, "color": "bg-red-500 dark:bg-red-400" },
+              { "label": "Media", "value": 5, "color": "bg-yellow-500 dark:bg-yellow-400" },
+              { "label": "Baja", "value": 3, "color": "bg-blue-500 dark:bg-blue-400" }
+            ],
+            "unit": "",
+            "showHeader": false
+          },
+          "createdAt": "2025-01-01T00:00:00.000Z",
+          "updatedAt": "2025-01-01T00:00:00.000Z"
+        }
+      ],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-stat-4",
+      "componentId": "info_card",
+      "layout": { "i": "fu-stat-4", "x": 18, "y": 0, "w": 6, "h": 5, "minW": 4, "minH": 4 },
+      "config": {
+        "title": "Eficiencia de Combustible",
+        "icon": "chart",
+        "value": "6.9 km/l",
+        "descriptor": "+5% vs periodo anterior",
+        "aiPlaceholder": "Consumo estimado: 1,240 L. Costo estimado: $1.120.000",
+        "viewMoreUrl": "",
+        "dataProvider": []
+      },
+      "children": [],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "fu-text-1",
+      "componentId": "text_card",
+      "layout": { "i": "fu-text-1", "x": 0, "y": 5, "w": 24, "h": 3 },
+      "config": {
+        "text": "\"El uso promedio de la flota se mantiene estable, con mayor intensidad en 7 unidades.\"\n\"Un grupo reducido de vehículos concentra el sobreuso del contrato mensual.\"\n\"La intensidad alta se concentra en rutas interurbanas recurrentes.\"",
+        "italic": true,
+        "align": "left"
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "preferences": {
+    "editMode": false
+  }
+}

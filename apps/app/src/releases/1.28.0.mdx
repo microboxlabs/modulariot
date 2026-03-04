@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.28.0 — ModularIoT
+
+### Fecha: 03/03/2026
+
+**Objetivo**: Ampliar las capacidades de visualización y multimedia de la plataforma con soporte de video timelapse en el visor de evidencias, incorporar dashlets de tipo Data List al sistema de dashboard, habilitar la ejecución de tareas externas por usuarios no autenticados, e implementar el scheduler de reportes de urgencia por servicio individual y el enrutamiento inteligente de señales GPS históricas.
+
+## 🚀 Evolutivos
+
+- **🎬 Visor filmstrip con soporte de video timelapse**
+  - **Rediseño del visor de imágenes**: El panel horizontal de evidencias se reemplaza por una barra lateral izquierda deslizable con estética de filmstrip (perforaciones de sprocket, pestaña de arrastre, indicador de scroll), soportando modo claro y oscuro. *(Integración OSS — MIOT-0.3.0)*
+  - **Integración de timelapse**: Se conecta con el endpoint de Alfresco (`/alfresco/s/mintral/timelapse`) a través de rutas proxy en Next.js para obtener metadatos y stream de video. El frame de video se renderiza sobre las imágenes con controles inline de play/pause, badge de duración y estado de procesamiento.
+  - **Modal de video**: Visor de pantalla completa con controles nativos de `<video>`, descarga como `.mp4` y mensajes de error localizados (i18n).
+  - **Hook SWR**: El hook `useTimelapse` utiliza SWR con validación Zod en el cliente, caché automática y manejo silencioso de errores (404/500 retornan `null`).
+
+- **📊 Dashlet Data List para el dashboard**
+  - **Nuevo tipo de dashlet**: Implementación de un dashlet de tipo Data List con filas estilo tarjeta, grilla KPI, filtros, ordenamiento y soporte para fuentes de datos estáticas y dinámicas. *(Integración OSS — MIOT-0.3.0)*
+  - **Plantillas predefinidas**: Nuevas plantillas de dashboard para uso de flota e información general con widgets Data List preconfigurados.
+  - **Mejoras de UX**: Renderizado de celdas mejorado (badges, barras de progreso, valores con signo), filtros estilo pill y mejores estados de carga/error/sin datos.
+  - **Localización**: Cadenas de texto expandidas en inglés y español; galería Add Widget con nombres y descripciones localizados.
+
+- **📧 Ejecución de tareas externas vía enlace de email**
+  - **Flujo sin autenticación**: Usuarios externos pueden ejecutar tareas (como reconocimiento de síntomas) a través de enlaces temporales enviados por email, sin necesidad de iniciar sesión. *(Integración OSS — MIOT-0.3.0)*
+  - **Arquitectura genérica**: Dispatcher de tareas extensible con `acknowledge` como primer handler. El token se valida y la acción se ejecuta automáticamente al cargar la página, mostrando estados de carga, completado, expirado o error.
+  - **Integración con N8N**: El handler realiza un POST al webhook de N8N con autenticación OAuth2 de StreamHub.
+
+- **⏱️ Scheduler de reportes de urgencia por servicio individual**
+  - **Procesamiento individual**: Nuevo scheduler que procesa reportes de urgencia de forma individual por cada servicio configurado con `execution_mode = 'SINGLE'` en `report_group_items`. *(Integración OSS — MIOT-0.3.0)*
+  - **Control de temporalidad**: El primer envío se realiza solo cuando el viaje ha comenzado (`NOW() >= start_time`), con envíos posteriores según el intervalo configurado.
+  - **Gestión de estado**: Actualización automática de `last_run` y `next_run` por item, con retry y backoff exponencial para resiliencia ante errores de conectividad.
+
+## 🔧 Integraciones
+
+- **📡 Enrutamiento inteligente de señales GPS históricas**
+  - **Separación de tópicos Pulsar**: Las señales GPS con timestamp anterior al umbral configurable (`tracking.historic.time-offset`) se enrutan a un tópico dedicado (`asset-positions-historic`) para procesamiento con menor impacto en base de datos. *(Integración OSS — MIOT-0.3.0)*
+  - **Configuración flexible**: Umbral de tiempo configurable en formato Java Duration (`PT1H`, `PT24H`, `P7D`) vía variables de entorno.
+  - **Retrocompatibilidad**: El tópico de tiempo real mantiene su comportamiento existente sin cambios.
+
+## 📊 Beneficios
+
+- 🎬 **Evidencias multimedia enriquecidas**: Los operadores pueden visualizar videos timelapse directamente en el panel de evidencias, obteniendo contexto visual completo de los eventos sin salir de la vista geográfica.
+- 📊 **Dashboards más versátiles**: El nuevo dashlet Data List permite crear vistas de datos personalizadas con filtros, ordenamiento y KPIs, adaptándose a distintos casos de uso operativos.
+- 📧 **Operaciones externas simplificadas**: Los usuarios externos pueden completar tareas con un solo clic desde su email, eliminando la fricción de autenticación para acciones simples como reconocimiento de síntomas.
+- ⏱️ **Reportes de urgencia granulares**: El scheduler por servicio individual permite monitoreo y notificaciones más precisas por cada viaje configurado, mejorando la capacidad de respuesta ante situaciones críticas.
+- 📡 **Protección de base de datos**: La separación de señales GPS históricas reduce la carga en la base de datos de tiempo real, mejorando el rendimiento del tracking en vivo.
+- 🌐 **Localización completa**: Todos los componentes nuevos (filmstrip, Data List, tareas externas) incluyen soporte i18n para inglés y español.
+- 🏗️ **Arquitectura extensible**: Los patrones implementados (dispatcher de tareas, proxy de video, SWR con validación Zod) son reutilizables para futuras funcionalidades.
+
+## 📌 Conclusión
+
+La versión 1.28.0 representa una expansión significativa de las capacidades multimedia, de dashboard y de interacción externa de la plataforma ModularIoT. La integración de video timelapse en el visor de evidencias transforma la experiencia de análisis de eventos, permitiendo a los operadores acceder a grabaciones de cámara directamente desde la vista geográfica sin interrumpir su flujo de trabajo.
+
+El sistema de dashboards se fortalece con el nuevo dashlet Data List, que ofrece una forma flexible de visualizar datos operativos con filtros, ordenamiento y métricas KPI. En paralelo, la habilitación de tareas externas vía email abre la plataforma a usuarios que no requieren credenciales, simplificando procesos como el reconocimiento de síntomas.
+
+A nivel de infraestructura, el scheduler de reportes individuales y el enrutamiento inteligente de señales GPS mejoran tanto la granularidad del monitoreo como la eficiencia del procesamiento de datos en tiempo real, preparando la plataforma para escalar con mayor volumen de dispositivos y servicios.

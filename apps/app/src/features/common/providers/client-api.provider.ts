@@ -1564,8 +1564,7 @@ export async function deactivateCalendarTimeWindow(
     validFrom: window.validFrom,
     validTo: window.validTo,
     daysOfWeek: window.daysOfWeek,
-    capacityPerSlot: window.capacityPerSlot,
-    slotDurationMinutes: window.slotDurationMinutes,
+    capacity: window.capacity,
     active: false,
   });
 }

@@ -10,12 +10,8 @@ export const TimeWindowResponseSchema = z.object({
   startHour: z.number().int().min(0).max(23),
   endHour: z.number().int().min(0).max(23),
   slotDurationMinutes: z.number(),
-  capacityPerSlot: z.number(),
-  daysOfWeek: z
-    .string()
-    .regex(/^[\d,-]+$/)
-    .min(1)
-    .nullish(),
+  capacity: z.number(),
+  daysOfWeek: z.string().regex(/^[\d,-]+$/).min(1).nullish(),
   validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   validTo: z
     .string()
@@ -87,7 +83,7 @@ export function apiToLocalTimeWindow(
       type: "daily-override",
       startTimestamp: startTs,
       endTimestamp: endTs,
-      quota: response.capacityPerSlot,
+      quota: response.capacity,
       color: "emerald",
     };
   }
@@ -105,7 +101,7 @@ export function apiToLocalTimeWindow(
     kind: "window",
     type: "weekly",
     weeklyPattern,
-    quota: response.capacityPerSlot,
+    quota: response.capacity,
     color: "emerald",
   };
 }
@@ -137,8 +133,7 @@ export function localToApiTimeWindow(
       validFrom: dateStr,
       validTo: dateStr,
       daysOfWeek: String(formatDay),
-      capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 30,
+      capacity: slot.quota ?? 1,
       active: true,
     };
   }
@@ -154,8 +149,7 @@ export function localToApiTimeWindow(
       endHour: 17,
       validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
       daysOfWeek: "1,2,3,4,5",
-      capacityPerSlot: slot.quota ?? 1,
-      slotDurationMinutes: 30,
+      capacity: slot.quota ?? 1,
       active: true,
     };
   }
@@ -171,8 +165,7 @@ export function localToApiTimeWindow(
     endHour,
     validFrom: validFrom ?? dayjs().format("YYYY-MM-DD"),
     daysOfWeek: days.join(","),
-    capacityPerSlot: slot.quota ?? 1,
-    slotDurationMinutes: 30,
+    capacity: slot.quota ?? 1,
     active: true,
   };
 }

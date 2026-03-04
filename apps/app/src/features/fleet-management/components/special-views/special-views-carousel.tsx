@@ -1,0 +1,83 @@
+"use client";
+
+import { useState, useCallback, useMemo } from "react";
+import type { SpecialView } from "../../types/fleet.types";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import SpecialViewCard from "./special-view-card";
+
+const CARDS_PER_PAGE = 3;
+
+interface SpecialViewsCarouselProps {
+  readonly views: SpecialView[];
+  readonly dict: I18nRecord;
+}
+
+export default function SpecialViewsCarousel({
+  views,
+  dict,
+}: SpecialViewsCarouselProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const pages = useMemo(() => {
+    const result: SpecialView[][] = [];
+    for (let i = 0; i < views.length; i += CARDS_PER_PAGE) {
+      result.push(views.slice(i, i + CARDS_PER_PAGE));
+    }
+    return result;
+  }, [views]);
+
+  const pageCount = Math.max(1, pages.length);
+
+  const goToSlide = useCallback((index: number) => {
+    setActiveIndex(index);
+  }, []);
+
+  const safeIndex = Math.min(activeIndex, pageCount - 1);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        {tr("specialViews.title", dict)}
+      </h2>
+      <div className="overflow-hidden">
+        <div
+          className="flex transition-transform duration-300 ease-in-out"
+          style={{
+            width: `${pageCount * 100}%`,
+            transform: `translateX(-${(safeIndex * 100) / pageCount}%)`,
+          }}
+        >
+          {pages.map((page) => (
+            <div
+              key={`page-${page[0].id}`}
+              style={{ width: `${100 / pageCount}%` }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-3 px-0.5"
+            >
+              {page.map((view) => (
+                <SpecialViewCard key={view.id} view={view} dict={dict} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      {pages.length > 1 && (
+        <div className="flex justify-center gap-1.5">
+          {pages.map((page, index) => (
+            <button
+              key={`dot-${page[0].id}`}
+              type="button"
+              onClick={() => goToSlide(index)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                index === activeIndex
+                  ? "bg-blue-600 dark:bg-blue-400"
+                  : "bg-gray-300 dark:bg-gray-600"
+              }`}
+              aria-label={tr("specialViews.goToSlide", dict, { number: String(index + 1) })}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -29,12 +29,12 @@ function FilmstripFrame({
   index,
   setSelected,
   dictionary,
-}: {
+}: Readonly<{
   image: string;
   index: number;
   setSelected: (index: number) => void;
   dictionary?: I18nRecord;
-}) {
+}>) {
   return (
     <div className="flex items-stretch px-1 py-2">
       <SprocketStrip />
@@ -91,12 +91,10 @@ function formatDuration(seconds: number): string {
 function VideoFilmstripFrame({
   timelapse,
   onOpenViewer,
-  dictionary,
-}: {
+}: Readonly<{
   timelapse: TimelapseData;
   onOpenViewer: () => void;
-  dictionary?: I18nRecord;
-}) {
+}>) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -116,7 +114,13 @@ function VideoFilmstripFrame({
     <div className="flex items-stretch px-1 py-2">
       <SprocketStrip />
       <div className="flex-1 mx-1 relative overflow-hidden border border-gray-300 dark:border-gray-600 rounded-sm bg-gray-200 dark:bg-gray-800">
-        <div className="relative w-full aspect-[4/3] cursor-pointer" onClick={togglePlay}>
+        <div
+          className="relative w-full aspect-[4/3] cursor-pointer"
+          role="button"
+          tabIndex={0}
+          onClick={togglePlay}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePlay(); } }}
+        >
           <video
             ref={videoRef}
             src={timelapse.proxyStreamUrl}
@@ -170,6 +174,11 @@ function VideoFilmstripFrame({
       <SprocketStrip />
     </div>
   );
+}
+
+function scrollIndicatorOpacity(open: boolean, canScrollDown: boolean): string {
+  if (!open) return "duration-100 opacity-0";
+  return canScrollDown ? "opacity-100 duration-500" : "duration-300 opacity-0";
 }
 
 export default function ImageSelector({
@@ -231,7 +240,6 @@ export default function ImageSelector({
             <VideoFilmstripFrame
               timelapse={timelapse}
               onOpenViewer={() => setShowVideoViewer(true)}
-              dictionary={dictionary}
             />
           )}
           {images.map((image, index) => (
@@ -260,7 +268,7 @@ export default function ImageSelector({
 
       {/* Scroll indicator */}
       <div
-        className={`absolute bottom-5 z-[2] pointer-events-none transition-all ${open ? "left-[140px]" : "left-0"} ${open ? (canScrollDown ? "opacity-100 duration-500" : "duration-300 opacity-0") : "duration-100 opacity-0"}`}
+        className={`absolute bottom-5 z-[2] pointer-events-none transition-all ${open ? "left-[140px]" : "left-0"} ${scrollIndicatorOpacity(open, canScrollDown)}`}
       >
         <div className="animate-bounce text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-full px-2 py-1 shadow border border-gray-300 dark:border-gray-600">
           ↓

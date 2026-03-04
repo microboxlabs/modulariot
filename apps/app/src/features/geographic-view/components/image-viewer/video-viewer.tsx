@@ -48,6 +48,7 @@ export default function VideoViewer({
             controls
             autoPlay
             playsInline
+            muted
             className="w-full h-full object-contain"
           />
         </div>

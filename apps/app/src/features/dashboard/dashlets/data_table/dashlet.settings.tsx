@@ -29,7 +29,12 @@ import {
   defaultSort,
   normalizeFilterConfig,
 } from "./dashlet";
-import { SettingsTextField, SettingsSelectField } from "../common";
+import {
+  SettingsTextField,
+  SettingsSelectField,
+  getHandlebarsStatus,
+  getFlowbiteColor,
+} from "../common";
 import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
@@ -179,7 +184,7 @@ export function DashletSettings({
 
       const detected: ColumnItem[] = Object.keys(rows[0]).map((key, i) => ({
         _id: `col-${Date.now()}-${i}`,
-        key,
+        key: `{{row.${key}}}`,
         label: humanizeKey(key),
         type: "text" as const,
       }));
@@ -478,6 +483,7 @@ export function DashletSettings({
                           onChange={(e) =>
                             updateColumn(col._id, "key", e.target.value)
                           }
+                          color={getFlowbiteColor(getHandlebarsStatus(col.key))}
                         />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -488,6 +494,7 @@ export function DashletSettings({
                           onChange={(e) =>
                             updateColumn(col._id, "label", e.target.value)
                           }
+                          color={getFlowbiteColor(getHandlebarsStatus(col.label))}
                         />
                       </div>
                       <div className="w-24 shrink-0">

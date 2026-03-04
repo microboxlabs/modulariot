@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import Handlebars from "handlebars";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useDashboard } from "../../context/dashboard-context";
@@ -62,13 +63,13 @@ export interface DashletConfig {
 // ============================================================================
 
 export const defaultColumns: TableColumn[] = [
-  { key: "vehicle", label: "Vehículo", type: "text" },
-  { key: "client", label: "Cliente", type: "text" },
-  { key: "km", label: "KM Totales", type: "highlight" },
-  { key: "system", label: "Sistema", type: "text" },
-  { key: "status", label: "Estado", type: "badge" },
-  { key: "alert", label: "Tipo de Alerta", type: "text" },
-  { key: "duration", label: "Duración", type: "text" },
+  { key: "{{row.vehicle}}", label: "Vehículo", type: "text" },
+  { key: "{{row.client}}", label: "Cliente", type: "text" },
+  { key: "{{row.km}}", label: "KM Totales", type: "highlight" },
+  { key: "{{row.system}}", label: "Sistema", type: "text" },
+  { key: "{{row.status}}", label: "Estado", type: "badge" },
+  { key: "{{row.alert}}", label: "Tipo de Alerta", type: "text" },
+  { key: "{{row.duration}}", label: "Duración", type: "text" },
 ];
 
 export const defaultRows: Record<string, string>[] = [
@@ -112,7 +113,7 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  items: [{ column: "status", label: "Estado:" }],
+  items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
 /**
@@ -149,7 +150,7 @@ export function normalizeFilterConfig(raw: unknown): FilterConfig {
 
 export const defaultSort: SortConfig = {
   enabled: true,
-  columns: ["status", "system", "duration"],
+  columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
 };
 
 export const defaultConfig: DashletConfig = {
@@ -164,6 +165,19 @@ export const defaultConfig: DashletConfig = {
   filter: defaultFilter,
   sort: defaultSort,
 };
+
+/**
+ * Extract the data property name from a column key.
+ * - `{{row.origin}}`  → `"origin"`
+ * - `{{origin}}`      → `"origin"`
+ * - `origin`          → `"origin"` (plain text — used for sort/filter lookup)
+ * Returns `null` for complex templates like `{{a}} - {{b}}`.
+ */
+export function resolveDataProperty(key: string): string | null {
+  if (!key.includes("{{")) return key;
+  const match = key.match(/^\{\{(?:row\.)?(\w+)\}\}$/);
+  return match ? match[1] : null;
+}
 
 /** Build the fetch URL + init for PGREST data sources. */
 function buildDataFetchRequest(
@@ -448,9 +462,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     if (!filter.enabled) return {};
     const result: Record<string, string[]> = {};
     for (const item of filter.items) {
+      const prop = resolveDataProperty(item.column);
+      if (!prop) continue;
       const seen = new Set<string>();
       for (const row of allRows) {
-        const val = row[item.column];
+        const val = row[prop];
         if (val) seen.add(val);
       }
       result[item.column] = Array.from(seen);
@@ -475,17 +491,21 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     if (filter.enabled) {
       for (const item of filter.items) {
         const selected = filterValues[item.column];
-        if (selected) {
-          result = result.filter((row) => row[item.column] === selected);
+        const prop = resolveDataProperty(item.column);
+        if (selected && prop) {
+          result = result.filter((row) => row[prop] === selected);
         }
       }
     }
 
     if (sort.enabled && sortKey) {
-      result = [...result].sort((a, b) => {
-        const cmp = (a[sortKey] ?? "").localeCompare(b[sortKey] ?? "");
-        return sortDir === "asc" ? cmp : -cmp;
-      });
+      const sortProp = resolveDataProperty(sortKey);
+      if (sortProp) {
+        result = [...result].sort((a, b) => {
+          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
+          return sortDir === "asc" ? cmp : -cmp;
+        });
+      }
     }
 
     return result;
@@ -514,6 +534,68 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       setSortDir("asc");
     }
   };
+
+  // ── Handlebars template compilation ────────────────────────────────────────
+  // When col.key contains "{{", it is treated as a Handlebars template.
+  // Otherwise it is a plain property name and we fall back to row[col.key].
+  const compiledTemplates = useMemo(() => {
+    const map = new Map<string, Handlebars.TemplateDelegate>();
+    for (const col of columns) {
+      if (col.key.includes("{{")) {
+        try {
+          map.set(col.key, Handlebars.compile(col.key));
+        } catch {
+          // Invalid template — skip; resolveCellValue will fallback
+        }
+      }
+    }
+    return map;
+  }, [columns]);
+
+  const compiledLabels = useMemo(() => {
+    const map = new Map<string, Handlebars.TemplateDelegate>();
+    for (const col of columns) {
+      if (col.label.includes("{{")) {
+        try {
+          map.set(col.key, Handlebars.compile(col.label));
+        } catch {
+          // Invalid template — skip; header will show raw label
+        }
+      }
+    }
+    return map;
+  }, [columns]);
+
+  const resolveCellValue = useCallback(
+    (
+      row: Record<string, string>,
+      col: TableColumn,
+      rowIdx: number,
+      totalRows: number
+    ): string => {
+      const tpl = compiledTemplates.get(col.key);
+      if (!tpl) return col.key; // plain text → literal display
+      try {
+        return tpl({ row, ...row, _index: rowIdx, _count: totalRows });
+      } catch {
+        return col.key;
+      }
+    },
+    [compiledTemplates]
+  );
+
+  const resolveHeaderLabel = useCallback(
+    (col: TableColumn): string => {
+      const tpl = compiledLabels.get(col.key);
+      if (!tpl) return col.label;
+      try {
+        return tpl({ _count: displayRows.length });
+      } catch {
+        return col.label;
+      }
+    },
+    [compiledLabels, displayRows.length]
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -599,7 +681,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
                   >
-                    {col.label}
+                    {resolveHeaderLabel(col)}
                   </th>
                 ))}
               </tr>
@@ -625,7 +707,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         key={col.key}
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
-                        {renderCell(String(row[col.key] ?? ""), col.type)}
+                        {renderCell(
+                          resolveCellValue(row, col, rowIdx, displayRows.length),
+                          col.type
+                        )}
                       </td>
                     ))}
                   </tr>

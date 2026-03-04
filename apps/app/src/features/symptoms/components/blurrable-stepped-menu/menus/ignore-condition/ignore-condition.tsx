@@ -10,6 +10,7 @@ import { TiDelete } from "react-icons/ti";
 import { useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
+import ServiceInformation from "../service-information";
 
 export default function IgnoreCondition({
   dict,
@@ -63,49 +64,11 @@ export default function IgnoreCondition({
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-2">
       <div className=" w-full flex flex-col items-center  gap-3 flex-grow">
-        <div className="w-full flex flex-col gap-2">
-          <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-            {tr("symptoms.service_information", dict)}
-          </h1>
-          <div className="w-full grid grid-cols-2 gap-2">
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.driver_name", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.driver}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.vehicle_plate", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.asset_id}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.phone", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.driver_contact}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.service", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.symptom_info?.name}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.load_type", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {treatmentData?.trip_info?.type_load}
-              </span>
-            </p>
-            <p className="text-xs font-light text-gray-900 dark:text-gray-200">
-              {tr("symptoms.recommended_prescription", dict)}:{" "}
-              <span className="font-light text-gray-500 dark:text-gray-400">
-                {tr("symptoms.ignore_condition", dict)}
-              </span>
-            </p>
-          </div>
-        </div>
+        <ServiceInformation
+          dict={dict}
+          treatmentData={treatmentData}
+          prescriptionKey="symptoms.ignore_condition"
+        />
 
         <div className="w-full flex grid grid-cols-2 gap-2 mt-2">
           <div className="pr-2">

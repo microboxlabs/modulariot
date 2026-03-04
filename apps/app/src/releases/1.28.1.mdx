@@ -1,0 +1,37 @@
+# 🔔 Release Notes v1.28.1 — ModularIoT
+
+### Fecha: 04/03/2026
+
+**Objetivo**: Incorporar la opción de tratamiento "Invalidar Síntoma" al módulo de gestión de síntomas, permitiendo a los operadores invalidar síntomas con una razón obligatoria y notificar al sistema externo mediante webhook, junto con la corrección de superposición visual del modal de tratamientos.
+
+## 🚀 Evolutivos
+
+- **🚫 Invalidar Síntoma como nueva opción de tratamiento**
+  - **Modal de confirmación**: Nueva opción "Invalidar síntoma" en el menú desplegable de tratamientos, que abre un modal con información del servicio (conductor, vehículo, teléfono, servicio, tipo de carga, prescripción recomendada) y un campo de texto obligatorio para la razón de invalidación. *(Integración OSS — MIOT-0.3.1)*
+  - **Validación de razón**: El botón "Guardar y Confirmar" permanece deshabilitado hasta que el operador ingrese una razón. Se muestra un mensaje de validación cuando el campo está vacío.
+  - **Alerta de confirmación**: Cuadro de advertencia naranja que informa al usuario que la acción no se puede deshacer.
+  - **Integración con webhook**: Al confirmar, se crea el registro de tratamiento (`treatment_type: "invalidar sintoma"`) y se invoca `acknowledgeHandler` con `status_validation: "invalidated"` para notificar al sistema externo vía N8N.
+  - **Ruta API server-side**: Nuevo endpoint `/api/symptoms/invalidate` con autenticación, validación de razón obligatoria y manejo de errores estandarizado.
+  - **Localización**: Soporte i18n completo en inglés y español para todas las cadenas de texto del flujo de invalidación.
+
+## 🐛 Correcciones
+
+- **🖼️ Modal de tratamientos oculto tras el filmstrip**
+  - **Impacto**: El modal de tratamientos (z-index `60`) se renderizaba debajo del panel lateral filmstrip (z-index `700`), impidiendo la interacción del operador con el formulario de tratamiento.
+  - **Solución**: Se elevó el z-index del modal de tratamientos a `800`, alineándolo con la convención de otros modales de la aplicación (visor de imágenes/video).
+
+## 📊 Beneficios
+
+- 🚫 **Gestión completa del ciclo de vida de síntomas**: Los operadores pueden ahora invalidar síntomas directamente desde la plataforma, completando el conjunto de acciones disponibles junto con "Llamar al conductor" e "Ignorar condición".
+- 📝 **Trazabilidad de decisiones**: La razón obligatoria asegura que cada invalidación quede documentada, facilitando auditorías y revisiones posteriores.
+- 🔗 **Notificación automática al sistema externo**: El webhook con `status_validation: "invalidated"` permite que los sistemas downstream (N8N) reaccionen a la invalidación sin intervención manual.
+- 🖼️ **Modales siempre visibles**: La corrección de z-index garantiza que los formularios de tratamiento se muestren correctamente sobre todos los paneles laterales.
+- 🌐 **Experiencia bilingüe consistente**: Todas las cadenas de texto del nuevo flujo están disponibles en inglés y español.
+
+## 📌 Conclusión
+
+La versión 1.28.1 completa el conjunto de opciones de tratamiento del módulo de síntomas con la incorporación de "Invalidar Síntoma", una funcionalidad que permite a los operadores descartar síntomas no válidos proporcionando una justificación obligatoria. Esta acción se integra con el flujo de webhooks existente, notificando automáticamente al sistema externo mediante `acknowledgeHandler` con el campo `status_validation`.
+
+La corrección del z-index del modal de tratamientos resuelve un problema visual que impedía la interacción con los formularios cuando el panel filmstrip estaba presente, asegurando una experiencia de usuario consistente en todas las vistas de gestión de síntomas.
+
+Con esta entrega, la plataforma ofrece un ciclo de vida más completo para la gestión de síntomas, fortaleciendo tanto la capacidad operativa de los usuarios como la trazabilidad de las decisiones tomadas.

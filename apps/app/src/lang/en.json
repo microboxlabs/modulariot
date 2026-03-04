@@ -1385,6 +1385,7 @@
     "invalidate_reason": "Reason",
     "invalidate_reason_placeholder": "Explain why this symptom is being invalidated...",
     "invalidate_reason_required": "A reason is required to invalidate this symptom",
+    "invalidate_error": "Failed to invalidate symptom",
     "actions": "Actions",
     "management": "Management",
     "assigned_to": "Assigned to",

@@ -1412,6 +1412,7 @@
     "invalidate_reason": "Razón",
     "invalidate_reason_placeholder": "Explica por qué este síntoma está siendo invalidado...",
     "invalidate_reason_required": "Se requiere una razón para invalidar este síntoma",
+    "invalidate_error": "Error al invalidar el síntoma",
     "actions": "Acciones",
     "management": "Gestión",
     "assigned_to": "Encargado",

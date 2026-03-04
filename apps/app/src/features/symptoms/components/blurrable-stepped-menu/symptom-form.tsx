@@ -162,7 +162,7 @@ export default function SymptomForm({
       },
       component: (
         <InvalidateSymptom
-          dict={dict as I18nRecord}
+          dict={dict}
           treatmentData={treatmentData}
           reason={reason}
           setReason={setReason}

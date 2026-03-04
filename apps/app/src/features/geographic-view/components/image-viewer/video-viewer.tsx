@@ -1,7 +1,8 @@
 import { Button, Modal, ModalBody } from "flowbite-react";
 import { MdOutlineFileDownload } from "react-icons/md";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { downloadImage } from "../../utils/download-image";
+import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 const modalTheme = {
   root: {
@@ -54,10 +55,23 @@ export default function VideoViewer({
           <Button
             color="blue"
             onClick={async () => {
+              const filename = `timelapse-${new Date().toISOString().slice(0, 10)}.mp4`;
               try {
-                await downloadImage(videoUrl, dictionary);
+                const response = await fetch(videoUrl, { mode: "cors" });
+                if (!response.ok) throw new Error("Fetch failed");
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.download = filename;
+                link.href = blobUrl;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(blobUrl);
               } catch (error) {
-                console.error("Download error:", error);
+                logger.error({ err: error, videoUrl }, "Video download failed");
+                toast.error("Download failed — opening in a new tab");
+                window.open(videoUrl, "_blank");
               }
             }}
             pill

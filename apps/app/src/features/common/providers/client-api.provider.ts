@@ -3,7 +3,7 @@ import { z } from "zod";
 import useSWR from "swr";
 import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import fetcher from "./fetcher";
+import fetcher, { createFetcherError } from "./fetcher";
 import { safeJsonParse } from "./safe-json";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
@@ -18,7 +18,6 @@ import {
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
 import { FetcherError, FetcherErrorCode } from "./fetcher.types";
-import { createFetcherError } from "./fetcher";
 import {
   SymptomDashboard,
   SymptomTableResponse,

@@ -12,6 +12,7 @@ interface PgrestFunctionAutocompleteProps {
   onSelect: (functionName: string) => void;
   placeholder?: string;
   id?: string;
+  loading?: boolean;
 }
 
 export function PgrestFunctionAutocomplete({
@@ -20,6 +21,7 @@ export function PgrestFunctionAutocomplete({
   onSelect,
   placeholder = "api_modular_my_function",
   id,
+  loading = false,
 }: Readonly<PgrestFunctionAutocompleteProps>) {
   const [allFunctions, setAllFunctions] = useState<string[] | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -147,7 +149,13 @@ export function PgrestFunctionAutocomplete({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
+        disabled={loading}
       />
+      {loading && (
+        <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-gray-600 dark:border-t-blue-400" />
+        </div>
+      )}
       {isOpen && (
         <ul
           ref={dropdownRef}

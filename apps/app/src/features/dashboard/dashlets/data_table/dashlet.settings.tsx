@@ -3,14 +3,13 @@
 import { useState } from "react";
 import {
   Button,
-  Spinner,
   TextInput,
   Textarea,
   Label,
   ToggleSwitch,
   Select,
 } from "flowbite-react";
-import { HiMagnifyingGlass, HiPlus, HiTrash } from "react-icons/hi2";
+import { HiPlus, HiTrash } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
@@ -155,16 +154,19 @@ export function DashletSettings({
   const [introspectError, setIntrospectError] = useState<string | null>(null);
   const [paramHints, setParamHints] = useState<Record<string, string>>({});
 
-  const canDetectColumns =
-    dataMode === "pgrest" && pgrestFunctionName.trim() !== "";
-
-  const detectColumns = async () => {
+  const detectColumns = async (
+    fnOverride?: string,
+    methodOverride?: PgrestHttpMethod,
+    paramsOverride?: PgrestParam[],
+  ) => {
     setDetecting(true);
     setDetectError(null);
 
     try {
       const { url, init } = buildPgrestFetch(
-        pgrestFunctionName, pgrestHttpMethod, pgrestParams
+        fnOverride ?? pgrestFunctionName,
+        methodOverride ?? pgrestHttpMethod,
+        paramsOverride ?? pgrestParams,
       );
 
       const res = await fetch(url, init);
@@ -203,7 +205,7 @@ export function DashletSettings({
 
   const introspectFunction = async (fnOverride?: string) => {
     const fn = (fnOverride ?? pgrestFunctionName).trim();
-    if (!fn) return;
+    if (!fn) return null;
 
     setIntrospecting(true);
     setIntrospectError(null);
@@ -225,8 +227,9 @@ export function DashletSettings({
       };
 
       // Auto-set HTTP method to first available
+      const method = (data.methods[0] as PgrestHttpMethod) ?? pgrestHttpMethod;
       if (data.methods.length > 0) {
-        setPgrestHttpMethod(data.methods[0] as PgrestHttpMethod);
+        setPgrestHttpMethod(method);
       }
 
       // Replace parameters with introspected ones
@@ -244,12 +247,22 @@ export function DashletSettings({
         hints[p.name] = p.format;
       }
       setParamHints(hints);
+
+      return { method, params: newParams as PgrestParam[] };
     } catch (err: unknown) {
       setIntrospectError(
         err instanceof Error ? err.message : "Introspection failed"
       );
+      return null;
     } finally {
       setIntrospecting(false);
+    }
+  };
+
+  const handleFunctionSelect = async (fn: string) => {
+    const result = await introspectFunction(fn);
+    if (result) {
+      await detectColumns(fn, result.method, result.params);
     }
   };
 
@@ -453,31 +466,7 @@ export function DashletSettings({
 
               {/* Columns editor */}
               <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <Label className="text-sm font-medium">{tr("dashboard.settings.columns", dictionary)}</Label>
-                  {canDetectColumns && (
-                    <Button
-                      color="light"
-                      size="xs"
-                      disabled={detecting}
-                      onClick={detectColumns}
-                      onMouseDown={handleMouseDown}
-                      className="no-drag"
-                    >
-                      {detecting ? (
-                        <Spinner size="xs" className="mr-1" />
-                      ) : (
-                        <HiMagnifyingGlass className="mr-1 h-3 w-3" />
-                      )}
-                      {tr("dashboard.settings.detectColumns", dictionary)}
-                    </Button>
-                  )}
-                </div>
-                {detectError && (
-                  <p className="mb-1.5 text-xs text-red-500 dark:text-red-400">
-                    {detectError}
-                  </p>
-                )}
+                <Label className="mb-1.5 block text-sm font-medium">{tr("dashboard.settings.columns", dictionary)}</Label>
                 <div className="space-y-1.5">
                   {columns.map((col) => (
                     <div key={col._id} className="flex items-center gap-1">
@@ -709,40 +698,22 @@ export function DashletSettings({
               {dataMode === "pgrest" && (
                 <>
                   <div>
-                    <div className="mb-1 flex items-center justify-between">
-                      <Label
-                        htmlFor="dt-pgrest-fn"
-                        className="text-sm font-medium"
-                      >
-                        {tr("dashboard.settings.functionName", dictionary)}
-                      </Label>
-                      {pgrestFunctionName.trim() && (
-                        <Button
-                          color="light"
-                          size="xs"
-                          disabled={introspecting}
-                          onClick={() => introspectFunction()}
-                          onMouseDown={handleMouseDown}
-                          className="no-drag"
-                        >
-                          {introspecting ? (
-                            <Spinner size="xs" className="mr-1" />
-                          ) : (
-                            <HiMagnifyingGlass className="mr-1 h-3 w-3" />
-                          )}
-                          {tr("dashboard.settings.introspect", dictionary)}
-                        </Button>
-                      )}
-                    </div>
+                    <Label
+                      htmlFor="dt-pgrest-fn"
+                      className="mb-1 block text-sm font-medium"
+                    >
+                      {tr("dashboard.settings.functionName", dictionary)}
+                    </Label>
                     <PgrestFunctionAutocomplete
                       id="dt-pgrest-fn"
                       value={pgrestFunctionName}
                       onChange={setPgrestFunctionName}
-                      onSelect={(fn) => introspectFunction(fn)}
+                      onSelect={handleFunctionSelect}
+                      loading={introspecting || detecting}
                     />
-                    {introspectError && (
+                    {(introspectError || detectError) && (
                       <p className="mt-1 text-xs text-red-500 dark:text-red-400">
-                        {introspectError}
+                        {introspectError || detectError}
                       </p>
                     )}
                   </div>

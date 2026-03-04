@@ -56,6 +56,8 @@ import type {
   BookingRequest,
   BookingResponse,
   BookingListResponse,
+  SlotResponse,
+  SlotListResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
 
@@ -1568,6 +1570,41 @@ export async function deactivateCalendarTimeWindow(
     capacity: window.capacity,
     active: false,
   });
+}
+
+// ============================================================================
+// Calendar Slots Hook
+// ============================================================================
+
+const EMPTY_SLOTS: SlotResponse[] = [];
+
+/**
+ * Fetch slots for a specific calendar and date from the miot-calendar-client backend.
+ * Returns null SWR key (no fetch) when calendarId or date is missing.
+ */
+export function useCalendarSlots(
+  calendarId: string | null,
+  date: string | null
+) {
+  const url =
+    calendarId && date
+      ? `/app/api/calendar/slots?calendarId=${calendarId}&startDate=${date}&endDate=${date}`
+      : null;
+
+  const { data, error, isLoading, mutate } = useSWR<
+    SlotListResponse,
+    FetcherError
+  >(url, fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+
+  return {
+    slots: data?.data ?? EMPTY_SLOTS,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
 }
 
 // ============================================================================

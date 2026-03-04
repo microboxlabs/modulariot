@@ -21,6 +21,7 @@ import { HiCheck, HiChevronDown, HiExclamation } from "react-icons/hi";
 import { categorizeIncidencias } from "./incidencias.types";
 import { ShowNotification } from "@/features/notifications/notification";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import type { SlotResponse } from "@microboxlabs/miot-calendar-client";
 
 /** Time slot with availability information */
 interface TimeSlotOption {
@@ -43,67 +44,10 @@ interface PlanningSidebarFormProps {
   readonly slotStartTime?: string;
   /** Slot end time in HH:mm format */
   readonly slotEndTime?: string;
-  /** Quota for the time window (total capacity for the window) */
-  readonly windowQuota?: number;
-  /** Number of base slots in the time window */
-  readonly windowBaseSlots?: number;
-}
-
-/**
- * Generate time options with subdivisions based on quota and andenes
- *
- * Logic:
- * - Each slot (30 min) can be subdivided to accommodate more services
- * - Number of subdivisions = ceil(servicesPerSlot / andenesCount)
- * - Each subdivision can hold up to `andenesCount` services simultaneously
- *
- * @param startHour - Start hour of the slot
- * @param startMinutes - Start minutes of the slot
- * @param endHour - End hour of the slot
- * @param endMinutes - End minutes of the slot
- * @param subdivisions - Number of time subdivisions within the slot (default 1)
- * @param totalAndenes - Total number of andenes configured
- * @param occupiedSlots - Map of time -> occupied andenes count (for future use)
- */
-function generateTimeSlotOptions(
-  startHour: number,
-  startMinutes: number,
-  endHour: number,
-  endMinutes: number,
-  subdivisions: number = 1,
-  totalAndenes: number = 1,
-  occupiedSlots: Map<string, number> = new Map()
-): TimeSlotOption[] {
-  const options: TimeSlotOption[] = [];
-
-  const startInMinutes = startHour * 60 + startMinutes;
-  const endInMinutes = endHour * 60 + endMinutes;
-  const totalMinutes = endInMinutes - startInMinutes;
-
-  // Calculate interval between each time option
-  const intervalMinutes = Math.max(1, Math.floor(totalMinutes / subdivisions));
-
-  let currentMinutes = startInMinutes;
-
-  while (currentMinutes < endInMinutes) {
-    const hour = Math.floor(currentMinutes / 60);
-    const mins = currentMinutes % 60;
-    const time = `${hour.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
-
-    const occupied = occupiedSlots.get(time) ?? 0;
-    const availableAndenes = Math.max(0, totalAndenes - occupied);
-
-    options.push({
-      time,
-      totalAndenes,
-      availableAndenes,
-      isFullyOccupied: availableAndenes === 0,
-    });
-
-    currentMinutes += intervalMinutes;
-  }
-
-  return options;
+  /** Backend slot data for the selected date */
+  readonly backendSlots?: SlotResponse[];
+  /** Whether backend slots are currently loading */
+  readonly isSlotsLoading?: boolean;
 }
 
 export function PlanningSidebarForm({
@@ -114,8 +58,8 @@ export function PlanningSidebarForm({
   andenesCount = 1,
   slotStartTime,
   slotEndTime,
-  windowQuota = 1,
-  windowBaseSlots = 1,
+  backendSlots,
+  isSlotsLoading = false,
 }: PlanningSidebarFormProps) {
   const [showAllIncidencias, setShowAllIncidencias] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -161,65 +105,48 @@ export function PlanningSidebarForm({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Calculate subdivisions based on quota, base slots, and andenes
-  // windowQuota is the TOTAL capacity for the entire time window
-  // Each base slot gets (windowQuota / windowBaseSlots) services
-  // Each subdivision can handle `andenesCount` services simultaneously
-  // So subdivisions per slot = ceil((windowQuota / windowBaseSlots) / andenesCount)
-  const subdivisions = useMemo(() => {
-    if (andenesCount <= 0 || windowQuota <= 0 || windowBaseSlots <= 0) return 1;
-    // Services that this slot needs to handle
-    const servicesPerSlot = windowQuota / windowBaseSlots;
-    // Each subdivision can handle `andenesCount` services simultaneously
-    return Math.max(1, Math.ceil(servicesPerSlot / andenesCount));
-  }, [andenesCount, windowQuota, windowBaseSlots]);
-
-  // Generate time options based on the slot start and end times with subdivisions
-  // Include actual occupied andenes for each time slot
+  // Build time options from backend slots, filtered to the visible cell range [slotStartTime, slotEndTime)
   const timeOptions = useMemo(() => {
-    if (!slotStartTime || !slotEndTime || !selectedSlot) return [];
+    if (!slotStartTime || !slotEndTime || !selectedSlot || !backendSlots)
+      return [];
 
     const [startHour, startMinutes] = slotStartTime.split(":").map(Number);
     const [endHour, endMinutes] = slotEndTime.split(":").map(Number);
-
-    // Build occupied slots map from actual data
-    const occupiedSlots = new Map<string, number>();
-
-    // Calculate time intervals
     const startInMinutes = startHour * 60 + startMinutes;
     const endInMinutes = endHour * 60 + endMinutes;
-    const totalMinutes = endInMinutes - startInMinutes;
-    const intervalMinutes = Math.max(
-      1,
-      Math.floor(totalMinutes / subdivisions)
-    );
 
-    // For each potential time slot, check occupied andenes
-    let currentMinutes = startInMinutes;
-    while (currentMinutes < endInMinutes) {
-      const hour = Math.floor(currentMinutes / 60);
-      const mins = currentMinutes % 60;
-      const time = `${hour.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
-
-      const occupied = getOccupiedAndenes(selectedSlot.date, hour, mins);
-      occupiedSlots.set(time, occupied.length);
-
-      currentMinutes += intervalMinutes;
-    }
-
-    return generateTimeSlotOptions(
-      startHour,
-      startMinutes,
-      endHour,
-      endMinutes,
-      subdivisions,
-      andenesCount,
-      occupiedSlots
-    );
+    return backendSlots
+      .filter((slot) => {
+        const slotMinutes = slot.slotHour * 60 + slot.slotMinutes;
+        return slotMinutes >= startInMinutes && slotMinutes < endInMinutes;
+      })
+      .map((slot): TimeSlotOption => {
+        const time = `${slot.slotHour.toString().padStart(2, "0")}:${slot.slotMinutes.toString().padStart(2, "0")}`;
+        const localOccupied = getOccupiedAndenes(
+          selectedSlot.date,
+          slot.slotHour,
+          slot.slotMinutes
+        );
+        const availableAndenes = Math.max(
+          0,
+          Math.min(
+            andenesCount - localOccupied.length,
+            slot.availableCapacity
+          )
+        );
+        return {
+          time,
+          totalAndenes: andenesCount,
+          availableAndenes,
+          isFullyOccupied:
+            slot.availableCapacity <= 0 ||
+            localOccupied.length >= andenesCount,
+        };
+      });
   }, [
     slotStartTime,
     slotEndTime,
-    subdivisions,
+    backendSlots,
     andenesCount,
     selectedSlot,
     getOccupiedAndenes,
@@ -564,7 +491,21 @@ export function PlanningSidebarForm({
       </FormSection>
 
       {/* Time & Andenes Selection */}
-      {timeOptions.length > 0 && (
+      {isSlotsLoading && (
+        <FormSection title="Asignación de horario">
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+            Cargando turnos...
+          </p>
+        </FormSection>
+      )}
+      {!isSlotsLoading && backendSlots && backendSlots.length > 0 && timeOptions.length === 0 && (
+        <FormSection title="Asignación de horario">
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+            No hay turnos disponibles en este horario
+          </p>
+        </FormSection>
+      )}
+      {!isSlotsLoading && timeOptions.length > 0 && (
         <FormSection title="Asignación de horario">
           <div className="space-y-3">
             {/* Service Category Dropdown */}

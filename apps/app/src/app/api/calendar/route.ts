@@ -13,6 +13,7 @@ const CalendarRequestSchema = z.object({
   description: z.string().optional(),
   timezone: z.string().optional(),
   active: z.boolean().optional(),
+  parallelism: z.number().int().min(1).optional(),
   groups: z.array(z.string()).optional(),
   autoSlotManager: z.boolean().optional(),
 });

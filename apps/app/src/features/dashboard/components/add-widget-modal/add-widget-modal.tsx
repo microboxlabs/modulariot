@@ -12,6 +12,8 @@ import {
   type DashletMeta,
 } from "../../dashlets";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface AddWidgetModalProps {
   isOpen: boolean;
@@ -32,7 +34,7 @@ export function AddWidgetModal({
   parentId,
   parentComponentId,
 }: Readonly<AddWidgetModalProps>) {
-  const { createWidget } = useDashboard();
+  const { createWidget, dictionary } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Get valid dashlets for this parent
@@ -41,16 +43,16 @@ export function AddWidgetModal({
     [parentComponentId]
   );
 
-  // Filter by search query
+  // Filter by search query (resolve i18n keys for matching)
   const filteredDashlets = useMemo(() => {
     if (!searchQuery.trim()) return validDashlets;
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
     return validDashlets.filter(
       (d) =>
-        d.meta.name.toLowerCase().includes(query) ||
-        d.meta.description.toLowerCase().includes(query)
+        resolveMetaString(d.meta.name, dictionary).toLowerCase().includes(query) ||
+        resolveMetaString(d.meta.description, dictionary).toLowerCase().includes(query)
     );
-  }, [validDashlets, searchQuery]);
+  }, [validDashlets, searchQuery, dictionary]);
 
   // Group by category
   const categories = useMemo(() => {
@@ -116,6 +118,7 @@ export function AddWidgetModal({
                     <DashletOption
                       key={dashlet.meta.id}
                       meta={dashlet.meta}
+                      dictionary={dictionary}
                       onSelect={() => handleSelect(dashlet.meta.id)}
                     />
                   ))}
@@ -131,16 +134,30 @@ export function AddWidgetModal({
   return createPortal(modalContent, document.body);
 }
 
+/**
+ * Resolve a dashlet meta string through i18n.
+ * If the value is a dotted i18n key path that resolves in the dictionary,
+ * the translated string is returned; otherwise the raw value is used as-is.
+ */
+function resolveMetaString(value: string, dictionary: I18nRecord): string {
+  const resolved = tr(value, dictionary);
+  // tr() returns the path itself when the key is not found
+  return resolved === value ? value : resolved;
+}
+
 interface DashletOptionProps {
   meta: DashletMeta;
+  dictionary: I18nRecord;
   onSelect: () => void;
 }
 
 /**
  * Single dashlet option in the selector grid
  */
-function DashletOption({ meta, onSelect }: Readonly<DashletOptionProps>) {
+function DashletOption({ meta, dictionary, onSelect }: Readonly<DashletOptionProps>) {
   const Icon = meta.icon;
+  const name = resolveMetaString(meta.name, dictionary);
+  const description = resolveMetaString(meta.description, dictionary);
 
   return (
     <button
@@ -152,10 +169,10 @@ function DashletOption({ meta, onSelect }: Readonly<DashletOptionProps>) {
       <Icon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
       <div className="flex flex-col">
         <span className="text-sm font-medium text-left text-gray-900 dark:text-white">
-          {meta.name}
+          {name}
         </span>
         <span className="mt-1 text-xs text-left text-gray-500 dark:text-gray-400">
-          {meta.description}
+          {description}
         </span>
       </div>
     </button>

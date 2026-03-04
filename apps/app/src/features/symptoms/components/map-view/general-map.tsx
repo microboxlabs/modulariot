@@ -251,6 +251,7 @@ export default function GeneralMap({
             selectedTreatmentIndex={selectedTreatmentIndex ?? null}
             setSelectedTreatment={setSelectedTreatment}
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
+            licensePlate={treatmentData?.trip_info?.asset_id ?? null}
           />
         </div>
       </div>

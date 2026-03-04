@@ -3,7 +3,7 @@ import { z } from "zod";
 import useSWR from "swr";
 import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import fetcher from "./fetcher";
+import fetcher, { createFetcherError } from "./fetcher";
 import { safeJsonParse } from "./safe-json";
 import { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
@@ -17,7 +17,7 @@ import {
   StatisticsTasksResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { GetEntityInfoResponse } from "./microboxlabs-api/microboxlabs-api.types";
-import { FetcherError } from "./fetcher.types";
+import { FetcherError, FetcherErrorCode } from "./fetcher.types";
 import {
   SymptomDashboard,
   SymptomTableResponse,
@@ -58,8 +58,6 @@ import type {
   BookingListResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
-
-
 
 export function useMyTasks(
   columns: string[],
@@ -1377,12 +1375,19 @@ const EMPTY_CALENDARS: CalendarResponse[] = [];
  * Hook to fetch all active calendars (with their groups)
  */
 export function useCalendars() {
-  const { data, error, isLoading, mutate } = useSWR<CalendarResponse[], FetcherError>(
-    "/app/api/calendar",
-    fetcher,
-    { errorRetryCount: 3, errorRetryInterval: 5000 }
-  );
-  return { calendars: data ?? EMPTY_CALENDARS, error, isLoading, refresh: mutate };
+  const { data, error, isLoading, mutate } = useSWR<
+    CalendarResponse[],
+    FetcherError
+  >("/app/api/calendar", fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
+  return {
+    calendars: data ?? EMPTY_CALENDARS,
+    error,
+    isLoading,
+    refresh: mutate,
+  };
 }
 
 /**
@@ -1393,7 +1398,9 @@ export function useCalendarsInGroup(groupCode: string | null) {
   const filtered = useMemo(
     () =>
       groupCode
-        ? calendars.filter((cal) => cal.groups?.some((g) => g.code === groupCode))
+        ? calendars.filter((cal) =>
+            cal.groups?.some((g) => g.code === groupCode)
+          )
         : EMPTY_CALENDARS,
     [calendars, groupCode]
   );
@@ -1406,35 +1413,51 @@ const EMPTY_GROUPS: CalendarGroupResponse[] = [];
  * Hook to fetch all active calendar groups
  */
 export function useCalendarGroups() {
-  const { data, error, isLoading, mutate } = useSWR<CalendarGroupResponse[], FetcherError>(
-    "/app/api/calendar/groups",
-    fetcher,
-    { errorRetryCount: 3, errorRetryInterval: 5000 }
-  );
+  const { data, error, isLoading, mutate } = useSWR<
+    CalendarGroupResponse[],
+    FetcherError
+  >("/app/api/calendar/groups", fetcher, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+  });
   return { groups: data ?? EMPTY_GROUPS, error, isLoading, refresh: mutate };
 }
 
-async function parseErrorBody(response: Response, fallback: string): Promise<string> {
+async function throwApiError(
+  response: Response,
+  fallback: string
+): Promise<never> {
   const text = await response.text().catch(() => "");
+  let message: string;
+  let info: string | null = null;
   try {
     const json = JSON.parse(text) as { error?: string };
-    return `[${response.status}] ${json.error ?? fallback}`;
+    message = `[${response.status}] ${json.error ?? fallback}`;
+    info = text;
   } catch {
-    return `[${response.status}] ${text || fallback}`;
+    message = `[${response.status}] ${text || fallback}`;
+    info = text || null;
   }
+  const code =
+    response.status >= 500
+      ? FetcherErrorCode.SERVER_ERROR
+      : FetcherErrorCode.CLIENT_ERROR;
+  throw createFetcherError(message, response.status, code, info);
 }
 
 /**
  * Create a new calendar group
  */
-export async function createCalendarGroup(body: CalendarGroupRequest): Promise<CalendarGroupResponse> {
+export async function createCalendarGroup(
+  body: CalendarGroupRequest
+): Promise<CalendarGroupResponse> {
   const response = await fetch("/app/api/calendar/groups", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(await parseErrorBody(response, "Failed to create calendar group"));
+    await throwApiError(response, "Failed to create calendar group");
   }
   return response.json();
 }
@@ -1442,14 +1465,16 @@ export async function createCalendarGroup(body: CalendarGroupRequest): Promise<C
 /**
  * Create a new calendar
  */
-export async function createCalendar(body: CalendarRequest): Promise<CalendarResponse> {
+export async function createCalendar(
+  body: CalendarRequest
+): Promise<CalendarResponse> {
   const response = await fetch("/app/api/calendar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(await parseErrorBody(response, "Failed to create calendar"));
+    await throwApiError(response, "Failed to create calendar");
   }
   return response.json();
 }
@@ -1498,7 +1523,7 @@ export async function createCalendarTimeWindow(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(await parseErrorBody(response, "Failed to create time window"));
+    await throwApiError(response, "Failed to create time window");
   }
   return response.json();
 }
@@ -1520,7 +1545,7 @@ export async function updateCalendarTimeWindow(
     }
   );
   if (!response.ok) {
-    throw new Error(await parseErrorBody(response, "Failed to update time window"));
+    await throwApiError(response, "Failed to update time window");
   }
   return response.json();
 }
@@ -1591,14 +1616,16 @@ const BookingListResponseSchema = z.object({
         label: z.string().optional(),
         data: z.record(z.string(), z.unknown()).optional(),
       }),
-      slot: z.object({
-        date: z.string(),
-        hour: z.number(),
-        minutes: z.number(),
-      }).nullable(),
+      slot: z
+        .object({
+          date: z.string(),
+          hour: z.number(),
+          minutes: z.number(),
+        })
+        .nullable(),
       createdAt: z.string(),
       createdBy: z.string().optional(),
-    }),
+    })
   ),
   total: z.number(),
 });
@@ -1608,14 +1635,16 @@ const BookingListResponseSchema = z.object({
  */
 export async function listBookings(
   params?: { calendarId?: string; startDate?: string; endDate?: string },
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<BookingListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
   if (params?.startDate) searchParams.set("startDate", params.startDate);
   if (params?.endDate) searchParams.set("endDate", params.endDate);
   const query = searchParams.toString();
-  const url = query ? `/app/api/calendar/bookings?${query}` : "/app/api/calendar/bookings";
+  const url = query
+    ? `/app/api/calendar/bookings?${query}`
+    : "/app/api/calendar/bookings";
   const response = await fetch(url, { method: "GET", signal });
   if (!response.ok) {
     const err = await response.json();
@@ -1624,7 +1653,12 @@ export async function listBookings(
   const json = await response.json();
   const parsed = BookingListResponseSchema.safeParse(json);
   if (!parsed.success) {
-    console.error("BookingListResponse validation warning:", parsed.error.issues);
+    if (process.env.NODE_ENV !== "production") {
+      console.error(
+        "BookingListResponse validation warning:",
+        parsed.error.issues
+      );
+    }
     if (!Array.isArray((json as BookingListResponse).data)) {
       throw new TypeError("Invalid booking list response format");
     }

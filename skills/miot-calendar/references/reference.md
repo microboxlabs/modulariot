@@ -418,7 +418,7 @@ List time windows for a calendar.
     "startHour": 8,
     "endHour": 12,
     "slotDurationMinutes": 30,
-    "capacityPerSlot": 2,
+    "capacity": 2,
     "daysOfWeek": "1,2,3,4,5",
     "validFrom": "2025-01-01",
     "validTo": "2025-12-31",

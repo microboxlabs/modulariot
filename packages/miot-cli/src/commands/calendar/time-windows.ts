@@ -28,7 +28,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
             { header: "START", key: "startHour" },
             { header: "END", key: "endHour" },
             { header: "DURATION", key: "slotDurationMinutes" },
-            { header: "CAPACITY", key: "capacityPerSlot" },
+            { header: "CAPACITY", key: "capacity" },
             { header: "DAYS", key: "daysOfWeek" },
             { header: "VALID FROM", key: "validFrom" },
             { header: "VALID TO", key: "validTo" },
@@ -48,8 +48,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
     .requiredOption("--end-hour <hour>", "End hour")
     .requiredOption("--valid-from <date>", "Valid from date (YYYY-MM-DD)")
     .option("--valid-to <date>", "Valid to date (YYYY-MM-DD)")
-    .option("--slot-duration <minutes>", "Slot duration in minutes")
-    .option("--capacity <n>", "Capacity per slot")
+    .option("--capacity <n>", "Total capacity for the window")
     .option("--days-of-week <days>", "Days of week (e.g. 1,2,3,4,5)")
     .action(async (_opts, cmd) => {
       const { client, outputMode } = getActionContext(cmd);
@@ -61,7 +60,6 @@ export function registerTimeWindowsCommand(parent: Command): void {
           endHour: string;
           validFrom: string;
           validTo?: string;
-          slotDuration?: string;
           capacity?: string;
           daysOfWeek?: string;
         };
@@ -72,8 +70,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
           endHour: parseIntOrThrow(opts.endHour, "--end-hour"),
           validFrom: opts.validFrom,
           validTo: opts.validTo,
-          slotDurationMinutes: parseOptionalInt(opts.slotDuration, "--slot-duration"),
-          capacityPerSlot: parseOptionalInt(opts.capacity, "--capacity"),
+          capacity: parseOptionalInt(opts.capacity, "--capacity"),
           daysOfWeek: opts.daysOfWeek,
         });
 
@@ -94,8 +91,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
     .requiredOption("--end-hour <hour>", "End hour")
     .requiredOption("--valid-from <date>", "Valid from date (YYYY-MM-DD)")
     .option("--valid-to <date>", "Valid to date (YYYY-MM-DD)")
-    .option("--slot-duration <minutes>", "Slot duration in minutes")
-    .option("--capacity <n>", "Capacity per slot")
+    .option("--capacity <n>", "Total capacity for the window")
     .option("--days-of-week <days>", "Days of week (e.g. 1,2,3,4,5)")
     .action(
       async (calendarId: string, timeWindowId: string, _opts, cmd) => {
@@ -107,7 +103,6 @@ export function registerTimeWindowsCommand(parent: Command): void {
             endHour: string;
             validFrom: string;
             validTo?: string;
-            slotDuration?: string;
             capacity?: string;
             daysOfWeek?: string;
           };
@@ -121,8 +116,7 @@ export function registerTimeWindowsCommand(parent: Command): void {
               endHour: parseIntOrThrow(opts.endHour, "--end-hour"),
               validFrom: opts.validFrom,
               validTo: opts.validTo,
-              slotDurationMinutes: parseOptionalInt(opts.slotDuration, "--slot-duration"),
-              capacityPerSlot: parseOptionalInt(opts.capacity, "--capacity"),
+              capacity: parseOptionalInt(opts.capacity, "--capacity"),
               daysOfWeek: opts.daysOfWeek,
             },
           );

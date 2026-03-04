@@ -43,7 +43,7 @@ interface PlanningSidebarFormProps {
   readonly slotStartTime?: string;
   /** Slot end time in HH:mm format */
   readonly slotEndTime?: string;
-  /** Quota for the time window */
+  /** Quota for the time window (total capacity for the window) */
   readonly windowQuota?: number;
   /** Number of base slots in the time window */
   readonly windowBaseSlots?: number;
@@ -121,9 +121,8 @@ export function PlanningSidebarForm({
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedAnden, setSelectedAnden] = useState<number>(1);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>(
-    selectedService?.serviceCategory ?? ""
-  );
+  const [selectedServiceCategory, setSelectedServiceCategory] =
+    useState<string>(selectedService?.serviceCategory ?? "");
   const [isTripTypeDropdownOpen, setIsTripTypeDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tripTypeDropdownRef = useRef<HTMLDivElement>(null);
@@ -163,10 +162,10 @@ export function PlanningSidebarForm({
   }, []);
 
   // Calculate subdivisions based on quota, base slots, and andenes
-  // Formula: quota is distributed evenly across all base slots in the window
-  // Each base slot gets (quota / windowBaseSlots) services
+  // windowQuota is the TOTAL capacity for the entire time window
+  // Each base slot gets (windowQuota / windowBaseSlots) services
   // Each subdivision can handle `andenesCount` services simultaneously
-  // So subdivisions per slot = ceil((quota / windowBaseSlots) / andenesCount)
+  // So subdivisions per slot = ceil((windowQuota / windowBaseSlots) / andenesCount)
   const subdivisions = useMemo(() => {
     if (andenesCount <= 0 || windowQuota <= 0 || windowBaseSlots <= 0) return 1;
     // Services that this slot needs to handle
@@ -339,14 +338,16 @@ export function PlanningSidebarForm({
 
   // Extract incident codes and create code-to-label map for tooltips
   const codeToLabelMap = new Map<string, string>();
-  const incidentCodes = (selectedService.mintral_incidents ?? []).map((incident) => {
-    const rawCode = incident[0];
-    const label = incident[1];
-    // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
-    const code = rawCode.replace(/^mintral_incident_/i, "");
-    codeToLabelMap.set(code, label);
-    return code;
-  });
+  const incidentCodes = (selectedService.mintral_incidents ?? []).map(
+    (incident) => {
+      const rawCode = incident[0];
+      const label = incident[1];
+      // Remove "mintral_incident_" prefix to get just the code (e.g., "C307")
+      const code = rawCode.replace(/^mintral_incident_/i, "");
+      codeToLabelMap.set(code, label);
+      return code;
+    }
+  );
 
   // Categorize incidencias into primary (always visible) and secondary (expandable)
   const { primary, secondary } = categorizeIncidencias(incidentCodes);
@@ -586,10 +587,17 @@ export function PlanningSidebarForm({
               >
                 <span className="font-medium text-gray-900 dark:text-white">
                   {isLoadingServiceTypes
-                    ? tr("pages.planning.sidebar.form.serviceCategoryLoading", dict)
+                    ? tr(
+                        "pages.planning.sidebar.form.serviceCategoryLoading",
+                        dict
+                      )
                     : (serviceCategoryOptions.find(
                         (opt) => opt.value === selectedServiceCategory
-                      )?.label ?? tr("pages.planning.sidebar.form.serviceCategoryPlaceholder", dict))}
+                      )?.label ??
+                      tr(
+                        "pages.planning.sidebar.form.serviceCategoryPlaceholder",
+                        dict
+                      ))}
                 </span>
                 <HiChevronDown
                   className={`w-4 h-4 text-gray-500 transition-transform ${isTripTypeDropdownOpen ? "rotate-180" : ""}`}
@@ -654,7 +662,7 @@ export function PlanningSidebarForm({
                       {selectedTimeSlot.time}
                     </span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
+                      className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
                         selectedTimeSlot.availableAndenes > 0
                           ? "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                           : "bg-yellow-50 dark:bg-yellow-900/20  text-yellow-400 dark:text-yellow-400"
@@ -663,7 +671,7 @@ export function PlanningSidebarForm({
                       {selectedTimeSlot.availableAndenes}/
                       {selectedTimeSlot.totalAndenes} andenes
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       ({timeOptions.filter((o) => !o.isFullyOccupied).length}/
                       {timeOptions.length} disponibles)
                     </span>

@@ -14,7 +14,6 @@ import {
   getLeadTimeStatus,
   DEBUG_SHOW_TEST_SERVICE,
   TEST_SERVICES,
-  TimeWindowUtils,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { ServiceEvent } from "./service-event";
@@ -38,7 +37,6 @@ type PlanningSearchMatchType =
   | "lugarCarguio"
   | "permanencia"
   | "tipoViaje";
-
 
 /**
  * Determine trip type from serviceKind or executionType
@@ -70,7 +68,6 @@ function calculatePermanencia(task: KanbanBoardTask): string {
   const hours = arr.diff(dep, "hour");
   return `${hours}h`;
 }
-
 
 /**
  * Extract incidencias from task fields
@@ -131,7 +128,10 @@ function transformTaskToService(task: KanbanBoardTask): SelectedService {
       lineasoc_pctn_cumplimiento: task.mintral_deliveryComplianceRate ?? 0,
     },
     eta: task.estimatedArrivalDate || task.arrivalDate || "",
-    incidencias: extractIncidencias(task, task.mintral_deliveryComplianceRate ?? 0),
+    incidencias: extractIncidencias(
+      task,
+      task.mintral_deliveryComplianceRate ?? 0
+    ),
     mintral_incidents: extractMintralIncidents(task.mintral_incidents),
     observaciones: task.description || "",
     prioridad: task.mintral_icuCondition ?? 0,
@@ -267,32 +267,19 @@ export function PlanningSidebarClient({
     const totalMinutes =
       endHour * 60 + endMinutes - (startHour * 60 + startMinutes);
     return Math.max(1, Math.floor(totalMinutes / SLOT_DURATION_MINUTES));
-  }, [selectedTimeWindow]);
+  }, [selectedTimeWindow, SLOT_DURATION_MINUTES]);
 
   // Format the selected slot for display with start and end times.
-  // When a matching time window is available, use its actual boundaries so
-  // that slotStartTime/slotEndTime reflect the window's configured time
-  // (e.g. 08:30) rather than the raw grid-cell click time (e.g. 08:00).
+  // Always use the actual selected slot's time (e.g., 10:00-10:30) rather than
+  // the entire time window's boundaries (e.g., 9:00-11:00).
   const formattedSlot = useMemo(() => {
     if (!selectedSlot) return undefined;
 
-    const windowRange = selectedTimeWindow
-      ? TimeWindowUtils.getTimeRange(selectedTimeWindow)
-      : null;
+    const startDate = dayjs(selectedSlot.date)
+      .hour(selectedSlot.hour)
+      .minute(selectedSlot.minutes);
 
-    const startDate = windowRange
-      ? dayjs(selectedSlot.date)
-          .hour(windowRange.startHour)
-          .minute(windowRange.startMinutes)
-      : dayjs(selectedSlot.date)
-          .hour(selectedSlot.hour)
-          .minute(selectedSlot.minutes);
-
-    const endDate = windowRange
-      ? dayjs(selectedSlot.date)
-          .hour(windowRange.endHour)
-          .minute(windowRange.endMinutes)
-      : startDate.add(SLOT_DURATION_MINUTES, "minute");
+    const endDate = startDate.add(SLOT_DURATION_MINUTES, "minute");
 
     const dateStr = formatDateString(startDate.toDate(), "date");
     const startTime = formatDateString(startDate.toDate(), "time");
@@ -304,7 +291,7 @@ export function PlanningSidebarClient({
       endTime,
       full: `${dateStr}, ${startTime} - ${endTime}`,
     };
-  }, [selectedSlot, selectedTimeWindow]);
+  }, [selectedSlot]);
 
   type MatchType =
     | "id"

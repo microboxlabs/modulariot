@@ -4,43 +4,52 @@
   "widgets": [
     {
       "id": "oe-stat-1",
-      "componentId": "stat_status",
-      "layout": { "i": "oe-stat-1", "x": 0, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "oe-stat-1", "x": 0, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Eventos críticos activos",
+        "icon": "chart",
         "value": "64",
-        "subtitle": "últimas 24-48 horas",
-        "color": "red",
-        "icon": "warning"
+        "descriptor": "últimas 24-48 horas",
+        "aiPlaceholder": "La mayoría de los eventos críticos se concentran en 3 vehículos y ocurren fuera de horario.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "oe-stat-2",
-      "componentId": "stat_status",
-      "layout": { "i": "oe-stat-2", "x": 8, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "oe-stat-2", "x": 8, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Vehículos con alta exposición",
+        "icon": "chart",
         "value": "4",
-        "subtitle": "requieren intervención prioritaria",
-        "color": "orange",
-        "icon": "users"
+        "descriptor": "requieren intervención prioritaria",
+        "aiPlaceholder": "4 vehículos concentran la mayor cantidad de eventos y requieren atención inmediata.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": "oe-stat-3",
-      "componentId": "stat_status",
-      "layout": { "i": "oe-stat-3", "x": 16, "y": 0, "w": 8, "h": 5 },
+      "componentId": "info_card",
+      "layout": { "i": "oe-stat-3", "x": 16, "y": 0, "w": 8, "h": 5, "minW": 4, "minH": 4 },
       "config": {
         "title": "Tipo predominante",
+        "icon": "chart",
         "value": "Velocidad",
-        "subtitle": "60% del total",
-        "color": "blue",
-        "icon": "trending"
+        "descriptor": "60% del total",
+        "aiPlaceholder": "Los eventos de velocidad representan la mayoría y se concentran en rutas interurbanas.",
+        "viewMoreUrl": "",
+        "dataProvider": []
       },
+      "children": [],
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
     },

@@ -66,6 +66,7 @@ export interface CalendarRequest {
   description?: string;
   timezone?: string;
   active?: boolean;
+  parallelism?: number;
   groups?: string[];
   autoSlotManager?: boolean;
 }
@@ -77,6 +78,7 @@ export interface CalendarResponse {
   description?: string;
   timezone: string;
   active: boolean;
+  parallelism: number;
   createdAt: string;
   updatedAt: string;
   groups?: CalendarGroupResponse[];
@@ -90,8 +92,7 @@ export interface TimeWindowRequest {
   startHour: number;
   endHour: number;
   validFrom: string;
-  slotDurationMinutes?: number;
-  capacityPerSlot?: number;
+  capacity?: number;
   daysOfWeek?: string;
   validTo?: string;
   active?: boolean;
@@ -104,7 +105,7 @@ export interface TimeWindowResponse {
   startHour: number;
   endHour: number;
   slotDurationMinutes: number;
-  capacityPerSlot: number;
+  capacity: number;
   daysOfWeek: string;
   validFrom: string;
   validTo?: string;

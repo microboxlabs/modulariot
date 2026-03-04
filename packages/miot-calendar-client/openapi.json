@@ -182,6 +182,14 @@
             "description" : "Whether the calendar is active and accepting bookings",
             "default" : true
           },
+          "parallelism" : {
+            "type" : "integer",
+            "format" : "int32",
+            "examples" : [ 5 ],
+            "description" : "Number of parallel resources the calendar can handle per slot (e.g., loading docks)",
+            "default" : 1,
+            "minimum" : 1
+          },
           "groups" : {
             "type" : "array",
             "items" : {
@@ -198,7 +206,7 @@
       },
       "CalendarResponse" : {
         "type" : "object",
-        "required" : [ "id", "code", "name", "timezone", "active", "createdAt", "updatedAt" ],
+        "required" : [ "id", "code", "name", "timezone", "active", "parallelism", "createdAt", "updatedAt" ],
         "description" : "Calendar data returned by the API",
         "properties" : {
           "id" : {
@@ -228,6 +236,12 @@
           "active" : {
             "type" : "boolean",
             "description" : "Whether the calendar is active"
+          },
+          "parallelism" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Number of parallel resources per slot",
+            "minimum" : 1
           },
           "createdAt" : {
             "$ref" : "#/components/schemas/ZonedDateTime",
@@ -683,19 +697,11 @@
             "maximum" : 23,
             "minimum" : 0
           },
-          "slotDurationMinutes" : {
+          "capacity" : {
             "type" : "integer",
             "format" : "int32",
-            "examples" : [ 30 ],
-            "description" : "Duration of each slot in minutes",
-            "default" : 30,
-            "minimum" : 1
-          },
-          "capacityPerSlot" : {
-            "type" : "integer",
-            "format" : "int32",
-            "examples" : [ 5 ],
-            "description" : "Maximum number of bookings per slot",
+            "examples" : [ 20 ],
+            "description" : "Total number of services this window can handle across all slots",
             "default" : 1,
             "minimum" : 1
           },
@@ -725,7 +731,7 @@
       },
       "TimeWindowResponse" : {
         "type" : "object",
-        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacityPerSlot", "daysOfWeek", "validFrom", "active", "createdAt", "updatedAt" ],
+        "required" : [ "id", "calendarId", "name", "startHour", "endHour", "slotDurationMinutes", "capacity", "daysOfWeek", "validFrom", "active", "createdAt", "updatedAt" ],
         "description" : "Time window data returned by the API",
         "properties" : {
           "id" : {
@@ -762,15 +768,15 @@
           "slotDurationMinutes" : {
             "type" : "integer",
             "format" : "int32",
-            "examples" : [ 30 ],
-            "description" : "Duration of each slot in minutes",
+            "examples" : [ 60 ],
+            "description" : "Duration of each slot in minutes (derived from capacity model)",
             "minimum" : 1
           },
-          "capacityPerSlot" : {
+          "capacity" : {
             "type" : "integer",
             "format" : "int32",
-            "examples" : [ 5 ],
-            "description" : "Maximum number of bookings per slot",
+            "examples" : [ 20 ],
+            "description" : "Total number of services this window can handle across all slots",
             "minimum" : 1
           },
           "daysOfWeek" : {
@@ -2165,7 +2171,7 @@
   },
   "info" : {
     "title" : "MIOT Calendar API",
-    "version" : "0.2.1",
+    "version" : "0.4.0",
     "description" : "Calendar booking microservice for resource scheduling. Provides calendar management, time window configuration, slot generation, and booking operations.",
     "contact" : {
       "name" : "MicroBoxLabs",

@@ -6,7 +6,7 @@ import React, { useState, useEffect } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
-import { MdCancel } from "react-icons/md";
+import { MdCancel, MdBlock } from "react-icons/md";
 import { SelectedOption } from "../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -73,6 +73,12 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).ignore_condition as string,
       icon: MdCancel,
       option: "ignore_condition" as SelectedOption,
+    },
+    {
+      id: 5,
+      label: (dict.symptoms as I18nRecord).invalidate_symptom as string,
+      icon: MdBlock,
+      option: "invalidate_symptom" as SelectedOption,
     },
   ];
 

@@ -12,7 +12,9 @@ import CallDriver from "./menus/call-driver/call-driver";
 import { FaPhoneAlt } from "react-icons/fa";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import IgnoreCondition from "./menus/ignore-condition/ignore-condition";
+import InvalidateSymptom from "./menus/invalidate-symptom/invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
+import { MdBlock } from "react-icons/md";
 
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
@@ -46,6 +48,9 @@ export default function SymptomForm({
   // ignore condition
   const [duration, setDuration] = useState<number>(0);
   const [scope, setScope] = useState<string>("");
+
+  // invalidate symptom
+  const [reason, setReason] = useState<string>("");
 
   const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
     asset_id: treatmentData?.trip_info?.asset_id ?? "",
@@ -137,6 +142,37 @@ export default function SymptomForm({
       ),
       icon: <TiDelete className="h-8 w-8" />,
     },
+    invalidate_symptom: {
+      title: (dict.symptoms as I18nRecord).invalidate_symptom,
+      preactions: async () => {
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_type: "invalidar sintoma",
+          status: "pending",
+        });
+        const response = await requestTreatment({
+          ...treatmentRequest,
+          treatment_type: "invalidar sintoma",
+          status: "pending",
+        });
+        setTreatmentRequest({
+          ...treatmentRequest,
+          treatment_id: response.treatment_id,
+        });
+      },
+      component: (
+        <InvalidateSymptom
+          dict={dict as I18nRecord}
+          treatmentData={treatmentData}
+          reason={reason}
+          setReason={setReason}
+          treatmentRequest={treatmentRequest}
+          setTreatmentRequest={setTreatmentRequest}
+          setIsMenuOpen={setIsMenuOpen}
+        />
+      ),
+      icon: <MdBlock className="h-7 w-7" />,
+    },
   };
 
   useEffect(() => {
@@ -162,7 +198,7 @@ export default function SymptomForm({
 
   return (
     <div
-      className={`fixed inset-0 flex justify-center items-center z-[60] transition-all duration-300 ${isMenuOpen ? blurred : clean}`}
+      className={`fixed inset-0 flex justify-center items-center z-[800] transition-all duration-300 ${isMenuOpen ? blurred : clean}`}
       onClick={(e) => {
         e.stopPropagation();
       }}

@@ -827,25 +827,29 @@ export async function getPublicOrgLogo(): Promise<string | null> {
     return null;
   }
 
-  const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
+  try {
+    const logoUrl = `${ecmApiUrl}/alfresco/s/public/org/logo`;
 
-  const response = await fetch(logoUrl, {
-    method: "GET",
-    cache: "no-store",
-  });
+    const response = await fetch(logoUrl, {
+      method: "GET",
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    // Get the content type from the response
+    const contentType = response.headers.get("content-type") ?? "image/png";
+
+    // Convert to base64 data URL
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
+
+    return base64Logo;
+  } catch {
     return null;
   }
-
-  // Get the content type from the response
-  const contentType = response.headers.get("content-type") ?? "image/png";
-
-  // Convert to base64 data URL
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const base64Logo = `data:${contentType};base64,${buffer.toString("base64")}`;
-
-  return base64Logo;
 }
 
 export async function getInfoEntity(

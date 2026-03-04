@@ -3,8 +3,16 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Handlebars from "handlebars";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { useDashboard } from "../../context/dashboard-context";
+import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
+import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
+import type { FilterConfig, FilterItemConfig } from "@/features/dashboard/dashlets/common/filter-types";
+import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
+import { Pill } from "@/features/dashboard/dashlets/common/pill";
+import { useDynamicRows } from "@/features/dashboard/dashlets/common/use-dynamic-rows";
+import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
+import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
+import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
+import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 
@@ -116,37 +124,7 @@ export const defaultFilter: FilterConfig = {
   items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
-/**
- * Normalize a persisted filter config into the current shape.
- * Old configs stored `{ enabled, column, label }` — convert to `{ enabled, items }`.
- */
-export function normalizeFilterConfig(raw: unknown): FilterConfig {
-  if (!raw || typeof raw !== "object") return defaultFilter;
-  const obj = raw as Record<string, unknown>;
-  const enabled = typeof obj.enabled === "boolean" ? obj.enabled : defaultFilter.enabled;
-  if (Array.isArray(obj.items)) {
-    const validItems = obj.items.filter(
-      (item): item is FilterItemConfig =>
-        !!item &&
-        typeof item === "object" &&
-        typeof (item as Record<string, unknown>).column === "string" &&
-        (item as Record<string, unknown>).column !== ""
-    ).map((item) => ({
-      column: item.column,
-      label: typeof item.label === "string" ? item.label : "",
-    }));
-    if (validItems.length === 0) return defaultFilter;
-    return { enabled, items: validItems };
-  }
-  // Legacy shape: { enabled, column, label }
-  if (typeof obj.column === "string" && obj.column !== "") {
-    return {
-      enabled,
-      items: [{ column: obj.column, label: typeof obj.label === "string" ? obj.label : "" }],
-    };
-  }
-  return defaultFilter;
-}
+export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 
 export const defaultSort: SortConfig = {
   enabled: true,
@@ -204,193 +182,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 // ============================================================================
-// Cell Rendering Helpers
-// ============================================================================
-
-function getBadgeClasses(value: string): string {
-  const lower = value.toLowerCase();
-  if (
-    lower.includes("crít") ||
-    lower.includes("critical") ||
-    lower.includes("error") ||
-    lower.includes("alto")
-  ) {
-    return "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800";
-  }
-  if (
-    lower.includes("medio") ||
-    lower.includes("medium") ||
-    lower.includes("warning") ||
-    lower.includes("advertencia")
-  ) {
-    return "bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800";
-  }
-  if (lower.includes("bajo") || lower.includes("low")) {
-    return "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
-  }
-  if (
-    lower.includes("ok") ||
-    lower.includes("activo") ||
-    lower.includes("active") ||
-    lower.includes("success")
-  ) {
-    return "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800";
-  }
-  return "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600";
-}
-
-function getProgressColor(pct: number): string {
-  if (pct >= 90) return "bg-green-500";
-  if (pct >= 80) return "bg-orange-400";
-  return "bg-red-500";
-}
-
-function renderProgress(value: string) {
-  const pct = Number.parseFloat(value.replaceAll(/[^\d.]/g, ""));
-  const safePct = Number.isNaN(pct) ? 0 : Math.min(100, Math.max(0, pct));
-  const barColor = getProgressColor(safePct);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
-        <div
-          className={`h-full rounded-full ${barColor}`}
-          style={{ width: `${safePct}%` }}
-        />
-      </div>
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function getSignedClasses(value: string): string {
-  // Strip everything except digits, minus sign, and decimal separator
-  const numeric = Number.parseFloat(value.replaceAll(/[^\d.-]/g, ""));
-  if (Number.isNaN(numeric)) {
-    return "text-gray-700 dark:text-gray-300";
-  }
-  if (numeric < 0) {
-    return "font-semibold text-red-600 dark:text-red-400";
-  }
-  if (numeric < 1000) {
-    return "font-semibold text-orange-500 dark:text-orange-400";
-  }
-  return "font-semibold text-green-600 dark:text-green-400";
-}
-
-function renderCell(value: string, type: ColumnType) {
-  if (type === "badge") {
-    return (
-      <span
-        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClasses(value)}`}
-      >
-        {value}
-      </span>
-    );
-  }
-  if (type === "highlight") {
-    return (
-      <span className="font-semibold text-blue-600 dark:text-blue-400">
-        {value}
-      </span>
-    );
-  }
-  if (type === "signed") {
-    return <span className={getSignedClasses(value)}>{value}</span>;
-  }
-  if (type === "progress") {
-    return renderProgress(value);
-  }
-  // text — multiline: first line bold, rest as muted subtitle
-  const lines = value.split("\n");
-  if (lines.length > 1) {
-    return (
-      <span>
-        <span className="block font-semibold text-gray-900 dark:text-white">
-          {lines[0]}
-        </span>
-        <span className="block text-xs text-gray-500 dark:text-gray-400">
-          {lines.slice(1).join(" ")}
-        </span>
-      </span>
-    );
-  }
-  return <span>{value}</span>;
-}
-
-// ============================================================================
-// Pill Button
-// ============================================================================
-
-interface PillProps {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  icon?: React.ReactNode;
-}
-
-function Pill({ label, active, onClick, icon }: Readonly<PillProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`no-drag inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-        active
-          ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-      }`}
-    >
-      {label}
-      {icon}
-    </button>
-  );
-}
-
-// ============================================================================
-// Filter Pill Row
-// ============================================================================
-
-interface FilterPillRowProps {
-  item: FilterItemConfig;
-  options: string[];
-  selected: string;
-  allLabel: string;
-  onClear: (column: string) => void;
-  onSelect: (column: string, value: string) => void;
-}
-
-function FilterPillRow({
-  item,
-  options,
-  selected,
-  allLabel,
-  onClear,
-  onSelect,
-}: Readonly<FilterPillRowProps>) {
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-      <span className="text-sm text-gray-500 dark:text-gray-400">
-        {item.label}
-      </span>
-      <Pill
-        label={allLabel}
-        active={selected === ""}
-        onClick={() => onClear(item.column)}
-      />
-      {options.map((val) => (
-        <Pill
-          key={val}
-          label={val}
-          active={selected === val}
-          onClick={() => onSelect(item.column, val)}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -408,7 +199,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestHttpMethod = "POST",
     sort = defaultSort,
   } = config;
-  const filter = useMemo(() => normalizeFilterConfig(config.filter), [config.filter]);
+  const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
   // ── PGREST data fetching ────────────────────────────────────────────────────
   const [pgrestRows, setPgrestRows] = useState<Record<string, string>[]>([]);
@@ -622,7 +413,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
       {/* Filter cards */}
       {filter.enabled &&
-        filter.items.map((item, idx) => {
+        filter.items.map((item: FilterItemConfig, idx: number) => {
           const options = filterOptionsByColumn[item.column];
           if (!options || options.length === 0) return null;
           return (

@@ -1,17 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Button,
-  TextInput,
-  Textarea,
-  Label,
-  ToggleSwitch,
-  Select,
-} from "flowbite-react";
-import { HiPlus, HiTrash } from "react-icons/hi2";
-import { createPortal } from "react-dom";
-import { twMerge } from "tailwind-merge";
 import type { DashletSettingsProps } from "../types";
 import type {
   DashletConfig,
@@ -367,37 +355,16 @@ export function DashletSettings({
   // ── Save ────────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    let rows = config.rows ?? defaultRows;
+    const rows = s.parseRows("Must be a JSON array", "Invalid JSON");
+    if (!rows) return;
 
-    if (dataMode === "static") {
-      try {
-        const parsed = JSON.parse(rowsJson);
-        if (!Array.isArray(parsed)) {
-          setRowsJsonError("Must be a JSON array");
-          return;
-        }
-        rows = parsed as Record<string, string>[];
-        setRowsJsonError(null);
-      } catch {
-        setRowsJsonError("Invalid JSON");
-        return;
-      }
-    }
-
-    const filter: FilterConfig = {
-      enabled: filterEnabled,
-      items: fromFilterItems(filterItems),
-    };
-    const sort: SortConfig = {
-      enabled: sortEnabled,
-      columns: sortColumns,
-    };
+    const { filter, sort, savedColumns } = s.buildFilterSort();
 
     onSave({
-      title,
-      showRowCount,
-      dataMode,
-      columns: fromColumnItems(columns),
+      title: s.title,
+      showRowCount: s.showRowCount,
+      dataMode: s.dataMode,
+      columns: savedColumns,
       rows,
       pgrestFunctionName,
       pgrestParams: fromPgrestParamItems(pgrestParams),

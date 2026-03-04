@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "App: debug server-side",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx turbo run dev --filter=@modulariot/app",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "App: debug client-side",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3050/app",
+      "webRoot": "${workspaceFolder}/apps/app"
+    },
+    {
+      "name": "App: debug full stack",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx turbo run dev --filter=@modulariot/app",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "- Local:.+(https?://.+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
+    }
+  ]
+}

@@ -1436,6 +1436,42 @@ export async function getServiceTypes(
   return serviceTypesSchema.parse(await response.json());
 }
 
+const timelapseMetadataSchema = z.object({
+  streamUrl: z.string(),
+  estimatedDurationSeconds: z.number(),
+  framerate: z.number(),
+  downloadUrl: z.string(),
+  videoSizeBytes: z.number(),
+  sessionId: z.string(),
+  deviceId: z.string(),
+  licensePlate: z.string(),
+  nodeRef: z.string(),
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+  }).nullable().optional(),
+  state: z.string(),
+  startTimestamp: z.string(),
+  endTimestamp: z.string(),
+  frameCount: z.number(),
+  clientId: z.string(),
+  projectId: z.string(),
+});
+
+export type TimelapseMetadata = z.infer<typeof timelapseMetadataSchema>;
+
+export async function getTimelapseMetadata(
+  session: Session,
+  licensePlate: string,
+  timestamp: string
+): Promise<TimelapseMetadata> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/timelapse?license_plate=${encodeURIComponent(licensePlate)}&timestamp=${encodeURIComponent(timestamp)}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(`timelapse: ${response.status}`);
+  return timelapseMetadataSchema.parse(await response.json());
+}
+
 export async function updateTaskServiceCategory(
   session: Session,
   taskId: string,

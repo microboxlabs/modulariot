@@ -32,6 +32,7 @@ import {
 } from "./dashlet";
 import { SettingsTextField, SettingsSelectField } from "../common";
 import { parseRows, buildPgrestFetch } from "./dashlet.utils";
+import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -200,8 +201,8 @@ export function DashletSettings({
     }
   };
 
-  const introspectFunction = async () => {
-    const fn = pgrestFunctionName.trim();
+  const introspectFunction = async (fnOverride?: string) => {
+    const fn = (fnOverride ?? pgrestFunctionName).trim();
     if (!fn) return;
 
     setIntrospecting(true);
@@ -720,7 +721,7 @@ export function DashletSettings({
                           color="light"
                           size="xs"
                           disabled={introspecting}
-                          onClick={introspectFunction}
+                          onClick={() => introspectFunction()}
                           onMouseDown={handleMouseDown}
                           className="no-drag"
                         >
@@ -733,12 +734,11 @@ export function DashletSettings({
                         </Button>
                       )}
                     </div>
-                    <TextInput
+                    <PgrestFunctionAutocomplete
                       id="dt-pgrest-fn"
-                      sizing="sm"
                       value={pgrestFunctionName}
-                      onChange={(e) => setPgrestFunctionName(e.target.value)}
-                      placeholder="api_modular_my_function"
+                      onChange={setPgrestFunctionName}
+                      onSelect={(fn) => introspectFunction(fn)}
                     />
                     {introspectError && (
                       <p className="mt-1 text-xs text-red-500 dark:text-red-400">

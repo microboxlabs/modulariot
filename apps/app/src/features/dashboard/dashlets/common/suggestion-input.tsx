@@ -121,11 +121,11 @@ export function SuggestionInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
-    if (!newValue.includes("{{")) {
+    if (newValue.includes("{{")) {
+      setIsOpen(false);
+    } else {
       setIsOpen(true);
       setSelectedIndex(0);
-    } else {
-      setIsOpen(false);
     }
   };
 
@@ -145,7 +145,6 @@ export function SuggestionInput({
       {isOpen && filtered.length > 0 && (
         <ul
           ref={dropdownRef}
-          role="listbox"
           className={twMerge(
             "absolute z-50 w-full mt-1",
             "bg-white dark:bg-gray-800",

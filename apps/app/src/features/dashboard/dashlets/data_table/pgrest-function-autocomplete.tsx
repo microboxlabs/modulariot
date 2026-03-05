@@ -159,7 +159,6 @@ export function PgrestFunctionAutocomplete({
       {isOpen && (
         <ul
           ref={dropdownRef}
-          role="listbox"
           className={twMerge(
             "absolute z-50 w-full mt-1",
             "bg-white dark:bg-gray-800",

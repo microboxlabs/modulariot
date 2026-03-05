@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { TextInput } from "flowbite-react";
-import { twMerge } from "tailwind-merge";
+import { useDropdown } from "./use-dropdown";
+import { DropdownList } from "./dropdown-list";
 
 interface SuggestionInputProps {
   value: string;
@@ -22,7 +23,6 @@ export function SuggestionInput({
   color = "gray",
 }: Readonly<SuggestionInputProps>) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,30 +38,6 @@ export function SuggestionInput({
     return suggestions.filter((s) => s.toLowerCase().includes(lower));
   }, [suggestions, value, hasHandlebars]);
 
-  // Click outside
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
-  // Scroll selected item into view
-  useEffect(() => {
-    if (!isOpen || !dropdownRef.current) return;
-    const item = dropdownRef.current.children[selectedIndex] as HTMLElement;
-    item?.scrollIntoView({ block: "nearest" });
-  }, [selectedIndex, isOpen]);
-
   const handleSelect = useCallback(
     (suggestion: string) => {
       onChange(suggestion);
@@ -71,45 +47,16 @@ export function SuggestionInput({
     [onChange]
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (!isOpen || filtered.length === 0) {
-        if (e.key === "Escape") {
-          setIsOpen(false);
-        }
-        return;
-      }
+  const close = useCallback(() => setIsOpen(false), []);
 
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setSelectedIndex((prev) =>
-            prev < filtered.length - 1 ? prev + 1 : prev
-          );
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (filtered[selectedIndex]) {
-            handleSelect(filtered[selectedIndex]);
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setIsOpen(false);
-          break;
-        case "Tab":
-          if (filtered[selectedIndex]) {
-            handleSelect(filtered[selectedIndex]);
-          }
-          break;
-      }
-    },
-    [isOpen, filtered, selectedIndex, handleSelect]
-  );
+  const { selectedIndex, setSelectedIndex, handleKeyDown } = useDropdown({
+    items: filtered,
+    isOpen,
+    onClose: close,
+    onSelect: handleSelect,
+    containerRef,
+    dropdownRef,
+  });
 
   const handleFocus = () => {
     if (!hasHandlebars && filtered.length > 0) {
@@ -143,38 +90,15 @@ export function SuggestionInput({
         color={color}
       />
       {isOpen && filtered.length > 0 && (
-        <ul
-          ref={dropdownRef}
-          className={twMerge(
-            "absolute z-50 w-full mt-1",
-            "bg-white dark:bg-gray-800",
-            "border border-gray-200 dark:border-gray-700",
-            "rounded-lg shadow-lg",
-            "max-h-48 overflow-y-auto",
-            "py-1"
-          )}
-        >
-          {filtered.map((suggestion, index) => (
-            <li key={suggestion}>
-              <button
-                type="button"
-                tabIndex={index === selectedIndex ? 0 : -1}
-                onClick={() => handleSelect(suggestion)}
-                onMouseEnter={() => setSelectedIndex(index)}
-                className={twMerge(
-                  "w-full text-left px-3 py-1.5 text-sm cursor-pointer",
-                  "transition-colors border-0 bg-transparent",
-                  index === selectedIndex
-                    ? "bg-blue-50 dark:bg-blue-900/30"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-700",
-                  "text-gray-900 dark:text-white"
-                )}
-              >
-                {suggestion}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <DropdownList
+          items={filtered}
+          selectedIndex={selectedIndex}
+          onSelect={handleSelect}
+          onHover={setSelectedIndex}
+          dropdownRef={dropdownRef}
+          getKey={(s) => s}
+          renderItem={(s) => s}
+        />
       )}
     </div>
   );

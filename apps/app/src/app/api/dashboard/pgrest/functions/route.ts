@@ -1,51 +1,13 @@
-import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-
-interface OpenApiPathItem {
-  get?: unknown;
-  post?: unknown;
-}
-
-interface OpenApiSpec {
-  paths?: Record<string, OpenApiPathItem>;
-}
+import { fetchPgrestSpec } from "../shared";
 
 export async function GET() {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const baseUrl = process.env.OPENAPI_URL;
-  const token = process.env.OPENAPI_TOKEN;
-
-  if (!baseUrl || !token) {
-    return NextResponse.json(
-      { error: "PGREST is not configured on the server." },
-      { status: 500 }
-    );
-  }
-
   try {
-    const specUrl = `${baseUrl}/api/v1/pgrest/`;
-    const res = await fetch(specUrl, {
-      headers: {
-        Accept: "application/openapi+json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const result = await fetchPgrestSpec();
+    if (result instanceof NextResponse) return result;
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch OpenAPI spec." },
-        { status: 502 }
-      );
-    }
-
-    const spec: OpenApiSpec = await res.json();
     const functions: string[] = [];
-
-    for (const path of Object.keys(spec.paths ?? {})) {
+    for (const path of Object.keys(result.paths ?? {})) {
       if (path.startsWith("/rpc/")) {
         functions.push(path.slice("/rpc/".length));
       }

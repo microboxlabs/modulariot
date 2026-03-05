@@ -16,6 +16,7 @@ import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import {
   useCalendarTimeWindows,
   useCalendarSlots,
+  useCalendars,
   createCalendarTimeWindow,
   updateCalendarTimeWindow,
   deactivateCalendarTimeWindow,

@@ -2,7 +2,10 @@ import MapVisualization from "../map-visualization/map-visualization";
 import { HistoricSignal } from "./types/historic-signal.type";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import type { MapRef } from "react-map-gl";
-import { PulsePinLayer } from "@/features/geographic-view/components/layers/pulse-range";
+import {
+  PulsePinLayer,
+  buildPulseKey,
+} from "@/features/geographic-view/components/layers/pulse-range";
 import type { PickingInfo } from "@deck.gl/core";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import ToolBar from "../geographic-view/components/tool-bar/tool-bar";
@@ -198,7 +201,7 @@ export default function GeographicVisualization({
       new PulsePinLayer({
         data: data,
         selectedPulse: [],
-        selectedPulseTimestamp: selectedPulse?.timestamp ?? null,
+        selectedPulseKey: selectedPulse ? buildPulseKey(selectedPulse) : null,
         displayRange: {
           startDate: new Date(dateRangeDisplayed.startDate),
           endDate: new Date(dateRangeDisplayed.endDate),
@@ -213,14 +216,14 @@ export default function GeographicVisualization({
             startDate: new Date(dateRangeDisplayed.startDate),
             endDate: new Date(dateRangeDisplayed.endDate),
           },
-          selectedPulseTimestamp: selectedPulse?.timestamp ?? null,
+          selectedPulseKey: selectedPulse ? buildPulseKey(selectedPulse) : null,
         },
       }),
     ];
 
     setLayers(newLayers);
   }, [
-    data?.length,
+    data,
     isLoading,
     displayPosition,
     dateRangeDisplayed,

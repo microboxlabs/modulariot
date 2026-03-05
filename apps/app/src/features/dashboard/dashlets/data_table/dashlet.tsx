@@ -149,7 +149,7 @@ export const defaultConfig: DashletConfig = {
  */
 export function resolveDataProperty(key: string): string | null {
   if (!key.includes("{{")) return key;
-  const match = key.match(/^\{\{(?:row\.)?(\w+)\}\}$/);
+  const match = /^\{\{(?:row\.)?(\w+)\}\}$/.exec(key);
   return match ? match[1] : null;
 }
 

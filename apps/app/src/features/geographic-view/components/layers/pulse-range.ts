@@ -34,6 +34,8 @@ export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;
+    const selectedPulseTimestamp: string | null =
+      this.props.selectedPulseTimestamp || null;
 
     // Check if data exists and is an array (raw HistoricSignal[])
     if (!this.props.data || !Array.isArray(this.props.data)) {
@@ -49,7 +51,16 @@ export class PulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "pulse-background-layer",
         data: validData,
-        getFillColor: () => [255, 255, 255, 255],
+        getFillColor: (d: any): [number, number, number, number] => {
+          // When a pulse is selected, only show white border on that pulse
+          if (
+            selectedPulseTimestamp !== null &&
+            d.timestamp !== selectedPulseTimestamp
+          ) {
+            return [255, 255, 255, 0];
+          }
+          return [255, 255, 255, 255];
+        },
         getRadius: 7,
         getPosition:
           this.props.getPosition || ((d: any) => [d.longitude, d.latitude]),
@@ -64,6 +75,9 @@ export class PulsePinLayer extends CompositeLayer<any> {
         },
         radiusUnits: "pixels",
         pickable: true,
+        updateTriggers: {
+          getFillColor: [selectedPulseTimestamp],
+        },
       }) as Layer,
       new ScatterplotLayer({
         id: "pulse-moving-vehicles-layer",
@@ -122,6 +136,45 @@ export class PulsePinLayer extends CompositeLayer<any> {
         getZIndex: 1000,
         radiusUnits: "pixels",
       }) as Layer,
+      ...(selectedPulseTimestamp
+        ? [
+            // White ring behind the selected pulse, rendered on top of everything
+            new ScatterplotLayer({
+              id: "pulse-selected-background",
+              data: validData.filter(
+                (d: any) => d.timestamp === selectedPulseTimestamp
+              ),
+              getFillColor: [255, 255, 255, 255] as [
+                number,
+                number,
+                number,
+                number,
+              ],
+              getRadius: 7,
+              getPosition:
+                this.props.getPosition ||
+                ((d: any) => [d.longitude, d.latitude]),
+              parameters: { depthTest: false },
+              radiusUnits: "pixels" as const,
+              pickable: false,
+            }) as Layer,
+            // Blue dot for the selected pulse, on top of its white ring
+            new ScatterplotLayer({
+              id: "pulse-selected-foreground",
+              data: validData.filter(
+                (d: any) => d.timestamp === selectedPulseTimestamp
+              ),
+              getFillColor: getColor(0),
+              getRadius: 5,
+              getPosition:
+                this.props.getPosition ||
+                ((d: any) => [d.longitude, d.latitude]),
+              parameters: { depthTest: false },
+              radiusUnits: "pixels" as const,
+              pickable: false,
+            }) as Layer,
+          ]
+        : []),
     ];
   }
 }

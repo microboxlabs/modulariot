@@ -2016,6 +2016,7 @@
     "duration": "Duration",
     "selected_range": "Selected Range",
     "asset_id": "Asset ID",
+    "assetid": "Asset ID",
     "tripid": "Trip ID",
     "timestamp": "Timestamp",
     "speed": "Speed",
@@ -2024,7 +2025,14 @@
     "download_csv": "Download CSV",
     "no_trip": "No Trip",
     "distance_between_signals": "Distance between signals (Km)",
-    "selected_signals": "Selected Signals"
+    "selected_signals": "Selected Signals",
+    "pulse_detail": "Pulse Detail",
+    "heading": "Heading",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "back_to_summary": "Back to summary",
+    "view_on_maps": "View on Google Maps",
+    "distance": "Distance"
   },
   "new_functionality": {
     "new": "New",

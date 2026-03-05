@@ -1,0 +1,30 @@
+# 🔔 Release Notes v1.28.2 — ModularIoT
+
+### Fecha: 05/03/2026
+
+**Objetivo**: Incorporar el soporte de paralelismo (recursos paralelos por slot) en toda la línea OSS del calendario —desde la librería cliente hasta el CLI— alineando el ecosistema de herramientas con la API de Calendar v0.4.0.
+
+## 🚀 Evolutivos
+
+- **📍 Soporte de Paralelismo en Calendar Client y CLI** *(Integración OSS — MIOT-0.4.1)*
+  - **Librería cliente (`miot-calendar-client` v0.5.0)**: Nuevo campo `parallelism` en `CalendarRequest` y `CalendarResponse` para definir el número de recursos paralelos por slot (ej. andenes de carga). Renombrado `capacityPerSlot` → `capacity` en ventanas de tiempo, y eliminado `slotDurationMinutes` del request (ahora derivado por el backend). Actualización del esquema OpenAPI.
+  - **CLI (`miot-cli` v0.3.0)**: Nuevo flag `--parallelism` en los comandos `miot calendar create` y `miot calendar update`. Nueva columna `PARALLELISM` en la salida de `miot calendar list`. Versión dinámica leída desde `package.json` en lugar de string hardcodeado.
+  - **Consumidores downstream**: Actualizaciones en la app web (servicio de ventanas de tiempo, esquema y provider), el CLI de ventanas de tiempo (eliminación de `--slot-duration`, renombrado de campos) y la documentación de referencia.
+  - **Tests**: 47 tests pasando, incluyendo nuevos casos para `--parallelism` en create y update, y fixtures actualizados con el campo `parallelism`.
+
+## 📊 Beneficios
+
+- 🚀 **Modelado de recursos paralelos**: Los calendarios ahora pueden representar múltiples recursos simultáneos (ej. andenes, dársenas), habilitando escenarios logísticos más complejos.
+- 🔧 **CLI alineado con la API**: Los operadores pueden gestionar paralelismo directamente desde la línea de comandos sin depender de la interfaz web.
+- 📋 **Esquema coherente**: El renombrado de `capacityPerSlot` → `capacity` y la eliminación de `slotDurationMinutes` del request simplifican el modelo y reducen ambigüedad.
+- 🧪 **Cobertura de tests completa**: Los nuevos casos de prueba garantizan estabilidad en los flujos de creación y actualización con paralelismo.
+- 📖 **Documentación actualizada**: La referencia del CLI, el modelo de dominio y los ejemplos JSON reflejan fielmente los cambios de la API v0.4.0.
+- ⚡ **Retrocompatibilidad**: El campo `parallelism` tiene valor por defecto `1`, por lo que calendarios existentes no requieren migración.
+
+## 📌 Conclusión
+
+La versión 1.28.2 completa la integración del concepto de paralelismo a lo largo de toda la cadena de herramientas OSS del calendario ModularIoT. La actualización de la librería cliente a v0.5.0 y del CLI a v0.3.0 permite a los usuarios modelar y gestionar recursos paralelos por slot —como andenes de carga o puntos de atención simultáneos— tanto desde la interfaz gráfica como desde la línea de comandos.
+
+Los cambios de esquema introducidos (renombrado de campos, eliminación de parámetros derivados) reflejan una simplificación deliberada del contrato entre cliente y servidor, reduciendo la superficie de error y facilitando futuras extensiones. La cobertura de tests y la documentación actualizada aseguran que el ecosistema se mantiene robusto y predecible.
+
+Con esta entrega, la plataforma da un paso significativo hacia el soporte de operaciones logísticas con múltiples recursos concurrentes, sentando las bases para funcionalidades avanzadas de planificación y optimización de capacidad.

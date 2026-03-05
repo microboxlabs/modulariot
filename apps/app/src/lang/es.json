@@ -2056,7 +2056,14 @@
     "download_csv": "Descargar CSV",
     "no_trip": "Sin viaje",
     "distance_between_signals": "Distancia entre señales (Km)",
-    "selected_signals": "Señales Seleccionadas"
+    "selected_signals": "Señales Seleccionadas",
+    "pulse_detail": "Detalle de Pulso",
+    "heading": "Rumbo",
+    "latitude": "Latitud",
+    "longitude": "Longitud",
+    "back_to_summary": "Volver al resumen",
+    "view_on_maps": "Ver en Google Maps",
+    "distance": "Distancia"
   },
   "new_functionality": {
     "new": "NUEVO",

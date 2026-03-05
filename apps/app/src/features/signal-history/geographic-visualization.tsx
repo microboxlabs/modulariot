@@ -3,6 +3,7 @@ import { HistoricSignal } from "./types/historic-signal.type";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import type { MapRef } from "react-map-gl";
 import { PulsePinLayer } from "@/features/geographic-view/components/layers/pulse-range";
+import type { PickingInfo } from "@deck.gl/core";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import ToolBar from "../geographic-view/components/tool-bar/tool-bar";
 import TimeRangeSelector from "../geographic-view/components/tool-bar/time-range-selector";
@@ -13,6 +14,7 @@ import { tr } from "../i18n/tr.service";
 import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
+import { flyTo } from "../map-visualization/map-view-utils";
 
 export default function GeographicVisualization({
   data,
@@ -36,6 +38,10 @@ export default function GeographicVisualization({
   >([]);
   const [layers, setLayers] = useState<any[]>([]);
   const [mapStyle, setMapStyle] = useState<string>("satellite");
+
+  const [selectedPulse, setSelectedPulse] = useState<HistoricSignal | null>(
+    null
+  );
 
   const [dateRangeDisplayed, setDateRangeDisplayed] = useState<{
     startDate: string;
@@ -171,30 +177,56 @@ export default function GeographicVisualization({
     setRenderizableData(fixed_data);
   }, [data, isLoading]);
 
+  const handlePulseClick = useCallback((info: PickingInfo<HistoricSignal>) => {
+    if (!info.object) {
+      setSelectedPulse(null);
+      return;
+    }
+    const pulse = info.object;
+    setSelectedPulse(pulse);
+    if (mapRef.current) {
+      flyTo(mapRef.current, [pulse.longitude, pulse.latitude], 15);
+    }
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedPulse(null);
+  }, []);
+
   useEffect(() => {
-    const layers = [
+    const newLayers: any[] = [
       new PulsePinLayer({
-        data: data, // Use the data as it is when we reach 200
+        data: data,
         selectedPulse: [],
+        selectedPulseTimestamp: selectedPulse?.timestamp ?? null,
         displayRange: {
           startDate: new Date(dateRangeDisplayed.startDate),
           endDate: new Date(dateRangeDisplayed.endDate),
         },
-        getPosition: (d: any) => {
+        getPosition: (d: HistoricSignal) => {
           return [d.longitude, d.latitude];
         },
         pickable: true,
+        onClick: handlePulseClick,
         updateTriggers: {
           displayRange: {
             startDate: new Date(dateRangeDisplayed.startDate),
             endDate: new Date(dateRangeDisplayed.endDate),
           },
+          selectedPulseTimestamp: selectedPulse?.timestamp ?? null,
         },
       }),
     ];
 
-    setLayers(layers);
-  }, [data?.length, isLoading, displayPosition, dateRangeDisplayed]);
+    setLayers(newLayers);
+  }, [
+    data?.length,
+    isLoading,
+    displayPosition,
+    dateRangeDisplayed,
+    handlePulseClick,
+    selectedPulse,
+  ]);
 
   useEffect(() => {
     // Here each time data gets updated, we will get the 2 farthest coordinates, and generate a zoom in screen
@@ -311,6 +343,8 @@ export default function GeographicVisualization({
             dict={dict}
             data={data as HistoricSignal[]}
             dateRangeDisplayed={dateRangeDisplayed}
+            selectedPulse={selectedPulse}
+            onClearSelection={handleClearSelection}
           />
         </div>
 

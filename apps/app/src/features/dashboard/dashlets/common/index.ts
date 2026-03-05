@@ -69,3 +69,11 @@ export {
   useSettingsState,
 } from "./use-settings-state";
 export { TableListSettingsShell } from "./table-list-settings-shell";
+export {
+  type TemplateField,
+  compileTemplates,
+  resolveTemplate,
+  resolveHandlebarsField,
+  buildDataProviderContext,
+} from "./use-handlebars-templates";
+export { SuggestionInput } from "./suggestion-input";

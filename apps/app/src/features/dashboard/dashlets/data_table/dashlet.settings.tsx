@@ -34,7 +34,9 @@ import {
   SettingsSelectField,
   getHandlebarsStatus,
   getFlowbiteColor,
+  SuggestionInput,
 } from "../common";
+import { COLUMN_TYPES } from "../common/column-types";
 import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 import { PgrestFunctionAutocomplete } from "./pgrest-function-autocomplete";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
@@ -504,13 +506,12 @@ export function DashletSettings({
                         />
                       </div>
                       <div className="w-28 shrink-0">
-                        <TextInput
+                        <SuggestionInput
                           sizing="sm"
                           placeholder="text"
                           value={col.type}
-                          onChange={(e) =>
-                            updateColumn(col._id, "type", e.target.value)
-                          }
+                          onChange={(v) => updateColumn(col._id, "type", v)}
+                          suggestions={COLUMN_TYPES}
                           color={getFlowbiteColor(getHandlebarsStatus(col.type))}
                         />
                       </div>

@@ -1494,7 +1494,7 @@ export async function updateCalendar(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(await parseErrorBody(response, "Failed to update calendar"));
+    throw new Error(`Failed to update calendar: ${response.statusText}`);
   }
   return response.json();
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import Handlebars from "handlebars";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
+import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
@@ -323,35 +323,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   };
 
   // ── Handlebars template compilation ────────────────────────────────────────
-  // When col.key contains "{{", it is treated as a Handlebars template.
-  // Otherwise it is a plain property name and we fall back to row[col.key].
-  const compiledTemplates = useMemo(() => {
-    const map = new Map<string, Handlebars.TemplateDelegate>();
-    for (const col of columns) {
-      if (col.key.includes("{{")) {
-        try {
-          map.set(col.key, Handlebars.compile(col.key));
-        } catch {
-          // Invalid template — skip; resolveCellValue will fallback
-        }
-      }
-    }
-    return map;
-  }, [columns]);
+  const compiledKeys = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
+    [columns]
+  );
 
-  const compiledLabels = useMemo(() => {
-    const map = new Map<string, Handlebars.TemplateDelegate>();
-    for (const col of columns) {
-      if (col.label.includes("{{")) {
-        try {
-          map.set(col.key, Handlebars.compile(col.label));
-        } catch {
-          // Invalid template — skip; header will show raw label
-        }
-      }
-    }
-    return map;
-  }, [columns]);
+  const compiledLabels = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
+    [columns]
+  );
+
+  const compiledTypes = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
+    [columns]
+  );
 
   const resolveCellValue = useCallback(
     (
@@ -359,45 +344,16 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       col: TableColumn,
       rowIdx: number,
       totalRows: number
-    ): string => {
-      const tpl = compiledTemplates.get(col.key);
-      if (!tpl) return col.key; // plain text → literal display
-      try {
-        return tpl({ row, ...row, _index: rowIdx, _count: totalRows });
-      } catch {
-        return col.key;
-      }
-    },
-    [compiledTemplates]
+    ): string =>
+      resolveTemplate(compiledKeys, col.key, { row, ...row, _index: rowIdx, _count: totalRows }, col.key),
+    [compiledKeys]
   );
 
   const resolveHeaderLabel = useCallback(
-    (col: TableColumn): string => {
-      const tpl = compiledLabels.get(col.key);
-      if (!tpl) return col.label;
-      try {
-        return tpl({ _count: displayRows.length });
-      } catch {
-        return col.label;
-      }
-    },
+    (col: TableColumn): string =>
+      resolveTemplate(compiledLabels, col.key, { _count: displayRows.length }, col.label),
     [compiledLabels, displayRows.length]
   );
-
-  // ── Handlebars type-template compilation ───────────────────────────────────
-  const compiledTypeTemplates = useMemo(() => {
-    const map = new Map<string, Handlebars.TemplateDelegate>();
-    for (const col of columns) {
-      if (col.type.includes("{{")) {
-        try {
-          map.set(col.key, Handlebars.compile(col.type));
-        } catch {
-          // Invalid template — skip; resolveCellType will fallback to col.type
-        }
-      }
-    }
-    return map;
-  }, [columns]);
 
   const resolveCellType = useCallback(
     (
@@ -406,15 +362,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       rowIdx: number,
       totalRows: number
     ): string => {
-      const tpl = compiledTypeTemplates.get(col.key);
-      if (!tpl) return col.type || "text";
-      try {
-        return tpl({ row, ...row, _index: rowIdx, _count: totalRows }).trim() || "text";
-      } catch {
-        return "text";
-      }
+      const result = resolveTemplate(
+        compiledTypes, col.key,
+        { row, ...row, _index: rowIdx, _count: totalRows },
+        col.type || "text"
+      );
+      return result.trim() || "text";
     },
-    [compiledTypeTemplates]
+    [compiledTypes]
   );
 
   // ── Render ──────────────────────────────────────────────────────────────────

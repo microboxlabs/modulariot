@@ -2,10 +2,10 @@
 
 import {
   Button,
-  TextInput,
   Textarea,
   Label,
   ToggleSwitch,
+  TextInput,
   Select,
 } from "flowbite-react";
 import { HiPlus, HiTrash } from "react-icons/hi2";
@@ -14,6 +14,8 @@ import type { FilterItem } from "./filter-helpers";
 import type { FilterItemConfig } from "./filter-types";
 import { SettingsTextField, SettingsSelectField } from "./settings-fields";
 import { getHandlebarsStatus, getFlowbiteColor } from "./handlebars-helpers";
+import { SuggestionInput } from "./suggestion-input";
+import { COLUMN_TYPES } from "./column-types";
 
 // ============================================================================
 // Shared mouse-down handler (prevents drag on settings modals)
@@ -65,13 +67,12 @@ export function ColumnEditor({
               />
             </div>
             <div className="w-28 shrink-0">
-              <TextInput
+              <SuggestionInput
                 sizing="sm"
                 placeholder="text"
                 value={col.type}
-                onChange={(e) =>
-                  onUpdate(col._id, "type", e.target.value)
-                }
+                onChange={(v) => onUpdate(col._id, "type", v)}
+                suggestions={COLUMN_TYPES}
                 color={getFlowbiteColor(getHandlebarsStatus(col.type))}
               />
             </div>

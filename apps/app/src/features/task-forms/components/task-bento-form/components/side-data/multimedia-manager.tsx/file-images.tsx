@@ -26,15 +26,76 @@ const ALLOWED_FILE_TYPES = new Set([
   "application/pdf",
 ]);
 
-function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
-  const validFiles = files.filter((file) =>
-    ALLOWED_FILE_TYPES.has(file.type)
-  );
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+
+function filterValidFiles(
+  files: File[],
+  dictionary: I18nRecord
+): File[] | null {
+  const validFiles = files.filter((file) => ALLOWED_FILE_TYPES.has(file.type));
   if (validFiles.length !== files.length) {
     alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
     return null;
   }
   return validFiles;
+}
+
+function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {
+  // Try to get URL from text/uri-list (most common for dragged images)
+  const uriList = dataTransfer.getData("text/uri-list");
+  if (uriList) {
+    const urls = uriList.split("\n").filter((url) => url.trim() && !url.startsWith("#"));
+    if (urls.length > 0) return urls[0];
+  }
+
+  // Try to get URL from text/plain
+  const plainText = dataTransfer.getData("text/plain");
+  if (plainText && (plainText.startsWith("http://") || plainText.startsWith("https://"))) {
+    return plainText;
+  }
+
+  // Try to extract image URL from HTML (for some browsers)
+  const html = dataTransfer.getData("text/html");
+  if (html) {
+    const srcMatch = html.match(/src=["']([^"']+)["']/);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+  }
+
+  return null;
+}
+
+function isValidImageUrl(url: string): boolean {
+  const urlLower = url.toLowerCase();
+  return Array.from(ALLOWED_IMAGE_EXTENSIONS).some(
+    (ext) => urlLower.includes(`.${ext}`) || urlLower.includes(`image/${ext}`)
+  );
+}
+
+async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    
+    // Validate mime type
+    if (!blob.type.startsWith("image/")) return null;
+    if (!ALLOWED_FILE_TYPES.has(blob.type)) return null;
+
+    // Extract filename from URL or generate one
+    const urlPath = new URL(imageUrl).pathname;
+    const urlFilename = urlPath.split("/").pop() || "";
+    const extension = blob.type.split("/")[1] || "jpg";
+    const filename = urlFilename.includes(".") 
+      ? urlFilename 
+      : `downloaded-image-${Date.now()}.${extension}`;
+
+    return new File([blob], filename, { type: blob.type });
+  } catch {
+    return null;
+  }
 }
 
 export default function FileImages({
@@ -47,6 +108,7 @@ export default function FileImages({
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFetchingFromUrl, setIsFetchingFromUrl] = useState(false);
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
@@ -136,21 +198,48 @@ export default function FileImages({
         }
         setIsDragOver(false);
       }}
-      onDrop={(e) => {
+      onDrop={async (e) => {
         e.preventDefault();
-        if (isDocumentListOpen || isClasificationFormOpen) {
+        if (isDocumentListOpen || isClasificationFormOpen || isFetchingFromUrl) {
           return;
         }
 
         setIsDragOver(false);
-        const validFiles = filterValidFiles(
-          Array.from(e.dataTransfer.files),
-          dictionary
-        );
-        if (!validFiles) return;
 
-        setUploadableFiles(validFiles);
-        setIsClasificationFormOpen(true);
+        // First try to handle as regular files (from filesystem)
+        if (e.dataTransfer.files.length > 0) {
+          const validFiles = filterValidFiles(
+            Array.from(e.dataTransfer.files),
+            dictionary
+          );
+          if (!validFiles) return;
+
+          setUploadableFiles(validFiles);
+          setIsClasificationFormOpen(true);
+          return;
+        }
+
+        // If no files, try to extract image URL (dragged from web)
+        const imageUrl = extractImageUrlFromDrop(e.dataTransfer);
+        if (!imageUrl) return;
+
+        if (!isValidImageUrl(imageUrl)) {
+          alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
+          return;
+        }
+
+        setIsFetchingFromUrl(true);
+        try {
+          const file = await fetchImageAsFile(imageUrl);
+          if (file) {
+            setUploadableFiles([file]);
+            setIsClasificationFormOpen(true);
+          } else {
+            alert(tr("bento.multimedia.fetch_image_error", dictionary));
+          }
+        } finally {
+          setIsFetchingFromUrl(false);
+        }
       }}
     >
       {/* Drag and drop overlay */}
@@ -159,6 +248,17 @@ export default function FileImages({
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
       />
+      {/* Loading overlay for URL fetch */}
+      {isFetchingFromUrl && (
+        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center rounded-lg bg-gray-900/60 z-30">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-white text-sm">
+              {tr("bento.multimedia.fetching_image", dictionary)}
+            </p>
+          </div>
+        </div>
+      )}
       <div
         className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver

@@ -44,13 +44,18 @@ function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {
   // Try to get URL from text/uri-list (most common for dragged images)
   const uriList = dataTransfer.getData("text/uri-list");
   if (uriList) {
-    const urls = uriList.split("\n").filter((url) => url.trim() && !url.startsWith("#"));
+    const urls = uriList
+      .split("\n")
+      .filter((url) => url.trim() && !url.startsWith("#"));
     if (urls.length > 0) return urls[0];
   }
 
   // Try to get URL from text/plain
   const plainText = dataTransfer.getData("text/plain");
-  if (plainText && (plainText.startsWith("http://") || plainText.startsWith("https://"))) {
+  if (
+    plainText &&
+    (plainText.startsWith("http://") || plainText.startsWith("https://"))
+  ) {
     return plainText;
   }
 
@@ -79,7 +84,7 @@ async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
     if (!response.ok) return null;
 
     const blob = await response.blob();
-    
+
     // Validate mime type
     if (!blob.type.startsWith("image/")) return null;
     if (!ALLOWED_FILE_TYPES.has(blob.type)) return null;
@@ -88,8 +93,8 @@ async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
     const urlPath = new URL(imageUrl).pathname;
     const urlFilename = urlPath.split("/").pop() || "";
     const extension = blob.type.split("/")[1] || "jpg";
-    const filename = urlFilename.includes(".") 
-      ? urlFilename 
+    const filename = urlFilename.includes(".")
+      ? urlFilename
       : `downloaded-image-${Date.now()}.${extension}`;
 
     return new File([blob], filename, { type: blob.type });
@@ -121,10 +126,7 @@ export default function FileImages({
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const {
-    data,
-    uploadFile,
-  } = useOptimisticFileUpload(packageId);
+  const { data, uploadFile } = useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
@@ -200,7 +202,11 @@ export default function FileImages({
       }}
       onDrop={async (e) => {
         e.preventDefault();
-        if (isDocumentListOpen || isClasificationFormOpen || isFetchingFromUrl) {
+        if (
+          isDocumentListOpen ||
+          isClasificationFormOpen ||
+          isFetchingFromUrl
+        ) {
           return;
         }
 
@@ -224,7 +230,9 @@ export default function FileImages({
         if (!imageUrl) return;
 
         if (!isValidImageUrl(imageUrl)) {
-          alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
+          alert(
+            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
+          );
           return;
         }
 
@@ -248,15 +256,10 @@ export default function FileImages({
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
       />
-      {/* Loading overlay for URL fetch */}
+      {/* Small loading indicator for URL fetch */}
       {isFetchingFromUrl && (
-        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center rounded-lg bg-gray-900/60 z-30">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-white text-sm">
-              {tr("bento.multimedia.fetching_image", dictionary)}
-            </p>
-          </div>
+        <div className="absolute top-2 right-2 z-30">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
       <div

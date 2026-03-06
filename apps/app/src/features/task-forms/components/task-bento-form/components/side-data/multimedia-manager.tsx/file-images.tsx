@@ -19,14 +19,14 @@ import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
 
-const ALLOWED_FILE_TYPES = new Set([
+export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "application/pdf",
 ]);
 
-const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+export const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 
 function filterValidFiles(
   files: File[],
@@ -40,7 +40,9 @@ function filterValidFiles(
   return validFiles;
 }
 
-function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {
+export function extractImageUrlFromDrop(
+  dataTransfer: DataTransfer
+): string | null {
   // Try to get URL from text/uri-list (most common for dragged images)
   const uriList = dataTransfer.getData("text/uri-list");
   if (uriList) {
@@ -62,8 +64,8 @@ function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {
   // Try to extract image URL from HTML (for some browsers)
   const html = dataTransfer.getData("text/html");
   if (html) {
-    const srcMatch = html.match(/src=["']([^"']+)["']/);
-    if (srcMatch && srcMatch[1]) {
+    const srcMatch = /src=["']([^"']+)["']/.exec(html);
+    if (srcMatch?.[1]) {
       return srcMatch[1];
     }
   }
@@ -71,16 +73,26 @@ function extractImageUrlFromDrop(dataTransfer: DataTransfer): string | null {
   return null;
 }
 
-function isValidImageUrl(url: string): boolean {
-  const urlLower = url.toLowerCase();
-  return Array.from(ALLOWED_IMAGE_EXTENSIONS).some(
-    (ext) => urlLower.includes(`.${ext}`) || urlLower.includes(`image/${ext}`)
-  );
+export function isValidImageUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
+const FETCH_TIMEOUT_MS = 10000;
+
+export async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetch(imageUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) return null;
 
     const blob = await response.blob();
@@ -99,6 +111,7 @@ async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
 
     return new File([blob], filename, { type: blob.type });
   } catch {
+    clearTimeout(timeoutId);
     return null;
   }
 }

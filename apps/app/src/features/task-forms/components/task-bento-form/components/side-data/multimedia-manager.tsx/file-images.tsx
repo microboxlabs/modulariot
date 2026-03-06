@@ -26,10 +26,11 @@ const ALLOWED_FILE_TYPES = new Set([
   "application/pdf",
 ]);
 
-function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
-  const validFiles = files.filter((file) =>
-    ALLOWED_FILE_TYPES.has(file.type)
-  );
+function filterValidFiles(
+  files: File[],
+  dictionary: I18nRecord
+): File[] | null {
+  const validFiles = files.filter((file) => ALLOWED_FILE_TYPES.has(file.type));
   if (validFiles.length !== files.length) {
     alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
     return null;
@@ -59,10 +60,7 @@ export default function FileImages({
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const {
-    data,
-    uploadFile,
-  } = useOptimisticFileUpload(packageId);
+  const { data, uploadFile } = useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 

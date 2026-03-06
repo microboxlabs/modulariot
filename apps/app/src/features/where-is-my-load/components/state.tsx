@@ -35,6 +35,7 @@ export default function TimelineStates({
     dict,
     index,
     actualState,
+    stateCode: state.code,
   });
   const task_id = state.task_id;
 
@@ -116,12 +117,16 @@ export function DataBox({
     component: React.ReactNode;
     start_delay: number | null;
     end_delay: number | null;
+    delay_projected_start?: boolean;
+    delay_projected_end?: boolean;
   };
   state: State;
   minimal: boolean;
   className?: string;
   dict: I18nRecord;
 }) {
+  console.log(state);
+
   return (
     <div className={className}>
       {minimal == false ? (
@@ -135,7 +140,17 @@ export function DataBox({
         </div>
       ) : null}
       <div className="text-gray-800 dark:text-gray-300 font-light flex flex-col gap-2 relative z-10">
-        <DelayCalculations temporalData={temporalData} dict={dict} />
+        {state.code == "DELIVERY_EXPEDITION" && (
+          <DelayComponent
+            label={
+              temporalData.delay_projected_start
+                ? tr("wheres_my_load.estimated_delivery_delayed", dict)
+                : tr("wheres_my_load.delivery_delayed", dict)
+            }
+            delay={temporalData.start_delay}
+          />
+        )}
+
         <div>{state.description}</div>
       </div>
     </div>
@@ -162,7 +177,7 @@ export function DelayCalculations({
       <DelayComponent
         label={
           temporalData.delay_projected_start
-            ? tr("wheres_my_load.delay_proj_start", dict)
+            ? tr("wheres_my_load.delivery_delayed", dict)
             : tr("wheres_my_load.delay_pre_start", dict)
         }
         delay={temporalData.start_delay}
@@ -184,6 +199,7 @@ export function TemporalComponent({
   dict,
   index,
   actualState,
+  stateCode,
 }: {
   time: {
     start: string | null;
@@ -197,6 +213,7 @@ export function TemporalComponent({
   dict: I18nRecord;
   index?: number;
   actualState?: number;
+  stateCode?: string;
 }) {
   if (
     time.start === null &&
@@ -252,6 +269,68 @@ export function TemporalComponent({
         };
       }
     }
+  }
+
+  // Special handling for DELIVERY_EXPEDITION state
+  if (stateCode === "DELIVERY_EXPEDITION") {
+    // Estimated date: prefer projected_start, fallback to lead_time_start
+    const estimatedDate = time.projected_start ?? time.lead_time_start;
+    const hasDelivered = !!time.start;
+    const deliveryDate = time.start;
+    const projectedStart = time.projected_start;
+
+    // Calculate delay: compare (start or lead_time_start) vs projected_start
+    let delivery_delay: number | null = null;
+    let is_delayed = false;
+    const dateToCompare = hasDelivered ? deliveryDate : time.lead_time_start;
+
+    if (projectedStart && dateToCompare) {
+      is_delayed = fromString(dateToCompare).isAfter(
+        fromString(projectedStart)
+      );
+      if (is_delayed) {
+        delivery_delay = getDelay(dateToCompare, projectedStart);
+      }
+    }
+
+    return {
+      component: (
+        <div className="text-sm font-light text-gray-500 dark:text-gray-400 flex flex-col md:flex-row gap-2">
+          {estimatedDate && (
+            <span>
+              {tr("wheres_my_load.estimated", dict)}:{" "}
+              <span className="whitespace-nowrap">
+                <FormattedDate
+                  date={estimatedDate}
+                  format="datetime"
+                  locale="es-CL"
+                  timeZone="America/Santiago"
+                />
+              </span>
+            </span>
+          )}
+          {hasDelivered && deliveryDate && (
+            <span>
+              {tr("wheres_my_load.delivered", dict)}:{" "}
+              <span
+                className={`${is_delayed ? "text-red-500 dark:text-red-300" : ""} whitespace-nowrap`}
+              >
+                <FormattedDate
+                  date={deliveryDate}
+                  format="datetime"
+                  locale="es-CL"
+                  timeZone="America/Santiago"
+                />
+              </span>
+            </span>
+          )}
+        </div>
+      ),
+      start_delay: delivery_delay,
+      end_delay: null,
+      delay_projected_start: !hasDelivered, // true if comparing lead_time vs projected
+      delay_projected_end: false,
+    };
   }
 
   return {

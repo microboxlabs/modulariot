@@ -33,6 +33,7 @@ const getLoadIcon = (icon: string | null = "TRUCK_LOADING") => {
 
 export type State = {
   name: string;
+  code: string;
   icon: React.ReactElement | null;
   description?: string | React.ReactElement;
   ended: boolean;
@@ -94,6 +95,7 @@ export default function Timeline({
       ? data?.map((item) => {
           return {
             name: item.nombre_etapa_,
+            code: item.codigo_etapa,
             time: {
               start: item.start_time__,
               end: item.end_time__,
@@ -308,6 +310,7 @@ export default function Timeline({
           state={states[actualState]}
           dict={dict}
           className="w-full"
+          allStates={states}
         />
       </div>
 
@@ -337,6 +340,7 @@ export default function Timeline({
           item={data ? data[actualState] : undefined}
           state={states[actualState]}
           dict={dict}
+          allStates={states}
         />
       </div>
     </div>
@@ -349,14 +353,29 @@ function SideInfo({
   state,
   dict,
   className = "",
+  allStates,
 }: {
   badges: InformationBadge[];
   item: LoadSearchResponse | undefined;
   state: State;
   dict: I18nRecord;
   className?: string;
+  allStates: State[];
 }) {
-  const temporal_data = TemporalComponent({ time: state.time, dict });
+  const temporal_data = TemporalComponent({
+    time: state.time,
+    dict,
+    stateCode: state.code,
+  });
+
+  // Find DELIVERY_EXPEDITION state for delivery dates
+  const deliveryExpeditionState = allStates.find(
+    (s) => s.code === "DELIVERY_EXPEDITION"
+  );
+  const estimatedDeliveryDate =
+    deliveryExpeditionState?.time.projected_start ??
+    deliveryExpeditionState?.time.lead_time_start;
+  const actualDeliveryDate = deliveryExpeditionState?.time.start;
 
   return (
     <div className={`w-fit h-fit flex flex-col gap-2 ${className}`}>
@@ -366,35 +385,65 @@ function SideInfo({
           subtitle={null}
           style={{ title: "text-xl", subtitle: "text-sm" }}
         >
-          <div className="grid grid-cols-[max-content_max-content] gap-2">
-            <LoadableLabel
-              label="Código"
-              value={state.expedition.code ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel
-              label="N° de expedición"
-              value={state.expedition.number ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel
-              label="Origen"
-              value={state.origin ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Volumen" value="-" className="!text-base" />
-            <LoadableLabel
-              label="Destino"
-              value={state.destination ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Peso" value="-" className="!text-base" />
-            <LoadableLabel
-              label="Oferta producto"
-              value={state.oferta_producto ?? "-"}
-              className="!text-base"
-            />
-            <LoadableLabel label="Bultos" value="-" className="!text-base" />
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-[max-content_max-content] gap-2">
+              <LoadableLabel
+                label="Código"
+                value={state.expedition.code ?? "-"}
+                className="!text-base"
+              />
+              <LoadableLabel
+                label="N° de expedición"
+                value={state.expedition.number ?? "-"}
+                className="!text-base"
+              />
+              <LoadableLabel
+                label="Origen"
+                value={state.origin ?? "-"}
+                className="!text-base"
+              />
+              <LoadableLabel label="Volumen" value="-" className="!text-base" />
+              <LoadableLabel
+                label="Destino"
+                value={state.destination ?? "-"}
+                className="!text-base"
+              />
+              <LoadableLabel label="Peso" value="-" className="!text-base" />
+              <LoadableLabel
+                label="Oferta producto"
+                value={state.oferta_producto ?? "-"}
+                className="!text-base"
+              />
+              <LoadableLabel label="Bultos" value="-" className="!text-base" />
+            </div>
+            {estimatedDeliveryDate && (
+              <LoadableLabel
+                label={tr("wheres_my_load.estimated_delivery_date", dict)}
+                value={
+                  <FormattedDate
+                    date={estimatedDeliveryDate}
+                    format="datetime"
+                    locale="es-CL"
+                    timeZone="America/Santiago"
+                  />
+                }
+                className="!text-base w-full"
+              />
+            )}
+            {actualDeliveryDate && (
+              <LoadableLabel
+                label={tr("wheres_my_load.actual_delivery_date", dict)}
+                value={
+                  <FormattedDate
+                    date={actualDeliveryDate}
+                    format="datetime"
+                    locale="es-CL"
+                    timeZone="America/Santiago"
+                  />
+                }
+                className="!text-base w-full"
+              />
+            )}
           </div>
         </CustomCard>
       </div>

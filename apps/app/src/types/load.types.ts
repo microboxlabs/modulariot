@@ -1,4 +1,5 @@
 export interface LoadSearchResponse {
+  codigo_etapa: string | null;
   expe_codigo_: number | null;
   expe_numero_: number | null;
   viaj_codigo_: number | null;

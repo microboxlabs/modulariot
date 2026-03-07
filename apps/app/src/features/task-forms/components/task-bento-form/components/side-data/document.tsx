@@ -1,9 +1,10 @@
 import { FaRegFilePdf } from "react-icons/fa";
-import { displayBase64Content } from "./multimedia-manager.tsx/file-images";
 import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 import React, { useEffect, useState } from "react";
 import { getCategories } from "./multimedia-manager.tsx/clasification-form";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 
 export default function Document({
   document,
@@ -19,6 +20,7 @@ export default function Document({
   const [thumbnail, setThumbnail] = useState<any>(null);
   const [thumbnailError, setThumbnailError] = useState<boolean>(false);
   const [thumbnailIsLoading, setThumbnailIsLoading] = useState<boolean>(true);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
 
   const { data, error } = useGetNodeThumbnail(document.file.entry.id);
 
@@ -45,20 +47,30 @@ export default function Document({
     };
   }, [thumbnailUrl]);
 
-  const handleViewDocument = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleViewDocument = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (document.data) {
-      const pdfDataUrl = displayBase64Content(
-        document.data,
-        document.file.entry.content.mimeType
-      );
+    if (isLoadingContent) return;
+    setIsLoadingContent(true);
+    const contentUrl = `/app/api/bento/content?nodeId=${document.file.entry.id}`;
+    try {
+      const res = await fetch(contentUrl);
+      if (!res.ok) {
+        ShowNotification({ type: "error", message: tr("bento.multimedia.document_load_error", dictionary) });
+        return;
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
       setSelected({
-        url: pdfDataUrl,
+        url: blobUrl,
         tag:
           document?.file?.entry?.properties?.["mintral:contentType"] ??
           "Sin clasificar",
         name: document.file.entry.name,
       });
+    } catch {
+      ShowNotification({ type: "error", message: tr("bento.multimedia.document_load_error", dictionary) });
+    } finally {
+      setIsLoadingContent(false);
     }
   };
 
@@ -66,8 +78,17 @@ export default function Document({
     <a
       href="#"
       onClick={handleViewDocument}
-      className="w-full rounded-lg flex flex-row items-center overflow-hidden border border-gray-300 dark:border-gray-600 p-2 h-[4.5rem] hover:border-gray-600 dark:hover:border-gray-300 cursor-pointer transition-all duration-200"
+      className={`w-full rounded-lg flex flex-row items-center overflow-hidden border p-2 h-[4.5rem] transition-all duration-200 relative ${
+        isLoadingContent
+          ? "border-gray-400 dark:border-gray-500 opacity-60 pointer-events-none"
+          : "border-gray-300 dark:border-gray-600 hover:border-gray-600 dark:hover:border-gray-300 cursor-pointer"
+      }`}
     >
+      {isLoadingContent && (
+        <div className="absolute inset-0 flex items-center justify-end pr-3">
+          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div
         className={`h-full aspect-square bg-gray-200 dark:bg-gray-600 ${thumbnailIsLoading && !thumbnailError ? "animate-pulse" : "animate-none"} rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0`}
       >

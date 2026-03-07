@@ -28,5 +28,4 @@ export interface AlfrescoFileEntry {
 
 export interface ImageItem {
   file: AlfrescoFileEntry;
-  data: string;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import Image from "next/image";
+
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 export default function Carousel({
@@ -148,11 +148,9 @@ export default function Carousel({
               aria-label={zoomActive ? "Disable zoom" : "Enable zoom"}
               className={`bg-transparent border-0 p-0 m-0 outline-none max-h-full ${zoomActive ? "cursor-zoom-out" : "cursor-zoom-in"}`}
             >
-              <Image
+              <img
                 src={image}
                 alt="Image"
-                width={1200}
-                height={1200}
                 className="max-h-full w-auto object-contain select-none pointer-events-none"
                 onLoad={handleImageLoad}
               />

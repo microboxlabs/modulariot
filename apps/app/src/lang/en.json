@@ -1824,6 +1824,7 @@
       "noImages": "No images",
       "documents": "Documents",
       "noDocuments": "No documents",
+      "document_load_error": "Could not load the document",
       "validation": {
         "missingDocuments": "Required documents are missing to continue",
         "requiresPOD": "Proof of Delivery (POD)",

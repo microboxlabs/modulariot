@@ -7,10 +7,11 @@ import {
   Spinner,
 } from "flowbite-react";
 import { signOut, useSession } from "next-auth/react";
+import { useParams } from "next/navigation";
 import { UserDropdownProps } from "./user-dropdown.types";
 import { getAuth0LogoutUrl } from "@/features/auth/services/auth.service";
 
-async function handleSignOut() {
+async function handleSignOut(lang: string) {
   // Get Auth0 logout URL before signing out of NextAuth
   const auth0LogoutUrl = await getAuth0LogoutUrl();
 
@@ -22,11 +23,12 @@ async function handleSignOut() {
     globalThis.location.href = auth0LogoutUrl;
   } else {
     // Fallback to sign-in page if Auth0 is not configured
-    globalThis.location.href = "/sign-in";
+    globalThis.location.href = `/app/${lang}/sign-in`;
   }
 }
 
 export default function UserDropdown({ messages }: UserDropdownProps) {
+  const { lang } = useParams<{ lang: string }>();
   const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
@@ -74,7 +76,7 @@ export default function UserDropdown({ messages }: UserDropdownProps) {
       <Dropdown.Item>Settings</Dropdown.Item>
       <Dropdown.Item>Earnings</Dropdown.Item> */}
       {/* <Dropdown.Divider /> */}
-      <DropdownItem onClick={handleSignOut}>
+      <DropdownItem onClick={() => handleSignOut(lang)}>
         {messages.signOutLabel}
       </DropdownItem>
     </Dropdown>

@@ -14,6 +14,7 @@ import PinIcon from "@/features/icons/pin-icon";
 import { useState, useEffect } from "react";
 import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
 import { tr } from "@/features/i18n/tr.service";
+import { useMapFilters } from "../hooks/use-map-filters";
 
 function set_filtered_positions(
   originalPositions: MapPosition[],
@@ -72,6 +73,8 @@ export default function Filters({
   originalPositions: MapPosition[];
   setPositions: (positions: MapPosition[]) => void;
 }) {
+  const { getInitialActivated, syncFiltersToUrl } = useMapFilters();
+
   const [activeFilters, setActiveFilters] = useState<{
     conditions: Option[];
     speed: Option[];
@@ -90,7 +93,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.code_black, false),
       },
       {
         text: "Alerta Critica",
@@ -104,7 +107,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.critical_condition, false),
       },
       {
         text: "En Observacion",
@@ -118,7 +121,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.under_observation, false),
       },
       {
         text: "Comprometida",
@@ -132,7 +135,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.compromised_condition, false),
       },
       {
         text: "En Tratamiento",
@@ -146,7 +149,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.under_treatment, false),
       },
       {
         text: "Estable",
@@ -160,7 +163,7 @@ export default function Filters({
             placement="bottom"
           />
         ),
-        activated: false,
+        activated: getInitialActivated("conditions", icu_codes.stable, false),
       },
     ],
     speed: [
@@ -169,21 +172,21 @@ export default function Filters({
         filter_value: "1",
         code: "1",
         icon: blue_pin.src,
-        activated: false,
+        activated: getInitialActivated("speed", "1", false),
       },
       {
         text: (dict.symptoms as I18nRecord).high_speed as string,
         filter_value: "2",
         code: "2",
         icon: yellow_pin.src,
-        activated: false,
+        activated: getInitialActivated("speed", "2", false),
       },
       {
         text: (dict.symptoms as I18nRecord).very_high_speed as string,
         filter_value: "3",
         code: "3",
         icon: red_pin.src,
-        activated: false,
+        activated: getInitialActivated("speed", "3", false),
       },
     ],
     tripStates: [
@@ -205,7 +208,7 @@ export default function Filters({
             </div>
           </CustomTooltip>
         ),
-        activated: true,
+        activated: getInitialActivated("trip", "1", true),
       },
       {
         text: "Sin viaje",
@@ -225,31 +228,15 @@ export default function Filters({
             </div>
           </CustomTooltip>
         ),
-        activated: false,
+        activated: getInitialActivated("trip", "2", false),
       },
     ],
   });
 
-  // Initialize filtered positions on mount and when filters change
+  // Re-apply filters when data changes
   useEffect(() => {
     set_filtered_positions(originalPositions, activeFilters, setPositions);
   }, [activeFilters, originalPositions, setPositions]);
-
-  useEffect(() => {
-    const defaultPositions = originalPositions.filter(
-      (position) => position.in_trip === true
-    );
-    setPositions(defaultPositions);
-
-    // Ensure the trip state filter is properly activated
-    setActiveFilters((prev) => ({
-      ...prev,
-      tripStates: prev.tripStates.map((state, index) => ({
-        ...state,
-        activated: index === 0, // Only activate the first trip state (with trip)
-      })),
-    }));
-  }, [originalPositions, setPositions]);
 
   const handle_filter_change = (
     updated_options: Option[],
@@ -261,6 +248,7 @@ export default function Filters({
     };
 
     setActiveFilters(newFilters);
+    syncFiltersToUrl(newFilters);
   };
 
   return (

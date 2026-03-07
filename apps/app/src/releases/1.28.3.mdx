@@ -1,0 +1,65 @@
+# 🔔 Release Notes v1.28.3 — ModularIoT
+
+### Fecha: 07/03/2026
+
+**Objetivo**: Unificar la autenticación bajo Auth0 como broker OIDC único, actualizar la plataforma Alfresco a la versión 25.2.0, incorporar fuentes de datos PGREST en dashboards, habilitar drag-and-drop de imágenes web en el gestor multimedia y corregir varios defectos de UX en el flujo de login y la vista geográfica.
+
+## 🚀 Evolutivos
+
+- **🔐 Autenticación unificada con Auth0 como broker OIDC único** *(Integración OSS — MIOT-0.4.2)*
+  - **Eliminación del proveedor directo Microsoft Entra ID**: Se removieron ~500 líneas de código custom de refresh de tokens ECM (`entra-token-ecm.service`, `entra-token.service`) y el provider directo de NextAuth.
+  - **Auth0 como único proveedor**: Todos los flujos OAuth (Google, GitHub, Microsoft) y SAML se canalizan a través de Auth0 mediante el parámetro `connection`, simplificando la gestión de tokens y sesiones.
+  - **SAML vía Auth0 Organizations**: El login con SAML SSO ahora utiliza el parámetro `organization` de Auth0, permitiendo configurar conexiones enterprise por tenant sin necesidad de un proveedor SAML custom en NextAuth.
+  - **Rotación estándar de tokens**: Implementado refresh automático de tokens Auth0 con rotación 5 minutos antes del vencimiento, reemplazando la lógica custom de refresh vía ECM.
+
+- **📊 PGREST como fuente de datos para dashboards** *(Integración OSS — MIOT-0.4.2)*
+  - **Modo de datos PGREST**: Las tablas de datos del dashboard pueden conectarse directamente a funciones RPC de PostgREST, habilitando dashboards dinámicos con datos en tiempo real.
+  - **Autocompletado de funciones**: Componente de selección que lista las funciones disponibles desde el spec OpenAPI, con detección automática de columnas y parámetros.
+  - **Motor de templates Handlebars**: Las columnas soportan expresiones Handlebars en `key`, `label` y `type`, permitiendo configuraciones flexibles y data-driven.
+  - **Proxy autenticado**: Endpoints server-side que validan nombres de función y proxean las llamadas RPC con autenticación.
+
+- **🖼️ Drag-and-drop de imágenes web en el gestor multimedia** *(Integración OSS — MIOT-0.4.2)*
+  - **Extracción de URLs**: Soporte para arrastrar imágenes directamente desde páginas web (Google Images, etc.) al componente multimedia, extrayendo URLs desde eventos `text/uri-list`, `text/plain` y `text/html`.
+  - **Descarga y conversión**: Función `fetchImageAsFile` que descarga la imagen remota y la convierte en un archivo subible, con indicador de carga y manejo de errores CORS.
+  - **Localización**: Nuevas cadenas de texto EN/ES para los mensajes de carga y error de imágenes.
+
+## 🔧 Integraciones
+
+- **🔌 Actualización de Alfresco Platform a v25.2.0**
+  - **Alcance**: Upgrade de la plataforma Alfresco desde la versión 23.2.1 a 25.2.0, incluyendo Alfresco Share 25.2.0.46, incorporando las últimas mejoras de seguridad, correcciones y funcionalidades de la plataforma ECM.
+  - **Validación**: Build exitoso con `mvn clean package`, despliegue de módulos custom sin errores y tests de integración pasando contra la nueva versión.
+
+## 🐛 Correcciones
+
+- **🐛 Filtros de vista geográfica se reinician en revalidación SWR** *(Integración OSS — MIOT-0.4.2)*
+  - **Problema**: Los filtros de mapa (condiciones, marcadores, estados de viaje) almacenados en `useState` se reseteaban a valores por defecto cuando SWR revalidaba datos al re-enfocar la ventana.
+  - **Solución**: Persistencia del estado de filtros en URL search params, garantizando que sobrevivan a las revalidaciones de datos.
+
+- **🐛 Etiqueta incorrecta en botón de inicio de sesión Microsoft** *(Integración OSS — MIOT-0.4.2)*
+  - **Problema**: El botón mostraba "Continuar con usuario Mintral" en lugar de un texto genérico del proveedor.
+  - **Solución**: Actualización de las traducciones EN/ES a "Continue with another provider" / "Continuar con otro proveedor".
+
+- **🐛 Redirección de cierre de sesión sin prefijo de idioma causa 404** *(Integración OSS — MIOT-0.4.2)*
+  - **Problema**: Al cerrar sesión sin Auth0 configurado, la redirección apuntaba a `/sign-in` sin el prefijo de locale (`/app/{lang}/sign-in`), resultando en un 404.
+  - **Solución**: El handler de sign-out ahora detecta el idioma actual desde los parámetros de ruta y construye la URL de redirección con el prefijo correcto.
+
+## 📊 Beneficios
+
+- 🔐 **Seguridad simplificada**: Un único punto de gestión de identidad (Auth0) reduce la superficie de ataque y centraliza la configuración de proveedores.
+- 🗑️ **Reducción de código**: Eliminación de ~600 líneas de lógica custom de tokens Microsoft, reduciendo complejidad y deuda técnica.
+- 📊 **Dashboards dinámicos**: Los usuarios pueden conectar tablas de datos directamente a funciones PostgreSQL sin desarrollo backend adicional.
+- 🖼️ **Productividad en multimedia**: El drag-and-drop desde la web agiliza la carga de imágenes en la gestión de tareas.
+- 🗺️ **Estabilidad de filtros**: Los filtros geográficos persisten correctamente durante la navegación y revalidación de datos.
+- 🏢 **Soporte enterprise**: SAML vía Auth0 Organizations habilita SSO enterprise con configuración por tenant, facilitando despliegues corporativos.
+- 🌐 **UX consistente**: Las correcciones en etiquetas y redirecciones eliminan fricciones en el flujo de autenticación.
+- ⬆️ **Plataforma ECM actualizada**: Alfresco 25.2.0 incorpora parches de seguridad, mejoras de rendimiento y compatibilidad con las últimas extensiones.
+
+## 📌 Conclusión
+
+La versión 1.28.3 marca un hito arquitectural importante al consolidar toda la autenticación bajo Auth0 como broker OIDC único. Esta decisión elimina la dualidad de proveedores OAuth que existía previamente, reemplazando ~600 líneas de código custom de refresh de tokens por la rotación estándar de Auth0 y habilitando SAML enterprise a través de Auth0 Organizations sin necesidad de implementaciones custom.
+
+En el frente de funcionalidad, la integración de PGREST como fuente de datos para dashboards abre la puerta a visualizaciones en tiempo real conectadas directamente a la base de datos, mientras que el soporte de drag-and-drop de imágenes web mejora significativamente la experiencia de carga de contenido multimedia.
+
+En infraestructura, la actualización de Alfresco Platform a v25.2.0 asegura que el backend ECM se mantiene al día con los últimos parches de seguridad y mejoras de rendimiento, fortaleciendo la base sobre la que opera toda la gestión documental.
+
+Las correcciones de estabilidad en la vista geográfica y el flujo de autenticación complementan esta entrega, asegurando una experiencia de usuario robusta y consistente. Con la autenticación unificada, los dashboards dinámicos y la plataforma ECM actualizada, ModularIoT está mejor posicionado para escalar hacia despliegues enterprise multi-tenant.

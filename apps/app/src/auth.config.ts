@@ -63,7 +63,7 @@ const authAuth0Logger = createManagedLogger("auth.providers.auth0", "Auth0 OIDC"
 const authAuthzLogger = createManagedLogger("auth.authorization", "Route Authorization", undefined, "auth");
 
 export const authConfig: NextAuthConfig = {
-  // basePath: "/app/api/auth",
+  basePath: "/app/api/auth",
   pages: {
     signIn: "/app/sign-in",
   },

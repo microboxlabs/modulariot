@@ -20,7 +20,7 @@
       },
       "buttons": {
         "submit": "Ingresar a tu cuenta",
-        "continueWithMicrosoft": "Continuar con usuario Mintral",
+        "continueWithMicrosoft": "Continuar con otro proveedor",
         "continueWithEmail": "Continuar con usuario externo",
         "continueWithGoogle": "Continuar con Google",
         "continueWithGitHub": "Continuar con GitHub",

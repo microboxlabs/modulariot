@@ -221,7 +221,7 @@ export const authConfig: NextAuthConfig = {
         // }, "Session callback triggered");
 
         if (token && !token.ticket) {
-          const expiresAt = token.accessTokenExpiresAt ?? 0;
+          const expiresAt = Number(token.accessTokenExpiresAt ?? 0);
           const expiresAtMs = expiresAt * 1000;
           const now = Date.now();
           authSessionLogger.debug( {

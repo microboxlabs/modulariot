@@ -19,22 +19,101 @@ import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
 
-const ALLOWED_FILE_TYPES = new Set([
+export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "application/pdf",
 ]);
 
-function filterValidFiles(files: File[], dictionary: I18nRecord): File[] | null {
-  const validFiles = files.filter((file) =>
-    ALLOWED_FILE_TYPES.has(file.type)
-  );
+export const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+
+function filterValidFiles(
+  files: File[],
+  dictionary: I18nRecord
+): File[] | null {
+  const validFiles = files.filter((file) => ALLOWED_FILE_TYPES.has(file.type));
   if (validFiles.length !== files.length) {
     alert(tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary));
     return null;
   }
   return validFiles;
+}
+
+export function extractImageUrlFromDrop(
+  dataTransfer: DataTransfer
+): string | null {
+  // Try to get URL from text/uri-list (most common for dragged images)
+  const uriList = dataTransfer.getData("text/uri-list");
+  if (uriList) {
+    const urls = uriList
+      .split("\n")
+      .filter((url) => url.trim() && !url.startsWith("#"));
+    if (urls.length > 0) return urls[0];
+  }
+
+  // Try to get URL from text/plain
+  const plainText = dataTransfer.getData("text/plain");
+  if (
+    plainText &&
+    (plainText.startsWith("http://") || plainText.startsWith("https://"))
+  ) {
+    return plainText;
+  }
+
+  // Try to extract image URL from HTML (for some browsers)
+  const html = dataTransfer.getData("text/html");
+  if (html) {
+    const srcMatch = /src=["']([^"']+)["']/.exec(html);
+    if (srcMatch?.[1]) {
+      return srcMatch[1];
+    }
+  }
+
+  return null;
+}
+
+export function isValidImageUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const FETCH_TIMEOUT_MS = 10000;
+
+export async function fetchImageAsFile(imageUrl: string): Promise<File | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(imageUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+
+    // Validate mime type
+    if (!blob.type.startsWith("image/")) return null;
+    if (!ALLOWED_FILE_TYPES.has(blob.type)) return null;
+
+    // Extract filename from URL or generate one
+    const urlPath = new URL(imageUrl).pathname;
+    const urlFilename = urlPath.split("/").pop() || "";
+    const extension = blob.type.split("/")[1] || "jpg";
+    const filename = urlFilename.includes(".")
+      ? urlFilename
+      : `downloaded-image-${Date.now()}.${extension}`;
+
+    return new File([blob], filename, { type: blob.type });
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
 }
 
 export default function FileImages({
@@ -47,6 +126,7 @@ export default function FileImages({
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFetchingFromUrl, setIsFetchingFromUrl] = useState(false);
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
@@ -59,10 +139,7 @@ export default function FileImages({
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const {
-    data,
-    uploadFile,
-  } = useOptimisticFileUpload(packageId);
+  const { data, uploadFile } = useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
@@ -136,21 +213,54 @@ export default function FileImages({
         }
         setIsDragOver(false);
       }}
-      onDrop={(e) => {
+      onDrop={async (e) => {
         e.preventDefault();
-        if (isDocumentListOpen || isClasificationFormOpen) {
+        if (
+          isDocumentListOpen ||
+          isClasificationFormOpen ||
+          isFetchingFromUrl
+        ) {
           return;
         }
 
         setIsDragOver(false);
-        const validFiles = filterValidFiles(
-          Array.from(e.dataTransfer.files),
-          dictionary
-        );
-        if (!validFiles) return;
 
-        setUploadableFiles(validFiles);
-        setIsClasificationFormOpen(true);
+        // First try to handle as regular files (from filesystem)
+        if (e.dataTransfer.files.length > 0) {
+          const validFiles = filterValidFiles(
+            Array.from(e.dataTransfer.files),
+            dictionary
+          );
+          if (!validFiles) return;
+
+          setUploadableFiles(validFiles);
+          setIsClasificationFormOpen(true);
+          return;
+        }
+
+        // If no files, try to extract image URL (dragged from web)
+        const imageUrl = extractImageUrlFromDrop(e.dataTransfer);
+        if (!imageUrl) return;
+
+        if (!isValidImageUrl(imageUrl)) {
+          alert(
+            tr("bento.multimedia.only_jpg_jpeg_png_pdf_allowed", dictionary)
+          );
+          return;
+        }
+
+        setIsFetchingFromUrl(true);
+        try {
+          const file = await fetchImageAsFile(imageUrl);
+          if (file) {
+            setUploadableFiles([file]);
+            setIsClasificationFormOpen(true);
+          } else {
+            alert(tr("bento.multimedia.fetch_image_error", dictionary));
+          }
+        } finally {
+          setIsFetchingFromUrl(false);
+        }
       }}
     >
       {/* Drag and drop overlay */}
@@ -159,6 +269,12 @@ export default function FileImages({
           isDragOver ? "animate-fade-in-fast" : "animate-fade-out-fast"
         }`}
       />
+      {/* Small loading indicator for URL fetch */}
+      {isFetchingFromUrl && (
+        <div className="absolute top-2 right-2 z-30">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
       <div
         className={`flex w-full p-2 flex-col items-center justify-center rounded-lg border-2 border-dashed ${
           isDragOver

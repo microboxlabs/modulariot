@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { Button } from "flowbite-react";
-import Handlebars from "handlebars";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -17,6 +16,7 @@ import {
   HiBolt,
 } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 
 // ============================================================================
 // Configuration Types
@@ -139,57 +139,13 @@ export function Dashlet({
     dataProvider = [],
   } = config;
 
-  // Build data_provider context from entries
-  const templateContext = useMemo(() => {
-    const data_provider: Record<string, string> = {};
-    for (const entry of dataProvider) {
-      if (entry.key) {
-        data_provider[entry.key] = entry.value;
-      }
-    }
-    return { data_provider };
-  }, [dataProvider]);
+  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
 
-  // Compile handlebars templates
-  const compiledTitle = useMemo(() => {
-    try {
-      return Handlebars.compile(title)(templateContext);
-    } catch {
-      return title;
-    }
-  }, [title, templateContext]);
-
-  const compiledValue = useMemo(() => {
-    try {
-      return Handlebars.compile(value)(templateContext);
-    } catch {
-      return value;
-    }
-  }, [value, templateContext]);
-
-  const compiledDescriptor = useMemo(() => {
-    try {
-      return Handlebars.compile(descriptor)(templateContext);
-    } catch {
-      return descriptor;
-    }
-  }, [descriptor, templateContext]);
-
-  const compiledAiPlaceholder = useMemo(() => {
-    try {
-      return Handlebars.compile(aiPlaceholder)(templateContext);
-    } catch {
-      return aiPlaceholder;
-    }
-  }, [aiPlaceholder, templateContext]);
-
-  const compiledViewMoreUrl = useMemo(() => {
-    try {
-      return Handlebars.compile(viewMoreUrl)(templateContext);
-    } catch {
-      return viewMoreUrl;
-    }
-  }, [viewMoreUrl, templateContext]);
+  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
+  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
+  const compiledDescriptor = useMemo(() => resolveHandlebarsField(descriptor, templateContext), [descriptor, templateContext]);
+  const compiledAiPlaceholder = useMemo(() => resolveHandlebarsField(aiPlaceholder, templateContext), [aiPlaceholder, templateContext]);
+  const compiledViewMoreUrl = useMemo(() => resolveHandlebarsField(viewMoreUrl, templateContext), [viewMoreUrl, templateContext]);
 
   const IconComponent = ICONS[icon] || ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;

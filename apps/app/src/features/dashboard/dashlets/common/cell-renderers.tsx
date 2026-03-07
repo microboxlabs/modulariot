@@ -1,4 +1,4 @@
-import type { ColumnType } from "./column-types";
+import { isColumnType } from "./column-types";
 
 export function getBadgeClasses(value: string): string {
   const lower = value.toLowerCase();
@@ -71,8 +71,26 @@ export function getSignedClasses(value: string): string {
   return "font-semibold text-green-600 dark:text-green-400";
 }
 
-export function renderCell(value: string, type: ColumnType) {
-  if (type === "badge") {
+export function renderCell(value: string, type: string) {
+  const resolved = isColumnType(type) ? type : "text";
+  if (resolved === "text") {
+    // text — multiline: first line bold, rest as muted subtitle
+    const lines = value.split("\n");
+    if (lines.length > 1) {
+      return (
+        <span>
+          <span className="block font-semibold text-gray-900 dark:text-white">
+            {lines[0]}
+          </span>
+          <span className="block text-xs text-gray-500 dark:text-gray-400">
+            {lines.slice(1).join(" ")}
+          </span>
+        </span>
+      );
+    }
+    return <span>{value}</span>;
+  }
+  if (resolved === "badge") {
     return (
       <span
         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getBadgeClasses(value)}`}
@@ -81,32 +99,16 @@ export function renderCell(value: string, type: ColumnType) {
       </span>
     );
   }
-  if (type === "highlight") {
+  if (resolved === "highlight") {
     return (
       <span className="font-semibold text-blue-600 dark:text-blue-400">
         {value}
       </span>
     );
   }
-  if (type === "signed") {
+  if (resolved === "signed") {
     return <span className={getSignedClasses(value)}>{value}</span>;
   }
-  if (type === "progress") {
-    return renderProgress(value);
-  }
-  // text — multiline: first line bold, rest as muted subtitle
-  const lines = value.split("\n");
-  if (lines.length > 1) {
-    return (
-      <span>
-        <span className="block font-semibold text-gray-900 dark:text-white">
-          {lines[0]}
-        </span>
-        <span className="block text-xs text-gray-500 dark:text-gray-400">
-          {lines.slice(1).join(" ")}
-        </span>
-      </span>
-    );
-  }
-  return <span>{value}</span>;
+  // progress
+  return renderProgress(value);
 }

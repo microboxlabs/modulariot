@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import Handlebars from "handlebars";
 import type { DashletComponentProps, DashletLayoutDefaults, DataProviderEntry } from "../types";
+import { resolveHandlebarsField, buildDataProviderContext } from "../common/use-handlebars-templates";
 import {
   HiWrench,
   HiCalendarDays,
@@ -168,25 +168,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataProvider = EMPTY_DATA_PROVIDER,
   } = config;
 
-  const templateContext = useMemo(() => {
-    const data_provider: Record<string, string> = {};
-    for (const entry of dataProvider) {
-      if (entry.key) data_provider[entry.key] = entry.value;
-    }
-    return { data_provider };
-  }, [dataProvider]);
+  const templateContext = useMemo(() => buildDataProviderContext(dataProvider), [dataProvider]);
 
-  const compiledTitle = useMemo(() => {
-    try { return Handlebars.compile(title)(templateContext); } catch { return title; }
-  }, [title, templateContext]);
-
-  const compiledValue = useMemo(() => {
-    try { return Handlebars.compile(value)(templateContext); } catch { return value; }
-  }, [value, templateContext]);
-
+  const compiledTitle = useMemo(() => resolveHandlebarsField(title, templateContext), [title, templateContext]);
+  const compiledValue = useMemo(() => resolveHandlebarsField(value, templateContext), [value, templateContext]);
   const compiledSubtitle = useMemo(() => {
     if (!subtitle) return "";
-    try { return Handlebars.compile(subtitle)(templateContext); } catch { return subtitle; }
+    return resolveHandlebarsField(subtitle, templateContext);
   }, [subtitle, templateContext]);
 
   const colors = COLOR_MAP[color] ?? COLOR_MAP.gray;

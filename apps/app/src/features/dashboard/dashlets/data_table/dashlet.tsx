@@ -1,33 +1,63 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
+import { compileTemplates, resolveTemplate } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
 import type { DashletComponentProps, DashletLayoutDefaults } from "@/features/dashboard/dashlets/types";
-import type { TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-import type { FilterConfig, FilterItemConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { Pill } from "@/features/dashboard/dashlets/common/pill";
-import { useDynamicRows } from "@/features/dashboard/dashlets/common/use-dynamic-rows";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
-import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-
-export type { ColumnType, TableColumn, SortConfig } from "@/features/dashboard/dashlets/common/column-types";
-export type { FilterItemConfig, FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
+import { parseRows, buildPgrestFetch } from "./dashlet.utils";
 
 // ============================================================================
 // Configuration Types
 // ============================================================================
 
+export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
+
+export interface TableColumn {
+  key: string;
+  label: string;
+  type: string;
+}
+
+export interface FilterItemConfig {
+  /** Column key whose distinct values are used as filter pills */
+  column: string;
+  /** Label shown before the filter pills, e.g. "Estado:" */
+  label: string;
+}
+
+export interface FilterConfig {
+  enabled: boolean;
+  items: FilterItemConfig[];
+}
+
+export interface SortConfig {
+  enabled: boolean;
+  /** Ordered list of column keys available in the sort toolbar */
+  columns: string[];
+}
+
+export interface PgrestParam {
+  key: string;
+  value: string;
+}
+
+export type PgrestHttpMethod = "POST" | "GET";
+
 export interface DashletConfig {
   title: string;
   showRowCount: boolean;
-  dataMode: "static" | "dynamic";
+  dataMode: "static" | "pgrest";
   columns: TableColumn[];
   rows: Record<string, string>[];
-  apiUrl: string;
+  pgrestFunctionName: string;
+  pgrestParams: PgrestParam[];
+  pgrestHttpMethod: PgrestHttpMethod;
   filter: FilterConfig;
   sort: SortConfig;
 }
@@ -37,13 +67,13 @@ export interface DashletConfig {
 // ============================================================================
 
 export const defaultColumns: TableColumn[] = [
-  { key: "vehicle", label: "Vehículo", type: "text" },
-  { key: "client", label: "Cliente", type: "text" },
-  { key: "km", label: "KM Totales", type: "highlight" },
-  { key: "system", label: "Sistema", type: "text" },
-  { key: "status", label: "Estado", type: "badge" },
-  { key: "alert", label: "Tipo de Alerta", type: "text" },
-  { key: "duration", label: "Duración", type: "text" },
+  { key: "{{row.vehicle}}", label: "Vehículo", type: "text" },
+  { key: "{{row.client}}", label: "Cliente", type: "text" },
+  { key: "{{row.km}}", label: "KM Totales", type: "highlight" },
+  { key: "{{row.system}}", label: "Sistema", type: "text" },
+  { key: "{{row.status}}", label: "Estado", type: "badge" },
+  { key: "{{row.alert}}", label: "Tipo de Alerta", type: "text" },
+  { key: "{{row.duration}}", label: "Duración", type: "text" },
 ];
 
 export const defaultRows: Record<string, string>[] = [
@@ -87,14 +117,14 @@ export const defaultRows: Record<string, string>[] = [
 
 export const defaultFilter: FilterConfig = {
   enabled: true,
-  items: [{ column: "status", label: "Estado:" }],
+  items: [{ column: "{{row.status}}", label: "Estado:" }],
 };
 
 export { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 
 export const defaultSort: SortConfig = {
   enabled: true,
-  columns: ["status", "system", "duration"],
+  columns: ["{{row.status}}", "{{row.system}}", "{{row.duration}}"],
 };
 
 export const defaultConfig: DashletConfig = {
@@ -103,10 +133,36 @@ export const defaultConfig: DashletConfig = {
   dataMode: "static",
   columns: defaultColumns,
   rows: defaultRows,
-  apiUrl: "",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
   filter: defaultFilter,
   sort: defaultSort,
 };
+
+/**
+ * Extract the data property name from a column key.
+ * - `{{row.origin}}`  → `"origin"`
+ * - `{{origin}}`      → `"origin"`
+ * - `origin`          → `"origin"` (plain text — used for sort/filter lookup)
+ * Returns `null` for complex templates like `{{a}} - {{b}}`.
+ */
+export function resolveDataProperty(key: string): string | null {
+  if (!key.includes("{{")) return key;
+  const match = /^\{\{(?:row\.)?(\w+)\}\}$/.exec(key);
+  return match ? match[1] : null;
+}
+
+/** Build the fetch URL + init for PGREST data sources. */
+function buildDataFetchRequest(
+  dataMode: string,
+  pgrestFunctionName: string,
+  pgrestParams: PgrestParam[],
+  pgrestHttpMethod: PgrestHttpMethod
+): { url: string; init?: RequestInit } | null {
+  if (dataMode !== "pgrest" || !pgrestFunctionName) return null;
+  return buildPgrestFetch(pgrestFunctionName, pgrestHttpMethod, pgrestParams);
+}
 
 // ============================================================================
 // Layout Defaults
@@ -134,31 +190,187 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
     rows: staticRows = defaultRows,
-    apiUrl = "",
+    pgrestFunctionName = "",
+    pgrestParams = [],
+    pgrestHttpMethod = "POST",
     sort = defaultSort,
   } = config;
   const filter = useMemo(() => normalizeFilterConfig(config.filter, defaultFilter), [config.filter]);
 
-  // ── Dynamic data fetching ───────────────────────────────────────────────────
-  const { rows: dynamicRows, loading, fetchError } = useDynamicRows(dataMode, apiUrl);
+  // ── PGREST data fetching ────────────────────────────────────────────────────
+  const [pgrestRows, setPgrestRows] = useState<Record<string, string>[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const allRows = dataMode === "dynamic" ? dynamicRows : staticRows;
+  useEffect(() => {
+    const request = buildDataFetchRequest(
+      dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod
+    );
+    if (!request) {
+      setLoading(false);
+      setFetchError(null);
+      return;
+    }
 
-  // ── Filter & sort (shared hook) ───────────────────────────────────────────
-  const {
-    filterValues,
-    sortKey,
-    sortDir,
-    filterOptionsByColumn,
-    displayRows,
-    getColumnLabel,
-    handleFilterClear,
-    handleFilterSelect,
-    handleSortClick,
-  } = useFilterAndSort(filter, sort, allRows, columns);
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(null);
+
+    fetch(request.url, request.init)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: unknown) => {
+        if (!cancelled) setPgrestRows(parseRows(data));
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setFetchError(err instanceof Error ? err.message : "Failed to fetch");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod]);
+
+  // ── Filter & sort state ─────────────────────────────────────────────────────
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const allRows = dataMode === "pgrest" ? pgrestRows : staticRows;
+
+  // Distinct values per filter item (derived from full dataset)
+  const filterOptionsByColumn = useMemo(() => {
+    if (!filter.enabled) return {};
+    const result: Record<string, string[]> = {};
+    for (const item of filter.items) {
+      const prop = resolveDataProperty(item.column);
+      if (!prop) continue;
+      const seen = new Set<string>();
+      for (const row of allRows) {
+        const val = row[prop];
+        if (val) seen.add(val);
+      }
+      result[item.column] = Array.from(seen);
+    }
+    return result;
+  }, [allRows, filter.enabled, filter.items]);
+
+  // Column label lookup for sort toolbar
+  const getColumnLabel = (key: string) =>
+    columns.find((c) => c.key === key)?.label ?? key;
+
+  // Only show sort pills for columns that actually exist
+  const validSortColumns = useMemo(() => {
+    const colKeys = new Set(columns.map((c) => c.key));
+    return sort.columns.filter((k) => colKeys.has(k));
+  }, [sort.columns, columns]);
+
+  // Apply all active filters (AND) then sort
+  const displayRows = useMemo(() => {
+    let result = allRows;
+
+    if (filter.enabled) {
+      for (const item of filter.items) {
+        const selected = filterValues[item.column];
+        const prop = resolveDataProperty(item.column);
+        if (selected && prop) {
+          result = result.filter((row) => row[prop] === selected);
+        }
+      }
+    }
+
+    if (sort.enabled && sortKey) {
+      const sortProp = resolveDataProperty(sortKey);
+      if (sortProp) {
+        result = [...result].sort((a, b) => {
+          const cmp = (a[sortProp] ?? "").localeCompare(b[sortProp] ?? "");
+          return sortDir === "asc" ? cmp : -cmp;
+        });
+      }
+    }
+
+    return result;
+  }, [allRows, filter, filterValues, sort, sortKey, sortDir]);
 
   const getSortIcon = (dir: "asc" | "desc") =>
     dir === "asc" ? <HiArrowUp className="h-3 w-3" /> : <HiArrowDown className="h-3 w-3" />;
+
+  const handleFilterClear = (column: string) => {
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next[column];
+      return next;
+    });
+  };
+
+  const handleFilterSelect = (column: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [column]: value }));
+  };
+
+  const handleSortClick = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  // ── Handlebars template compilation ────────────────────────────────────────
+  const compiledKeys = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.key }))),
+    [columns]
+  );
+
+  const compiledLabels = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.label }))),
+    [columns]
+  );
+
+  const compiledTypes = useMemo(
+    () => compileTemplates(columns.map((c) => ({ id: c.key, template: c.type }))),
+    [columns]
+  );
+
+  const resolveCellValue = useCallback(
+    (
+      row: Record<string, string>,
+      col: TableColumn,
+      rowIdx: number,
+      totalRows: number
+    ): string =>
+      resolveTemplate(compiledKeys, col.key, { row, ...row, _index: rowIdx, _count: totalRows }, col.key),
+    [compiledKeys]
+  );
+
+  const resolveHeaderLabel = useCallback(
+    (col: TableColumn): string =>
+      resolveTemplate(compiledLabels, col.key, { _count: displayRows.length }, col.label),
+    [compiledLabels, displayRows.length]
+  );
+
+  const resolveCellType = useCallback(
+    (
+      row: Record<string, string>,
+      col: TableColumn,
+      rowIdx: number,
+      totalRows: number
+    ): string => {
+      const result = resolveTemplate(
+        compiledTypes, col.key,
+        { row, ...row, _index: rowIdx, _count: totalRows },
+        col.type || "text"
+      );
+      return result.trim() || "text";
+    },
+    [compiledTypes]
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
@@ -172,8 +384,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </h3>
         {showRowCount && (
           <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">
-            {displayRows.length}{" "}
-            {displayRows.length === 1 ? "item" : "items"} en total
+            {tr(
+              displayRows.length === 1
+                ? "dashboard.settings.totalItemsSingular"
+                : "dashboard.settings.totalItems",
+              dictionary,
+              { count: String(displayRows.length) }
+            )}
           </span>
         )}
       </div>
@@ -197,12 +414,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         })}
 
       {/* Sort card */}
-      {sort.enabled && sort.columns.length > 0 && (
+      {sort.enabled && validSortColumns.length > 0 && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Ordenar por:
           </span>
-          {sort.columns.map((key) => (
+          {validSortColumns.map((key) => (
             <Pill
               key={key}
               label={getColumnLabel(key)}
@@ -239,7 +456,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     key={col.key}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
                   >
-                    {col.label}
+                    {resolveHeaderLabel(col)}
                   </th>
                 ))}
               </tr>
@@ -255,9 +472,9 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row) => (
+                displayRows.map((row, rowIdx) => (
                   <tr
-                    key={columns.map((col) => row[col.key] ?? "").join("|")}
+                    key={row.id ?? row._id ?? rowIdx}
                     className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800"
                   >
                     {columns.map((col) => (
@@ -265,7 +482,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                         key={col.key}
                         className="px-4 py-4 text-gray-700 dark:text-gray-300"
                       >
-                        {renderCell(row[col.key] ?? "", col.type)}
+                        {renderCell(
+                          resolveCellValue(row, col, rowIdx, displayRows.length),
+                          resolveCellType(row, col, rowIdx, displayRows.length)
+                        )}
                       </td>
                     ))}
                   </tr>

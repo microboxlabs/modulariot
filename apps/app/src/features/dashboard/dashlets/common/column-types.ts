@@ -1,9 +1,15 @@
 export type ColumnType = "text" | "badge" | "highlight" | "signed" | "progress";
 
+export const COLUMN_TYPES: ColumnType[] = ["text", "badge", "highlight", "signed", "progress"];
+
+export function isColumnType(value: string): value is ColumnType {
+  return (COLUMN_TYPES as string[]).includes(value);
+}
+
 export interface TableColumn {
   key: string;
   label: string;
-  type: ColumnType;
+  type: string;
 }
 
 export interface SortConfig {

@@ -1,7 +1,7 @@
 "use client";
 import { z } from "zod";
 import useSWR from "swr";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import fetcher, { createFetcherError } from "./fetcher";
 import { safeJsonParse } from "./safe-json";
@@ -741,8 +741,11 @@ export function useGetNodeChildren(nodeId: string | undefined) {
     nodeId ? `/app/api/bento/multimedia?nodeId=${nodeId}` : null,
     fetcher,
     {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 5000,
+      errorRetryCount: 3,
+      errorRetryInterval: 5000,
     }
   );
 
@@ -757,51 +760,65 @@ export function useGetNodeChildren(nodeId: string | undefined) {
 // Custom hook for optimistic file uploads
 export function useOptimisticFileUpload(nodeId: string | undefined) {
   const { data, error, isLoading, mutate } = useGetNodeChildren(nodeId);
+  const isUploading = useRef(false);
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
-  const uploadFile = async (file: SendableFile) => {
-    // Optimistic update - add the file to the current data
-    const optimisticData = {
-      ...data,
-      data: {
-        ...data?.data,
-        list: {
-          ...data?.data?.list,
-          entries: [
-            ...(data?.data?.list?.entries || []),
-            {
-              entry: {
-                id: `temp-${Date.now()}`,
-                name: file.prop_cm_name,
-                content: {
-                  mimeType: file.prop_mimetype,
-                },
-                properties: {
-                  "mintral:contentType": file.prop_mintral_contentType,
+  const uploadFile = useCallback(
+    async (file: SendableFile, skipRevalidation = false) => {
+      if (isUploading.current) return;
+      isUploading.current = true;
+
+      // Optimistic update - add the file to the current data
+      const currentData = dataRef.current;
+      const optimisticData = {
+        ...currentData,
+        data: {
+          ...currentData?.data,
+          list: {
+            ...currentData?.data?.list,
+            entries: [
+              ...(currentData?.data?.list?.entries || []),
+              {
+                entry: {
+                  id: `temp-${Date.now()}`,
+                  name: file.prop_cm_name,
+                  content: {
+                    mimeType: file.prop_mimetype,
+                  },
+                  properties: {
+                    "mintral:contentType": file.prop_mintral_contentType,
+                  },
                 },
               },
-            },
-          ],
+            ],
+          },
         },
-      },
-    };
+      };
 
-    // Update the cache optimistically
-    await mutate(optimisticData, false);
+      // Update the cache optimistically
+      await mutate(optimisticData, false);
 
-    try {
-      // Perform the actual upload
-      const result = await postBentoMultimedia(file);
+      try {
+        // Perform the actual upload
+        const result = await postBentoMultimedia(file);
 
-      // Revalidate to get the real data from server
-      await mutate();
+        // Only revalidate if not part of a batch
+        if (!skipRevalidation) {
+          await mutate();
+        }
 
-      return result;
-    } catch (error) {
-      // If upload fails, revert the optimistic update
-      await mutate();
-      throw error;
-    }
-  };
+        return result;
+      } catch (error) {
+        // If upload fails, revert the optimistic update
+        await mutate();
+        throw error;
+      } finally {
+        isUploading.current = false;
+      }
+    },
+    [mutate]
+  );
 
   return {
     data,

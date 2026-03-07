@@ -8,4 +8,6 @@ export type SecuredNavBarProps = {
   isSeachEnabled?: boolean;
   isSidebarToggleEnabled?: boolean;
   isUserMenuEnabled?: boolean;
+  /** Server-fetched org logo used as fallback while client-side logos load */
+  initialOrgLogo?: string | null;
 };

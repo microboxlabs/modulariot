@@ -43,19 +43,6 @@ export async function signInWithCredentials(
   }
 }
 
-export async function signInWithMicrosoft(): Promise<void> {
-  await signIn("microsoft-entra-id", { redirectTo: "/app" });
-}
-
-export async function signInWithGoogle(): Promise<void> {
-  // Third argument passes authorization params to Auth0 (connection skips Universal Login)
-  await signIn("auth0", { redirectTo: "/app" }, { connection: "google-oauth2" });
-}
-
-export async function signInWithGitHub(): Promise<void> {
-  await signIn("auth0", { redirectTo: "/app" }, { connection: "github" });
-}
-
 /**
  * Sign in with Auth0 database connection (username/password).
  * Redirects to Auth0 with connection hint for the database.
@@ -77,17 +64,13 @@ export async function signInWithAuth0Credentials(
 
 /**
  * Maps UI provider IDs to Auth0 connection names.
- * When Auth0 is the OIDC broker, all identity providers are routed through Auth0 connections.
+ * All identity providers are routed through Auth0 as the single OIDC broker.
  */
 const AUTH0_CONNECTION_MAP: Record<string, string> = {
   google: "google-oauth2",
   github: "github",
-  // Microsoft/Azure AD: Only route through Auth0 if enabled (requires Azure AD redirect_uri update)
-  // Set ROUTE_MICROSOFT_VIA_AUTH0=true once Auth0 callback is registered in Azure AD
-  ...(process.env.ROUTE_MICROSOFT_VIA_AUTH0 === "true" && {
-    "microsoft-entra-id": "Mintral-Entra-ID",
-    microsoft: "Mintral-Entra-ID",
-  }),
+  "microsoft-entra-id": "Mintral-Entra-ID",
+  microsoft: "Mintral-Entra-ID",
 };
 
 /**
@@ -112,17 +95,12 @@ export async function signInWithProvider(providerId: string): Promise<void> {
 }
 
 /**
- * Sign in with SAML SSO.
- * The team slug is used to identify the organization's SAML provider.
+ * Sign in with SAML SSO via Auth0 Organizations.
+ * The team slug maps to an Auth0 Organization name.
  */
 export async function signInWithSaml(teamSlug: string): Promise<void> {
-  // The team slug is passed as a query parameter to identify the organization
-  // The actual SAML provider needs to be configured in auth.config.ts
-  await signIn("saml", {
-    redirectTo: "/app",
-    // Pass team slug to SAML provider for organization identification
-    team: teamSlug,
-  });
+  const organization = teamSlug.trim().toLowerCase();
+  await signIn("auth0", { redirectTo: "/app" }, { organization });
 }
 
 /**

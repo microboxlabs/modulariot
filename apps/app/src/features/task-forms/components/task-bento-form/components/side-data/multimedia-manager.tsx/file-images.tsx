@@ -136,7 +136,7 @@ export default function FileImages({
     : undefined;
 
   // Use the optimistic upload hook instead of the basic one
-  const { data, uploadFile } = useOptimisticFileUpload(packageId);
+  const { data, isLoading, uploadFile } = useOptimisticFileUpload(packageId);
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
@@ -163,8 +163,8 @@ export default function FileImages({
     return null;
   }
 
-  // Only show loading skeleton if we have no files yet
-  if (files.length === 0 && images.length === 0 && documents.length === 0) {
+  // Only show loading skeleton while data is being fetched
+  if (isLoading && !data) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );
@@ -420,6 +420,7 @@ export default function FileImages({
           dictionary={dictionary}
           setUploadableFiles={setUploadableFiles}
           uploadFile={uploadFile}
+          onUploadComplete={() => setUploadableFiles([])}
         />
       )}
       {isDocumentListOpen && (

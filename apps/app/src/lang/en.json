@@ -1798,6 +1798,8 @@
     },
     "multimedia": {
       "only_jpg_jpeg_png_pdf_allowed": "Only JPG, JPEG, PNG and PDF files are allowed.",
+      "fetch_image_error": "Could not fetch the image from the URL. Please try downloading it first.",
+      "fetching_image": "Fetching image...",
       "select_document_type": "Select a document type",
       "select_document_type_error": "You must select a document type",
       "categories": {

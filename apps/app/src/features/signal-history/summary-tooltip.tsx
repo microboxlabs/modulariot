@@ -2,16 +2,19 @@ import MapTooltip from "../geographic-view/components/map-tooltip";
 import CustomTable from "../common/components/custom-table/custom-table";
 import { Button } from "flowbite-react";
 import { HistoricSignal } from "./types/historic-signal.type";
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, memo } from "react";
 import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { handleDownloadCsv } from "./utils/download-csv";
+import PulseDetailView from "./pulse-detail-view";
 
 const SummaryTooltip = memo(function SummaryTooltip({
   data,
   dateRangeDisplayed,
   dict,
+  selectedPulse,
+  onClearSelection,
 }: {
   data: HistoricSignal[];
   dateRangeDisplayed: {
@@ -19,6 +22,8 @@ const SummaryTooltip = memo(function SummaryTooltip({
     endDate: string;
   };
   dict: I18nRecord;
+  selectedPulse: HistoricSignal | null;
+  onClearSelection: () => void;
 }) {
   const [loadingTable, setLoadingTable] = useState<boolean>(true);
   const [selectedData, setSelectedData] = useState<HistoricSignal[]>([]);
@@ -105,59 +110,63 @@ const SummaryTooltip = memo(function SummaryTooltip({
     };
   }, [selectedData, dict]);
 
+  const hasPulseSelected = selectedPulse !== null;
+
   return (
     <MapTooltip
       start_right={true}
       left={5}
       top={5}
       setHoverInfo={() => {
-        // Info when oppened
+        // Info when opened
       }}
-      onExitAction={() => {
-        // This should do something
-      }}
-      canExit={false}
+      onExitAction={onClearSelection}
+      canExit={hasPulseSelected}
     >
-      <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 dark:text-gray-300 gap-2">
-        <p>
-          {tr("signal_historic.selected_signals", dict)}:{" "}
-          <span className="text-gray-700 dark:text-gray-300 font-semibold">
-            {tableData.length}
-          </span>
-        </p>
-        <p>
-          {tr("signal_historic.distance_traveled", dict)}:{" "}
-          <span className="text-gray-700 dark:text-gray-300 font-semibold">
-            {distance.toFixed(1)}km
-          </span>
-        </p>
-        <div className="h-60 w-90 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg border border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
-          {loadingTable ? (
-            <div className="bg-gray-500 animate-pulse"></div>
-          ) : (
-            <CustomTable
-              header={[
-                tr("signal_historic.timestamp", dict),
-                tr("signal_historic.tripid", dict),
-                tr("signal_historic.speed", dict),
-                tr("signal_historic.distance_between_signals", dict),
-                tr("signal_historic.location", dict),
-                tr("signal_historic.assetid", dict),
-              ]}
-              content={tableData}
-              hoverable={true}
-            />
-          )}
+      {hasPulseSelected ? (
+        <PulseDetailView pulse={selectedPulse} dict={dict} />
+      ) : (
+        <div className="p-2 pt-0 flex flex-col whitespace-nowrap text-sm font-light text-gray-700 dark:text-gray-300 gap-2">
+          <p>
+            {tr("signal_historic.selected_signals", dict)}:{" "}
+            <span className="text-gray-700 dark:text-gray-300 font-semibold">
+              {tableData.length}
+            </span>
+          </p>
+          <p>
+            {tr("signal_historic.distance_traveled", dict)}:{" "}
+            <span className="text-gray-700 dark:text-gray-300 font-semibold">
+              {distance.toFixed(1)}km
+            </span>
+          </p>
+          <div className="h-60 w-90 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg border border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
+            {loadingTable ? (
+              <div className="bg-gray-500 animate-pulse"></div>
+            ) : (
+              <CustomTable
+                header={[
+                  tr("signal_historic.timestamp", dict),
+                  tr("signal_historic.tripid", dict),
+                  tr("signal_historic.speed", dict),
+                  tr("signal_historic.distance_between_signals", dict),
+                  tr("signal_historic.location", dict),
+                  tr("signal_historic.assetid", dict),
+                ]}
+                content={tableData}
+                hoverable={true}
+              />
+            )}
+          </div>
+          <Button
+            onClick={() =>
+              handleDownloadCsv(selectedData, dict, dateRangeDisplayed)
+            }
+            disabled={selectedData.length === 0}
+          >
+            {tr("signal_historic.download_csv", dict)}
+          </Button>
         </div>
-        <Button
-          onClick={() =>
-            handleDownloadCsv(selectedData, dict, dateRangeDisplayed)
-          }
-          disabled={selectedData.length === 0}
-        >
-          {tr("signal_historic.download_csv", dict)}
-        </Button>
-      </div>
+      )}
     </MapTooltip>
   );
 });

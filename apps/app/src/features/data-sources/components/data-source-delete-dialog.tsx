@@ -7,12 +7,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 interface DataSourceDeleteDialogProps {
-  dataSource: DataSourceListItem | null;
-  show: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  loading?: boolean;
-  dict: I18nRecord;
+  readonly dataSource: DataSourceListItem | null;
+  readonly show: boolean;
+  readonly onClose: () => void;
+  readonly onConfirm: () => void;
+  readonly loading?: boolean;
+  readonly dict: I18nRecord;
 }
 
 export function DataSourceDeleteDialog({

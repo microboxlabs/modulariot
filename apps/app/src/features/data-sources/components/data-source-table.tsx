@@ -8,12 +8,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 interface DataSourceTableProps {
-  dataSources: DataSourceListItem[];
-  onEdit: (ds: DataSourceListItem) => void;
-  onDelete: (ds: DataSourceListItem) => void;
-  onTest: (ds: DataSourceListItem) => void;
-  loading?: boolean;
-  dict: I18nRecord;
+  readonly dataSources: DataSourceListItem[];
+  readonly onEdit: (ds: DataSourceListItem) => void;
+  readonly onDelete: (ds: DataSourceListItem) => void;
+  readonly onTest: (ds: DataSourceListItem) => void;
+  readonly loading?: boolean;
+  readonly dict: I18nRecord;
 }
 
 export function DataSourceTable({

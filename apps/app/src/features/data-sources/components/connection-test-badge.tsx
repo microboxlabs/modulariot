@@ -5,9 +5,9 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
 interface ConnectionTestBadgeProps {
-  lastTestedAt?: string;
-  lastTestResult?: boolean;
-  dict: I18nRecord;
+  readonly lastTestedAt?: string;
+  readonly lastTestResult?: boolean;
+  readonly dict: I18nRecord;
 }
 
 export function ConnectionTestBadge({

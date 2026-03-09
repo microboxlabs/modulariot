@@ -15,12 +15,12 @@ import { toast } from "sonner";
 
 interface DataSourcesPageContentProps {
   readonly dict: I18nRecord;
-  readonly orgId: string;
+  readonly siteId: string;
 }
 
 export default function DataSourcesPageContent({
   dict,
-  orgId,
+  siteId,
 }: DataSourcesPageContentProps) {
   const {
     dataSources,
@@ -33,7 +33,7 @@ export default function DataSourcesPageContent({
     testConnection,
     toggleActive,
     refetch,
-  } = useDataSources(orgId);
+  } = useDataSources(siteId);
 
   const [showModal, setShowModal] = useState(false);
   const [editingSource, setEditingSource] =

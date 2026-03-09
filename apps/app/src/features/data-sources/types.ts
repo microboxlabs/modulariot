@@ -5,7 +5,7 @@ export interface DataSourceListItem {
   name: string;
   type: "POSTGREST";
   description?: string;
-  organizationId: string;
+  siteId: string;
   connectionConfig: {
     url: string;
     maskedToken: string;

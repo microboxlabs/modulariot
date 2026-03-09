@@ -1,27 +1,25 @@
 import { auth } from "@/auth";
+import { getUserSites } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 
-interface OrgResolution {
-  userId: string;
-  orgId: string;
+interface SiteResolution {
+  siteId: string;
+  session: Session;
 }
 
-type OrgResult =
-  | { resolved: true; data: OrgResolution }
+type SiteResult =
+  | { resolved: true; data: SiteResolution }
   | { resolved: false; response: NextResponse };
 
 /**
- * Resolves organization for the current user.
- * Requires orgId as a query parameter and verifies it matches the
- * authenticated user's identity. Data sources are currently user-scoped
- * (orgId = user email/id), so we enforce that the caller can only access
- * their own scope.
- *
- * TODO: Replace with real org membership lookup once org infrastructure exists.
+ * Resolves the Alfresco site for the current user.
+ * Requires siteId as a query parameter and verifies the user
+ * is a member of that site via Alfresco's people API.
  */
-export async function resolveOrgForRequest(
+export async function resolveSiteForRequest(
   request: Request
-): Promise<OrgResult> {
+): Promise<SiteResult> {
   const session = await auth();
   if (!session?.user?.id) {
     return {
@@ -31,22 +29,23 @@ export async function resolveOrgForRequest(
   }
 
   const url = new URL(request.url);
-  const orgId = url.searchParams.get("orgId");
+  const siteId = url.searchParams.get("siteId");
 
-  if (!orgId) {
+  if (!siteId) {
     return {
       resolved: false,
       response: NextResponse.json(
-        { error: "orgId query parameter is required" },
+        { error: "siteId query parameter is required" },
         { status: 400 }
       ),
     };
   }
 
-  // Verify the caller owns this orgId. Currently orgId is the user's email
-  // or Auth0 sub — reject requests for other users' scopes.
-  const allowedIds = [session.user.email, session.user.id].filter(Boolean);
-  if (!allowedIds.includes(orgId)) {
+  // Verify user is a member of the requested site
+  const sites = await getUserSites(session);
+  const isMember = sites.some((s) => s.shortName === siteId);
+
+  if (!isMember) {
     return {
       resolved: false,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
@@ -55,6 +54,6 @@ export async function resolveOrgForRequest(
 
   return {
     resolved: true,
-    data: { userId: session.user.id, orgId },
+    data: { siteId, session },
   };
 }

@@ -9,7 +9,7 @@ import type {
 } from "../types";
 import { useState } from "react";
 
-export function useDataSources(orgId: string | undefined) {
+export function useDataSources(siteId: string | undefined) {
   const [actionLoading, setActionLoading] = useState(false);
 
   const {
@@ -18,7 +18,7 @@ export function useDataSources(orgId: string | undefined) {
     isLoading,
     mutate,
   } = useSWR<DataSourceListItem[]>(
-    orgId ? `/app/api/data-sources?orgId=${orgId}` : null,
+    siteId ? `/app/api/data-sources?siteId=${siteId}` : null,
     fetcher
   );
 
@@ -26,7 +26,7 @@ export function useDataSources(orgId: string | undefined) {
     setActionLoading(true);
     try {
       const created = await fetcher<DataSourceListItem>(
-        `/app/api/data-sources?orgId=${orgId}`,
+        `/app/api/data-sources?siteId=${siteId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export function useDataSources(orgId: string | undefined) {
     setActionLoading(true);
     try {
       const updated = await fetcher<DataSourceListItem>(
-        `/app/api/data-sources/${id}?orgId=${orgId}`,
+        `/app/api/data-sources/${id}?siteId=${siteId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export function useDataSources(orgId: string | undefined) {
   async function remove(id: string) {
     setActionLoading(true);
     try {
-      await fetcher(`/app/api/data-sources/${id}?orgId=${orgId}`, {
+      await fetcher(`/app/api/data-sources/${id}?siteId=${siteId}`, {
         method: "DELETE",
       });
       await mutate();
@@ -77,7 +77,7 @@ export function useDataSources(orgId: string | undefined) {
         success: boolean;
         testedAt: string;
         error?: string;
-      }>(`/app/api/data-sources/${id}/test?orgId=${orgId}`, {
+      }>(`/app/api/data-sources/${id}/test?siteId=${siteId}`, {
         method: "POST",
       });
       await mutate();
@@ -91,7 +91,7 @@ export function useDataSources(orgId: string | undefined) {
     setActionLoading(true);
     try {
       await fetcher<DataSourceListItem>(
-        `/app/api/data-sources/${id}?orgId=${orgId}`,
+        `/app/api/data-sources/${id}?siteId=${siteId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

@@ -4,6 +4,7 @@ import * as store from "@/lib/data-source-store";
 import { encrypt, decrypt, maskToken } from "@/lib/crypto";
 import { UpdateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
+import { ConflictError } from "@/lib/data-source-store";
 import type { DataSourceRecord } from "@/lib/data-source-store";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
@@ -122,6 +123,9 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     return NextResponse.json(buildMaskedResponse(updated));
   } catch (err) {
+    if (err instanceof ConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
     logger.error({ err }, "Failed to update data source");
     return NextResponse.json(
       { error: "Internal server error" },

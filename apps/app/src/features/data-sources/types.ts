@@ -26,18 +26,18 @@ export interface DataSourceFormData {
 }
 
 export const CreateDataSourceSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100),
+  name: z.string().min(1, "validation.nameRequired").max(100),
   type: z.enum(["POSTGREST"]),
   description: z.string().max(500).optional(),
-  url: z.string().url("Must be a valid URL"),
-  token: z.string().min(1, "Token is required"),
+  url: z.string().url("validation.urlInvalid"),
+  token: z.string().min(1, "validation.tokenRequired"),
 });
 
 export const UpdateDataSourceSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1, "validation.nameRequired").max(100).optional(),
   type: z.enum(["POSTGREST"]).optional(),
   description: z.string().max(500).optional().nullable(),
-  url: z.string().url("Must be a valid URL").optional(),
+  url: z.string().url("validation.urlInvalid").optional(),
   token: z.string().optional(),
   isActive: z.boolean().optional(),
 });

@@ -96,9 +96,9 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     const updateData: Parameters<typeof store.findAndUpdate>[2] = {
       ...rest,
-      ...(description !== undefined
-        ? { description: description ?? undefined }
-        : {}),
+      ...(description === undefined
+        ? {}
+        : { description: description ?? undefined }),
     };
 
     if (url || token) {

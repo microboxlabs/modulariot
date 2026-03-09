@@ -1825,6 +1825,10 @@
       "documents": "Documents",
       "noDocuments": "No documents",
       "document_load_error": "Could not load the document",
+      "replaceImage": "Replace document",
+      "replaceImageDescription": "Select a new document to replace the current one",
+      "selectFile": "Select file",
+      "noFileSelected": "You must select an image to continue",
       "validation": {
         "missingDocuments": "Required documents are missing to continue",
         "requiresPOD": "Proof of Delivery (POD)",

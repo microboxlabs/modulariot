@@ -13,7 +13,7 @@ function isPrivateIPv4(ip: string): boolean {
   // 172.16.0.0/12 — 172.16.x.x through 172.31.x.x
   const parts = ip.split(".");
   if (parts[0] === "172") {
-    const second = parseInt(parts[1], 10);
+    const second = Number.parseInt(parts[1], 10);
     if (second >= 16 && second <= 31) return true;
   }
   return false;

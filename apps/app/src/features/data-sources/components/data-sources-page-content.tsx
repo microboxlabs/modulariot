@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "flowbite-react";
+import { Alert, Button } from "flowbite-react";
 import { HiPlus, HiClipboardList } from "react-icons/hi";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -25,11 +25,13 @@ export default function DataSourcesPageContent({
   const {
     dataSources,
     isLoading,
+    error,
     actionLoading,
     create,
     update,
     remove,
     testConnection,
+    refetch,
   } = useDataSources(orgId);
 
   const [showModal, setShowModal] = useState(false);
@@ -134,6 +136,15 @@ export default function DataSourcesPageContent({
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
           </div>
+        ) : error ? (
+          <Alert color="failure">
+            <div className="flex items-center justify-between">
+              <span>{tr("toast.error", dsDict)}</span>
+              <Button size="xs" color="failure" onClick={() => refetch()}>
+                {tr("toast.retry", dsDict)}
+              </Button>
+            </div>
+          </Alert>
         ) : (
           <DataSourceTable
             dataSources={dataSources}

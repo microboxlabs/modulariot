@@ -930,7 +930,8 @@
     "userSettings": {
       "breadcrumb": {
         "user": "User",
-        "settings": "Settings"
+        "settings": "Settings",
+        "dataSources": "Data Sources"
       },
       "symptoms": {
         "config": {
@@ -938,6 +939,59 @@
           "description": "Configure notifications for symptoms.",
           "addButton": "Add symptom"
         }
+      },
+      "dataSources": {
+        "title": "Data Sources",
+        "description": "Manage your PostgREST and other data source connections.",
+        "addButton": "Add Data Source",
+        "table": {
+          "name": "Name",
+          "type": "Type",
+          "url": "URL",
+          "status": "Status",
+          "actions": "Actions",
+          "empty": "No data sources configured yet. Click \"Add Data Source\" to get started.",
+          "test": "Test connection",
+          "edit": "Edit",
+          "delete": "Delete"
+        },
+        "modal": {
+          "addTitle": "Add Data Source",
+          "editTitle": "Edit Data Source",
+          "name": "Name",
+          "type": "Type",
+          "description": "Description",
+          "url": "URL",
+          "token": "Token",
+          "tokenPlaceholderEdit": "Leave empty to keep current token",
+          "tokenHint": "Leave empty to keep the existing token",
+          "testConnection": "Test Connection",
+          "saving": "Saving...",
+          "saveButton": "Save",
+          "createButton": "Create"
+        },
+        "deleteConfirm": "Are you sure you want to delete",
+        "deleteButton": "Delete",
+        "deleting": "Deleting...",
+        "cancel": "Cancel",
+        "badge": {
+          "notTested": "Not tested",
+          "connected": "Connected",
+          "failed": "Failed"
+        },
+        "toast": {
+          "created": "Data source created successfully",
+          "updated": "Data source updated successfully",
+          "deleted": "Data source deleted successfully",
+          "testSuccess": "Connection test successful",
+          "testFailed": "Connection test failed",
+          "error": "An error occurred"
+        }
+      },
+      "settingsNav": {
+        "title": "Settings",
+        "general": "General",
+        "dataSources": "Data Sources"
       }
     },
     "admin": {

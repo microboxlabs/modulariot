@@ -951,7 +951,8 @@
     "userSettings": {
       "breadcrumb": {
         "user": "Usuario",
-        "settings": "Ajustes"
+        "settings": "Ajustes",
+        "dataSources": "Fuentes de Datos"
       },
       "symptoms": {
         "config": {
@@ -959,6 +960,59 @@
           "description": "Configura las notificaciones para los síntomas.",
           "addButton": "Agregar"
         }
+      },
+      "dataSources": {
+        "title": "Fuentes de Datos",
+        "description": "Administra tus conexiones PostgREST y otras fuentes de datos.",
+        "addButton": "Agregar Fuente",
+        "table": {
+          "name": "Nombre",
+          "type": "Tipo",
+          "url": "URL",
+          "status": "Estado",
+          "actions": "Acciones",
+          "empty": "No hay fuentes de datos configuradas. Haz clic en \"Agregar Fuente\" para comenzar.",
+          "test": "Probar conexión",
+          "edit": "Editar",
+          "delete": "Eliminar"
+        },
+        "modal": {
+          "addTitle": "Agregar Fuente de Datos",
+          "editTitle": "Editar Fuente de Datos",
+          "name": "Nombre",
+          "type": "Tipo",
+          "description": "Descripción",
+          "url": "URL",
+          "token": "Token",
+          "tokenPlaceholderEdit": "Dejar vacío para mantener el token actual",
+          "tokenHint": "Dejar vacío para mantener el token existente",
+          "testConnection": "Probar Conexión",
+          "saving": "Guardando...",
+          "saveButton": "Guardar",
+          "createButton": "Crear"
+        },
+        "deleteConfirm": "¿Estás seguro de que deseas eliminar",
+        "deleteButton": "Eliminar",
+        "deleting": "Eliminando...",
+        "cancel": "Cancelar",
+        "badge": {
+          "notTested": "Sin probar",
+          "connected": "Conectado",
+          "failed": "Fallido"
+        },
+        "toast": {
+          "created": "Fuente de datos creada exitosamente",
+          "updated": "Fuente de datos actualizada exitosamente",
+          "deleted": "Fuente de datos eliminada exitosamente",
+          "testSuccess": "Prueba de conexión exitosa",
+          "testFailed": "Prueba de conexión fallida",
+          "error": "Ocurrió un error"
+        }
+      },
+      "settingsNav": {
+        "title": "Ajustes",
+        "general": "General",
+        "dataSources": "Fuentes de Datos"
       }
     },
     "admin": {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
+import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, ToggleSwitch } from "flowbite-react";
 import { HiPencil, HiTrash, HiPlay } from "react-icons/hi";
 import type { DataSourceListItem } from "../types";
 import { ConnectionTestBadge } from "./connection-test-badge";
@@ -12,6 +12,7 @@ interface DataSourceTableProps {
   readonly onEdit: (ds: DataSourceListItem) => void;
   readonly onDelete: (ds: DataSourceListItem) => void;
   readonly onTest: (ds: DataSourceListItem) => void;
+  readonly onToggleActive: (ds: DataSourceListItem) => void;
   readonly loading?: boolean;
   readonly dict: I18nRecord;
 }
@@ -21,6 +22,7 @@ export function DataSourceTable({
   onEdit,
   onDelete,
   onTest,
+  onToggleActive,
   loading,
   dict,
 }: DataSourceTableProps) {
@@ -41,6 +43,7 @@ export function DataSourceTable({
         <TableHeadCell>{tr("table.type", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.url", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
+        <TableHeadCell>{tr("table.active", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.actions", dict)}</TableHeadCell>
       </TableHead>
       <TableBody className="divide-y">
@@ -68,6 +71,14 @@ export function DataSourceTable({
                 lastTestedAt={ds.lastTestedAt}
                 lastTestResult={ds.lastTestResult}
                 dict={dict}
+              />
+            </TableCell>
+            <TableCell>
+              <ToggleSwitch
+                checked={ds.isActive}
+                onChange={() => onToggleActive(ds)}
+                disabled={loading}
+                label={ds.isActive ? tr("table.active", dict) : tr("table.inactive", dict)}
               />
             </TableCell>
             <TableCell>

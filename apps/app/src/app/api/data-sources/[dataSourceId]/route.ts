@@ -4,8 +4,41 @@ import * as store from "@/lib/data-source-store";
 import { encrypt, decrypt, maskToken } from "@/lib/crypto";
 import { UpdateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
+import type { DataSourceRecord } from "@/lib/data-source-store";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
+
+function buildMaskedResponse(ds: DataSourceRecord) {
+  return {
+    ...ds,
+    connectionConfig: {
+      url: ds.connectionConfig.url,
+      maskedToken: ds.connectionConfig.tokenSuffix
+        ? `****${ds.connectionConfig.tokenSuffix}`
+        : "****",
+    },
+  };
+}
+
+async function buildConnectionConfig(
+  dataSourceId: string,
+  orgId: string,
+  url?: string,
+  token?: string
+) {
+  const existing = await store.getById(dataSourceId);
+  if (existing?.organizationId !== orgId) {
+    return undefined;
+  }
+  const connectionConfig = { ...existing.connectionConfig };
+  if (url) connectionConfig.url = url;
+  if (token?.startsWith("****")) return connectionConfig;
+  if (token) {
+    connectionConfig.encryptedToken = encrypt(token);
+    connectionConfig.tokenSuffix = token.slice(-4);
+  }
+  return connectionConfig;
+}
 
 export async function GET(request: NextRequest, ctx: RouteContext) {
   const orgResult = await resolveOrgForRequest(request);
@@ -14,7 +47,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   const { dataSourceId } = await ctx.params;
   const ds = await store.getById(dataSourceId);
 
-  if (!ds || ds.organizationId !== orgResult.data.orgId) {
+  if (ds?.organizationId !== orgResult.data.orgId) {
     return NextResponse.json(
       { error: "Data source not found" },
       { status: 404 }
@@ -58,19 +91,12 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     };
 
     if (url || token) {
-      // We need the existing record to merge connection config
-      const existing = await store.getById(dataSourceId);
-      if (!existing || existing.organizationId !== orgId) {
+      const connectionConfig = await buildConnectionConfig(dataSourceId, orgId, url, token);
+      if (!connectionConfig) {
         return NextResponse.json(
           { error: "Data source not found" },
           { status: 404 }
         );
-      }
-      const connectionConfig = { ...existing.connectionConfig };
-      if (url) connectionConfig.url = url;
-      if (token && !token.startsWith("****")) {
-        connectionConfig.encryptedToken = encrypt(token);
-        connectionConfig.tokenSuffix = token.slice(-4);
       }
       updateData.connectionConfig = connectionConfig;
     }
@@ -84,15 +110,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    return NextResponse.json({
-      ...updated,
-      connectionConfig: {
-        url: updated.connectionConfig.url,
-        maskedToken: updated.connectionConfig.tokenSuffix
-          ? `****${updated.connectionConfig.tokenSuffix}`
-          : "****",
-      },
-    });
+    return NextResponse.json(buildMaskedResponse(updated));
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to update data source";

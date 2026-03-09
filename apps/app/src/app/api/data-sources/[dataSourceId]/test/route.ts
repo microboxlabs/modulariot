@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   const { orgId } = orgResult.data;
   const ds = await store.getById(dataSourceId);
 
-  if (!ds || ds.organizationId !== orgId) {
+  if (ds?.organizationId !== orgId) {
     return NextResponse.json(
       { error: "Data source not found" },
       { status: 404 }

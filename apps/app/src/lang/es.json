@@ -1000,6 +1000,11 @@
           "connected": "Conectado",
           "failed": "Fallido"
         },
+        "validation": {
+          "nameRequired": "El nombre es obligatorio",
+          "urlInvalid": "Debe ser una URL válida",
+          "tokenRequired": "El token es obligatorio"
+        },
         "toast": {
           "created": "Fuente de datos creada exitosamente",
           "updated": "Fuente de datos actualizada exitosamente",

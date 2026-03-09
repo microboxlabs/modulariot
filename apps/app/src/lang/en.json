@@ -990,7 +990,8 @@
           "deleted": "Data source deleted successfully",
           "testSuccess": "Connection test successful",
           "testFailed": "Connection test failed",
-          "error": "An error occurred"
+          "error": "An error occurred",
+          "retry": "Retry"
         }
       },
       "settingsNav": {

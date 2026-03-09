@@ -1011,7 +1011,8 @@
           "deleted": "Fuente de datos eliminada exitosamente",
           "testSuccess": "Prueba de conexión exitosa",
           "testFailed": "Prueba de conexión fallida",
-          "error": "Ocurrió un error"
+          "error": "Ocurrió un error",
+          "retry": "Reintentar"
         }
       },
       "settingsNav": {

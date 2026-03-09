@@ -96,5 +96,6 @@ export function useDataSources(orgId: string | undefined) {
     update,
     remove,
     testConnection,
+    refetch: mutate,
   };
 }

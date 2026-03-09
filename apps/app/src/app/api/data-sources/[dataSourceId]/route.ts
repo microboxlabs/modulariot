@@ -84,7 +84,7 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     const body = await request.json();
     const parsed = UpdateDataSourceSchema.safeParse(body);
 
-    if (!parsed.success) {
+    if (parsed.error) {
       return NextResponse.json(
         { error: "Validation failed", details: parsed.error.flatten() },
         { status: 400 }

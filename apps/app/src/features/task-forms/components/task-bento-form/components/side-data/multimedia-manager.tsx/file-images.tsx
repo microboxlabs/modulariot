@@ -145,9 +145,16 @@ export default function FileImages({
 
   const files = useMemo(() => data?.data?.list?.entries || [], [data]);
 
+  const {
+    data: documentsData,
+    isLoading: documentsIsLoading,
+  } = useGetNodeContents(
+    files?.map((file: AlfrescoFileEntry) => file.entry.id) || []
+  );
+
   // Classify files by mimeType from the listing metadata (no content download needed)
   useEffect(() => {
-    if (files.length > 0) {
+    if (files.length > 0 && documentsData) {
       const newImages: any[] = [];
       const newDocuments: any[] = [];
 
@@ -171,14 +178,14 @@ export default function FileImages({
       setImages(newImages);
       setDocuments(newDocuments);
     }
-  }, [files]);
+  }, [documentsData, files]);
 
   if (!packageId) {
     return null;
   }
 
   // Only show loading skeleton while data is being fetched
-  if (isLoading && !data) {
+  if ((isLoading || documentsIsLoading) && images.length === 0 && documents.length === 0) {
     return (
       <div className="flex flex-col relative bg-gray-200 dark:bg-gray-700 w-full h-[650px] animate-pulse rounded-lg" />
     );

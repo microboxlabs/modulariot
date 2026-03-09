@@ -347,6 +347,7 @@ export default function FileImages({
             </p>
             <Button
               onClick={() => setSelectedImage(0)}
+              color="link"
               className={`${
                 images.length == 0 ? "hidden" : "block"
               } text-sm text-blue-500 hover:underline cursor-pointer hover:decoration-dashed [&>span]:p-0`}

@@ -1,6 +1,6 @@
 import { Button, Modal, ModalBody } from "flowbite-react";
 import { MdOutlineFileDownload } from "react-icons/md";
-import { FaShare } from "react-icons/fa";
+import { FaEye, FaShare } from "react-icons/fa";
 import Carousel from "../carousel";
 import { toast } from "sonner";
 import { getCategories } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
@@ -134,6 +134,33 @@ export default function ImageViewer({
               </div>
             </div>
             <div className="flex gap-2 flex-shrink-0">
+              <Button
+                color="blue"
+                onClick={() => {
+                  if (selected === null) return;
+                  const imageData = images[selected];
+                  // Handle base64 data URLs by converting to Blob
+                  if (imageData.startsWith("data:")) {
+                    const [header, base64] = imageData.split(",");
+                    const mimeMatch = /data:([^;]+)/.exec(header);
+                    const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+                    const binaryString = atob(base64);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                      bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: mimeType });
+                    const blobUrl = URL.createObjectURL(blob);
+                    window.open(blobUrl, "_blank");
+                  } else {
+                    window.open(imageData, "_blank");
+                  }
+                }}
+                pill
+                size="sm"
+              >
+                <FaEye className="w-4 h-4" />
+              </Button>
               <Button
                 color="blue"
                 onClick={async () => {

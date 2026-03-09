@@ -953,7 +953,9 @@
           "empty": "No data sources configured yet. Click \"Add Data Source\" to get started.",
           "test": "Test connection",
           "edit": "Edit",
-          "delete": "Delete"
+          "delete": "Delete",
+          "active": "Active",
+          "inactive": "Inactive"
         },
         "modal": {
           "addTitle": "Add Data Source",

@@ -87,6 +87,23 @@ export function useDataSources(orgId: string | undefined) {
     }
   }
 
+  async function toggleActive(id: string, isActive: boolean) {
+    setActionLoading(true);
+    try {
+      await fetcher<DataSourceListItem>(
+        `/app/api/data-sources/${id}?orgId=${orgId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive }),
+        }
+      );
+      await mutate();
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   return {
     dataSources: dataSources ?? [],
     isLoading,
@@ -96,6 +113,7 @@ export function useDataSources(orgId: string | undefined) {
     update,
     remove,
     testConnection,
+    toggleActive,
     refetch: mutate,
   };
 }

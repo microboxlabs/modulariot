@@ -31,6 +31,7 @@ export default function DataSourcesPageContent({
     update,
     remove,
     testConnection,
+    toggleActive,
     refetch,
   } = useDataSources(orgId);
 
@@ -82,6 +83,16 @@ export default function DataSourcesPageContent({
       await remove(deletingSource.id);
       toast.success(tr("toast.deleted", dsDict));
       setDeletingSource(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : tr("toast.error", dsDict)
+      );
+    }
+  };
+
+  const handleToggleActive = async (ds: DataSourceListItem) => {
+    try {
+      await toggleActive(ds.id, !ds.isActive);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : tr("toast.error", dsDict)
@@ -153,6 +164,7 @@ export default function DataSourcesPageContent({
             onEdit={handleEdit}
             onDelete={(ds) => setDeletingSource(ds)}
             onTest={(ds) => handleTest(ds.id)}
+            onToggleActive={handleToggleActive}
             loading={actionLoading}
             dict={dsDict}
           />

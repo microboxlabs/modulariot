@@ -974,7 +974,9 @@
           "empty": "No hay fuentes de datos configuradas. Haz clic en \"Agregar Fuente\" para comenzar.",
           "test": "Probar conexión",
           "edit": "Editar",
-          "delete": "Eliminar"
+          "delete": "Eliminar",
+          "active": "Activo",
+          "inactive": "Inactivo"
         },
         "modal": {
           "addTitle": "Agregar Fuente de Datos",

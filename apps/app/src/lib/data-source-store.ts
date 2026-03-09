@@ -42,7 +42,7 @@ async function readStore(): Promise<StoreData> {
       return { dataSources: [] };
     }
     logger.error({ err, filePath }, "Failed to read data source store");
-    return { dataSources: [] };
+    throw err;
   }
 }
 

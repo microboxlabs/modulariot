@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Label, Modal, ModalHeader, ModalBody, ModalFooter, Select, TextInput, Textarea } from "flowbite-react";
+import { Button, Label, Select, TextInput, Textarea } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateDataSourceSchema, UpdateDataSourceSchema } from "../types";
@@ -8,6 +8,7 @@ import type { DataSourceListItem, DataSourceFormData } from "../types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useEffect, useMemo } from "react";
+import FormModal from "@/features/common/components/form-modal/form-modal";
 
 interface DataSourceModalProps {
   readonly show: boolean;
@@ -69,112 +70,104 @@ export function DataSourceModal({
     }
   }, [editingSource, reset, show]);
 
+  const submitLabel = loading
+    ? tr("modal.saving", dict)
+    : editingSource
+      ? tr("modal.saveButton", dict)
+      : tr("modal.createButton", dict);
+
   return (
-    <Modal show={show} onClose={onClose} size="lg">
-      <ModalHeader>
-        {editingSource
+    <FormModal
+      isOpen={show}
+      onClose={onClose}
+      size="lg"
+      title={
+        editingSource
           ? tr("modal.editTitle", dict)
-          : tr("modal.addTitle", dict)}
-      </ModalHeader>
-      <ModalBody>
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-4"
-          id="data-source-form"
-        >
-          <div>
-            <Label htmlFor="name">{tr("modal.name", dict)}</Label>
-            <TextInput
-              id="name"
-              {...register("name")}
-              color={errors.name ? "failure" : undefined}
-            />
-            {errors.name?.message && (
-              <p className="mt-1 text-sm text-red-600">{tr(errors.name.message, dict)}</p>
-            )}
-          </div>
+          : tr("modal.addTitle", dict)
+      }
+      submitLabel={submitLabel}
+      isProcessing={loading}
+      onSubmit={handleSubmit(onSubmit)}
+      showCancelButton
+      cancelLabel={tr("cancel", dict)}
+    >
+      <div className="flex flex-col gap-4">
+        <div>
+          <Label htmlFor="name">{tr("modal.name", dict)}</Label>
+          <TextInput
+            id="name"
+            {...register("name")}
+            color={errors.name ? "failure" : undefined}
+          />
+          {errors.name?.message && (
+            <p className="mt-1 text-sm text-red-600">{tr(errors.name.message, dict)}</p>
+          )}
+        </div>
 
-          <div>
-            <Label htmlFor="type">{tr("modal.type", dict)}</Label>
-            <Select id="type" {...register("type")}>
-              <option value="POSTGREST">PostgREST</option>
-            </Select>
-          </div>
+        <div>
+          <Label htmlFor="type">{tr("modal.type", dict)}</Label>
+          <Select id="type" {...register("type")}>
+            <option value="POSTGREST">PostgREST</option>
+          </Select>
+        </div>
 
-          <div>
-            <Label htmlFor="description">{tr("modal.description", dict)}</Label>
-            <Textarea
-              id="description"
-              {...register("description")}
-              rows={2}
-            />
-          </div>
+        <div>
+          <Label htmlFor="description">{tr("modal.description", dict)}</Label>
+          <Textarea
+            id="description"
+            {...register("description")}
+            rows={2}
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="url">{tr("modal.url", dict)}</Label>
-            <TextInput
-              id="url"
-              type="url"
-              placeholder="https://api.example.com"
-              {...register("url")}
-              color={errors.url ? "failure" : undefined}
-            />
-            {errors.url?.message && (
-              <p className="mt-1 text-sm text-red-600">{tr(errors.url.message, dict)}</p>
-            )}
-          </div>
+        <div>
+          <Label htmlFor="url">{tr("modal.url", dict)}</Label>
+          <TextInput
+            id="url"
+            type="url"
+            placeholder="https://api.example.com"
+            {...register("url")}
+            color={errors.url ? "failure" : undefined}
+          />
+          {errors.url?.message && (
+            <p className="mt-1 text-sm text-red-600">{tr(errors.url.message, dict)}</p>
+          )}
+        </div>
 
+        <div>
+          <Label htmlFor="token">{tr("modal.token", dict)}</Label>
+          <TextInput
+            id="token"
+            type="password"
+            placeholder={
+              editingSource
+                ? tr("modal.tokenPlaceholderEdit", dict)
+                : undefined
+            }
+            {...register("token")}
+            color={errors.token ? "failure" : undefined}
+          />
+          {errors.token?.message && (
+            <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
+          )}
+          {!errors.token?.message && editingSource && (
+            <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>
+          )}
+        </div>
+
+        {editingSource && onTest && (
           <div>
-            <Label htmlFor="token">{tr("modal.token", dict)}</Label>
-            <TextInput
-              id="token"
-              type="password"
-              placeholder={
-                editingSource
-                  ? tr("modal.tokenPlaceholderEdit", dict)
-                  : undefined
-              }
-              {...register("token")}
-              color={errors.token ? "failure" : undefined}
-            />
-            {errors.token?.message && (
-              <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
-            )}
-            {!errors.token?.message && editingSource && (
-              <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>
-            )}
-          </div>
-        </form>
-      </ModalBody>
-      <ModalFooter>
-        <div className="flex w-full justify-between">
-          <div>
-            {editingSource && onTest && (
-              <Button
-                color="light"
-                onClick={() => onTest(editingSource.id)}
-                disabled={loading}
-              >
-                {tr("modal.testConnection", dict)}
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button color="gray" onClick={onClose}>
-              {tr("cancel", dict)}
-            </Button>
             <Button
-              type="submit"
-              form="data-source-form"
+              color="light"
+              onClick={() => onTest(editingSource.id)}
               disabled={loading}
             >
-              {loading && tr("modal.saving", dict)}
-              {!loading && editingSource && tr("modal.saveButton", dict)}
-              {!loading && !editingSource && tr("modal.createButton", dict)}
+              {tr("modal.testConnection", dict)}
             </Button>
           </div>
-        </div>
-      </ModalFooter>
-    </Modal>
+        )}
+      </div>
+    </FormModal>
   );
 }

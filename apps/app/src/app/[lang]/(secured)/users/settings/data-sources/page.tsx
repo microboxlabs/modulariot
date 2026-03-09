@@ -14,7 +14,10 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
 
-  const orgId = session?.user?.id || "";
+  // Data sources are scoped per user until proper org context is available.
+  // session.user.id is the Auth0 sub (typically the user's email).
+  // TODO: Replace with real org ID once org membership is wired into the app.
+  const orgId = session?.user?.email ?? session?.user?.id ?? "";
 
   try {
     return (

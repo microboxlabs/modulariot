@@ -151,7 +151,7 @@ export default function FileImages({
       const newImages: any[] = [];
       const newDocuments: any[] = [];
 
-documentsData.data.forEach((document: any, index: number) => {
+      documentsData.data.forEach((document: any, index: number) => {
         if (!document.error && files[index]) {
           if (files[index].entry.content.mimeType.includes("image")) {
             console.log("Image data:", files[index]);
@@ -330,9 +330,7 @@ documentsData.data.forEach((document: any, index: number) => {
         {/* Images */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            images.length == 0 && documents.length == 0
-              ? "hidden"
-              : "block"
+            images.length == 0 && documents.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">
@@ -375,9 +373,7 @@ documentsData.data.forEach((document: any, index: number) => {
         {/* Documents */}
         <div
           className={`gap-2 flex flex-col duration-300 rounded-lg relative mt-4 w-full ${
-            documents.length == 0 && images.length == 0
-              ? "hidden"
-              : "block"
+            documents.length == 0 && images.length == 0 ? "hidden" : "block"
           }`}
         >
           <div className="flex flex-row justify-between items-center">

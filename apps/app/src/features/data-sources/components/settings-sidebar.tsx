@@ -12,7 +12,7 @@ const navItems = [
 ];
 
 interface SettingsSidebarProps {
-  dict: I18nRecord;
+  readonly dict: I18nRecord;
 }
 
 export function SettingsSidebar({ dict }: SettingsSidebarProps) {

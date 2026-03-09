@@ -14,8 +14,8 @@ import type { DataSourceListItem, DataSourceFormData } from "../types";
 import { toast } from "sonner";
 
 interface DataSourcesPageContentProps {
-  dict: I18nRecord;
-  orgId: string;
+  readonly dict: I18nRecord;
+  readonly orgId: string;
 }
 
 export default function DataSourcesPageContent({
@@ -38,7 +38,7 @@ export default function DataSourcesPageContent({
   const [deletingSource, setDeletingSource] =
     useState<DataSourceListItem | null>(null);
 
-  const dsDict = (dict as I18nRecord)?.dataSources as I18nRecord;
+  const dsDict = dict?.dataSources as I18nRecord;
 
   const handleAdd = () => {
     setEditingSource(null);

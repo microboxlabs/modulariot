@@ -10,13 +10,13 @@ import { tr } from "@/features/i18n/tr.service";
 import { useEffect, useMemo } from "react";
 
 interface DataSourceModalProps {
-  show: boolean;
-  onClose: () => void;
-  onSubmit: (data: DataSourceFormData) => void;
-  onTest?: (id: string) => void;
-  editingSource?: DataSourceListItem | null;
-  loading?: boolean;
-  dict: I18nRecord;
+  readonly show: boolean;
+  readonly onClose: () => void;
+  readonly onSubmit: (data: DataSourceFormData) => void;
+  readonly onTest?: (id: string) => void;
+  readonly editingSource?: DataSourceListItem | null;
+  readonly loading?: boolean;
+  readonly dict: I18nRecord;
 }
 
 export function DataSourceModal({
@@ -168,11 +168,9 @@ export function DataSourceModal({
               form="data-source-form"
               disabled={loading}
             >
-              {loading
-                ? tr("modal.saving", dict)
-                : editingSource
-                  ? tr("modal.saveButton", dict)
-                  : tr("modal.createButton", dict)}
+              {loading && tr("modal.saving", dict)}
+              {!loading && editingSource && tr("modal.saveButton", dict)}
+              {!loading && !editingSource && tr("modal.createButton", dict)}
             </Button>
           </div>
         </div>

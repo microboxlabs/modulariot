@@ -4,7 +4,11 @@ import { Button, Label, Select, TextInput, Textarea } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateDataSourceSchema, UpdateDataSourceSchema } from "../types";
-import type { DataSourceListItem, DataSourceFormData } from "../types";
+import type {
+  DataSourceListItem,
+  DataSourceFormData,
+  AuthMethod,
+} from "../types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useEffect, useMemo } from "react";
@@ -38,6 +42,8 @@ export function DataSourceModal({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<DataSourceFormData>({
     resolver: zodResolver(schema),
@@ -46,9 +52,16 @@ export function DataSourceModal({
       type: "POSTGREST",
       description: "",
       url: "",
+      authMethod: "TOKEN",
       token: "",
+      clientId: "",
+      clientSecret: "",
+      tokenUrl: "",
+      scope: "",
     },
   });
+
+  const authMethod = watch("authMethod") as AuthMethod;
 
   useEffect(() => {
     if (editingSource) {
@@ -57,7 +70,12 @@ export function DataSourceModal({
         type: editingSource.type,
         description: editingSource.description || "",
         url: editingSource.connectionConfig.url,
+        authMethod: editingSource.authMethod || "TOKEN",
         token: "",
+        clientId: editingSource.connectionConfig.clientId || "",
+        clientSecret: "",
+        tokenUrl: editingSource.connectionConfig.tokenUrl || "",
+        scope: editingSource.connectionConfig.scope || "",
       });
     } else {
       reset({
@@ -65,7 +83,12 @@ export function DataSourceModal({
         type: "POSTGREST",
         description: "",
         url: "",
+        authMethod: "TOKEN",
         token: "",
+        clientId: "",
+        clientSecret: "",
+        tokenUrl: "",
+        scope: "",
       });
     }
   }, [editingSource, reset, show]);
@@ -136,25 +159,104 @@ export function DataSourceModal({
         </div>
 
         <div>
-          <Label htmlFor="token">{tr("modal.token", dict)}</Label>
-          <TextInput
-            id="token"
-            type="password"
-            placeholder={
-              editingSource
-                ? tr("modal.tokenPlaceholderEdit", dict)
-                : undefined
-            }
-            {...register("token")}
-            color={errors.token ? "failure" : undefined}
-          />
-          {errors.token?.message && (
-            <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
-          )}
-          {!errors.token?.message && editingSource && (
-            <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>
-          )}
+          <Label htmlFor="authMethod">{tr("modal.authMethod", dict)}</Label>
+          <Select
+            id="authMethod"
+            {...register("authMethod")}
+            onChange={(e) => {
+              setValue("authMethod", e.target.value as AuthMethod, {
+                shouldValidate: true,
+              });
+            }}
+          >
+            <option value="TOKEN">{tr("modal.authToken", dict)}</option>
+            <option value="OAUTH">{tr("modal.authOAuth", dict)}</option>
+          </Select>
         </div>
+
+        {authMethod === "TOKEN" && (
+          <div>
+            <Label htmlFor="token">{tr("modal.token", dict)}</Label>
+            <TextInput
+              id="token"
+              type="password"
+              placeholder={
+                editingSource
+                  ? tr("modal.tokenPlaceholderEdit", dict)
+                  : undefined
+              }
+              {...register("token")}
+              color={errors.token ? "failure" : undefined}
+            />
+            {errors.token?.message && (
+              <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
+            )}
+            {!errors.token?.message && editingSource && (
+              <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>
+            )}
+          </div>
+        )}
+
+        {authMethod === "OAUTH" && (
+          <>
+            <div>
+              <Label htmlFor="clientId">{tr("modal.clientId", dict)}</Label>
+              <TextInput
+                id="clientId"
+                {...register("clientId")}
+                color={errors.clientId ? "failure" : undefined}
+              />
+              {errors.clientId?.message && (
+                <p className="mt-1 text-sm text-red-600">{tr(errors.clientId.message, dict)}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="clientSecret">{tr("modal.clientSecret", dict)}</Label>
+              <TextInput
+                id="clientSecret"
+                type="password"
+                placeholder={
+                  editingSource
+                    ? tr("modal.secretPlaceholderEdit", dict)
+                    : undefined
+                }
+                {...register("clientSecret")}
+                color={errors.clientSecret ? "failure" : undefined}
+              />
+              {errors.clientSecret?.message && (
+                <p className="mt-1 text-sm text-red-600">{tr(errors.clientSecret.message, dict)}</p>
+              )}
+              {!errors.clientSecret?.message && editingSource && (
+                <p className="mt-1 text-sm text-gray-500">{tr("modal.secretHint", dict)}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="tokenUrl">{tr("modal.tokenUrl", dict)}</Label>
+              <TextInput
+                id="tokenUrl"
+                type="url"
+                placeholder="https://auth.example.com/oauth/token"
+                {...register("tokenUrl")}
+                color={errors.tokenUrl ? "failure" : undefined}
+              />
+              {errors.tokenUrl?.message && (
+                <p className="mt-1 text-sm text-red-600">{tr(errors.tokenUrl.message, dict)}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="scope">{tr("modal.scope", dict)}</Label>
+              <TextInput
+                id="scope"
+                placeholder={tr("modal.scopePlaceholder", dict)}
+                {...register("scope")}
+              />
+              <p className="mt-1 text-sm text-gray-500">{tr("modal.scopeHint", dict)}</p>
+            </div>
+          </>
+        )}
 
         {editingSource && onTest && (
           <div>

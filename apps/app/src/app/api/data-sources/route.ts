@@ -4,9 +4,41 @@ import {
   listDataSources,
   createDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import type { AlfrescoDataSource } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { encrypt, maskToken } from "@/lib/crypto";
 import { CreateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
+
+function buildMaskedResponse(ds: AlfrescoDataSource) {
+  return {
+    id: ds.nodeRef,
+    name: ds.name,
+    type: ds.type,
+    description: ds.description,
+    siteId: ds.site,
+    authMethod: ds.authMethod || "TOKEN",
+    connectionConfig: {
+      url: ds.url,
+      ...(ds.authMethod === "OAUTH"
+        ? {
+            clientId: ds.clientId,
+            maskedClientSecret: ds.clientSecretSuffix?.length === 4
+              ? `****${ds.clientSecretSuffix}`
+              : "****",
+            tokenUrl: ds.tokenUrl,
+            scope: ds.scope,
+          }
+        : {
+            maskedToken: ds.tokenSuffix?.length === 4
+              ? `****${ds.tokenSuffix}`
+              : "****",
+          }),
+    },
+    isActive: ds.isActive,
+    lastTestedAt: ds.lastTestedAt,
+    lastTestResult: ds.lastTestResult,
+  };
+}
 
 export async function GET(request: NextRequest) {
   const result = await resolveSiteForRequest(request);
@@ -16,25 +48,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { dataSources } = await listDataSources(session, siteId);
-
-    const masked = dataSources.map((ds) => ({
-      id: ds.nodeRef,
-      name: ds.name,
-      type: ds.type,
-      description: ds.description,
-      siteId: ds.site,
-      connectionConfig: {
-        url: ds.url,
-        maskedToken: ds.tokenSuffix?.length === 4
-          ? `****${ds.tokenSuffix}`
-          : "****",
-      },
-      isActive: ds.isActive,
-      lastTestedAt: ds.lastTestedAt,
-      lastTestResult: ds.lastTestResult,
-    }));
-
-    return NextResponse.json(masked);
+    return NextResponse.json(dataSources.map(buildMaskedResponse));
   } catch (err) {
     logger.error({ err }, "Failed to list data sources");
     return NextResponse.json(
@@ -61,34 +75,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, type, description, url, token } = parsed.data;
+    const { name, type, description, url, authMethod } = parsed.data;
 
-    const created = await createDataSource(session, {
+    const alfrescoBody: Record<string, unknown> = {
       site: siteId,
       name,
       type,
       description,
       url,
-      encryptedToken: encrypt(token),
-      tokenSuffix: token.length > 4 ? token.slice(-4) : "",
+      authMethod,
       isActive: true,
-    });
+    };
 
-    return NextResponse.json(
-      {
-        id: created.nodeRef,
-        name: created.name || name,
-        type: created.type || type,
-        description: created.description ?? description,
-        siteId,
-        connectionConfig: {
-          url: created.url || url,
-          maskedToken: maskToken(token),
-        },
-        isActive: created.isActive ?? true,
-      },
-      { status: 201 }
-    );
+    if (authMethod === "TOKEN") {
+      const { token } = parsed.data;
+      alfrescoBody.encryptedToken = encrypt(token);
+      alfrescoBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
+    } else {
+      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
+      alfrescoBody.clientId = clientId;
+      alfrescoBody.encryptedClientSecret = encrypt(clientSecret);
+      alfrescoBody.clientSecretSuffix = clientSecret.length > 4 ? clientSecret.slice(-4) : "";
+      alfrescoBody.tokenUrl = tokenUrl;
+      alfrescoBody.scope = scope;
+    }
+
+    const created = await createDataSource(session, alfrescoBody);
+
+    // Build response with masked secrets
+    const response: Record<string, unknown> = {
+      id: created.nodeRef,
+      name: created.name || name,
+      type: created.type || type,
+      description: created.description ?? description,
+      siteId,
+      authMethod,
+      isActive: created.isActive ?? true,
+    };
+
+    if (authMethod === "TOKEN") {
+      const { token } = parsed.data;
+      response.connectionConfig = {
+        url: created.url || url,
+        maskedToken: maskToken(token),
+      };
+    } else {
+      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
+      response.connectionConfig = {
+        url: created.url || url,
+        clientId,
+        maskedClientSecret: maskToken(clientSecret),
+        tokenUrl,
+        scope,
+      };
+    }
+
+    return NextResponse.json(response, { status: 201 });
   } catch (err) {
     logger.error({ err }, "Failed to create data source");
     return NextResponse.json(

@@ -19,11 +19,23 @@ function buildMaskedResponse(ds: AlfrescoDataSource) {
     type: ds.type,
     description: ds.description,
     siteId: ds.site,
+    authMethod: ds.authMethod || "TOKEN",
     connectionConfig: {
       url: ds.url,
-      maskedToken: ds.tokenSuffix?.length === 4
-        ? `****${ds.tokenSuffix}`
-        : "****",
+      ...(ds.authMethod === "OAUTH"
+        ? {
+            clientId: ds.clientId,
+            maskedClientSecret: ds.clientSecretSuffix?.length === 4
+              ? `****${ds.clientSecretSuffix}`
+              : "****",
+            tokenUrl: ds.tokenUrl,
+            scope: ds.scope,
+          }
+        : {
+            maskedToken: ds.tokenSuffix?.length === 4
+              ? `****${ds.tokenSuffix}`
+              : "****",
+          }),
     },
     isActive: ds.isActive,
     lastTestedAt: ds.lastTestedAt,
@@ -48,15 +60,17 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    return NextResponse.json({
-      ...buildMaskedResponse(ds),
-      connectionConfig: {
-        url: ds.url,
-        maskedToken: ds.encryptedToken
-          ? maskToken(decrypt(ds.encryptedToken))
-          : "****",
-      },
-    });
+    const response = buildMaskedResponse(ds);
+
+    // For GET single, decrypt to produce a fresh mask
+    const config = response.connectionConfig as Record<string, unknown>;
+    if (ds.authMethod === "OAUTH" && ds.encryptedClientSecret) {
+      config.maskedClientSecret = maskToken(decrypt(ds.encryptedClientSecret));
+    } else if (ds.encryptedToken) {
+      config.maskedToken = maskToken(decrypt(ds.encryptedToken));
+    }
+
+    return NextResponse.json(response);
   } catch (err) {
     logger.error({ err, dataSourceId }, "Failed to get data source");
     return NextResponse.json(
@@ -84,7 +98,19 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const { url, token, description, name, type, isActive } = parsed.data;
+    const {
+      url,
+      token,
+      authMethod,
+      clientId,
+      clientSecret,
+      tokenUrl,
+      scope,
+      description,
+      name,
+      type,
+      isActive,
+    } = parsed.data;
 
     const updateBody: Record<string, unknown> = {
       nodeRef: dataSourceId,
@@ -96,15 +122,35 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
     if (description !== undefined) updateBody.description = description ?? "";
     if (url !== undefined) updateBody.url = url;
     if (isActive !== undefined) updateBody.isActive = isActive;
+    if (authMethod !== undefined) updateBody.authMethod = authMethod;
 
+    // Handle token-based auth secret
     if (token) {
-      // Fetch existing to check if token is just the mask
       const existing = await getDataSource(session, dataSourceId);
       if (existing?.tokenSuffix && token === `****${existing.tokenSuffix}`) {
-        // Token unchanged — keep existing encrypted value
+        // Token unchanged
       } else {
         updateBody.encryptedToken = encrypt(token);
         updateBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
+      }
+    }
+
+    // Handle OAuth fields
+    if (clientId !== undefined) updateBody.clientId = clientId;
+    if (tokenUrl !== undefined) updateBody.tokenUrl = tokenUrl;
+    if (scope !== undefined) updateBody.scope = scope ?? "";
+
+    if (clientSecret) {
+      const existing = await getDataSource(session, dataSourceId);
+      if (
+        existing?.clientSecretSuffix &&
+        clientSecret === `****${existing.clientSecretSuffix}`
+      ) {
+        // Secret unchanged
+      } else {
+        updateBody.encryptedClientSecret = encrypt(clientSecret);
+        updateBody.clientSecretSuffix =
+          clientSecret.length > 4 ? clientSecret.slice(-4) : "";
       }
     }
 

@@ -947,6 +947,7 @@
         "table": {
           "name": "Name",
           "type": "Type",
+          "auth": "Auth",
           "url": "URL",
           "status": "Status",
           "actions": "Actions",
@@ -964,9 +965,20 @@
           "type": "Type",
           "description": "Description",
           "url": "URL",
+          "authMethod": "Authentication Method",
+          "authToken": "Bearer Token",
+          "authOAuth": "OAuth 2.0 (Client Credentials)",
           "token": "Token",
           "tokenPlaceholderEdit": "Leave empty to keep current token",
           "tokenHint": "Leave empty to keep the existing token",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "secretPlaceholderEdit": "Leave empty to keep current secret",
+          "secretHint": "Leave empty to keep the existing secret",
+          "tokenUrl": "Token URL",
+          "scope": "Scope",
+          "scopePlaceholder": "e.g. read write",
+          "scopeHint": "Space-separated list of scopes (optional)",
           "testConnection": "Test Connection",
           "saving": "Saving...",
           "saveButton": "Save",
@@ -984,7 +996,10 @@
         "validation": {
           "nameRequired": "Name is required",
           "urlInvalid": "Must be a valid URL",
-          "tokenRequired": "Token is required"
+          "tokenRequired": "Token is required",
+          "clientIdRequired": "Client ID is required",
+          "clientSecretRequired": "Client Secret is required",
+          "tokenUrlInvalid": "Must be a valid Token URL"
         },
         "toast": {
           "created": "Data source created successfully",

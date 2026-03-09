@@ -78,6 +78,7 @@ export function DataSourceTable({
                   onClick={() => onTest(ds)}
                   disabled={loading}
                   title={tr("table.test", dict)}
+                  aria-label={tr("table.test", dict)}
                 >
                   <HiPlay className="h-4 w-4" />
                 </Button>
@@ -87,6 +88,7 @@ export function DataSourceTable({
                   onClick={() => onEdit(ds)}
                   disabled={loading}
                   title={tr("table.edit", dict)}
+                  aria-label={tr("table.edit", dict)}
                 >
                   <HiPencil className="h-4 w-4" />
                 </Button>
@@ -96,6 +98,7 @@ export function DataSourceTable({
                   onClick={() => onDelete(ds)}
                   disabled={loading}
                   title={tr("table.delete", dict)}
+                  aria-label={tr("table.delete", dict)}
                 >
                   <HiTrash className="h-4 w-4" />
                 </Button>

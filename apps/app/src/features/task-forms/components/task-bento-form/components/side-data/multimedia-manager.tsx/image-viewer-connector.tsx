@@ -9,17 +9,21 @@ export default function ImageViewerConnector({
   selected,
   setSelected,
   dictionary,
+  onReplaceImage,
 }: Readonly<{
   images: ImageItem[];
   selected: number | null;
   setSelected: (index: number | null) => void;
   dictionary: I18nRecord;
+  onReplaceImage?: (file: File, index: number) => void;
 }>) {
   const data = useMemo(() => {
     return images.map((image) => {
       return {
         tag: image.file.entry.properties["mintral:contentType"],
         name: image.file.entry.name,
+        modifiedAt: image.file.entry.modifiedAt,
+        modifiedByUser: image.file.entry.modifiedByUser,
       };
     });
   }, [images]);
@@ -45,6 +49,7 @@ export default function ImageViewerConnector({
       setSelected={setSelected}
       data={data}
       dictionary={dictionary}
+      onReplaceImage={onReplaceImage}
     />
   );
 }

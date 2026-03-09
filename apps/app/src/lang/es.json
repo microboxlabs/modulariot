@@ -1854,6 +1854,10 @@
       "noImages": "No hay imágenes",
       "documents": "Documentos",
       "noDocuments": "No hay documentos",
+      "replaceImage": "Reemplazar documento",
+      "replaceImageDescription": "Seleccione un nuevo documento para reemplazar el actual",
+      "selectFile": "Seleccionar archivo",
+      "noFileSelected": "Debe seleccionar una imagen para continuar",
       "validation": {
         "missingDocuments": "Se requieren documentos para continuar",
         "requiresPOD": "Prueba de Entrega (POD)",

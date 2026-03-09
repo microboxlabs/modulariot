@@ -3,7 +3,7 @@
 import { Button, FileInput } from "flowbite-react";
 import { useState, useEffect, useMemo } from "react";
 import { IoDocumentTextOutline, IoImagesOutline } from "react-icons/io5";
-import { FaUpload } from "react-icons/fa";
+import { MdOutlineFileUpload } from "react-icons/md";
 import {
   useGetNodeContents,
   useOptimisticFileUpload,
@@ -18,6 +18,7 @@ import DocumentList from "./document-list";
 import { AlfrescoFileEntry } from "./image.types";
 import ImageElement from "./image-element";
 import ImageViewerConnector from "./image-viewer-connector";
+import ReplaceImageModal from "@/features/geographic-view/components/image-viewer/replace-image-modal";
 
 export const ALLOWED_FILE_TYPES = new Set([
   "image/jpeg",
@@ -130,6 +131,7 @@ export default function FileImages({
   const [isClasificationFormOpen, setIsClasificationFormOpen] = useState(false);
   const [isDocumentListOpen, setIsDocumentListOpen] = useState(false);
   const [uploadableFiles, setUploadableFiles] = useState<any[]>([]);
+  const [editImageIndex, setEditImageIndex] = useState<number | null>(null);
 
   const [images, setImages] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -160,6 +162,7 @@ export default function FileImages({
       documentsData.data.forEach((document: any, index: number) => {
         if (!document.error && files[index]) {
           if (files[index].entry.content.mimeType.includes("image")) {
+            console.log("Image data:", files[index]);
             newImages.push({
               file: files[index],
               data: document,
@@ -323,7 +326,7 @@ export default function FileImages({
               }}
             >
               <div className="flex flex-row items-center justify-center gap-2">
-                <FaUpload className="w-3 h-3" />
+                <MdOutlineFileUpload className="w-3 h-3" />
                 {tr("bento.multimedia.upload", dictionary)}
               </div>
             </Button>
@@ -363,6 +366,9 @@ export default function FileImages({
                   index={index}
                   setSelectedImage={setSelectedImage}
                   dictionary={dictionary}
+                  onEdit={(idx) => {
+                    setEditImageIndex(idx);
+                  }}
                 />
               ))}
             </div>
@@ -421,6 +427,43 @@ export default function FileImages({
           selected={selectedImage}
           setSelected={setSelectedImage}
           dictionary={dictionary}
+          onReplaceImage={(file, index) => {
+            console.log(
+              "Replace image:",
+              file,
+              "at index:",
+              index,
+              "for image:",
+              images[index]
+            );
+            // TODO: Implement actual image replacement logic
+          }}
+        />
+
+        {/* Standalone Replace Image Modal (from thumbnail edit button) */}
+        <ReplaceImageModal
+          show={editImageIndex !== null}
+          onClose={() => setEditImageIndex(null)}
+          onReplace={(file) => {
+            if (editImageIndex !== null) {
+              console.log(
+                "Replace image:",
+                file,
+                "at index:",
+                editImageIndex,
+                "for image:",
+                images[editImageIndex]
+              );
+              // TODO: Implement actual image replacement logic
+              setEditImageIndex(null);
+            }
+          }}
+          dictionary={dictionary}
+          imageName={
+            editImageIndex !== null
+              ? images[editImageIndex]?.file?.entry?.name
+              : undefined
+          }
         />
 
         <FileViewer

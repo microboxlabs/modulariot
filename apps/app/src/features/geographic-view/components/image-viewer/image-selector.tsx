@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { FaImage, FaPlay, FaPause } from "react-icons/fa";
-import { MdOutlineFileDownload, MdOutlineRemoveRedEye } from "react-icons/md";
+import {
+  MdOutlineFileDownload,
+  MdOutlineFileUpload,
+  MdOutlineRemoveRedEye,
+} from "react-icons/md";
 import Image from "next/image";
 import ImageViewer from "./image-viewer";
 import VideoViewer from "./video-viewer";
@@ -226,9 +230,7 @@ export default function ImageSelector({
   }, [open]);
 
   return (
-    <div
-      className="h-full pointer-events-auto relative flex [--sprocket-color:theme(colors.gray.400)] dark:[--sprocket-color:theme(colors.gray.700)]"
-    >
+    <div className="h-full pointer-events-auto relative flex [--sprocket-color:theme(colors.gray.400)] dark:[--sprocket-color:theme(colors.gray.700)]">
       {/* Filmstrip panel */}
       <div
         className={`h-full bg-gray-100 dark:bg-gray-900 overflow-hidden transition-all duration-500 ease-in-out ${open ? "w-[280px]" : "w-0"}`}
@@ -306,6 +308,7 @@ export function ImageComponent({
   tag = null,
   downloadUrl,
   dictionary,
+  onEdit,
 }: {
   image: string | null;
   index: number;
@@ -316,6 +319,7 @@ export function ImageComponent({
   tag?: string | null;
   downloadUrl?: string;
   dictionary?: I18nRecord;
+  onEdit?: (index: number) => void;
 }) {
   if (loading) {
     return (
@@ -377,6 +381,18 @@ export function ImageComponent({
               }}
             >
               <MdOutlineFileDownload className="w-6 h-6" />
+            </Button>
+          )}
+          {onEdit && (
+            <Button
+              className="flex flex-col items-center justify-center bg-blue-500 rounded-full p-2 hover:bg-blue-600 cursor-pointer transition-all duration-300"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onEdit(index);
+              }}
+            >
+              <MdOutlineFileUpload className="w-6 h-6" />
             </Button>
           )}
         </div>

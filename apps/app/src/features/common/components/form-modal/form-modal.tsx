@@ -109,19 +109,20 @@ export default function FormModal({
           )}
         </ModalBody>
         <ModalFooter className="border-none">
-          {showCancelButton && (
-            <Button color="gray" onClick={onClose} disabled={isProcessing}>
-              {cancelLabel}
+          <div className="flex w-full justify-end gap-2">
+            {showCancelButton && (
+              <Button color="gray" onClick={onClose} disabled={isProcessing}>
+                {cancelLabel}
+              </Button>
+            )}
+            <Button
+              color="blue"
+              type="submit"
+              disabled={isProcessing}
+            >
+              {submitLabel}
             </Button>
-          )}
-          <Button
-            className="ml-auto mt-[-41px]"
-            color="blue"
-            type="submit"
-            disabled={isProcessing}
-          >
-            {submitLabel}
-          </Button>
+          </div>
         </ModalFooter>
       </form>
     </Modal>

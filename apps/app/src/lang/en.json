@@ -979,6 +979,11 @@
           "connected": "Connected",
           "failed": "Failed"
         },
+        "validation": {
+          "nameRequired": "Name is required",
+          "urlInvalid": "Must be a valid URL",
+          "tokenRequired": "Token is required"
+        },
         "toast": {
           "created": "Data source created successfully",
           "updated": "Data source updated successfully",

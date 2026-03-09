@@ -4,7 +4,7 @@ import useSWR from "swr";
 import fetcher from "@/features/common/providers/fetcher";
 import type {
   DataSourceListItem,
-  CreateDataSourceInput,
+  DataSourceFormData,
   UpdateDataSourceInput,
 } from "../types";
 import { useState } from "react";
@@ -22,7 +22,7 @@ export function useDataSources(siteId: string | undefined) {
     fetcher
   );
 
-  async function create(input: CreateDataSourceInput) {
+  async function create(input: DataSourceFormData) {
     setActionLoading(true);
     try {
       const created = await fetcher<DataSourceListItem>(

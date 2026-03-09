@@ -1268,8 +1268,14 @@ export interface AlfrescoDataSource {
   type: string;
   description?: string;
   url: string;
-  encryptedToken: string;
-  tokenSuffix: string;
+  authMethod: "TOKEN" | "OAUTH";
+  encryptedToken?: string;
+  tokenSuffix?: string;
+  clientId?: string;
+  encryptedClientSecret?: string;
+  clientSecretSuffix?: string;
+  tokenUrl?: string;
+  scope?: string;
   isActive: boolean;
   lastTestedAt?: string;
   lastTestResult?: boolean;

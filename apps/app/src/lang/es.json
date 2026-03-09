@@ -968,6 +968,7 @@
         "table": {
           "name": "Nombre",
           "type": "Tipo",
+          "auth": "Auth",
           "url": "URL",
           "status": "Estado",
           "actions": "Acciones",
@@ -985,9 +986,20 @@
           "type": "Tipo",
           "description": "Descripción",
           "url": "URL",
+          "authMethod": "Método de Autenticación",
+          "authToken": "Token Bearer",
+          "authOAuth": "OAuth 2.0 (Credenciales de Cliente)",
           "token": "Token",
           "tokenPlaceholderEdit": "Dejar vacío para mantener el token actual",
           "tokenHint": "Dejar vacío para mantener el token existente",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "secretPlaceholderEdit": "Dejar vacío para mantener el secreto actual",
+          "secretHint": "Dejar vacío para mantener el secreto existente",
+          "tokenUrl": "URL del Token",
+          "scope": "Alcance",
+          "scopePlaceholder": "ej. read write",
+          "scopeHint": "Lista de alcances separados por espacios (opcional)",
           "testConnection": "Probar Conexión",
           "saving": "Guardando...",
           "saveButton": "Guardar",
@@ -1005,7 +1017,10 @@
         "validation": {
           "nameRequired": "El nombre es obligatorio",
           "urlInvalid": "Debe ser una URL válida",
-          "tokenRequired": "El token es obligatorio"
+          "tokenRequired": "El token es obligatorio",
+          "clientIdRequired": "El Client ID es obligatorio",
+          "clientSecretRequired": "El Client Secret es obligatorio",
+          "tokenUrlInvalid": "Debe ser una URL de token válida"
         },
         "toast": {
           "created": "Fuente de datos creada exitosamente",

@@ -61,7 +61,15 @@ export default function DataSourcesPageContent({
           type: data.type,
           description: data.description,
           url: data.url,
-          ...(data.token ? { token: data.token } : {}),
+          authMethod: data.authMethod,
+          ...(data.authMethod === "TOKEN"
+            ? { ...(data.token ? { token: data.token } : {}) }
+            : {
+                clientId: data.clientId,
+                ...(data.clientSecret ? { clientSecret: data.clientSecret } : {}),
+                tokenUrl: data.tokenUrl,
+                scope: data.scope,
+              }),
         });
         toast.success(tr("toast.updated", dsDict));
       } else {

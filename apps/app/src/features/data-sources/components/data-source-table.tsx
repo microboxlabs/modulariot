@@ -41,6 +41,7 @@ export function DataSourceTable({
       <TableHead>
         <TableHeadCell>{tr("table.name", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.type", dict)}</TableHeadCell>
+        <TableHeadCell>{tr("table.auth", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.url", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.status", dict)}</TableHeadCell>
         <TableHeadCell>{tr("table.active", dict)}</TableHeadCell>
@@ -63,6 +64,11 @@ export function DataSourceTable({
               </div>
             </TableCell>
             <TableCell>{ds.type}</TableCell>
+            <TableCell>
+              <Badge color={ds.authMethod === "OAUTH" ? "purple" : "blue"} size="xs">
+                {ds.authMethod === "OAUTH" ? "OAuth" : "Token"}
+              </Badge>
+            </TableCell>
             <TableCell className="max-w-[200px] truncate text-xs">
               {ds.connectionConfig.url}
             </TableCell>

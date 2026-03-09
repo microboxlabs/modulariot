@@ -45,22 +45,32 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
   if (!orgResult.resolved) return orgResult.response;
 
   const { dataSourceId } = await ctx.params;
-  const ds = await store.getById(dataSourceId);
+  const { orgId } = orgResult.data;
 
-  if (ds?.organizationId !== orgResult.data.orgId) {
+  try {
+    const ds = await store.getById(dataSourceId);
+
+    if (ds?.organizationId !== orgId) {
+      return NextResponse.json(
+        { error: "Data source not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      ...ds,
+      connectionConfig: {
+        url: ds.connectionConfig.url,
+        maskedToken: maskToken(decrypt(ds.connectionConfig.encryptedToken)),
+      },
+    });
+  } catch (err) {
+    logger.error({ err, dataSourceId, orgId }, "Failed to get data source");
     return NextResponse.json(
-      { error: "Data source not found" },
-      { status: 404 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    ...ds,
-    connectionConfig: {
-      url: ds.connectionConfig.url,
-      maskedToken: maskToken(decrypt(ds.connectionConfig.encryptedToken)),
-    },
-  });
 }
 
 export async function PUT(request: NextRequest, ctx: RouteContext) {
@@ -126,13 +136,21 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
   const { dataSourceId } = await ctx.params;
   const { orgId } = orgResult.data;
 
-  const removed = await store.findAndRemove(dataSourceId, orgId);
-  if (!removed) {
+  try {
+    const removed = await store.findAndRemove(dataSourceId, orgId);
+    if (!removed) {
+      return NextResponse.json(
+        { error: "Data source not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    logger.error({ err, dataSourceId, orgId }, "Failed to delete data source");
     return NextResponse.json(
-      { error: "Data source not found" },
-      { status: 404 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({ success: true });
 }

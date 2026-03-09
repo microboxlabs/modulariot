@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { randomUUID } from "crypto";
-import path from "path";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { logger } from "@/lib/logger";
 
 export interface DataSourceRecord {
@@ -54,7 +54,7 @@ async function writeStore(data: StoreData): Promise<void> {
 }
 
 function generateId(): string {
-  return `ds_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+  return `ds_${randomUUID().replaceAll("-", "").slice(0, 20)}`;
 }
 
 export async function listByOrg(orgId: string): Promise<DataSourceRecord[]> {

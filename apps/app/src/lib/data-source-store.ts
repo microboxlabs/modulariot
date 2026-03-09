@@ -3,6 +3,14 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@/lib/logger";
 
+// In-process mutex to serialise read-modify-write cycles on the JSON file.
+let _lock: Promise<void> = Promise.resolve();
+function withStoreLock<T>(fn: () => Promise<T>): Promise<T> {
+  const next = _lock.then(fn, fn);
+  _lock = next.then(() => {}, () => {});
+  return next;
+}
+
 export interface DataSourceRecord {
   id: string;
   name: string;
@@ -69,77 +77,83 @@ export async function getById(
   return store.dataSources.find((ds) => ds.id === id);
 }
 
-export async function create(
+export function create(
   data: Omit<DataSourceRecord, "id" | "createdAt" | "updatedAt">
 ): Promise<DataSourceRecord> {
-  const store = await readStore();
+  return withStoreLock(async () => {
+    const store = await readStore();
 
-  const exists = store.dataSources.some(
-    (ds) =>
-      ds.organizationId === data.organizationId && ds.name === data.name
-  );
-  if (exists) {
-    throw new Error(
-      `A data source named "${data.name}" already exists in this organization`
+    const exists = store.dataSources.some(
+      (ds) =>
+        ds.organizationId === data.organizationId && ds.name === data.name
     );
-  }
+    if (exists) {
+      throw new Error(
+        `A data source named "${data.name}" already exists in this organization`
+      );
+    }
 
-  const now = new Date().toISOString();
-  const record: DataSourceRecord = {
-    ...data,
-    id: generateId(),
-    createdAt: now,
-    updatedAt: now,
-  };
+    const now = new Date().toISOString();
+    const record: DataSourceRecord = {
+      ...data,
+      id: generateId(),
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  store.dataSources.push(record);
-  await writeStore(store);
-  return record;
+    store.dataSources.push(record);
+    await writeStore(store);
+    return record;
+  });
 }
 
-export async function findAndUpdate(
+export function findAndUpdate(
   id: string,
   orgId: string,
   data: Partial<
     Omit<DataSourceRecord, "id" | "createdAt" | "updatedAt" | "organizationId">
   >
 ): Promise<DataSourceRecord | undefined> {
-  const store = await readStore();
-  const index = store.dataSources.findIndex(
-    (ds) => ds.id === id && ds.organizationId === orgId
-  );
-  if (index === -1) return undefined;
-
-  if (data.name && data.name !== store.dataSources[index].name) {
-    const nameExists = store.dataSources.some(
-      (ds) => ds.organizationId === orgId && ds.name === data.name && ds.id !== id
+  return withStoreLock(async () => {
+    const store = await readStore();
+    const index = store.dataSources.findIndex(
+      (ds) => ds.id === id && ds.organizationId === orgId
     );
-    if (nameExists) {
-      throw new Error(
-        `A data source named "${data.name}" already exists in this organization`
+    if (index === -1) return undefined;
+
+    if (data.name && data.name !== store.dataSources[index].name) {
+      const nameExists = store.dataSources.some(
+        (ds) => ds.organizationId === orgId && ds.name === data.name && ds.id !== id
       );
+      if (nameExists) {
+        throw new Error(
+          `A data source named "${data.name}" already exists in this organization`
+        );
+      }
     }
-  }
 
-  store.dataSources[index] = {
-    ...store.dataSources[index],
-    ...data,
-    updatedAt: new Date().toISOString(),
-  };
+    store.dataSources[index] = {
+      ...store.dataSources[index],
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
 
-  await writeStore(store);
-  return store.dataSources[index];
+    await writeStore(store);
+    return store.dataSources[index];
+  });
 }
 
-export async function findAndRemove(id: string, orgId: string): Promise<boolean> {
-  const store = await readStore();
-  const initialLength = store.dataSources.length;
-  store.dataSources = store.dataSources.filter(
-    (ds) => !(ds.id === id && ds.organizationId === orgId)
-  );
+export function findAndRemove(id: string, orgId: string): Promise<boolean> {
+  return withStoreLock(async () => {
+    const store = await readStore();
+    const initialLength = store.dataSources.length;
+    store.dataSources = store.dataSources.filter(
+      (ds) => !(ds.id === id && ds.organizationId === orgId)
+    );
 
-  if (store.dataSources.length === initialLength) return false;
+    if (store.dataSources.length === initialLength) return false;
 
-  await writeStore(store);
-  return true;
+    await writeStore(store);
+    return true;
+  });
 }

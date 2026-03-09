@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveOrgForRequest } from "@/app/api/utils/org-resolver";
+import { validateTargetUrl } from "@/app/api/utils/url-validator";
 import * as store from "@/lib/data-source-store";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -28,6 +29,14 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   try {
     const token = decrypt(encryptedToken);
     const specUrl = `${url}/api/v1/pgrest/`;
+
+    const urlCheck = await validateTargetUrl(specUrl);
+    if (!urlCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: urlCheck.reason },
+        { status: 400 }
+      );
+    }
 
     const res = await fetch(specUrl, {
       headers: {

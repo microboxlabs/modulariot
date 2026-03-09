@@ -32,11 +32,11 @@ async function buildConnectionConfig(
   }
   const connectionConfig = { ...existing.connectionConfig };
   if (url) connectionConfig.url = url;
-  if (token?.startsWith("****")) return connectionConfig;
-  if (token) {
-    connectionConfig.encryptedToken = encrypt(token);
-    connectionConfig.tokenSuffix = token.slice(-4);
+  if (!token || token === `****${existing.connectionConfig.tokenSuffix}`) {
+    return connectionConfig;
   }
+  connectionConfig.encryptedToken = encrypt(token);
+  connectionConfig.tokenSuffix = token.slice(-4);
   return connectionConfig;
 }
 

@@ -90,7 +90,7 @@ export function DataSourceModal({
               color={errors.name ? "failure" : undefined}
             />
             {errors.name?.message && (
-              <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+              <p className="mt-1 text-sm text-red-600">{tr(errors.name.message, dict)}</p>
             )}
           </div>
 
@@ -120,7 +120,7 @@ export function DataSourceModal({
               color={errors.url ? "failure" : undefined}
             />
             {errors.url?.message && (
-              <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
+              <p className="mt-1 text-sm text-red-600">{tr(errors.url.message, dict)}</p>
             )}
           </div>
 
@@ -138,7 +138,7 @@ export function DataSourceModal({
               color={errors.token ? "failure" : undefined}
             />
             {errors.token?.message && (
-              <p className="mt-1 text-sm text-red-600">{errors.token.message}</p>
+              <p className="mt-1 text-sm text-red-600">{tr(errors.token.message, dict)}</p>
             )}
             {!errors.token?.message && editingSource && (
               <p className="mt-1 text-sm text-gray-500">{tr("modal.tokenHint", dict)}</p>

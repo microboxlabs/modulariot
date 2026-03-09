@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveOrgForRequest } from "@/app/api/utils/org-resolver";
 import * as store from "@/lib/data-source-store";
+import { ConflictError } from "@/lib/data-source-store";
 import { encrypt, maskToken } from "@/lib/crypto";
 import { CreateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
@@ -77,9 +78,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create data source";
+    if (err instanceof ConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
     logger.error({ err }, "Failed to create data source");
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

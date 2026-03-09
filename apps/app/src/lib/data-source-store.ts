@@ -3,6 +3,13 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@/lib/logger";
 
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 // In-process mutex to serialise read-modify-write cycles on the JSON file.
 let _lock: Promise<void> = Promise.resolve();
 function withStoreLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -88,7 +95,7 @@ export function create(
         ds.organizationId === data.organizationId && ds.name === data.name
     );
     if (exists) {
-      throw new Error(
+      throw new ConflictError(
         `A data source named "${data.name}" already exists in this organization`
       );
     }

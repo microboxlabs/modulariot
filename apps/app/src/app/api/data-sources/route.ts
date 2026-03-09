@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       ...ds,
       connectionConfig: {
         url: ds.connectionConfig.url,
-        maskedToken: ds.connectionConfig.tokenSuffix
+        maskedToken: ds.connectionConfig.tokenSuffix?.length === 4
           ? `****${ds.connectionConfig.tokenSuffix}`
           : "****",
       },
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       connectionConfig: {
         url,
         encryptedToken: encrypt(token),
-        tokenSuffix: token.slice(-4),
+        tokenSuffix: token.length > 4 ? token.slice(-4) : "",
       },
       isActive: true,
     });

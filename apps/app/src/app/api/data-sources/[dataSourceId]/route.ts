@@ -13,7 +13,7 @@ function buildMaskedResponse(ds: DataSourceRecord) {
     ...ds,
     connectionConfig: {
       url: ds.connectionConfig.url,
-      maskedToken: ds.connectionConfig.tokenSuffix
+      maskedToken: ds.connectionConfig.tokenSuffix?.length === 4
         ? `****${ds.connectionConfig.tokenSuffix}`
         : "****",
     },
@@ -36,7 +36,7 @@ async function buildConnectionConfig(
     return connectionConfig;
   }
   connectionConfig.encryptedToken = encrypt(token);
-  connectionConfig.tokenSuffix = token.slice(-4);
+  connectionConfig.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
   return connectionConfig;
 }
 

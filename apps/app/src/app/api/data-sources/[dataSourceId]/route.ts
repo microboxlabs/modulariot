@@ -122,10 +122,11 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     return NextResponse.json(buildMaskedResponse(updated));
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to update data source";
     logger.error({ err }, "Failed to update data source");
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 

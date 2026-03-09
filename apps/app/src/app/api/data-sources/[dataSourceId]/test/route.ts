@@ -1,28 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveOrgForRequest } from "@/app/api/utils/org-resolver";
+import { resolveSiteForRequest } from "@/app/api/utils/org-resolver";
 import { validateTargetUrl } from "@/app/api/utils/url-validator";
-import * as store from "@/lib/data-source-store";
+import {
+  getDataSource,
+  updateDataSource,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
 
 export async function POST(request: NextRequest, ctx: RouteContext) {
-  const orgResult = await resolveOrgForRequest(request);
-  if (!orgResult.resolved) return orgResult.response;
+  const result = await resolveSiteForRequest(request);
+  if (!result.resolved) return result.response;
 
   const { dataSourceId } = await ctx.params;
-  const { orgId } = orgResult.data;
-  const ds = await store.getById(dataSourceId);
+  const { siteId, session } = result.data;
 
-  if (ds?.organizationId !== orgId) {
+  const ds = await getDataSource(session, dataSourceId);
+
+  if (!ds?.nodeRef) {
     return NextResponse.json(
       { error: "Data source not found" },
       { status: 404 }
     );
   }
 
-  const { url, encryptedToken } = ds.connectionConfig;
+  const { url, encryptedToken } = ds;
   let success = false;
   let errorMessage: string | undefined;
 
@@ -59,7 +63,9 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   }
 
   const now = new Date().toISOString();
-  await store.findAndUpdate(dataSourceId, orgId, {
+  await updateDataSource(session, {
+    nodeRef: dataSourceId,
+    site: siteId,
     lastTestedAt: now,
     lastTestResult: success,
   });

@@ -5,6 +5,7 @@ import { RouteGuard } from "@/features/auth/components/route-guard";
 import DataSourcesPageContent from "@/features/data-sources/components/data-sources-page-content";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import { auth } from "@/auth";
+import { getUserSites } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
 export default async function DataSourcesPage({ params }: ParamsWithLang) {
   const { lang } = await params;
@@ -14,10 +15,9 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
 
-  // Data sources are scoped per user until proper org context is available.
-  // session.user.id is the Auth0 sub (typically the user's email).
-  // TODO: Replace with real org ID once org membership is wired into the app.
-  const orgId = session?.user?.email ?? session?.user?.id ?? "";
+  // Resolve siteId from the user's Alfresco site membership
+  const sites = session ? await getUserSites(session) : [];
+  const siteId = sites[0]?.shortName ?? "";
 
   try {
     return (
@@ -25,7 +25,7 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
         path="/users/settings/data-sources"
         fallbackPath={`/${lang}/shipping`}
       >
-        <DataSourcesPageContent dict={userSettings} orgId={orgId} />
+        <DataSourcesPageContent dict={userSettings} siteId={siteId} />
       </RouteGuard>
     );
   } catch (e: unknown) {

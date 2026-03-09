@@ -1,57 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveOrgForRequest } from "@/app/api/utils/org-resolver";
-import * as store from "@/lib/data-source-store";
+import { resolveSiteForRequest } from "@/app/api/utils/org-resolver";
+import {
+  getDataSource,
+  updateDataSource,
+  deleteDataSource,
+} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import type { AlfrescoDataSource } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { encrypt, decrypt, maskToken } from "@/lib/crypto";
 import { UpdateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
-import { ConflictError } from "@/lib/data-source-store";
-import type { DataSourceRecord } from "@/lib/data-source-store";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
 
-function buildMaskedResponse(ds: DataSourceRecord) {
+function buildMaskedResponse(ds: AlfrescoDataSource) {
   return {
-    ...ds,
+    id: ds.nodeRef,
+    name: ds.name,
+    type: ds.type,
+    description: ds.description,
+    siteId: ds.site,
     connectionConfig: {
-      url: ds.connectionConfig.url,
-      maskedToken: ds.connectionConfig.tokenSuffix?.length === 4
-        ? `****${ds.connectionConfig.tokenSuffix}`
+      url: ds.url,
+      maskedToken: ds.tokenSuffix?.length === 4
+        ? `****${ds.tokenSuffix}`
         : "****",
     },
+    isActive: ds.isActive,
+    lastTestedAt: ds.lastTestedAt,
+    lastTestResult: ds.lastTestResult,
   };
 }
 
-async function buildConnectionConfig(
-  dataSourceId: string,
-  orgId: string,
-  url?: string,
-  token?: string
-) {
-  const existing = await store.getById(dataSourceId);
-  if (existing?.organizationId !== orgId) {
-    return undefined;
-  }
-  const connectionConfig = { ...existing.connectionConfig };
-  if (url) connectionConfig.url = url;
-  if (!token || token === `****${existing.connectionConfig.tokenSuffix}`) {
-    return connectionConfig;
-  }
-  connectionConfig.encryptedToken = encrypt(token);
-  connectionConfig.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
-  return connectionConfig;
-}
-
 export async function GET(request: NextRequest, ctx: RouteContext) {
-  const orgResult = await resolveOrgForRequest(request);
-  if (!orgResult.resolved) return orgResult.response;
+  const result = await resolveSiteForRequest(request);
+  if (!result.resolved) return result.response;
 
   const { dataSourceId } = await ctx.params;
-  const { orgId } = orgResult.data;
+  const { session } = result.data;
 
   try {
-    const ds = await store.getById(dataSourceId);
+    const ds = await getDataSource(session, dataSourceId);
 
-    if (ds?.organizationId !== orgId) {
+    if (!ds?.nodeRef) {
       return NextResponse.json(
         { error: "Data source not found" },
         { status: 404 }
@@ -59,14 +49,16 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     }
 
     return NextResponse.json({
-      ...ds,
+      ...buildMaskedResponse(ds),
       connectionConfig: {
-        url: ds.connectionConfig.url,
-        maskedToken: maskToken(decrypt(ds.connectionConfig.encryptedToken)),
+        url: ds.url,
+        maskedToken: ds.encryptedToken
+          ? maskToken(decrypt(ds.encryptedToken))
+          : "****",
       },
     });
   } catch (err) {
-    logger.error({ err, dataSourceId, orgId }, "Failed to get data source");
+    logger.error({ err, dataSourceId }, "Failed to get data source");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -75,11 +67,11 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 }
 
 export async function PUT(request: NextRequest, ctx: RouteContext) {
-  const orgResult = await resolveOrgForRequest(request);
-  if (!orgResult.resolved) return orgResult.response;
+  const result = await resolveSiteForRequest(request);
+  if (!result.resolved) return result.response;
 
   const { dataSourceId } = await ctx.params;
-  const { orgId } = orgResult.data;
+  const { siteId, session } = result.data;
 
   try {
     const body = await request.json();
@@ -92,29 +84,33 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const { url, token, description, ...rest } = parsed.data;
+    const { url, token, description, name, type, isActive } = parsed.data;
 
-    const updateData: Parameters<typeof store.findAndUpdate>[2] = {
-      ...rest,
-      ...(description === undefined
-        ? {}
-        : { description: description ?? undefined }),
+    const updateBody: Record<string, unknown> = {
+      nodeRef: dataSourceId,
+      site: siteId,
     };
 
-    if (url || token) {
-      const connectionConfig = await buildConnectionConfig(dataSourceId, orgId, url, token);
-      if (!connectionConfig) {
-        return NextResponse.json(
-          { error: "Data source not found" },
-          { status: 404 }
-        );
+    if (name !== undefined) updateBody.name = name;
+    if (type !== undefined) updateBody.type = type;
+    if (description !== undefined) updateBody.description = description ?? "";
+    if (url !== undefined) updateBody.url = url;
+    if (isActive !== undefined) updateBody.isActive = isActive;
+
+    if (token) {
+      // Fetch existing to check if token is just the mask
+      const existing = await getDataSource(session, dataSourceId);
+      if (existing?.tokenSuffix && token === `****${existing.tokenSuffix}`) {
+        // Token unchanged — keep existing encrypted value
+      } else {
+        updateBody.encryptedToken = encrypt(token);
+        updateBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
       }
-      updateData.connectionConfig = connectionConfig;
     }
 
-    const updated = await store.findAndUpdate(dataSourceId, orgId, updateData);
+    const updated = await updateDataSource(session, updateBody);
 
-    if (!updated) {
+    if (!updated?.nodeRef) {
       return NextResponse.json(
         { error: "Data source not found" },
         { status: 404 }
@@ -123,9 +119,6 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     return NextResponse.json(buildMaskedResponse(updated));
   } catch (err) {
-    if (err instanceof ConflictError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
-    }
     logger.error({ err }, "Failed to update data source");
     return NextResponse.json(
       { error: "Internal server error" },
@@ -135,15 +128,15 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, ctx: RouteContext) {
-  const orgResult = await resolveOrgForRequest(request);
-  if (!orgResult.resolved) return orgResult.response;
+  const result = await resolveSiteForRequest(request);
+  if (!result.resolved) return result.response;
 
   const { dataSourceId } = await ctx.params;
-  const { orgId } = orgResult.data;
+  const { session } = result.data;
 
   try {
-    const removed = await store.findAndRemove(dataSourceId, orgId);
-    if (!removed) {
+    const removed = await deleteDataSource(session, dataSourceId);
+    if (!removed?.success) {
       return NextResponse.json(
         { error: "Data source not found" },
         { status: 404 }
@@ -152,7 +145,7 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    logger.error({ err, dataSourceId, orgId }, "Failed to delete data source");
+    logger.error({ err, dataSourceId }, "Failed to delete data source");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

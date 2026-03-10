@@ -1828,6 +1828,7 @@
     },
     "multimedia": {
       "only_jpg_jpeg_png_pdf_allowed": "Solo se permiten archivos JPG, JPEG, PNG y PDF.",
+      "only_jpg_jpeg_png_allowed": "Solo se permiten archivos JPG, JPEG o PNG.",
       "fetch_image_error": "No se pudo obtener la imagen desde la URL. Por favor, intente descargarla primero.",
       "fetching_image": "Obteniendo imagen...",
       "select_document_type": "Selecciona un Tipo de Documento",

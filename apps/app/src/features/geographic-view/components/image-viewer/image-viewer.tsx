@@ -8,6 +8,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { downloadImage } from "../../utils/download-image";
 import { useState } from "react";
 import ReplaceImageModal from "./replace-image-modal";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 
 const modalTheme = {
   root: {
@@ -153,7 +154,7 @@ export default function ImageViewer({
                       {data[selected]?.modifiedByUser?.id}
                     </div>
                     <div className="text-gray-500 dark:text-gray-300 text-sm rounded-full bg-gray-200 dark:bg-gray-800 font-light px-2 py-1 flex-shrink-0">
-                      {new Date(data[selected].modifiedAt).toLocaleString()}
+                      {formatDateString(data[selected].modifiedAt)}
                     </div>
                   </>
                 )}

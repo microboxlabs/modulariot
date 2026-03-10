@@ -1304,33 +1304,15 @@ async function callDataSourceAction<TResponse = unknown>(
   const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/datasource/${action}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
-  try {
-    const result = await fetcher(url, {
-      method: "POST",
-      headers: {
-        ...headers,
-        "Content-Type": "application/json",
-      },
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-    });
-    return result as TResponse;
-  } catch (err) {
-    alfrescoApiLogger.warn(
-      { err, action },
-      "Data source webscript call failed — returning mock/empty response"
-    );
-    // Mock fallback until Alfresco webscript is deployed
-    if (action === "list") {
-      return { dataSources: [] } as TResponse;
-    }
-    if (action === "create" || action === "update" || action === "get") {
-      return {} as TResponse;
-    }
-    if (action === "delete") {
-      return { success: true } as TResponse;
-    }
-    throw err;
-  }
+  const result = await fetcher(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  return result as TResponse;
 }
 
 export async function listDataSources(

@@ -55,6 +55,10 @@ async function resolveBearerToken(config: AlfrescoDataSourceConfig | null): Prom
     if (!config.encryptedClientSecret || !config.tokenUrl || !config.clientId) {
       return { ok: false, error: "OAuth configuration is incomplete" };
     }
+    const tokenUrlCheck = await validateTargetUrl(config.tokenUrl);
+    if (!tokenUrlCheck.valid) {
+      return { ok: false, error: `Invalid token URL: ${tokenUrlCheck.reason}` };
+    }
     const clientSecret = decrypt(config.encryptedClientSecret);
     const token = await exchangeOAuthToken(
       config.tokenUrl,

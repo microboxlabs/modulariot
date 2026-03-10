@@ -10,29 +10,37 @@ import { CreateDataSourceSchema } from "@/features/data-sources/types";
 import { logger } from "@/lib/logger";
 
 function buildMaskedResponse(ds: AlfrescoDataSource) {
+  const authMethod = ds.config?.authMethod || "TOKEN";
+  let authFields: Record<string, unknown>;
+
+  if (ds.config?.authMethod === "OAUTH") {
+    authFields = {
+      clientId: ds.config.clientId,
+      maskedClientSecret: ds.config.clientSecretSuffix?.length === 4
+        ? `****${ds.config.clientSecretSuffix}`
+        : "****",
+      tokenUrl: ds.config.tokenUrl,
+      scope: ds.config.scope,
+    };
+  } else {
+    const tokenSuffix = ds.config?.authMethod === "TOKEN" ? ds.config.tokenSuffix : undefined;
+    authFields = {
+      maskedToken: tokenSuffix?.length === 4
+        ? `****${tokenSuffix}`
+        : "****",
+    };
+  }
+
   return {
     id: ds.nodeRef,
     name: ds.name,
     type: ds.type,
     description: ds.description,
     siteId: ds.site,
-    authMethod: ds.authMethod || "TOKEN",
+    authMethod,
     connectionConfig: {
       url: ds.url,
-      ...(ds.authMethod === "OAUTH"
-        ? {
-            clientId: ds.clientId,
-            maskedClientSecret: ds.clientSecretSuffix?.length === 4
-              ? `****${ds.clientSecretSuffix}`
-              : "****",
-            tokenUrl: ds.tokenUrl,
-            scope: ds.scope,
-          }
-        : {
-            maskedToken: ds.tokenSuffix?.length === 4
-              ? `****${ds.tokenSuffix}`
-              : "****",
-          }),
+      ...authFields,
     },
     isActive: ds.isActive,
     lastTestedAt: ds.lastTestedAt,
@@ -77,28 +85,36 @@ export async function POST(request: NextRequest) {
 
     const { name, type, description, url, authMethod } = parsed.data;
 
+    let config: Record<string, unknown>;
+
+    if (authMethod === "TOKEN") {
+      const { token } = parsed.data;
+      config = {
+        authMethod: "TOKEN",
+        encryptedToken: encrypt(token),
+        tokenSuffix: token.length > 4 ? token.slice(-4) : "",
+      };
+    } else {
+      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
+      config = {
+        authMethod: "OAUTH",
+        clientId,
+        encryptedClientSecret: encrypt(clientSecret),
+        clientSecretSuffix: clientSecret.length > 4 ? clientSecret.slice(-4) : "",
+        tokenUrl,
+        scope,
+      };
+    }
+
     const alfrescoBody: Record<string, unknown> = {
       site: siteId,
       name,
       type,
       description,
       url,
-      authMethod,
+      config,
       isActive: true,
     };
-
-    if (authMethod === "TOKEN") {
-      const { token } = parsed.data;
-      alfrescoBody.encryptedToken = encrypt(token);
-      alfrescoBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
-    } else {
-      const { clientId, clientSecret, tokenUrl, scope } = parsed.data;
-      alfrescoBody.clientId = clientId;
-      alfrescoBody.encryptedClientSecret = encrypt(clientSecret);
-      alfrescoBody.clientSecretSuffix = clientSecret.length > 4 ? clientSecret.slice(-4) : "";
-      alfrescoBody.tokenUrl = tokenUrl;
-      alfrescoBody.scope = scope;
-    }
 
     const created = await createDataSource(session, alfrescoBody);
 

@@ -68,28 +68,33 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     // Resolve the bearer token based on auth method
     let bearerToken: string;
 
-    if (ds.authMethod === "OAUTH") {
-      if (!ds.encryptedClientSecret || !ds.tokenUrl || !ds.clientId) {
+    if (ds.config?.authMethod === "OAUTH") {
+      if (!ds.config.encryptedClientSecret || !ds.config.tokenUrl || !ds.config.clientId) {
         return NextResponse.json(
           { success: false, error: "OAuth configuration is incomplete" },
           { status: 400 }
         );
       }
-      const clientSecret = decrypt(ds.encryptedClientSecret);
+      const clientSecret = decrypt(ds.config.encryptedClientSecret);
       bearerToken = await exchangeOAuthToken(
-        ds.tokenUrl,
-        ds.clientId,
+        ds.config.tokenUrl,
+        ds.config.clientId,
         clientSecret,
-        ds.scope
+        ds.config.scope
       );
-    } else {
-      if (!ds.encryptedToken) {
+    } else if (ds.config?.authMethod === "TOKEN") {
+      if (!ds.config.encryptedToken) {
         return NextResponse.json(
           { success: false, error: "Token is not configured" },
           { status: 400 }
         );
       }
-      bearerToken = decrypt(ds.encryptedToken);
+      bearerToken = decrypt(ds.config.encryptedToken);
+    } else {
+      return NextResponse.json(
+        { success: false, error: "No authentication configured" },
+        { status: 400 }
+      );
     }
 
     const specUrl = `${ds.url}/api/v1/pgrest/`;

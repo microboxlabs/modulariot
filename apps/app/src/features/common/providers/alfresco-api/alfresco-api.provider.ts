@@ -1262,20 +1262,32 @@ export async function listWebhookDefinitions(
 
 // Data Source Config API
 
+interface AlfrescoDataSourceTokenConfig {
+  authMethod: "TOKEN";
+  encryptedToken?: string;
+  tokenSuffix?: string;
+}
+
+interface AlfrescoDataSourceOAuthConfig {
+  authMethod: "OAUTH";
+  clientId?: string;
+  encryptedClientSecret?: string;
+  clientSecretSuffix?: string;
+  tokenUrl?: string;
+  scope?: string;
+}
+
+export type AlfrescoDataSourceConfig =
+  | AlfrescoDataSourceTokenConfig
+  | AlfrescoDataSourceOAuthConfig;
+
 export interface AlfrescoDataSource {
   nodeRef: string;
   name: string;
   type: string;
   description?: string;
   url: string;
-  authMethod: "TOKEN" | "OAUTH";
-  encryptedToken?: string;
-  tokenSuffix?: string;
-  clientId?: string;
-  encryptedClientSecret?: string;
-  clientSecretSuffix?: string;
-  tokenUrl?: string;
-  scope?: string;
+  config: AlfrescoDataSourceConfig | null;
   isActive: boolean;
   lastTestedAt?: string;
   lastTestResult?: boolean;

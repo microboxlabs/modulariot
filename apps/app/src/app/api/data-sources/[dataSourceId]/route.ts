@@ -13,29 +13,37 @@ import { logger } from "@/lib/logger";
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
 
 function buildMaskedResponse(ds: AlfrescoDataSource) {
+  const authMethod = ds.config?.authMethod || "TOKEN";
+  let authFields: Record<string, unknown>;
+
+  if (ds.config?.authMethod === "OAUTH") {
+    authFields = {
+      clientId: ds.config.clientId,
+      maskedClientSecret: ds.config.clientSecretSuffix?.length === 4
+        ? `****${ds.config.clientSecretSuffix}`
+        : "****",
+      tokenUrl: ds.config.tokenUrl,
+      scope: ds.config.scope,
+    };
+  } else {
+    const tokenSuffix = ds.config?.authMethod === "TOKEN" ? ds.config.tokenSuffix : undefined;
+    authFields = {
+      maskedToken: tokenSuffix?.length === 4
+        ? `****${tokenSuffix}`
+        : "****",
+    };
+  }
+
   return {
     id: ds.nodeRef,
     name: ds.name,
     type: ds.type,
     description: ds.description,
     siteId: ds.site,
-    authMethod: ds.authMethod || "TOKEN",
+    authMethod,
     connectionConfig: {
       url: ds.url,
-      ...(ds.authMethod === "OAUTH"
-        ? {
-            clientId: ds.clientId,
-            maskedClientSecret: ds.clientSecretSuffix?.length === 4
-              ? `****${ds.clientSecretSuffix}`
-              : "****",
-            tokenUrl: ds.tokenUrl,
-            scope: ds.scope,
-          }
-        : {
-            maskedToken: ds.tokenSuffix?.length === 4
-              ? `****${ds.tokenSuffix}`
-              : "****",
-          }),
+      ...authFields,
     },
     isActive: ds.isActive,
     lastTestedAt: ds.lastTestedAt,
@@ -63,11 +71,11 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     const response = buildMaskedResponse(ds);
 
     // For GET single, decrypt to produce a fresh mask
-    const config = response.connectionConfig as Record<string, unknown>;
-    if (ds.authMethod === "OAUTH" && ds.encryptedClientSecret) {
-      config.maskedClientSecret = maskToken(decrypt(ds.encryptedClientSecret));
-    } else if (ds.encryptedToken) {
-      config.maskedToken = maskToken(decrypt(ds.encryptedToken));
+    const connConfig = response.connectionConfig as Record<string, unknown>;
+    if (ds.config?.authMethod === "OAUTH" && ds.config.encryptedClientSecret) {
+      connConfig.maskedClientSecret = maskToken(decrypt(ds.config.encryptedClientSecret));
+    } else if (ds.config?.authMethod === "TOKEN" && ds.config.encryptedToken) {
+      connConfig.maskedToken = maskToken(decrypt(ds.config.encryptedToken));
     }
 
     return NextResponse.json(response);
@@ -84,26 +92,26 @@ function applyOptionalFields(
   updateBody: Record<string, unknown>,
   data: Record<string, unknown>
 ) {
-  const fields = ["name", "type", "url", "isActive", "authMethod", "clientId", "tokenUrl"];
+  const fields = ["name", "type", "url", "isActive"];
   for (const field of fields) {
     if (data[field] !== undefined) updateBody[field] = data[field];
   }
   if (data.description !== undefined) updateBody.description = data.description ?? "";
-  if (data.scope !== undefined) updateBody.scope = data.scope ?? "";
 }
 
 async function resolveTokenSecret(
   session: Parameters<typeof getDataSource>[0],
   dataSourceId: string,
   token: string,
-  updateBody: Record<string, unknown>
+  configObj: Record<string, unknown>
 ) {
   const existing = await getDataSource(session, dataSourceId);
-  const isUnchanged =
-    existing?.tokenSuffix && token === `****${existing.tokenSuffix}`;
+  const existingConfig = existing?.config;
+  const existingSuffix = existingConfig?.authMethod === "TOKEN" ? existingConfig.tokenSuffix : undefined;
+  const isUnchanged = existingSuffix && token === `****${existingSuffix}`;
   if (!isUnchanged) {
-    updateBody.encryptedToken = encrypt(token);
-    updateBody.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
+    configObj.encryptedToken = encrypt(token);
+    configObj.tokenSuffix = token.length > 4 ? token.slice(-4) : "";
   }
 }
 
@@ -111,15 +119,15 @@ async function resolveClientSecret(
   session: Parameters<typeof getDataSource>[0],
   dataSourceId: string,
   clientSecret: string,
-  updateBody: Record<string, unknown>
+  configObj: Record<string, unknown>
 ) {
   const existing = await getDataSource(session, dataSourceId);
-  const isUnchanged =
-    existing?.clientSecretSuffix &&
-    clientSecret === `****${existing.clientSecretSuffix}`;
+  const existingConfig = existing?.config;
+  const existingSuffix = existingConfig?.authMethod === "OAUTH" ? existingConfig.clientSecretSuffix : undefined;
+  const isUnchanged = existingSuffix && clientSecret === `****${existingSuffix}`;
   if (!isUnchanged) {
-    updateBody.encryptedClientSecret = encrypt(clientSecret);
-    updateBody.clientSecretSuffix =
+    configObj.encryptedClientSecret = encrypt(clientSecret);
+    configObj.clientSecretSuffix =
       clientSecret.length > 4 ? clientSecret.slice(-4) : "";
   }
 }
@@ -149,12 +157,27 @@ export async function PUT(request: NextRequest, ctx: RouteContext) {
 
     applyOptionalFields(updateBody, parsed.data as unknown as Record<string, unknown>);
 
-    if (parsed.data.token) {
-      await resolveTokenSecret(session, dataSourceId, parsed.data.token, updateBody);
-    }
+    // Build nested config if any auth-related fields are provided
+    const { authMethod, token, clientId, clientSecret, tokenUrl, scope } = parsed.data;
+    const hasAuthChanges = authMethod !== undefined || token || clientId !== undefined
+      || clientSecret || tokenUrl !== undefined || scope !== undefined;
 
-    if (parsed.data.clientSecret) {
-      await resolveClientSecret(session, dataSourceId, parsed.data.clientSecret, updateBody);
+    if (hasAuthChanges) {
+      const configObj: Record<string, unknown> = {};
+      if (authMethod !== undefined) configObj.authMethod = authMethod;
+      if (clientId !== undefined) configObj.clientId = clientId;
+      if (tokenUrl !== undefined) configObj.tokenUrl = tokenUrl;
+      if (scope !== undefined) configObj.scope = scope ?? "";
+
+      if (token) {
+        await resolveTokenSecret(session, dataSourceId, token, configObj);
+      }
+
+      if (clientSecret) {
+        await resolveClientSecret(session, dataSourceId, clientSecret, configObj);
+      }
+
+      updateBody.config = configObj;
     }
 
     const updated = await updateDataSource(session, updateBody);

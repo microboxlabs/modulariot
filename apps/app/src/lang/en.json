@@ -942,7 +942,7 @@
       },
       "dataSources": {
         "title": "Data Sources",
-        "description": "Manage your PostgREST and other data source connections.",
+        "description": "Manage your data sources connections.",
         "addButton": "Add Data Source",
         "table": {
           "name": "Name",

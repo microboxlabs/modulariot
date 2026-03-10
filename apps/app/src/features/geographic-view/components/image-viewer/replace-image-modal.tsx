@@ -73,7 +73,6 @@ export default function ReplaceImageModal({
         <div className="flex flex-col gap-4">
           {/* Drag and Drop Zone */}
           <div
-            role="presentation"
             className={`flex w-full p-6 flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all duration-200 ${
               isDragOver
                 ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"

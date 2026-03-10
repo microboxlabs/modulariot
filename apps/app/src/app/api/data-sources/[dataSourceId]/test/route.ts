@@ -82,68 +82,76 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   const { dataSourceId } = await ctx.params;
   const { siteId, session } = result.data;
 
-  const ds = await getDataSource(session, dataSourceId);
-
-  if (!ds?.nodeRef) {
-    return NextResponse.json(
-      { error: "Data source not found" },
-      { status: 404 }
-    );
-  }
-
-  const bearerResult = await resolveBearerToken(ds.config);
-  if (!bearerResult.ok) {
-    return NextResponse.json(
-      { success: false, error: bearerResult.error },
-      { status: 400 }
-    );
-  }
-
-  let success = false;
-  let errorMessage: string | undefined;
-
   try {
-    const specUrl = `${ds.url}/api/v1/pgrest/`;
+    const ds = await getDataSource(session, dataSourceId);
 
-    const urlCheck = await validateTargetUrl(specUrl);
-    if (!urlCheck.valid) {
+    if (!ds?.nodeRef) {
       return NextResponse.json(
-        { success: false, error: urlCheck.reason },
+        { error: "Data source not found" },
+        { status: 404 }
+      );
+    }
+
+    const bearerResult = await resolveBearerToken(ds.config);
+    if (!bearerResult.ok) {
+      return NextResponse.json(
+        { success: false, error: bearerResult.error },
         { status: 400 }
       );
     }
 
-    const res = await fetch(specUrl, {
-      headers: {
-        Accept: "application/openapi+json",
-        Authorization: `Bearer ${bearerResult.token}`,
-      },
-      signal: AbortSignal.timeout(10000),
+    let success = false;
+    let errorMessage: string | undefined;
+
+    try {
+      const specUrl = `${ds.url}/api/v1/pgrest/`;
+
+      const urlCheck = await validateTargetUrl(specUrl);
+      if (!urlCheck.valid) {
+        return NextResponse.json(
+          { success: false, error: urlCheck.reason },
+          { status: 400 }
+        );
+      }
+
+      const res = await fetch(specUrl, {
+        headers: {
+          Accept: "application/openapi+json",
+          Authorization: `Bearer ${bearerResult.token}`,
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (res.ok) {
+        await res.json();
+        success = true;
+      } else {
+        errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+      }
+    } catch (err) {
+      errorMessage =
+        err instanceof Error ? err.message : "Connection test failed";
+      logger.error({ err, dataSourceId }, "Data source connection test failed");
+    }
+
+    const now = new Date().toISOString();
+    await updateDataSource(session, {
+      nodeRef: dataSourceId,
+      site: siteId,
+      lastTestedAt: now,
+      lastTestResult: success,
     });
 
-    if (res.ok) {
-      await res.json();
-      success = true;
-    } else {
-      errorMessage = `HTTP ${res.status}: ${res.statusText}`;
-    }
+    return NextResponse.json({
+      success,
+      testedAt: now,
+      ...(errorMessage ? { error: errorMessage } : {}),
+    });
   } catch (err) {
-    errorMessage =
-      err instanceof Error ? err.message : "Connection test failed";
-    logger.error({ err, dataSourceId }, "Data source connection test failed");
+    logger.error({ err, dataSourceId }, "Data source test route error");
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const now = new Date().toISOString();
-  await updateDataSource(session, {
-    nodeRef: dataSourceId,
-    site: siteId,
-    lastTestedAt: now,
-    lastTestResult: success,
-  });
-
-  return NextResponse.json({
-    success,
-    testedAt: now,
-    ...(errorMessage ? { error: errorMessage } : {}),
-  });
 }

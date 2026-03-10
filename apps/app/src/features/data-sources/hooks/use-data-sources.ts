@@ -44,7 +44,7 @@ export function useDataSources(siteId: string | undefined) {
     setActionLoading(true);
     try {
       const updated = await fetcher<DataSourceListItem>(
-        `/app/api/data-sources/${id}?siteId=${siteId}`,
+        `/app/api/data-sources/${encodeURIComponent(id)}?siteId=${siteId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export function useDataSources(siteId: string | undefined) {
   async function remove(id: string) {
     setActionLoading(true);
     try {
-      await fetcher(`/app/api/data-sources/${id}?siteId=${siteId}`, {
+      await fetcher(`/app/api/data-sources/${encodeURIComponent(id)}?siteId=${siteId}`, {
         method: "DELETE",
       });
       await mutate();
@@ -77,7 +77,7 @@ export function useDataSources(siteId: string | undefined) {
         success: boolean;
         testedAt: string;
         error?: string;
-      }>(`/app/api/data-sources/${id}/test?siteId=${siteId}`, {
+      }>(`/app/api/data-sources/${encodeURIComponent(id)}/test?siteId=${siteId}`, {
         method: "POST",
       });
       await mutate();
@@ -91,7 +91,7 @@ export function useDataSources(siteId: string | undefined) {
     setActionLoading(true);
     try {
       await fetcher<DataSourceListItem>(
-        `/app/api/data-sources/${id}?siteId=${siteId}`,
+        `/app/api/data-sources/${encodeURIComponent(id)}?siteId=${siteId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

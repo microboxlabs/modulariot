@@ -36,7 +36,8 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
   } catch (e: unknown) {
     if (e && typeof e === "object" && "status" in e && e.status === 401) {
       redirectWithLang("/sign-in");
+      return null;
     }
+    throw e;
   }
-  return null;
 }

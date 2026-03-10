@@ -106,7 +106,7 @@ export function DataSourceModal({
     <FormModal
       isOpen={show}
       onClose={onClose}
-      size="lg"
+      size="4xl"
       title={
         editingSource
           ? tr("modal.editTitle", dict)
@@ -115,8 +115,7 @@ export function DataSourceModal({
       submitLabel={submitLabel}
       isProcessing={loading}
       onSubmit={handleSubmit(onSubmit)}
-      showCancelButton
-      cancelLabel={tr("cancel", dict)}
+
     >
       <div className="flex flex-col gap-4">
         <div>
